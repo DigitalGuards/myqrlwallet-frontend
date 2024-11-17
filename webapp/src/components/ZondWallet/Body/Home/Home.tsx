@@ -23,7 +23,7 @@ const Home = observer(() => {
   return (
     <>
       <BackgroundVideo />
-      <div className="relative z-10 flex w-full flex-col items-center gap-8 p-8">
+      <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-8 py-8">
         <img className="h-16 w-16" src="/icons/qrl/default.png" alt="QRL Logo" />
         {isLoading ? (
           <Loader className="animate-spin text-foreground" size={32} />
@@ -35,7 +35,7 @@ const Home = observer(() => {
         )}
         
         {/* Social Links */}
-        <div className="fixed bottom-4 flex gap-4 text-foreground/60 hover:text-foreground/80">
+        <div className="flex gap-4 text-foreground/60 hover:text-foreground/80">
           <a
             href="https://github.com/DigitalGuards/zondwebwallet/"
             target="_blank"

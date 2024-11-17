@@ -1,21 +1,17 @@
-const API_BASE = process.env.NODE_ENV === 'production' 
-  ? 'https://qrlwallet.com/api/zond-rpc'
-  : 'http://localhost:3000/api/zond-rpc';
-
 export const ZOND_PROVIDER = {
   DEV: { 
     id: "DEV",
-    url: `${API_BASE}/dev`,
+    url: "http://localhost:8545",
     name: "Zond Local Node"
   },
   TEST_NET: {
     id: "TEST_NET",
-    url: `${API_BASE}/testnet`,
+    url: "http://209.250.255.226:8545",
     name: "Zond Testnet"
   },
   MAIN_NET: {
     id: "MAIN_NET",
-    url: `${API_BASE}/mainnet`,
+    url: "http://mainnet.zond.network:8545",
     name: "Zond Mainnet"
   }
 };

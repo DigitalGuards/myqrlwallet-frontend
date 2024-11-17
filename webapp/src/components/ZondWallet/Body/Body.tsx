@@ -2,7 +2,7 @@ import { Outlet } from "react-router-dom";
 
 const Body = () => {
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] w-full flex-col">
+    <div className="mx-auto max-w-screen-xl px-4">
       <Outlet />
     </div>
   );

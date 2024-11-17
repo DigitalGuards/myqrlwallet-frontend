@@ -138,119 +138,121 @@ const AccountDetails = observer(() => {
   }
 
   return (
-    <>
-      <img
-        className="fixed z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-30"
-        src="/tree.svg"
-        alt="Background Tree"
-      />
-      <div className="relative z-10 p-8">
-        <Form {...form}>
-          <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Send Quanta</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                <div className="flex flex-col gap-2">
-                  <Label>From</Label>
-                  <div className="font-bold text-secondary">
-                    {`${prefix} ${addressSplit.join(" ")}`}
+    <div className="flex w-full items-start justify-center pt-16">
+      <div className="relative w-full max-w-2xl px-4">
+        <img
+          className="fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-30"
+          src="/tree.svg"
+          alt="Background Tree"
+        />
+        <div className="relative z-10">
+          <Form {...form}>
+            <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Send Quanta</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                  <div className="flex flex-col gap-2">
+                    <Label>From</Label>
+                    <div className="font-bold text-secondary">
+                      {`${prefix} ${addressSplit.join(" ")}`}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Available balance: {accountBalance}
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    Available balance: {accountBalance}
-                  </div>
-                </div>
-                <Separator />
-                <FormField
-                  control={control}
-                  name="receiverAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <Label>To</Label>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          disabled={isSubmitting}
-                          placeholder="Receiver address"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Enter the receiver's account address
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <Label>Amount</Label>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          disabled={isSubmitting}
-                          placeholder="Amount"
-                          type="number"
-                        />
-                      </FormControl>
-                      <FormDescription>Enter the amount in QRL</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={control}
-                  name="mnemonicPhrases"
-                  render={({ field }) => (
-                    <FormItem>
-                      <Label>Mnemonic phrases</Label>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          disabled={isSubmitting}
-                          placeholder="Mnemonic phrases"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Enter your account's mnemonic phrases
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <GasFeeNotice
-                  from={accountAddress}
-                  to={formValues.receiverAddress}
-                  value={formValues.amount}
-                  isSubmitting={isSubmitting}
-                />
-              </CardContent>
-              <CardFooter className="grid grid-cols-2 gap-4">
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={cancelTransaction}
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Cancel
-                </Button>
-                <Button disabled={isSubmitting || !isValid} type="submit">
-                  {isSubmitting ? (
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="mr-2 h-4 w-4" />
-                  )}
-                  Send
-                </Button>
-              </CardFooter>
-            </Card>
-          </form>
-        </Form>
+                  <Separator />
+                  <FormField
+                    control={control}
+                    name="receiverAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <Label>To</Label>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            disabled={isSubmitting}
+                            placeholder="Receiver address"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Enter the receiver's account address
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <Label>Amount</Label>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            disabled={isSubmitting}
+                            placeholder="Amount"
+                            type="number"
+                          />
+                        </FormControl>
+                        <FormDescription>Enter the amount in QRL</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={control}
+                    name="mnemonicPhrases"
+                    render={({ field }) => (
+                      <FormItem>
+                        <Label>Mnemonic phrases</Label>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            disabled={isSubmitting}
+                            placeholder="Mnemonic phrases"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Enter your account's mnemonic phrases
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <GasFeeNotice
+                    from={accountAddress}
+                    to={formValues.receiverAddress}
+                    value={formValues.amount}
+                    isSubmitting={isSubmitting}
+                  />
+                </CardContent>
+                <CardFooter className="grid grid-cols-2 gap-4">
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={cancelTransaction}
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Cancel
+                  </Button>
+                  <Button disabled={isSubmitting || !isValid} type="submit">
+                    {isSubmitting ? (
+                      <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
+                    Send
+                  </Button>
+                </CardFooter>
+              </Card>
+            </form>
+          </Form>
+        </div>
       </div>
-    </>
+    </div>
   );
 });
 
