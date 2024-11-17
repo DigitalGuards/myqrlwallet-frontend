@@ -40,3 +40,6 @@ yarn-error.log*
 
 # Extension directory
 extension/
+
+# Configuration files
+webapp/src/configuration/zondConfig.ts
