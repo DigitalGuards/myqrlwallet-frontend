@@ -3,7 +3,7 @@ import { cva } from "class-variance-authority";
 import { observer } from "mobx-react-lite";
 
 const backgroundVideoClasses = cva(
-  "fixed inset-0 w-screen h-screen object-cover z-0 opacity-35",
+  "absolute inset-0 w-full h-full object-cover z-0 opacity-35",
   {
     variants: {
       isDarkMode: {
@@ -18,7 +18,7 @@ const backgroundVideoClasses = cva(
 );
 
 const videoContainerClasses = cva(
-  "fixed inset-0 w-full h-full overflow-hidden", 
+  "absolute inset-0 w-full h-full overflow-hidden", 
   {
     variants: {
       isDarkMode: {

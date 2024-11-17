@@ -1,159 +1,119 @@
-# Zond Web3 Wallet
+# Zond Web Wallet
 
-A modern, secure web wallet for interacting with the Zond blockchain. Built with React, TypeScript, and Tailwind CSS.
+A modern, secure web wallet for the Quantum Resistant Ledger's Zond blockchain. This wallet provides a user-friendly interface for interacting with QRL's next-generation blockchain, featuring quantum-resistant security.
 
-## Features
+## Overview
 
-- 🔐 Secure account creation and management
-- 💼 Import existing accounts
-- 🌐 Connect to multiple networks (Local, Testnet, Mainnet)
-- 🔑 Mnemonic phrase generation and backup
-- 🎨 Modern UI with dark mode
-- 📱 Responsive design
-- ⚡ Fast and lightweight
+The Zond Web Wallet is designed to provide secure and intuitive access to the QRL Zond blockchain. Built with modern web technologies, it offers a seamless experience for managing your quantum-resistant accounts.
 
-## Tech Stack
+### Key Features
 
-- React 18 with TypeScript
-- Vite for blazing fast development and builds
-- TailwindCSS for styling
-- MobX for state management
-- React Router v6 for routing
-- @theqrl/web3 for blockchain interactions
-- @theqrl/wallet.js for wallet functionality
+- 🛡️ **Quantum-Resistant Security**: Built on QRL's post-quantum cryptography
+- 🔐 **Secure Account Management**: Create and import accounts with mnemonic phrase backup
+- 🌐 **Multi-Network Support**: Connect to Testnet or Local Node
+- 🎨 **Modern Interface**: Clean, intuitive design with dark mode
+- 📱 **Responsive Design**: Works seamlessly across all devices
+- ⚡ **Fast & Lightweight**: Built with performance in mind
 
-## Prerequisites
+## Getting Started
+
+### Prerequisites
 
 - Node.js 16.x or later
 - npm 7.x or later
 
-## Development Setup
+### Local Development
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/zond-web3-wallet.git
-   cd zond-web3-wallet
-   ```
+```bash
+git clone https://github.com/DigitalGuards/zondwebwallet.git
+cd zondwebwallet
+```
 
 2. Install dependencies:
-   ```bash
-   cd webapp
-   npm install
-   ```
+```bash
+cd webapp
+npm install
+```
 
 3. Start the development server:
-   ```bash
-   npm run dev
-   ```
+```bash
+npm run dev
+```
 
-4. Open http://localhost:5173 in your browser
+4. Visit http://localhost:5173 in your browser
+
+## Technology Stack
+
+- **Frontend Framework**: React 18 with TypeScript
+- **Build Tool**: Vite
+- **Styling**: TailwindCSS
+- **State Management**: MobX
+- **Routing**: React Router v6
+- **Blockchain Integration**: @theqrl/web3
+- **Development Server**: Node.js/Express
 
 ## Project Structure
 
 ```
-webapp/
-├── src/
-│   ├── components/         # React components
-│   │   ├── UI/            # Reusable UI components
-│   │   └── ZondWallet/    # Wallet-specific components
-│   ├── stores/            # MobX stores
-│   ├── functions/         # Utility functions
-│   ├── configuration/     # Config files
-│   └── utilities/         # Helper utilities
-├── public/               # Static assets
-└── package.json         # Project dependencies
+zondwebwallet/
+├── webapp/                # Frontend application
+│   ├── src/
+│   │   ├── components/   # React components
+│   │   ├── stores/       # MobX state management
+│   │   ├── functions/    # Utility functions
+│   │   └── configuration/# Config files
+│   └── public/           # Static assets
+└── backend/              # API server
 ```
 
-## Building for Production
+## Available Networks
 
-1. Create a production build:
-   ```bash
-   npm run build
-   ```
+- **Testnet**: Development and testing network
+- **Local Node**: For local development and testing
 
-2. The build output will be in the `dist` directory
+## Security Features
 
-## Production Deployment
+- Secure mnemonic phrase generation
+- Client-side transaction signing
+- No private key storage
+- Secure connection handling
 
-### Option 1: Static Hosting (Recommended)
+## Links
 
-The wallet can be deployed to any static hosting service (Netlify, Vercel, AWS S3, etc.):
+- [QRL Website](https://www.theqrl.org/)
+- [QRL Documentation](https://docs.theqrl.org/)
+- [Twitter](https://x.com/DigitalGuards)
+- [GitHub Repository](https://github.com/DigitalGuards/zondwebwallet/)
 
-1. Build the project:
-   ```bash
-   npm run build
-   ```
+## Development
 
-2. Deploy the `dist` directory to your hosting service
+### Building for Production
 
-3. Configure your hosting service:
-   - Set up HTTPS (required for security)
-   - Configure CORS if needed
-   - Set up proper cache headers:
-     ```
-     Cache-Control: public, max-age=31536000, immutable # For /assets/*
-     Cache-Control: no-cache, no-store, must-revalidate # For index.html
-     ```
+```bash
+npm run build
+```
 
-### Option 2: Traditional Web Server
+The production build will be available in the `dist` directory.
 
-1. Install a web server (nginx recommended):
-   ```bash
-   sudo apt install nginx
-   ```
+### Deployment
 
-2. Configure nginx:
-   ```nginx
-   server {
-       listen 80;
-       server_name your-domain.com;
-       root /path/to/dist;
-       
-       location / {
-           try_files $uri $uri/ /index.html;
-       }
-       
-       location /assets {
-           expires 1y;
-           add_header Cache-Control "public, no-transform";
-       }
-   }
-   ```
+The application can be served using the included nginx configuration:
 
-3. Enable HTTPS using Let's Encrypt:
-   ```bash
-   sudo certbot --nginx -d your-domain.com
-   ```
-
-## Security Considerations
-
-1. Always serve over HTTPS
-2. Implement proper CSP headers
-3. Keep dependencies updated
-4. Regular security audits
-5. Proper error handling and logging
-
-## Network Configuration
-
-The wallet supports three networks:
-- Local Node (http://localhost:8545)
-- Testnet (http://209.250.255.226:8545)
-- Mainnet (https://mainnet.zond.com)
-
-To modify network endpoints, edit `src/configuration/zondConfig.ts`.
-
-## Recent Updates
-
-- Added Buffer polyfill for browser compatibility
-- Improved error handling
-- Enhanced network switching
-- Added account creation and import functionality
-- Implemented mnemonic phrase generation and backup
+1. Copy the build files to your server
+2. Use the provided nginx.conf for proper routing and security headers
+3. Enable HTTPS (required for security)
 
 ## Contributing
 
+Contributions are welcome! Please feel free to submit a Pull Request.
+
 1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

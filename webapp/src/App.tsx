@@ -3,9 +3,11 @@ import { AppRouter } from './router/router'
 
 function App() {
   return (
-    <StoreProvider value={store}>
-      <AppRouter />
-    </StoreProvider>
+    <div className="h-screen overflow-hidden">
+      <StoreProvider value={store}>
+        <AppRouter />
+      </StoreProvider>
+    </div>
   )
 }
 
