@@ -106,7 +106,7 @@ class StorageUtil {
   }
 
   static async getBlockChain() {
-    const DEFAULT_BLOCKCHAIN = ZOND_PROVIDER.TEST_NET.id;
+    const DEFAULT_BLOCKCHAIN = ZOND_PROVIDER.DEV.id;
     const storedBlockchain = localStorage.getItem(BLOCKCHAIN_SELECTION_IDENTIFIER);
     return (storedBlockchain ?? DEFAULT_BLOCKCHAIN) as BlockchainType;
   }
