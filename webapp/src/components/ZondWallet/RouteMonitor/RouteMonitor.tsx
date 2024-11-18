@@ -20,13 +20,17 @@ const RouteMonitor = observer(() => {
   useEffect(() => {
     (async () => {
       const activePage = await StorageUtil.getActivePage();
+      // Allow direct access to create-account and import-account routes
+      if (pathname === ROUTES.CREATE_ACCOUNT || pathname === ROUTES.IMPORT_ACCOUNT) {
+        return;
+      }
       if (activePage && isConnected) {
         navigate(activePage);
       } else {
         navigate(ROUTES.HOME);
       }
     })();
-  }, [isConnected]);
+  }, [isConnected, pathname]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
