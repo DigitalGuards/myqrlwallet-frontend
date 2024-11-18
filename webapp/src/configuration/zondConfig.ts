@@ -2,12 +2,12 @@ export const ZOND_PROVIDER = {
   DEV: { 
     id: "DEV",
     url: "http://localhost:8545",
-    name: "Zond Local Node"
+    name: "Server local testnet node"
   },
   TEST_NET: {
     id: "TEST_NET",
     url: "http://209.250.255.226:8545",
-    name: "Zond Testnet"
+    name: "Zond Testnet Peer"
   },
   MAIN_NET: {
     id: "MAIN_NET",

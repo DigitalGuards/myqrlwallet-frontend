@@ -5,10 +5,6 @@ import { observer } from "mobx-react-lite";
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-/**
- * An empty component that stays inside the ZondWallet component to watch for changing routes.
- * This component takes care of scrolling the screen to top on route change and ensures the user is redirected to the same page on opening the application.
- */
 const RouteMonitor = observer(() => {
   const { zondStore } = useStore();
   const { zondConnection } = zondStore;
@@ -20,17 +16,13 @@ const RouteMonitor = observer(() => {
   useEffect(() => {
     (async () => {
       const activePage = await StorageUtil.getActivePage();
-      // Allow direct access to create-account and import-account routes
-      if (pathname === ROUTES.CREATE_ACCOUNT || pathname === ROUTES.IMPORT_ACCOUNT) {
-        return;
-      }
       if (activePage && isConnected) {
         navigate(activePage);
       } else {
         navigate(ROUTES.HOME);
       }
     })();
-  }, [isConnected, pathname]);
+  }, [isConnected]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
