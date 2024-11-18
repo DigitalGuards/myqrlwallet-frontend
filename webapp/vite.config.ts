@@ -9,15 +9,20 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/zond-rpc/testnet': {
-        target: 'http://209.250.255.226:8545',
+      '/api/zond-rpc/testnet': {
+        target: 'http://REDACTED:8545',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/zond-rpc\/testnet/, ''),
+        rewrite: (path) => path.replace('/api/zond-rpc/testnet', ''),
       },
-      '/zond-rpc/local': {
+      '/api/zond-rpc/dev': {
         target: 'http://localhost:8545',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/zond-rpc\/local/, ''),
+        rewrite: (path) => path.replace('/api/zond-rpc/dev', ''),
+      },
+      '/api/zond-rpc/mainnet': {
+        target: 'http://REDACTED:8545',
+        changeOrigin: true,
+        rewrite: (path) => path.replace('/api/zond-rpc/mainnet', ''),
       }
     }
   },
@@ -45,4 +50,4 @@ export default defineConfig({
     },
     include: ['buffer', 'process', 'events', 'util'],
   },
-})
+});

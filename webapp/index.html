@@ -3,26 +3,45 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/icons/qrl/16.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="apple-touch-icon" href="/icons/qrl/128.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     
     <!-- Primary Meta Tags -->
     <title>QRL Zond Web3 Wallet</title>
-    <meta name="title" content="Zond Web Wallet - QRL Web3 Wallet">
-    <meta name="description" content="Secure and user-friendly web wallet for QRL's Zond blockchain. Create accounts, manage transactions, and interact with the quantum-resistant ledger ecosystem.">
-    <meta name="keywords" content="QRL, Quantum Resistant Ledger, Zond, Web3, Cryptocurrency Wallet, Blockchain, Quantum Computing">
-    <meta name="author" content="QRL">
+    <meta name="title" content="Zond Web Wallet - Community Web3 Wallet for QRL">
+    <meta name="description" content="A community-driven web wallet for QRL's Zond blockchain. Create accounts, manage transactions, and interact with the quantum-resistant ledger ecosystem.">
+    <meta name="keywords" content="QRL, Quantum Resistant Ledger, Zond, Web3, Cryptocurrency Wallet, Blockchain, Quantum Computing, Community Wallet">
+    <meta name="author" content="Digital Guards">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://qrlwallet.com/">
+    <meta property="og:title" content="Zond Web Wallet - Community Web3 Wallet for QRL">
+    <meta property="og:description" content="A community-driven web wallet for QRL's Zond blockchain. Create accounts, manage transactions, and interact with the quantum-resistant ledger ecosystem.">
+    <meta property="og:image" content="https://qrlwallet.com/icons/qrl/128.png">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://qrlwallet.com/">
-    <meta property="twitter:title" content="Zond Web Wallet - QRL's Web3 Wallet">
-    <meta property="twitter:description" content="Secure and user-friendly web wallet for QRL's Zond blockchain. Create accounts, manage transactions, and interact with the quantum-resistant ledger ecosystem.">
-    <meta property="twitter:image" content="/icons/qrl/128.png">
+    <meta property="twitter:title" content="Zond Web Wallet - Community Web3 Wallet for QRL">
+    <meta property="twitter:description" content="A community-driven web wallet for QRL's Zond blockchain. Create accounts, manage transactions, and interact with the quantum-resistant ledger ecosystem.">
+    <meta property="twitter:image" content="https://qrlwallet.com/icons/qrl/128.png">
 
     <!-- Additional Meta Tags -->
     <meta name="theme-color" content="#000000">
-    <meta name="robots" content="index, follow">
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+    <meta name="application-name" content="Zond Web Wallet">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Zond Web Wallet">
+    <meta name="format-detection" content="telephone=no">
     <link rel="canonical" href="https://qrlwallet.com/">
+
+    <!-- Preload Critical Resources -->
+    <link rel="preload" href="/qrl-video-dark.mp4" as="video" type="video/mp4">
+    <link rel="preload" href="/icons/qrl/default.png" as="image">
+    
+    <!-- DNS Prefetch -->
+    <link rel="dns-prefetch" href="//qrlwallet.com">
 
     <!-- Social Links -->
     <link rel="me" href="https://x.com/DigitalGuards">
@@ -31,5 +50,10 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <noscript>
+      <div style="text-align: center; padding: 20px;">
+        Please enable JavaScript to use the Zond Web Wallet.
+      </div>
+    </noscript>
   </body>
 </html>
