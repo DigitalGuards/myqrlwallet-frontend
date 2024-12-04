@@ -9,7 +9,21 @@ const cache = new NodeCache({ stdTTL: 10 }); // Cache for 10 seconds
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? 'https://qrlwallet.com' : 'http://localhost:5173'
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'https://qrlwallet.com',
+      'https://www.qrlwallet.com',
+      'https://theqrlwallet.com',
+      'https://www.theqrlwallet.com',
+      'https://myqrlwallet.com',
+      'https://www.myqrlwallet.com'
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
 }));
 
 // RPC endpoints configuration
