@@ -57,14 +57,92 @@ npm run dev
 
 ```
 zondwebwallet/
-├── webapp/                # Frontend application
-│   ├── src/
+├── webapp/                 # Frontend application
+│   ├── public/            # Static assets
+│   ├── src/              # Source code
+│   │   ├── App.tsx       # Root application component
+│   │   ├── main.tsx      # Application entry point
 │   │   ├── components/   # React components
-│   │   ├── stores/       # MobX state management
+│   │   │   ├── UI/      # Shared UI components
+│   │   │   │   ├── Button.tsx
+│   │   │   │   ├── Card.tsx
+│   │   │   │   ├── Dialog.tsx
+│   │   │   │   ├── DropdownMenu.tsx
+│   │   │   │   ├── Form.tsx
+│   │   │   │   ├── Input.tsx
+│   │   │   │   ├── Label.tsx
+│   │   │   │   ├── Separator.tsx
+│   │   │   │   └── Tooltip.tsx
+│   │   │   └── ZondWallet/  # Main wallet component
+│   │   │       ├── ZondWallet.tsx
+│   │   │       ├── Body/    # Main content components
+│   │   │       │   ├── Body.tsx
+│   │   │       │   ├── AccountDetails/
+│   │   │       │   │   ├── AccountDetails.tsx
+│   │   │       │   │   ├── GasFeeNotice/
+│   │   │       │   │   │   └── GasFeeNotice.tsx
+│   │   │       │   │   └── TransactionSuccessful/
+│   │   │       │   │       └── TransactionSuccessful.tsx
+│   │   │       │   ├── AccountList/
+│   │   │       │   │   ├── AccountList.tsx
+│   │   │       │   │   ├── AccountId/
+│   │   │       │   │   │   └── AccountId.tsx
+│   │   │       │   │   ├── ActiveAccount/
+│   │   │       │   │   │   └── ActiveAccount.tsx
+│   │   │       │   │   ├── NewAccount/
+│   │   │       │   │   │   └── NewAccount.tsx
+│   │   │       │   │   └── OtherAccounts/
+│   │   │       │   │       └── OtherAccounts.tsx
+│   │   │       │   ├── CreateAccount/
+│   │   │       │   │   ├── CreateAccount.tsx
+│   │   │       │   │   ├── AccountCreationForm/
+│   │   │       │   │   │   └── AccountCreationForm.tsx
+│   │   │       │   │   ├── AccountCreationSuccess/
+│   │   │       │   │   │   └── AccountCreationSuccess.tsx
+│   │   │       │   │   └── MnemonicDisplay/
+│   │   │       │   │       ├── MnemonicDisplay.tsx
+│   │   │       │   │       └── MnemonicWordListing/
+│   │   │       │   │           └── MnemonicWordListing.tsx
+│   │   │       │   ├── Home/
+│   │   │       │   │   ├── Home.tsx
+│   │   │       │   │   ├── AccountCreateImport/
+│   │   │       │   │   │   ├── AccountCreateImport.tsx
+│   │   │       │   │   │   └── ActiveAccountDisplay/
+│   │   │       │   │   │       └── ActiveAccountDisplay.tsx
+│   │   │       │   │   ├── BackgroundVideo/
+│   │   │       │   │   │   └── BackgroundVideo.tsx
+│   │   │       │   │   ├── ConnectionBadge/
+│   │   │       │   │   │   └── ConnectionBadge.tsx
+│   │   │       │   │   └── ConnectionFailed/
+│   │   │       │   │       └── ConnectionFailed.tsx
+│   │   │       │   └── ImportAccount/
+│   │   │       │       ├── ImportAccount.tsx
+│   │   │       │       └── AccountImportSuccess/
+│   │   │       │           └── AccountImportSuccess.tsx
+│   │   │       ├── Header/
+│   │   │       │   ├── Header.tsx
+│   │   │       │   ├── AccountBadge/
+│   │   │       │   │   └── AccountBadge.tsx
+│   │   │       │   └── ZondWalletLogo/
+│   │   │       │       └── ZondWalletLogo.tsx
+│   │   │       └── RouteMonitor/
+│   │   │           └── RouteMonitor.tsx
 │   │   ├── functions/    # Utility functions
-│   │   └── configuration/# Config files
-│   └── public/           # Static assets
-└── backend/              # API server
+│   │   │   └── withSuspense.tsx
+│   │   ├── router/      # React Router setup
+│   │   │   └── router.tsx
+│   │   ├── stores/      # MobX state stores
+│   │   └── utilities/   # Helper utilities
+│   ├── index.html       # Entry HTML file
+│   ├── package.json     # Frontend dependencies
+│   ├── tailwind.config.cjs # Tailwind CSS configuration
+│   ├── tsconfig.json    # TypeScript configuration
+│   └── vite.config.ts   # Vite build configuration
+├── backend/             # Backend server
+│   ├── server.js        # Express server setup
+│   └── package.json     # Backend dependencies
+├── nginx.conf          # Nginx configuration
+└── todos.md           # Project todos and roadmap
 ```
 
 ## Available Networks
@@ -106,7 +184,7 @@ The application can be served using the included nginx configuration:
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome contributions! Please feel free to submit a Pull Request.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
@@ -117,3 +195,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Contact
+
+For any queries regarding the wallet, please open an issue in the GitHub repository.
