@@ -30,6 +30,8 @@ import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { GasFeeNotice } from "./GasFeeNotice/GasFeeNotice";
 import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSuccessful";
+import { getExplorerAddressUrl } from "../../../../configuration/zondConfig";
+import { Copy, ExternalLink } from "lucide-react";
 
 const FormSchema = z
   .object({
@@ -65,6 +67,32 @@ const AccountDetails = observer(() => {
   for (let i = 2; i < accountAddress.length; i += 4) {
     addressSplit.push(accountAddress.substring(i, i + 4));
   }
+
+  const [hasJustCopied, setHasJustCopied] = useState(false);
+  const [timer, setTimer] = useState<NodeJS.Timeout>();
+
+  useEffect(() => {
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [timer]);
+
+  const onCopy = () => {
+    setHasJustCopied(true);
+    navigator.clipboard.writeText(accountAddress);
+    const newTimer = setTimeout(() => {
+      setHasJustCopied(false);
+    }, 1000);
+    setTimer(newTimer);
+  };
+
+  const onViewInExplorer = () => {
+    if (accountAddress) {
+      window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
+    }
+  };
 
   async function onSubmit(formData: z.infer<typeof FormSchema>) {
     try {
@@ -114,7 +142,14 @@ const AccountDetails = observer(() => {
     resolver: zodResolver(FormSchema),
     mode: "onChange",
     reValidateMode: "onChange",
-    defaultValues: async () => StorageUtil.getTransactionValues(blockchain),
+    defaultValues: async () => {
+      const values = await StorageUtil.getTransactionValues(blockchain);
+      return {
+        receiverAddress: values.receiverAddress || "",
+        amount: values.amount || 0,
+        mnemonicPhrases: "",
+      };
+    },
   });
   const {
     reset,
@@ -160,6 +195,26 @@ const AccountDetails = observer(() => {
                     </div>
                     <div className="text-sm text-muted-foreground">
                       Available balance: {accountBalance}
+                    </div>
+                    <div className="flex gap-4">
+                      <Button
+                        className="w-full"
+                        type="button"
+                        variant="outline"
+                        onClick={onCopy}
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        {hasJustCopied ? "Copied" : "Copy"}
+                      </Button>
+                      <Button
+                        className="w-full"
+                        type="button"
+                        variant="outline"
+                        onClick={onViewInExplorer}
+                      >
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        View in Zondscan
+                      </Button>
                     </div>
                   </div>
                   <Separator />
@@ -211,12 +266,15 @@ const AccountDetails = observer(() => {
                         <FormControl>
                           <Input
                             {...field}
+                            type="password"
+                            autoComplete="off"
+                            spellCheck="false"
                             disabled={isSubmitting}
-                            placeholder="Mnemonic phrases"
+                            placeholder="Enter your mnemonic phrases"
                           />
                         </FormControl>
                         <FormDescription>
-                          Enter your account's mnemonic phrases
+                          Enter your account's mnemonic phrases (will not be stored)
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

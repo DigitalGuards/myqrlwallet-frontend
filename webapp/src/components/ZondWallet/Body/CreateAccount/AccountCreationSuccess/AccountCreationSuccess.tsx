@@ -7,8 +7,10 @@ import {
   CardTitle,
 } from "../../../../UI/Card";
 import { ROUTES } from "../../../../../router/router";
+import { getExplorerAddressUrl } from "../../../../../configuration/zondConfig";
+import { useStore } from "../../../../../stores/store";
 import { Web3BaseWalletAccount } from "@theqrl/web3";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -19,6 +21,10 @@ type AccountCreationSuccessProps = {
 export const AccountCreationSuccess = ({
   account,
 }: AccountCreationSuccessProps) => {
+  const { zondStore } = useStore();
+  const { zondConnection } = zondStore;
+  const { blockchain } = zondConnection;
+
   const accountAddress = account?.address ?? "";
   const accountAddressSplit = [];
   for (let i = 2; i < accountAddress.length; i += 4) {
@@ -46,6 +52,12 @@ export const AccountCreationSuccess = ({
     setTimer(newTimer);
   };
 
+  const onViewInExplorer = () => {
+    if (accountAddress) {
+      window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
+    }
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -61,16 +73,27 @@ export const AccountCreationSuccess = ({
           </div>
         </div>
       </CardContent>
-      <CardFooter className="gap-4">
-        <Button
-          className="w-full"
-          type="button"
-          variant="outline"
-          onClick={onCopy}
-        >
-          <Copy className="mr-2 h-4 w-4" />
-          {hasJustCopied ? "Copied" : "Copy"}
-        </Button>
+      <CardFooter className="flex-col gap-4">
+        <div className="flex w-full gap-4">
+          <Button
+            className="w-full"
+            type="button"
+            variant="outline"
+            onClick={onCopy}
+          >
+            <Copy className="mr-2 h-4 w-4" />
+            {hasJustCopied ? "Copied" : "Copy"}
+          </Button>
+          <Button
+            className="w-full"
+            type="button"
+            variant="outline"
+            onClick={onViewInExplorer}
+          >
+            <ExternalLink className="mr-2 h-4 w-4" />
+            View in Zondscan
+          </Button>
+        </div>
         <Link className="w-full" to={ROUTES.ACCOUNT_DETAILS}>
           <Button className="w-full" type="button">
             <Check className="mr-2 h-4 w-4" />

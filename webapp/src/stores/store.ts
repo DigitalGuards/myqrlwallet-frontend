@@ -20,7 +20,31 @@ class Store {
 }
 
 export type StoreType = InstanceType<typeof Store>;
-export const store = new Store();
+
+// Declare global window property for TypeScript
+declare global {
+  interface Window {
+    __APP_STORE__?: Store;
+  }
+}
+
+// Create store singleton that persists across hot reloads
+const getStore = (): StoreType => {
+  if (!window.__APP_STORE__) {
+    window.__APP_STORE__ = new Store();
+  }
+  return window.__APP_STORE__;
+};
+
+export const store = getStore();
 const StoreContext = createContext<StoreType>(store);
-export const useStore = () => useContext(StoreContext);
+
+// Export provider and hook for React components
 export const StoreProvider = StoreContext.Provider;
+export const useStore = () => {
+  const context = useContext(StoreContext);
+  if (!context) {
+    throw new Error('useStore must be used within a StoreProvider');
+  }
+  return context;
+};

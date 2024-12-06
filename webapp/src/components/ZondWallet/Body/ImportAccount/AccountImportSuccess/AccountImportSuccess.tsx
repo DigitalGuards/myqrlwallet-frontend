@@ -7,36 +7,97 @@ import {
   CardTitle,
 } from "../../../../UI/Card";
 import { ROUTES } from "../../../../../router/router";
-import StringUtil from "../../../../../utilities/stringUtil";
-import { Check } from "lucide-react";
-import { Link } from "react-router-dom";
+import { getExplorerAddressUrl } from "../../../../../configuration/zondConfig";
+import { useStore } from "../../../../../stores/store";
 import { Web3BaseWalletAccount } from "@theqrl/web3";
+import { Check, Copy, ExternalLink } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
-interface AccountImportSuccessProps {
+type AccountImportSuccessProps = {
   account?: Web3BaseWalletAccount;
-}
+};
 
-const AccountImportSuccess = ({ account }: AccountImportSuccessProps) => {
+const AccountImportSuccess = ({
+  account,
+}: AccountImportSuccessProps) => {
+  const { zondStore } = useStore();
+  const { zondConnection } = zondStore;
+  const { blockchain } = zondConnection;
+
+  const accountAddress = account?.address ?? "";
+  const accountAddressSplit = [];
+  for (let i = 2; i < accountAddress.length; i += 4) {
+    accountAddressSplit.push(accountAddress.substring(i, i + 4));
+  }
+  const spacedAccountAddress = accountAddressSplit.join(" ");
+
+  const [hasJustCopied, setHasJustCopied] = useState(false);
+  const [timer, setTimer] = useState<NodeJS.Timeout>();
+
+  useEffect(() => {
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [timer]);
+
+  const onCopy = () => {
+    setHasJustCopied(true);
+    navigator.clipboard.writeText(accountAddress);
+    const newTimer = setTimeout(() => {
+      setHasJustCopied(false);
+    }, 1000);
+    setTimer(newTimer);
+  };
+
+  const onViewInExplorer = () => {
+    if (accountAddress) {
+      window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
+    }
+  };
+
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Check className="h-6 w-6 text-green-500" />
-          Account imported successfully
-        </CardTitle>
+        <CardTitle>Account imported</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-8">
         <div className="flex flex-col gap-2">
-          <span className="text-sm text-muted-foreground">Account address</span>
-          <span className="break-all text-sm">
-            {account?.address && StringUtil.getSplitAddress(account.address)}
-          </span>
+          <div>Account public address:</div>
+          <div className="font-bold text-secondary">{`0x ${spacedAccountAddress}`}</div>
+          <div>
+            You can share this account public address with anyone. Others need
+            it to interact with you.
+          </div>
         </div>
       </CardContent>
-      <CardFooter>
-        <Link className="w-full" to={ROUTES.HOME}>
+      <CardFooter className="flex-col gap-4">
+        <div className="flex w-full gap-4">
+          <Button
+            className="w-full"
+            type="button"
+            variant="outline"
+            onClick={onCopy}
+          >
+            <Copy className="mr-2 h-4 w-4" />
+            {hasJustCopied ? "Copied" : "Copy"}
+          </Button>
+          <Button
+            className="w-full"
+            type="button"
+            variant="outline"
+            onClick={onViewInExplorer}
+          >
+            <ExternalLink className="mr-2 h-4 w-4" />
+            View in Zondscan
+          </Button>
+        </div>
+        <Link className="w-full" to={ROUTES.ACCOUNT_DETAILS}>
           <Button className="w-full" type="button">
-            Go to home
+            <Check className="mr-2 h-4 w-4" />
+            Done
           </Button>
         </Link>
       </CardFooter>

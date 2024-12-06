@@ -40,4 +40,4 @@ yarn-error.log*
 
 # Extension directory
 extension/
-todos.md
+webapp/package-lock.json

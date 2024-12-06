@@ -4,7 +4,6 @@ import path from 'path'
 import nodePolyfills from 'rollup-plugin-node-polyfills'
 import commonjs from '@rollup/plugin-commonjs'
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {

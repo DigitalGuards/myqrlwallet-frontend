@@ -1,6 +1,7 @@
 import { ZOND_PROVIDER } from "../configuration/zondConfig";
 import { getHexSeedFromMnemonic } from "../functions/getHexSeedFromMnemonic";
 import StorageUtil from "../utilities/storageUtil";
+import log from "../utilities/logUtil"; // Assuming there's a log utility
 import Web3, {
   TransactionReceipt,
   Web3ZondInterface,
@@ -46,24 +47,46 @@ class ZondStore {
       getAccountBalance: action.bound,
       signAndSendTransaction: action.bound,
     });
-    this.initializeBlockchain();
+
+    // Log initialization
+    log("ZondStore initialized");
+
+    // Initialize blockchain asynchronously to avoid blocking constructor
+    setTimeout(() => {
+      this.initializeBlockchain();
+    }, 0);
   }
 
   async initializeBlockchain() {
-    const selectedBlockChain = await StorageUtil.getBlockChain();
-    const { name, url } = ZOND_PROVIDER[selectedBlockChain];
-    this.zondConnection = {
-      ...this.zondConnection,
-      zondNetworkName: name,
-      blockchain: selectedBlockChain,
-    };
-    const zondHttpProvider = new Web3.providers.HttpProvider(url);
-    const { zond } = new Web3({ provider: zondHttpProvider });
-    this.zondInstance = zond;
+    try {
+      const selectedBlockChain = await StorageUtil.getBlockChain();
+      const { name, url } = ZOND_PROVIDER[selectedBlockChain];
 
-    await this.fetchZondConnection();
-    await this.fetchAccounts();
-    await this.validateActiveAccount();
+      runInAction(() => {
+        this.zondConnection = {
+          ...this.zondConnection,
+          zondNetworkName: name,
+          blockchain: selectedBlockChain,
+        };
+      });
+
+      const zondHttpProvider = new Web3.providers.HttpProvider(url);
+      const { zond } = new Web3({ provider: zondHttpProvider });
+
+      runInAction(() => {
+        this.zondInstance = zond;
+      });
+
+      await this.fetchZondConnection();
+      await this.fetchAccounts();
+      await this.validateActiveAccount();
+
+      // Log successful initialization
+      log("Blockchain initialized successfully");
+    } catch (error) {
+      console.error('Failed to initialize blockchain:', error);
+      log("Error initializing blockchain: " + error);
+    }
   }
 
   async selectBlockchain(selectedBlockchain: string) {
@@ -168,21 +191,33 @@ class ZondStore {
   }
 
   async validateActiveAccount() {
-    const storedActiveAccount = await StorageUtil.getActiveAccount(
-      this.zondConnection.blockchain,
-    );
+    try {
+      const storedActiveAccount = await StorageUtil.getActiveAccount(
+        this.zondConnection.blockchain,
+      );
 
-    const confirmedExistingActiveAccount =
-      this.zondAccounts.accounts.find(
-        (account) => account.accountAddress === storedActiveAccount,
-      )?.accountAddress ?? "";
-    if (!confirmedExistingActiveAccount) {
-      await StorageUtil.clearActiveAccount(this.zondConnection.blockchain);
+      const confirmedExistingActiveAccount =
+        this.zondAccounts.accounts.find(
+          (account) => account.accountAddress === storedActiveAccount,
+        )?.accountAddress ?? "";
+      
+      if (!confirmedExistingActiveAccount) {
+        await StorageUtil.clearActiveAccount(this.zondConnection.blockchain);
+      }
+      
+      this.activeAccount = {
+        ...this.activeAccount,
+        accountAddress: confirmedExistingActiveAccount,
+      };
+
+      // Only log if we actually have an active account
+      if (confirmedExistingActiveAccount) {
+        log("Active account validated: " + confirmedExistingActiveAccount);
+      }
+    } catch (error) {
+      console.error('Failed to validate active account:', error);
+      log("Error validating active account: " + error);
     }
-    this.activeAccount = {
-      ...this.activeAccount,
-      accountAddress: confirmedExistingActiveAccount,
-    };
   }
 
   getAccountBalance(accountAddress: string) {
