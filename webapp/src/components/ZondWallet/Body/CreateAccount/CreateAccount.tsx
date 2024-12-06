@@ -17,18 +17,24 @@ const CreateAccount = observer(() => {
   const [account, setAccount] = useState<Web3BaseWalletAccount>();
   const [hasAccountCreated, setHasAccountCreated] = useState(false);
   const [hasMnemonicNoted, setHasMnemonicNoted] = useState(false);
+  const [userPassword, setUserPassword] = useState<string>("");
+  const [mnemonic, setMnemonic] = useState<string>("");
+  const [hexSeed, setHexSeed] = useState<string>("");
 
-  const onAccountCreated = (account?: Web3BaseWalletAccount) => {
-    window.scrollTo(0, 0);
-    if (account) {
-      setAccount(account);
-      setActiveAccount(account?.address);
+  const onAccountCreated = async (newAccount: Web3BaseWalletAccount, password: string) => {
+    if (newAccount?.address) {
+      window.scrollTo(0, 0);
+      setAccount(newAccount);
+      setUserPassword(password);
+      await setActiveAccount(newAccount.address);
       setHasAccountCreated(true);
     }
   };
 
-  const onMnemonicNoted = () => {
+  const onMnemonicNoted = (notedMnemonic: string, notedHexSeed: string) => {
     window.scrollTo(0, 0);
+    setMnemonic(notedMnemonic);
+    setHexSeed(notedHexSeed);
     setHasMnemonicNoted(true);
   };
 
@@ -43,10 +49,16 @@ const CreateAccount = observer(() => {
         <div className="relative z-10">
           {hasAccountCreated ? (
             hasMnemonicNoted ? (
-              <AccountCreationSuccess account={account} />
+              <AccountCreationSuccess 
+                account={account} 
+                userPassword={userPassword} 
+                mnemonic={mnemonic}
+                hexSeed={hexSeed}
+              />
             ) : (
               <MnemonicDisplay
                 account={account}
+                userPassword={userPassword}
                 onMnemonicNoted={onMnemonicNoted}
               />
             )

@@ -6,26 +6,49 @@ import {
   CardHeader,
   CardTitle,
 } from "../../../../UI/Card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../../../../UI/Dialog";
 import { ROUTES } from "../../../../../router/router";
 import { getExplorerAddressUrl } from "../../../../../configuration/zondConfig";
 import { useStore } from "../../../../../stores/store";
-import { Web3BaseWalletAccount } from "@theqrl/web3";
-import { Check, Copy, ExternalLink } from "lucide-react";
+import { Check, Copy, ExternalLink, HardDriveDownload, Undo } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { WalletEncryptionUtil, ExtendedWalletAccount } from "../../../../../utilities/walletEncryptionUtil";
 
 type AccountCreationSuccessProps = {
-  account?: Web3BaseWalletAccount;
+  account?: ExtendedWalletAccount;
+  userPassword: string;
+  mnemonic: string;
+  hexSeed: string;
 };
 
 export const AccountCreationSuccess = ({
   account,
+  userPassword,
+  mnemonic,
+  hexSeed,
 }: AccountCreationSuccessProps) => {
   const { zondStore } = useStore();
   const { zondConnection } = zondStore;
   const { blockchain } = zondConnection;
 
-  const accountAddress = account?.address ?? "";
+  // Create extended account with mnemonic and hexSeed
+  const extendedAccount = account ? {
+    ...account,
+    mnemonic,
+    hexSeed,
+  } : undefined;
+
+  const accountAddress = extendedAccount?.address ?? "";
   const accountAddressSplit = [];
   for (let i = 2; i < accountAddress.length; i += 4) {
     accountAddressSplit.push(accountAddress.substring(i, i + 4));
@@ -93,6 +116,49 @@ export const AccountCreationSuccess = ({
             <ExternalLink className="mr-2 h-4 w-4" />
             View in Zondscan
           </Button>
+        </div>
+        <div className="flex w-full gap-4">
+          <Button
+            className="w-full"
+            type="button"
+            variant="outline"
+            onClick={() => WalletEncryptionUtil.downloadWallet(extendedAccount, userPassword)}
+          >
+            <HardDriveDownload className="mr-2 h-4 w-4" />
+            Download Encrypted Wallet
+          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="w-full" type="button" variant="outline">
+                <HardDriveDownload className="mr-2 h-4 w-4" />
+                Download Unencrypted Wallet
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="w-80 rounded-md">
+              <DialogHeader className="text-left">
+                <DialogTitle>Warning!</DialogTitle>
+                <DialogDescription>
+                  You are about to download an unencrypted wallet file. This file will contain sensitive information and should never be shared. Are you sure you want to proceed?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex flex-row gap-4">
+                <DialogClose asChild>
+                  <Button className="w-full" type="button" variant="outline">
+                    <Undo className="mr-2 h-4 w-4" />
+                    Cancel
+                  </Button>
+                </DialogClose>
+                <Button
+                  className="w-full"
+                  type="button"
+                  onClick={() => WalletEncryptionUtil.downloadWallet(extendedAccount)}
+                >
+                  <HardDriveDownload className="mr-2 h-4 w-4" />
+                  Download
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
         <Link className="w-full" to={ROUTES.ACCOUNT_DETAILS}>
           <Button className="w-full" type="button">

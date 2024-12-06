@@ -22,6 +22,7 @@ import { Loader, Plus } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { WalletEncryptionUtil } from "../../../../../utilities/walletEncryptionUtil";
 
 const FormSchema = z
   .object({
@@ -36,7 +37,7 @@ const FormSchema = z
   });
 
 type AccountCreationFormProps = {
-  onAccountCreated: (account?: Web3BaseWalletAccount) => void;
+  onAccountCreated: (account: Web3BaseWalletAccount, password: string) => void;
 };
 
 export const AccountCreationForm = observer(
@@ -62,11 +63,20 @@ export const AccountCreationForm = observer(
     async function onSubmit(formData: z.infer<typeof FormSchema>) {
       try {
         const userPassword = formData.password;
-        console.log("Password to be used for encryption:", userPassword);
-        // use this password for hexseed and account encryption when supported
+        
+        // Validate password strength
+        if (!WalletEncryptionUtil.validatePassword(userPassword)) {
+          control.setError("password", {
+            message: "Password must be at least 8 characters and contain uppercase, lowercase, numbers, and special characters",
+          });
+          return;
+        }
 
         const newAccount = await zondInstance?.accounts.create();
-        onAccountCreated(newAccount);
+        if (!newAccount) {
+          throw new Error("Failed to create account");
+        }
+        onAccountCreated(newAccount, userPassword);
       } catch (error) {
         control.setError("reEnteredPassword", {
           message: `${error} There was an error while creating the account`,
