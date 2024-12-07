@@ -56,6 +56,19 @@ const Home = observer(() => {
             <Twitter size={20} />
             <span className="text-sm">Twitter</span>
           </a>
+          <a
+            href="https://digitalguards.nl/index.php/2024/12/05/introducing-zond-qrl-web-wallet-by-digitalguards/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 transition-colors duration-200"
+            aria-label="Blog Post"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+            <span className="text-sm">Blog</span>
+          </a>
         </div>
       </div>
     </>

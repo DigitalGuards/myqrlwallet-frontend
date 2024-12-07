@@ -9,7 +9,7 @@ import {
 import { ROUTES } from "../../../../../router/router";
 import StringUtil from "../../../../../utilities/stringUtil";
 import { TransactionReceipt, utils } from "@theqrl/web3";
-import { Check } from "lucide-react";
+import { Check, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 
 type TransactionSuccessfulProps = {
@@ -42,9 +42,15 @@ export const TransactionSuccessful = ({
           <CardContent className="space-y-8">
             <div className="flex flex-col gap-2">
               <div>Transaction Hash</div>
-              <div className="font-bold text-secondary">
+              <a
+                href={`https://zondscan.com/tx/${transactionHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 font-bold text-secondary hover:text-secondary/80"
+              >
                 {StringUtil.getSplitAddress(transactionHash.toString())}
-              </div>
+                <ExternalLink className="h-4 w-4" />
+              </a>
             </div>
             <div className="flex flex-col gap-2">
               <div>Block hash</div>
@@ -55,9 +61,15 @@ export const TransactionSuccessful = ({
             <div className="grid grid-cols-2 gap-8">
               <div className="flex flex-col gap-2">
                 <div>Block number</div>
-                <div className="font-bold text-secondary">
+                <a
+                  href={`https://zondscan.com/block/${blockNumber}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 font-bold text-secondary hover:text-secondary/80"
+                >
                   {blockNumber.toString()}
-                </div>
+                  <ExternalLink className="h-4 w-4" />
+                </a>
               </div>
               <div className="flex flex-col gap-2">
                 <div>Gas used</div>
