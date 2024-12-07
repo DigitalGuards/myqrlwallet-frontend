@@ -10,10 +10,11 @@ import {
 import { ROUTES } from "../../../../../router/router";
 import { useStore } from "../../../../../stores/store";
 import { getExplorerAddressUrl } from "../../../../../configuration/zondConfig";
-import { Copy, ExternalLink, Send } from "lucide-react";
+import { Copy, ExternalLink, SendHorizontal } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Link } from "react-router-dom";
 import { AccountId } from "../AccountId/AccountId";
+import { AccountBalance } from "../AccountBalance/AccountBalance";
 import { useState } from "react";
 
 export const ActiveAccount = observer(() => {
@@ -50,13 +51,14 @@ export const ActiveAccount = observer(() => {
     !!accountAddress && (
       <>
         <Label className="text-secondary">{activeAccountLabel}</Label>
-        <Card className="flex w-full items-center gap-4 p-4 font-bold text-foreground hover:bg-accent">
-          <div className="flex gap-2">
+        <Card className="flex items-center gap-4 p-4 font-bold text-foreground hover:bg-accent">
+          <div className="flex flex-col gap-1">
             <AccountId account={accountAddress} />
+            <AccountBalance accountAddress={accountAddress} />
           </div>
           <span>
             <TooltipProvider>
-              <Tooltip open={tooltipOpen} onOpenChange={setTooltipOpen}>
+              <Tooltip open={tooltipOpen} onOpenChange={setTooltipOpen} delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Button
                     className="hover:text-secondary"
@@ -106,7 +108,7 @@ export const ActiveAccount = observer(() => {
                       variant="outline"
                       size="icon"
                     >
-                      <Send size={18} />
+                      <SendHorizontal size={18} />
                     </Button>
                   </Link>
                 </TooltipTrigger>

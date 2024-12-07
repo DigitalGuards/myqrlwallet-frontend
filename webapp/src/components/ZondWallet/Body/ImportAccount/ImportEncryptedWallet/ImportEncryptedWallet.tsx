@@ -93,21 +93,36 @@ export const ImportEncryptedWallet = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Import Encrypted Wallet</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-foreground">Import Encrypted Wallet</CardTitle>
+        <CardDescription className="text-muted-foreground">
           Select your encrypted wallet file and enter the password to decrypt it.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-8">
           <div className="space-y-2">
-            <Label>Wallet File</Label>
-            <Input
-              type="file"
-              accept=".json"
-              onChange={handleFileChange}
-              className="cursor-pointer"
-            />
+            <Label className="text-foreground">Wallet File</Label>
+            <div className="flex flex-col items-center justify-center w-full">
+              <label
+                htmlFor="walletFile"
+                className="flex flex-col items-center justify-center w-full border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent/50"
+              >
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Upload className="w-8 h-8 mb-2 text-foreground" />
+                  <p className="mb-2 text-sm text-foreground">
+                    {selectedFile ? selectedFile.name : "Click to import wallet file"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">JSON files only</p>
+                </div>
+                <Input
+                  id="walletFile"
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
             {fileError && (
               <div className="text-sm font-medium text-destructive">
                 {fileError}
@@ -115,11 +130,12 @@ export const ImportEncryptedWallet = ({
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-foreground">Password</Label>
             <Input
               id="password"
               type="password"
               {...register("password")}
+              className="text-foreground"
             />
             {errors.password?.message && (
               <div className="text-sm font-medium text-destructive">

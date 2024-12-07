@@ -12,6 +12,7 @@ import { getExplorerAddressUrl } from "../../../../../configuration/zondConfig";
 import { ArrowRight, Copy, ExternalLink } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { AccountId } from "../AccountId/AccountId";
+import { AccountBalance } from "../AccountBalance/AccountBalance";
 import { useState } from "react";
 
 export const OtherAccounts = observer(() => {
@@ -60,7 +61,10 @@ export const OtherAccounts = observer(() => {
             id={accountAddress}
             className="flex items-center gap-4 p-4 font-bold text-foreground hover:bg-accent"
           >
-            <AccountId account={accountAddress} />
+            <div className="flex flex-col gap-1">
+              <AccountId account={accountAddress} />
+              <AccountBalance accountAddress={accountAddress} />
+            </div>
             <span>
               <TooltipProvider>
                 <Tooltip 
@@ -68,6 +72,7 @@ export const OtherAccounts = observer(() => {
                   onOpenChange={(open) => 
                     setTooltipStates(prev => ({ ...prev, [accountAddress]: open }))
                   }
+                  delayDuration={0}
                 >
                   <TooltipTrigger asChild>
                     <Button
