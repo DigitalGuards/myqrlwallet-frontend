@@ -16,6 +16,7 @@ import { Link } from "react-router-dom";
 import { AccountId } from "../AccountId/AccountId";
 import { AccountBalance } from "../AccountBalance/AccountBalance";
 import { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 
 export const ActiveAccount = observer(() => {
   const { zondStore } = useStore();
@@ -24,17 +25,18 @@ export const ActiveAccount = observer(() => {
     zondConnection: { blockchain },
   } = zondStore;
 
-  const activeAccountLabel = `${accountAddress ? "Active account" : ""}`;
-
-  const [hasJustCopied, setHasJustCopied] = useState(false);
+  const activeAccountLabel = "Active account";
+  const [copied, setCopied] = useState(false);
   const [tooltipOpen, setTooltipOpen] = useState(false);
 
   const copyAccount = async () => {
     try {
       await navigator.clipboard.writeText(accountAddress);
-      setHasJustCopied(true);
+      setCopied(true);
+      setTooltipOpen(true);
       setTimeout(() => {
-        setHasJustCopied(false);
+        setCopied(false);
+        setTooltipOpen(false);
       }, 1000);
     } catch (error) {
       console.error('Failed to copy address:', error);
@@ -42,9 +44,7 @@ export const ActiveAccount = observer(() => {
   };
 
   const viewInExplorer = () => {
-    if (accountAddress) {
-      window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
-    }
+    window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
   };
 
   return (
@@ -64,24 +64,20 @@ export const ActiveAccount = observer(() => {
                     className="hover:text-secondary"
                     variant="outline"
                     size="icon"
-                    onClick={() => {
-                      copyAccount();
-                      setTooltipOpen(true);
-                      setTimeout(() => setTooltipOpen(false), 1000);
-                    }}
+                    onClick={copyAccount}
                   >
                     <Copy size={18} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  <Label>{hasJustCopied ? "Copied!" : "Copy Address"}</Label>
+                  <Label>{copied ? "Copied!" : "Copy Address"}</Label>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </span>
-          <span>
+          <span className="group relative">
             <TooltipProvider>
-              <Tooltip delayDuration={0}>
+              <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     className="hover:text-secondary"
@@ -92,17 +88,32 @@ export const ActiveAccount = observer(() => {
                     <ExternalLink size={18} />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
+                <TooltipContent side="top">
                   <Label>View in Zondscan</Label>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <div className="absolute invisible group-hover:visible -bottom-[220px] left-1/2 transform -translate-x-1/2 bg-card rounded-lg p-4 shadow-lg z-50 border border-border">
+              <div className="flex flex-col items-center gap-2">
+                <QRCodeSVG
+                  value={getExplorerAddressUrl(accountAddress, blockchain)}
+                  size={150}
+                  bgColor="#000000"
+                  fgColor="#ffffff"
+                  level="L"
+                  includeMargin={false}
+                />
+                <Label className="text-xs text-muted-foreground">Scan to open in Zondscan</Label>
+              </div>
+            </div>
           </span>
           <span>
             <TooltipProvider>
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
-                  <Link to={ROUTES.ACCOUNT_DETAILS}>
+                  <Link
+                    to={ROUTES.ACCOUNT_DETAILS}
+                  >
                     <Button
                       className="hover:text-secondary"
                       variant="outline"
