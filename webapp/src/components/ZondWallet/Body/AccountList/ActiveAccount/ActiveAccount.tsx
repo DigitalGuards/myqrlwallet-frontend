@@ -50,7 +50,7 @@ export const ActiveAccount = observer(() => {
   return (
     !!accountAddress && (
       <>
-        <Label className="text-secondary">{activeAccountLabel}</Label>
+        <Label className="text-foreground">{activeAccountLabel}</Label>
         <Card className="flex items-center gap-4 p-4 font-bold text-foreground hover:bg-accent">
           <div className="flex flex-col gap-1">
             <AccountId account={accountAddress} />

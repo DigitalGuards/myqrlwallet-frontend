@@ -54,7 +54,7 @@ export const OtherAccounts = observer(() => {
   return (
     !!otherAccounts.length && (
       <>
-        <Label className="text-secondary">{otherAccountsLabel}</Label>
+        <Label className="text-foreground">{otherAccountsLabel}</Label>
         {otherAccounts.map(({ accountAddress }) => (
           <Card
             key={accountAddress}
