@@ -3,6 +3,7 @@ import { observer } from "mobx-react-lite";
 import { useState } from "react";
 import { ImportAccountForm } from "./ImportAccountForm/ImportAccountForm";
 import { ImportEncryptedWallet } from "./ImportEncryptedWallet/ImportEncryptedWallet";
+import { ImportHexSeedForm } from "./ImportHexSeedForm/ImportHexSeedForm";
 import AccountImportSuccess from "./AccountImportSuccess/AccountImportSuccess";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/Tabs";
 import { ExtendedWalletAccount } from "@/utilities/walletEncryptionUtil";
@@ -41,12 +42,18 @@ const ImportAccount = observer(() => {
                 <TabsTrigger value="encrypted" className="w-full">
                   Import Encrypted Wallet
                 </TabsTrigger>
+                <TabsTrigger value="hexseed" className="w-full">
+                  Import with Hex Seed
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="mnemonic">
                 <ImportAccountForm onAccountImported={onAccountImported} />
               </TabsContent>
               <TabsContent value="encrypted">
                 <ImportEncryptedWallet onWalletImported={onAccountImported} />
+              </TabsContent>
+              <TabsContent value="hexseed">
+                <ImportHexSeedForm onAccountImported={onAccountImported} />
               </TabsContent>
             </Tabs>
           )}
