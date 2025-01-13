@@ -43,7 +43,7 @@ export const TransactionSuccessful = ({
             <div className="flex flex-col gap-2">
               <div>Transaction Hash</div>
               <a
-                href={`https://zondscan.com/tx/${transactionHash}`}
+                href={`https://zondscan.com/pending/tx/${transactionHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 font-bold text-secondary hover:text-secondary/80"
