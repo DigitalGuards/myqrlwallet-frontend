@@ -17,7 +17,7 @@ import {
 } from "../../../../UI/Form";
 import { Input } from "../../../../UI/Input";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader, Plus } from "lucide-react";
+import { Loader } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -108,7 +108,7 @@ export const TokenCreationForm = observer(
                 <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
                     <Card>
                         <CardHeader>
-                            <CardTitle>Create new token</CardTitle>
+                            <CardTitle>Create New Token</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-8">
                             <FormField
@@ -418,9 +418,9 @@ export const TokenCreationForm = observer(
                                 {isSubmitting ? (
                                     <Loader className="mr-2 h-4 w-4 animate-spin" />
                                 ) : (
-                                    <Plus className="mr-2 h-4 w-4" />
+                                    <></>
                                 )}
-                                Create token
+                                Create Token
                             </Button>
                         </CardFooter>
                     </Card>

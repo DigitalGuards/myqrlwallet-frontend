@@ -45,6 +45,13 @@ const NavBar = observer(() => {
                     </Link>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
+                    <Link to={"/send-token"}>
+                        <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                            Send Token
+                        </NavigationMenuLink>
+                    </Link>
+                </NavigationMenuItem>
+                <NavigationMenuItem>
                     <Link to={""}>
                         <NavigationMenuLink className={navigationMenuTriggerStyle()}>
                             Settings

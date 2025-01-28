@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import CreateToken from "@/components/ZondWallet/Body/CreateToken/CreateToken.tsx";
+import SendToken from "@/components/ZondWallet/Body/SendTokens/SendToken.tsx";
 
 // Lazy load components
 const ZondWallet = lazy(() => import("../components/ZondWallet/ZondWallet.tsx"));
@@ -17,6 +18,7 @@ const ROUTES = {
   ACCOUNT_LIST: "/account-list",
   ACCOUNT_DETAILS: "/account-details",
   CREATE_TOKEN: "/create-token",
+  SEND_TOKEN: "/send-token",
   DEFAULT: "*",
 } as const;
 
@@ -74,6 +76,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<div>Loading...</div>}>
             <CreateToken />
+          </Suspense>
+        )
+      },
+      {
+        path: ROUTES.SEND_TOKEN,
+        element: (
+          <Suspense fallback={<div>Loading...</div>}>
+            <SendToken />
           </Suspense>
         )
       },
