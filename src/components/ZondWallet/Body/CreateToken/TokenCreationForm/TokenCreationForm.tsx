@@ -21,6 +21,7 @@ import { Loader } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { createToken } from "@/utilities/web3utils/customERC20Factory";
 
 const FormSchema = z
     .object({
@@ -422,6 +423,7 @@ export const TokenCreationForm = observer(
                                 )}
                                 Create Token
                             </Button>
+                            <a className="cursor-pointer" onClick={() => createToken()}>Create Token Directly</a>
                         </CardFooter>
                     </Card>
                 </form>
