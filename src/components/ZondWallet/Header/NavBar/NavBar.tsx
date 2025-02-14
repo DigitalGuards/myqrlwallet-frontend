@@ -10,15 +10,21 @@ import {
     navigationMenuTriggerStyle,
 } from "../../../UI/NavigationMenu"
 import { Link } from "react-router-dom";
+import { useStore } from "@/stores/store";
 
 const wallets: string[] = [
+    "0x10b4fb2929cfBe8b002b8A0c572551F755e54aEF",
     "0x20b4fb2929cfBe8b002b8A0c572551F755e54aEF",
-    "0x20b4fb2929cfBe8b002b8A0c572551F755e54aEF",
-    "0x20b4fb2929cfBe8b002b8A0c572551F755e54aEF",
-    "0x20b4fb2929cfBe8b002b8A0c572551F755e54aEF",
+    "0x30b4fb2929cfBe8b002b8A0c572551F755e54aEF",
+    "0x40b4fb2929cfBe8b002b8A0c572551F755e54aEF",
 ]
 
 const NavBar = observer(() => {
+    const { zondStore } = useStore();
+    const {
+        setActiveAccount,
+    } = zondStore;
+
     return (
         <NavigationMenu>
             <NavigationMenuList>
@@ -27,13 +33,15 @@ const NavBar = observer(() => {
                     <NavigationMenuContent>
                         <ul className="flex flex-col gap-1 p-4 w-full">
                             {wallets.map((wallet, idx) => (
-                                <span key={idx} className="cursor-pointer hover:bg-gray-900 p-1 rounded">
+                                <span key={idx} className="cursor-pointer hover:bg-gray-900 p-1 rounded" onClick={() => setActiveAccount(wallet)}>
                                     {wallet}
                                 </span>
                             ))}
-                            <span className="flex w-full justify-center py-2 bg-gray-800 cursor-pointer hover:bg-gray-900 m-auto rounded">
-                                + Create or import an account
-                            </span>
+                            <Link to={"/add-account"}>
+                                <span className="flex w-full justify-center py-2 bg-gray-800 cursor-pointer hover:bg-gray-900 m-auto rounded">
+                                    + Create or import an account
+                                </span>
+                            </Link>
                         </ul>
                     </NavigationMenuContent>
                 </NavigationMenuItem>
