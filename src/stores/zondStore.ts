@@ -291,7 +291,7 @@ class ZondStore {
     const web3 = new Web3(new Web3.providers.HttpProvider(url));
     const acc = web3.zond.accounts.seedToAccount(seed)
     web3.zond.wallet?.add(seed);
-    web3.zond.transactionBlockTimeout = 3;
+    web3.zond.transactionConfirmationBlocks = 3;
 
     const confirmationHandler = (data: any) => {
       console.log(data);
@@ -309,8 +309,10 @@ class ZondStore {
 
     const customERC20Factorycontract = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
 
+    console.log(typeof initialSupply.toString());
+
     const contractCreateToken = customERC20Factorycontract.methods.createToken(
-      tokenName, tokenSymbol, initialSupply, decimals, maxSupply, receipt, owner, maxWalletAmount, maxTxLimit
+      tokenName, tokenSymbol, BigInt(initialSupply.toString()).toString(), decimals, BigInt(maxSupply.toString()).toString(), receipt, owner, BigInt(maxWalletAmount.toString()).toString(), BigInt(maxTxLimit.toString()).toString()
     )
     
     const estimateGas  = await contractCreateToken.estimateGas({ "from": acc.address })

@@ -12,18 +12,16 @@ import {
 import { Link } from "react-router-dom";
 import { useStore } from "@/stores/store";
 
-const wallets: string[] = [
-    "0x10b4fb2929cfBe8b002b8A0c572551F755e54aEF",
-    "0x20b4fb2929cfBe8b002b8A0c572551F755e54aEF",
-    "0x30b4fb2929cfBe8b002b8A0c572551F755e54aEF",
-    "0x40b4fb2929cfBe8b002b8A0c572551F755e54aEF",
-]
-
 const NavBar = observer(() => {
     const { zondStore } = useStore();
     const {
+        zondAccounts,
         setActiveAccount,
     } = zondStore;
+
+    const switchAccount = (accountAddress: string) => {
+        setActiveAccount(accountAddress)
+    }
 
     return (
         <NavigationMenu>
@@ -32,9 +30,14 @@ const NavBar = observer(() => {
                     <NavigationMenuTrigger>Wallets</NavigationMenuTrigger>
                     <NavigationMenuContent>
                         <ul className="flex flex-col gap-1 p-4 w-full">
-                            {wallets.map((wallet, idx) => (
-                                <span key={idx} className="cursor-pointer hover:bg-gray-900 p-1 rounded" onClick={() => setActiveAccount(wallet)}>
-                                    {wallet}
+                            {zondAccounts.accounts.map((account, idx) => (
+                                <span key={idx} className="cursor-pointer font-mono hover:bg-gray-900 p-1 rounded" onClick={() => switchAccount(account.accountAddress)}>
+                                    {
+                                        account.accountAddress
+                                            .substring(0, 15)
+                                            .concat("...")
+                                            .concat(account.accountAddress.substring(account.accountAddress.length - 12))
+                                    }
                                 </span>
                             ))}
                             <Link to={"/add-account"}>
@@ -53,9 +56,9 @@ const NavBar = observer(() => {
                     </Link>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                    <Link to={"/send-token"}>
+                    <Link to={"/tokens"}>
                         <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                            Send Token
+                            Tokens
                         </NavigationMenuLink>
                     </Link>
                 </NavigationMenuItem>

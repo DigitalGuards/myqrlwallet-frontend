@@ -1,12 +1,8 @@
 import { observer } from "mobx-react-lite";
-import { TokenSendingForm } from "./SendTokenForm/SendTokenForm";
+// import { TokenSendingForm } from "./SendTokenForm/SendTokenForm";
+import { TokenForm } from "./TokenForm/TokenForm";
 
 const CreateToken = observer(() => {
-    const onTokenSent = async (tokenAddress: string, toAddress: string, amount: number) => {
-        console.log(tokenAddress, toAddress, amount);
-
-    };
-
     return (
         <div className="flex w-full items-start justify-center py-16">
             <div className="relative w-full max-w-2xl px-4">
@@ -16,7 +12,8 @@ const CreateToken = observer(() => {
                     alt="Background Tree"
                 />
                 <div className="relative z-10">
-                    <TokenSendingForm onTokenSent={onTokenSent} />
+                    {/* <TokenSendingForm onTokenSent={onTokenSent} /> */}
+                    <TokenForm />
                 </div>
             </div>
         </div>
