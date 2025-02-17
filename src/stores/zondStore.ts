@@ -8,6 +8,7 @@ import Web3, {
   utils,
 } from "@theqrl/web3";
 import { action, makeAutoObservable, observable, runInAction } from "mobx";
+import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
 
 type ActiveAccountType = {
   accountAddress: string;
@@ -46,6 +47,7 @@ class ZondStore {
       fetchAccounts: action.bound,
       getAccountBalance: action.bound,
       signAndSendTransaction: action.bound,
+      createToken: action.bound,
     });
 
     // Log initialization
@@ -269,6 +271,58 @@ class ZondStore {
     }
 
     return transaction;
+  }
+
+  async createToken(
+    tokenName: string,
+    tokenSymbol: string,
+    initialSupply: string,
+    decimals: number,
+    maxSupply: string,
+    receipt: string,
+    owner: string,
+    maxWalletAmount: string,
+    maxTxLimit: string,
+    mnemonicPhrases: string
+  ) {
+    const selectedBlockChain = await StorageUtil.getBlockChain();
+    const { url } = ZOND_PROVIDER[selectedBlockChain];
+    const seed = getHexSeedFromMnemonic(mnemonicPhrases);
+    const web3 = new Web3(new Web3.providers.HttpProvider(url));
+    const acc = web3.zond.accounts.seedToAccount(seed)
+    web3.zond.wallet?.add(seed);
+    web3.zond.transactionBlockTimeout = 3;
+
+    const confirmationHandler = (data: any) => {
+      console.log(data);
+    }
+
+    const receiptHandler = (data: any) => {
+      console.log(data);
+    }
+
+    const errorHandler = (data: any) => {
+      console.error(data);
+    }
+
+    const contractAddress = import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
+
+    const customERC20Factorycontract = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
+
+    const contractCreateToken = customERC20Factorycontract.methods.createToken(
+      tokenName, tokenSymbol, initialSupply, decimals, maxSupply, receipt, owner, maxWalletAmount, maxTxLimit
+    )
+    
+    const estimateGas  = await contractCreateToken.estimateGas({ "from": acc.address })
+
+    const txObj = {type: '0x2', gas: estimateGas, from: acc.address, data: contractCreateToken.encodeABI(), to: contractAddress}
+
+    await web3.zond.sendTransaction(txObj, undefined, {
+      checkRevertBeforeSending: true
+    })
+      .on('confirmation', confirmationHandler)
+      .on('receipt', receiptHandler)
+      .on('error', errorHandler)
   }
 }
 

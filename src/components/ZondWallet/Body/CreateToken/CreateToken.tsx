@@ -1,11 +1,47 @@
 import { observer } from "mobx-react-lite";
 import { TokenCreationForm } from "./TokenCreationForm/TokenCreationForm";
+import { useStore } from "@/stores/store";
 
 const CreateToken = observer(() => {
-  
-    const onTokenCreated = async (tokenName: string, tokenSymbol: string, initialSupply: number, decimals: number, maxSupply: undefined | number, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | number, maxTransactionLimit: undefined | number) => {
-        console.log(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, initialRecipient, tokenOwner, maxWalletAmount, maxTransactionLimit)
+    const { zondStore } = useStore();
+    const {
+        createToken
+    } = zondStore;
+    
+    const onTokenCreated = async (tokenName: string, tokenSymbol: string, initialSupply: number, decimals: number, maxSupply: undefined | number, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | number, maxTransactionLimit: undefined | number, mnemonicPhrases: string) => {
         
+        if(!initialRecipient) {
+            initialRecipient = "0x0000000000000000000000000000000000000000";
+        }
+
+        if(!tokenOwner) {
+            tokenOwner = "0x0000000000000000000000000000000000000000";
+        }
+
+        if(!maxSupply) {
+            maxSupply = 0;
+        }
+
+        if(!maxWalletAmount) {
+            maxWalletAmount = 0;
+        }
+
+        if(!maxTransactionLimit) {
+            maxTransactionLimit = 0;
+        }
+        
+        await createToken(
+            tokenName,
+            tokenSymbol,
+            initialSupply.toString(),
+            decimals,
+            maxSupply.toString(),
+            initialRecipient,
+            tokenOwner,
+            maxWalletAmount.toString(),
+            maxTransactionLimit.toString(),
+            mnemonicPhrases
+        )  
     };
 
     return (

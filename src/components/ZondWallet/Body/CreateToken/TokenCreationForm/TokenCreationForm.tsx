@@ -21,14 +21,13 @@ import { Loader } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { createToken } from "@/utilities/web3utils/customERC20Factory";
 
 const FormSchema = z
     .object({
         tokenName: z.string().min(1, { message: "Token name is required" }),
         tokenSymbol: z.string().min(1, { message: "Token symbol is required" }),
-        initialSupply: z.string().min(1, { message: "Initial supply is required"}).transform((val) => Number(val)),
-        decimals: z.string().min(1, {message: "Decimals is required"}).transform((val) => Number(val)),
+        initialSupply: z.string().min(1, { message: "Initial supply is required" }).transform((val) => Number(val)),
+        decimals: z.string().min(1, { message: "Decimals is required" }).transform((val) => Number(val)),
         mintable: z.boolean(),
         maxSupply: z.string().optional().transform((val) => Number(val)),
         changeInitialRecipient: z.boolean(),
@@ -38,7 +37,8 @@ const FormSchema = z
         setMaxWalletAmount: z.boolean(),
         maxWalletAmount: z.string().optional().transform((val) => Number(val)),
         setMaxTransactionLimit: z.boolean(),
-        maxTransactionLimit: z.string().optional().transform((val) => Number(val))
+        maxTransactionLimit: z.string().optional().transform((val) => Number(val)),
+        mnemonicPhrases: z.string().min(1, { message: "Mnemonic Phrases is required" })
     })
 //   .refine((fields) => fields.password === fields.reEnteredPassword, {
 //     message: "Passwords don't match",
@@ -46,7 +46,7 @@ const FormSchema = z
 //   });
 
 type TokenCreationFormProps = {
-    onTokenCreated: (tokenName: string, tokenSymbol: string, initialSupply: number, decimals: number, maxSupply: undefined | number, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | number, maxTransactionLimit: undefined | number) => void;
+    onTokenCreated: (tokenName: string, tokenSymbol: string, initialSupply: number, decimals: number, maxSupply: undefined | number, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | number, maxTransactionLimit: undefined | number, mnemonicPhrases: string) => void;
 };
 
 export const TokenCreationForm = observer(
@@ -83,7 +83,7 @@ export const TokenCreationForm = observer(
                 const ownerAddress = formData.ownerAddress;
                 const maxWalletAmount = formData.maxWalletAmount;
                 const maxTransactionLimit = formData.maxTransactionLimit;
-
+                const mnemonicPhrase = formData.mnemonicPhrases;
                 // Validate password strength
                 // if (!WalletEncryptionUtil.validatePassword(userPassword)) {
                 //   control.setError("password", {
@@ -96,7 +96,7 @@ export const TokenCreationForm = observer(
                 // if (!newToken) {
                 //   throw new Error("Failed to create account");
                 // }
-                onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, ownerAddress, maxWalletAmount, maxTransactionLimit);
+                onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, ownerAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase);
             } catch (error) {
                 // control.setError("reEnteredPassword", {
                 //   message: `${error} There was an error while creating the account`,
@@ -409,10 +409,30 @@ export const TokenCreationForm = observer(
                                     )}
                                 />
                             )}
+
+                            <FormField
+                                control={control}
+                                name="mnemonicPhrases"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormControl>
+                                            <Input
+                                                disabled={isSubmitting}
+                                                placeholder="Mnemonic Phrases"
+                                                type="text"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        {/* <FormDescription>Mnemonic Phrases</FormDescription> */}
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
                         </CardContent>
                         <CardFooter>
                             <Button
-                                disabled={isValid}
+                                disabled={!isValid}
                                 className="w-full"
                                 type="submit"
                             >
@@ -423,7 +443,6 @@ export const TokenCreationForm = observer(
                                 )}
                                 Create Token
                             </Button>
-                            <a className="cursor-pointer" onClick={() => createToken()}>Create Token Directly</a>
                         </CardFooter>
                     </Card>
                 </form>
