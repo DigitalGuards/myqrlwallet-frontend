@@ -9,10 +9,11 @@ import {
     NavigationMenuTrigger,
     navigationMenuTriggerStyle,
 } from "../../../UI/NavigationMenu"
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/stores/store";
 
 const NavBar = observer(() => {
+    const navigate = useNavigate();
     const { zondStore } = useStore();
     const {
         zondAccounts,
@@ -48,26 +49,20 @@ const NavBar = observer(() => {
                         </ul>
                     </NavigationMenuContent>
                 </NavigationMenuItem>
-                <NavigationMenuItem>
-                    <Link to={"/create-token"}>
-                        <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                            Create Token
-                        </NavigationMenuLink>
-                    </Link>
+                <NavigationMenuItem className="cursor-pointer">
+                    <NavigationMenuLink onClick={() => navigate("/create-token")} className={navigationMenuTriggerStyle()}>
+                        Create Token
+                    </NavigationMenuLink>
                 </NavigationMenuItem>
-                <NavigationMenuItem>
-                    <Link to={"/tokens"}>
-                        <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                            Tokens
-                        </NavigationMenuLink>
-                    </Link>
+                <NavigationMenuItem className="cursor-pointer">
+                    <NavigationMenuLink onClick={() => navigate("/tokens")} className={navigationMenuTriggerStyle()}>
+                        Tokens
+                    </NavigationMenuLink>
                 </NavigationMenuItem>
-                <NavigationMenuItem>
-                    <Link to={""}>
-                        <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                            Settings
-                        </NavigationMenuLink>
-                    </Link>
+                <NavigationMenuItem className="cursor-pointer">
+                    <NavigationMenuLink onClick={() => navigate("")} className={navigationMenuTriggerStyle()}>
+                        Settings
+                    </NavigationMenuLink>
                 </NavigationMenuItem>
             </NavigationMenuList>
         </NavigationMenu>
