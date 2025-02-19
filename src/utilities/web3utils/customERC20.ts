@@ -5,9 +5,6 @@ const web3 = new Web3(new Web3.providers.HttpProvider(import.meta.env?.VITE_RPC_
 
 const fetchBalance = async (contractAddress: string, accountAddress: string) => {
     const contract = new web3.zond.Contract(CustomERC20ABI, contractAddress);
-    console.log(contractAddress, accountAddress, accountAddress.trim(), web3.utils.toChecksumAddress(accountAddress));
-    const tokenInfo = await fetchTokenInfo(contractAddress)
-    console.log(tokenInfo);
     const balance = await contract.methods.balanceOf(web3.utils.toChecksumAddress(accountAddress)).call()
     return balance;
 }

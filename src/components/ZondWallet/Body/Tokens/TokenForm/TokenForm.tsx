@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { fetchBalance } from "@/utilities/web3utils/customERC20";
 import { useStore } from "@/stores/store";
 import { Button } from "@/components/UI/Button";
-import { Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 
 export const TokenForm = observer(() => {
@@ -25,9 +25,11 @@ export const TokenForm = observer(() => {
 
     const [tokenList, setTokenList] = useState<TokenInterface[]>(tokenListFromStore);
     const [isAddTokenModalOpen, setIsAddTokenModalOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const init = async () => {
+            setIsLoading(true);
             let updatedTokenList = [...tokenListFromStore];
 
             for (let i = 0; i < tokenListFromStore.length; i++) {
@@ -35,6 +37,7 @@ export const TokenForm = observer(() => {
                 updatedTokenList[i].amount = `${parseInt(balance.toString()) / 10 ** tokenListFromStore[i].decimals}`;
             }
             setTokenList(updatedTokenList);
+            setIsLoading(false);
         };
 
         init();
@@ -52,9 +55,15 @@ export const TokenForm = observer(() => {
                     </Button>
                 </div>
             </CardHeader>
-            <CardContent className="space-y-8">
-                <DataTable columns={columns} data={tokenList} />
-            </CardContent>
+            {isLoading ? (
+                <div className="flex justify-center items-center h-full">
+                    <Loader2 className="animate-spin" />
+                </div>
+            ) : (
+                <CardContent className="space-y-8">
+                    <DataTable columns={columns} data={tokenList} />
+                </CardContent>
+            )}
             <CardFooter>
             </CardFooter>
             <AddTokenModal isOpen={isAddTokenModalOpen} onClose={() => setIsAddTokenModalOpen(false)} />
