@@ -12,6 +12,7 @@ import { DataTable } from "./data-table"
 import { useEffect, useState } from "react";
 import { fetchBalance } from "@/utilities/web3utils/customERC20";
 import { useStore } from "@/stores/store";
+import StorageUtil from "@/utilities/storageUtil";
 
 export const TokenForm = observer(() => {
     const { zondStore } = useStore();
@@ -19,28 +20,37 @@ export const TokenForm = observer(() => {
         activeAccount: { accountAddress: activeAccountAddress },
     } = zondStore;
 
-    const [data, setData] = useState<TokenInterface[]>(KNOWN_TOKEN_LIST);
+    const [tokenList, setTokenList] = useState<TokenInterface[]>([]);
+
     useEffect(() => {
         const init = async () => {
             for (let i = 0; i < KNOWN_TOKEN_LIST.length; i++) {
-                console.log(KNOWN_TOKEN_LIST[i].address, activeAccountAddress)
                 const balance = await fetchBalance(KNOWN_TOKEN_LIST[i].address, activeAccountAddress)
-                setData((prevData) => {
-                    let tempData = [...prevData];
-                    tempData[i].amount = `${balance}`;
-                    return tempData
+                setTokenList((prevTokenList) => {
+                    let tempTokenList = [...prevTokenList];
+                    tempTokenList[i].amount = `${parseInt(balance.toString()) / 10 ** KNOWN_TOKEN_LIST[i].decimals}`;
+                    return tempTokenList
                 })
             }
         }
         init()
     }, [activeAccountAddress])
+
+    useEffect(() => {
+        const init = async () => {
+            const tokenListFromStorage = await StorageUtil.getTokenList();
+            setTokenList(tokenListFromStorage);
+        }
+        init()
+    }, [])
+
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Tokens</CardTitle>
             </CardHeader>
             <CardContent className="space-y-8">
-                <DataTable columns={columns} data={data} />
+                <DataTable columns={columns} data={tokenList} />
                 {/* {KNOWN_TOKEN_LIST.map((token) => {
                     return <>{token.symbol}</>
                 })} */}
