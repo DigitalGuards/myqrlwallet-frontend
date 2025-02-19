@@ -5,9 +5,24 @@ const web3 = new Web3(new Web3.providers.HttpProvider(import.meta.env?.VITE_RPC_
 
 const fetchBalance = async (contractAddress: string, accountAddress: string) => {
     const contract = new web3.zond.Contract(CustomERC20ABI, contractAddress);
-    const balance = await contract.methods.balanceOf(accountAddress).call()
-    console.log(balance)
+    console.log(accountAddress, accountAddress.trim(), web3.utils.toChecksumAddress(accountAddress));
+    const balance = await contract.methods.balanceOf(web3.utils.toChecksumAddress(accountAddress)).call()
+        .then((data) => {
+            console.log(data);
+        })
+        .catch((error) => {
+            console.log(error);
+        })
+    console.log(balance);
     return balance;
 }
 
-export { fetchBalance }
+const fetchTokenInfo = async (contractAddress: string) => {
+    const contract = new web3.zond.Contract(CustomERC20ABI, contractAddress);
+    const name = await contract.methods.name().call();
+    const symbol = await contract.methods.symbol().call();
+    const decimals = await contract.methods.decimals().call();
+    return { name, symbol, decimals }
+}
+
+export { fetchBalance, fetchTokenInfo }

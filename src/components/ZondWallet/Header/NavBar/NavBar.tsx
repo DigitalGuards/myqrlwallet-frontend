@@ -42,7 +42,7 @@ const NavBar = observer(() => {
                                 </span>
                             ))}
                             <Link to={"/add-account"}>
-                                <span className="flex w-full justify-center py-2 bg-gray-800 cursor-pointer hover:bg-gray-900 m-auto rounded">
+                                <span className="flex w-full min-w-[250px] justify-center py-2 bg-gray-800 cursor-pointer hover:bg-gray-900 m-auto rounded">
                                     + Create or import an account
                                 </span>
                             </Link>

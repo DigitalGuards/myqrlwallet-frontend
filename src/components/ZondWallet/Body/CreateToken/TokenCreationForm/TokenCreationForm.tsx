@@ -21,6 +21,8 @@ import { Loader } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { useEffect } from "react";
+import { useStore } from "@/stores/store";
 
 const FormSchema = z
     .object({
@@ -46,11 +48,14 @@ const FormSchema = z
 //   });
 
 type TokenCreationFormProps = {
-    onTokenCreated: (tokenName: string, tokenSymbol: string, initialSupply: number, decimals: number, maxSupply: undefined | number, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | number, maxTransactionLimit: undefined | number, mnemonicPhrases: string) => void;
+    onTokenCreated: (tokenName: string, tokenSymbol: string, initialSupply: number, decimals: number, maxSupply: undefined | number, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | number, maxTransactionLimit: undefined | number, mnemonicPhrases: string) => Promise<void>;
 };
 
 export const TokenCreationForm = observer(
     ({ onTokenCreated }: TokenCreationFormProps) => {
+        const { zondStore } = useStore();
+        const { createdToken } = zondStore;
+        const { name, symbol, decimals, address } = createdToken;
 
         const form = useForm<z.infer<typeof FormSchema>>({
             resolver: zodResolver(FormSchema),
@@ -96,13 +101,31 @@ export const TokenCreationForm = observer(
                 // if (!newToken) {
                 //   throw new Error("Failed to create account");
                 // }
-                onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, ownerAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase);
+                await onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, ownerAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase);
             } catch (error) {
                 // control.setError("reEnteredPassword", {
                 //   message: `${error} There was an error while creating the account`,
                 // });
             }
         }
+
+        useEffect(() => {
+            form.reset({
+                tokenName: "",
+                tokenSymbol: "",
+                initialSupply: 0,
+                decimals: 0,
+                mintable: false,
+                changeInitialRecipient: false,
+                changeTokenOwner: false,
+                setMaxWalletAmount: false,
+                setMaxTransactionLimit: false,
+                mnemonicPhrases: "",
+            });
+            if (address) {
+                alert(`Token created successfully.\n Address: ${address}\n Name: ${name}\n Symbol: ${symbol}\n Decimals: ${decimals}`);
+            }
+        }, [address]);
 
         return (
             <Form {...form}>
@@ -432,7 +455,7 @@ export const TokenCreationForm = observer(
                         </CardContent>
                         <CardFooter>
                             <Button
-                                disabled={!isValid}
+                                disabled={!isValid || isSubmitting}
                                 className="w-full"
                                 type="submit"
                             >

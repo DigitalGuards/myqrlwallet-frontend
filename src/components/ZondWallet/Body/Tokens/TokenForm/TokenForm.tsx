@@ -16,13 +16,14 @@ import { useStore } from "@/stores/store";
 export const TokenForm = observer(() => {
     const { zondStore } = useStore();
     const {
-      activeAccount: { accountAddress: activeAccountAddress },
+        activeAccount: { accountAddress: activeAccountAddress },
     } = zondStore;
 
     const [data, setData] = useState<TokenInterface[]>(KNOWN_TOKEN_LIST);
     useEffect(() => {
         const init = async () => {
             for (let i = 0; i < KNOWN_TOKEN_LIST.length; i++) {
+                console.log(KNOWN_TOKEN_LIST[i].address, activeAccountAddress)
                 const balance = await fetchBalance(KNOWN_TOKEN_LIST[i].address, activeAccountAddress)
                 setData((prevData) => {
                     let tempData = [...prevData];
@@ -32,7 +33,7 @@ export const TokenForm = observer(() => {
             }
         }
         init()
-    }, [])
+    }, [activeAccountAddress])
     return (
         <Card>
             <CardHeader>

@@ -5,31 +5,31 @@ import { useStore } from "@/stores/store";
 const CreateToken = observer(() => {
     const { zondStore } = useStore();
     const {
-        createToken
+        createToken,
     } = zondStore;
-    
+
     const onTokenCreated = async (tokenName: string, tokenSymbol: string, initialSupply: number, decimals: number, maxSupply: undefined | number, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | number, maxTransactionLimit: undefined | number, mnemonicPhrases: string) => {
-        
-        if(!initialRecipient) {
+
+        if (!initialRecipient) {
             initialRecipient = "0x0000000000000000000000000000000000000000";
         }
 
-        if(!tokenOwner) {
+        if (!tokenOwner) {
             tokenOwner = "0x0000000000000000000000000000000000000000";
         }
 
-        if(!maxSupply) {
+        if (!maxSupply) {
             maxSupply = 0;
         }
 
-        if(!maxWalletAmount) {
+        if (!maxWalletAmount) {
             maxWalletAmount = 0;
         }
 
-        if(!maxTransactionLimit) {
+        if (!maxTransactionLimit) {
             maxTransactionLimit = 0;
         }
-        
+
         await createToken(
             tokenName,
             tokenSymbol,
@@ -41,7 +41,7 @@ const CreateToken = observer(() => {
             maxWalletAmount.toString(),
             maxTransactionLimit.toString(),
             mnemonicPhrases
-        )  
+        )
     };
 
     return (

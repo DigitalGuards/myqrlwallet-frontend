@@ -9,6 +9,7 @@ import Web3, {
 } from "@theqrl/web3";
 import { action, makeAutoObservable, observable, runInAction } from "mobx";
 import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
+import { fetchTokenInfo } from "@/utilities/web3utils/customERC20";
 
 type ActiveAccountType = {
   accountAddress: string;
@@ -24,6 +25,18 @@ type ZondAccountsType = {
   isLoading: boolean;
 };
 
+type CreatingTokenType = {
+  name: string;
+  creating: boolean;
+}
+
+type CreatedTokenType = {
+  name: string;
+  symbol: string;
+  decimals: number;
+  address: string;
+}
+
 class ZondStore {
   zondInstance?: Web3ZondInterface;
   zondConnection = {
@@ -34,6 +47,8 @@ class ZondStore {
   };
   zondAccounts: ZondAccountsType = { accounts: [], isLoading: false };
   activeAccount: ActiveAccountType = { accountAddress: "" };
+  creatingToken: CreatingTokenType = { name: "", creating: false };
+  createdToken: CreatedTokenType = { name: "", symbol: "", decimals: 0, address: "" };
 
   constructor() {
     makeAutoObservable(this, {
@@ -41,6 +56,10 @@ class ZondStore {
       zondConnection: observable.struct,
       zondAccounts: observable.struct,
       activeAccount: observable.struct,
+      creatingToken: observable.struct,
+      createdToken: observable.struct,
+      setCreatedToken: action.bound,
+      setCreatingToken: action.bound,
       selectBlockchain: action.bound,
       setActiveAccount: action.bound,
       fetchZondConnection: action.bound,
@@ -94,6 +113,15 @@ class ZondStore {
   async selectBlockchain(selectedBlockchain: string) {
     await StorageUtil.setBlockChain(selectedBlockchain);
     await this.initializeBlockchain();
+  }
+
+  async setCreatingToken(name: string, creating: boolean) {
+    this.creatingToken = { name, creating };
+  }
+
+  async setCreatedToken(name: string, symbol: string, decimals: number, address: string) {
+    await StorageUtil.setCreatedToken(name, symbol, decimals, address);
+    this.createdToken = { name, symbol, decimals, address };
   }
 
   async setActiveAccount(activeAccount?: string) {
@@ -202,11 +230,11 @@ class ZondStore {
         this.zondAccounts.accounts.find(
           (account) => account.accountAddress === storedActiveAccount,
         )?.accountAddress ?? "";
-      
+
       if (!confirmedExistingActiveAccount) {
         await StorageUtil.clearActiveAccount(this.zondConnection.blockchain);
       }
-      
+
       this.activeAccount = {
         ...this.activeAccount,
         accountAddress: confirmedExistingActiveAccount,
@@ -285,20 +313,24 @@ class ZondStore {
     maxTxLimit: string,
     mnemonicPhrases: string
   ) {
+    this.setCreatingToken(tokenName, true);
     const selectedBlockChain = await StorageUtil.getBlockChain();
     const { url } = ZOND_PROVIDER[selectedBlockChain];
     const seed = getHexSeedFromMnemonic(mnemonicPhrases);
     const web3 = new Web3(new Web3.providers.HttpProvider(url));
     const acc = web3.zond.accounts.seedToAccount(seed)
     web3.zond.wallet?.add(seed);
-    web3.zond.transactionConfirmationBlocks = 3;
+    web3.zond.transactionConfirmationBlocks = 1;
 
     const confirmationHandler = (data: any) => {
+      this.setCreatingToken("", false);
       console.log(data);
     }
 
-    const receiptHandler = (data: any) => {
-      console.log(data);
+    const receiptHandler = async (data: any) => {
+      const erc20TokenAddress = `0x${data.logs[3].topics[1].slice(-40)}`
+      const { name, symbol, decimals } = await fetchTokenInfo(erc20TokenAddress);
+      this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress);
     }
 
     const errorHandler = (data: any) => {
@@ -309,15 +341,13 @@ class ZondStore {
 
     const customERC20Factorycontract = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
 
-    console.log(typeof initialSupply.toString());
-
     const contractCreateToken = customERC20Factorycontract.methods.createToken(
       tokenName, tokenSymbol, BigInt(initialSupply.toString()).toString(), decimals, BigInt(maxSupply.toString()).toString(), receipt, owner, BigInt(maxWalletAmount.toString()).toString(), BigInt(maxTxLimit.toString()).toString()
     )
-    
-    const estimateGas  = await contractCreateToken.estimateGas({ "from": acc.address })
 
-    const txObj = {type: '0x2', gas: estimateGas, from: acc.address, data: contractCreateToken.encodeABI(), to: contractAddress}
+    const estimateGas = await contractCreateToken.estimateGas({ "from": acc.address })
+
+    const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: contractCreateToken.encodeABI(), to: contractAddress }
 
     await web3.zond.sendTransaction(txObj, undefined, {
       checkRevertBeforeSending: true

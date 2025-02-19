@@ -2,6 +2,7 @@ import { ZOND_PROVIDER } from "../configuration/zondConfig";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
 const BLOCKCHAIN_SELECTION_IDENTIFIER = "BLOCKCHAIN_SELECTION";
+const BLOCKCHAIN_CREATED_TOKEN = "CREATED_TOKEN"
 const ACTIVE_ACCOUNT_IDENTIFIER = "ACTIVE_ACCOUNT";
 const ACCOUNT_LIST_IDENTIFIER = "ACCOUNT_LIST";
 const TRANSACTION_VALUES_IDENTIFIER = "TRANSACTION_VALUES";
@@ -84,6 +85,10 @@ class StorageUtil {
    */
   static async setBlockChain(selectedBlockchain: string) {
     this.setItem(BLOCKCHAIN_SELECTION_IDENTIFIER, selectedBlockchain);
+  }
+
+  static async setCreatedToken(name: string, symbol: string, decimals: number, address: string) {
+    this.setItem(BLOCKCHAIN_CREATED_TOKEN, {name, symbol, decimals, address});
   }
 
   static async getBlockChain() {
