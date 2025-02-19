@@ -10,6 +10,7 @@ import Web3, {
 import { action, makeAutoObservable, observable, runInAction } from "mobx";
 import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
 import { fetchTokenInfo } from "@/utilities/web3utils/customERC20";
+import { TokenInterface } from "@/lib/constants";
 import { KNOWN_TOKEN_LIST } from "@/lib/constants";
 type ActiveAccountType = {
   accountAddress: string;
@@ -37,14 +38,6 @@ type CreatedTokenType = {
   address: string;
 }
 
-type TokenType = {
-  name: string;
-  symbol: string;
-  decimals: number;
-  address: string;
-  amount: string;
-}
-
 class ZondStore {
   zondInstance?: Web3ZondInterface;
   zondConnection = {
@@ -57,7 +50,7 @@ class ZondStore {
   activeAccount: ActiveAccountType = { accountAddress: "" };
   creatingToken: CreatingTokenType = { name: "", creating: false };
   createdToken: CreatedTokenType = { name: "", symbol: "", decimals: 0, address: "" };
-  tokenList: TokenType[] = [];
+  tokenList: TokenInterface[] = [];
 
   constructor() {
     makeAutoObservable(this, {
@@ -84,10 +77,6 @@ class ZondStore {
     // Log initialization
     log("ZondStore initialized");
 
-    KNOWN_TOKEN_LIST.forEach(token => {
-      this.addToken(token);
-    });
-
     // Initialize blockchain asynchronously to avoid blocking constructor
     setTimeout(() => {
       this.initializeBlockchain();
@@ -112,6 +101,12 @@ class ZondStore {
 
       runInAction(() => {
         this.zondInstance = zond;
+      });
+
+      this.tokenList = await StorageUtil.getTokenList();
+
+      KNOWN_TOKEN_LIST.forEach(async (token) => {
+        await this.addToken(token);
       });
 
       await this.fetchZondConnection();
@@ -140,12 +135,17 @@ class ZondStore {
     this.createdToken = { name, symbol, decimals, address };
   }
 
-  async addToken(token: TokenType) {
-    await StorageUtil.updateTokenList([...this.tokenList, token]);
-    this.tokenList.push(token);
+  async addToken(token: TokenInterface) {
+    if (!this.tokenList.some(t => t.address.toLowerCase() === token.address.toLowerCase())) {
+      await StorageUtil.updateTokenList([...this.tokenList, token]);
+      this.tokenList = [...this.tokenList, token];
+      return token;
+    } else {
+      return null;
+    }
   }
 
-  async removeToken(token: TokenType) {
+  async removeToken(token: TokenInterface) {
     await StorageUtil.updateTokenList(this.tokenList.filter(t => t.address.toLowerCase() !== token.address.toLowerCase()));
     this.tokenList = this.tokenList.filter(t => t.address !== token.address);
   }
@@ -383,7 +383,5 @@ class ZondStore {
       .on('error', errorHandler)
   }
 }
-
-export type { TokenType };
 
 export default ZondStore;

@@ -23,6 +23,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useEffect } from "react";
 import { useStore } from "@/stores/store";
+import { toast } from "@/hooks/use-toast";
 
 const FormSchema = z
     .object({
@@ -54,7 +55,7 @@ type TokenCreationFormProps = {
 export const TokenCreationForm = observer(
     ({ onTokenCreated }: TokenCreationFormProps) => {
         const { zondStore } = useStore();
-        const { createdToken } = zondStore;
+        const { createdToken, addToken } = zondStore;
         const { name, symbol, decimals, address } = createdToken;
 
         const form = useForm<z.infer<typeof FormSchema>>({
@@ -110,21 +111,38 @@ export const TokenCreationForm = observer(
         }
 
         useEffect(() => {
-            form.reset({
-                tokenName: "",
-                tokenSymbol: "",
-                initialSupply: 0,
-                decimals: 0,
-                mintable: false,
-                changeInitialRecipient: false,
-                changeTokenOwner: false,
-                setMaxWalletAmount: false,
-                setMaxTransactionLimit: false,
-                mnemonicPhrases: "",
-            });
-            if (address) {
-                alert(`Token created successfully.\n Address: ${address}\n Name: ${name}\n Symbol: ${symbol}\n Decimals: ${decimals}`);
+            const init = async () => {
+                form.reset({
+                    tokenName: "",
+                    tokenSymbol: "",
+                    initialSupply: 0,
+                    decimals: 0,
+                    mintable: false,
+                    changeInitialRecipient: false,
+                    changeTokenOwner: false,
+                    setMaxWalletAmount: false,
+                    setMaxTransactionLimit: false,
+                    mnemonicPhrases: "",
+                });
+                if (address) {
+                    const token = await addToken({
+                        name: name,
+                        symbol: symbol,
+                        decimals: decimals,
+                        address: address,
+                        amount: "0",
+                    });
+                    if (token) {
+                        toast({
+                            title: `${name} token created successfully`,
+                            description: `Address: ${address}\n Name: ${name}\n Symbol: ${symbol}\n Decimals: ${decimals}`,
+                            variant: "default",
+                        });
+                    }
+                }
+
             }
+            init();
         }, [address]);
 
         return (
@@ -280,7 +298,7 @@ export const TokenCreationForm = observer(
                             {form.watch("changeInitialRecipient") && (
                                 <FormField
                                     control={control}
-                                    name="maxSupply"
+                                    name="recipientAddress"
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormControl>

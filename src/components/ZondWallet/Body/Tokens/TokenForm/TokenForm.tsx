@@ -1,4 +1,4 @@
-import { KNOWN_TOKEN_LIST, TokenInterface } from "@/lib/constants";
+import { TokenInterface } from "@/lib/constants";
 import {
     Card,
     CardContent,
@@ -12,51 +12,52 @@ import { DataTable } from "./data-table"
 import { useEffect, useState } from "react";
 import { fetchBalance } from "@/utilities/web3utils/customERC20";
 import { useStore } from "@/stores/store";
-import StorageUtil from "@/utilities/storageUtil";
+import { Button } from "@/components/UI/Button";
+import { Plus } from "lucide-react";
+import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 
 export const TokenForm = observer(() => {
     const { zondStore } = useStore();
     const {
         activeAccount: { accountAddress: activeAccountAddress },
+        tokenList: tokenListFromStore,
     } = zondStore;
 
-    const [tokenList, setTokenList] = useState<TokenInterface[]>([]);
+    const [tokenList, setTokenList] = useState<TokenInterface[]>(tokenListFromStore);
+    const [isAddTokenModalOpen, setIsAddTokenModalOpen] = useState(false);
 
     useEffect(() => {
         const init = async () => {
-            for (let i = 0; i < KNOWN_TOKEN_LIST.length; i++) {
-                const balance = await fetchBalance(KNOWN_TOKEN_LIST[i].address, activeAccountAddress)
-                setTokenList((prevTokenList) => {
-                    let tempTokenList = [...prevTokenList];
-                    tempTokenList[i].amount = `${parseInt(balance.toString()) / 10 ** KNOWN_TOKEN_LIST[i].decimals}`;
-                    return tempTokenList
-                })
+            let updatedTokenList = [...tokenListFromStore];
+
+            for (let i = 0; i < tokenListFromStore.length; i++) {
+                const balance = await fetchBalance(tokenListFromStore[i].address, activeAccountAddress);
+                updatedTokenList[i].amount = `${parseInt(balance.toString()) / 10 ** tokenListFromStore[i].decimals}`;
             }
-        }
-        init()
-    }, [activeAccountAddress])
+            setTokenList(updatedTokenList);
+        };
 
-    useEffect(() => {
-        const init = async () => {
-            const tokenListFromStorage = await StorageUtil.getTokenList();
-            setTokenList(tokenListFromStorage);
-        }
-        init()
-    }, [])
+        init();
+    }, [activeAccountAddress, tokenListFromStore]);
 
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Tokens</CardTitle>
+                <div className="flex justify-between items-center">
+                    <CardTitle>
+                        Tokens
+                    </CardTitle>
+                    <Button className="bg-primary text-primary-foreground p-2 hover:bg-primary/80" onClick={() => setIsAddTokenModalOpen(true)}>
+                        <Plus />
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent className="space-y-8">
                 <DataTable columns={columns} data={tokenList} />
-                {/* {KNOWN_TOKEN_LIST.map((token) => {
-                    return <>{token.symbol}</>
-                })} */}
             </CardContent>
             <CardFooter>
             </CardFooter>
+            <AddTokenModal isOpen={isAddTokenModalOpen} onClose={() => setIsAddTokenModalOpen(false)} />
         </Card>
     );
 }

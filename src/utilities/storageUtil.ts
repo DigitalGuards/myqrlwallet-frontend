@@ -1,5 +1,5 @@
-import { TokenType } from "@/stores/zondStore";
 import { ZOND_PROVIDER } from "../configuration/zondConfig";
+import { TokenInterface } from "@/lib/constants";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
 const BLOCKCHAIN_SELECTION_IDENTIFIER = "BLOCKCHAIN_SELECTION";
@@ -93,12 +93,13 @@ class StorageUtil {
     this.setItem(BLOCKCHAIN_CREATED_TOKEN, { name, symbol, decimals, address });
   }
 
-  static async updateTokenList(tokenList: TokenType[]) {
+  static async updateTokenList(tokenList: TokenInterface[]) {
+    console.log(tokenList)
     this.setItem(TOKEN_LIST_IDENTIFIER, tokenList);
   }
 
   static async getTokenList() {
-    return this.getItem<TokenType[]>(TOKEN_LIST_IDENTIFIER) ?? [];
+    return this.getItem<TokenInterface[]>(TOKEN_LIST_IDENTIFIER) ?? [];
   }
 
   static async getBlockChain() {
