@@ -9,6 +9,9 @@ const ZondWalletLogo = withSuspense(
 const AccountBadge = withSuspense(
   lazy(() => import("./AccountBadge/AccountBadge"))
 );
+const NavBar = withSuspense(
+  lazy(() => import("./NavBar/NavBar"))
+)
 
 const Header = observer(() => {
   const { zondStore } = useStore();
@@ -18,7 +21,10 @@ const Header = observer(() => {
   return (
     <div className="fixed top-0 z-20 flex h-16 w-full items-center justify-between border-b-2 border-secondary bg-background px-4">
       <ZondWalletLogo />
-      {isConnected && <AccountBadge />}
+      <div className="flex gap-4">
+        <NavBar />
+        {isConnected && <AccountBadge />}
+      </div>
     </div>
   );
 });

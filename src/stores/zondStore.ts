@@ -8,7 +8,10 @@ import Web3, {
   utils,
 } from "@theqrl/web3";
 import { action, makeAutoObservable, observable, runInAction } from "mobx";
-
+import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
+import { fetchTokenInfo } from "@/utilities/web3utils/customERC20";
+import { TokenInterface } from "@/lib/constants";
+import { KNOWN_TOKEN_LIST } from "@/lib/constants";
 type ActiveAccountType = {
   accountAddress: string;
 };
@@ -23,6 +26,18 @@ type ZondAccountsType = {
   isLoading: boolean;
 };
 
+type CreatingTokenType = {
+  name: string;
+  creating: boolean;
+}
+
+type CreatedTokenType = {
+  name: string;
+  symbol: string;
+  decimals: number;
+  address: string;
+}
+
 class ZondStore {
   zondInstance?: Web3ZondInterface;
   zondConnection = {
@@ -33,6 +48,9 @@ class ZondStore {
   };
   zondAccounts: ZondAccountsType = { accounts: [], isLoading: false };
   activeAccount: ActiveAccountType = { accountAddress: "" };
+  creatingToken: CreatingTokenType = { name: "", creating: false };
+  createdToken: CreatedTokenType = { name: "", symbol: "", decimals: 0, address: "" };
+  tokenList: TokenInterface[] = [];
 
   constructor() {
     makeAutoObservable(this, {
@@ -40,12 +58,20 @@ class ZondStore {
       zondConnection: observable.struct,
       zondAccounts: observable.struct,
       activeAccount: observable.struct,
+      creatingToken: observable.struct,
+      createdToken: observable.struct,
+      tokenList: observable.struct,
+      addToken: action.bound,
+      removeToken: action.bound,
+      setCreatedToken: action.bound,
+      setCreatingToken: action.bound,
       selectBlockchain: action.bound,
       setActiveAccount: action.bound,
       fetchZondConnection: action.bound,
       fetchAccounts: action.bound,
       getAccountBalance: action.bound,
       signAndSendTransaction: action.bound,
+      createToken: action.bound,
     });
 
     // Log initialization
@@ -77,6 +103,12 @@ class ZondStore {
         this.zondInstance = zond;
       });
 
+      this.tokenList = await StorageUtil.getTokenList();
+
+      KNOWN_TOKEN_LIST.forEach(async (token) => {
+        await this.addToken(token);
+      });
+
       await this.fetchZondConnection();
       await this.fetchAccounts();
       await this.validateActiveAccount();
@@ -92,6 +124,30 @@ class ZondStore {
   async selectBlockchain(selectedBlockchain: string) {
     await StorageUtil.setBlockChain(selectedBlockchain);
     await this.initializeBlockchain();
+  }
+
+  async setCreatingToken(name: string, creating: boolean) {
+    this.creatingToken = { name, creating };
+  }
+
+  async setCreatedToken(name: string, symbol: string, decimals: number, address: string) {
+    await StorageUtil.setCreatedToken(name, symbol, decimals, address);
+    this.createdToken = { name, symbol, decimals, address };
+  }
+
+  async addToken(token: TokenInterface) {
+    if (!this.tokenList.some(t => t.address.toLowerCase() === token.address.toLowerCase())) {
+      await StorageUtil.updateTokenList([...this.tokenList, token]);
+      this.tokenList = [...this.tokenList, token];
+      return token;
+    } else {
+      return null;
+    }
+  }
+
+  async removeToken(token: TokenInterface) {
+    await StorageUtil.updateTokenList(this.tokenList.filter(t => t.address.toLowerCase() !== token.address.toLowerCase()));
+    this.tokenList = this.tokenList.filter(t => t.address !== token.address);
   }
 
   async setActiveAccount(activeAccount?: string) {
@@ -200,11 +256,11 @@ class ZondStore {
         this.zondAccounts.accounts.find(
           (account) => account.accountAddress === storedActiveAccount,
         )?.accountAddress ?? "";
-      
+
       if (!confirmedExistingActiveAccount) {
         await StorageUtil.clearActiveAccount(this.zondConnection.blockchain);
       }
-      
+
       this.activeAccount = {
         ...this.activeAccount,
         accountAddress: confirmedExistingActiveAccount,
@@ -269,6 +325,62 @@ class ZondStore {
     }
 
     return transaction;
+  }
+
+  async createToken(
+    tokenName: string,
+    tokenSymbol: string,
+    initialSupply: string,
+    decimals: number,
+    maxSupply: string,
+    receipt: string,
+    owner: string,
+    maxWalletAmount: string,
+    maxTxLimit: string,
+    mnemonicPhrases: string
+  ) {
+    this.setCreatingToken(tokenName, true);
+    const selectedBlockChain = await StorageUtil.getBlockChain();
+    const { url } = ZOND_PROVIDER[selectedBlockChain];
+    const seed = getHexSeedFromMnemonic(mnemonicPhrases);
+    const web3 = new Web3(new Web3.providers.HttpProvider(url));
+    const acc = web3.zond.accounts.seedToAccount(seed)
+    web3.zond.wallet?.add(seed);
+    web3.zond.transactionConfirmationBlocks = 1;
+
+    const confirmationHandler = (data: any) => {
+      this.setCreatingToken("", false);
+      console.log(data);
+    }
+
+    const receiptHandler = async (data: any) => {
+      const erc20TokenAddress = `0x${data.logs[3].topics[1].slice(-40)}`
+      const { name, symbol, decimals } = await fetchTokenInfo(erc20TokenAddress);
+      this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress);
+    }
+
+    const errorHandler = (data: any) => {
+      console.error(data);
+    }
+
+    const contractAddress = import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
+
+    const customERC20Factorycontract = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
+
+    const contractCreateToken = customERC20Factorycontract.methods.createToken(
+      tokenName, tokenSymbol, BigInt(initialSupply.toString()).toString(), decimals, BigInt(maxSupply.toString()).toString(), receipt, owner, BigInt(maxWalletAmount.toString()).toString(), BigInt(maxTxLimit.toString()).toString()
+    )
+
+    const estimateGas = await contractCreateToken.estimateGas({ "from": acc.address })
+
+    const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: contractCreateToken.encodeABI(), to: contractAddress }
+
+    await web3.zond.sendTransaction(txObj, undefined, {
+      checkRevertBeforeSending: true
+    })
+      .on('confirmation', confirmationHandler)
+      .on('receipt', receiptHandler)
+      .on('error', errorHandler)
   }
 }
 

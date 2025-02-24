@@ -1,10 +1,13 @@
 import { ZOND_PROVIDER } from "../configuration/zondConfig";
+import { TokenInterface } from "@/lib/constants";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
 const BLOCKCHAIN_SELECTION_IDENTIFIER = "BLOCKCHAIN_SELECTION";
+const BLOCKCHAIN_CREATED_TOKEN = "CREATED_TOKEN"
 const ACTIVE_ACCOUNT_IDENTIFIER = "ACTIVE_ACCOUNT";
 const ACCOUNT_LIST_IDENTIFIER = "ACCOUNT_LIST";
 const TRANSACTION_VALUES_IDENTIFIER = "TRANSACTION_VALUES";
+const TOKEN_LIST_IDENTIFIER = "TOKEN_LIST";
 const STORAGE_VERSION = 'v1';
 const MAX_STORAGE_AGE = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
 
@@ -44,7 +47,7 @@ class StorageUtil {
       if (!item) return null;
 
       const parsed = JSON.parse(item) as StorageItem<T>;
-      
+
       // Check expiration
       if (this.isExpired(parsed.timestamp)) {
         localStorage.removeItem(key);
@@ -86,6 +89,19 @@ class StorageUtil {
     this.setItem(BLOCKCHAIN_SELECTION_IDENTIFIER, selectedBlockchain);
   }
 
+  static async setCreatedToken(name: string, symbol: string, decimals: number, address: string) {
+    this.setItem(BLOCKCHAIN_CREATED_TOKEN, { name, symbol, decimals, address });
+  }
+
+  static async updateTokenList(tokenList: TokenInterface[]) {
+    console.log(tokenList)
+    this.setItem(TOKEN_LIST_IDENTIFIER, tokenList);
+  }
+
+  static async getTokenList() {
+    return this.getItem<TokenInterface[]>(TOKEN_LIST_IDENTIFIER) ?? [];
+  }
+
   static async getBlockChain() {
     const DEFAULT_BLOCKCHAIN = ZOND_PROVIDER.DEV.id;
     const storedBlockchain = this.getItem<string>(BLOCKCHAIN_SELECTION_IDENTIFIER);
@@ -101,7 +117,7 @@ class StorageUtil {
     const blockChainAccountIdentifier = `${blockchain}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
     if (activeAccount) {
       this.setItem(blockChainAccountIdentifier, activeAccount);
-      
+
       // Ensure account is in the account list
       const accountList = await this.getAccountList(blockchain);
       if (!accountList.includes(activeAccount)) {
@@ -151,7 +167,7 @@ class StorageUtil {
       receiverAddress: transactionValues.receiverAddress ?? "",
       amount: transactionValues.amount ?? 0,
     };
-    
+
     this.setItem(transactionValuesIdentifier, safeValues);
   }
 

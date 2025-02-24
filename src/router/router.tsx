@@ -6,15 +6,21 @@ const ZondWallet = lazy(() => import("../components/ZondWallet/ZondWallet.tsx"))
 const Home = lazy(() => import("../components/ZondWallet/Body/Home/Home.tsx"));
 const CreateAccount = lazy(() => import("../components/ZondWallet/Body/CreateAccount/CreateAccount.tsx"));
 const ImportAccount = lazy(() => import("../components/ZondWallet/Body/ImportAccount/ImportAccount.tsx"));
+const AddAccount = lazy(() => import("../components/ZondWallet/Body/AddAccount/AddAccount.tsx"))
 const AccountDetails = lazy(() => import("../components/ZondWallet/Body/AccountDetails/AccountDetails.tsx"));
 const AccountList = lazy(() => import("../components/ZondWallet/Body/AccountList/AccountList.tsx"));
+const CreateToken = lazy(() => import("../components/ZondWallet/Body/CreateToken/CreateToken.tsx"));
+const Tokens = lazy(() => import("../components/ZondWallet/Body/Tokens/Tokens.tsx"))
 
 const ROUTES = {
   HOME: "/",
   CREATE_ACCOUNT: "/create-account",
   IMPORT_ACCOUNT: "/import-account",
+  ADD_ACCOUNT: "/add-account",
   ACCOUNT_LIST: "/account-list",
   ACCOUNT_DETAILS: "/account-details",
+  CREATE_TOKEN: "/create-token",
+  TOKENS: "/tokens",
   DEFAULT: "*",
 } as const;
 
@@ -52,6 +58,14 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: ROUTES.ADD_ACCOUNT,
+        element: (
+          <Suspense fallback={<div>Loading...</div>}>
+            <AddAccount />
+          </Suspense>
+        ),
+      },
+      {
         path: ROUTES.ACCOUNT_DETAILS,
         element: (
           <Suspense fallback={<div>Loading...</div>}>
@@ -66,6 +80,22 @@ const router = createBrowserRouter([
             <AccountList />
           </Suspense>
         ),
+      },
+      {
+        path: ROUTES.CREATE_TOKEN,
+        element: (
+          <Suspense fallback={<div>Loading...</div>}>
+            <CreateToken />
+          </Suspense>
+        )
+      },
+      {
+        path: ROUTES.TOKENS,
+        element: (
+          <Suspense fallback={<div>Loading...</div>}>
+            <Tokens />
+          </Suspense>
+        )
       },
       {
         path: ROUTES.DEFAULT,
