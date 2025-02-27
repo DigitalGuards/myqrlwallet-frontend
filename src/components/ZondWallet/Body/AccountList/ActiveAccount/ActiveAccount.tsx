@@ -15,7 +15,7 @@ import { observer } from "mobx-react-lite";
 import { Link } from "react-router-dom";
 import { AccountId } from "../AccountId/AccountId";
 import { AccountBalance } from "../AccountBalance/AccountBalance";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 
 export const ActiveAccount = observer(() => {

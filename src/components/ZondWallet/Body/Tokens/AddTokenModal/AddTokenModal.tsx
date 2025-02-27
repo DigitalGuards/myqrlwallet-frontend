@@ -49,7 +49,7 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
 
     useEffect(() => {
         const init = async () => {
-            if (tokenAddress.length === 42 && tokenAddress.startsWith("0x")) {
+            if (tokenAddress.length === 41 && tokenAddress.startsWith("Z")) {
                 try {
                     const { name, symbol, decimals } = await fetchTokenInfo(tokenAddress);
                     const balance = await fetchBalance(tokenAddress, activeAccountAddress);

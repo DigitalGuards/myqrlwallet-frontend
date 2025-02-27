@@ -12,6 +12,8 @@ import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
 import { fetchTokenInfo } from "@/utilities/web3utils/customERC20";
 import { TokenInterface } from "@/lib/constants";
 import { KNOWN_TOKEN_LIST } from "@/lib/constants";
+import CustomERC20ABI from "@/abi/CustomERC20ABI";
+
 type ActiveAccountType = {
   accountAddress: string;
 };
@@ -63,6 +65,7 @@ class ZondStore {
       tokenList: observable.struct,
       addToken: action.bound,
       removeToken: action.bound,
+      updateToken: action.bound,
       setCreatedToken: action.bound,
       setCreatingToken: action.bound,
       selectBlockchain: action.bound,
@@ -148,6 +151,11 @@ class ZondStore {
   async removeToken(token: TokenInterface) {
     await StorageUtil.updateTokenList(this.tokenList.filter(t => t.address.toLowerCase() !== token.address.toLowerCase()));
     this.tokenList = this.tokenList.filter(t => t.address !== token.address);
+  }
+
+  async updateToken(token: TokenInterface) {
+    await StorageUtil.updateTokenList(this.tokenList.map(t => t.address.toLocaleLowerCase() === token.address.toLocaleLowerCase() ? token : t));
+    this.tokenList = this.tokenList.map(t => t.address.toLocaleLowerCase() === token.address.toLocaleLowerCase() ? token : t);
   }
 
   async setActiveAccount(activeAccount?: string) {
@@ -327,6 +335,38 @@ class ZondStore {
     return transaction;
   }
 
+  async sendToken(token: TokenInterface, amount: string, mnemonicPhrases: string) {
+    const confirmationHandler = (data: any) => {
+      console.log(data);
+    }
+
+    const receiptHandler = async (data: any) => {
+      console.log(data);
+    }
+
+    const errorHandler = (data: any) => {
+      console.error(data);
+    }
+    const selectedBlockChain = await StorageUtil.getBlockChain();
+    const { url } = ZOND_PROVIDER[selectedBlockChain];
+    const web3 = new Web3(new Web3.providers.HttpProvider(url));
+    const seed = getHexSeedFromMnemonic(mnemonicPhrases);
+    const acc = web3.zond.accounts.seedToAccount(seed)
+    web3.zond.wallet?.add(seed);
+    web3.zond.transactionConfirmationBlocks = 1;
+    const contract = new web3.zond.Contract(CustomERC20ABI, token.address);
+    const tx = contract.methods.transfer(token.address, amount).encodeABI();
+    const estimateGas = await contract.methods.transfer(token.address, amount).estimateGas({ "from": acc.address })
+    const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: tx, to: token.address }
+    await web3.zond.sendTransaction(txObj, undefined, {
+      checkRevertBeforeSending: true
+    })
+      .on('confirmation', confirmationHandler)
+      .on('receipt', receiptHandler)
+      .on('error', errorHandler)
+    return true;
+  }
+
   async createToken(
     tokenName: string,
     tokenSymbol: string,
@@ -354,7 +394,7 @@ class ZondStore {
     }
 
     const receiptHandler = async (data: any) => {
-      const erc20TokenAddress = `0x${data.logs[3].topics[1].slice(-40)}`
+      const erc20TokenAddress = `Z${data.logs[3].topics[1].slice(-40)}`
       const { name, symbol, decimals } = await fetchTokenInfo(erc20TokenAddress);
       this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress);
     }

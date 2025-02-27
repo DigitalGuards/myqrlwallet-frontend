@@ -11,11 +11,11 @@ const CreateToken = observer(() => {
     const onTokenCreated = async (tokenName: string, tokenSymbol: string, initialSupply: number, decimals: number, maxSupply: undefined | number, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | number, maxTransactionLimit: undefined | number, mnemonicPhrases: string) => {
 
         if (!initialRecipient) {
-            initialRecipient = "0x0000000000000000000000000000000000000000";
+            initialRecipient = "Z0000000000000000000000000000000000000000";
         }
 
         if (!tokenOwner) {
-            tokenOwner = "0x0000000000000000000000000000000000000000";
+            tokenOwner = "Z0000000000000000000000000000000000000000";
         }
 
         if (!maxSupply) {

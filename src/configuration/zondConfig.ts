@@ -1,6 +1,6 @@
 const API_BASE = process.env.NODE_ENV === 'production' 
   ? 'https://qrlwallet.com/api/zond-rpc'
-  : 'http://localhost:5173/api/zond-rpc';  // Using Vite's default port
+  : 'http://localhost:3000/api/zond-rpc';  // Using Vite's default port
 
 const ZONDSCAN_BASE = process.env.NODE_ENV === 'production'
   ? 'https://zondscan.com'

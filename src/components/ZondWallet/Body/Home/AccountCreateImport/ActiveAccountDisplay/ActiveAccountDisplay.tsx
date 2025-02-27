@@ -8,9 +8,9 @@ export const ActiveAccountDisplay = observer(() => {
 
   const accountBalance = getAccountBalance(accountAddress);
 
-  const prefix = accountAddress.substring(0, 2);
+  const prefix = accountAddress.substring(0, 1);
   const addressSplit: string[] = [];
-  for (let i = 2; i < accountAddress.length; i += 4) {
+  for (let i = 1; i < accountAddress.length; i += 4) {
     addressSplit.push(accountAddress.substring(i, i + 4));
   }
 

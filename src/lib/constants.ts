@@ -8,9 +8,9 @@ interface TokenInterface {
 
 const KNOWN_TOKEN_LIST: TokenInterface[] = [
     {
-        name: "First Zond Token",
-        symbol: "FZT",
-        address: "0x95437afc410938512c85b61059932c3fe11afe2e",
+        name: "Zond Token",
+        symbol: "ZT",
+        address: "Z9da9298591f541abb436bc1240dea84ba3589dfa",
         amount: "0",
         decimals: 6
     }
