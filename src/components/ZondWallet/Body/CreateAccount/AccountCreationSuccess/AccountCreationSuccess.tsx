@@ -50,7 +50,7 @@ export const AccountCreationSuccess = ({
 
   const accountAddress = extendedAccount?.address ?? "";
   const accountAddressSplit = [];
-  for (let i = 2; i < accountAddress.length; i += 4) {
+  for (let i = 1; i < accountAddress.length; i += 4) {
     accountAddressSplit.push(accountAddress.substring(i, i + 4));
   }
   const spacedAccountAddress = accountAddressSplit.join(" ");
@@ -89,7 +89,7 @@ export const AccountCreationSuccess = ({
       <CardContent className="space-y-8">
         <div className="flex flex-col gap-2">
           <div>Account public address:</div>
-          <div className="font-bold text-secondary">{`0x ${spacedAccountAddress}`}</div>
+          <div className="font-bold text-secondary">{`Z ${spacedAccountAddress}`}</div>
           <div>
             You can share this account public address with anyone. Others need
             it to interact with you.

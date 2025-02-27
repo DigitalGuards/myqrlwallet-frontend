@@ -19,8 +19,6 @@ const customERC20FactoryABI: [
         "type": "event"
     },
     {
-        "type": "function",
-        "name": "createToken",
         "inputs": [
             {
                 "internalType": "string",
@@ -68,6 +66,7 @@ const customERC20FactoryABI: [
                 "type": "uint256"
             }
         ],
+        "name": "createToken",
         "outputs": [
             {
                 "internalType": "address",
@@ -75,8 +74,10 @@ const customERC20FactoryABI: [
                 "type": "address"
             }
         ],
-        "stateMutability": "nonpayable"
-    }] = [
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+] = [
         {
             "anonymous": false,
             "inputs": [
@@ -97,8 +98,6 @@ const customERC20FactoryABI: [
             "type": "event"
         },
         {
-            "type": "function",
-            "name": "createToken",
             "inputs": [
                 {
                     "internalType": "string",
@@ -146,6 +145,7 @@ const customERC20FactoryABI: [
                     "type": "uint256"
                 }
             ],
+            "name": "createToken",
             "outputs": [
                 {
                     "internalType": "address",
@@ -153,7 +153,8 @@ const customERC20FactoryABI: [
                     "type": "address"
                 }
             ],
-            "stateMutability": "nonpayable"
+            "stateMutability": "nonpayable",
+            "type": "function"
         }
     ];
 

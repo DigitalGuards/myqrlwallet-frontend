@@ -22,10 +22,10 @@ const receiptHandler = (data: any) => {
 
 export const createToken = async () => {
     console.log(import.meta.env?.VITE_RPC_URL)
-    const contractAddress = "0xf466bb03d0fe24547d6c4287fbb2f418256755b2";
+    const contractAddress = "Z38cad9d0889643c271a718ba98c99b32a6a8331c";
     const contract1 = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
 
-    const contractCreateToken = contract1.methods.createToken("FrontendToken", "FTK", "1000000000000000000000000000", 18, "1000000000000000000000000000", "0x0000000000000000000000000000000000000000", "0x0000000000000000000000000000000000000000", "100000000000000000000000", "100000000000000000000000");
+    const contractCreateToken = contract1.methods.createToken("FrontendToken", "FTK", "1000000000000000000000000000", 18, "1000000000000000000000000000", "Z0000000000000000000000000000000000000000", "Z0000000000000000000000000000000000000000", "100000000000000000000000", "100000000000000000000000");
 
     const estimateGas = await contractCreateToken.estimateGas({ "from": acc.address })
 

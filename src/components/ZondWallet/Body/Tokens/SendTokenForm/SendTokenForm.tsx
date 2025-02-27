@@ -83,7 +83,7 @@ export const TokenSendingForm = observer(
                                         <FormControl>
                                             <Input
                                                 disabled={isSubmitting}
-                                                placeholder="Example: 0x20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
+                                                placeholder="Example: Z20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
                                                 type="text"
                                                 {...field}
                                             />
@@ -102,7 +102,7 @@ export const TokenSendingForm = observer(
                                             <Input
                                                 {...field}
                                                 disabled={isSubmitting}
-                                                placeholder="Example: 0x20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
+                                                placeholder="Example: Z20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
                                                 type="text"
                                             />
                                         </FormControl>

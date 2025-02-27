@@ -50,7 +50,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
 
     useEffect(() => {
         const init = async () => {
-            if (tokenInfo?.address.length === 42 && tokenInfo?.address.startsWith("0x")) {
+            if (tokenInfo?.address.length === 41 && tokenInfo?.address.startsWith("Z")) {
                 try {
                     const { name, symbol, decimals } = await fetchTokenInfo(tokenInfo.address);
                     const balance = await fetchBalance(tokenInfo.address, activeAccountAddress);
