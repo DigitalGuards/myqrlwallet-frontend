@@ -6,9 +6,9 @@ type AccountIdType = {
 
 export const AccountId = observer(({ account }: AccountIdType) => {
   const splitLength = 5;
-  const prefix = account.substring(0, 2);
+  const prefix = account.substring(0, 1);
   const idSplit: string[] = [];
-  for (let i = 2; i < account.length; i += splitLength) {
+  for (let i = 1; i < account.length; i += splitLength) {
     idSplit.push(account.substring(i, i + splitLength));
   }
 
