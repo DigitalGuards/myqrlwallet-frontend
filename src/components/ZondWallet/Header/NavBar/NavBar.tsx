@@ -90,11 +90,11 @@ const NavBar = observer(() => {
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-64 p-4 h">
-                    <DialogHeader>
+                    <DialogHeader className="items-start">
                         <DialogTitle>Menu</DialogTitle>
                     </DialogHeader>
                     <NavigationMenu>
-                        <NavigationMenuList className="flex flex-col space-y-4 mt-8 items-start">
+                        <NavigationMenuList className="flex flex-col space-y-4 mt-6 items-start">
                             <NavigationMenuItem className="w-full">
                                 <NavigationMenuLink
                                     onClick={() => {
