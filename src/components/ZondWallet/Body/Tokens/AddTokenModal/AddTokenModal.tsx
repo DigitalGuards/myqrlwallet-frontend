@@ -23,6 +23,7 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
     } = zondStore;
     const [tokenAddress, setTokenAddress] = useState("");
     const [tokenInfo, setTokenInfo] = useState<TokenInterface | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
     const addToken = async () => {
         if (tokenInfo) {
@@ -51,6 +52,7 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
         const init = async () => {
             if (tokenAddress.length === 41 && tokenAddress.startsWith("Z")) {
                 try {
+                    setIsLoading(true);
                     const { name, symbol, decimals } = await fetchTokenInfo(tokenAddress);
                     const balance = await fetchBalance(tokenAddress, activeAccountAddress);
                     setTokenInfo({ name, symbol, decimals: parseInt(decimals.toString()), address: tokenAddress, amount: balance.toString() });
@@ -58,6 +60,7 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
                     console.error("Error fetching token info", error);
                 }
             }
+            setIsLoading(false);
         }
         init();
     }, [tokenAddress]);
@@ -107,7 +110,7 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
                 )}
 
                 <DialogFooter>
-                    <Button className="w-full" type="button" disabled={tokenAddress.length === 0} onClick={addToken}>Add Token</Button>
+                    <Button className="w-full" type="button" disabled={tokenAddress.length === 0 || isLoading} onClick={addToken}>Add Token</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

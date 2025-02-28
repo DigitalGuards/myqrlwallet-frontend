@@ -22,7 +22,7 @@ import { DialogTitle } from "@/components/UI/Dialog";
 const NavBar = observer(() => {
     const navigate = useNavigate();
     const { zondStore } = useStore();
-    const { zondAccounts, setActiveAccount } = zondStore;
+    const { zondAccounts, setActiveAccount, activeAccount } = zondStore;
 
     const [open, setOpen] = useState(false);
     const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
@@ -55,7 +55,10 @@ const NavBar = observer(() => {
                                         key={idx}
                                         className="cursor-pointer font-mono hover:bg-gray-900 p-1 rounded flex items-center justify-between gap-2 group"
                                     >
-                                        <span onClick={() => switchAccount(account.accountAddress)}>
+                                        <span className="flex items-center gap-2" onClick={() => switchAccount(account.accountAddress)}>
+                                            {account.accountAddress.toLowerCase() === activeAccount.accountAddress.toLowerCase() ? (
+                                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                            ):(<div className="w-2 h-2 rounded-full"></div>)}
                                             {account.accountAddress.substring(0, 15)}...
                                             {account.accountAddress.substring(account.accountAddress.length - 12)}
                                         </span>
@@ -155,7 +158,10 @@ const NavBar = observer(() => {
                                                 key={idx}
                                                 className="cursor-pointer font-mono hover:bg-gray-900 p-1 rounded flex items-center justify-between gap-2 group"
                                             >
-                                                <span onClick={() => switchAccount(account.accountAddress)}>
+                                                <span className="flex items-center gap-2" onClick={() => switchAccount(account.accountAddress)}>
+                                                    {account.accountAddress.toLowerCase() === activeAccount.accountAddress.toLowerCase() ? (
+                                                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                                    ):(<div className="w-2 h-2 rounded-full"></div>)}
                                                     {account.accountAddress.substring(0, 15)}...
                                                     {account.accountAddress.substring(account.accountAddress.length - 12)}
                                                 </span>

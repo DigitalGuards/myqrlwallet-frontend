@@ -9,39 +9,79 @@ import {
 } from "@/components/UI/Dialog"
 import { Input } from "@/components/UI/Input"
 import { Label } from "@/components/UI/Label"
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useStore } from "@/stores/store";
-import { fetchTokenInfo, fetchBalance } from "@/utilities/web3utils/customERC20";
 import { TokenInterface } from "@/lib/constants";
 import { toast } from "@/hooks/use-toast";
+import { fetchBalance, fetchTokenInfo } from "@/utilities/web3utils/customERC20";
+import { Loader2 } from "lucide-react";
+import { getAddressFromMnemonic } from "@/functions/getHexSeedFromMnemonic";
 
 export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, onClose: () => void, token: TokenInterface }) {
     const { zondStore } = useStore();
     const {
         sendToken: sendTokenToStore,
+        tokenList,
+        setTokenList,
         activeAccount: { accountAddress: activeAccountAddress },
     } = zondStore;
-    const [tokenInfo, setTokenInfo] = useState<TokenInterface | null>(token);
     const [amount, setAmount] = useState("");
     const [mnemonic, setMnemonic] = useState("");
     const [toAddress, setToAddress] = useState("");
-
+    const [isLoading, setIsLoading] = useState(false);
 
     const sendToken = async () => {
-        if (tokenInfo) {
-            const data = await sendTokenToStore(tokenInfo, amount, mnemonic, toAddress);
-            if (data) {
-                setTokenInfo(null);
-                setAmount("");
-                setMnemonic("");
-                setToAddress("");
-                onClose();
-            } else {
+        setIsLoading(true);
+        if (toAddress && amount && mnemonic) {
+            const senderAddress = getAddressFromMnemonic(mnemonic);
+            if (senderAddress.toLowerCase() !== activeAccountAddress.toLowerCase()) {
                 toast({
-                    title: "Error sending token",
+                    title: "Invalid mnemonic",
                     description: "Please try again",
                     variant: "destructive",
                 });
+                setIsLoading(false);
+                return;
+            }
+
+            let tokenInfo = tokenList.find(t => t.address === token?.address);
+
+            if (!tokenInfo) {
+                try {
+                    const { name, symbol, decimals } = await fetchTokenInfo(token?.address);
+                    const balance = await fetchBalance(token?.address, activeAccountAddress);
+                    tokenInfo = { name, symbol, decimals: parseInt(decimals.toString()), address: token?.address, amount: balance.toString() };
+                } catch (error) {
+                    toast({
+                        title: "Error fetching token info",
+                        description: "Please try again",
+                        variant: "destructive",
+                    });
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
+            if (tokenInfo) {
+                const data = await sendTokenToStore(tokenInfo, amount, mnemonic, toAddress);
+                if (data) {
+                    setAmount("");
+                    setMnemonic("");
+                    setToAddress("");
+                    onClose();
+                    const balance = await fetchBalance(tokenInfo.address, activeAccountAddress);
+                    setTokenList([...tokenList.filter(t => t.address !== tokenInfo.address), { ...tokenInfo, amount: balance.toString() }]);
+                    toast({
+                        title: "Token sent successfully",
+                        description: "Please check your wallet",
+                    });
+                } else {
+                    toast({
+                        title: "Error sending token",
+                        description: "Please try again",
+                        variant: "destructive",
+                    });
+                }
             }
         } else {
             toast({
@@ -49,22 +89,8 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                 variant: "destructive",
             });
         }
+        setIsLoading(false);
     }
-
-    useEffect(() => {
-        const init = async () => {
-            if (tokenInfo?.address.length === 41 && tokenInfo?.address.startsWith("Z")) {
-                try {
-                    const { name, symbol, decimals } = await fetchTokenInfo(tokenInfo.address);
-                    const balance = await fetchBalance(tokenInfo.address, activeAccountAddress);
-                    setTokenInfo({ name, symbol, decimals: parseInt(decimals.toString()), address: tokenInfo.address, amount: balance.toString() });
-                } catch (error) {
-                    console.error("Error fetching token info", error);
-                }
-            }
-        }
-        init();
-    }, [tokenInfo]);
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -80,23 +106,26 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                         <Label htmlFor="amount" className="mb-2">
                             To
                         </Label>
-                        <Input value={toAddress} onChange={(e) => setToAddress(e.target.value)} />
+                        <Input disabled={isLoading} value={toAddress} onChange={(e) => setToAddress(e.target.value)} />
                     </div>
                     <div className="flex flex-col">
                         <Label htmlFor="amount" className="mb-2">
                             Amount
                         </Label>
-                        <Input value={amount} onChange={(e) => setAmount(e.target.value)} />
+                        <Input disabled={isLoading} value={amount} onChange={(e) => setAmount(e.target.value)} />
                     </div>
                     <div className="flex flex-col">
                         <Label htmlFor="mnemonic" className="mb-2">
                             Mnemonic
                         </Label>
-                        <Input value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} />
+                        <Input disabled={isLoading} value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} />
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button type="button" disabled={tokenInfo?.address.length === 0} onClick={sendToken}>Send Token</Button>
+                    {isLoading ?
+                        <Button type="button" disabled={true}><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending...</Button> :
+                        <Button type="button" disabled={toAddress.length === 0 || amount.length === 0 || mnemonic.length === 0} onClick={sendToken}>Send Token</Button>
+                    }
                 </DialogFooter>
             </DialogContent>
         </Dialog>

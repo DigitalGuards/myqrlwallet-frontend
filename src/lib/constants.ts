@@ -12,7 +12,7 @@ const KNOWN_TOKEN_LIST: TokenInterface[] = [
         symbol: "ZT",
         address: "Z9da9298591f541abb436bc1240dea84ba3589dfa",
         amount: "0",
-        decimals: 6
+        decimals: 18
     }
 ]
 

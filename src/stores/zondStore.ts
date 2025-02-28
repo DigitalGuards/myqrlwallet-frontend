@@ -66,6 +66,7 @@ class ZondStore {
       addToken: action.bound,
       removeToken: action.bound,
       updateToken: action.bound,
+      setTokenList: action.bound,
       setCreatedToken: action.bound,
       setCreatingToken: action.bound,
       selectBlockchain: action.bound,
@@ -156,6 +157,11 @@ class ZondStore {
   async updateToken(token: TokenInterface) {
     await StorageUtil.updateTokenList(this.tokenList.map(t => t.address.toLocaleLowerCase() === token.address.toLocaleLowerCase() ? token : t));
     this.tokenList = this.tokenList.map(t => t.address.toLocaleLowerCase() === token.address.toLocaleLowerCase() ? token : t);
+  }
+
+  async setTokenList(tokenList: TokenInterface[]) {
+    await StorageUtil.updateTokenList(tokenList);
+    this.tokenList = tokenList;
   }
 
   async setActiveAccount(activeAccount?: string) {
