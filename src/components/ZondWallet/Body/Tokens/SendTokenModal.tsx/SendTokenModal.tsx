@@ -24,14 +24,17 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
     const [tokenInfo, setTokenInfo] = useState<TokenInterface | null>(token);
     const [amount, setAmount] = useState("");
     const [mnemonic, setMnemonic] = useState("");
+    const [toAddress, setToAddress] = useState("");
+
 
     const sendToken = async () => {
         if (tokenInfo) {
-            const data = await sendTokenToStore(tokenInfo, amount, mnemonic);
+            const data = await sendTokenToStore(tokenInfo, amount, mnemonic, toAddress);
             if (data) {
                 setTokenInfo(null);
                 setAmount("");
                 setMnemonic("");
+                setToAddress("");
                 onClose();
             } else {
                 toast({
@@ -65,7 +68,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                     <DialogTitle>Send Token - {token?.name}</DialogTitle>
                     <DialogDescription>
@@ -73,14 +76,20 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="amount" className="text-right">
+                    <div className="flex flex-col">
+                        <Label htmlFor="amount" className="mb-2">
+                            To
+                        </Label>
+                        <Input value={toAddress} onChange={(e) => setToAddress(e.target.value)} />
+                    </div>
+                    <div className="flex flex-col">
+                        <Label htmlFor="amount" className="mb-2">
                             Amount
                         </Label>
                         <Input value={amount} onChange={(e) => setAmount(e.target.value)} />
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="mnemonic" className="text-right">
+                    <div className="flex flex-col">
+                        <Label htmlFor="mnemonic" className="mb-2">
                             Mnemonic
                         </Label>
                         <Input value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} />

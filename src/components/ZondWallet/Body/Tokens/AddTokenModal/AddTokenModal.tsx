@@ -64,20 +64,18 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                     <DialogTitle>Add Token</DialogTitle>
                     <DialogDescription>
                         Add a new token to your wallet
                     </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">
-                            Token Address
-                        </Label>
-                        <Input className="col-span-3" value={tokenAddress} onChange={(e) => setTokenAddress(e.target.value)} />
-                    </div>
+                <div className="flex flex-col">
+                    <Label htmlFor="name" className="mb-2">
+                        Token Contract Address
+                    </Label>
+                    <Input className="col-span-3" value={tokenAddress} onChange={(e) => setTokenAddress(e.target.value)} />
                 </div>
                 {tokenInfo && (
                     <div className="grid gap-4 py-4">
@@ -109,7 +107,7 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
                 )}
 
                 <DialogFooter>
-                    <Button type="button" disabled={tokenAddress.length === 0} onClick={addToken}>Add Token</Button>
+                    <Button className="w-full" type="button" disabled={tokenAddress.length === 0} onClick={addToken}>Add Token</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
