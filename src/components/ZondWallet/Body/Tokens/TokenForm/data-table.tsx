@@ -14,7 +14,7 @@ import {
     TableRow,
 } from "@/components/UI/table"
 import { SendTokenModal } from "../SendTokenModal.tsx/SendTokenModal"
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TokenInterface } from "@/lib/constants";
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -33,6 +33,16 @@ export function DataTable<TData, TValue>({
     const [isSendTokenModalOpen, setIsSendTokenModalOpen] = useState(false);
     const [selectedToken, setSelectedToken] = useState<TData | null>(null);
 
+    // Watch for row selection changes
+    useEffect(() => {
+        const selectedRows = table.getSelectedRowModel().rows;
+        if (selectedRows.length > 0) {
+            setSelectedToken(selectedRows[0].original);
+            setIsSendTokenModalOpen(true);
+            // Reset selection after modal opens
+            table.resetRowSelection();
+        }
+    }, [table.getState().rowSelection]);
 
     return (
         <div className="rounded-md border">
@@ -61,10 +71,6 @@ export function DataTable<TData, TValue>({
                             <TableRow
                                 key={row.id}
                                 data-state={row.getIsSelected() && "selected"}
-                                onClick={() => {
-                                    setSelectedToken(row.original);
-                                    setIsSendTokenModalOpen(true);
-                                }}
                             >
                                 {row.getVisibleCells().map((cell) => (
                                     <TableCell key={cell.id}>
@@ -82,7 +88,11 @@ export function DataTable<TData, TValue>({
                     )}
                 </TableBody>
             </Table>
-            <SendTokenModal isOpen={isSendTokenModalOpen} onClose={() => setIsSendTokenModalOpen(false)} token={selectedToken as TokenInterface} />
+            <SendTokenModal
+                isOpen={isSendTokenModalOpen}
+                onClose={() => setIsSendTokenModalOpen(false)}
+                token={selectedToken as TokenInterface}
+            />
         </div>
     )
 }
