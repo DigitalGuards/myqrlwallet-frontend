@@ -15,6 +15,7 @@ import { useStore } from "@/stores/store";
 import { Button } from "@/components/UI/Button";
 import { Loader2, Plus } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
+import { formatUnits } from "ethers";
 
 export const TokenForm = observer(() => {
     const { zondStore } = useStore();
@@ -34,7 +35,11 @@ export const TokenForm = observer(() => {
 
             for (let i = 0; i < tokenListFromStore.length; i++) {
                 const balance = await fetchBalance(tokenListFromStore[i].address, activeAccountAddress);
-                updatedTokenList[i].amount = `${parseInt(balance.toString()) / 10 ** tokenListFromStore[i].decimals}`;
+                const formattedBalance = formatUnits(balance, tokenListFromStore[i].decimals);
+                const decimalIndex = formattedBalance.indexOf('.');
+                updatedTokenList[i].amount = decimalIndex === -1
+                    ? formattedBalance
+                    : formattedBalance.slice(0, decimalIndex + 5);
             }
             setTokenList(updatedTokenList);
             setIsLoading(false);

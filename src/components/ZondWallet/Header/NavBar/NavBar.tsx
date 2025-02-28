@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { observer } from "mobx-react-lite";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Copy, Check } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/stores/store";
 
@@ -22,13 +22,22 @@ import { DialogTitle } from "@/components/UI/Dialog";
 const NavBar = observer(() => {
     const navigate = useNavigate();
     const { zondStore } = useStore();
-    const { zondAccounts, setActiveAccount } = zondStore;
+    const { zondAccounts, setActiveAccount, activeAccount } = zondStore;
 
     const [open, setOpen] = useState(false);
+    const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
     const switchAccount = (accountAddress: string) => {
         setActiveAccount(accountAddress);
         setOpen(false); // Close mobile menu on selection
+    };
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        setCopiedAddress(text);
+        setTimeout(() => {
+            setCopiedAddress(null);
+        }, 1000);
     };
 
     return (
@@ -44,11 +53,23 @@ const NavBar = observer(() => {
                                 {zondAccounts.accounts.map((account, idx) => (
                                     <span
                                         key={idx}
-                                        className="cursor-pointer font-mono hover:bg-gray-900 p-1 rounded"
-                                        onClick={() => switchAccount(account.accountAddress)}
+                                        className="cursor-pointer font-mono hover:bg-gray-900 p-1 rounded flex items-center justify-between gap-2 group"
                                     >
-                                        {account.accountAddress.substring(0, 15)}...
-                                        {account.accountAddress.substring(account.accountAddress.length - 12)}
+                                        <span className="flex items-center gap-2" onClick={() => switchAccount(account.accountAddress)}>
+                                            {account.accountAddress.toLowerCase() === activeAccount.accountAddress.toLowerCase() ? (
+                                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                            ):(<div className="w-2 h-2 rounded-full"></div>)}
+                                            {account.accountAddress.substring(0, 15)}...
+                                            {account.accountAddress.substring(account.accountAddress.length - 12)}
+                                        </span>
+                                        {copiedAddress === account.accountAddress ? (
+                                            <Check className="w-4 h-4 text-green-500" />
+                                        ) : (
+                                            <Copy
+                                                className="w-4 h-4 hover:text-gray-400 transition-opacity cursor-pointer"
+                                                onClick={() => copyToClipboard(account.accountAddress)}
+                                            />
+                                        )}
                                     </span>
                                 ))}
                                 <Link to={"/add-account"}>
@@ -90,11 +111,11 @@ const NavBar = observer(() => {
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-64 p-4 h">
-                    <DialogHeader>
+                    <DialogHeader className="items-start">
                         <DialogTitle>Menu</DialogTitle>
                     </DialogHeader>
                     <NavigationMenu>
-                        <NavigationMenuList className="flex flex-col space-y-4 mt-8 items-start">
+                        <NavigationMenuList className="flex flex-col space-y-4 mt-6 items-start">
                             <NavigationMenuItem className="w-full">
                                 <NavigationMenuLink
                                     onClick={() => {
@@ -135,11 +156,23 @@ const NavBar = observer(() => {
                                         {zondAccounts.accounts.map((account, idx) => (
                                             <span
                                                 key={idx}
-                                                className="cursor-pointer font-mono hover:bg-gray-900 p-1 rounded"
-                                                onClick={() => switchAccount(account.accountAddress)}
+                                                className="cursor-pointer font-mono hover:bg-gray-900 p-1 rounded flex items-center justify-between gap-2 group"
                                             >
-                                                {account.accountAddress.substring(0, 15)}...
-                                                {account.accountAddress.substring(account.accountAddress.length - 12)}
+                                                <span className="flex items-center gap-2" onClick={() => switchAccount(account.accountAddress)}>
+                                                    {account.accountAddress.toLowerCase() === activeAccount.accountAddress.toLowerCase() ? (
+                                                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                                    ):(<div className="w-2 h-2 rounded-full"></div>)}
+                                                    {account.accountAddress.substring(0, 15)}...
+                                                    {account.accountAddress.substring(account.accountAddress.length - 12)}
+                                                </span>
+                                                {copiedAddress === account.accountAddress ? (
+                                                    <Check className="w-4 h-4 text-green-500" />
+                                                ) : (
+                                                    <Copy
+                                                        className="w-4 h-4 hover:text-gray-400 transition-opacity cursor-pointer"
+                                                        onClick={() => copyToClipboard(account.accountAddress)}
+                                                    />
+                                                )}
                                             </span>
                                         ))}
                                         <Link to={"/add-account"} onClick={() => setOpen(false)}>

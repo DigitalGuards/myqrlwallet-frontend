@@ -21,7 +21,6 @@ const receiptHandler = (data: any) => {
 }
 
 export const createToken = async () => {
-    console.log(import.meta.env?.VITE_RPC_URL)
     const contractAddress = "Z38cad9d0889643c271a718ba98c99b32a6a8331c";
     const contract1 = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
 

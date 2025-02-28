@@ -66,6 +66,7 @@ class ZondStore {
       addToken: action.bound,
       removeToken: action.bound,
       updateToken: action.bound,
+      setTokenList: action.bound,
       setCreatedToken: action.bound,
       setCreatingToken: action.bound,
       selectBlockchain: action.bound,
@@ -156,6 +157,11 @@ class ZondStore {
   async updateToken(token: TokenInterface) {
     await StorageUtil.updateTokenList(this.tokenList.map(t => t.address.toLocaleLowerCase() === token.address.toLocaleLowerCase() ? token : t));
     this.tokenList = this.tokenList.map(t => t.address.toLocaleLowerCase() === token.address.toLocaleLowerCase() ? token : t);
+  }
+
+  async setTokenList(tokenList: TokenInterface[]) {
+    await StorageUtil.updateTokenList(tokenList);
+    this.tokenList = tokenList;
   }
 
   async setActiveAccount(activeAccount?: string) {
@@ -335,7 +341,7 @@ class ZondStore {
     return transaction;
   }
 
-  async sendToken(token: TokenInterface, amount: string, mnemonicPhrases: string) {
+  async sendToken(token: TokenInterface, amount: string, mnemonicPhrases: string, toAddress: string) {
     const confirmationHandler = (data: any) => {
       console.log(data);
     }
@@ -355,8 +361,8 @@ class ZondStore {
     web3.zond.wallet?.add(seed);
     web3.zond.transactionConfirmationBlocks = 1;
     const contract = new web3.zond.Contract(CustomERC20ABI, token.address);
-    const tx = contract.methods.transfer(token.address, amount).encodeABI();
-    const estimateGas = await contract.methods.transfer(token.address, amount).estimateGas({ "from": acc.address })
+    const tx = contract.methods.transfer(toAddress, amount).encodeABI();
+    const estimateGas = await contract.methods.transfer(toAddress, amount).estimateGas({ "from": acc.address })
     const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: tx, to: token.address }
     await web3.zond.sendTransaction(txObj, undefined, {
       checkRevertBeforeSending: true

@@ -21,7 +21,7 @@ import { ROUTES } from "../../../../router/router";
 import { useStore } from "../../../../stores/store";
 import StorageUtil from "../../../../utilities/storageUtil";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { TransactionReceipt, validator } from "@theqrl/web3";
+import { TransactionReceipt } from "@theqrl/web3";
 import { Loader, Send, X } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
@@ -32,6 +32,7 @@ import { GasFeeNotice } from "./GasFeeNotice/GasFeeNotice";
 import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSuccessful";
 import { getExplorerAddressUrl } from "../../../../configuration/zondConfig";
 import { Copy, ExternalLink } from "lucide-react";
+import { isValidDilithiumAddress } from "@theqrl/wallet.js";
 
 const FormSchema = z
   .object({
@@ -39,7 +40,7 @@ const FormSchema = z
     amount: z.coerce.number().gt(0, "Amount should be more than 0"),
     mnemonicPhrases: z.string().min(1, "Mnemonic phrases are required"),
   })
-  .refine((fields) => validator.isAddress(fields.receiverAddress), {
+  .refine((fields) => isValidDilithiumAddress(fields.receiverAddress), {
     message: "Address is invalid",
     path: ["receiverAddress"],
   });
