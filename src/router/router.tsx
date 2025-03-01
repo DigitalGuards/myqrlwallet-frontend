@@ -12,6 +12,7 @@ const AccountDetails = lazy(() => import("../components/ZondWallet/Body/AccountD
 const AccountList = lazy(() => import("../components/ZondWallet/Body/AccountList/AccountList.tsx"));
 const CreateToken = lazy(() => import("../components/ZondWallet/Body/CreateToken/CreateToken.tsx"));
 const Tokens = lazy(() => import("../components/ZondWallet/Body/Tokens/Tokens.tsx"))
+const Settings = lazy(() => import("../components/ZondWallet/Body/Settings/Settings.tsx"));
 
 const ROUTES = {
   HOME: "/",
@@ -22,6 +23,7 @@ const ROUTES = {
   ACCOUNT_DETAILS: "/account-details",
   CREATE_TOKEN: "/create-token",
   TOKENS: "/tokens",
+  SETTINGS: "/settings",
   DEFAULT: "*",
 } as const;
 
@@ -97,6 +99,14 @@ const router = createBrowserRouter([
             <Tokens />
           </Suspense>
         )
+      },
+      {
+        path: ROUTES.SETTINGS,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Settings />
+          </Suspense>
+        ),
       },
       {
         path: ROUTES.DEFAULT,
