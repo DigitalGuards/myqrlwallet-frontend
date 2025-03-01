@@ -1,11 +1,12 @@
-import { ComponentType, Suspense, SuspenseProps } from "react";
+import { ComponentType, Suspense } from "react";
+import { Loading } from "@/components/UI/Loading";
 
 const withSuspense = <P extends object>(
   Component: ComponentType<P>,
-  fallback?: SuspenseProps["fallback"],
+  customFallback?: React.ReactNode,
 ) => {
   return (props: P) => (
-    <Suspense fallback={fallback}>
+    <Suspense fallback={customFallback || <Loading />}>
       <Component {...props} />
     </Suspense>
   );

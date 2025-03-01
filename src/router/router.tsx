@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
+import { Loading } from "@/components/UI/Loading";
 
 // Lazy load components
 const ZondWallet = lazy(() => import("../components/ZondWallet/ZondWallet.tsx"));
@@ -28,7 +29,7 @@ const router = createBrowserRouter([
   {
     path: ROUTES.HOME,
     element: (
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense fallback={<Loading />}>
         <ZondWallet />
       </Suspense>
     ),
@@ -36,7 +37,7 @@ const router = createBrowserRouter([
       {
         index: true,
         element: (
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={<Loading />}>
             <Home />
           </Suspense>
         ),
@@ -44,7 +45,7 @@ const router = createBrowserRouter([
       {
         path: ROUTES.CREATE_ACCOUNT,
         element: (
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={<Loading />}>
             <CreateAccount />
           </Suspense>
         ),
@@ -52,7 +53,7 @@ const router = createBrowserRouter([
       {
         path: ROUTES.IMPORT_ACCOUNT,
         element: (
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={<Loading />}>
             <ImportAccount />
           </Suspense>
         ),
@@ -60,7 +61,7 @@ const router = createBrowserRouter([
       {
         path: ROUTES.ADD_ACCOUNT,
         element: (
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={<Loading />}>
             <AddAccount />
           </Suspense>
         ),
@@ -68,7 +69,7 @@ const router = createBrowserRouter([
       {
         path: ROUTES.ACCOUNT_DETAILS,
         element: (
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={<Loading />}>
             <AccountDetails />
           </Suspense>
         ),
@@ -76,7 +77,7 @@ const router = createBrowserRouter([
       {
         path: ROUTES.ACCOUNT_LIST,
         element: (
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={<Loading />}>
             <AccountList />
           </Suspense>
         ),
@@ -84,7 +85,7 @@ const router = createBrowserRouter([
       {
         path: ROUTES.CREATE_TOKEN,
         element: (
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={<Loading />}>
             <CreateToken />
           </Suspense>
         )
@@ -92,7 +93,7 @@ const router = createBrowserRouter([
       {
         path: ROUTES.TOKENS,
         element: (
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={<Loading />}>
             <Tokens />
           </Suspense>
         )
