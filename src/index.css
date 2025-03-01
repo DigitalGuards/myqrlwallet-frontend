@@ -16,7 +16,8 @@
     --primary: 0 0% 9%;
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 0 0% 96.1%;  /* QRL Orange */
+    --secondary: 0 0% 96.1%;
+    /* QRL Orange */
     --secondary-foreground: 0 0% 9%;
 
     --muted: 0 0% 96.1%;
@@ -58,7 +59,8 @@
     --primary: 0 0% 98%;
     --primary-foreground: 0 0% 9%;
 
-    --secondary: 0 0% 14.9%;  /* QRL Orange */
+    --secondary: 0 0% 14.9%;
+    /* QRL Orange */
     --secondary-foreground: 0 0% 98%;
 
     --muted: 0 0% 14.9%;
@@ -79,12 +81,36 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
+
+  /* Add custom scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-color: hsl(var(--muted)) hsl(var(--background));
+  }
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
