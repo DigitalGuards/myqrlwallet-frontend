@@ -1,8 +1,23 @@
 import { observer } from "mobx-react-lite";
-// import { TokenSendingForm } from "./SendTokenForm/SendTokenForm";
 import { TokenForm } from "./TokenForm/TokenForm";
+import { useStore } from "@/stores/store";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
 
-const CreateToken = observer(() => {
+const Tokens = observer(() => {
+    const { zondStore } = useStore();
+    const { activeAccount } = zondStore;
+    const navigate = useNavigate();
+    useEffect(() => {
+        if (!activeAccount.accountAddress) {
+            toast({
+                title: 'Please add an account to continue',
+                variant: 'destructive',
+            });
+            navigate('/add-account');
+        }
+    }, [activeAccount]);
     return (
         <div className="flex w-full items-start justify-center py-16">
             <div className="relative w-full max-w-2xl px-4">
@@ -12,7 +27,6 @@ const CreateToken = observer(() => {
                     alt="Background Tree"
                 />
                 <div className="relative z-10">
-                    {/* <TokenSendingForm onTokenSent={onTokenSent} /> */}
                     <TokenForm />
                 </div>
             </div>
@@ -20,4 +34,4 @@ const CreateToken = observer(() => {
     );
 });
 
-export default CreateToken;
+export default Tokens;

@@ -109,9 +109,7 @@ class ZondStore {
       });
 
       const zondHttpProvider = new Web3.providers.HttpProvider(url);
-      console.log(zondHttpProvider, 'zondHttpProvider');
       const { zond } = new Web3({ provider: zondHttpProvider });
-      console.log(zond, 'zond');
 
 
       runInAction(() => {

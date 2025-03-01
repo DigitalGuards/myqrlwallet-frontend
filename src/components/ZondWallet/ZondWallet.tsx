@@ -13,7 +13,7 @@ const Body = withSuspense(
 
 const ZondWallet = observer(() => {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="bg-background text-foreground scroll-auto">
       
       <RouteMonitor />
       <Header />

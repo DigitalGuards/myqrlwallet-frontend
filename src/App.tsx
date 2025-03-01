@@ -3,7 +3,7 @@ import { AppRouter } from './router/router'
 
 function App() {
   return (
-    <div className="h-screen overflow-x-hidden overflow-y-scroll">
+    <div className="h-screen overflow-x-hidden">
       <StoreProvider value={store}>
         <AppRouter />
       </StoreProvider>
