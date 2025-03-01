@@ -52,7 +52,7 @@ export function CustomRpcModal({ isOpen, onClose }: { isOpen: boolean, onClose: 
                         <Label htmlFor="amount" className="mb-2">
                             RPC URL
                         </Label>
-                        <Input value={rpcUrl} onChange={(e) => setRpcUrl(e.target.value)} />
+                        <Input placeholder="https://127.0.0.1:8545" value={rpcUrl} onChange={(e) => setRpcUrl(e.target.value)} />
                     </div>
                 </div>
                 <DialogFooter>
