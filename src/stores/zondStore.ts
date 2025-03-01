@@ -53,6 +53,7 @@ class ZondStore {
   creatingToken: CreatingTokenType = { name: "", creating: false };
   createdToken: CreatedTokenType = { name: "", symbol: "", decimals: 0, address: "" };
   tokenList: TokenInterface[] = [];
+  customRpcUrl: string = "";
 
   constructor() {
     makeAutoObservable(this, {
@@ -63,6 +64,8 @@ class ZondStore {
       creatingToken: observable.struct,
       createdToken: observable.struct,
       tokenList: observable.struct,
+      customRpcUrl: observable.struct,
+      setCustomRpcUrl: action.bound,
       addToken: action.bound,
       removeToken: action.bound,
       updateToken: action.bound,
@@ -90,7 +93,12 @@ class ZondStore {
   async initializeBlockchain() {
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { name, url } = ZOND_PROVIDER[selectedBlockChain];
+      let { name, url } = ZOND_PROVIDER[selectedBlockChain];
+
+      if (selectedBlockChain === "CUSTOM_RPC") {
+        const customRpcUrl = await StorageUtil.getCustomRpcUrl();
+        url = `${url}?customRpcUrl=${customRpcUrl}`
+      }
 
       runInAction(() => {
         this.zondConnection = {
@@ -102,6 +110,7 @@ class ZondStore {
 
       const zondHttpProvider = new Web3.providers.HttpProvider(url);
       const { zond } = new Web3({ provider: zondHttpProvider });
+
 
       runInAction(() => {
         this.zondInstance = zond;
@@ -164,6 +173,11 @@ class ZondStore {
     this.tokenList = tokenList;
   }
 
+  async setCustomRpcUrl(customRpcUrl: string) {
+    await StorageUtil.setCustomRpcUrl(customRpcUrl);
+    this.customRpcUrl = customRpcUrl;
+  }
+
   async setActiveAccount(activeAccount?: string) {
     await StorageUtil.setActiveAccount(
       this.zondConnection.blockchain,
@@ -204,6 +218,7 @@ class ZondStore {
         };
       });
     } catch (error) {
+      console.error('Failed to fetch zond connection:', error);
       runInAction(() => {
         this.zondConnection = { ...this.zondConnection, isConnected: false };
       });

@@ -1,4 +1,4 @@
-const API_BASE = process.env.NODE_ENV === 'production' 
+const API_BASE = process.env.NODE_ENV === 'production'
   ? 'https://qrlwallet.com/api/zond-rpc'
   : 'http://localhost:3000/api/zond-rpc';  // Using Vite's default port
 
@@ -7,7 +7,7 @@ const ZONDSCAN_BASE = process.env.NODE_ENV === 'production'
   : 'https://zondscan.com';
 
 export const ZOND_PROVIDER = {
-  DEV: { 
+  DEV: {
     id: "DEV",
     url: `${API_BASE}/dev`,
     name: "Zond Local Node",
@@ -23,6 +23,12 @@ export const ZOND_PROVIDER = {
     id: "MAIN_NET",
     url: `${API_BASE}/mainnet`,
     name: "Zond Mainnet",
+    explorer: ZONDSCAN_BASE
+  },
+  CUSTOM_RPC: {
+    id: "CUSTOM_RPC",
+    url: `${API_BASE}/custom`,
+    name: "Custom RPC",
     explorer: ZONDSCAN_BASE
   }
 };

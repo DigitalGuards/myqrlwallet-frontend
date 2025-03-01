@@ -10,16 +10,19 @@ const Header = withSuspense(
 const Body = withSuspense(
   lazy(() => import("./Body/Body"))
 );
+const Footer = withSuspense(
+  lazy(() => import("./Footer/Footer"))
+);
 
 const ZondWallet = observer(() => {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
       <RouteMonitor />
       <Header />
-      <main className="mt-16">
+      <main className="flex-1 mt-16">
         <Body />
       </main>
+      <Footer />
       <Toaster />
     </div>
   );

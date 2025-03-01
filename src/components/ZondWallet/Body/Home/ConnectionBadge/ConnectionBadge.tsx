@@ -13,8 +13,10 @@ import {
 import { ZOND_PROVIDER } from "../../../../../configuration/zondConfig";
 import { useStore } from "../../../../../stores/store";
 import { cva } from "class-variance-authority";
-import { Check, ChevronDown, HardDrive, Network, Workflow } from "lucide-react";
+import { Check, ChevronDown, HardDrive, Network, Workflow, ExternalLink } from "lucide-react";
 import { observer } from "mobx-react-lite";
+import { CustomRpcModal } from "./CustomRpcModal";
+import { useState } from "react";
 
 const networkStatusClasses = cva("h-2 w-2 rounded-full", {
   variants: {
@@ -43,16 +45,18 @@ const ConnectionBadge = observer(() => {
   const { zondStore } = useStore();
   const { zondConnection, selectBlockchain } = zondStore;
   const { isConnected, zondNetworkName } = zondConnection;
-
-  const { DEV, TEST_NET, MAIN_NET } = ZOND_PROVIDER;
-  const [isDevNetwork, isTestNetwork, isMainNetwork] = [
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isCustomRpcModalOpen, setIsCustomRpcModalOpen] = useState(false);
+  const { DEV, TEST_NET, MAIN_NET, CUSTOM_RPC } = ZOND_PROVIDER;
+  const [isDevNetwork, isTestNetwork, isMainNetwork, isCustomRpcNetwork] = [
     DEV.name === zondNetworkName,
     TEST_NET.name === zondNetworkName,
     MAIN_NET.name === zondNetworkName,
+    CUSTOM_RPC.name === zondNetworkName,
   ];
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className="flex gap-2 rounded-full">
           <Card
@@ -110,8 +114,21 @@ const ConnectionBadge = observer(() => {
               </DropdownMenuShortcut>
             )}
           </DropdownMenuItem>
+          <DropdownMenuItem
+            className={blockchainSelectionClasses({
+              isSelected: isCustomRpcNetwork,
+            })}
+            onClick={() => { setIsCustomRpcModalOpen(true); setIsDropdownOpen(false) }}
+          >
+            <Network className="mr-2 h-4 w-4" />
+            <span>Custom RPC</span>
+            <DropdownMenuShortcut>
+              <ExternalLink className="h-4 w-4" />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
+      <CustomRpcModal isOpen={isCustomRpcModalOpen} onClose={() => setIsCustomRpcModalOpen(false)} />
     </DropdownMenu>
   );
 });
