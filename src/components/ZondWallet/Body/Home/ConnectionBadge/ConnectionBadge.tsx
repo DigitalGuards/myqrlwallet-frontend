@@ -128,7 +128,7 @@ const ConnectionBadge = observer(() => {
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
-      <CustomRpcModal isOpen={isCustomRpcModalOpen} onClose={() => setIsCustomRpcModalOpen(false)} selectBlockchain={selectBlockchain} />
+      <CustomRpcModal isOpen={isCustomRpcModalOpen} onClose={() => setIsCustomRpcModalOpen(false)} />
     </DropdownMenu>
   );
 });

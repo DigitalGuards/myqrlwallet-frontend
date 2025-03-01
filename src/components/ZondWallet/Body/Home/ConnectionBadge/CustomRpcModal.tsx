@@ -9,15 +9,16 @@ import {
 } from "@/components/UI/Dialog"
 import { Input } from "@/components/UI/Input"
 import { Label } from "@/components/UI/Label"
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ZOND_PROVIDER } from "@/configuration/zondConfig";
 import { useStore } from "@/stores/store";
+import StorageUtil from "@/utilities/storageUtil";
 
-export function CustomRpcModal({ isOpen, onClose, selectBlockchain }: { isOpen: boolean, onClose: () => void, selectBlockchain: (blockchain: string) => void }) {
+export function CustomRpcModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     const { CUSTOM_RPC } = ZOND_PROVIDER;
     const [rpcUrl, setRpcUrl] = useState("");
     const { zondStore } = useStore();
-    const { setCustomRpcUrl } = zondStore;
+    const { setCustomRpcUrl, selectBlockchain } = zondStore;
 
 
     const selectCustomRpc = () => {
@@ -26,6 +27,16 @@ export function CustomRpcModal({ isOpen, onClose, selectBlockchain }: { isOpen: 
         setRpcUrl("");
         onClose();
     }
+
+    useEffect(() => {
+        const fetchCustomRpcUrl = async () => {
+            const customRpcUrl = await StorageUtil.getCustomRpcUrl();
+            if (customRpcUrl) {
+                setRpcUrl(customRpcUrl);
+            }
+        }
+        fetchCustomRpcUrl();
+    }, [isOpen]);
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
