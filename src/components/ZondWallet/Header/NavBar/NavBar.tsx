@@ -85,11 +85,11 @@ const NavBar = observer(() => {
                             Create Token
                         </NavigationMenuLink>
                     </NavigationMenuItem>
-                    <NavigationMenuItem>
+                    {/* <NavigationMenuItem>
                         <NavigationMenuLink onClick={() => navigate("/tokens")} className={navigationMenuTriggerStyle()}>
                             Tokens
                         </NavigationMenuLink>
-                    </NavigationMenuItem>
+                    </NavigationMenuItem> */}
                     <NavigationMenuItem>
                         <NavigationMenuLink onClick={() => navigate("/settings")} className={navigationMenuTriggerStyle()}>
                             Settings
@@ -127,7 +127,7 @@ const NavBar = observer(() => {
                                     Create Token
                                 </NavigationMenuLink>
                             </NavigationMenuItem>
-                            <NavigationMenuItem>
+                            {/* <NavigationMenuItem>
                                 <NavigationMenuLink
                                     onClick={() => {
                                         navigate("/tokens");
@@ -137,7 +137,7 @@ const NavBar = observer(() => {
                                 >
                                     Tokens
                                 </NavigationMenuLink>
-                            </NavigationMenuItem>
+                            </NavigationMenuItem> */}
                             <NavigationMenuItem>
                                 <NavigationMenuLink
                                     onClick={() => {

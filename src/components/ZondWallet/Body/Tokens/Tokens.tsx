@@ -1,5 +1,5 @@
 import { observer } from "mobx-react-lite";
-import { TokenForm } from "./TokenForm/TokenForm";
+import TokenForm from "./TokenForm/TokenForm";
 import { useStore } from "@/stores/store";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";

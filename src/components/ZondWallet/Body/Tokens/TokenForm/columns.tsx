@@ -77,7 +77,7 @@ export const columns: ColumnDef<TokenInterface>[] = [
     },
     {
         accessorKey: "address",
-        header: "Contract Address",
+        header: "Token Address",
         cell: ({ row }) => {
             const address: string = row.getValue('address')
             return <CopyableAddress address={address} />;

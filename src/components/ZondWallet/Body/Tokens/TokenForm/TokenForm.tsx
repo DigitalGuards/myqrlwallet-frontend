@@ -17,7 +17,7 @@ import { Loader2, Plus } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 import { formatUnits } from "ethers";
 
-export const TokenForm = observer(() => {
+const TokenForm = observer(() => {
     const { zondStore } = useStore();
     const {
         activeAccount: { accountAddress: activeAccountAddress },
@@ -74,5 +74,6 @@ export const TokenForm = observer(() => {
             <AddTokenModal isOpen={isAddTokenModalOpen} onClose={() => setIsAddTokenModalOpen(false)} />
         </Card>
     );
-}
-);
+});
+
+export default TokenForm;
