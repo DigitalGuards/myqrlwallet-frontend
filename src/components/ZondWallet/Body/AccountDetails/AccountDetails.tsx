@@ -40,7 +40,7 @@ const FormSchema = z
     amount: z.coerce.number().gt(0, "Amount should be more than 0"),
     mnemonicPhrases: z.string().min(1, "Mnemonic phrases are required"),
   })
-  .refine((fields) => isValidDilithiumAddress(fields.receiverAddress), {
+  .refine((fields) => !isValidDilithiumAddress(fields.receiverAddress), {
     message: "Address is invalid",
     path: ["receiverAddress"],
   });
