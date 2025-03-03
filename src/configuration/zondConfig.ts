@@ -1,8 +1,8 @@
-const API_BASE = import.meta.env.NODE_ENV === 'production'
+const API_BASE = import.meta.env.VITE_NODE_ENV === 'production'
   ? import.meta.env.VITE_RPC_URL_PRODUCTION
   : import.meta.env.VITE_RPC_URL_DEVELOPMENT;  // Using Vite's default port
 
-const ZONDSCAN_BASE = import.meta.env.NODE_ENV === 'production'
+const ZONDSCAN_BASE = import.meta.env.VITE_NODE_ENV === 'production'
   ? import.meta.env.VITE_ZOND_SCAN_URL_PRODUCTION
   : import.meta.env.VITE_ZOND_SCAN_URL_DEVELOPMENT;
 
