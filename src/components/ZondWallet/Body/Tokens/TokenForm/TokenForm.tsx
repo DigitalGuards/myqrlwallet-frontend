@@ -16,6 +16,8 @@ import { Button } from "@/components/UI/Button";
 import { Loader2, Plus } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 import { formatUnits } from "ethers";
+import { ZOND_PROVIDER } from "@/configuration/zondConfig";
+import StorageUtil from "@/utilities/storageUtil";
 
 const TokenForm = observer(() => {
     const { zondStore } = useStore();
@@ -33,8 +35,10 @@ const TokenForm = observer(() => {
             setIsLoading(true);
             let updatedTokenList = [...tokenListFromStore];
 
+            const selectedBlockChain = await StorageUtil.getBlockChain();
+
             for (let i = 0; i < tokenListFromStore.length; i++) {
-                const balance = await fetchBalance(tokenListFromStore[i].address, activeAccountAddress);
+                const balance = await fetchBalance(tokenListFromStore[i].address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
                 const formattedBalance = formatUnits(balance, tokenListFromStore[i].decimals);
                 const decimalIndex = formattedBalance.indexOf('.');
                 updatedTokenList[i].amount = decimalIndex === -1
