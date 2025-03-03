@@ -61,33 +61,35 @@ const Home = observer(() => {
           <>
             <ConnectionBadge />
 
-            {activeAccount.accountAddress && (
 
-              <div
-                className={accountCreateImportClasses({ hasAccountCreationPreference })}
-              >
-                <Card className="w-full">
-                  <CardHeader>
-                    <CardTitle>Active account</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ActiveAccountDisplay />
-                  </CardContent>
-                  <CardFooter className="justify-end">
-                    <Link className="w-full" to={ROUTES.ACCOUNT_DETAILS}>
-                      <Button className="w-full" type="button">
-                        <Send className="mr-2 h-4 w-4" />
-                        Send Quanta
-                      </Button>
-                    </Link>
-                  </CardFooter>
-                </Card>
-                <div className="relative z-10">
-                  <TokenForm />
-                </div>
-                {isConnected ? <AccountCreateImport /> : <ConnectionFailed />}
-              </div>
-            )}
+            <div
+              className={accountCreateImportClasses({ hasAccountCreationPreference })}
+            >
+              {activeAccount.accountAddress && (
+                <>
+                  <Card className="w-full">
+                    <CardHeader>
+                      <CardTitle>Active account</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ActiveAccountDisplay />
+                    </CardContent>
+                    <CardFooter className="justify-end">
+                      <Link className="w-full" to={ROUTES.ACCOUNT_DETAILS}>
+                        <Button className="w-full" type="button">
+                          <Send className="mr-2 h-4 w-4" />
+                          Send Quanta
+                        </Button>
+                      </Link>
+                    </CardFooter>
+                  </Card>
+                  <div className="relative z-10">
+                    <TokenForm />
+                  </div>
+                </>
+              )}
+              {isConnected ? <AccountCreateImport /> : <ConnectionFailed />}
+            </div>
           </>
         )}
       </div>
