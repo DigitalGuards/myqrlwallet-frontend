@@ -18,6 +18,7 @@ import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 import { formatUnits } from "ethers";
 import { ZOND_PROVIDER } from "@/configuration/zondConfig";
 import StorageUtil from "@/utilities/storageUtil";
+import { formatBalance } from "@/utilities/helper";
 
 const TokenForm = observer(() => {
     const { zondStore } = useStore();
@@ -39,7 +40,7 @@ const TokenForm = observer(() => {
 
             for (let i = 0; i < tokenListFromStore.length; i++) {
                 const balance = await fetchBalance(tokenListFromStore[i].address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
-                const formattedBalance = formatUnits(balance, tokenListFromStore[i].decimals);
+                const formattedBalance = formatBalance(formatUnits(balance, tokenListFromStore[i].decimals));
                 const decimalIndex = formattedBalance.indexOf('.');
                 updatedTokenList[i].amount = decimalIndex === -1
                     ? formattedBalance

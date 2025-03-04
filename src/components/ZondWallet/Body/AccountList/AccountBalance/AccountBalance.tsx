@@ -1,5 +1,6 @@
 import { useStore } from "../../../../../stores/store";
 import { observer } from "mobx-react-lite";
+import { formatBalance } from "@/utilities/helper";
 
 type AccountBalanceProps = {
   accountAddress: string;
@@ -12,7 +13,7 @@ export const AccountBalance = observer(({ accountAddress }: AccountBalanceProps)
 
   return (
     <div className="text-sm text-secondary">
-      Balance: {balance}
+      Balance: {formatBalance(balance)}
     </div>
   );
 });

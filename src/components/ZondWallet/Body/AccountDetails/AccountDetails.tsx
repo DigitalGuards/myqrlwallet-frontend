@@ -33,6 +33,7 @@ import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSucces
 import { getExplorerAddressUrl } from "../../../../configuration/zondConfig";
 import { Copy, ExternalLink } from "lucide-react";
 import { isValidDilithiumAddress } from "@theqrl/wallet.js";
+import { formatBalance } from "@/utilities/helper";
 
 const FormSchema = z
   .object({
@@ -195,7 +196,7 @@ const AccountDetails = observer(() => {
                       {`${prefix} ${addressSplit.join(" ")}`}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Available balance: {accountBalance}
+                      Available balance: {formatBalance(accountBalance)}
                     </div>
                     <div className="flex gap-4">
                       <Button

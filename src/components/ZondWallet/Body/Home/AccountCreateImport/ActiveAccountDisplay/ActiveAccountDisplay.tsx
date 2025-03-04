@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useStore } from "../../../../../../stores/store";
 import { observer } from "mobx-react-lite";
 import { Copy, Check } from "lucide-react";
+import { formatBalance } from "@/utilities/helper";
 
 export const ActiveAccountDisplay = observer(() => {
   const { zondStore } = useStore();
@@ -31,7 +32,7 @@ export const ActiveAccountDisplay = observer(() => {
         className="flex justify-center items-center text-xl font-bold text-secondary group cursor-pointer"
         onClick={() => copyToClipboard(accountBalance.slice(0, -4).toString(), 'balance')}
       >
-        <span>{accountBalance}</span>
+        <span>{formatBalance(accountBalance)}</span>
         {copiedItem === 'balance' ? (
           <Check className="w-4 h-4 ml-2 text-green-500" />
         ) : (
