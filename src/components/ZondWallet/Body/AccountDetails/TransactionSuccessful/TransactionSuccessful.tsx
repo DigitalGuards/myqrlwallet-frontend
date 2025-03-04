@@ -11,7 +11,6 @@ import StringUtil from "../../../../../utilities/stringUtil";
 import { TransactionReceipt, utils } from "@theqrl/web3";
 import { Check, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
-import { formatBalance } from "@/utilities/helper";
 
 type TransactionSuccessfulProps = {
   transactionReceipt: TransactionReceipt;
@@ -75,12 +74,10 @@ export const TransactionSuccessful = ({
               <div className="flex flex-col gap-2">
                 <div>Gas used</div>
                 <div className="font-bold text-secondary">
-                  {formatBalance(
-                    utils.fromWei(
-                      BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0),
-                      "ether"
-                    )
-                  )} QRL
+                  {`${utils.fromWei(
+                    BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0),
+                    "ether"
+                  )} QRL`}
                 </div>
               </div>
             </div>
