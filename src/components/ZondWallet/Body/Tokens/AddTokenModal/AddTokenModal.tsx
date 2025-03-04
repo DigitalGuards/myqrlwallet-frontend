@@ -14,6 +14,8 @@ import { useStore } from "@/stores/store";
 import { fetchTokenInfo, fetchBalance } from "@/utilities/web3utils/customERC20";
 import { TokenInterface } from "@/lib/constants";
 import { toast } from "@/hooks/use-toast";
+import { ZOND_PROVIDER } from "@/configuration/zondConfig";
+import StorageUtil from "@/utilities/storageUtil";
 
 export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     const { zondStore } = useStore();
@@ -53,8 +55,9 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
             if (tokenAddress.length === 41 && tokenAddress.startsWith("Z")) {
                 try {
                     setIsLoading(true);
-                    const { name, symbol, decimals } = await fetchTokenInfo(tokenAddress);
-                    const balance = await fetchBalance(tokenAddress, activeAccountAddress);
+                    const selectedBlockChain = await StorageUtil.getBlockChain();
+                    const { name, symbol, decimals } = await fetchTokenInfo(tokenAddress, ZOND_PROVIDER[selectedBlockChain].url);
+                    const balance = await fetchBalance(tokenAddress, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
                     setTokenInfo({ name, symbol, decimals: parseInt(decimals.toString()), address: tokenAddress, amount: balance.toString() });
                 } catch (error) {
                     console.error("Error fetching token info", error);

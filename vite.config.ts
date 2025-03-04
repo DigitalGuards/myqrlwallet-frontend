@@ -6,25 +6,6 @@ import commonjs from '@rollup/plugin-commonjs'
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    proxy: {
-      '/api/zond-rpc/testnet': {
-        target: 'http://REDACTED:8545',
-        changeOrigin: true,
-        rewrite: (path) => path.replace('/api/zond-rpc/testnet', ''),
-      },
-      '/api/zond-rpc/dev': {
-        target: 'http://localhost:8545',
-        changeOrigin: true,
-        rewrite: (path) => path.replace('/api/zond-rpc/dev', ''),
-      },
-      '/api/zond-rpc/mainnet': {
-        target: 'http://REDACTED:8545',
-        changeOrigin: true,
-        rewrite: (path) => path.replace('/api/zond-rpc/mainnet', ''),
-      }
-    }
-  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

@@ -64,7 +64,7 @@ export const columns: ColumnDef<TokenInterface>[] = [
         header: "Name",
         cell: ({ row }) => {
             const name: string = row.getValue('name')
-            return <CopyableText text={name} />;
+            return <div className="hidden md:block"><CopyableText text={name} /></div>;
         },
     },
     {
@@ -77,10 +77,10 @@ export const columns: ColumnDef<TokenInterface>[] = [
     },
     {
         accessorKey: "address",
-        header: "Contract Address",
+        header: "Token Address",
         cell: ({ row }) => {
             const address: string = row.getValue('address')
-            return <CopyableAddress address={address} />;
+            return <div className="hidden md:block"><CopyableAddress address={address} /></div>;
         },
     },
     {

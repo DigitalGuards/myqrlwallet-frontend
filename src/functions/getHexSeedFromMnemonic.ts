@@ -2,7 +2,7 @@ import { MnemonicToSeedBin } from "@theqrl/wallet.js";
 import { Buffer } from "buffer";
 import Web3 from "@theqrl/web3";
 
-const web3 = new Web3(new Web3.providers.HttpProvider(import.meta.env?.VITE_RPC_URL || "http://mainnet.zond.network:8545"));
+const web3 = new Web3(new Web3.providers.HttpProvider((import.meta.env?.VITE_NODE_ENV === "production" ? `${import.meta.env?.VITE_RPC_URL_PRODUCTION}/mainnet` : `${import.meta.env?.VITE_RPC_URL_DEVELOPMENT}/dev`) || "http://mainnet.zond.network:8545"));
 
 export const getHexSeedFromMnemonic = (mnemonic?: string) => {
   if (!mnemonic) return "";

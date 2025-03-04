@@ -13,6 +13,7 @@ import { fetchTokenInfo } from "@/utilities/web3utils/customERC20";
 import { TokenInterface } from "@/lib/constants";
 import { KNOWN_TOKEN_LIST } from "@/lib/constants";
 import CustomERC20ABI from "@/abi/CustomERC20ABI";
+import { formatBalance } from "@/utilities/helper";
 
 type ActiveAccountType = {
   accountAddress: string;
@@ -243,9 +244,9 @@ class ZondStore {
           storedAccountsList.map(async (account) => {
             const accountBalance =
               (await this.zondInstance?.getBalance(account)) ?? BigInt(0);
-            const convertedAccountBalance = utils
-              .fromWei(accountBalance, "ether")
-              .concat(" QRL");
+            const convertedAccountBalance = formatBalance(
+              utils.fromWei(accountBalance, "ether")
+            ) + " QRL";
             return {
               accountAddress: account,
               accountBalance: convertedAccountBalance,
@@ -416,7 +417,7 @@ class ZondStore {
 
     const receiptHandler = async (data: any) => {
       const erc20TokenAddress = `Z${data.logs[3].topics[1].slice(-40)}`
-      const { name, symbol, decimals } = await fetchTokenInfo(erc20TokenAddress);
+      const { name, symbol, decimals } = await fetchTokenInfo(erc20TokenAddress, url);
       this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress);
     }
 

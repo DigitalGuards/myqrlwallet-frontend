@@ -1,7 +1,6 @@
 import { Button } from "../../../../UI/Button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -10,10 +9,9 @@ import {
 import { ROUTES } from "../../../../../router/router";
 import { useStore } from "../../../../../stores/store";
 import { cva } from "class-variance-authority";
-import { Download, Plus, Send } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Link, useLocation } from "react-router-dom";
-import { ActiveAccountDisplay } from "./ActiveAccountDisplay/ActiveAccountDisplay";
 
 const accountCreateImportClasses = cva("flex gap-8", {
   variants: {
@@ -40,24 +38,6 @@ const AccountCreateImport = observer(() => {
     <div
       className={accountCreateImportClasses({ hasAccountCreationPreference })}
     >
-      {hasActiveAccount && (
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle>Active account</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ActiveAccountDisplay />
-          </CardContent>
-          <CardFooter className="justify-end">
-            <Link className="w-full" to={ROUTES.ACCOUNT_DETAILS}>
-              <Button className="w-full" type="button">
-                <Send className="mr-2 h-4 w-4" />
-                Send Quanta
-              </Button>
-            </Link>
-          </CardFooter>
-        </Card>
-      )}
       <Card className="w-full">
         <CardHeader>
           <CardTitle>

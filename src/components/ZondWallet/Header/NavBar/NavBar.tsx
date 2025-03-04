@@ -58,7 +58,7 @@ const NavBar = observer(() => {
                                         <span className="flex items-center gap-2" onClick={() => switchAccount(account.accountAddress)}>
                                             {account.accountAddress.toLowerCase() === activeAccount.accountAddress.toLowerCase() ? (
                                                 <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                            ):(<div className="w-2 h-2 rounded-full"></div>)}
+                                            ) : (<div className="w-2 h-2 rounded-full"></div>)}
                                             {account.accountAddress.substring(0, 15)}...
                                             {account.accountAddress.substring(account.accountAddress.length - 12)}
                                         </span>
@@ -85,13 +85,13 @@ const NavBar = observer(() => {
                             Create Token
                         </NavigationMenuLink>
                     </NavigationMenuItem>
-                    <NavigationMenuItem>
+                    {/* <NavigationMenuItem>
                         <NavigationMenuLink onClick={() => navigate("/tokens")} className={navigationMenuTriggerStyle()}>
                             Tokens
                         </NavigationMenuLink>
-                    </NavigationMenuItem>
+                    </NavigationMenuItem> */}
                     <NavigationMenuItem>
-                        <NavigationMenuLink onClick={() => navigate("")} className={navigationMenuTriggerStyle()}>
+                        <NavigationMenuLink onClick={() => navigate("/settings")} className={navigationMenuTriggerStyle()}>
                             Settings
                         </NavigationMenuLink>
                     </NavigationMenuItem>
@@ -127,7 +127,7 @@ const NavBar = observer(() => {
                                     Create Token
                                 </NavigationMenuLink>
                             </NavigationMenuItem>
-                            <NavigationMenuItem>
+                            {/* <NavigationMenuItem>
                                 <NavigationMenuLink
                                     onClick={() => {
                                         navigate("/tokens");
@@ -137,11 +137,11 @@ const NavBar = observer(() => {
                                 >
                                     Tokens
                                 </NavigationMenuLink>
-                            </NavigationMenuItem>
+                            </NavigationMenuItem> */}
                             <NavigationMenuItem>
                                 <NavigationMenuLink
                                     onClick={() => {
-                                        navigate("");
+                                        navigate("/settings");
                                         setOpen(false);
                                     }}
                                     className={navigationMenuTriggerStyle()}
@@ -161,7 +161,7 @@ const NavBar = observer(() => {
                                                 <span className="flex items-center gap-2" onClick={() => switchAccount(account.accountAddress)}>
                                                     {account.accountAddress.toLowerCase() === activeAccount.accountAddress.toLowerCase() ? (
                                                         <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                                    ):(<div className="w-2 h-2 rounded-full"></div>)}
+                                                    ) : (<div className="w-2 h-2 rounded-full"></div>)}
                                                     {account.accountAddress.substring(0, 15)}...
                                                     {account.accountAddress.substring(account.accountAddress.length - 12)}
                                                 </span>

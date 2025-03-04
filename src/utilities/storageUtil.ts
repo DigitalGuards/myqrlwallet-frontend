@@ -11,6 +11,7 @@ const TRANSACTION_VALUES_IDENTIFIER = "TRANSACTION_VALUES";
 const TOKEN_LIST_IDENTIFIER = "TOKEN_LIST";
 const STORAGE_VERSION = 'v1';
 const MAX_STORAGE_AGE = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
+const WALLET_SETTINGS_IDENTIFIER = "WALLET_SETTINGS";
 
 type TransactionValuesType = {
   receiverAddress?: string;
@@ -23,6 +24,13 @@ interface StorageItem<T> {
   value: T;
   timestamp: number;
   version: string;
+}
+
+interface WalletSettings {
+  autoLockTimeout: number;
+  showTestNetworks: boolean;
+  hideSmallBalances: boolean;
+  hideUnknownTokens: boolean;
 }
 
 /**
@@ -188,6 +196,22 @@ class StorageUtil {
   static async clearTransactionValues(blockchain: string) {
     const transactionValuesIdentifier = `${blockchain}_${TRANSACTION_VALUES_IDENTIFIER}`;
     localStorage.removeItem(transactionValuesIdentifier);
+  }
+
+  static async setWalletSettings(settings: WalletSettings) {
+    this.setItem(WALLET_SETTINGS_IDENTIFIER, settings);
+  }
+
+  static async getWalletSettings(): Promise<WalletSettings> {
+    const defaultSettings: WalletSettings = {
+      autoLockTimeout: 15,
+      showTestNetworks: false,
+      hideSmallBalances: false,
+      hideUnknownTokens: true,
+    };
+
+    const storedSettings = this.getItem<WalletSettings>(WALLET_SETTINGS_IDENTIFIER);
+    return storedSettings ?? defaultSettings;
   }
 }
 

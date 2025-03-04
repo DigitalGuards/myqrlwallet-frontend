@@ -16,6 +16,8 @@ import { toast } from "@/hooks/use-toast";
 import { fetchBalance, fetchTokenInfo } from "@/utilities/web3utils/customERC20";
 import { Loader2 } from "lucide-react";
 import { getAddressFromMnemonic } from "@/functions/getHexSeedFromMnemonic";
+import StorageUtil from "@/utilities/storageUtil";
+import { ZOND_PROVIDER } from "@/configuration/zondConfig";
 
 export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, onClose: () => void, token: TokenInterface }) {
     const { zondStore } = useStore();
@@ -46,10 +48,11 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
 
             let tokenInfo = tokenList.find(t => t.address === token?.address);
 
+            const selectedBlockChain = await StorageUtil.getBlockChain();
             if (!tokenInfo) {
                 try {
-                    const { name, symbol, decimals } = await fetchTokenInfo(token?.address);
-                    const balance = await fetchBalance(token?.address, activeAccountAddress);
+                    const { name, symbol, decimals } = await fetchTokenInfo(token?.address, ZOND_PROVIDER[selectedBlockChain].url);
+                    const balance = await fetchBalance(token?.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
                     tokenInfo = { name, symbol, decimals: parseInt(decimals.toString()), address: token?.address, amount: balance.toString() };
                 } catch (error) {
                     toast({
@@ -69,7 +72,8 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                     setMnemonic("");
                     setToAddress("");
                     onClose();
-                    const balance = await fetchBalance(tokenInfo.address, activeAccountAddress);
+                    const selectedBlockChain = await StorageUtil.getBlockChain();
+                    const balance = await fetchBalance(tokenInfo.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
                     setTokenList([...tokenList.filter(t => t.address !== tokenInfo.address), { ...tokenInfo, amount: balance.toString() }]);
                     toast({
                         title: "Token sent successfully",
