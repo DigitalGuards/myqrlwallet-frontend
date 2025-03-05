@@ -13,7 +13,7 @@ export const AccountBalance = observer(({ accountAddress }: AccountBalanceProps)
 
   return (
     <div className="text-sm text-secondary">
-      Balance: {formatBalance(balance)}
+      Balance: {formatBalance(balance)} QRL
     </div>
   );
 });

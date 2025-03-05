@@ -196,7 +196,7 @@ const AccountDetails = observer(() => {
                       {`${prefix} ${addressSplit.join(" ")}`}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Available balance: {formatBalance(accountBalance)}
+                      Available balance: {formatBalance(accountBalance)} QRL
                     </div>
                     <div className="flex gap-4">
                       <Button

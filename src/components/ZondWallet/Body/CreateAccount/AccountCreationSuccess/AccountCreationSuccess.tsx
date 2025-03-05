@@ -117,7 +117,7 @@ export const AccountCreationSuccess = ({
             View in Zondscan
           </Button>
         </div>
-        <div className="flex w-full gap-4">
+        <div className="flex flex-col sm:flex-row w-full gap-3">
           <Button
             className="w-full"
             type="button"
@@ -125,13 +125,13 @@ export const AccountCreationSuccess = ({
             onClick={() => WalletEncryptionUtil.downloadWallet(extendedAccount, userPassword)}
           >
             <HardDriveDownload className="mr-2 h-4 w-4" />
-            Download Encrypted Wallet
+            <span className="whitespace-nowrap">Download Encrypted</span>
           </Button>
           <Dialog>
             <DialogTrigger asChild>
               <Button className="w-full" type="button" variant="outline">
                 <HardDriveDownload className="mr-2 h-4 w-4" />
-                Download Unencrypted Wallet
+                <span className="whitespace-nowrap">Download Unencrypted</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="w-80 rounded-md">
