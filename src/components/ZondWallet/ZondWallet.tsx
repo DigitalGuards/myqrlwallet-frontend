@@ -19,7 +19,7 @@ const ZondWallet = observer(() => {
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <RouteMonitor />
       <Header />
-      <main className="flex-1 w-full">
+      <main className="flex-1 w-full mb-16 md:mb-0">
         <Body />
       </main>
       <Footer />

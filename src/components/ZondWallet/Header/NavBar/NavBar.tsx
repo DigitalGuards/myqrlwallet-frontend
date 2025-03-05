@@ -41,7 +41,7 @@ const NavBar = observer(() => {
     };
 
     return (
-        <nav className="flex items-center justify-between p-4 border-b">
+        <nav className="flex items-center justify-between p-0">
             {/* Logo */}
             {/* Desktop Menu */}
             <NavigationMenu className="hidden md:flex">
@@ -57,7 +57,7 @@ const NavBar = observer(() => {
                                     >
                                         <span className="flex items-center gap-2" onClick={() => switchAccount(account.accountAddress)}>
                                             {account.accountAddress.toLowerCase() === activeAccount.accountAddress.toLowerCase() ? (
-                                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                                <div className="w-2 h-2 rounded-full bg-green-500"></div>
                                             ) : (<div className="w-2 h-2 rounded-full"></div>)}
                                             {account.accountAddress.substring(0, 15)}...
                                             {account.accountAddress.substring(account.accountAddress.length - 12)}
@@ -160,7 +160,7 @@ const NavBar = observer(() => {
                                             >
                                                 <span className="flex items-center gap-2" onClick={() => switchAccount(account.accountAddress)}>
                                                     {account.accountAddress.toLowerCase() === activeAccount.accountAddress.toLowerCase() ? (
-                                                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
                                                     ) : (<div className="w-2 h-2 rounded-full"></div>)}
                                                     {account.accountAddress.substring(0, 15)}...
                                                     {account.accountAddress.substring(account.accountAddress.length - 12)}
