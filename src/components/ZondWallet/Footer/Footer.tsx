@@ -13,7 +13,7 @@ const Footer = observer(() => {
         <footer className="relative z-10 w-full border-t bg-background">
             <div className="mx-auto max-w-4xl px-4 py-6">
                 <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-                    <ZondWalletLogo />
+                    <ZondWalletLogo showText={false} size="lg" />
 
                     <div className="flex items-center gap-4">
                         <div className="flex gap-4 text-foreground/60">

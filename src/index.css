@@ -5,33 +5,32 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
+    --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 0 0% 96.1%;
-    /* QRL Orange */
-    --secondary-foreground: 0 0% 9%;
+    --secondary: 25 95% 53%;  /* QRL Orange */
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
 
     --radius: 0.5rem;
 
@@ -47,34 +46,33 @@
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
 
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 0 0% 14.9%;
-    /* QRL Orange */
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 25 95% 53%;  /* QRL Orange */
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -82,7 +80,7 @@
     --chart-5: 340 75% 55%;
   }
 
-  /* Add custom scrollbar styles */
+  /* Customized scrollbar */
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -100,9 +98,10 @@
     @apply bg-muted-foreground/50;
   }
 
-  /* Firefox */
+  /* Global scrolling behavior */
   * {
     scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--background));
+    box-sizing: border-box;
   }
 }
 
@@ -111,7 +110,74 @@
     @apply border-border;
   }
 
-  body {
+  /* Reset document and viewport behavior */
+  html {
     @apply bg-background text-foreground;
+    height: 100%;
+    overflow: hidden; /* Prevent double scrollbars */
+    touch-action: manipulation; /* Improve touch behavior */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Main document scrolling container */
+  body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0; 
+    bottom: 0;
+    width: 100%;
+    /* Mobile scroll behavior */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: none; /* Prevent pull-to-refresh */
+  }
+
+  /* Root app container */
+  #root {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* Ensure all interactive elements can be scrolled past */
+  a, button, input, select, textarea {
+    touch-action: manipulation;
+  }
+
+  /* Prevent text selection where not needed */
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* Ensure content is always visible in webviews */
+  @media (max-width: 768px) {
+    /* Ensure content min-height for smaller screens */
+    main {
+      min-height: calc(100vh - 16rem);
+    }
+
+    /* More aggressive touch scrolling for webviews */
+    body, main, .scrollable {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: none;
+    }
+  }
+
+  /* Webview-specific fixes */
+  @supports (-webkit-touch-callout: none) {
+    /* iOS specific tweaks */
+    body {
+      /* Fix for momentum scrolling on iOS */
+      -webkit-overflow-scrolling: touch;
+    }
   }
 }
