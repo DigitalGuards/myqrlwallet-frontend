@@ -19,7 +19,7 @@ const Tokens = observer(() => {
         }
     }, [activeAccount]);
     return (
-        <div className="flex w-full items-start justify-center py-16">
+        <div className="flex w-full items-start justify-center py-8">
             <div className="relative w-full max-w-2xl px-4">
                 <img
                     className="fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-30"
