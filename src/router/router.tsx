@@ -22,6 +22,8 @@ const ROUTES = {
   ACCOUNT_LIST: "/account-list",
   ACCOUNT_DETAILS: "/account-details",
   CREATE_TOKEN: "/create-token",
+  QR_VIEW: "/qr-view",
+  SEND: "/send",
   // TOKENS: "/tokens",
   SETTINGS: "/settings",
   DEFAULT: "*",
