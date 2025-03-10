@@ -9,7 +9,7 @@ import {
 } from "@/components/UI/Dialog"
 import { Input } from "@/components/UI/Input"
 import { Label } from "@/components/UI/Label"
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/stores/store";
 import { TokenInterface } from "@/lib/constants";
 import { toast } from "@/hooks/use-toast";
@@ -18,6 +18,7 @@ import { Loader2 } from "lucide-react";
 import { getAddressFromMnemonic } from "@/functions/getHexSeedFromMnemonic";
 import StorageUtil from "@/utilities/storageUtil";
 import { ZOND_PROVIDER } from "@/configuration/zondConfig";
+import { formatUnits } from "ethers";
 
 export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, onClose: () => void, token: TokenInterface }) {
     const { zondStore } = useStore();
@@ -31,6 +32,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
     const [mnemonic, setMnemonic] = useState("");
     const [toAddress, setToAddress] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [maxAmount, setMaxAmount] = useState("0");
 
     const sendToken = async () => {
         setIsLoading(true);
@@ -96,6 +98,22 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
         setIsLoading(false);
     }
 
+    const handleMaxAmount = async () => {
+        const selectedBlockChain = await StorageUtil.getBlockChain();
+        const balance = await fetchBalance(token?.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
+        console.log(token, balance)
+        setMaxAmount(formatUnits(balance, token?.decimals || 18));
+    }
+
+    useEffect(() => {
+        if (isOpen && token?.address) {
+            handleMaxAmount();
+        } else {
+            setAmount("");
+            setMaxAmount("");
+        }
+    }, [isOpen, token?.address, activeAccountAddress]);
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[600px]">
@@ -116,6 +134,9 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                         <Label htmlFor="amount" className="mb-2">
                             Amount
                         </Label>
+                        <a className="text-xs cursor-pointer border-b border-b-1 mb-2 w-fit border-foreground" onClick={() => setAmount(maxAmount)}>
+                            Max: {maxAmount}
+                        </a>
                         <Input disabled={isLoading} value={amount} onChange={(e) => setAmount(e.target.value)} />
                     </div>
                     <div className="flex flex-col">
