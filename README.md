@@ -148,7 +148,7 @@ zondwebwallet/
 ## Available Networks
 
 - **Testnet**: Development and testing network
-- **Local Node**: For local development and testing
+- **Mainnet**: Production network
 
 ## Security Features
 

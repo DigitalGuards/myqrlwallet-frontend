@@ -7,12 +7,6 @@ const ZONDSCAN_BASE = import.meta.env.VITE_NODE_ENV === 'production'
   : import.meta.env.VITE_ZOND_SCAN_URL_DEVELOPMENT;
 
 export const ZOND_PROVIDER = {
-  DEV: {
-    id: "DEV",
-    url: `${API_BASE}/dev`,
-    name: "Zond Local Node",
-    explorer: ZONDSCAN_BASE
-  },
   TEST_NET: {
     id: "TEST_NET",
     url: `${API_BASE}/testnet`,

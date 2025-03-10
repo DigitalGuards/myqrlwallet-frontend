@@ -13,7 +13,7 @@ import {
 import { ZOND_PROVIDER } from "../../../../../configuration/zondConfig";
 import { useStore } from "../../../../../stores/store";
 import { cva } from "class-variance-authority";
-import { Check, ChevronDown, HardDrive, Network, Workflow, ExternalLink } from "lucide-react";
+import { Check, ChevronDown, Network, Workflow, ExternalLink } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { CustomRpcModal } from "./CustomRpcModal";
 import { useState } from "react";
@@ -47,9 +47,8 @@ const ConnectionBadge = observer(() => {
   const { isConnected, zondNetworkName } = zondConnection;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCustomRpcModalOpen, setIsCustomRpcModalOpen] = useState(false);
-  const { DEV, TEST_NET, MAIN_NET, CUSTOM_RPC } = ZOND_PROVIDER;
-  const [isDevNetwork, isTestNetwork, isMainNetwork, isCustomRpcNetwork] = [
-    DEV.name === zondNetworkName,
+  const { TEST_NET, MAIN_NET, CUSTOM_RPC } = ZOND_PROVIDER;
+  const [isTestNetwork, isMainNetwork, isCustomRpcNetwork] = [
     TEST_NET.name === zondNetworkName,
     MAIN_NET.name === zondNetworkName,
     CUSTOM_RPC.name === zondNetworkName,
@@ -72,20 +71,6 @@ const ConnectionBadge = observer(() => {
         <DropdownMenuLabel>Blockchain network</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem
-            className={blockchainSelectionClasses({
-              isSelected: isDevNetwork,
-            })}
-            onClick={() => selectBlockchain(DEV.id)}
-          >
-            <HardDrive className="mr-2 h-4 w-4" />
-            <span>{DEV.name}</span>
-            {isDevNetwork && (
-              <DropdownMenuShortcut>
-                <Check className="h-4 w-4" />
-              </DropdownMenuShortcut>
-            )}
-          </DropdownMenuItem>
           <DropdownMenuItem
             className={blockchainSelectionClasses({
               isSelected: isTestNetwork,
