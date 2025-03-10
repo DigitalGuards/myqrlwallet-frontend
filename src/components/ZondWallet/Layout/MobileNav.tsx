@@ -1,4 +1,4 @@
-import { Users, SendHorizontal, QrCode, Settings as SettingsIcon } from "lucide-react"
+import { Users, SendHorizontal, QrCode, Settings as SettingsIcon, Plus } from "lucide-react"
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 
@@ -19,6 +19,11 @@ const navItems = [
         path: ROUTES.QR_VIEW,
     },
     {
+        icon: Plus,
+        label: "ZRC20",
+        path: ROUTES.CREATE_TOKEN,
+    },
+    {
         icon: SettingsIcon,
         label: "Settings",
         path: ROUTES.SETTINGS,
@@ -28,7 +33,7 @@ const navItems = [
 export default function MobileNav() {
     const navigate = useNavigate();
     return (
-        <nav className="md:hidden fixed bottom-6 border-t-2 border-t-secondary border-t-opacity-50 bg-background w-full z-10 h-14 flex items-center justify-around px-4">
+        <nav className="md:hidden fixed bottom-6 border-t-2 border-t-secondary border-t-opacity-50 bg-background w-full z-10 h-14 flex items-center justify-around px-4 pt-2">
             {
                 navItems.map((item) => (
                     <button key={item.path} className="cursor-pointer flex flex-col items-center text-sm text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(item.path)}>
