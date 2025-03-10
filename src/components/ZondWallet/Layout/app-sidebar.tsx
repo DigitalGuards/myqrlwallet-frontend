@@ -13,26 +13,31 @@ import {
 } from "@/components/UI/sidebar"
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
+import ZondWalletLogo from "../Header/ZondWalletLogo/ZondWalletLogo";
 // Menu items.
 const sidebarItems = [
     {
         title: "Account List",
         url: ROUTES.ACCOUNT_LIST,
+        label: "Wallets",
         icon: Users,
     },
     {
         title: "Send",
         url: ROUTES.SEND,
+        label: "Send",
         icon: SendHorizontal,
     },
     {
         title: "QR View",
         url: ROUTES.QR_VIEW,
+        label: "QR View",
         icon: QrCode,
     },
     {
         title: "Settings",
         url: ROUTES.SETTINGS,
+        label: "Settings",
         icon: SettingsIcon,
     },
 ]
@@ -44,15 +49,19 @@ export function AppSidebar() {
             <SidebarContent>
                 <SidebarGroup>
                     {/* <SidebarGroupLabel>Application</SidebarGroupLabel> */}
-                    <SidebarGroupContent className="mt-10">
+                    <SidebarGroupContent className="mt-5">
                         <SidebarMenu>
+                            <SidebarMenuItem className="cursor-pointer flex justify-center py-5" onClick={() => navigate(ROUTES.HOME)}>
+                                <ZondWalletLogo showText={false} size="lg" />
+                            </SidebarMenuItem>
                             {sidebarItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild className="py-8">
-                                        <a onClick={() => navigate(item.url)} className="cursor-pointer flex gap-5 justify-around [&>svg]:!size-8">
-                                            <item.icon />
-                                            {/* <span>{item.title}</span> */}
-                                        </a>
+                                    <SidebarMenuButton asChild className="py-2 h-auto" onClick={() => navigate(item.url)}>
+                                        <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground"
+                                        >
+                                            <item.icon className="size-8" />
+                                            <span className="block text-xs font-medium">{item.label}</span>
+                                        </div>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                             ))}
