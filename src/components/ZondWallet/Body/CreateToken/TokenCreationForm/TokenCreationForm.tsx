@@ -65,6 +65,7 @@ export const TokenCreationForm = observer(
             defaultValues: {
                 tokenName: "",
                 tokenSymbol: "",
+                decimals: 18,
                 mintable: false,
                 changeInitialRecipient: false,
                 changeTokenOwner: false,
@@ -116,7 +117,7 @@ export const TokenCreationForm = observer(
                     tokenName: "",
                     tokenSymbol: "",
                     initialSupply: 0,
-                    decimals: 0,
+                    decimals: 18,
                     mintable: false,
                     changeInitialRecipient: false,
                     changeTokenOwner: false,
