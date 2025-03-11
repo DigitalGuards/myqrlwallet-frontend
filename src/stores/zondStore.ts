@@ -430,8 +430,16 @@ class ZondStore {
     const customERC20Factorycontract = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
 
     const contractCreateToken = customERC20Factorycontract.methods.createToken(
-      tokenName, tokenSymbol, BigInt(initialSupply.toString()).toString(), decimals, BigInt(maxSupply.toString()).toString(), receipt, owner, BigInt(maxWalletAmount.toString()).toString(), BigInt(maxTxLimit.toString()).toString()
-    )
+      tokenName,
+      tokenSymbol,
+      initialSupply,
+      decimals,
+      maxSupply,
+      receipt,
+      owner,
+      maxWalletAmount,
+      maxTxLimit
+    );
 
     const estimateGas = await contractCreateToken.estimateGas({ "from": acc.address })
 

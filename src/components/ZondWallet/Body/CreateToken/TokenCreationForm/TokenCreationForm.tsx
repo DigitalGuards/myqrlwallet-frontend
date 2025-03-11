@@ -24,23 +24,24 @@ import { z } from "zod";
 import { useEffect } from "react";
 import { useStore } from "@/stores/store";
 import { toast } from "@/hooks/use-toast";
+import { ethers } from "ethers";
 
 const FormSchema = z
     .object({
         tokenName: z.string().min(1, { message: "Token name is required" }),
         tokenSymbol: z.string().min(1, { message: "Token symbol is required" }),
-        initialSupply: z.string().min(1, { message: "Initial supply is required" }).transform((val) => Number(val)),
-        decimals: z.string().min(1, { message: "Decimals is required" }).transform((val) => Number(val)),
+        initialSupply: z.string(),
+        decimals: z.number().min(1, { message: "Decimals is required" }),
         mintable: z.boolean(),
-        maxSupply: z.string().optional().transform((val) => Number(val)),
+        maxSupply: z.string().optional(),
         changeInitialRecipient: z.boolean(),
         recipientAddress: z.string().optional(),
         changeTokenOwner: z.boolean(),
         ownerAddress: z.string().optional(),
         setMaxWalletAmount: z.boolean(),
-        maxWalletAmount: z.string().optional().transform((val) => Number(val)),
+        maxWalletAmount: z.string().optional(),
         setMaxTransactionLimit: z.boolean(),
-        maxTransactionLimit: z.string().optional().transform((val) => Number(val)),
+        maxTransactionLimit: z.string().optional(),
         mnemonicPhrases: z.string().min(1, { message: "Mnemonic Phrases is required" })
     })
 //   .refine((fields) => fields.password === fields.reEnteredPassword, {
@@ -49,7 +50,7 @@ const FormSchema = z
 //   });
 
 type TokenCreationFormProps = {
-    onTokenCreated: (tokenName: string, tokenSymbol: string, initialSupply: number, decimals: number, maxSupply: undefined | number, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | number, maxTransactionLimit: undefined | number, mnemonicPhrases: string) => Promise<void>;
+    onTokenCreated: (tokenName: string, tokenSymbol: string, initialSupply: string, decimals: number, maxSupply: undefined | string, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | string, maxTransactionLimit: undefined | string, mnemonicPhrases: string) => Promise<void>;
 };
 
 export const TokenCreationForm = observer(
@@ -65,6 +66,7 @@ export const TokenCreationForm = observer(
             defaultValues: {
                 tokenName: "",
                 tokenSymbol: "",
+                initialSupply: "0",
                 decimals: 18,
                 mintable: false,
                 changeInitialRecipient: false,
@@ -78,6 +80,14 @@ export const TokenCreationForm = observer(
             control,
             formState: { isSubmitting, isValid },
         } = form;
+
+        const formatRealValue = (supply: string, decimals: number) => {
+            try {
+                return ethers.formatUnits(supply, decimals);
+            } catch (error) {
+                return "Invalid value";
+            }
+        };
 
         async function onSubmit(formData: z.infer<typeof FormSchema>) {
             try {
@@ -116,7 +126,7 @@ export const TokenCreationForm = observer(
                 form.reset({
                     tokenName: "",
                     tokenSymbol: "",
-                    initialSupply: 0,
+                    initialSupply: "0",
                     decimals: 18,
                     mintable: false,
                     changeInitialRecipient: false,
@@ -203,7 +213,9 @@ export const TokenCreationForm = observer(
                                                 type="number"
                                             />
                                         </FormControl>
-                                        <FormDescription>Initial Supply</FormDescription>
+                                        <FormDescription>
+                                            Initial Supply (Real Value: {formatRealValue(field.value || "0", form.watch("decimals"))})
+                                        </FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -219,6 +231,7 @@ export const TokenCreationForm = observer(
                                                 disabled={isSubmitting}
                                                 placeholder="Example: 18"
                                                 type="number"
+                                                onChange={(e) => field.onChange(Number(e.target.value))}
                                             />
                                         </FormControl>
                                         <FormDescription>Decimals</FormDescription>
@@ -265,7 +278,9 @@ export const TokenCreationForm = observer(
                                                     type="string"
                                                 />
                                             </FormControl>
-                                            <FormDescription>Max Supply</FormDescription>
+                                            <FormDescription>
+                                                Max Supply (Real Value: {formatRealValue(field.value || "0", form.watch("decimals"))})
+                                            </FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
