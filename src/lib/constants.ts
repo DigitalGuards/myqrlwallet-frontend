@@ -10,7 +10,7 @@ const KNOWN_TOKEN_LIST: TokenInterface[] = [
     {
         name: "Zond Token",
         symbol: "ZT",
-        address: "Z9da9298591f541abb436bc1240dea84ba3589dfa",
+        address: "Ze751329662b34456f14c5e5be04b06f40fbee96a",
         amount: "0",
         decimals: 18
     }

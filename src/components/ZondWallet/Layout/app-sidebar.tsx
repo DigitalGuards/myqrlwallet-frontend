@@ -24,7 +24,7 @@ const sidebarItems = [
     },
     {
         title: "Send",
-        url: ROUTES.SEND,
+        url: ROUTES.ACCOUNT_DETAILS,
         label: "Send",
         icon: SendHorizontal,
     },

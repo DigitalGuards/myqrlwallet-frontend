@@ -11,7 +11,7 @@ const navItems = [
     {
         icon: SendHorizontal,
         label: "Send",
-        path: ROUTES.SEND,
+        path: ROUTES.ACCOUNT_DETAILS,
     },
     {
         icon: QrCode,
