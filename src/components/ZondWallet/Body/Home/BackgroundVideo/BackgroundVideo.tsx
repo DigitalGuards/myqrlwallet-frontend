@@ -34,9 +34,9 @@ const videoContainerClasses = cva(
 
 const BackgroundVideo = observer(() => {
   const { settingsStore } = useStore();
-  const { isDarkMode, theme } = settingsStore;
+  const { isDarkMode } = settingsStore;
 
-  const backgroundVideoSource = `/qrl-video-${theme}.mp4`;
+  const backgroundVideoSource = `/qrl-video.mp4`;
 
   return (
     <div className={videoContainerClasses({ isDarkMode })}>
@@ -44,10 +44,13 @@ const BackgroundVideo = observer(() => {
         autoPlay
         muted
         loop
-        style={{ 
-          objectPosition: '5% 35%'
-        }}
-        className={backgroundVideoClasses({ isDarkMode })}
+        playsInline
+        className={`${backgroundVideoClasses({ isDarkMode })} 
+          md:object-position-[5%_35%]
+          object-position-[50%_50%]
+          min-h-screen min-w-full
+          max-h-none
+        `}
       >
         <source src={backgroundVideoSource} type="video/mp4" />
       </video>
