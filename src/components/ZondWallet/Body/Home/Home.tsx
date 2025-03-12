@@ -54,7 +54,7 @@ const Home = observer(() => {
       />
       <BackgroundVideo />
       <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-8 py-8">
-        <img className="h-24 w-24" src="/icons/theqrlwallet/512.png" alt="QRL Logo" />
+        <img className="h-28" src="/logo.png" alt="QRL Logo" />
         {isLoading ? (
           <Loader className="animate-spin text-foreground" size={32} />
         ) : (
