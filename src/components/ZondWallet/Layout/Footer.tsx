@@ -8,7 +8,7 @@ export default function Footer() {
                 Privacy
             </button>
             <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Teams
+                Terms
             </button>
             <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Support
