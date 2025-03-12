@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { Loading } from "@/components/UI/Loading";
 
@@ -14,6 +14,9 @@ const CreateToken = lazy(() => import("../components/ZondWallet/Body/CreateToken
 // const Tokens = lazy(() => import("../components/ZondWallet/Body/Tokens/Tokens.tsx"))
 const Settings = lazy(() => import("../components/ZondWallet/Body/Settings/Settings.tsx"));
 const QRView = lazy(() => import("../components/ZondWallet/Body/QRView/QRView.tsx"));
+const Terms = lazy(() => import("../components/ZondWallet/Body/Terms/Terms.tsx"));
+const Privacy = lazy(() => import("../components/ZondWallet/Body/Privacy/Privacy.tsx"));
+const Support = lazy(() => import("../components/ZondWallet/Body/Support/Support.tsx"));
 
 const ROUTES = {
   HOME: "/",
@@ -27,6 +30,9 @@ const ROUTES = {
   SEND: "/send",
   // TOKENS: "/tokens",
   SETTINGS: "/settings",
+  TERMS: "/terms",
+  PRIVACY: "/privacy",
+  SUPPORT: "/support",
   DEFAULT: "*",
 } as const;
 
@@ -111,11 +117,32 @@ const router = createBrowserRouter([
           </Suspense>
         ),
       },
-      {
-        path: ROUTES.DEFAULT,
-        element: <Navigate to={ROUTES.HOME} replace />
-      },
     ],
+  },
+  // Standalone routes outside the main layout
+  {
+    path: ROUTES.TERMS,
+    element: (
+      <Suspense fallback={<Loading />}>
+        <Terms />
+      </Suspense>
+    ),
+  },
+  {
+    path: ROUTES.PRIVACY,
+    element: (
+      <Suspense fallback={<Loading />}>
+        <Privacy />
+      </Suspense>
+    ),
+  },
+  {
+    path: ROUTES.SUPPORT,
+    element: (
+      <Suspense fallback={<Loading />}>
+        <Support />
+      </Suspense>
+    ),
   },
 ]);
 
