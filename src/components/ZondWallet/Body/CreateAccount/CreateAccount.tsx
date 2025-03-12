@@ -48,17 +48,21 @@ const CreateAccount = observer(() => {
       />
       <div className="flex w-full items-start justify-center pt-16">
         <div className="relative w-full max-w-2xl px-4">
-          <img
-            className="fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-30"
-            src="/tree.svg"
-            alt="Background Tree"
-          />
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            className={"fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden"}
+          >
+            <source src="/tree.mp4" type="video/mp4" />
+          </video>
           <div className="relative z-10">
             {hasAccountCreated ? (
               hasMnemonicNoted ? (
-                <AccountCreationSuccess 
-                  account={account} 
-                  userPassword={userPassword} 
+                <AccountCreationSuccess
+                  account={account}
+                  userPassword={userPassword}
                   mnemonic={mnemonic}
                   hexSeed={hexSeed}
                 />

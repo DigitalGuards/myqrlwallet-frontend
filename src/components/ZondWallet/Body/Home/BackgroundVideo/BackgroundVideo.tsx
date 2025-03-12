@@ -36,7 +36,7 @@ const BackgroundVideo = observer(() => {
   const { settingsStore } = useStore();
   const { isDarkMode } = settingsStore;
 
-  const backgroundVideoSource = `/qrl-video.mp4`;
+  const backgroundVideoSource = `/qrl-video${isDarkMode ? "-dark" : ""}.mp4`;
 
   return (
     <div className={videoContainerClasses({ isDarkMode })}>
