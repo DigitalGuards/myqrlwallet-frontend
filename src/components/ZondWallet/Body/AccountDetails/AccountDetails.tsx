@@ -175,7 +175,7 @@ const AccountDetails = observer(() => {
   }
 
   return (
-    <div className="flex w-full items-start justify-center pt-16">
+    <div className="flex w-full items-start justify-center py-8 overflow-x-hidden">
       <div className="relative w-full max-w-2xl px-4">
         {/* <video
           autoPlay
@@ -189,7 +189,7 @@ const AccountDetails = observer(() => {
         <div className="relative z-10">
           <Form {...form}>
             <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-              <Card>
+              <Card className="w-full">
                 <CardHeader>
                   <CardTitle>Send Quanta</CardTitle>
                 </CardHeader>
