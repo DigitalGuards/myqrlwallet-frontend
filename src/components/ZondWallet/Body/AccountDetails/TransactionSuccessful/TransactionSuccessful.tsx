@@ -29,7 +29,7 @@ export const TransactionSuccessful = ({
 
   return (
     <div className="w-full">
-      <video
+      {/* <video
         autoPlay
         muted
         loop
@@ -37,7 +37,7 @@ export const TransactionSuccessful = ({
         className={"fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden"}
       >
         <source src="/tree.mp4" type="video/mp4" />
-      </video>
+      </video> */}
       <div className="relative z-10 p-8">
         <Card className="w-full">
           <CardHeader>

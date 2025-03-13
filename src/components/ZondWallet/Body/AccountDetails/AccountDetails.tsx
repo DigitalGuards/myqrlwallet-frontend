@@ -177,7 +177,7 @@ const AccountDetails = observer(() => {
   return (
     <div className="flex w-full items-start justify-center pt-16">
       <div className="relative w-full max-w-2xl px-4">
-        <video
+        {/* <video
           autoPlay
           muted
           loop
@@ -185,7 +185,7 @@ const AccountDetails = observer(() => {
           className={"fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden"}
         >
           <source src="/tree.mp4" type="video/mp4" />
-        </video>
+        </video> */}
         <div className="relative z-10">
           <Form {...form}>
             <form className="w-full" onSubmit={handleSubmit(onSubmit)}>

@@ -93,12 +93,12 @@ export const TokenCreationForm = observer(
             try {
                 const tokenName = formData.tokenName;
                 const tokenSymbol = formData.tokenSymbol;
-                const initialSupply = formData.initialSupply;
+                const initialSupply = ethers.parseUnits(formData.initialSupply, formData.decimals).toString();
                 const decimals = formData.decimals;
-                const maxSupply = formData.maxSupply;
+                const maxSupply = formData.maxSupply ? ethers.parseUnits(formData.maxSupply, decimals).toString() : undefined;
                 const recipientAddress = formData.recipientAddress;
                 const ownerAddress = formData.ownerAddress;
-                const maxWalletAmount = formData.maxWalletAmount;
+                const maxWalletAmount = formData.maxWalletAmount ? ethers.parseUnits(formData.maxWalletAmount, decimals).toString() : undefined;
                 const maxTransactionLimit = formData.maxTransactionLimit;
                 const mnemonicPhrase = formData.mnemonicPhrases;
                 // Validate password strength
@@ -214,7 +214,8 @@ export const TokenCreationForm = observer(
                                             />
                                         </FormControl>
                                         <FormDescription>
-                                            Initial Supply (Real Value: {formatRealValue(field.value || "0", form.watch("decimals"))})
+                                            {/* Initial Supply (Real Value: {formatRealValue(field.value || "0", form.watch("decimals"))}) */}
+                                            Initial Supply
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>
