@@ -67,21 +67,34 @@ const Home = observer(() => {
             >
               {activeAccount.accountAddress && (
                 <>
-                  <Card className="w-full">
-                    <CardHeader>
-                      <CardTitle>Active account</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ActiveAccountDisplay />
-                    </CardContent>
-                    <CardFooter className="justify-end">
-                      <Link className="w-full" to={ROUTES.ACCOUNT_DETAILS}>
-                        <Button className="w-full" type="button">
-                          <Send className="mr-2 h-4 w-4" />
-                          Send Quanta
-                        </Button>
-                      </Link>
-                    </CardFooter>
+                  <Card className="w-full relative overflow-hidden">
+                    <div className="absolute inset-0 overflow-hidden">
+                      <video
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        className="w-full h-full object-cover opacity-30"
+                      >
+                        <source src="qrl-video-dark.mp4" type="video/mp4" />
+                      </video>
+                    </div>
+                    <div className="relative z-10">
+                      <CardHeader>
+                        <CardTitle>Active account</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ActiveAccountDisplay />
+                      </CardContent>
+                      <CardFooter className="justify-end">
+                        <Link className="w-full" to={ROUTES.ACCOUNT_DETAILS}>
+                          <Button className="w-full" type="button">
+                            <Send className="mr-2 h-4 w-4" />
+                            Send Quanta
+                          </Button>
+                        </Link>
+                      </CardFooter>
+                    </div>
                   </Card>
                   <div className="relative z-10">
                     <TokenForm />
