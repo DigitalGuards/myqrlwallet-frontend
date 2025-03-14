@@ -33,11 +33,11 @@ const navItems = [
 export default function MobileNav() {
     const navigate = useNavigate();
     return (
-        <nav className="md:hidden fixed bottom-6 border-t-2 border-t-secondary border-t-opacity-50 bg-background w-full z-10 h-14 flex items-center justify-around px-4 pt-2">
+        <nav className="md:hidden fixed bottom-6 border-t-2 border-t-secondary border-t-opacity-50 bg-background w-full z-10 h-14 flex items-center justify-around px-4 pt-0">
             {
                 navItems.map((item) => (
                     <button key={item.path} className="cursor-pointer flex flex-col items-center text-sm text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(item.path)}>
-                        <item.icon className="h-6 w-6" />
+                        <item.icon className="h-5 w-5" />
                         <span>{item.label}</span>
                     </button>
                 ))
