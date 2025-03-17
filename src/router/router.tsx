@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { Loading } from "@/components/UI/Loading";
+import { Navigate } from "react-router-dom";
 
 // Lazy load components
 const ZondWallet = lazy(() => import("../components/ZondWallet/ZondWallet.tsx"));
@@ -140,6 +141,14 @@ const router = createBrowserRouter([
             <Support />
           </Suspense>
         ),
+      },
+      {
+        path: ROUTES.DEFAULT,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Navigate to={ROUTES.HOME} replace />
+          </Suspense>
+        )
       },
     ],
   },
