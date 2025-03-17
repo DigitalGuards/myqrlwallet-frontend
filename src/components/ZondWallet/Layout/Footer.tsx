@@ -9,13 +9,13 @@ export default function Footer() {
             <a className="text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(ROUTES.HOME)}>
                 Home
             </a>
-            <a href={ROUTES.PRIVACY} target="_blank" className="text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+            <a onClick={() => navigate(ROUTES.PRIVACY)} target="_blank" className="text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
                 Privacy
             </a>
-            <a href={ROUTES.TERMS} target="_blank" className="text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+            <a onClick={() => navigate(ROUTES.TERMS)} target="_blank" className="text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
                 Terms
             </a>
-            <a href={ROUTES.SUPPORT} target="_blank" className="text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+            <a onClick={() => navigate(ROUTES.SUPPORT)} target="_blank" className="text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
                 Support
             </a>
         </footer>

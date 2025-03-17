@@ -117,32 +117,31 @@ const router = createBrowserRouter([
           </Suspense>
         ),
       },
+      {
+        path: ROUTES.TERMS,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Terms />
+          </Suspense>
+        ),
+      },
+      {
+        path: ROUTES.PRIVACY,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Privacy />
+          </Suspense>
+        ),
+      },
+      {
+        path: ROUTES.SUPPORT,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Support />
+          </Suspense>
+        ),
+      },
     ],
-  },
-  // Standalone routes outside the main layout
-  {
-    path: ROUTES.TERMS,
-    element: (
-      <Suspense fallback={<Loading />}>
-        <Terms />
-      </Suspense>
-    ),
-  },
-  {
-    path: ROUTES.PRIVACY,
-    element: (
-      <Suspense fallback={<Loading />}>
-        <Privacy />
-      </Suspense>
-    ),
-  },
-  {
-    path: ROUTES.SUPPORT,
-    element: (
-      <Suspense fallback={<Loading />}>
-        <Support />
-      </Suspense>
-    ),
   },
 ]);
 
