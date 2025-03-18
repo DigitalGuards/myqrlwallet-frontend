@@ -81,7 +81,13 @@ const Support: React.FC = () => {
                         <FormField
                             control={form.control}
                             name="name"
-                            rules={{ required: "Name is required." }}
+                            rules={{
+                                required: "Name is required.",
+                                pattern: {
+                                    value: /^[a-zA-Z0-9\s]*$/,
+                                    message: "Only letters, numbers, and spaces are allowed."
+                                }
+                            }}
                             render={({ field, fieldState }) => (
                                 <FormItem>
                                     <FormLabel>Name</FormLabel>
@@ -116,7 +122,13 @@ const Support: React.FC = () => {
                         <FormField
                             control={form.control}
                             name="subject"
-                            rules={{ required: "Subject is required." }}
+                            rules={{
+                                required: "Subject is required.",
+                                pattern: {
+                                    value: /^[a-zA-Z0-9\s]*$/,
+                                    message: "Only letters, numbers, and spaces are allowed."
+                                }
+                            }}
                             render={({ field, fieldState }) => (
                                 <FormItem>
                                     <FormLabel>Subject</FormLabel>
@@ -130,7 +142,13 @@ const Support: React.FC = () => {
                         <FormField
                             control={form.control}
                             name="message"
-                            rules={{ required: "Message is required." }}
+                            rules={{
+                                required: "Message is required.",
+                                pattern: {
+                                    value: /^[a-zA-Z0-9\s.,?!]*$/,
+                                    message: "Only alphanumeric characters, spaces, and basic punctuation are allowed."
+                                }
+                            }}
                             render={({ field, fieldState }) => (
                                 <FormItem>
                                     <FormLabel>Message</FormLabel>
