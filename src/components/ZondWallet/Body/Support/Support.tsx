@@ -12,7 +12,7 @@ import { Input } from "@/components/UI/Input";
 import { Button } from "@/components/UI/Button";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { toast } from "@/hooks/use-toast";
-
+import { SERVER_URL } from "@/configuration/zondConfig";
 
 type SupportFormValues = {
     name: string;
@@ -40,7 +40,7 @@ const Support: React.FC = () => {
     const onSubmit: SubmitHandler<SupportFormValues> = async (data) => {
         try {
             // Replace with your actual API endpoint
-            const response = await fetch("/api/support", {
+            const response = await fetch(`${SERVER_URL}/support`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
