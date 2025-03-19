@@ -51,84 +51,87 @@ export const ActiveAccount = observer(() => {
     !!accountAddress && (
       <>
         <Label className="text-foreground">{activeAccountLabel}</Label>
-        <Card className="flex items-center gap-4 p-4 font-bold text-foreground hover:bg-accent">
+        <Card className="flex flex-col md:flex-row items-center gap-4 p-4 font-bold text-foreground hover:bg-accent">
           <div className="flex flex-col gap-1">
-            <AccountId account={accountAddress} />
-            <AccountBalance accountAddress={accountAddress} />
+            <AccountId className="flex md:hidden" oneLine={true} account={accountAddress} />
+            <AccountId className="hidden md:flex" account={accountAddress} />
+            <AccountBalance className="m-auto md:m-0" accountAddress={accountAddress} />
           </div>
-          <span>
-            <TooltipProvider>
-              <Tooltip open={tooltipOpen} onOpenChange={setTooltipOpen} delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <Button
-                    className="hover:text-secondary"
-                    variant="outline"
-                    size="icon"
-                    onClick={copyAccount}
-                  >
-                    <Copy size={18} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <Label>{copied ? "Copied!" : "Copy Address"}</Label>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </span>
-          <span className="group relative">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    className="hover:text-secondary"
-                    variant="outline"
-                    size="icon"
-                    onClick={viewInExplorer}
-                  >
-                    <ExternalLink size={18} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <Label>View in Zondscan</Label>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <div className="absolute invisible group-hover:visible -bottom-[220px] left-1/2 transform -translate-x-1/2 bg-card rounded-lg p-4 shadow-lg z-50 border border-border">
-              <div className="flex flex-col items-center gap-2">
-                <QRCodeSVG
-                  value={getExplorerAddressUrl(accountAddress, blockchain)}
-                  size={150}
-                  bgColor="#000000"
-                  fgColor="#ffffff"
-                  level="L"
-                  includeMargin={false}
-                />
-                <Label className="text-xs text-muted-foreground">Scan to open in Zondscan</Label>
-              </div>
-            </div>
-          </span>
-          <span>
-            <TooltipProvider>
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <Link
-                    to={ROUTES.ACCOUNT_DETAILS}
-                  >
+          <div className="flex gap-4 items-center">
+            <span>
+              <TooltipProvider>
+                <Tooltip open={tooltipOpen} onOpenChange={setTooltipOpen} delayDuration={0}>
+                  <TooltipTrigger asChild>
                     <Button
                       className="hover:text-secondary"
                       variant="outline"
                       size="icon"
+                      onClick={copyAccount}
                     >
-                      <SendHorizontal size={18} />
+                      <Copy size={18} />
                     </Button>
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <Label>Send Quanta</Label>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <Label>{copied ? "Copied!" : "Copy Address"}</Label>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </span>
+            <span className="group relative">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="hover:text-secondary"
+                      variant="outline"
+                      size="icon"
+                      onClick={viewInExplorer}
+                    >
+                      <ExternalLink size={18} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <Label>View in Zondscan</Label>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <div className="absolute invisible group-hover:visible -bottom-[220px] left-1/2 transform -translate-x-1/2 bg-card rounded-lg p-4 shadow-lg z-50 border border-border">
+                <div className="flex flex-col items-center gap-2">
+                  <QRCodeSVG
+                    value={getExplorerAddressUrl(accountAddress, blockchain)}
+                    size={150}
+                    bgColor="#000000"
+                    fgColor="#ffffff"
+                    level="L"
+                    includeMargin={false}
+                  />
+                  <Label className="text-xs text-muted-foreground">Scan to open in Zondscan</Label>
+                </div>
+              </div>
+            </span>
+            <span>
+              <TooltipProvider>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <Link
+                      to={ROUTES.ACCOUNT_DETAILS}
+                    >
+                      <Button
+                        className="hover:text-secondary"
+                        variant="outline"
+                        size="icon"
+                      >
+                        <SendHorizontal size={18} />
+                      </Button>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <Label>Send Quanta</Label>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </span>
+          </div>
         </Card>
       </>
     )

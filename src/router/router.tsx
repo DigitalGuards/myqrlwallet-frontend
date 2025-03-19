@@ -1,6 +1,7 @@
-import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { Loading } from "@/components/UI/Loading";
+import { Navigate } from "react-router-dom";
 
 // Lazy load components
 const ZondWallet = lazy(() => import("../components/ZondWallet/ZondWallet.tsx"));
@@ -13,6 +14,10 @@ const AccountList = lazy(() => import("../components/ZondWallet/Body/AccountList
 const CreateToken = lazy(() => import("../components/ZondWallet/Body/CreateToken/CreateToken.tsx"));
 // const Tokens = lazy(() => import("../components/ZondWallet/Body/Tokens/Tokens.tsx"))
 const Settings = lazy(() => import("../components/ZondWallet/Body/Settings/Settings.tsx"));
+const QRView = lazy(() => import("../components/ZondWallet/Body/QRView/QRView.tsx"));
+const Terms = lazy(() => import("../components/ZondWallet/Body/Terms/Terms.tsx"));
+const Privacy = lazy(() => import("../components/ZondWallet/Body/Privacy/Privacy.tsx"));
+const Support = lazy(() => import("../components/ZondWallet/Body/Support/Support.tsx"));
 
 const ROUTES = {
   HOME: "/",
@@ -26,6 +31,9 @@ const ROUTES = {
   SEND: "/send",
   // TOKENS: "/tokens",
   SETTINGS: "/settings",
+  TERMS: "/terms",
+  PRIVACY: "/privacy",
+  SUPPORT: "/support",
   DEFAULT: "*",
 } as const;
 
@@ -94,14 +102,14 @@ const router = createBrowserRouter([
           </Suspense>
         )
       },
-      // {
-      //   path: ROUTES.TOKENS,
-      //   element: (
-      //     <Suspense fallback={<Loading />}>
-      //       <Tokens />
-      //     </Suspense>
-      //   )
-      // },
+      {
+        path: ROUTES.QR_VIEW,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <QRView />
+          </Suspense>
+        )
+      },
       {
         path: ROUTES.SETTINGS,
         element: (
@@ -111,8 +119,36 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: ROUTES.TERMS,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Terms />
+          </Suspense>
+        ),
+      },
+      {
+        path: ROUTES.PRIVACY,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Privacy />
+          </Suspense>
+        ),
+      },
+      {
+        path: ROUTES.SUPPORT,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Support />
+          </Suspense>
+        ),
+      },
+      {
         path: ROUTES.DEFAULT,
-        element: <Navigate to={ROUTES.HOME} replace />
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Navigate to={ROUTES.HOME} replace />
+          </Suspense>
+        )
       },
     ],
   },

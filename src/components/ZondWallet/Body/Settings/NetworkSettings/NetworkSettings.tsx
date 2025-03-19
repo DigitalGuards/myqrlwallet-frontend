@@ -12,8 +12,7 @@ export const NetworkSettings = observer(() => {
     const { zondConnection, selectBlockchain } = zondStore;
     const { blockchain } = zondConnection;
     const [isCustomRpcModalOpen, setIsCustomRpcModalOpen] = useState(false);
-
-    const { DEV, TEST_NET, MAIN_NET, CUSTOM_RPC } = ZOND_PROVIDER;
+    const { TEST_NET, MAIN_NET, CUSTOM_RPC } = ZOND_PROVIDER;
 
     return (
         <Card>
@@ -41,15 +40,6 @@ export const NetworkSettings = observer(() => {
                     >
                         <Settings2 className="mr-2 h-4 w-4" />
                         Testnet
-                    </Button>
-
-                    <Button
-                        variant={blockchain === DEV.id ? "secondary" : "outline"}
-                        className="w-full justify-start"
-                        onClick={() => selectBlockchain(DEV.id)}
-                    >
-                        <Settings2 className="mr-2 h-4 w-4" />
-                        Development
                     </Button>
 
                     <Button

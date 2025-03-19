@@ -8,7 +8,7 @@ const CreateToken = observer(() => {
         createToken,
     } = zondStore;
 
-    const onTokenCreated = async (tokenName: string, tokenSymbol: string, initialSupply: number, decimals: number, maxSupply: undefined | number, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | number, maxTransactionLimit: undefined | number, mnemonicPhrases: string) => {
+    const onTokenCreated = async (tokenName: string, tokenSymbol: string, initialSupply: string, decimals: number, maxSupply: undefined | string, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | string, maxTransactionLimit: undefined | string, mnemonicPhrases: string) => {
 
         if (!initialRecipient) {
             initialRecipient = "Z0000000000000000000000000000000000000000";
@@ -19,27 +19,27 @@ const CreateToken = observer(() => {
         }
 
         if (!maxSupply) {
-            maxSupply = 0;
+            maxSupply = "0";
         }
 
         if (!maxWalletAmount) {
-            maxWalletAmount = 0;
+            maxWalletAmount = "0";
         }
 
         if (!maxTransactionLimit) {
-            maxTransactionLimit = 0;
+            maxTransactionLimit = "0";
         }
 
         await createToken(
             tokenName,
             tokenSymbol,
-            initialSupply.toString(),
+            initialSupply,
             decimals,
-            maxSupply.toString(),
+            maxSupply,
             initialRecipient,
             tokenOwner,
-            maxWalletAmount.toString(),
-            maxTransactionLimit.toString(),
+            maxWalletAmount,
+            maxTransactionLimit,
             mnemonicPhrases
         )
     };
@@ -48,7 +48,7 @@ const CreateToken = observer(() => {
         <div className="flex w-full items-start justify-center py-8">
             <div className="relative w-full max-w-2xl px-4">
                 <img
-                    className="fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-30"
+                    className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
                     src="/tree.svg"
                     alt="Background Tree"
                 />

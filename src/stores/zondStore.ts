@@ -13,7 +13,6 @@ import { fetchTokenInfo } from "@/utilities/web3utils/customERC20";
 import { TokenInterface } from "@/lib/constants";
 import { KNOWN_TOKEN_LIST } from "@/lib/constants";
 import CustomERC20ABI from "@/abi/CustomERC20ABI";
-import { formatBalance } from "@/utilities/helper";
 
 type ActiveAccountType = {
   accountAddress: string;
@@ -244,9 +243,7 @@ class ZondStore {
           storedAccountsList.map(async (account) => {
             const accountBalance =
               (await this.zondInstance?.getBalance(account)) ?? BigInt(0);
-            const convertedAccountBalance = formatBalance(
-              utils.fromWei(accountBalance, "ether")
-            ) + " QRL";
+            const convertedAccountBalance = utils.fromWei(accountBalance, "ether");
             return {
               accountAddress: account,
               accountBalance: convertedAccountBalance,
@@ -310,7 +307,7 @@ class ZondStore {
     return (
       this.zondAccounts.accounts.find(
         (account) => account.accountAddress === accountAddress,
-      )?.accountBalance ?? "0 QRL"
+      )?.accountBalance ?? "0"
     );
   }
 
@@ -430,8 +427,16 @@ class ZondStore {
     const customERC20Factorycontract = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
 
     const contractCreateToken = customERC20Factorycontract.methods.createToken(
-      tokenName, tokenSymbol, BigInt(initialSupply.toString()).toString(), decimals, BigInt(maxSupply.toString()).toString(), receipt, owner, BigInt(maxWalletAmount.toString()).toString(), BigInt(maxTxLimit.toString()).toString()
-    )
+      tokenName,
+      tokenSymbol,
+      initialSupply,
+      decimals,
+      maxSupply,
+      receipt,
+      owner,
+      maxWalletAmount,
+      maxTxLimit
+    );
 
     const estimateGas = await contractCreateToken.estimateGas({ "from": acc.address })
 
