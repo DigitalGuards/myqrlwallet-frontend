@@ -18,6 +18,7 @@ const QRView = lazy(() => import("../components/ZondWallet/Body/QRView/QRView.ts
 const Terms = lazy(() => import("../components/ZondWallet/Body/Terms/Terms.tsx"));
 const Privacy = lazy(() => import("../components/ZondWallet/Body/Privacy/Privacy.tsx"));
 const Support = lazy(() => import("../components/ZondWallet/Body/Support/Support.tsx"));
+const TokenStatus = lazy(() => import("../components/ZondWallet/Body/CreateToken/TokenStatus.tsx"));
 
 const ROUTES = {
   HOME: "/",
@@ -35,6 +36,7 @@ const ROUTES = {
   PRIVACY: "/privacy",
   SUPPORT: "/support",
   DEFAULT: "*",
+  TOKEN_STATUS: "/token-status",
 } as const;
 
 const router = createBrowserRouter([
@@ -141,6 +143,14 @@ const router = createBrowserRouter([
             <Support />
           </Suspense>
         ),
+      },
+      {
+        path: ROUTES.TOKEN_STATUS,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <TokenStatus />
+          </Suspense>
+        )
       },
       {
         path: ROUTES.DEFAULT,
