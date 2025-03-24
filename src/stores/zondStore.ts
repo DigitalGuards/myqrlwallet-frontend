@@ -38,6 +38,10 @@ type CreatedTokenType = {
   symbol: string;
   decimals: number;
   address: string;
+  tx: string;
+  blockNumber: number;
+  gasUsed: number;
+  effectiveGasPrice: number;
 }
 
 class ZondStore {
@@ -51,7 +55,7 @@ class ZondStore {
   zondAccounts: ZondAccountsType = { accounts: [], isLoading: false };
   activeAccount: ActiveAccountType = { accountAddress: "" };
   creatingToken: CreatingTokenType = { name: "", creating: false };
-  createdToken: CreatedTokenType = { name: "", symbol: "", decimals: 0, address: "" };
+  createdToken: CreatedTokenType = { name: "", symbol: "", decimals: 0, address: "", tx: "", blockNumber: 0, gasUsed: 0, effectiveGasPrice: 0 };
   tokenList: TokenInterface[] = [];
   customRpcUrl: string = "";
 
@@ -143,9 +147,9 @@ class ZondStore {
     this.creatingToken = { name, creating };
   }
 
-  async setCreatedToken(name: string, symbol: string, decimals: number, address: string) {
-    await StorageUtil.setCreatedToken(name, symbol, decimals, address);
-    this.createdToken = { name, symbol, decimals, address };
+  async setCreatedToken(name: string, symbol: string, decimals: number, address: string, tx: string, blockNumber: number, gasUsed: number, effectiveGasPrice: number) {
+    await StorageUtil.setCreatedToken(name, symbol, decimals, address, tx, blockNumber, gasUsed, effectiveGasPrice);
+    this.createdToken = { name, symbol, decimals, address, tx, blockNumber, gasUsed, effectiveGasPrice };
   }
 
   async addToken(token: TokenInterface) {
@@ -414,9 +418,13 @@ class ZondStore {
 
     const receiptHandler = async (data: any) => {
       console.log(data);
-      const erc20TokenAddress = `Z${data.logs[3].topics[1].slice(-40)}`
+      const erc20TokenAddress = `Z${data.logs[3].topics[1].slice(-40)}`;
+      const tx = data.transactionHash;
+      const blockNumber = Number(data.blockNumber);
+      const gasUsed = Number(data.gasUsed);
+      const effectiveGasPrice = Number(data.effectiveGasPrice);
       const { name, symbol, decimals } = await fetchTokenInfo(erc20TokenAddress, url);
-      this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress);
+      this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress, tx, blockNumber, gasUsed, effectiveGasPrice);
     }
 
     const errorHandler = (data: any) => {

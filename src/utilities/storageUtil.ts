@@ -4,7 +4,7 @@ import { TokenInterface } from "@/lib/constants";
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
 const BLOCKCHAIN_SELECTION_IDENTIFIER = "BLOCKCHAIN_SELECTION";
 const CUSTOM_RPC_URL_IDENTIFIER = "CUSTOM_RPC_URL";
-const BLOCKCHAIN_CREATED_TOKEN = "CREATED_TOKEN"
+const BLOCKCHAIN_CREATED_TOKEN = "CREATED_TOKEN";
 const ACTIVE_ACCOUNT_IDENTIFIER = "ACTIVE_ACCOUNT";
 const ACCOUNT_LIST_IDENTIFIER = "ACCOUNT_LIST";
 const TRANSACTION_VALUES_IDENTIFIER = "TRANSACTION_VALUES";
@@ -106,8 +106,8 @@ class StorageUtil {
     return this.getItem<string>(CUSTOM_RPC_URL_IDENTIFIER) ?? "";
   }
 
-  static async setCreatedToken(name: string, symbol: string, decimals: number, address: string) {
-    this.setItem(BLOCKCHAIN_CREATED_TOKEN, { name, symbol, decimals, address });
+  static async setCreatedToken(name: string, symbol: string, decimals: number, address: string, tx: string, blockNumber: number, gasUsed: number, effectiveGasPrice: number) {
+    this.setItem(BLOCKCHAIN_CREATED_TOKEN, { name, symbol, decimals, address, tx, blockNumber, gasUsed, effectiveGasPrice });
   }
 
   static async updateTokenList(tokenList: TokenInterface[]) {
