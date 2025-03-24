@@ -176,7 +176,7 @@ export const TokenCreationForm = observer(
                                         <FormControl>
                                             <Input
                                                 disabled={isSubmitting}
-                                                // placeholder="Example: Volt Token"
+                                                placeholder="Example: DigitalGuards"
                                                 type="text"
                                                 {...field}
                                             />
@@ -195,7 +195,7 @@ export const TokenCreationForm = observer(
                                             <Input
                                                 {...field}
                                                 disabled={isSubmitting}
-                                                // placeholder="Example: VLT"
+                                                placeholder="Example: DG"
                                                 type="text"
                                             />
                                         </FormControl>
