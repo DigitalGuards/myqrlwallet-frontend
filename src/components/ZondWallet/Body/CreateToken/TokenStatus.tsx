@@ -2,20 +2,34 @@ import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
 import { useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/UI/Card";
-import { Check, ExternalLink, Link, Loader2 } from "lucide-react";
+import { Check, ExternalLink, Loader2 } from "lucide-react";
 import StringUtil from "@/utilities/stringUtil";
 import { utils } from "@theqrl/web3";
 import { Button } from "@/components/UI/Button";
 import { ROUTES } from "@/router/router";
+import { Link } from "react-router-dom";
 
 const TokenStatus = observer(() => {
     const { zondStore } = useStore();
-    const { createdToken, creatingToken } = zondStore;
+    const { addToken, createdToken, creatingToken } = zondStore;
     const { name, symbol, decimals, address, tx, blockNumber, blockHash, gasUsed, effectiveGasPrice } = createdToken;
 
+
     useEffect(() => {
-        // You can add logic here to fetch or update the status if needed
-    }, []);
+        const init = async () => {
+            if (address) {
+                await addToken({
+                    name: name,
+                    symbol: symbol,
+                    decimals: decimals,
+                    address: address,
+                    amount: "0",
+                });
+            }
+        }
+        init();
+    }, [address]);
+
 
     return (
         <div className="w-full">
@@ -115,15 +129,17 @@ const TokenStatus = observer(() => {
                             </>
                         )}
                     </CardContent>
-                    <CardFooter className="grid grid-cols-2 gap-4">
-                        <span />
-                        <Link className="w-full" to={ROUTES.HOME}>
-                            <Button className="w-full" type="button">
-                                <Check className="mr-2 h-4 w-4" />
-                                Done
-                            </Button>
-                        </Link>
-                    </CardFooter>
+                    {!creatingToken.creating &&
+                        <CardFooter className="grid grid-cols-2 gap-4">
+                            <span />
+                            <Link className="w-full" to={ROUTES.HOME}>
+                                <Button className="w-full" type="button">
+                                    <Check className="mr-2 h-4 w-4" />
+                                    Done
+                                </Button>
+                            </Link>
+                        </CardFooter>
+                    }
                 </Card>
             </div>
         </div>
