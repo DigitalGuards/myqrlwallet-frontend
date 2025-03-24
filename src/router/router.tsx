@@ -19,6 +19,7 @@ const Terms = lazy(() => import("../components/ZondWallet/Body/Terms/Terms.tsx")
 const Privacy = lazy(() => import("../components/ZondWallet/Body/Privacy/Privacy.tsx"));
 const Support = lazy(() => import("../components/ZondWallet/Body/Support/Support.tsx"));
 const TokenStatus = lazy(() => import("../components/ZondWallet/Body/CreateToken/TokenStatus.tsx"));
+const TransactionHistory = lazy(() => import("../components/ZondWallet/Body/TransactionHistory/TransactionHistory.tsx"));
 
 const ROUTES = {
   HOME: "/",
@@ -37,6 +38,7 @@ const ROUTES = {
   SUPPORT: "/support",
   DEFAULT: "*",
   TOKEN_STATUS: "/token-status",
+  TRANSACTION_HISTORY: "/tx-history",
 } as const;
 
 const router = createBrowserRouter([
@@ -149,6 +151,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Loading />}>
             <TokenStatus />
+          </Suspense>
+        )
+      },
+      {
+        path: ROUTES.TRANSACTION_HISTORY,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <TransactionHistory />
           </Suspense>
         )
       },

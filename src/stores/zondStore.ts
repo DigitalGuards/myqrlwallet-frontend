@@ -413,6 +413,7 @@ class ZondStore {
     }
 
     const receiptHandler = async (data: any) => {
+      console.log(data);
       const erc20TokenAddress = `Z${data.logs[3].topics[1].slice(-40)}`
       const { name, symbol, decimals } = await fetchTokenInfo(erc20TokenAddress, url);
       this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress);
