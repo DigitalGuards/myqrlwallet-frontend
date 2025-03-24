@@ -1,15 +1,17 @@
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
 import { useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/UI/Card";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/UI/Card";
+import { Check, ExternalLink, Link, Loader2 } from "lucide-react";
 import StringUtil from "@/utilities/stringUtil";
 import { utils } from "@theqrl/web3";
+import { Button } from "@/components/UI/Button";
+import { ROUTES } from "@/router/router";
 
 const TokenStatus = observer(() => {
     const { zondStore } = useStore();
     const { createdToken, creatingToken } = zondStore;
-    const { name, symbol, decimals, address, tx, blockNumber, gasUsed, effectiveGasPrice } = createdToken;
+    const { name, symbol, decimals, address, tx, blockNumber, blockHash, gasUsed, effectiveGasPrice } = createdToken;
 
     useEffect(() => {
         // You can add logic here to fetch or update the status if needed
@@ -83,7 +85,7 @@ const TokenStatus = observer(() => {
                                 <div className="flex flex-col gap-2">
                                     <div>Block hash</div>
                                     <div className="font-bold text-secondary">
-                                        {StringUtil.getSplitAddress(blockNumber.toString())}
+                                        {blockHash}
                                     </div>
                                 </div>
 
@@ -113,6 +115,15 @@ const TokenStatus = observer(() => {
                             </>
                         )}
                     </CardContent>
+                    <CardFooter className="grid grid-cols-2 gap-4">
+                        <span />
+                        <Link className="w-full" to={ROUTES.HOME}>
+                            <Button className="w-full" type="button">
+                                <Check className="mr-2 h-4 w-4" />
+                                Done
+                            </Button>
+                        </Link>
+                    </CardFooter>
                 </Card>
             </div>
         </div>
