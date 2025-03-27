@@ -1,4 +1,4 @@
-import { Users, SendHorizontal, QrCode, Settings as SettingsIcon, Plus } from "lucide-react"
+import { Users, SendHorizontal, QrCode, Settings as SettingsIcon, Plus, History } from "lucide-react"
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 
@@ -27,6 +27,11 @@ const navItems = [
         icon: SettingsIcon,
         label: "Settings",
         path: ROUTES.SETTINGS,
+    },
+    {
+        icon: History,
+        label: "History",
+        path: ROUTES.TRANSACTION_HISTORY,
     },
 ]
 
