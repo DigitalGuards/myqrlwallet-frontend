@@ -3,6 +3,7 @@ import { useStore } from "../../../../stores/store";
 import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import { SERVER_URL } from "@/configuration/zondConfig";
+import { formatBalance } from "@/utilities/helper";
 
 type TransactionHistoryType = {
     ID: string;
@@ -148,10 +149,16 @@ const TransactionHistory = observer(() => {
                                         Hash {sortConfig?.key === 'TxHash' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
                                     </th>
                                     <th
-                                        className="py-2 px-4 border-b cursor-pointer text-left text-sm sm:text-base"
+                                        className="py-2 px-4 border-b cursor-pointer text-left text-sm sm:text-base hidden sm:table-cell"
                                         onClick={() => requestSort('Amount')}
                                     >
                                         Amount (QRL) {sortConfig?.key === 'Amount' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
+                                    </th>
+                                    <th
+                                        className="py-2 px-4 border-b cursor-pointer text-left text-sm sm:text-base table-cell sm:hidden"
+                                        onClick={() => requestSort('Amount')}
+                                    >
+                                        Amount {sortConfig?.key === 'Amount' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
                                     </th>
                                     <th
                                         className="py-2 px-4 border-b cursor-pointer text-left text-sm sm:text-base"
@@ -159,22 +166,33 @@ const TransactionHistory = observer(() => {
                                     >
                                         Date {sortConfig?.key === 'TimeStamp' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
                                     </th>
-                                    <th
-                                        className="py-2 px-4 border-b cursor-pointer text-left text-sm sm:text-base"
-                                        onClick={() => requestSort('TxType')}
-                                    >
-                                        Type {sortConfig?.key === 'TxType' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
-                                    </th>
                                     <th className="py-2 px-4 border-b text-left text-sm sm:text-base">Details</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredTransactions.map((tx) => (
                                     <tr key={tx.ID} className="hover:bg-muted">
-                                        <td className="py-2 px-4 border-b break-all text-sm sm:text-base">{tx.TxHash}</td>
-                                        <td className="py-2 px-4 border-b text-sm sm:text-base">{tx.Amount}</td>
-                                        <td className="py-2 px-4 border-b text-sm sm:text-base">{new Date(parseInt(tx.TimeStamp, 16) * 1000).toLocaleString()}</td>
-                                        <td className="py-2 px-4 border-b text-sm sm:text-base">{tx.TxType}</td>
+                                        <td className="py-2 px-4 border-b break-all text-sm sm:text-base">
+                                            {/* Truncated TxHash for Mobile */}
+                                            <span className="block sm:hidden">
+                                                {tx.TxHash.length > 8 ? `${tx.TxHash.slice(0, 8)}...` : tx.TxHash}
+                                            </span>
+                                            {/* Full TxHash for larger screens */}
+                                            <span className="hidden sm:block">
+                                                {tx.TxHash}
+                                            </span>
+                                        </td>
+                                        <td className="py-2 px-4 border-b text-sm sm:text-base">{formatBalance(tx.Amount)}</td>
+                                        <td className="py-2 px-4 border-b text-sm sm:text-base">
+                                            {/* Short date for mobile */}
+                                            <span className="block sm:hidden">
+                                                {new Date(parseInt(tx.TimeStamp, 16) * 1000).toLocaleDateString()}
+                                            </span>
+                                            {/* Full date/time for larger screens */}
+                                            <span className="hidden sm:block">
+                                                {new Date(parseInt(tx.TimeStamp, 16) * 1000).toLocaleString()}
+                                            </span>
+                                        </td>
                                         <td className="py-2 px-4 border-b text-sm sm:text-base">
                                             <DetailsModal transaction={tx} />
                                         </td>
