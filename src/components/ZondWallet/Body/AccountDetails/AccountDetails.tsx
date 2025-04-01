@@ -41,7 +41,17 @@ const FormSchema = z
     amount: z.coerce.number().gt(0, "Amount should be more than 0"),
     mnemonicPhrases: z.string().min(1, "Mnemonic phrases are required"),
   })
-  .refine((fields) => !isValidDilithiumAddress(fields.receiverAddress), {
+  .refine((fields) => {
+    if (!fields.receiverAddress || fields.receiverAddress.trim() === '') {
+      return true; // Skip validation if address is empty - the required validator above will catch this
+    }
+    try {
+      return isValidDilithiumAddress(fields.receiverAddress);
+    } catch (error) {
+      console.error('Error validating address:', error);
+      return false;
+    }
+  }, {
     message: "Address is invalid",
     path: ["receiverAddress"],
   });
@@ -117,6 +127,7 @@ const AccountDetails = observer(() => {
           resetForm();
           setTransactionReceipt(transactionReceipt);
           await fetchAccounts();
+          await zondStore.refreshTokenBalances();
           window.scrollTo(0, 0);
         } else {
           control.setError("mnemonicPhrases", {
