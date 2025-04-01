@@ -14,6 +14,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import ZondWalletLogo from "../Header/ZondWalletLogo/ZondWalletLogo";
+import { handleLogout } from "@/utilities/logoutUtil";
+
 // Menu items.
 const sidebarItems = [
     {
@@ -56,6 +58,10 @@ const sidebarItems = [
 
 export function AppSidebar() {
     const navigate = useNavigate();
+    const onLogoutClick = () => {
+        handleLogout(navigate);
+    };
+
     return (
         <Sidebar className="h-[calc(100vh-2.5rem)] border-r-secondary">
             <SidebarContent>
@@ -84,7 +90,7 @@ export function AppSidebar() {
             <SidebarFooter>
                 <SidebarMenu>
                     <SidebarMenuItem className="py-2">
-                        <SidebarMenuButton className="[&>svg]:!size-8 mb-5 justify-around py-8">
+                        <SidebarMenuButton className="[&>svg]:!size-8 mb-5 justify-around py-8" onClick={onLogoutClick}>
                             <LogOut />
                             {/* <span>Logout</span> */}
                         </SidebarMenuButton>
