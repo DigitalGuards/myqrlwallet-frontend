@@ -18,21 +18,22 @@ import { Loader2 } from "lucide-react";
 import { getAddressFromMnemonic } from "@/functions/getHexSeedFromMnemonic";
 import StorageUtil from "@/utilities/storageUtil";
 import { ZOND_PROVIDER } from "@/configuration/zondConfig";
-import { formatUnits } from "ethers";
+import { formatUnits, parseUnits } from "ethers";
+import { Slider } from "@/components/UI/Slider";
 
 export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, onClose: () => void, token: TokenInterface }) {
     const { zondStore } = useStore();
     const {
-        sendToken: sendTokenToStore,
-        tokenList,
-        setTokenList,
         activeAccount: { accountAddress: activeAccountAddress },
+        tokenList,
+        sendToken: sendTokenToStore
     } = zondStore;
     const [amount, setAmount] = useState("");
+    const [maxAmount, setMaxAmount] = useState("0");
     const [mnemonic, setMnemonic] = useState("");
     const [toAddress, setToAddress] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [maxAmount, setMaxAmount] = useState("0");
+    const [sliderValue, setSliderValue] = useState(0);
 
     const sendToken = async () => {
         setIsLoading(true);
@@ -68,30 +69,47 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
             }
 
             if (tokenInfo) {
-                const data = await sendTokenToStore(tokenInfo, amount, mnemonic, toAddress);
-                if (data) {
-                    setAmount("");
-                    setMnemonic("");
-                    setToAddress("");
-                    onClose();
-                    const selectedBlockChain = await StorageUtil.getBlockChain();
-                    const balance = await fetchBalance(tokenInfo.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
-                    setTokenList([...tokenList.filter(t => t.address !== tokenInfo.address), { ...tokenInfo, amount: balance.toString() }]);
+                try {
+                    // Convert the human-readable amount to the raw amount with correct decimals
+                    const rawAmount = parseUnits(amount, tokenInfo.decimals).toString();
+                    
+                    const data = await sendTokenToStore(tokenInfo, rawAmount, mnemonic, toAddress);
+                    if (data) {
+                        setAmount("");
+                        setMnemonic("");
+                        setToAddress("");
+                        setSliderValue(0);
+                        
+                        toast({
+                            title: "Token sent successfully",
+                            description: "Please check your wallet",
+                        });
+                        
+                        // Close the modal AFTER setting state
+                        onClose();
+                        // Wait a short time to ensure modal is fully closed before refreshing balances
+                        setTimeout(() => {
+                            zondStore.refreshTokenBalances();
+                        }, 300);
+                    } else {
+                        toast({
+                            title: "Error sending token",
+                            description: "Please try again",
+                            variant: "destructive",
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error parsing amount:", error);
                     toast({
-                        title: "Token sent successfully",
-                        description: "Please check your wallet",
-                    });
-                } else {
-                    toast({
-                        title: "Error sending token",
-                        description: "Please try again",
+                        title: "Invalid amount",
+                        description: "Please enter a valid number",
                         variant: "destructive",
                     });
                 }
             }
         } else {
             toast({
-                title: "Please enter a valid token address",
+                title: "Please fill in all fields",
                 variant: "destructive",
             });
         }
@@ -104,6 +122,41 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
         console.log(token, balance)
         setMaxAmount(formatUnits(balance, token?.decimals || 18));
     }
+    
+    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setAmount(e.target.value);
+        // Reset slider when manually typing
+        if (parseFloat(e.target.value) !== parseFloat(maxAmount) * (sliderValue / 100)) {
+            setSliderValue(0);
+        }
+    };
+    
+    const handleSliderChange = (value: number[]) => {
+        const percentage = value[0];
+        setSliderValue(percentage);
+        
+        // Calculate amount based on percentage of max
+        if (maxAmount !== "0") {
+            const calculatedAmount = (parseFloat(maxAmount) * (percentage / 100)).toString();
+            // Format to a reasonable number of decimal places
+            const formattedAmount = parseFloat(calculatedAmount).toFixed(6);
+            // Remove trailing zeros
+            setAmount(formattedAmount.replace(/\.?0+$/, ""));
+        }
+    };
+    
+    const getPresetPercentage = (percent: number) => {
+        return () => {
+            setSliderValue(percent);
+            if (maxAmount !== "0") {
+                const calculatedAmount = (parseFloat(maxAmount) * (percent / 100)).toString();
+                // Format to a reasonable number of decimal places
+                const formattedAmount = parseFloat(calculatedAmount).toFixed(6);
+                // Remove trailing zeros
+                setAmount(formattedAmount.replace(/\.?0+$/, ""));
+            }
+        };
+    };
 
     useEffect(() => {
         if (isOpen && token?.address) {
@@ -111,6 +164,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
         } else {
             setAmount("");
             setMaxAmount("");
+            setSliderValue(0);
         }
     }, [isOpen, token?.address, activeAccountAddress]);
 
@@ -137,7 +191,71 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                         <a className="text-xs cursor-pointer border-b border-b-1 mb-2 w-fit border-foreground" onClick={() => setAmount(maxAmount)}>
                             Max: {maxAmount}
                         </a>
-                        <Input disabled={isLoading} value={amount} onChange={(e) => setAmount(e.target.value)} />
+                        <Input 
+                            disabled={isLoading} 
+                            value={amount} 
+                            onChange={handleAmountChange}
+                        />
+                        
+                        <div className="mt-4 space-y-4">
+                            <div className="flex justify-between">
+                                <Label>Percentage of balance</Label>
+                                <span className="text-sm text-muted-foreground">{sliderValue}%</span>
+                            </div>
+                            
+                            <Slider
+                                disabled={isLoading}
+                                value={[sliderValue]}
+                                min={0}
+                                max={100}
+                                step={1}
+                                onValueChange={handleSliderChange}
+                                className="w-full"
+                            />
+                            
+                            <div className="flex justify-between gap-2">
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={getPresetPercentage(25)}
+                                    disabled={isLoading}
+                                    className="flex-1"
+                                >
+                                    25%
+                                </Button>
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={getPresetPercentage(50)}
+                                    disabled={isLoading}
+                                    className="flex-1"
+                                >
+                                    50%
+                                </Button>
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={getPresetPercentage(75)}
+                                    disabled={isLoading}
+                                    className="flex-1"
+                                >
+                                    75%
+                                </Button>
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={getPresetPercentage(100)}
+                                    disabled={isLoading}
+                                    className="flex-1"
+                                >
+                                    Max
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                     <div className="flex flex-col">
                         <Label htmlFor="mnemonic" className="mb-2">
