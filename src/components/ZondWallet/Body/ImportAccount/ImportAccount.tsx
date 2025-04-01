@@ -32,7 +32,7 @@ const ImportAccount = observer(() => {
       />
       <div className="flex w-full items-start justify-center pt-16">
         <div className="relative w-full max-w-2xl px-4">
-          {/* <video
+          { <video
             autoPlay
             muted
             loop
@@ -40,33 +40,33 @@ const ImportAccount = observer(() => {
             className={"fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden"}
           >
             <source src="/tree.mp4" type="video/mp4" />
-          </video> */}
+          </video> }
           <div className="relative z-10">
             {hasAccountImported ? (
               <AccountImportSuccess account={account} />
             ) : (
               <Tabs defaultValue="mnemonic" className="w-full space-y-8">
-                <TabsList className="flex w-full flex-col sm:flex-row gap-2 bg-transparent">
+                <TabsList className="flex w-full flex-col sm:flex-row gap-2 bg-transparent mb-4">
                   <TabsTrigger
                     value="mnemonic"
-                    className="flex-1 text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
+                    className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
                   >
                     Import with Mnemonic
                   </TabsTrigger>
                   <TabsTrigger
                     value="encrypted"
-                    className="flex-1 text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
+                    className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
                   >
                     Import Encrypted Wallet
                   </TabsTrigger>
                   <TabsTrigger
                     value="hexseed"
-                    className="flex-1 text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
+                    className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
                   >
                     Import with Hex Seed
                   </TabsTrigger>
                 </TabsList>
-                <div className="relative pt-4">
+                <div className="relative pt-8">
                   <TabsContent
                     value="mnemonic"
                     className="top-0 left-0 w-full border-none outline-none data-[state=inactive]:hidden"
