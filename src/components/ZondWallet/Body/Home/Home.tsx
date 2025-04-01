@@ -2,7 +2,7 @@ import withSuspense from "../../../../functions/withSuspense";
 import { useStore } from "../../../../stores/store";
 import { Loader, Send } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { lazy } from "react";
+import { lazy, useEffect, useRef } from "react";
 import ConnectionFailed from "./ConnectionFailed/ConnectionFailed";
 import { SEO } from "../../../SEO/SEO";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/UI/Card";
@@ -11,15 +11,13 @@ import { ROUTES } from "@/router/router";
 import { ActiveAccountDisplay } from "./AccountCreateImport/ActiveAccountDisplay/ActiveAccountDisplay";
 import { cva } from "class-variance-authority";
 import { useLocation, Link } from "react-router-dom";
+import ConnectionBadge from "./ConnectionBadge/ConnectionBadge";
 
 const AccountCreateImport = withSuspense(
   lazy(() => import("./AccountCreateImport/AccountCreateImport"))
 );
 const BackgroundVideo = withSuspense(
   lazy(() => import("./BackgroundVideo/BackgroundVideo"))
-);
-const ConnectionBadge = withSuspense(
-  lazy(() => import("./ConnectionBadge/ConnectionBadge"))
 );
 
 const TokenForm = withSuspense(
@@ -32,6 +30,38 @@ const Home = observer(() => {
   const { zondConnection, activeAccount } = zondStore;
   const { isLoading, isConnected } = zondConnection;
   const hasAccountCreationPreference = !!state?.hasAccountCreationPreference;
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Function to track if any modal is open
+  const checkIfModalOpen = () => {
+    // Check if any dialog elements are open in the DOM
+    const openDialogs = document.querySelectorAll('div[role="dialog"]');
+    return openDialogs.length > 0;
+  };
+
+  // Set up auto-refresh for balances
+  useEffect(() => {
+    if (activeAccount.accountAddress) {
+      // Refresh immediately on mount
+      zondStore.fetchAccounts();
+      zondStore.refreshTokenBalances();
+      
+      // Set up recurring refresh every 30 seconds
+      refreshIntervalRef.current = setInterval(() => {
+        // Only refresh if no modals are open
+        if (!checkIfModalOpen()) {
+          zondStore.fetchAccounts();
+          zondStore.refreshTokenBalances();
+        }
+      }, 30000); // 30 seconds
+    }
+    
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, [activeAccount.accountAddress, zondStore]);
 
   const accountCreateImportClasses = cva("flex gap-8", {
     variants: {
