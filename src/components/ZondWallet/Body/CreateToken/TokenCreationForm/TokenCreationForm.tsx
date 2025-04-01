@@ -25,6 +25,8 @@ import { useEffect } from "react";
 import { useStore } from "@/stores/store";
 import { toast } from "@/hooks/use-toast";
 import { ethers } from "ethers";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "@/router/router";
 
 const FormSchema = z
     .object({
@@ -55,6 +57,7 @@ type TokenCreationFormProps = {
 
 export const TokenCreationForm = observer(
     ({ onTokenCreated }: TokenCreationFormProps) => {
+        const navigate = useNavigate();
         const { zondStore } = useStore();
         const { createdToken, addToken } = zondStore;
         const { name, symbol, decimals, address } = createdToken;
@@ -113,7 +116,8 @@ export const TokenCreationForm = observer(
                 // if (!newToken) {
                 //   throw new Error("Failed to create account");
                 // }
-                await onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, ownerAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase);
+                onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, ownerAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase);
+                navigate(ROUTES.TOKEN_STATUS);
             } catch (error) {
                 // control.setError("reEnteredPassword", {
                 //   message: `${error} There was an error while creating the account`,
@@ -172,7 +176,7 @@ export const TokenCreationForm = observer(
                                         <FormControl>
                                             <Input
                                                 disabled={isSubmitting}
-                                                // placeholder="Example: Volt Token"
+                                                placeholder="Example: DigitalGuards"
                                                 type="text"
                                                 {...field}
                                             />
@@ -191,7 +195,7 @@ export const TokenCreationForm = observer(
                                             <Input
                                                 {...field}
                                                 disabled={isSubmitting}
-                                                // placeholder="Example: VLT"
+                                                placeholder="Example: DG"
                                                 type="text"
                                             />
                                         </FormControl>

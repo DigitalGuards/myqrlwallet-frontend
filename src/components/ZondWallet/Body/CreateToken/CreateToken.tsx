@@ -41,7 +41,7 @@ const CreateToken = observer(() => {
             maxWalletAmount,
             maxTransactionLimit,
             mnemonicPhrases
-        )
+        );
     };
 
     return (

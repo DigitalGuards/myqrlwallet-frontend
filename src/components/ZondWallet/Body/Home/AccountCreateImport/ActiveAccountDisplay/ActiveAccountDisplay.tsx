@@ -30,7 +30,7 @@ export const ActiveAccountDisplay = observer(() => {
     <div className="flex flex-col gap-4">
       <div
         className="flex justify-center items-center text-xl font-bold text-secondary group cursor-pointer"
-        onClick={() => copyToClipboard(accountBalance.slice(0, -4).toString(), 'balance')}
+        onClick={() => copyToClipboard(accountBalance, 'balance')}
       >
         <span>{formatBalance(accountBalance)} QRL</span>
         {copiedItem === 'balance' ? (

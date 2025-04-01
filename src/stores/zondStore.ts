@@ -13,7 +13,6 @@ import { fetchTokenInfo } from "@/utilities/web3utils/customERC20";
 import { TokenInterface } from "@/lib/constants";
 import { KNOWN_TOKEN_LIST } from "@/lib/constants";
 import CustomERC20ABI from "@/abi/CustomERC20ABI";
-import { formatBalance } from "@/utilities/helper";
 
 type ActiveAccountType = {
   accountAddress: string;
@@ -39,6 +38,11 @@ type CreatedTokenType = {
   symbol: string;
   decimals: number;
   address: string;
+  tx: string;
+  blockNumber: number;
+  gasUsed: number;
+  effectiveGasPrice: number;
+  blockHash: string;
 }
 
 class ZondStore {
@@ -52,7 +56,7 @@ class ZondStore {
   zondAccounts: ZondAccountsType = { accounts: [], isLoading: false };
   activeAccount: ActiveAccountType = { accountAddress: "" };
   creatingToken: CreatingTokenType = { name: "", creating: false };
-  createdToken: CreatedTokenType = { name: "", symbol: "", decimals: 0, address: "" };
+  createdToken: CreatedTokenType = { name: "", symbol: "", decimals: 0, address: "", tx: "", blockNumber: 0, gasUsed: 0, effectiveGasPrice: 0, blockHash: "" };
   tokenList: TokenInterface[] = [];
   customRpcUrl: string = "";
 
@@ -144,9 +148,9 @@ class ZondStore {
     this.creatingToken = { name, creating };
   }
 
-  async setCreatedToken(name: string, symbol: string, decimals: number, address: string) {
-    await StorageUtil.setCreatedToken(name, symbol, decimals, address);
-    this.createdToken = { name, symbol, decimals, address };
+  async setCreatedToken(name: string, symbol: string, decimals: number, address: string, tx: string, blockNumber: number, gasUsed: number, effectiveGasPrice: number, blockHash: string) {
+    await StorageUtil.setCreatedToken(name, symbol, decimals, address, tx, blockNumber, gasUsed, effectiveGasPrice, blockHash);
+    this.createdToken = { name, symbol, decimals, address, tx, blockNumber, gasUsed, effectiveGasPrice, blockHash };
   }
 
   async addToken(token: TokenInterface) {
@@ -244,9 +248,7 @@ class ZondStore {
           storedAccountsList.map(async (account) => {
             const accountBalance =
               (await this.zondInstance?.getBalance(account)) ?? BigInt(0);
-            const convertedAccountBalance = formatBalance(
-              utils.fromWei(accountBalance, "ether")
-            ) + " QRL";
+            const convertedAccountBalance = utils.fromWei(accountBalance, "ether");
             return {
               accountAddress: account,
               accountBalance: convertedAccountBalance,
@@ -310,7 +312,7 @@ class ZondStore {
     return (
       this.zondAccounts.accounts.find(
         (account) => account.accountAddress === accountAddress,
-      )?.accountBalance ?? "0 QRL"
+      )?.accountBalance ?? "0"
     );
   }
 
@@ -416,9 +418,15 @@ class ZondStore {
     }
 
     const receiptHandler = async (data: any) => {
-      const erc20TokenAddress = `Z${data.logs[3].topics[1].slice(-40)}`
+      console.log(data);
+      const erc20TokenAddress = `Z${data.logs[3].topics[1].slice(-40)}`;
+      const tx = data.transactionHash;
+      const blockNumber = Number(data.blockNumber);
+      const gasUsed = Number(data.gasUsed);
+      const effectiveGasPrice = Number(data.effectiveGasPrice);
+      const blockHash = data.blockHash;
       const { name, symbol, decimals } = await fetchTokenInfo(erc20TokenAddress, url);
-      this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress);
+      this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress, tx, blockNumber, gasUsed, effectiveGasPrice, blockHash);
     }
 
     const errorHandler = (data: any) => {

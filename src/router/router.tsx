@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { Loading } from "@/components/UI/Loading";
+import { Navigate } from "react-router-dom";
 
 // Lazy load components
 const ZondWallet = lazy(() => import("../components/ZondWallet/ZondWallet.tsx"));
@@ -17,6 +18,8 @@ const QRView = lazy(() => import("../components/ZondWallet/Body/QRView/QRView.ts
 const Terms = lazy(() => import("../components/ZondWallet/Body/Terms/Terms.tsx"));
 const Privacy = lazy(() => import("../components/ZondWallet/Body/Privacy/Privacy.tsx"));
 const Support = lazy(() => import("../components/ZondWallet/Body/Support/Support.tsx"));
+const TokenStatus = lazy(() => import("../components/ZondWallet/Body/CreateToken/TokenStatus.tsx"));
+const TransactionHistory = lazy(() => import("../components/ZondWallet/Body/TransactionHistory/TransactionHistory.tsx"));
 
 const ROUTES = {
   HOME: "/",
@@ -34,6 +37,8 @@ const ROUTES = {
   PRIVACY: "/privacy",
   SUPPORT: "/support",
   DEFAULT: "*",
+  TOKEN_STATUS: "/token-status",
+  TRANSACTION_HISTORY: "/tx-history",
 } as const;
 
 const router = createBrowserRouter([
@@ -117,32 +122,55 @@ const router = createBrowserRouter([
           </Suspense>
         ),
       },
+      {
+        path: ROUTES.TERMS,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Terms />
+          </Suspense>
+        ),
+      },
+      {
+        path: ROUTES.PRIVACY,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Privacy />
+          </Suspense>
+        ),
+      },
+      {
+        path: ROUTES.SUPPORT,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Support />
+          </Suspense>
+        ),
+      },
+      {
+        path: ROUTES.TOKEN_STATUS,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <TokenStatus />
+          </Suspense>
+        )
+      },
+      {
+        path: ROUTES.TRANSACTION_HISTORY,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <TransactionHistory />
+          </Suspense>
+        )
+      },
+      {
+        path: ROUTES.DEFAULT,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Navigate to={ROUTES.HOME} replace />
+          </Suspense>
+        )
+      },
     ],
-  },
-  // Standalone routes outside the main layout
-  {
-    path: ROUTES.TERMS,
-    element: (
-      <Suspense fallback={<Loading />}>
-        <Terms />
-      </Suspense>
-    ),
-  },
-  {
-    path: ROUTES.PRIVACY,
-    element: (
-      <Suspense fallback={<Loading />}>
-        <Privacy />
-      </Suspense>
-    ),
-  },
-  {
-    path: ROUTES.SUPPORT,
-    element: (
-      <Suspense fallback={<Loading />}>
-        <Support />
-      </Suspense>
-    ),
   },
 ]);
 

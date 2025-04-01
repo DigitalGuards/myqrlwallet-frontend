@@ -59,75 +59,78 @@ export const OtherAccounts = observer(() => {
           <Card
             key={accountAddress}
             id={accountAddress}
-            className="flex items-center gap-4 p-4 font-bold text-foreground hover:bg-accent"
+            className="flex flex-col md:flex-row items-center gap-4 p-4 font-bold text-foreground hover:bg-accent"
           >
             <div className="flex flex-col gap-1">
-              <AccountId account={accountAddress} />
-              <AccountBalance accountAddress={accountAddress} />
+              <AccountId className="flex md:hidden" oneLine={true} account={accountAddress} />
+              <AccountId className="hidden md:flex" account={accountAddress} />
+              <AccountBalance className="m-auto md:m-0" accountAddress={accountAddress} />
             </div>
-            <span>
-              <TooltipProvider>
-                <Tooltip 
-                  open={tooltipStates[accountAddress]} 
-                  onOpenChange={(open) => 
-                    setTooltipStates(prev => ({ ...prev, [accountAddress]: open }))
-                  }
-                  delayDuration={0}
-                >
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="hover:text-secondary"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => copyAccount(accountAddress)}
-                    >
-                      <Copy size={18} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <Label>{copiedAccount === accountAddress ? "Copied!" : "Copy Address"}</Label>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </span>
-            <span>
-              <TooltipProvider>
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="hover:text-secondary"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => viewInExplorer(accountAddress)}
-                    >
-                      <ExternalLink size={18} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <Label>View in Zondscan</Label>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </span>
-            <span>
-              <TooltipProvider>
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="hover:text-secondary"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setActiveAccount(accountAddress)}
-                    >
-                      <ArrowRight size={18} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <Label>Switch to this account</Label>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </span>
+            <div className="flex gap-4 items-center">
+              <span>
+                <TooltipProvider>
+                  <Tooltip
+                    open={tooltipStates[accountAddress]}
+                    onOpenChange={(open) =>
+                      setTooltipStates(prev => ({ ...prev, [accountAddress]: open }))
+                    }
+                    delayDuration={0}
+                  >
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="hover:text-secondary"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copyAccount(accountAddress)}
+                      >
+                        <Copy size={18} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <Label>{copiedAccount === accountAddress ? "Copied!" : "Copy Address"}</Label>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </span>
+              <span>
+                <TooltipProvider>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="hover:text-secondary"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => viewInExplorer(accountAddress)}
+                      >
+                        <ExternalLink size={18} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <Label>View in Zondscan</Label>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </span>
+              <span>
+                <TooltipProvider>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="hover:text-secondary"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setActiveAccount(accountAddress)}
+                      >
+                        <ArrowRight size={18} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <Label>Switch to this account</Label>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </span>
+            </div>
           </Card>
         ))}
       </>
