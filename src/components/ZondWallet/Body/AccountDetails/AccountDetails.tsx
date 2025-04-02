@@ -204,22 +204,6 @@ const AccountDetails = observer(() => {
       setValue("amount", parseFloat(formattedAmount));
     }
   };
-  
-  // Reset slider when amount is manually changed
-  useEffect(() => {
-    if (formValues.amount === 0) {
-      setSliderValue(0);
-      return;
-    }
-    
-    const sliderAmount = parseFloat(accountBalance) * (sliderValue / 100);
-    const tolerance = 0.0000001;
-    const isDifferent = Math.abs(formValues.amount - sliderAmount) > tolerance;
-    
-    if (isDifferent && sliderValue !== 0) {
-      setSliderValue(0);
-    }
-  }, [formValues.amount]);
 
   useEffect(() => {
     StorageUtil.setTransactionValues(blockchain, {
