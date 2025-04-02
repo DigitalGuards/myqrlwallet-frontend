@@ -1,6 +1,7 @@
-import { Users, SendHorizontal, QrCode, Settings as SettingsIcon, Plus } from "lucide-react"
+import { Users, SendHorizontal, QrCode, Settings as SettingsIcon, Plus, History, LogOut } from "lucide-react"
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
+import { handleLogout } from "@/utilities/logoutUtil";
 
 const navItems = [
     {
@@ -28,10 +29,20 @@ const navItems = [
         label: "Settings",
         path: ROUTES.SETTINGS,
     },
+    {
+        icon: History,
+        label: "History",
+        path: ROUTES.TRANSACTION_HISTORY,
+    },
 ]
 
 export default function MobileNav() {
     const navigate = useNavigate();
+    
+    const onLogoutClick = () => {
+        handleLogout(navigate);
+    };
+
     return (
         <nav className="md:hidden fixed bottom-6 border-t-2 border-t-secondary border-t-opacity-50 bg-background w-full z-10 h-14 flex items-center justify-around px-4 pt-0">
             {
@@ -42,6 +53,10 @@ export default function MobileNav() {
                     </button>
                 ))
             }
+            <button className="cursor-pointer flex flex-col items-center text-sm text-muted-foreground hover:text-foreground transition-colors" onClick={onLogoutClick}>
+                <LogOut className="h-5 w-5" />
+                <span>Logout</span>
+            </button>
         </nav>
     )
 }

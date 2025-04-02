@@ -32,8 +32,8 @@ import { GasFeeNotice } from "./GasFeeNotice/GasFeeNotice";
 import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSuccessful";
 import { getExplorerAddressUrl } from "../../../../configuration/zondConfig";
 import { Copy, ExternalLink } from "lucide-react";
-import { isValidDilithiumAddress } from "@theqrl/wallet.js";
 import { formatBalance } from "@/utilities/helper";
+import { Slider } from "@/components/UI/Slider";
 
 const FormSchema = z
   .object({
@@ -41,9 +41,22 @@ const FormSchema = z
     amount: z.coerce.number().gt(0, "Amount should be more than 0"),
     mnemonicPhrases: z.string().min(1, "Mnemonic phrases are required"),
   })
-  .refine((fields) => !isValidDilithiumAddress(fields.receiverAddress), {
-    message: "Address is invalid",
-    path: ["receiverAddress"],
+  .superRefine((fields, ctx) => {
+    // Skip empty addresses - they'll be caught by the required validator
+    if (!fields.receiverAddress.trim()) return;
+    
+    // Validate Zond address format (starts with Z and has correct length)
+    const address = fields.receiverAddress.trim();
+    const isValidZondAddress = address.startsWith('Z') && 
+                              (address.length === 41 || address.length === 42);
+    
+    if (!isValidZondAddress) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Invalid Zond address format",
+        path: ["receiverAddress"]
+      });
+    }
   });
 
 const AccountDetails = observer(() => {
@@ -61,6 +74,7 @@ const AccountDetails = observer(() => {
 
   const [transactionReceipt, setTransactionReceipt] =
     useState<TransactionReceipt>();
+  const [sliderValue, setSliderValue] = useState(0);
 
   const accountBalance = getAccountBalance(accountAddress);
 
@@ -117,6 +131,7 @@ const AccountDetails = observer(() => {
           resetForm();
           setTransactionReceipt(transactionReceipt);
           await fetchAccounts();
+          await zondStore.refreshTokenBalances();
           window.scrollTo(0, 0);
         } else {
           control.setError("mnemonicPhrases", {
@@ -133,6 +148,7 @@ const AccountDetails = observer(() => {
 
   const resetForm = () => {
     reset({ receiverAddress: "", amount: 0, mnemonicPhrases: "" });
+    setSliderValue(0);
   };
 
   const cancelTransaction = () => {
@@ -158,10 +174,52 @@ const AccountDetails = observer(() => {
     handleSubmit,
     control,
     watch,
+    setValue,
     formState: { isSubmitting, isValid },
   } = form;
 
   const formValues = watch();
+
+  // Handle slider change to update amount
+  const handleSliderChange = (value: number[]) => {
+    const percentage = value[0];
+    setSliderValue(percentage);
+    
+    if (accountBalance && accountBalance !== "0") {
+      const maxAmount = parseFloat(accountBalance);
+      const calculatedAmount = (maxAmount * (percentage / 100));
+      const formattedAmount = calculatedAmount.toFixed(6).replace(/\.?0+$/, "");
+      setValue("amount", parseFloat(formattedAmount));
+    }
+  };
+  
+  // Set a preset percentage of the available balance
+  const setPercentage = (percentage: number) => () => {
+    setSliderValue(percentage);
+    
+    if (accountBalance && accountBalance !== "0") {
+      const maxAmount = parseFloat(accountBalance);
+      const calculatedAmount = (maxAmount * (percentage / 100));
+      const formattedAmount = calculatedAmount.toFixed(6).replace(/\.?0+$/, "");
+      setValue("amount", parseFloat(formattedAmount));
+    }
+  };
+  
+  // Reset slider when amount is manually changed
+  useEffect(() => {
+    if (formValues.amount === 0) {
+      setSliderValue(0);
+      return;
+    }
+    
+    const sliderAmount = parseFloat(accountBalance) * (sliderValue / 100);
+    const tolerance = 0.0000001;
+    const isDifferent = Math.abs(formValues.amount - sliderAmount) > tolerance;
+    
+    if (isDifferent && sliderValue !== 0) {
+      setSliderValue(0);
+    }
+  }, [formValues.amount]);
 
   useEffect(() => {
     StorageUtil.setTransactionValues(blockchain, {
@@ -177,11 +235,15 @@ const AccountDetails = observer(() => {
   return (
     <div className="flex w-full items-start justify-center py-8 overflow-x-hidden">
       <div className="relative w-full max-w-2xl px-4">
-        <img
-          className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
-          src="/tree.svg"
-          alt="Background Tree"
-        />
+        { <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className={"fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden"}
+        >
+          <source src="/tree.mp4" type="video/mp4" />
+        </video> }
         <div className="relative z-10">
           <Form {...form}>
             <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
@@ -245,16 +307,91 @@ const AccountDetails = observer(() => {
                     name="amount"
                     render={({ field }) => (
                       <FormItem>
-                        <Label>Amount</Label>
                         <FormControl>
-                          <Input
-                            {...field}
-                            disabled={isSubmitting}
-                            placeholder="Amount"
-                            type="number"
-                          />
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <Label
+                                htmlFor="amount"
+                                className="text-sm font-medium"
+                              >
+                                Amount
+                              </Label>
+                              <span className="text-sm text-muted-foreground">
+                                {formatBalance(accountBalance)} QRL available
+                              </span>
+                            </div>
+                            <Input
+                              id="amount"
+                              placeholder="Enter amount"
+                              {...field}
+                              type="number"
+                              step="0.001"
+                              onChange={(e) => {
+                                field.onChange(
+                                  e.target.value === ""
+                                    ? 0
+                                    : parseFloat(e.target.value)
+                                );
+                              }}
+                            />
+                          </div>
                         </FormControl>
-                        <FormDescription>Enter the amount in QRL</FormDescription>
+                        
+                        <div className="mt-4 space-y-4">
+                          <div className="flex justify-between">
+                            <Label>Percentage of balance</Label>
+                            <span className="text-sm text-muted-foreground">{sliderValue}%</span>
+                          </div>
+                          
+                          <Slider
+                            value={[sliderValue]}
+                            min={0}
+                            max={100}
+                            step={1}
+                            onValueChange={handleSliderChange}
+                            className="w-full"
+                          />
+                          
+                          <div className="flex justify-between gap-2">
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={setPercentage(25)}
+                              className="flex-1"
+                            >
+                              25%
+                            </Button>
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={setPercentage(50)}
+                              className="flex-1"
+                            >
+                              50%
+                            </Button>
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={setPercentage(75)}
+                              className="flex-1"
+                            >
+                              75%
+                            </Button>
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={setPercentage(100)}
+                              className="flex-1"
+                            >
+                              Max
+                            </Button>
+                          </div>
+                        </div>
+                        
                         <FormMessage />
                       </FormItem>
                     )}

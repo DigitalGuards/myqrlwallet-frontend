@@ -2,7 +2,6 @@ import { TokenInterface } from "@/lib/constants";
 import {
     Card,
     CardContent,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from "../../../../UI/Card";
@@ -13,7 +12,7 @@ import { useEffect, useState } from "react";
 import { fetchBalance } from "@/utilities/web3utils/customERC20";
 import { useStore } from "@/stores/store";
 import { Button } from "@/components/UI/Button";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, RefreshCw } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 import { formatUnits } from "ethers";
 import { ZOND_PROVIDER } from "@/configuration/zondConfig";
@@ -30,6 +29,13 @@ const TokenForm = observer(() => {
     const [tokenList, setTokenList] = useState<TokenInterface[]>(tokenListFromStore);
     const [isAddTokenModalOpen, setIsAddTokenModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const refreshBalances = async () => {
+        setIsRefreshing(true);
+        await zondStore.refreshTokenBalances();
+        setIsRefreshing(false);
+    };
 
     useEffect(() => {
         const init = async () => {
@@ -53,29 +59,40 @@ const TokenForm = observer(() => {
         init();
     }, [activeAccountAddress, tokenListFromStore]);
 
+    // Update local state when store changes
+    useEffect(() => {
+        setTokenList(tokenListFromStore);
+    }, [tokenListFromStore]);
+
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex justify-between items-center">
-                    <CardTitle>
-                        Tokens
-                    </CardTitle>
-                    <Button className="bg-primary text-primary-foreground p-2 hover:bg-primary/80" onClick={() => setIsAddTokenModalOpen(true)}>
-                        <Plus />
+        <Card className="mt-4">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Tokens</CardTitle>
+                <div className="flex gap-2">
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={refreshBalances} 
+                        disabled={isRefreshing}
+                    >
+                        {isRefreshing ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <RefreshCw className="h-4 w-4" />
+                        )}
+                    </Button>
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setIsAddTokenModalOpen(true)}
+                    >
+                        <Plus className="h-4 w-4" />
                     </Button>
                 </div>
             </CardHeader>
-            {isLoading ? (
-                <div className="flex justify-center items-center h-full">
-                    <Loader2 className="animate-spin" />
-                </div>
-            ) : (
-                <CardContent className="space-y-8">
-                    <DataTable columns={columns} data={tokenList} />
-                </CardContent>
-            )}
-            <CardFooter>
-            </CardFooter>
+            <CardContent>
+                <DataTable columns={columns} data={tokenList} isLoading={isLoading} />
+            </CardContent>
             <AddTokenModal isOpen={isAddTokenModalOpen} onClose={() => setIsAddTokenModalOpen(false)} />
         </Card>
     );

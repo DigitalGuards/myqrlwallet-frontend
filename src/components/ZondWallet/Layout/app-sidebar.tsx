@@ -1,4 +1,4 @@
-import { LogOut, Users, SendHorizontal, QrCode, Settings as SettingsIcon, Plus } from "lucide-react"
+import { LogOut, Users, SendHorizontal, QrCode, Settings as SettingsIcon, Plus, History } from "lucide-react"
 
 import {
     Sidebar,
@@ -14,6 +14,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import ZondWalletLogo from "../Header/ZondWalletLogo/ZondWalletLogo";
+import { handleLogout } from "@/utilities/logoutUtil";
+
 // Menu items.
 const sidebarItems = [
     {
@@ -46,10 +48,20 @@ const sidebarItems = [
         label: "Settings",
         icon: SettingsIcon,
     },
+    {
+        title: "Transaction History",
+        url: ROUTES.TRANSACTION_HISTORY,
+        label: "History",
+        icon: History,
+    },
 ]
 
 export function AppSidebar() {
     const navigate = useNavigate();
+    const onLogoutClick = () => {
+        handleLogout(navigate);
+    };
+
     return (
         <Sidebar className="h-[calc(100vh-2.5rem)] border-r-secondary">
             <SidebarContent>
@@ -78,7 +90,7 @@ export function AppSidebar() {
             <SidebarFooter>
                 <SidebarMenu>
                     <SidebarMenuItem className="py-2">
-                        <SidebarMenuButton className="[&>svg]:!size-8 mb-5 justify-around py-8">
+                        <SidebarMenuButton className="[&>svg]:!size-8 mb-5 justify-around py-8" onClick={onLogoutClick}>
                             <LogOut />
                             {/* <span>Logout</span> */}
                         </SidebarMenuButton>

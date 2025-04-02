@@ -16,14 +16,18 @@ import {
 import { SendTokenModal } from "../SendTokenModal.tsx/SendTokenModal"
 import { useState, useEffect } from "react";
 import { TokenInterface } from "@/lib/constants";
+import { Loader2 } from "lucide-react";
+
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
+    isLoading?: boolean
 }
 
 export function DataTable<TData, TValue>({
     columns,
     data,
+    isLoading = false,
 }: DataTableProps<TData, TValue>) {
     const table = useReactTable({
         data,
@@ -43,6 +47,16 @@ export function DataTable<TData, TValue>({
             table.resetRowSelection();
         }
     }, [table.getState().rowSelection]);
+
+    if (isLoading) {
+        return (
+            <div className="rounded-md border overflow-x-auto w-full p-8">
+                <div className="flex justify-center items-center h-24">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="rounded-md border overflow-x-auto w-full">

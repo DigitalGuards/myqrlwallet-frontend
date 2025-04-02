@@ -9,7 +9,7 @@ import Web3, {
 } from "@theqrl/web3";
 import { action, makeAutoObservable, observable, runInAction } from "mobx";
 import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
-import { fetchTokenInfo } from "@/utilities/web3utils/customERC20";
+import { fetchTokenInfo, fetchBalance } from "@/utilities/web3utils/customERC20";
 import { TokenInterface } from "@/lib/constants";
 import { KNOWN_TOKEN_LIST } from "@/lib/constants";
 import CustomERC20ABI from "@/abi/CustomERC20ABI";
@@ -366,6 +366,8 @@ class ZondStore {
 
     const receiptHandler = async (data: any) => {
       console.log(data);
+      // Refresh token balances after successful transaction
+      await this.refreshTokenBalances();
     }
 
     const errorHandler = (data: any) => {
@@ -459,6 +461,26 @@ class ZondStore {
       .on('confirmation', confirmationHandler)
       .on('receipt', receiptHandler)
       .on('error', errorHandler)
+  }
+
+  async refreshTokenBalances() {
+    try {
+      if (!this.activeAccount.accountAddress) return;
+      
+      const selectedBlockChain = await StorageUtil.getBlockChain();
+      const updatedTokenList = [...this.tokenList];
+      
+      for (let i = 0; i < this.tokenList.length; i++) {
+        const token = this.tokenList[i];
+        const balance = await fetchBalance(token.address, this.activeAccount.accountAddress, ZOND_PROVIDER[selectedBlockChain].url);
+        const formattedBalance = utils.fromWei(balance, "ether");
+        updatedTokenList[i] = { ...token, amount: formattedBalance };
+      }
+      
+      await this.setTokenList(updatedTokenList);
+    } catch (error) {
+      console.error("Error refreshing token balances:", error);
+    }
   }
 }
 

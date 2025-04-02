@@ -2,7 +2,7 @@ import { useStore } from "../../../../../stores/store";
 import { utils } from "@theqrl/web3";
 import { cva } from "class-variance-authority";
 import { Loader } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 type GasFeeNoticeProps = {
   from: string;
@@ -34,6 +34,7 @@ export const GasFeeNotice = ({
 }: GasFeeNoticeProps) => {
   const { zondStore } = useStore();
   const { zondInstance } = zondStore;
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const hasValuesForGasCalculation = !!from && !!to && !!value;
 
@@ -65,7 +66,23 @@ export const GasFeeNotice = ({
   };
 
   useEffect(() => {
-    fetchGasFee();
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    if (hasValuesForGasCalculation) {
+      debounceTimerRef.current = setTimeout(() => {
+        fetchGasFee();
+      }, 500);
+    }
   }, [from, to, value]);
 
   return (
