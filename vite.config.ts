@@ -2,7 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import path from 'path'
 import nodePolyfills from 'rollup-plugin-node-polyfills'
-import commonjs from '@rollup/plugin-commonjs'
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
 
 export default defineConfig({
   plugins: [react()],
@@ -18,9 +20,24 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      plugins: [nodePolyfills(), commonjs()],
+      plugins: [nodePolyfills()],
     },
     sourcemap: true,
+    commonjsOptions: {
+      include: /node_modules/,
+      transformMixedEsModules: true,
+      defaultIsModuleExports(id) {
+        try {
+          const module = require(id)
+          if (module?.default) {
+            return false
+          }
+          return 'auto'
+        } catch (error) {
+          return 'auto'
+        }
+      },
+    },
   },
   optimizeDeps: {
     esbuildOptions: {
@@ -28,6 +45,6 @@ export default defineConfig({
         global: 'globalThis',
       },
     },
-    include: ['buffer', 'process', 'events', 'util'],
+    include: ['buffer', 'process', 'events', 'util', 'cross-fetch', '@theqrl/web3-providers-http'],
   },
-});
+})
