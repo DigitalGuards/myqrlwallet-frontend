@@ -1,8 +1,8 @@
 import withSuspense from "../../../../functions/withSuspense";
 import { useStore } from "../../../../stores/store";
-import { Loader, Send } from "lucide-react";
+import { Loader, Send, History } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { lazy, useEffect, useRef } from "react";
+import { lazy, useEffect, useRef, useState } from "react";
 import ConnectionFailed from "./ConnectionFailed/ConnectionFailed";
 import { SEO } from "../../../SEO/SEO";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/UI/Card";
@@ -12,6 +12,7 @@ import { ActiveAccountDisplay } from "./AccountCreateImport/ActiveAccountDisplay
 import { cva } from "class-variance-authority";
 import { useLocation, Link } from "react-router-dom";
 import ConnectionBadge from "./ConnectionBadge/ConnectionBadge";
+import { TransactionHistoryPopup } from "../AccountList/ActiveAccount/TransactionHistoryPopup";
 
 const AccountCreateImport = withSuspense(
   lazy(() => import("./AccountCreateImport/AccountCreateImport"))
@@ -28,9 +29,10 @@ const Home = observer(() => {
   const { state } = useLocation();
   const { zondStore } = useStore();
   const { zondConnection, activeAccount } = zondStore;
-  const { isLoading, isConnected } = zondConnection;
+  const { isLoading, isConnected, blockchain } = zondConnection;
   const hasAccountCreationPreference = !!state?.hasAccountCreationPreference;
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [txHistoryOpen, setTxHistoryOpen] = useState(false);
 
   // Function to track if any modal is open
   const checkIfModalOpen = () => {
@@ -116,13 +118,22 @@ const Home = observer(() => {
                       <CardContent>
                         <ActiveAccountDisplay />
                       </CardContent>
-                      <CardFooter className="justify-end">
-                        <Link className="w-full" to={ROUTES.ACCOUNT_DETAILS}>
+                      <CardFooter className="justify-end gap-2">
+                        <Link className="flex-1" to={ROUTES.ACCOUNT_DETAILS}>
                           <Button className="w-full" type="button">
                             <Send className="mr-2 h-4 w-4" />
                             Send Quanta
                           </Button>
                         </Link>
+                        <Button 
+                          className="flex-1" 
+                          type="button" 
+                          variant="outline"
+                          onClick={() => setTxHistoryOpen(true)}
+                        >
+                          <History className="mr-2 h-4 w-4" />
+                          Show Tx History
+                        </Button>
                       </CardFooter>
                     </div>
                   </Card>
@@ -136,6 +147,14 @@ const Home = observer(() => {
           </>
         )}
       </div>
+      {activeAccount.accountAddress && (
+        <TransactionHistoryPopup
+          accountAddress={activeAccount.accountAddress}
+          blockchain={blockchain}
+          isOpen={txHistoryOpen}
+          onClose={() => setTxHistoryOpen(false)}
+        />
+      )}
     </>
   );
 });
