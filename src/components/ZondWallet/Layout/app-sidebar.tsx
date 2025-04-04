@@ -1,4 +1,4 @@
-import { LogOut, Users, SendHorizontal, QrCode, Settings as SettingsIcon, Plus } from "lucide-react"
+import { LogOut, Users, SendHorizontal, Settings as SettingsIcon, Plus } from "lucide-react"
 
 import {
     Sidebar,
@@ -29,12 +29,6 @@ const sidebarItems = [
         url: ROUTES.ACCOUNT_DETAILS,
         label: "Send",
         icon: SendHorizontal,
-    },
-    {
-        title: "QR View",
-        url: ROUTES.QR_VIEW,
-        label: "QR View",
-        icon: QrCode,
     },
     {
         title: "Create Token",
