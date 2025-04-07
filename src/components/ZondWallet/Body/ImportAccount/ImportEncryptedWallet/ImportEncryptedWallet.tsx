@@ -1,4 +1,4 @@
-import { Button } from "../../../../UI/Button";
+import { Button } from "@/components/UI/Button";
 import {
   Card,
   CardContent,
@@ -6,11 +6,11 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from "../../../../UI/Card";
-import { Input } from "../../../../UI/Input";
-import { Label } from "../../../../UI/Label";
-import { WalletEncryptionUtil, ExtendedWalletAccount } from "../../../../../utilities/walletEncryptionUtil";
-import { useStore } from "../../../../../stores/store";
+} from "@/components/UI/Card";
+import { Input } from "@/components/UI/Input";
+import { Label } from "@/components/UI/Label";
+import { WalletEncryptionUtil, ExtendedWalletAccount } from "@/utilities/walletEncryptionUtil";
+import { useStore } from "@/stores/store";
 import { Upload } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useState } from "react";
@@ -77,9 +77,19 @@ export const ImportEncryptedWallet = ({
         formData.password
       );
 
-      const account = zondInstance?.accounts.seedToAccount(decryptedWallet.hexSeed);
+      const account = zondInstance?.accounts.seedToAccount(decryptedWallet.hexSeed) as ExtendedWalletAccount;
       if (!account) {
         throw new Error("Failed to import account from wallet");
+      }
+
+      // Add hexSeed and mnemonic from the decrypted data to the account object
+      if (decryptedWallet.hexSeed && decryptedWallet.mnemonic) {
+        account.hexSeed = decryptedWallet.hexSeed;
+        account.mnemonic = decryptedWallet.mnemonic;
+      } else {
+        // Handle potential case where mnemonic might be missing, though unlikely if decryption worked
+        account.hexSeed = decryptedWallet.hexSeed;
+        console.warn("Mnemonic might be missing from decrypted wallet data. Proceeding with hexSeed only.");
       }
 
       onWalletImported(account);

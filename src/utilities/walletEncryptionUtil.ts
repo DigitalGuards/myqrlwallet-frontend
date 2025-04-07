@@ -157,4 +157,68 @@ export class WalletEncryptionUtil {
       hasSpecialChar
     );
   }
+
+  // PIN-based encryption for localStorage
+  static encryptSeedWithPin(mnemonic: string, hexSeed: string, pin: string): string {
+    // Validate PIN
+    if (!this.validatePin(pin)) {
+      throw new Error('Invalid PIN format');
+    }
+    
+    // Generate random salt and IV
+    const salt = CryptoJS.lib.WordArray.random(128/8);
+    const iv = CryptoJS.lib.WordArray.random(128/8);
+    
+    // Use fewer iterations for PIN-based encryption (still secure but faster)
+    const key = CryptoJS.PBKDF2(pin, salt, {
+      keySize: 256/32,
+      iterations: 5000 // Fewer iterations than password-based encryption
+    });
+    
+    const encrypted = CryptoJS.AES.encrypt(
+      JSON.stringify({
+        mnemonic,
+        hexSeed
+      }), 
+      key, 
+      { iv: iv }
+    );
+    
+    // Return format that can be stored in localStorage
+    return JSON.stringify({
+      encryptedData: encrypted.toString(),
+      salt: salt.toString(),
+      iv: iv.toString(),
+      version: 'pin_v1',
+      timestamp: Date.now()
+    });
+  }
+
+  static decryptSeedWithPin(encryptedData: string, pin: string): { mnemonic: string, hexSeed: string } {
+    try {
+      const parsed = JSON.parse(encryptedData);
+      const salt = CryptoJS.enc.Hex.parse(parsed.salt);
+      const iv = CryptoJS.enc.Hex.parse(parsed.iv);
+      
+      const key = CryptoJS.PBKDF2(pin, salt, {
+        keySize: 256/32,
+        iterations: 5000
+      });
+      
+      const decrypted = CryptoJS.AES.decrypt(
+        parsed.encryptedData,
+        key,
+        { iv: iv }
+      );
+      
+      return JSON.parse(decrypted.toString(CryptoJS.enc.Utf8));
+    } catch (error) {
+      throw new Error('Failed to decrypt seed. Invalid PIN.');
+    }
+  }
+
+  // Simple PIN validation (4-6 digits)
+  static validatePin(pin: string): boolean {
+    return /^\d{4,6}$/.test(pin);
+  }
 }

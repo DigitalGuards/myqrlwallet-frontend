@@ -34,6 +34,8 @@ import { getExplorerAddressUrl } from "../../../../configuration/zondConfig";
 import { Copy, ExternalLink } from "lucide-react";
 import { formatBalance } from "@/utilities/helper";
 import { Slider } from "@/components/UI/Slider";
+import { PinInput } from "../../../UI/PinInput/PinInput";
+import { WalletEncryptionUtil } from "../../../../utilities/walletEncryptionUtil";
 
 const FormSchema = z
   .object({
@@ -76,14 +78,6 @@ const AccountDetails = observer(() => {
     useState<TransactionReceipt>();
   const [sliderValue, setSliderValue] = useState(0);
 
-  const accountBalance = getAccountBalance(accountAddress);
-
-  const prefix = accountAddress.substring(0, 1);
-  const addressSplit: string[] = [];
-  for (let i = 1; i < accountAddress.length; i += 4) {
-    addressSplit.push(accountAddress.substring(i, i + 4));
-  }
-
   const [hasJustCopied, setHasJustCopied] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout>();
 
@@ -94,6 +88,26 @@ const AccountDetails = observer(() => {
       }
     };
   }, [timer]);
+
+  useEffect(() => {
+    // Check if we have an encrypted seed for this account
+    const checkForEncryptedSeed = async () => {
+      try {
+        await StorageUtil.getEncryptedSeed(blockchain, accountAddress);
+        // We don't need to track this state anymore since we always use PIN
+      } catch (error) {
+        console.log("No encrypted seed found for this account");
+      }
+    };
+    
+    checkForEncryptedSeed();
+    
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [timer, blockchain, accountAddress]);
 
   const onCopy = () => {
     setHasJustCopied(true);
@@ -112,11 +126,35 @@ const AccountDetails = observer(() => {
 
   async function onSubmit(formData: z.infer<typeof FormSchema>) {
     try {
-      const { transactionReceipt, error } = await signAndSendTransaction(
+      // Get the encrypted seed from storage
+      const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchain, accountAddress);
+      
+      if (!encryptedSeed) {
+        // If no encrypted seed is found, show a message to set up a PIN
+        control.setError("mnemonicPhrases", {
+          message: "No stored seed found for this account. Please import your account again to set up a PIN.",
+        });
+        return;
+      }
+      
+      let mnemonicPhrases;
+      
+      try {
+        // Decrypt the seed using the PIN
+        const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.mnemonicPhrases);
+        mnemonicPhrases = decryptedSeed.mnemonic;
+      } catch (error) {
+        control.setError("mnemonicPhrases", {
+          message: "Invalid PIN. Please try again.",
+        });
+        return;
+      }
+
+      const { transactionReceipt: newTransactionReceipt, error } = await signAndSendTransaction(
         accountAddress,
         formData.receiverAddress,
         formData.amount,
-        formData.mnemonicPhrases
+        mnemonicPhrases
       );
 
       if (error) {
@@ -125,11 +163,11 @@ const AccountDetails = observer(() => {
         });
       } else {
         const isTransactionSuccessful =
-          transactionReceipt?.status.toString() === "1";
+          newTransactionReceipt?.status.toString() === "1";
         if (isTransactionSuccessful) {
           StorageUtil.clearTransactionValues(blockchain);
           resetForm();
-          setTransactionReceipt(transactionReceipt);
+          setTransactionReceipt(newTransactionReceipt);
           await fetchAccounts();
           await zondStore.refreshTokenBalances();
           window.scrollTo(0, 0);
@@ -180,6 +218,14 @@ const AccountDetails = observer(() => {
 
   const formValues = watch();
 
+  const accountBalance = getAccountBalance(accountAddress);
+
+  const prefix = accountAddress.substring(0, 1);
+  const addressSplit: string[] = [];
+  for (let i = 1; i < accountAddress.length; i += 4) {
+    addressSplit.push(accountAddress.substring(i, i + 4));
+  }
+
   // Handle slider change to update amount
   const handleSliderChange = (value: number[]) => {
     const percentage = value[0];
@@ -213,7 +259,9 @@ const AccountDetails = observer(() => {
   }, [formValues.receiverAddress, formValues.amount]);
 
   if (transactionReceipt) {
-    return <TransactionSuccessful transactionReceipt={transactionReceipt} />;
+    return <TransactionSuccessful 
+      transactionReceipt={transactionReceipt}
+    />;
   }
 
   return (
@@ -230,7 +278,7 @@ const AccountDetails = observer(() => {
         </video> }
         <div className="relative z-10">
           <Form {...form}>
-            <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+            <form className="w-full" onSubmit={handleSubmit(onSubmit)} autoComplete="on">
               <Card className="w-full">
                 <CardHeader>
                   <CardTitle>Send Quanta</CardTitle>
@@ -385,20 +433,19 @@ const AccountDetails = observer(() => {
                     name="mnemonicPhrases"
                     render={({ field }) => (
                       <FormItem>
-                        <Label>Mnemonic phrases</Label>
+                        <Label>Transaction PIN</Label>
                         <FormControl>
-                          <Input
-                            {...field}
-                            type="password"
-                            autoComplete="off"
-                            spellCheck="false"
+                          <PinInput
+                            length={6}
+                            placeholder="Enter your PIN"
+                            value={field.value}
+                            onChange={field.onChange}
                             disabled={isSubmitting}
-                            placeholder="Enter your mnemonic phrases"
+                            description="Enter your PIN to authorize this transaction"
+                            error={form.formState.errors.mnemonicPhrases?.message}
+                            autoFocus
                           />
                         </FormControl>
-                        <FormDescription>
-                          Enter your account's mnemonic phrases (will not be stored)
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

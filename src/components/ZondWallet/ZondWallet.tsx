@@ -1,8 +1,10 @@
 import RouteMonitor from "./RouteMonitor/RouteMonitor";
 import withSuspense from "../../functions/withSuspense";
 import { observer } from "mobx-react-lite";
-import { lazy } from "react";
+import { lazy, useEffect } from "react";
 import { Toaster } from "@/components/UI/toaster"
+import { useNavigate } from "react-router-dom";
+import { setupActivityTracking, startAutoLockTimer, clearAutoLockTimer } from "@/utilities/autoLockUtil";
 
 // const Header = withSuspense(
 //   lazy(() => import("./Header/Header"))
@@ -18,6 +20,21 @@ const Layout = withSuspense(
 );
 
 const ZondWallet = observer(() => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Set up activity tracking to detect user interactions
+    setupActivityTracking();
+    
+    // Start the auto-lock timer
+    startAutoLockTimer(navigate);
+    
+    // Clean up the timer when component unmounts
+    return () => {
+      clearAutoLockTimer();
+    };
+  }, [navigate]);
+
   return (
     <Layout>
       <RouteMonitor />

@@ -12,6 +12,8 @@ const TOKEN_LIST_IDENTIFIER = "TOKEN_LIST";
 const STORAGE_VERSION = 'v1';
 const MAX_STORAGE_AGE = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
 const WALLET_SETTINGS_IDENTIFIER = "WALLET_SETTINGS";
+const ENCRYPTED_SEEDS_IDENTIFIER = "ENCRYPTED_SEEDS";
+const AUTO_LOCK_TIMEOUT = 15 * 60 * 1000; // 15 minutes default auto-lock timeout
 
 type TransactionValuesType = {
   receiverAddress?: string;
@@ -31,6 +33,12 @@ interface WalletSettings {
   showTestNetworks: boolean;
   hideSmallBalances: boolean;
   hideUnknownTokens: boolean;
+}
+
+interface EncryptedSeedData {
+  address: string;
+  encryptedSeed: string; // JSON string from WalletEncryptionUtil.encryptSeedWithPin
+  lastAccessed: number;
 }
 
 /**
@@ -203,15 +211,89 @@ class StorageUtil {
   }
 
   static async getWalletSettings(): Promise<WalletSettings> {
-    const defaultSettings: WalletSettings = {
-      autoLockTimeout: 15,
+    return this.getItem<WalletSettings>(WALLET_SETTINGS_IDENTIFIER) ?? {
+      autoLockTimeout: AUTO_LOCK_TIMEOUT,
       showTestNetworks: false,
       hideSmallBalances: false,
       hideUnknownTokens: true,
     };
+  }
 
-    const storedSettings = this.getItem<WalletSettings>(WALLET_SETTINGS_IDENTIFIER);
-    return storedSettings ?? defaultSettings;
+  /**
+   * Stores an encrypted seed for an account
+   * @param blockchain The blockchain identifier
+   * @param address The account address
+   * @param encryptedSeed The encrypted seed data from WalletEncryptionUtil.encryptSeedWithPin
+   */
+  static async storeEncryptedSeed(blockchain: string, address: string, encryptedSeed: string) {
+    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    let encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
+    
+    // Update or add the encrypted seed
+    const existingIndex = encryptedSeeds.findIndex(item => item.address === address);
+    const seedData: EncryptedSeedData = {
+      address,
+      encryptedSeed,
+      lastAccessed: Date.now()
+    };
+    
+    if (existingIndex >= 0) {
+      encryptedSeeds[existingIndex] = seedData;
+    } else {
+      encryptedSeeds.push(seedData);
+    }
+    
+    this.setItem(encryptedSeedsKey, encryptedSeeds);
+  }
+
+  /**
+   * Retrieves an encrypted seed for an account
+   * @param blockchain The blockchain identifier
+   * @param address The account address
+   * @returns The encrypted seed data or null if not found
+   */
+  static async getEncryptedSeed(blockchain: string, address: string): Promise<string | null> {
+    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    const encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
+    
+    const seedData = encryptedSeeds.find(item => item.address === address);
+    if (seedData) {
+      // Update last accessed time
+      await this.storeEncryptedSeed(blockchain, address, seedData.encryptedSeed);
+      return seedData.encryptedSeed;
+    }
+    
+    return null;
+  }
+
+  /**
+   * Removes an encrypted seed for an account
+   * @param blockchain The blockchain identifier
+   * @param address The account address
+   */
+  static async removeEncryptedSeed(blockchain: string, address: string) {
+    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    let encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
+    
+    encryptedSeeds = encryptedSeeds.filter(item => item.address !== address);
+    this.setItem(encryptedSeedsKey, encryptedSeeds);
+  }
+
+  /**
+   * Removes all encrypted seeds that have not been accessed within the auto-lock timeout period
+   * @param blockchain The blockchain identifier
+   */
+  static async cleanupExpiredSeeds(blockchain: string) {
+    const settings = await this.getWalletSettings();
+    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    let encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
+    
+    const now = Date.now();
+    encryptedSeeds = encryptedSeeds.filter(
+      item => (now - item.lastAccessed) < settings.autoLockTimeout
+    );
+    
+    this.setItem(encryptedSeedsKey, encryptedSeeds);
   }
 }
 

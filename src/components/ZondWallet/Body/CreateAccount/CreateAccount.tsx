@@ -6,6 +6,8 @@ import { Web3BaseWalletAccount } from "@theqrl/web3";
 import { observer } from "mobx-react-lite";
 import { AccountCreationForm } from "./AccountCreationForm/AccountCreationForm";
 import { AccountCreationSuccess } from "./AccountCreationSuccess/AccountCreationSuccess";
+import { WalletEncryptionUtil } from "../../../../utilities/walletEncryptionUtil";
+import StorageUtil from "../../../../utilities/storageUtil";
 
 const MnemonicDisplay = withSuspense(
   lazy(() => import("./MnemonicDisplay/MnemonicDisplay"))
@@ -13,29 +15,54 @@ const MnemonicDisplay = withSuspense(
 
 const CreateAccount = observer(() => {
   const { zondStore } = useStore();
-  const { setActiveAccount } = zondStore;
+  const { setActiveAccount, zondConnection } = zondStore;
+  const { blockchain } = zondConnection;
 
   const [account, setAccount] = useState<Web3BaseWalletAccount>();
   const [hasAccountCreated, setHasAccountCreated] = useState(false);
   const [hasMnemonicNoted, setHasMnemonicNoted] = useState(false);
   const [userPassword, setUserPassword] = useState<string>("");
+  const [userPin, setUserPin] = useState<string>("");
   const [mnemonic, setMnemonic] = useState<string>("");
   const [hexSeed, setHexSeed] = useState<string>("");
 
-  const onAccountCreated = async (newAccount: Web3BaseWalletAccount, password: string) => {
+  const onAccountCreated = async (newAccount: Web3BaseWalletAccount, password: string, pin: string) => {
     if (newAccount?.address) {
       window.scrollTo(0, 0);
       setAccount(newAccount);
       setUserPassword(password);
+      setUserPin(pin);
       await setActiveAccount(newAccount.address);
       setHasAccountCreated(true);
     }
   };
 
-  const onMnemonicNoted = (notedMnemonic: string, notedHexSeed: string) => {
+  const onMnemonicNoted = async (notedMnemonic: string, notedHexSeed: string) => {
     window.scrollTo(0, 0);
     setMnemonic(notedMnemonic);
     setHexSeed(notedHexSeed);
+    
+    // Store the encrypted seed in localStorage if we have all required data
+    if (account?.address && userPin && notedMnemonic && notedHexSeed) {
+      try {
+        // Encrypt the seed with the PIN
+        const encryptedSeed = WalletEncryptionUtil.encryptSeedWithPin(
+          notedMnemonic,
+          notedHexSeed,
+          userPin
+        );
+        
+        // Store the encrypted seed in localStorage
+        await StorageUtil.storeEncryptedSeed(
+          blockchain,
+          account.address,
+          encryptedSeed
+        );
+      } catch (error) {
+        console.error("Failed to store encrypted seed:", error);
+      }
+    }
+    
     setHasMnemonicNoted(true);
   };
 
