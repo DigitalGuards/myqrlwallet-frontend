@@ -13,13 +13,13 @@ import {
   FormField,
   FormItem,
   FormMessage,
-} from "../../../UI/Form";
-import { Input } from "../../../UI/Input";
-import { Label } from "../../../UI/Label";
-import { Separator } from "../../../UI/Separator";
-import { ROUTES } from "../../../../router/router";
-import { useStore } from "../../../../stores/store";
-import StorageUtil from "../../../../utilities/storageUtil";
+} from "@/components/UI/Form";
+import { Input } from "@/components/UI/Input";
+import { Label } from "@/components/UI/Label";
+import { Separator } from "@/components/UI/Separator";
+import { ROUTES } from "@/router/router";
+import { useStore } from "@/stores/store";
+import StorageUtil from "@/utilities/storageUtil";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { TransactionReceipt } from "@theqrl/web3";
 import { Loader, Send, X } from "lucide-react";
@@ -30,12 +30,12 @@ import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { GasFeeNotice } from "./GasFeeNotice/GasFeeNotice";
 import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSuccessful";
-import { getExplorerAddressUrl } from "../../../../configuration/zondConfig";
+import { getExplorerAddressUrl } from "@/configuration/zondConfig";
 import { Copy, ExternalLink } from "lucide-react";
 import { formatBalance } from "@/utilities/helper";
 import { Slider } from "@/components/UI/Slider";
-import { PinInput } from "../../../UI/PinInput/PinInput";
-import { WalletEncryptionUtil } from "../../../../utilities/walletEncryptionUtil";
+import { PinInput } from "@/components/UI/PinInput/PinInput";
+import { WalletEncryptionUtil } from "@/utilities/walletEncryptionUtil";
 
 const FormSchema = z
   .object({
