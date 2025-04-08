@@ -13,9 +13,11 @@ import { fetchTokenInfo, fetchBalance } from "@/utilities/web3utils/customERC20"
 import { TokenInterface } from "@/lib/constants";
 import { KNOWN_TOKEN_LIST } from "@/lib/constants";
 import CustomERC20ABI from "@/abi/CustomERC20ABI";
+import { getPendingTxApiUrl } from "@/configuration/zondConfig"; // Import the new helper
 
 type ActiveAccountType = {
   accountAddress: string;
+  lastSeen: number; // Unix timestamp
 };
 
 type ZondAccountType = {
@@ -45,6 +47,24 @@ type CreatedTokenType = {
   blockHash: string;
 }
 
+// Type for relevant pending transaction details from ZondScan API
+type PendingTxInfo = {
+  from: string;    // Add sender address
+  to: string;      // Add receiver address
+  gasPrice: string; // Keep as hex string initially
+  value: string;    // Keep as hex string initially
+  lastSeen: number; // Unix timestamp
+}
+
+// New type for transaction status
+type TransactionStatus = {
+  state: 'idle' | 'pending' | 'confirmed' | 'failed';
+  txHash: string | null;
+  receipt: TransactionReceipt | null;
+  error: string | null;
+  pendingDetails: PendingTxInfo | null; // Add field for pending details
+}
+
 class ZondStore {
   zondInstance?: Web3ZondInterface;
   zondConnection = {
@@ -54,11 +74,13 @@ class ZondStore {
     blockchain: "",
   };
   zondAccounts: ZondAccountsType = { accounts: [], isLoading: false };
-  activeAccount: ActiveAccountType = { accountAddress: "" };
+  activeAccount: ActiveAccountType = { accountAddress: "", lastSeen: 0 };
   creatingToken: CreatingTokenType = { name: "", creating: false };
   createdToken: CreatedTokenType = { name: "", symbol: "", decimals: 0, address: "", tx: "", blockNumber: 0, gasUsed: 0, effectiveGasPrice: 0, blockHash: "" };
   tokenList: TokenInterface[] = [];
   customRpcUrl: string = "";
+  // Updated initial state
+  transactionStatus: TransactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
 
   constructor() {
     makeAutoObservable(this, {
@@ -70,6 +92,7 @@ class ZondStore {
       createdToken: observable.struct,
       tokenList: observable.struct,
       customRpcUrl: observable.struct,
+      transactionStatus: observable.struct,
       setCustomRpcUrl: action.bound,
       addToken: action.bound,
       removeToken: action.bound,
@@ -84,6 +107,10 @@ class ZondStore {
       getAccountBalance: action.bound,
       signAndSendTransaction: action.bound,
       createToken: action.bound,
+      resetTransactionStatus: action.bound,
+      sendToken: action.bound,
+      refreshTokenBalances: action.bound,
+      fetchPendingTxDetails: action.bound,
     });
 
     // Log initialization
@@ -93,6 +120,13 @@ class ZondStore {
     setTimeout(() => {
       this.initializeBlockchain();
     }, 0);
+  }
+
+  // Updated reset action
+  resetTransactionStatus() {
+    runInAction(() => {
+      this.transactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
+    });
   }
 
   async initializeBlockchain() {
@@ -316,16 +350,97 @@ class ZondStore {
     );
   }
 
+  // Action to fetch details for a pending transaction from ZondScan API with polling
+  async fetchPendingTxDetails(txHash: string) {
+    const maxAttempts = 10; // Try up to 10 times
+    const pollInterval = 1500; // Wait 1.5 seconds between attempts
+
+    try {
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        // Stop polling if the transaction is no longer pending or the hash changed
+        if (this.transactionStatus.state !== 'pending' || this.transactionStatus.txHash !== txHash) {
+          log(`Polling stopped for ${txHash}: status changed.`);
+          return;
+        }
+
+        log(`Fetching pending details for ${txHash}, attempt ${attempt}`);
+        const apiUrl = getPendingTxApiUrl(this.zondConnection.blockchain);
+        const response = await fetch(apiUrl);
+
+        if (!response.ok) {
+          log(`API request failed (attempt ${attempt}): ${response.statusText}`);
+          // Don't throw immediately, allow retries
+          if (attempt === maxAttempts) {
+            throw new Error(`Failed to fetch pending transactions after ${maxAttempts} attempts: ${response.statusText}`);
+          }
+          await new Promise(resolve => setTimeout(resolve, pollInterval)); // Wait before retrying
+          continue; // Go to next attempt
+        }
+
+        const data = await response.json();
+
+        if (!data || !Array.isArray(data.transactions)) {
+          log(`Invalid API response structure (attempt ${attempt})`);
+          if (attempt === maxAttempts) {
+             throw new Error("Invalid API response structure after multiple attempts.");
+          }
+           await new Promise(resolve => setTimeout(resolve, pollInterval));
+           continue;
+        }
+
+        const pendingTx = data.transactions.find(
+          (tx: any) => tx.hash && tx.hash.toLowerCase() === txHash.toLowerCase()
+        );
+
+        if (pendingTx) {
+          // Found the transaction!
+          runInAction(() => {
+             // Check status again *before* updating, in case it changed while fetching
+             if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
+                 this.transactionStatus = {
+                     ...this.transactionStatus,
+                     pendingDetails: {
+                         from: pendingTx.from || '', // Add from address
+                         to: pendingTx.to || '',     // Add to address
+                         gasPrice: pendingTx.gasPrice || '0x0',
+                         value: pendingTx.value || '0x0',
+                         lastSeen: pendingTx.lastSeen || Date.now() / 1000,
+                     }
+                 };
+                 log(`Fetched pending details for tx: ${txHash} on attempt ${attempt}`);
+             } else {
+                 log(`Pending details fetched for ${txHash}, but status already changed.`);
+             }
+          });
+          return; // Exit the function successfully
+        }
+
+        // Transaction not found in this attempt
+        log(`Pending transaction ${txHash} not found in API response (attempt ${attempt})`);
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval)); // Wait before next attempt
+        } else {
+          log(`Pending transaction ${txHash} not found after ${maxAttempts} attempts.`);
+          // We didn't find it, but don't throw an error, just leave pendingDetails as null
+        }
+      }
+  
+    } catch (error) {
+      console.error("Error fetching pending transaction details:", error);
+      log(`Error fetching pending tx details for ${txHash}: ${error}`);
+      // Leave pendingDetails as null on error
+    }
+  }
+
+  // Refactored signAndSendTransaction
   async signAndSendTransaction(
     from: string,
     to: string,
     value: number,
     mnemonicPhrases: string,
   ) {
-    let transaction: {
-      transactionReceipt?: TransactionReceipt;
-      error: string;
-    } = { transactionReceipt: undefined, error: "" };
+    // Reset status before starting a new transaction
+    this.resetTransactionStatus();
 
     try {
       const transactionObject = {
@@ -335,28 +450,82 @@ class ZondStore {
         maxFeePerGas: 21000,
         maxPriorityFeePerGas: 21000,
       };
+      const privateKey = getHexSeedFromMnemonic(mnemonicPhrases);
+
+      // Sign the transaction first to ensure validity before proceeding
       const signedTransaction =
         await this.zondInstance?.accounts.signTransaction(
           transactionObject,
-          getHexSeedFromMnemonic(mnemonicPhrases),
+          privateKey
         );
-      if (signedTransaction) {
-        const transactionReceipt =
-          await this.zondInstance?.sendSignedTransaction(
-            signedTransaction?.rawTransaction,
-          );
-        transaction = { ...transaction, transactionReceipt };
-      } else {
+
+      if (!signedTransaction || !signedTransaction.rawTransaction) {
         throw new Error("Transaction could not be signed");
       }
-    } catch (error) {
-      transaction = {
-        ...transaction,
-        error: `Transaction could not be completed. ${error}`,
-      };
-    }
 
-    return transaction;
+      // Send the signed transaction and handle PromiEvents
+      const promiEvent = this.zondInstance?.sendSignedTransaction(
+        signedTransaction.rawTransaction
+      );
+
+      promiEvent?.on('transactionHash', (hash: string) => {
+        runInAction(() => {
+          this.transactionStatus = {
+            state: 'pending',
+            txHash: hash,
+            receipt: null,
+            error: null,
+            pendingDetails: null,
+          };
+          log(`Transaction pending with hash: ${hash}`);
+          // Attempt to fetch pending details immediately after getting the hash
+          this.fetchPendingTxDetails(hash);
+        });
+      }).on('receipt', (receipt: TransactionReceipt) => {
+        runInAction(() => {
+          const txHashString = utils.bytesToHex(receipt.transactionHash);
+          this.transactionStatus = {
+            state: 'confirmed',
+            txHash: txHashString,
+            receipt: receipt,
+            error: null,
+            pendingDetails: null,
+          };
+          log(`Transaction confirmed: ${txHashString}`);
+          // Fetch accounts again to update balance after confirmation
+          this.fetchAccounts();
+        });
+      }).on('error', (error: Error) => {
+        runInAction(() => {
+          const txHash = this.transactionStatus.txHash;
+          this.transactionStatus = {
+            state: 'failed',
+            txHash: txHash,
+            receipt: null,
+            error: error.message || "Transaction failed",
+            pendingDetails: null,
+          };
+          log(`Transaction failed for hash ${txHash}: ${error.message}`);
+        });
+      });
+
+      // Optional: Return the PromiEvent if the caller needs more control,
+      // but for this pattern, we primarily manage state within the store.
+      // return promiEvent;
+
+    } catch (error: any) {
+      // Catch signing errors or other issues before sending
+      runInAction(() => {
+        this.transactionStatus = {
+          state: 'failed',
+          txHash: null,
+          receipt: null,
+          error: `Transaction preparation failed: ${error.message || error}`,
+          pendingDetails: null,
+        };
+        log(`Transaction preparation failed: ${error}`);
+      });
+    }
   }
 
   async sendToken(token: TokenInterface, amount: string, mnemonicPhrases: string, toAddress: string) {
@@ -374,7 +543,7 @@ class ZondStore {
       console.error(data);
     }
     const selectedBlockChain = await StorageUtil.getBlockChain();
-    const { url } = ZOND_PROVIDER[selectedBlockChain];
+    const { url } = ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER];
     const web3 = new Web3(new Web3.providers.HttpProvider(url));
     const seed = getHexSeedFromMnemonic(mnemonicPhrases);
     const acc = web3.zond.accounts.seedToAccount(seed)
@@ -407,7 +576,7 @@ class ZondStore {
   ) {
     this.setCreatingToken(tokenName, true);
     const selectedBlockChain = await StorageUtil.getBlockChain();
-    const { url } = ZOND_PROVIDER[selectedBlockChain];
+    const { url } = ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER];
     const seed = getHexSeedFromMnemonic(mnemonicPhrases);
     const web3 = new Web3(new Web3.providers.HttpProvider(url));
     const acc = web3.zond.accounts.seedToAccount(seed)
@@ -472,7 +641,7 @@ class ZondStore {
       
       for (let i = 0; i < this.tokenList.length; i++) {
         const token = this.tokenList[i];
-        const balance = await fetchBalance(token.address, this.activeAccount.accountAddress, ZOND_PROVIDER[selectedBlockChain].url);
+        const balance = await fetchBalance(token.address, this.activeAccount.accountAddress, ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER].url);
         const formattedBalance = utils.fromWei(balance, "ether");
         updatedTokenList[i] = { ...token, amount: formattedBalance };
       }

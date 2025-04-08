@@ -6,18 +6,18 @@ import {
   CardHeader,
   CardTitle,
 } from "../../../../UI/Card";
-import { ROUTES } from "../../../../../router/router";
 import StringUtil from "../../../../../utilities/stringUtil";
 import { TransactionReceipt, utils } from "@theqrl/web3";
 import { Check, ExternalLink } from "lucide-react";
-import { Link } from "react-router-dom";
 
 type TransactionSuccessfulProps = {
   transactionReceipt: TransactionReceipt;
+  onDone: () => void;
 };
 
 export const TransactionSuccessful = ({
   transactionReceipt,
+  onDone,
 }: TransactionSuccessfulProps) => {
   const {
     blockHash,
@@ -88,12 +88,10 @@ export const TransactionSuccessful = ({
           </CardContent>
           <CardFooter className="grid grid-cols-2 gap-4">
             <span />
-            <Link className="w-full" to={ROUTES.HOME}>
-              <Button className="w-full" type="button">
-                <Check className="mr-2 h-4 w-4" />
-                Done
-              </Button>
-            </Link>
+            <Button className="w-full" type="button" onClick={onDone}>
+              <Check className="mr-2 h-4 w-4" />
+              Done
+            </Button>
           </CardFooter>
         </Card>
       </div>
