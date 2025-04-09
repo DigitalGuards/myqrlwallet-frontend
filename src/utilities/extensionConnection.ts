@@ -1,4 +1,4 @@
-import { ZOND_WEB3_WALLET_PROVIDER_INFO } from "../../zond-web3-wallet/src/scripts/constants/streamConstants"; // Import constant for identification
+import { ZOND_WEB3_WALLET_PROVIDER_INFO } from "@/lib/constants"; // Import constant for identification
 
 // EIP-6963 types (simplified)
 interface EIP6963ProviderInfo {
