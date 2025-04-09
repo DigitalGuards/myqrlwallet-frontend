@@ -6,13 +6,11 @@ import { formatBalance } from "@/utilities/helper";
 
 export const ActiveAccountDisplay = observer(() => {
   const { zondStore } = useStore();
-  const { activeAccount, getAccountBalance, fetchAccounts } = zondStore;
+  const { activeAccount, fetchAccounts, activeAccountBalance } = zondStore;
   const { accountAddress } = activeAccount;
   const [copiedItem, setCopiedItem] = useState<'balance' | 'address' | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshSuccess, setRefreshSuccess] = useState(false);
-
-  const accountBalance = getAccountBalance(accountAddress);
 
   const prefix = accountAddress.substring(0, 1);
   const addressSplit: string[] = [];
@@ -43,8 +41,8 @@ export const ActiveAccountDisplay = observer(() => {
       <div
         className="flex justify-center items-center text-xl font-bold text-secondary group"
       >
-        <div className="cursor-pointer flex items-center" onClick={() => copyToClipboard(accountBalance, 'balance')}>
-          <span>{formatBalance(accountBalance)} QRL</span>
+        <div className="cursor-pointer flex items-center" onClick={() => copyToClipboard(activeAccountBalance, 'balance')}>
+          <span>{formatBalance(activeAccountBalance)} QRL</span>
           {copiedItem === 'balance' ? (
             <Check className="w-4 h-4 ml-2 text-green-500" />
           ) : (

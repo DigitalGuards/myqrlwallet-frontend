@@ -9,9 +9,10 @@ import {
 import { ROUTES } from "../../../../../router/router";
 import { useStore } from "../../../../../stores/store";
 import { cva } from "class-variance-authority";
-import { Download, Plus } from "lucide-react";
+import { Download, Plus, Link2 } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { connectToExtension } from "../../../../../utilities/extensionConnection";
 
 const accountCreateImportClasses = cva("flex gap-8", {
   variants: {
@@ -28,11 +29,22 @@ const accountCreateImportClasses = cva("flex gap-8", {
 const AccountCreateImport = observer(() => {
   const { state } = useLocation();
   const { zondStore } = useStore();
-  const { activeAccount } = zondStore;
+  const { activeAccount, setActiveAccount, setExtensionProvider } = zondStore;
   const { accountAddress } = activeAccount;
+  const navigate = useNavigate();
 
   const hasActiveAccount = !!accountAddress;
   const hasAccountCreationPreference = !!state?.hasAccountCreationPreference;
+
+  const handleConnectExtension = async () => {
+    const accounts = await connectToExtension(setActiveAccount, setExtensionProvider);
+    if (accounts && accounts.length > 0) {
+      console.log("Successfully connected via extension, set active account, and stored provider.");
+      navigate(ROUTES.HOME);
+    } else {
+      console.log("Failed to connect via extension or no accounts selected.");
+    }
+  };
 
   return (
     <div
@@ -44,8 +56,8 @@ const AccountCreateImport = observer(() => {
             {hasActiveAccount ? "Add accounts" : "Let's start"}
           </CardTitle>
           <CardDescription>
-            You are connected to the blockchain. Create a new account or import
-            an existing account.
+            You are connected to the blockchain. Create a new account, import
+            an existing account, or connect using your browser extension.
           </CardDescription>
         </CardHeader>
         <CardFooter className="flex-col gap-4">
@@ -61,6 +73,10 @@ const AccountCreateImport = observer(() => {
               Import an existing account
             </Button>
           </Link>
+          <Button className="w-full" type="button" variant="outline" onClick={handleConnectExtension}>
+            <Link2 className="mr-2 h-4 w-4" />
+            Connect Browser Extension
+          </Button>
         </CardFooter>
       </Card>
     </div>

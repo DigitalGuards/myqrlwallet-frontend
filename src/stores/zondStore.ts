@@ -7,7 +7,7 @@ import Web3, {
   Web3ZondInterface,
   utils,
 } from "@theqrl/web3";
-import { action, makeAutoObservable, observable, runInAction } from "mobx";
+import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
 import { fetchTokenInfo, fetchBalance } from "@/utilities/web3utils/customERC20";
 import { TokenInterface } from "@/lib/constants";
@@ -65,6 +65,12 @@ type TransactionStatus = {
   pendingDetails: PendingTxInfo | null; // Add field for pending details
 }
 
+// Interface for the extension provider (adjust based on actual provider methods)
+interface ExtensionProvider {
+  request: (args: { method: string; params?: any[] | object }) => Promise<any>;
+  // Add other methods if needed, e.g., for event handling
+}
+
 class ZondStore {
   zondInstance?: Web3ZondInterface;
   zondConnection = {
@@ -81,6 +87,19 @@ class ZondStore {
   customRpcUrl: string = "";
   // Updated initial state
   transactionStatus: TransactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
+  extensionProvider: ExtensionProvider | null = null; // NEW: Store the extension provider
+
+  // NEW: Computed property for active account balance
+  get activeAccountBalance(): string {
+    if (!this.activeAccount.accountAddress) {
+      return "0";
+    }
+    return (
+      this.zondAccounts.accounts.find(
+        (account) => account.accountAddress === this.activeAccount.accountAddress,
+      )?.accountBalance ?? "0"
+    );
+  }
 
   constructor() {
     makeAutoObservable(this, {
@@ -93,6 +112,8 @@ class ZondStore {
       tokenList: observable.struct,
       customRpcUrl: observable.struct,
       transactionStatus: observable.struct,
+      extensionProvider: observable.ref, // Use ref for complex objects like providers
+      activeAccountBalance: computed,
       setCustomRpcUrl: action.bound,
       addToken: action.bound,
       removeToken: action.bound,
@@ -111,6 +132,8 @@ class ZondStore {
       sendToken: action.bound,
       refreshTokenBalances: action.bound,
       fetchPendingTxDetails: action.bound,
+      setExtensionProvider: action.bound, // NEW action
+      sendTransactionViaExtension: action.bound, // NEW action
     });
 
     // Log initialization
@@ -217,32 +240,45 @@ class ZondStore {
     this.customRpcUrl = customRpcUrl;
   }
 
-  async setActiveAccount(activeAccount?: string) {
+  async setActiveAccount(newActiveAccount?: string) {
+    const currentBlockchain = this.zondConnection.blockchain;
     await StorageUtil.setActiveAccount(
-      this.zondConnection.blockchain,
-      activeAccount,
+      currentBlockchain,
+      newActiveAccount,
     );
-    this.activeAccount = {
-      ...this.activeAccount,
-      accountAddress: activeAccount ?? "",
-    };
+
+    runInAction(() => {
+        this.activeAccount = {
+            ...this.activeAccount,
+            accountAddress: newActiveAccount ?? "",
+        };
+    });
 
     let storedAccountList: string[] = [];
     try {
       const accountListFromStorage = await StorageUtil.getAccountList(
-        this.zondConnection.blockchain,
+        currentBlockchain,
       );
       storedAccountList = [...accountListFromStorage];
-      if (activeAccount) {
-        storedAccountList.push(activeAccount);
+      if (newActiveAccount && !storedAccountList.includes(newActiveAccount)) {
+        // Only add if it's a new account not already in the list
+        storedAccountList.push(newActiveAccount);
       }
-      storedAccountList = [...new Set(storedAccountList)];
+      storedAccountList = [...new Set(storedAccountList)]; // Ensure uniqueness just in case
     } finally {
       await StorageUtil.setAccountList(
-        this.zondConnection.blockchain,
+        currentBlockchain,
         storedAccountList,
       );
-      await this.fetchAccounts();
+      
+      // Explicitly trigger refreshes after setting active account
+      await this.fetchAccounts(); // Refresh the full list and balances
+      if (newActiveAccount) {
+        log(`Fetching balances for newly active account: ${newActiveAccount}`);
+        await this.refreshTokenBalances(); // Refresh token balances
+      } else {
+        log("Active account cleared, skipping token refresh.");
+      }
     }
   }
 
@@ -649,6 +685,121 @@ class ZondStore {
       await this.setTokenList(updatedTokenList);
     } catch (error) {
       console.error("Error refreshing token balances:", error);
+    }
+  }
+
+  // NEW: Action to set or clear the extension provider
+  setExtensionProvider(provider: ExtensionProvider | null) {
+    runInAction(() => {
+        this.extensionProvider = provider;
+        if (provider) {
+            log("Extension provider set.");
+        } else {
+            log("Extension provider cleared.");
+             // Optional: Consider if clearing the provider should also clear the active account
+             // if the active account *was* from the extension.
+             // if (this.activeAccount?.isFromExtension) { // Need a way to track this
+             //   this.setActiveAccount(undefined);
+             // }
+        }
+    });
+  }
+
+  // --- NEW: Send Transaction via Extension ---
+  async sendTransactionViaExtension(to: string, valueEther: string /* Value in Ether */) {
+    if (!this.extensionProvider) {
+      console.error("sendTransactionViaExtension called but no provider is set.");
+      log("Error: sendTransactionViaExtension called without provider.");
+       runInAction(() => {
+            this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: 'Extension not connected.' };
+        });
+      return;
+    }
+     if (!this.activeAccount.accountAddress) {
+       console.error("sendTransactionViaExtension called but no active account.");
+       log("Error: sendTransactionViaExtension called without active account.");
+        runInAction(() => {
+            this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: 'No active account selected.' };
+        });
+       return;
+     }
+
+    try {
+      // Reset status before starting
+      this.resetTransactionStatus();
+      runInAction(() => {
+        this.transactionStatus = { ...this.transactionStatus, state: 'pending' };
+      });
+
+      // --- Use 18 decimals via "ether" unit --- 
+      let valueBaseUnit: string | bigint; // toWei returns string or bigint
+      try {
+        valueBaseUnit = utils.toWei(valueEther, "ether"); // Use "ether" for 18 decimals
+      } catch (calcError) {
+         console.error("Error calculating base unit value with toWei:", calcError);
+         throw new Error("Could not calculate transaction value."); 
+      }
+      // --- End Wei Calculation ---
+      
+      const gasLimit = 53000; 
+      const defaultMaxPriorityFeePerGasWei = '10000000'; // 0.01 Gwei (Tip)
+      const defaultMaxFeePerGasWei = '100000000';         // 0.1 Gwei (Cap)
+
+      // --- Manual Hex Conversion (still needed as utils.toHex was unreliable) --- 
+      // Convert potential string/BigInt from toWei to hex safely
+      const valueHex = "0x" + BigInt(valueBaseUnit).toString(16); 
+      const gasHex = "0x" + gasLimit.toString(16);
+      const maxPriorityFeeHex = "0x" + parseInt(defaultMaxPriorityFeePerGasWei).toString(16);
+      const maxFeeHex = "0x" + parseInt(defaultMaxFeePerGasWei).toString(16);
+      // --- End Manual Hex Conversion ---
+
+      const params = [{
+        from: this.activeAccount.accountAddress,
+        to: to,
+        value: valueHex, // Use manually hexed value from toWei("ether")
+        gas: gasHex,     
+        maxPriorityFeePerGas: maxPriorityFeeHex, 
+        maxFeePerGas: maxFeeHex,             
+        type: '0x2'
+      }];
+
+      log(`Requesting transaction via extension (18 Decimals): ${JSON.stringify(params)}`);
+      // Extension provider handles user confirmation popup
+      const txHash = await this.extensionProvider.request({
+        method: 'zond_sendTransaction', 
+        params: params
+      });
+
+      if (txHash && typeof txHash === 'string') {
+        log(`Transaction sent via extension, hash: ${txHash}`);
+        runInAction(() => {
+          // Still 'pending' until confirmed on-chain, but we have the hash
+          this.transactionStatus = { ...this.transactionStatus, state: 'pending', txHash: txHash, error: null };
+          // Start polling for receipt / pending details
+          this.fetchPendingTxDetails(txHash);
+        });
+      } else {
+         log(`Extension returned invalid txHash: ${txHash}`);
+         throw new Error("Extension did not return a valid transaction hash.");
+      }
+
+    } catch (error: any) {
+      console.error("Error sending transaction via extension:", error);
+      log(`Error sending via extension: ${error.message || error}`);
+      runInAction(() => {
+        // Check for user rejection code specifically if the provider follows EIP-1193 errors
+        const userRejected = error.code === 4001;
+        const isCalcError = error.message === "Could not calculate transaction value." || error.message === "Invalid amount input";
+        this.transactionStatus = {
+          ...this.transactionStatus,
+          state: 'failed',
+          error: userRejected 
+                    ? 'Transaction rejected in extension.' 
+                    : isCalcError
+                        ? error.message // Show calculation error
+                        : (error.message || 'Transaction failed in extension.')
+        };
+      });
     }
   }
 }
