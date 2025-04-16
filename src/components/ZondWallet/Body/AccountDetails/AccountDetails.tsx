@@ -13,16 +13,17 @@ import {
   FormField,
   FormItem,
   FormMessage,
-} from "../../../UI/Form";
-import { Input } from "../../../UI/Input";
-import { Label } from "../../../UI/Label";
-import { Separator } from "../../../UI/Separator";
-import { ROUTES } from "../../../../router/router";
-import { useStore } from "../../../../stores/store";
-import StorageUtil from "../../../../utilities/storageUtil";
+} from "@/components/UI/Form";
+import { Input } from "@/components/UI/Input";
+import { Label } from "@/components/UI/Label";
+import { Separator } from "@/components/UI/Separator";
+import { ROUTES } from "@/router/router";
+import { useStore } from "@/stores/store";
+import StorageUtil from "@/utilities/storageUtil";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { TransactionReceipt } from "@theqrl/web3";
-import { Loader, Send, X } from "lucide-react";
+import { utils } from "@theqrl/web3";
+import { Loader, Send, X, Check, Copy } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -30,10 +31,13 @@ import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { GasFeeNotice } from "./GasFeeNotice/GasFeeNotice";
 import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSuccessful";
-import { getExplorerAddressUrl } from "../../../../configuration/zondConfig";
-import { Copy, ExternalLink } from "lucide-react";
+import { getExplorerAddressUrl, getExplorerTxUrl } from "@/configuration/zondConfig";
+import { ExternalLink } from "lucide-react";
 import { formatBalance } from "@/utilities/helper";
 import { Slider } from "@/components/UI/Slider";
+import { PinInput } from "@/components/UI/PinInput/PinInput";
+import { WalletEncryptionUtil } from "@/utilities/walletEncryptionUtil";
+import StringUtil from "@/utilities/stringUtil";
 
 const FormSchema = z
   .object({
@@ -67,22 +71,13 @@ const AccountDetails = observer(() => {
     getAccountBalance,
     signAndSendTransaction,
     zondConnection,
-    fetchAccounts,
+    transactionStatus,
+    resetTransactionStatus,
   } = zondStore;
   const { blockchain } = zondConnection;
   const { accountAddress } = activeAccount;
 
-  const [transactionReceipt, setTransactionReceipt] =
-    useState<TransactionReceipt>();
   const [sliderValue, setSliderValue] = useState(0);
-
-  const accountBalance = getAccountBalance(accountAddress);
-
-  const prefix = accountAddress.substring(0, 1);
-  const addressSplit: string[] = [];
-  for (let i = 1; i < accountAddress.length; i += 4) {
-    addressSplit.push(accountAddress.substring(i, i + 4));
-  }
 
   const [hasJustCopied, setHasJustCopied] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout>();
@@ -94,6 +89,26 @@ const AccountDetails = observer(() => {
       }
     };
   }, [timer]);
+
+  useEffect(() => {
+    // Check if we have an encrypted seed for this account
+    const checkForEncryptedSeed = async () => {
+      try {
+        await StorageUtil.getEncryptedSeed(blockchain, accountAddress);
+        // We don't need to track this state anymore since we always use PIN
+      } catch (error) {
+        console.log("No encrypted seed found for this account");
+      }
+    };
+    
+    checkForEncryptedSeed();
+    
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [timer, blockchain, accountAddress]);
 
   const onCopy = () => {
     setHasJustCopied(true);
@@ -110,35 +125,55 @@ const AccountDetails = observer(() => {
     }
   };
 
+  // Generalized copy function
+  const copyToClipboard = (text: string) => {
+    setHasJustCopied(true);
+    navigator.clipboard.writeText(text);
+    const newTimer = setTimeout(() => {
+      setHasJustCopied(false);
+    }, 1000);
+    setTimer(newTimer);
+  };
+
   async function onSubmit(formData: z.infer<typeof FormSchema>) {
     try {
-      const { transactionReceipt, error } = await signAndSendTransaction(
+      // Get the encrypted seed from storage
+      const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchain, accountAddress);
+      
+      if (!encryptedSeed) {
+        // If no encrypted seed is found, show a message to set up a PIN
+        control.setError("mnemonicPhrases", {
+          message: "No stored seed found for this account. Please import your account again to set up a PIN.",
+        });
+        return;
+      }
+      
+      let mnemonicPhrases;
+      
+      try {
+        // Decrypt the seed using the PIN
+        const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.mnemonicPhrases);
+        mnemonicPhrases = decryptedSeed.mnemonic;
+      } catch (error) {
+        control.setError("mnemonicPhrases", {
+          message: "Invalid PIN. Please try again.",
+        });
+        return;
+      }
+
+      await signAndSendTransaction(
         accountAddress,
         formData.receiverAddress,
         formData.amount,
-        formData.mnemonicPhrases
+        mnemonicPhrases
       );
 
-      if (error) {
-        control.setError("mnemonicPhrases", {
-          message: `An error occurred. ${error}`,
-        });
-      } else {
-        const isTransactionSuccessful =
-          transactionReceipt?.status.toString() === "1";
-        if (isTransactionSuccessful) {
-          StorageUtil.clearTransactionValues(blockchain);
-          resetForm();
-          setTransactionReceipt(transactionReceipt);
-          await fetchAccounts();
-          await zondStore.refreshTokenBalances();
-          window.scrollTo(0, 0);
-        } else {
-          control.setError("mnemonicPhrases", {
-            message: `Transaction failed.`,
-          });
-        }
-      }
+      // Reset form after initiating the transaction
+      // The UI will switch based on transactionStatus
+      StorageUtil.clearTransactionValues(blockchain);
+      resetForm();
+      window.scrollTo(0, 0);
+
     } catch (error) {
       control.setError("mnemonicPhrases", {
         message: `An error occurred. ${error}`,
@@ -147,12 +182,14 @@ const AccountDetails = observer(() => {
   }
 
   const resetForm = () => {
-    reset({ receiverAddress: "", amount: 0, mnemonicPhrases: "" });
+    reset({ receiverAddress: "", amount: 0, mnemonicPhrases: "" }, { keepErrors: true });
     setSliderValue(0);
   };
 
   const cancelTransaction = () => {
     resetForm();
+    setSliderValue(0);
+    resetTransactionStatus();
     navigate(ROUTES.HOME);
   };
 
@@ -179,6 +216,14 @@ const AccountDetails = observer(() => {
   } = form;
 
   const formValues = watch();
+
+  const accountBalance = getAccountBalance(accountAddress);
+
+  const prefix = accountAddress.substring(0, 1);
+  const addressSplit: string[] = [];
+  for (let i = 1; i < accountAddress.length; i += 4) {
+    addressSplit.push(accountAddress.substring(i, i + 4));
+  }
 
   // Handle slider change to update amount
   const handleSliderChange = (value: number[]) => {
@@ -212,10 +257,126 @@ const AccountDetails = observer(() => {
     });
   }, [formValues.receiverAddress, formValues.amount]);
 
-  if (transactionReceipt) {
-    return <TransactionSuccessful transactionReceipt={transactionReceipt} />;
+  // ---- Conditional Rendering based on transactionStatus ----
+
+  // Confirmed State
+  if (transactionStatus.state === 'confirmed' && transactionStatus.receipt) {
+    return (
+      <TransactionSuccessful
+        transactionReceipt={transactionStatus.receipt}
+        onDone={() => {
+          resetTransactionStatus();
+          navigate(ROUTES.HOME);
+        }}
+      />
+    );
   }
 
+  // Pending State
+  if (transactionStatus.state === 'pending') {
+    return (
+      <div className="flex w-full flex-col items-center justify-center gap-4 py-16 text-center">
+        <Loader className="h-12 w-12 animate-spin text-primary" />
+        <h2 className="text-2xl font-semibold">Transaction Pending</h2>
+        <p className="text-muted-foreground">
+          Your transaction has been submitted and is awaiting confirmation.
+        </p>
+        {transactionStatus.txHash && (
+          <a
+            href={getExplorerTxUrl(transactionStatus.txHash, blockchain)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
+          >
+            View on ZondScan <ExternalLink className="h-4 w-4" />
+          </a>
+        )}
+        {transactionStatus.pendingDetails ? (
+          <div className="mt-4 w-full max-w-md rounded border bg-muted p-4 text-left text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Hash:</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono" title={transactionStatus.txHash || 'N/A'}>
+                  {transactionStatus.txHash 
+                    ? `${transactionStatus.txHash.substring(0, 10)}...${transactionStatus.txHash.substring(transactionStatus.txHash.length - 8)}` 
+                    : 'N/A'}
+                </span>
+                {transactionStatus.txHash && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    type="button"
+                    onClick={() => copyToClipboard(transactionStatus.txHash!)}
+                    title="Copy Hash"
+                  >
+                    {hasJustCopied ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">From:</span>
+              <span className="font-mono" title={transactionStatus.pendingDetails.from}>{transactionStatus.pendingDetails.from}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">To:</span>
+              <span className="font-mono" title={transactionStatus.pendingDetails.to}>{transactionStatus.pendingDetails.to}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Value:</span>
+              <span>{utils.fromWei(BigInt(transactionStatus.pendingDetails.value), "ether")} QRL</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Gas Price:</span>
+              <span>{utils.fromWei(BigInt(transactionStatus.pendingDetails.gasPrice), "gwei")} Gwei</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Last Seen:</span>
+              <span>{new Date(transactionStatus.pendingDetails.lastSeen * 1000).toLocaleString()}</span>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">Fetching details...</p>
+        )}
+      </div>
+    );
+  }
+
+  // Failed State
+  if (transactionStatus.state === 'failed') {
+    return (
+      <div className="flex w-full flex-col items-center justify-center gap-4 py-16 text-center">
+        <X className="h-12 w-12 text-destructive" /> {/* Using X for failure indication */}
+        <h2 className="text-2xl font-semibold text-destructive">Transaction Failed</h2>
+        <p className="text-destructive">
+          {transactionStatus.error || "An unknown error occurred."}
+        </p>
+        {transactionStatus.txHash && (
+          <a
+            href={getExplorerTxUrl(transactionStatus.txHash, blockchain)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
+          >
+            View on ZondScan <ExternalLink className="h-4 w-4" />
+          </a>
+        )}
+        <Button
+          variant="outline"
+          onClick={resetTransactionStatus} // Go back to the form
+          className="mt-4"
+        >
+          Dismiss
+        </Button>
+      </div>
+    );
+  }
+
+  // Idle State (Default) - Show the form
   return (
     <div className="flex w-full items-start justify-center py-8 overflow-x-hidden">
       <div className="relative w-full max-w-2xl px-4">
@@ -230,7 +391,7 @@ const AccountDetails = observer(() => {
         </video> }
         <div className="relative z-10">
           <Form {...form}>
-            <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+            <form className="w-full" onSubmit={handleSubmit(onSubmit)} autoComplete="on">
               <Card className="w-full">
                 <CardHeader>
                   <CardTitle>Send Quanta</CardTitle>
@@ -249,7 +410,7 @@ const AccountDetails = observer(() => {
                         className="w-full"
                         type="button"
                         variant="outline"
-                        onClick={onCopy}
+                        onClick={() => copyToClipboard(accountAddress)}
                       >
                         <Copy className="mr-2 h-4 w-4" />
                         {hasJustCopied ? "Copied" : "Copy"}
@@ -385,20 +546,19 @@ const AccountDetails = observer(() => {
                     name="mnemonicPhrases"
                     render={({ field }) => (
                       <FormItem>
-                        <Label>Mnemonic phrases</Label>
+                        <Label>Transaction PIN</Label>
                         <FormControl>
-                          <Input
-                            {...field}
-                            type="password"
-                            autoComplete="off"
-                            spellCheck="false"
+                          <PinInput
+                            length={6}
+                            placeholder="Enter your PIN"
+                            value={field.value}
+                            onChange={field.onChange}
                             disabled={isSubmitting}
-                            placeholder="Enter your mnemonic phrases"
+                            description="Enter your PIN to authorize this transaction"
+                            error={form.formState.errors.mnemonicPhrases?.message}
+                            autoFocus
                           />
                         </FormControl>
-                        <FormDescription>
-                          Enter your account's mnemonic phrases (will not be stored)
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

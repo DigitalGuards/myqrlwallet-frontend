@@ -10,13 +10,14 @@ import {
 import { ROUTES } from "../../../../../router/router";
 import { useStore } from "../../../../../stores/store";
 import { getExplorerAddressUrl } from "../../../../../configuration/zondConfig";
-import { Copy, ExternalLink, SendHorizontal } from "lucide-react";
+import { Copy, ExternalLink, SendHorizontal, History } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Link } from "react-router-dom";
 import { AccountId } from "../AccountId/AccountId";
 import { AccountBalance } from "../AccountBalance/AccountBalance";
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { TransactionHistoryPopup } from "./TransactionHistoryPopup";
 
 export const ActiveAccount = observer(() => {
   const { zondStore } = useStore();
@@ -28,6 +29,7 @@ export const ActiveAccount = observer(() => {
   const activeAccountLabel = "Active account";
   const [copied, setCopied] = useState(false);
   const [tooltipOpen, setTooltipOpen] = useState(false);
+  const [txHistoryOpen, setTxHistoryOpen] = useState(false);
 
   const copyAccount = async () => {
     try {
@@ -113,6 +115,25 @@ export const ActiveAccount = observer(() => {
               <TooltipProvider>
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
+                    <Button
+                      className="hover:text-secondary"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setTxHistoryOpen(true)}
+                    >
+                      <History size={18} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <Label>Show Tx History</Label>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </span>
+            <span>
+              <TooltipProvider>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
                     <Link
                       to={ROUTES.ACCOUNT_DETAILS}
                     >
@@ -133,6 +154,12 @@ export const ActiveAccount = observer(() => {
             </span>
           </div>
         </Card>
+        <TransactionHistoryPopup 
+          accountAddress={accountAddress}
+          blockchain={blockchain}
+          isOpen={txHistoryOpen}
+          onClose={() => setTxHistoryOpen(false)}
+        />
       </>
     )
   );

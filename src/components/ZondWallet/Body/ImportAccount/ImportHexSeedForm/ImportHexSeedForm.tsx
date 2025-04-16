@@ -8,6 +8,7 @@ import { Download, Loader } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { getMnemonicFromHexSeed } from "@/functions/getMnemonicFromHexSeed";
 
 const FormSchema = z.object({
   hexSeed: z
@@ -45,8 +46,20 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
         throw new Error("Failed to create account from hex seed");
       }
 
-      // Add hexSeed to the account
+      // Retrieve mnemonic from hex seed
+      const mnemonic = getMnemonicFromHexSeed(formData.hexSeed);
+      if (!mnemonic) {
+        // Handle cases where mnemonic generation might fail
+        console.error("Failed to derive mnemonic from hex seed.");
+        form.setError("hexSeed", {
+          message: "Failed to derive mnemonic from hex seed",
+        });
+        return; // Stop execution if mnemonic can't be derived
+      }
+
+      // Add hexSeed and mnemonic to the account object
       account.hexSeed = formData.hexSeed;
+      account.mnemonic = mnemonic;
 
       onAccountImported(account);
     } catch (error) {

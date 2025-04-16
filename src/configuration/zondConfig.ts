@@ -35,3 +35,17 @@ export const getExplorerAddressUrl = (address: string, blockchain: string) => {
   const provider = ZOND_PROVIDER[blockchain as keyof typeof ZOND_PROVIDER];
   return `${provider.explorer}/address/${address}`;
 };
+
+// New function to get explorer URL for a transaction hash
+export const getExplorerTxUrl = (txHash: string, blockchain: string) => {
+  const provider = ZOND_PROVIDER[blockchain as keyof typeof ZOND_PROVIDER];
+  // Assuming the explorer path for transactions is /tx/
+  return `${provider.explorer}/tx/${txHash}`;
+};
+
+// New function to get the API endpoint for pending transactions
+export const getPendingTxApiUrl = (blockchain: string) => {
+  const provider = ZOND_PROVIDER[blockchain as keyof typeof ZOND_PROVIDER];
+  // Append the known API path to the explorer base URL
+  return `${provider.explorer}/api/pending-transactions`; 
+};

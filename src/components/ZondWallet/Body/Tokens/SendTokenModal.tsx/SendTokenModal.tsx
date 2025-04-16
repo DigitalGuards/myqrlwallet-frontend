@@ -20,6 +20,8 @@ import StorageUtil from "@/utilities/storageUtil";
 import { ZOND_PROVIDER } from "@/configuration/zondConfig";
 import { formatUnits, parseUnits } from "ethers";
 import { Slider } from "@/components/UI/Slider";
+import { PinInput } from "@/components/UI/PinInput/PinInput";
+import { WalletEncryptionUtil } from "@/utilities/walletEncryptionUtil";
 
 export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, onClose: () => void, token: TokenInterface }) {
     const { zondStore } = useStore();
@@ -30,82 +32,112 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
     } = zondStore;
     const [amount, setAmount] = useState("");
     const [maxAmount, setMaxAmount] = useState("0");
-    const [mnemonic, setMnemonic] = useState("");
+    const [pin, setPin] = useState("");
+    const [pinError, setPinError] = useState("");
     const [toAddress, setToAddress] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [sliderValue, setSliderValue] = useState(0);
 
     const sendToken = async () => {
         setIsLoading(true);
-        if (toAddress && amount && mnemonic) {
-            const senderAddress = getAddressFromMnemonic(mnemonic);
-            if (senderAddress.toLowerCase() !== activeAccountAddress.toLowerCase()) {
-                toast({
-                    title: "Invalid mnemonic",
-                    description: "Please try again",
-                    variant: "destructive",
-                });
-                setIsLoading(false);
-                return;
-            }
-
-            let tokenInfo = tokenList.find(t => t.address === token?.address);
-
-            const selectedBlockChain = await StorageUtil.getBlockChain();
-            if (!tokenInfo) {
-                try {
-                    const { name, symbol, decimals } = await fetchTokenInfo(token?.address, ZOND_PROVIDER[selectedBlockChain].url);
-                    const balance = await fetchBalance(token?.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
-                    tokenInfo = { name, symbol, decimals: parseInt(decimals.toString()), address: token?.address, amount: balance.toString() };
-                } catch (error) {
-                    toast({
-                        title: "Error fetching token info",
-                        description: "Please try again",
-                        variant: "destructive",
-                    });
+        setPinError("");
+        
+        if (toAddress && amount && pin) {
+            try {
+                // Get the encrypted seed from storage
+                const selectedBlockChain = await StorageUtil.getBlockChain();
+                const encryptedSeed = await StorageUtil.getEncryptedSeed(selectedBlockChain, activeAccountAddress);
+                
+                if (!encryptedSeed) {
+                    setPinError("No stored seed found for this account. Please import your account again to set up a PIN.");
                     setIsLoading(false);
                     return;
                 }
-            }
-
-            if (tokenInfo) {
+                
+                // Decrypt the seed using the PIN
+                let mnemonic;
                 try {
-                    // Convert the human-readable amount to the raw amount with correct decimals
-                    const rawAmount = parseUnits(amount, tokenInfo.decimals).toString();
-                    
-                    const data = await sendTokenToStore(tokenInfo, rawAmount, mnemonic, toAddress);
-                    if (data) {
-                        setAmount("");
-                        setMnemonic("");
-                        setToAddress("");
-                        setSliderValue(0);
-                        
+                    const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pin);
+                    mnemonic = decryptedSeed.mnemonic;
+                } catch (error) {
+                    setPinError("Invalid PIN. Please try again.");
+                    setIsLoading(false);
+                    return;
+                }
+                
+                // Verify the mnemonic corresponds to the active account
+                const senderAddress = getAddressFromMnemonic(mnemonic);
+                if (senderAddress.toLowerCase() !== activeAccountAddress.toLowerCase()) {
+                    setPinError("PIN decrypted an invalid seed. Please import your account again.");
+                    setIsLoading(false);
+                    return;
+                }
+
+                let tokenInfo = tokenList.find(t => t.address === token?.address);
+
+                if (!tokenInfo) {
+                    try {
+                        const { name, symbol, decimals } = await fetchTokenInfo(token?.address, ZOND_PROVIDER[selectedBlockChain].url);
+                        const balance = await fetchBalance(token?.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
+                        tokenInfo = { name, symbol, decimals: parseInt(decimals.toString()), address: token?.address, amount: balance.toString() };
+                    } catch (error) {
                         toast({
-                            title: "Token sent successfully",
-                            description: "Please check your wallet",
-                        });
-                        
-                        // Close the modal AFTER setting state
-                        onClose();
-                        // Wait a short time to ensure modal is fully closed before refreshing balances
-                        setTimeout(() => {
-                            zondStore.refreshTokenBalances();
-                        }, 300);
-                    } else {
-                        toast({
-                            title: "Error sending token",
+                            title: "Error fetching token info",
                             description: "Please try again",
                             variant: "destructive",
                         });
+                        setIsLoading(false);
+                        return;
                     }
-                } catch (error) {
-                    console.error("Error parsing amount:", error);
-                    toast({
-                        title: "Invalid amount",
-                        description: "Please enter a valid number",
-                        variant: "destructive",
-                    });
                 }
+
+                if (tokenInfo) {
+                    try {
+                        // Convert the human-readable amount to the raw amount with correct decimals
+                        const rawAmount = parseUnits(amount, tokenInfo.decimals).toString();
+                        
+                        const data = await sendTokenToStore(tokenInfo, rawAmount, mnemonic, toAddress);
+                        if (data) {
+                            setAmount("");
+                            setPin("");
+                            setToAddress("");
+                            setSliderValue(0);
+                            setPinError("");
+                            
+                            toast({
+                                title: "Token sent successfully",
+                                description: "Please check your wallet",
+                            });
+                            
+                            // Close the modal AFTER setting state
+                            onClose();
+                            // Wait a short time to ensure modal is fully closed before refreshing balances
+                            setTimeout(() => {
+                                zondStore.refreshTokenBalances();
+                            }, 300);
+                        } else {
+                            toast({
+                                title: "Error sending token",
+                                description: "Please try again",
+                                variant: "destructive",
+                            });
+                        }
+                    } catch (error) {
+                        console.error("Error parsing amount:", error);
+                        toast({
+                            title: "Invalid amount",
+                            description: "Please enter a valid number",
+                            variant: "destructive",
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error("Error sending token:", error);
+                toast({
+                    title: "Error sending token",
+                    description: "Please try again",
+                    variant: "destructive",
+                });
             }
         } else {
             toast({
@@ -165,6 +197,8 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
             setAmount("");
             setMaxAmount("");
             setSliderValue(0);
+            setPin("");
+            setPinError("");
         }
     }, [isOpen, token?.address, activeAccountAddress]);
 
@@ -177,7 +211,8 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                         Send a token to another address
                     </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
+                <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
+                  <div className="grid gap-4 py-4">
                     <div className="flex flex-col">
                         <Label htmlFor="amount" className="mb-2">
                             To
@@ -258,16 +293,26 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                         </div>
                     </div>
                     <div className="flex flex-col">
-                        <Label htmlFor="mnemonic" className="mb-2">
-                            Mnemonic
+                        <Label htmlFor="pin" className="mb-2">
+                            Transaction PIN
                         </Label>
-                        <Input disabled={isLoading} value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} />
+                        <PinInput
+                            length={6}
+                            placeholder="Enter your PIN"
+                            value={pin}
+                            onChange={setPin}
+                            disabled={isLoading}
+                            description="Enter your PIN to authorize this transaction"
+                            error={pinError}
+                            autoFocus
+                        />
                     </div>
-                </div>
+                  </div>
+                </form>
                 <DialogFooter>
                     {isLoading ?
                         <Button type="button" disabled={true}><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending...</Button> :
-                        <Button type="button" disabled={toAddress.length === 0 || amount.length === 0 || mnemonic.length === 0} onClick={sendToken}>Send Token</Button>
+                        <Button type="button" disabled={toAddress.length === 0 || amount.length === 0 || pin.length === 0} onClick={sendToken}>Send Token</Button>
                     }
                 </DialogFooter>
             </DialogContent>
