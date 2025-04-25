@@ -21,7 +21,6 @@ import { ROUTES } from "@/router/router";
 import { useStore } from "@/stores/store";
 import StorageUtil from "@/utilities/storageUtil";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { TransactionReceipt } from "@theqrl/web3";
 import { utils } from "@theqrl/web3";
 import { Loader, Send, X, Check, Copy } from "lucide-react";
 import { observer } from "mobx-react-lite";
@@ -37,7 +36,6 @@ import { formatBalance } from "@/utilities/helper";
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil } from "@/utilities/walletEncryptionUtil";
-import StringUtil from "@/utilities/stringUtil";
 
 const FormSchema = z
   .object({
@@ -111,15 +109,6 @@ const AccountDetails = observer(() => {
       }
     };
   }, [timer, blockchain, accountAddress]);
-
-  const onCopy = () => {
-    setHasJustCopied(true);
-    navigator.clipboard.writeText(accountAddress);
-    const newTimer = setTimeout(() => {
-      setHasJustCopied(false);
-    }, 1000);
-    setTimer(newTimer);
-  };
 
   const onViewInExplorer = () => {
     if (accountAddress) {
