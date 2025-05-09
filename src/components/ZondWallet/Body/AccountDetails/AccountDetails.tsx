@@ -278,7 +278,7 @@ const AccountDetails = observer(() => {
               <Label htmlFor="pin-input">Enter 4 to 6-Digit PIN</Label>
               <FormControl>
                 {/* Ensure PinInput handles onChange correctly */}
-                <PinInput length={6} onChange={(value) => field.onChange(value)} value={field.value || ''} />
+                <PinInput length={6} onChange={(value) => field.onChange(value)} value={field.value || ''} autoFocus={false} />
               </FormControl>
               <FormDescription>
                 Enter the PIN used to encrypt your wallet seed during import.
