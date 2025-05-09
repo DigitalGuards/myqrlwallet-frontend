@@ -70,21 +70,21 @@ const TokenStatus = observer(() => {
 
                                 <div className="flex flex-col gap-2">
                                     <div>Token Address</div>
-                                    <div className="font-bold text-secondary">
+                                    <div className="font-bold text-secondary break-all">
                                         {StringUtil.getSplitAddress(address)}
                                     </div>
                                 </div>
 
-                                <div className="flex justify-start gap-10">
+                                <div className="flex flex-col sm:flex-row sm:justify-start gap-4 sm:gap-10">
                                     <div className="flex flex-col gap-2">
                                         <div>Token Name</div>
-                                        <div className="font-bold text-secondary">
+                                        <div className="font-bold text-secondary break-words">
                                             {name}
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <div>Token Symbol</div>
-                                        <div className="font-bold text-secondary">
+                                        <div className="font-bold text-secondary break-words">
                                             {symbol}
                                         </div>
                                     </div>
@@ -98,12 +98,12 @@ const TokenStatus = observer(() => {
 
                                 <div className="flex flex-col gap-2">
                                     <div>Block hash</div>
-                                    <div className="font-bold text-secondary">
-                                        {blockHash}
+                                    <div className="font-bold text-secondary break-all">
+                                        {StringUtil.getSplitAddress(blockHash.toString())}
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-8">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
                                     <div className="flex flex-col gap-2">
                                         <div>Block number</div>
                                         <a
