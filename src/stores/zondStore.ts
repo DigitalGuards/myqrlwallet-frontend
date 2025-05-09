@@ -1,7 +1,7 @@
-import { ZOND_PROVIDER } from "../configuration/zondConfig";
-import { getHexSeedFromMnemonic } from "../functions/getHexSeedFromMnemonic";
-import StorageUtil from "../utilities/storageUtil";
-import log from "../utilities/logUtil"; // Assuming there's a log utility
+import { ZOND_PROVIDER } from "@/configuration/zondConfig";
+import { getHexSeedFromMnemonic } from "@/functions/getHexSeedFromMnemonic";
+import StorageUtil from "@/utilities/storageUtil";
+import log from "@/utilities/logUtil"; // Assuming there's a log utility
 import Web3, {
   TransactionReceipt,
   Web3ZondInterface,
@@ -705,6 +705,89 @@ class ZondStore {
     });
   }
 
+  // --- NEW: Function to poll for transaction receipt ---
+  async pollForReceipt(txHash: string) {
+    if (!txHash || !this.zondInstance) return;
+
+    const maxAttempts = 60; // Poll for ~5 minutes (60 attempts * 5 seconds)
+    const pollInterval = 5000; // 5 seconds
+    let attempts = 0;
+
+    log(`Starting receipt polling for ${txHash}`);
+
+    const intervalId = setInterval(async () => {
+      // Stop polling if state is no longer pending or hash changed
+      if (this.transactionStatus.state !== 'pending' || this.transactionStatus.txHash !== txHash) {
+        log(`Stopping receipt polling for ${txHash} (state changed)`);
+        clearInterval(intervalId);
+        return;
+      }
+
+      attempts++;
+      log(`Polling for receipt ${txHash}, attempt ${attempts}`);
+
+      try {
+        const receipt = await this.zondInstance?.getTransactionReceipt(txHash);
+
+        if (receipt) {
+          log(`Receipt found for ${txHash}`);
+          clearInterval(intervalId); // Stop polling
+
+          runInAction(() => {
+            // Double-check state again before updating
+            if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
+               const txHashString = utils.bytesToHex(receipt.transactionHash);
+               this.transactionStatus = {
+                 state: 'confirmed',
+                 txHash: txHashString,
+                 receipt: receipt,
+                 error: null,
+                 pendingDetails: null, // Clear pending details
+               };
+               log(`Transaction confirmed via polling: ${txHashString}`);
+               this.fetchAccounts(); // Refresh account balance
+            } else {
+                log(`Receipt found for ${txHash}, but state changed before update.`);
+            }
+          });
+        } else if (attempts >= maxAttempts) {
+          // Max attempts reached, transaction likely failed or stuck
+          log(`Max polling attempts reached for ${txHash}. Marking as failed.`);
+          clearInterval(intervalId);
+          runInAction(() => {
+            if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
+                this.transactionStatus = {
+                  state: 'failed',
+                  txHash: txHash,
+                  receipt: null,
+                  error: 'Transaction confirmation timed out.',
+                  pendingDetails: null,
+                };
+            }
+          });
+        }
+        // If receipt is null and attempts < maxAttempts, continue polling
+      } catch (error: any) {
+        console.error(`Error polling for receipt ${txHash}:`, error);
+        log(`Error polling for receipt ${txHash}: ${error.message || error}`);
+        clearInterval(intervalId);
+        // Mark as failed on error
+        runInAction(() => {
+           if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
+                this.transactionStatus = {
+                 state: 'failed',
+                 txHash: txHash,
+                 receipt: null,
+                 error: `Error checking transaction status: ${error.message || error}`,
+                 pendingDetails: null,
+               };
+           }
+        });
+      }
+    }, pollInterval);
+  }
+  // --- END NEW Function ---
+
   // --- NEW: Send Transaction via Extension ---
   async sendTransactionViaExtension(to: string, valueEther: string /* Value in Ether */) {
     if (!this.extensionProvider) {
@@ -777,6 +860,7 @@ class ZondStore {
           this.transactionStatus = { ...this.transactionStatus, state: 'pending', txHash: txHash, error: null };
           // Start polling for receipt / pending details
           this.fetchPendingTxDetails(txHash);
+          this.pollForReceipt(txHash);
         });
       } else {
          log(`Extension returned invalid txHash: ${txHash}`);

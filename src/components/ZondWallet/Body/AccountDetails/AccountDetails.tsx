@@ -1,11 +1,11 @@
-import { Button } from "../../../UI/Button";
+import { Button } from "@/components/UI/Button";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "../../../UI/Card";
+} from "@/components/UI/Card";
 import {
   Form,
   FormControl,
