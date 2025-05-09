@@ -142,9 +142,9 @@ const AccountDetails = observer(() => {
       window.scrollTo(0, 0);
     } else {
       console.log("Submitting transaction via local signing...");
-      if (!formData.mnemonicPhrases || formData.mnemonicPhrases.length !== 6) {
+      if (!formData.mnemonicPhrases || formData.mnemonicPhrases.length < 4 || formData.mnemonicPhrases.length > 6) {
         control.setError("mnemonicPhrases", {
-          message: "6-digit PIN is required for local accounts.",
+          message: "PIN must be between 4 to 6 digits for local accounts.",
         });
         return;
       }
@@ -275,7 +275,7 @@ const AccountDetails = observer(() => {
           name="mnemonicPhrases"
           render={({ field }) => (
             <FormItem className="space-y-2">
-              <Label htmlFor="pin-input">Enter 6-Digit PIN</Label>
+              <Label htmlFor="pin-input">Enter 4 to 6-Digit PIN</Label>
               <FormControl>
                 {/* Ensure PinInput handles onChange correctly */}
                 <PinInput length={6} onChange={(value) => field.onChange(value)} value={field.value || ''} />
