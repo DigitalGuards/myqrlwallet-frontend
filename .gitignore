@@ -41,3 +41,4 @@ yarn-error.log*
 # Extension directory
 extension/
 webapp/package-lock.json
+/zond-web3-wallet
