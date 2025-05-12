@@ -1,4 +1,5 @@
 import { ZOND_WEB3_WALLET_PROVIDER_INFO } from "@/lib/constants"; // Import constant for identification
+import type { AccountSource } from "@/utilities/storageUtil";
 
 // EIP-6963 types (simplified)
 interface EIP6963ProviderInfo {
@@ -55,7 +56,7 @@ function findZondProvider(): Promise<EIP6963ProviderDetail | null> {
 
 // Modify the function signature to accept setActiveAccount and setExtensionProvider
 async function connectToExtension(
-  setActiveAccount: (address: string) => Promise<void>,
+  setActiveAccount: (address: string, source?: AccountSource) => Promise<void>,
   setExtensionProvider: (provider: any | null) => void // Add the new setter
 ): Promise<string[] | null> {
   // Attempt to find the provider via EIP-6963
@@ -81,7 +82,7 @@ async function connectToExtension(
       
       // Call the passed-in setActiveAccount function
       console.log(`Setting active account to: ${firstAccount}`);
-      await setActiveAccount(firstAccount);
+      await setActiveAccount(firstAccount, 'extension');
       
       // Set the extension provider in the store
       console.log("Setting extension provider in store.");
