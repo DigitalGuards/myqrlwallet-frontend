@@ -14,6 +14,7 @@ import { observer } from "mobx-react-lite";
 import { AccountId } from "../AccountId/AccountId";
 import { AccountBalance } from "../AccountBalance/AccountBalance";
 import { useState } from "react";
+import clsx from "clsx";
 
 export const OtherAccounts = observer(() => {
   const { zondStore } = useStore();
@@ -55,7 +56,7 @@ export const OtherAccounts = observer(() => {
     !!otherAccounts.length && (
       <>
         <Label className="text-foreground">{otherAccountsLabel}</Label>
-        {otherAccounts.map(({ accountAddress }) => (
+        {otherAccounts.map(({ accountAddress, source }) => (
           <Card
             key={accountAddress}
             id={accountAddress}
@@ -65,6 +66,16 @@ export const OtherAccounts = observer(() => {
               <AccountId className="flex md:hidden" oneLine={true} account={accountAddress} />
               <AccountId className="hidden md:flex" account={accountAddress} />
               <AccountBalance className="m-auto md:m-0" accountAddress={accountAddress} />
+              <span
+                className={clsx(
+                  "w-fit rounded px-2 py-0.5 text-[10px] font-semibold uppercase",
+                  source === 'extension'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-800/30 dark:text-blue-400'
+                    : 'bg-green-100 text-green-700 dark:bg-green-800/30 dark:text-green-400'
+                )}
+              >
+                {source === 'extension' ? 'Extension' : 'Local'}
+              </span>
             </div>
             <div className="flex gap-4 items-center">
               <span>
@@ -119,7 +130,7 @@ export const OtherAccounts = observer(() => {
                         className="hover:text-secondary"
                         variant="outline"
                         size="icon"
-                        onClick={() => setActiveAccount(accountAddress)}
+                        onClick={() => setActiveAccount(accountAddress, source)}
                       >
                         <ArrowRight size={18} />
                       </Button>

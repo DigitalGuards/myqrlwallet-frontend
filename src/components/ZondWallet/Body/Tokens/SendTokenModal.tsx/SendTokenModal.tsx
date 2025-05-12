@@ -28,6 +28,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
     const {
         activeAccount: { accountAddress: activeAccountAddress },
         tokenList,
+        activeAccountSource,
         sendToken: sendTokenToStore
     } = zondStore;
     const [amount, setAmount] = useState("");
@@ -42,7 +43,10 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
         setIsLoading(true);
         setPinError("");
         
-        if (toAddress && amount && pin) {
+        // When using extension accounts PIN should not be required
+        const isUsingExtension = activeAccountSource === 'extension';
+
+        if (toAddress && amount && (isUsingExtension || pin)) {
             try {
                 // Get the encrypted seed from storage
                 const selectedBlockChain = await StorageUtil.getBlockChain();
@@ -292,27 +296,29 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                             </div>
                         </div>
                     </div>
-                    <div className="flex flex-col">
-                        <Label htmlFor="pin" className="mb-2">
-                            Transaction PIN
-                        </Label>
-                        <PinInput
-                            length={6}
-                            placeholder="Enter your PIN"
-                            value={pin}
-                            onChange={setPin}
-                            disabled={isLoading}
-                            description="Enter your PIN to authorize this transaction"
-                            error={pinError}
-                            autoFocus
-                        />
-                    </div>
+                    {activeAccountSource === 'seed' && (
+                      <div className="flex flex-col">
+                          <Label htmlFor="pin" className="mb-2">
+                              Transaction PIN
+                          </Label>
+                          <PinInput
+                              length={6}
+                              placeholder="Enter your PIN"
+                              value={pin}
+                              onChange={setPin}
+                              disabled={isLoading}
+                              description="Enter your PIN to authorize this transaction"
+                              error={pinError}
+                              autoFocus
+                          />
+                      </div>
+                    )}
                   </div>
                 </form>
                 <DialogFooter>
                     {isLoading ?
                         <Button type="button" disabled={true}><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending...</Button> :
-                        <Button type="button" disabled={toAddress.length === 0 || amount.length === 0 || pin.length === 0} onClick={sendToken}>Send Token</Button>
+                        <Button type="button" disabled={toAddress.length === 0 || amount.length === 0 || (activeAccountSource === 'seed' && pin.length === 0)} onClick={sendToken}>Send Token</Button>
                     }
                 </DialogFooter>
             </DialogContent>
