@@ -69,7 +69,7 @@ const AccountDetails = observer(() => {
     getAccountBalance,
     signAndSendTransaction,
     sendTransactionViaExtension,
-    extensionProvider,
+    activeAccountSource,
     zondConnection,
     transactionStatus,
     resetTransactionStatus,
@@ -126,7 +126,7 @@ const AccountDetails = observer(() => {
     setTimer(newTimer);
   };
 
-  const isUsingExtension = !!extensionProvider;
+  const isUsingExtension = activeAccountSource === 'extension';
 
   async function onSubmit(formData: z.infer<typeof FormSchema>) {
     const valueEther = formData.amount.toString();

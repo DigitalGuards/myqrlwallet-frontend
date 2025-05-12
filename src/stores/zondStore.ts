@@ -1,6 +1,6 @@
 import { ZOND_PROVIDER } from "@/configuration/zondConfig";
 import { getHexSeedFromMnemonic } from "@/functions/getHexSeedFromMnemonic";
-import StorageUtil from "@/utilities/storageUtil";
+import StorageUtil, { AccountListItem, AccountSource } from "@/utilities/storageUtil";
 import log from "@/utilities/logUtil"; // Assuming there's a log utility
 import Web3, {
   TransactionReceipt,
@@ -23,6 +23,7 @@ type ActiveAccountType = {
 type ZondAccountType = {
   accountAddress: string;
   accountBalance: string;
+  source: AccountSource;
 };
 
 type ZondAccountsType = {
@@ -89,7 +90,8 @@ class ZondStore {
   transactionStatus: TransactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
   extensionProvider: ExtensionProvider | null = null; // NEW: Store the extension provider
 
-  // NEW: Computed property for active account balance
+  // NEW: Computed properties
+  // 1) active account balance
   get activeAccountBalance(): string {
     if (!this.activeAccount.accountAddress) {
       return "0";
@@ -98,6 +100,16 @@ class ZondStore {
       this.zondAccounts.accounts.find(
         (account) => account.accountAddress === this.activeAccount.accountAddress,
       )?.accountBalance ?? "0"
+    );
+  }
+
+  // 2) Source of the currently active account ('seed' by default if not found)
+  get activeAccountSource(): AccountSource {
+    const currentAddr = this.activeAccount.accountAddress.toLowerCase();
+    return (
+      this.zondAccounts.accounts.find(
+        (account) => account.accountAddress.toLowerCase() === currentAddr,
+      )?.source ?? 'seed'
     );
   }
 
@@ -114,6 +126,7 @@ class ZondStore {
       transactionStatus: observable.struct,
       extensionProvider: observable.ref, // Use ref for complex objects like providers
       activeAccountBalance: computed,
+      activeAccountSource: computed,
       setCustomRpcUrl: action.bound,
       addToken: action.bound,
       removeToken: action.bound,
@@ -240,7 +253,7 @@ class ZondStore {
     this.customRpcUrl = customRpcUrl;
   }
 
-  async setActiveAccount(newActiveAccount?: string) {
+  async setActiveAccount(newActiveAccount?: string, source: AccountSource = 'seed') {
     const currentBlockchain = this.zondConnection.blockchain;
     await StorageUtil.setActiveAccount(
       currentBlockchain,
@@ -254,17 +267,23 @@ class ZondStore {
         };
     });
 
-    let storedAccountList: string[] = [];
+    let storedAccountList: AccountListItem[] = [];
     try {
       const accountListFromStorage = await StorageUtil.getAccountList(
         currentBlockchain,
       );
       storedAccountList = [...accountListFromStorage];
-      if (newActiveAccount && !storedAccountList.includes(newActiveAccount)) {
-        // Only add if it's a new account not already in the list
-        storedAccountList.push(newActiveAccount);
+
+      if (newActiveAccount) {
+        const existingIndex = storedAccountList.findIndex(item => item.address.toLowerCase() === newActiveAccount.toLowerCase());
+        if (existingIndex >= 0) {
+          // Update source if needed
+          storedAccountList[existingIndex] = { address: newActiveAccount, source };
+        } else {
+          // Add new account
+          storedAccountList.push({ address: newActiveAccount, source });
+        }
       }
-      storedAccountList = [...new Set(storedAccountList)]; // Ensure uniqueness just in case
     } finally {
       await StorageUtil.setAccountList(
         currentBlockchain,
@@ -307,7 +326,7 @@ class ZondStore {
   async fetchAccounts() {
     this.zondAccounts = { ...this.zondAccounts, isLoading: true };
 
-    let storedAccountsList: string[] = [];
+    let storedAccountsList: AccountListItem[] = [];
     const accountListFromStorage = await StorageUtil.getAccountList(
       this.zondConnection.blockchain,
     );
@@ -315,13 +334,14 @@ class ZondStore {
     try {
       const accountsWithBalance: ZondAccountsType["accounts"] =
         await Promise.all(
-          storedAccountsList.map(async (account) => {
+          storedAccountsList.map(async ({ address, source }) => {
             const accountBalance =
-              (await this.zondInstance?.getBalance(account)) ?? BigInt(0);
+              (await this.zondInstance?.getBalance(address)) ?? BigInt(0);
             const convertedAccountBalance = utils.fromWei(accountBalance, "ether");
             return {
-              accountAddress: account,
+              accountAddress: address,
               accountBalance: convertedAccountBalance,
+              source,
             };
           }),
         );
@@ -335,9 +355,10 @@ class ZondStore {
       runInAction(() => {
         this.zondAccounts = {
           ...this.zondAccounts,
-          accounts: storedAccountsList.map((account) => ({
-            accountAddress: account,
+          accounts: storedAccountsList.map(({ address, source }) => ({
+            accountAddress: address,
             accountBalance: "0",
+            source,
           })),
         };
       });

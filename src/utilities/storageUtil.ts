@@ -41,6 +41,14 @@ interface EncryptedSeedData {
   lastAccessed: number;
 }
 
+// New type to track the source (seed vs extension) for an account stored in ACCOUNT_LIST
+export type AccountSource = 'seed' | 'extension';
+
+export interface AccountListItem {
+  address: string;
+  source: AccountSource;
+}
+
 /**
  * A utility for storing and retrieving states of different components using localStorage.
  * Data expires after 6 hours.
@@ -143,10 +151,10 @@ class StorageUtil {
     if (activeAccount) {
       this.setItem(blockChainAccountIdentifier, activeAccount);
 
-      // Ensure account is in the account list
+      // Ensure account is in the account list (default source assumed to be 'seed')
       const accountList = await this.getAccountList(blockchain);
-      if (!accountList.includes(activeAccount)) {
-        await this.setAccountList(blockchain, [...accountList, activeAccount]);
+      if (!accountList.some(item => item.address.toLowerCase() === activeAccount.toLowerCase())) {
+        await this.setAccountList(blockchain, [...accountList, { address: activeAccount, source: 'seed' }]);
       }
     } else {
       localStorage.removeItem(blockChainAccountIdentifier);
@@ -164,18 +172,41 @@ class StorageUtil {
   }
 
   /**
-   * A function for storing the accounts created and imported within the zond wallet.
-   * Call the getAccountList function to retrieve the stored value.
-   * Data expires after 6 hours.
+   * Stores a list of accounts along with their sources (seed or extension).
    */
-  static async setAccountList(blockchain: string, accountList: string[]) {
+  static async setAccountList(blockchain: string, accountList: AccountListItem[]) {
     const blockChainAccountListIdentifier = `${blockchain}_${ACCOUNT_LIST_IDENTIFIER}`;
     this.setItem(blockChainAccountListIdentifier, accountList);
   }
 
-  static async getAccountList(blockchain: string) {
+  /**
+   * Retrieves the stored account list.  Returns an empty array if nothing is stored.
+   * If the data was saved with the old format (an array of strings) it will be
+   * converted on-the-fly to the new format assuming the source is a local seed.
+   */
+  static async getAccountList(blockchain: string): Promise<AccountListItem[]> {
     const blockChainAccountListIdentifier = `${blockchain}_${ACCOUNT_LIST_IDENTIFIER}`;
-    return this.getItem<string[]>(blockChainAccountListIdentifier) ?? [];
+    const data = this.getItem<any>(blockChainAccountListIdentifier);
+
+    if (!data) {
+      return [];
+    }
+
+    // New format: already an array of objects with address + source
+    if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object') {
+      return data as AccountListItem[];
+    }
+
+    // Old format: array of address strings – convert to new structure (default source = 'seed')
+    if (Array.isArray(data) && (data.length === 0 || typeof data[0] === 'string')) {
+      const converted: AccountListItem[] = (data as string[]).map(addr => ({ address: addr, source: 'seed' }));
+      // Persist back in new format so we do the conversion only once
+      await this.setAccountList(blockchain, converted);
+      return converted;
+    }
+
+    // Fallback – unknown structure
+    return [];
   }
 
   /**
