@@ -20,7 +20,7 @@ const Terms = () => {
                     </p>
 
                     <p className="mb-6">
-                        These Terms of Service and any terms expressly incorporated herein ("Terms") apply to your access to and use of the Zond Wallet hosted account services (our "Services") provided by Zond Wallet ("Zond Wallet," "we," or "us").
+                        These Terms of Service and any terms expressly incorporated herein ("Terms") apply to your access to and use of the MyQRLWallet hosted account services (our "Services") provided by MyQRLWallet ("MyQRLWallet," "we," or "us").
                     </p>
 
                     <h2 className="text-2xl font-semibold mt-6 mb-3">1. Eligibility</h2>
@@ -32,7 +32,7 @@ const Terms = () => {
                     <h2 className="text-2xl font-semibold mt-6 mb-3">2. Account Registration</h2>
 
                     <p className="mb-4">
-                        You must create an account with Zond Wallet to access the Services ("Account"). When you create an Account, you agree to:
+                        You must create an account with MyQRLWallet to access the Services ("Account"). When you create an Account, you agree to:
                     </p>
 
                     <ul className="list-disc list-inside mb-6">
@@ -86,33 +86,33 @@ const Terms = () => {
                     <h3 className="text-xl font-semibold mt-4 mb-2">4.5. Relationship</h3>
 
                     <p className="mb-6">
-                        Zond Wallet is an independent contractor for all purposes, and is not your agent or trustee.
+                        MyQRLWallet is an independent contractor for all purposes, and is not your agent or trustee.
                     </p>
 
                     <h3 className="text-xl font-semibold mt-4 mb-2">4.6. Accuracy of Information</h3>
 
                     <p className="mb-6">
-                        You represent and warrant that any information you provide via the Services is accurate and complete. You acknowledge and agree that Zond Wallet is not responsible for any errors or omissions that you make in connection with any QRL tokens transaction initiated via the Services. For instance, if you mistype a account address or otherwise provide incorrect information in connection with any transaction request to send QRL tokens via the Service, the QRL tokens will be sent to whatever account address or information you provide. We strongly encourage you to review your transaction request details carefully before completing any transaction requests via the Services.
+                        You represent and warrant that any information you provide via the Services is accurate and complete. You acknowledge and agree that MyQRLWallet is not responsible for any errors or omissions that you make in connection with any QRL tokens transaction initiated via the Services. For instance, if you mistype a account address or otherwise provide incorrect information in connection with any transaction request to send QRL tokens via the Service, the QRL tokens will be sent to whatever account address or information you provide. We strongly encourage you to review your transaction request details carefully before completing any transaction requests via the Services.
                     </p>
 
                     <h3 className="text-xl font-semibold mt-4 mb-2">4.7. No Cancellations or Modifications</h3>
 
                     <p className="mb-6">
-                        Once a transaction request has been submitted to the QRL Verification Network via the Services, the Verification Network will automatically complete or reject the request and you will not be able to cancel or otherwise modify your transaction request. Zond Wallet has no control over the QRL Verification Network and does not have the ability to facilitate any cancellation or modification requests. As a result, all transaction requests initiated via the Services are irreversible.
+                        Once a transaction request has been submitted to the QRL Verification Network via the Services, the Verification Network will automatically complete or reject the request and you will not be able to cancel or otherwise modify your transaction request. MyQRLWallet has no control over the QRL Verification Network and does not have the ability to facilitate any cancellation or modification requests. As a result, all transaction requests initiated via the Services are irreversible.
                     </p>
 
                     <h3 className="text-xl font-semibold mt-4 mb-2">4.8. Taxes</h3>
 
                     <p className="mb-6">
-                        It is your responsibility to determine what, if any, taxes apply to the transactions you complete via the Services, and it is your responsibility to report and remit the correct tax to the appropriate tax authority. You agree that Zond Wallet is not responsible for determining whether taxes apply to your QRL tokens transactions or for collecting, reporting, withholding or remitting any taxes arising from any QRL tokens transactions.
+                        It is your responsibility to determine what, if any, taxes apply to the transactions you complete via the Services, and it is your responsibility to report and remit the correct tax to the appropriate tax authority. You agree that MyQRLWallet is not responsible for determining whether taxes apply to your QRL tokens transactions or for collecting, reporting, withholding or remitting any taxes arising from any QRL tokens transactions.
                     </p>
 
                     <h2 className="text-2xl font-semibold mt-6 mb-3">5. Fees</h2>
 
-                    <h3 className="text-xl font-semibold mt-4 mb-2">5.1. Zond Wallet Fees</h3>
+                    <h3 className="text-xl font-semibold mt-4 mb-2">5.1. MyQRLWallet Fees</h3>
 
                     <p className="mb-6">
-                        Access to the account is free, but Zond Wallet may charge fees for additional Services. Specifically, and at a minimum, Zond Wallet can and does charge a fee for every transaction that is sent. Any applicable fees will be displayed in each Service.
+                        Access to the account is free, but MyQRLWallet may charge fees for additional Services. Specifically, and at a minimum, MyQRLWallet can and does charge a fee for every transaction that is sent. Any applicable fees will be displayed in each Service.
                     </p>
 
                     <h3 className="text-xl font-semibold mt-4 mb-2">5.2. Miners Fees</h3>
@@ -122,7 +122,7 @@ const Terms = () => {
                     <p className="mb-4"><strong>Miners Fees Options.</strong> At this stage, our Services do not allow you to modify the Miners Fee. It is instead calculated based on the expected minimum fee for that transaction, which in turn is calculated on a per-kilobyte basis dependent on the physical data size of the transaction, which is not necessarily related to the amount of QRL tokens that is being transferred.</p>
 
                     <p className="mb-6">
-                        You acknowledge and agree that Zond Wallet does not receive any Miners Fees in connection with providing the Services, and is not responsible for the speed at which your transactions may be verified by miners.
+                        You acknowledge and agree that MyQRLWallet does not receive any Miners Fees in connection with providing the Services, and is not responsible for the speed at which your transactions may be verified by miners.
                     </p>
 
                     <h2 className="text-2xl font-semibold mt-6 mb-3">6. Discontinuance of Services</h2>
@@ -134,11 +134,11 @@ const Terms = () => {
                     <h2 className="text-2xl font-semibold mt-6 mb-3">7. Assumption of Risk</h2>
 
                     <p className="mb-4">
-                        You acknowledge and agree that there are risks associated with utilizing an Internet-based account service including, but not limited to, the risk of failure of hardware, software and Internet connections, the risk of malicious software introduction, and the risk that third parties may obtain unauthorized access to information stored within your Account, including, but not limited to your account address, Private Login Key, and/or private key pair. You acknowledge and agree that Zond Wallet will not be responsible for any communication failures, disruptions, errors, distortions or delays you may experience when using the Services, however caused.
+                        You acknowledge and agree that there are risks associated with utilizing an Internet-based account service including, but not limited to, the risk of failure of hardware, software and Internet connections, the risk of malicious software introduction, and the risk that third parties may obtain unauthorized access to information stored within your Account, including, but not limited to your account address, Private Login Key, and/or private key pair. You acknowledge and agree that MyQRLWallet will not be responsible for any communication failures, disruptions, errors, distortions or delays you may experience when using the Services, however caused.
                     </p>
 
                     <p className="mb-6">
-                        Zond Wallet takes no responsibility for and will not be liable for any losses, damages or claims arising from the use of our Services, including, but not limited to, any losses, damages or claims arising from (a) account data being "Bruteforced", (b) server failure or data loss, (c) forgotten Private Login Keys, (d) corrupted account files, (e) incorrectly constructed transactions or mistyped QRL tokens addresses; or (f) unauthorized access to mobile applications, (g) phishing, viruses, third-party attacks or any other unauthorized third-party activities.
+                        MyQRLWallet takes no responsibility for and will not be liable for any losses, damages or claims arising from the use of our Services, including, but not limited to, any losses, damages or claims arising from (a) account data being "Bruteforced", (b) server failure or data loss, (c) forgotten Private Login Keys, (d) corrupted account files, (e) incorrectly constructed transactions or mistyped QRL tokens addresses; or (f) unauthorized access to mobile applications, (g) phishing, viruses, third-party attacks or any other unauthorized third-party activities.
                     </p>
 
                     <h2 className="text-2xl font-semibold mt-6 mb-3">8. Third-Party Services and Content</h2>
@@ -168,23 +168,23 @@ const Terms = () => {
                     <h2 className="text-2xl font-semibold mt-6 mb-3">10. Feedback</h2>
 
                     <p className="mb-6">
-                        We will own exclusive rights, including all intellectual property rights, to any feedback, suggestions, ideas or other information or materials regarding Zond Wallet or our Services that you provide, whether by email, posting through our Services or otherwise ("Feedback"). Any Feedback you submit is non-confidential and will become the sole property of Zond Wallet. We will be entitled to the unrestricted use and dissemination of such Feedback for any purpose, commercial or otherwise, without acknowledgment or compensation to you. You waive any rights you may have to the Feedback (including any copyrights or moral rights). Do not send us Feedback if you expect to be paid or want to continue to own or claim rights in them; your idea might be great, but we may have already had the same or a similar idea and we do not want disputes. We also have the right to disclose your identity to any third party who is claiming that any content posted by you constitutes a violation of their intellectual property rights, or of their right to privacy. We have the right to remove any posting you make on our website if, in our opinion, your post does not comply with the content standards set out in this section. Further, you agree not to submit any Feedback that is defamatory, illegal, offensive or otherwise violates any right of any third party, or breaches any agreement between you and any third party.
+                        We will own exclusive rights, including all intellectual property rights, to any feedback, suggestions, ideas or other information or materials regarding MyQRLWallet or our Services that you provide, whether by email, posting through our Services or otherwise ("Feedback"). Any Feedback you submit is non-confidential and will become the sole property of MyQRLWallet. We will be entitled to the unrestricted use and dissemination of such Feedback for any purpose, commercial or otherwise, without acknowledgment or compensation to you. You waive any rights you may have to the Feedback (including any copyrights or moral rights). Do not send us Feedback if you expect to be paid or want to continue to own or claim rights in them; your idea might be great, but we may have already had the same or a similar idea and we do not want disputes. We also have the right to disclose your identity to any third party who is claiming that any content posted by you constitutes a violation of their intellectual property rights, or of their right to privacy. We have the right to remove any posting you make on our website if, in our opinion, your post does not comply with the content standards set out in this section. Further, you agree not to submit any Feedback that is defamatory, illegal, offensive or otherwise violates any right of any third party, or breaches any agreement between you and any third party.
                     </p>
 
                     <h2 className="text-2xl font-semibold mt-6 mb-3">11. Copyrights and Other Intellectual Property Rights</h2>
 
                     <p className="mb-6">
-                        Unless otherwise indicated by us, all copyright and other intellectual property rights in all content and other materials contained on our website or provided in connection with the Services, including, without limitation, the Zond Wallet logo and all designs, text, graphics, pictures, information, data, software, sound files, other files and the selection and arrangement thereof (collectively, "Zond Wallet Materials") are the proprietary property of Zond Wallet or our licensors or suppliers and are protected by copyright laws and other intellectual property rights laws.
+                        Unless otherwise indicated by us, all copyright and other intellectual property rights in all content and other materials contained on our website or provided in connection with the Services, including, without limitation, the MyQRLWallet logo and all designs, text, graphics, pictures, information, data, software, sound files, other files and the selection and arrangement thereof (collectively, "MyQRLWallet Materials") are the proprietary property of MyQRLWallet or our licensors or suppliers and are protected by copyright laws and other intellectual property rights laws.
                     </p>
 
                     <p className="mb-6">
-                        We hereby grant you a limited, nonexclusive and non-sublicensable license to access and use the Zond Wallet Materials for your personal or internal business use. Such license is subject to these Terms and does not permit (a) any resale of the Zond Wallet Materials; (b) the distribution, public performance or public display of any Zond Wallet Materials; (c) modifying or otherwise making any derivative uses of the Zond Wallet Materials, or any portion thereof; or (d) any use of the Zond Wallet Materials other than for their intended purposes. The license granted under this Section will automatically terminate if we suspend or terminate your access to the Services.
+                        We hereby grant you a limited, nonexclusive and non-sublicensable license to access and use the MyQRLWallet Materials for your personal or internal business use. Such license is subject to these Terms and does not permit (a) any resale of the MyQRLWallet Materials; (b) the distribution, public performance or public display of any MyQRLWallet Materials; (c) modifying or otherwise making any derivative uses of the MyQRLWallet Materials, or any portion thereof; or (d) any use of the MyQRLWallet Materials other than for their intended purposes. The license granted under this Section will automatically terminate if we suspend or terminate your access to the Services.
                     </p>
 
                     <h2 className="text-2xl font-semibold mt-6 mb-3">12. Suspension; Termination</h2>
 
                     <p className="mb-6">
-                        In the event of any Force Majeure Event (as defined in Section 17.5), breach of these Terms, or any other event that would make provision of the Services commercially unreasonable for Zond Wallet, we may, in our discretion and without liability to you, with or without prior notice, suspend your access to all or a portion of our Services. We may terminate your access to the Services in our sole discretion, immediately and without prior notice, and delete or deactivate your Account and all related information and files in such account without liability to you, including, for instance, in the event that you breach any term of these Terms. In the event of termination, Zond Wallet will attempt to return any Funds stored in your Account not otherwise owed to Zond Wallet, unless Zond Wallet believes you have committed fraud, negligence or other misconduct. In the event of termination, your access to funds will depend on your access to your account backup.
+                        In the event of any Force Majeure Event (as defined in Section 17.5), breach of these Terms, or any other event that would make provision of the Services commercially unreasonable for MyQRLWallet, we may, in our discretion and without liability to you, with or without prior notice, suspend your access to all or a portion of our Services. We may terminate your access to the Services in our sole discretion, immediately and without prior notice, and delete or deactivate your Account and all related information and files in such account without liability to you, including, for instance, in the event that you breach any term of these Terms. In the event of termination, MyQRLWallet will attempt to return any Funds stored in your Account not otherwise owed to MyQRLWallet, unless MyQRLWallet believes you have committed fraud, negligence or other misconduct. In the event of termination, your access to funds will depend on your access to your account backup.
                     </p>
 
                     <h2 className="text-2xl font-semibold mt-6 mb-3">13. Disclaimer of Warranties</h2>
@@ -204,7 +204,7 @@ const Terms = () => {
                     <h2 className="text-2xl font-semibold mt-6 mb-3">14. Limitation of Liability</h2>
 
                     <p className="mb-4">
-                        EXCEPT AS OTHERWISE REQUIRED BY LAW, IN NO EVENT SHALL ZOND WALLET, OUR DIRECTORS, MEMBERS, EMPLOYEES OR AGENTS BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY OTHER DAMAGES OF ANY KIND, INCLUDING BUT NOT LIMITED TO LOSS OF USE, LOSS OF PROFITS OR LOSS OF DATA, WHETHER IN AN ACTION IN CONTRACT, TORT (INCLUDING BUT NOT LIMITED TO NEGLIGENCE) OR OTHERWISE, ARISING OUT OF OR IN ANY WAY CONNECTED WITH THE USE OF OR INABILITY TO USE OUR SERVICES OR THE ZOND WALLET MATERIALS, INCLUDING WITHOUT LIMITATION ANY DAMAGES CAUSED BY OR RESULTING FROM RELIANCE BY ANY USER ON ANY INFORMATION OBTAINED FROM ZOND WALLET, OR THAT RESULT FROM MISTAKES, OMISSIONS, INTERRUPTIONS, DELETION OF FILES OR EMAIL, ERRORS, DEFECTS, VIRUSES, DELAYS IN OPERATION OR TRANSMISSION OR ANY FAILURE OF PERFORMANCE, WHETHER OR NOT RESULTING FROM A FORCE MAJEURE EVENT, COMMUNICATIONS FAILURE, THEFT, DESTRUCTION OR UNAUTHORIZED ACCESS TO ZOND WALLET'S RECORDS, PROGRAMS OR SERVICES.
+                        EXCEPT AS OTHERWISE REQUIRED BY LAW, IN NO EVENT SHALL MYQRLWALLET, OUR DIRECTORS, MEMBERS, EMPLOYEES OR AGENTS BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY OTHER DAMAGES OF ANY KIND, INCLUDING BUT NOT LIMITED TO LOSS OF USE, LOSS OF PROFITS OR LOSS OF DATA, WHETHER IN AN ACTION IN CONTRACT, TORT (INCLUDING BUT NOT LIMITED TO NEGLIGENCE) OR OTHERWISE, ARISING OUT OF OR IN ANY WAY CONNECTED WITH THE USE OF OR INABILITY TO USE OUR SERVICES OR THE MYQRLWALLET MATERIALS, INCLUDING WITHOUT LIMITATION ANY DAMAGES CAUSED BY OR RESULTING FROM RELIANCE BY ANY USER ON ANY INFORMATION OBTAINED FROM MYQRLWALLET, OR THAT RESULT FROM MISTAKES, OMISSIONS, INTERRUPTIONS, DELETION OF FILES OR EMAIL, ERRORS, DEFECTS, VIRUSES, DELAYS IN OPERATION OR TRANSMISSION OR ANY FAILURE OF PERFORMANCE, WHETHER OR NOT RESULTING FROM A FORCE MAJEURE EVENT, COMMUNICATIONS FAILURE, THEFT, DESTRUCTION OR UNAUTHORIZED ACCESS TO MYQRLWALLET'S RECORDS, PROGRAMS OR SERVICES.
                     </p>
 
                     <p className="mb-6">
@@ -212,13 +212,13 @@ const Terms = () => {
                     </p>
 
                     <p className="mb-6">
-                        TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE AGGREGATE LIABILITY OF ZOND WALLET (INCLUDING OUR DIRECTORS, MEMBERS, EMPLOYEES AND AGENTS), WHETHER IN CONTRACT, WARRANTY, TORT (INCLUDING NEGLIGENCE, WHETHER ACTIVE, PASSIVE OR IMPUTED), PRODUCT LIABILITY, STRICT LIABILITY OR OTHER THEORY, ARISING OUT OF OR RELATING TO THE USE OF, OR INABILITY TO USE, ZOND WALLET OR TO THESE TERMS EXCEED ONE HUNDRED QRL TOKENS ($100).
+                        TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE AGGREGATE LIABILITY OF MYQRLWALLET (INCLUDING OUR DIRECTORS, MEMBERS, EMPLOYEES AND AGENTS), WHETHER IN CONTRACT, WARRANTY, TORT (INCLUDING NEGLIGENCE, WHETHER ACTIVE, PASSIVE OR IMPUTED), PRODUCT LIABILITY, STRICT LIABILITY OR OTHER THEORY, ARISING OUT OF OR RELATING TO THE USE OF, OR INABILITY TO USE, MYQRLWALLET OR TO THESE TERMS EXCEED ONE HUNDRED QRL TOKENS ($100).
                     </p>
 
                     <h2 className="text-2xl font-semibold mt-6 mb-3">15. Indemnity</h2>
 
                     <p className="mb-6">
-                        You agree to defend, indemnify and hold harmless Zond Wallet (and each of our officers, directors, members, employees, agents and affiliates) from any claim, demand, action, damage, loss, cost or expense, including without limitation reasonable attorneys' fees, arising out or relating to (a) your use of, or conduct in connection with, our Services; (b) any Feedback you provide; (c) your violation of these Terms; or (d) your violation of any rights of any other person or entity. If you are obligated to indemnify us, we will have the right, in our sole discretion, to control any action or proceeding (at our expense) and determine whether we wish to settle it.
+                        You agree to defend, indemnify and hold harmless MyQRLWallet (and each of our officers, directors, members, employees, agents and affiliates) from any claim, demand, action, damage, loss, cost or expense, including without limitation reasonable attorneys' fees, arising out or relating to (a) your use of, or conduct in connection with, our Services; (b) any Feedback you provide; (c) your violation of these Terms; or (d) your violation of any rights of any other person or entity. If you are obligated to indemnify us, we will have the right, in our sole discretion, to control any action or proceeding (at our expense) and determine whether we wish to settle it.
                     </p>
 
                     <h2 className="text-2xl font-semibold mt-6 mb-3">16. Applicable Law; Arbitration</h2>
@@ -228,11 +228,11 @@ const Terms = () => {
                     </p>
 
                     <p className="mb-4">
-                        You and Zond Wallet agree to arbitrate any dispute arising from these Terms or your use of the Services, except for disputes in which either party seeks equitable and other relief for the alleged unlawful use of copyrights, trademarks, trade names, logos, trade secrets or patents. ARBITRATION PREVENTS YOU FROM SUING IN COURT OR FROM HAVING A JURY TRIAL. You and Zond Wallet agree to notify each other in writing of any dispute within thirty (30) days of when it arises. Notice to Zond Wallet must be sent to <a target="_blank" href="https://github.com/DigitalGuards/" className="text-blue-600 underline">open an issue in our GitHub repository</a>.
+                        You and MyQRLWallet agree to arbitrate any dispute arising from these Terms or your use of the Services, except for disputes in which either party seeks equitable and other relief for the alleged unlawful use of copyrights, trademarks, trade names, logos, trade secrets or patents. ARBITRATION PREVENTS YOU FROM SUING IN COURT OR FROM HAVING A JURY TRIAL. You and MyQRLWallet agree to notify each other in writing of any dispute within thirty (30) days of when it arises. Notice to MyQRLWallet must be sent to <a target="_blank" href="https://github.com/DigitalGuards/" className="text-blue-600 underline">open an issue in our GitHub repository</a>.
                     </p>
 
                     <p className="mb-4">
-                        You and Zond Wallet further agree:
+                        You and MyQRLWallet further agree:
                     </p>
 
                     <ul className="list-disc list-inside mb-6">
@@ -243,7 +243,7 @@ const Terms = () => {
                     </ul>
 
                     <p className="mb-6">
-                        Other than class procedures and remedies discussed below, the arbitrator has the authority to grant any remedy that would otherwise be available in court. Any dispute between the parties will be governed by these Terms and the laws of South Africa, without giving effect to any conflict of laws principles that may provide for the application of the law of another jurisdiction. WHETHER THE DISPUTE IS HEARD IN ARBITRATION OR IN COURT, YOU AND ZOND WALLET WILL NOT COMMENCE AGAINST THE OTHER A CLASS ACTION, CLASS ARBITRATION OR REPRESENTATIVE ACTION OR PROCEEDING.
+                        Other than class procedures and remedies discussed below, the arbitrator has the authority to grant any remedy that would otherwise be available in court. Any dispute between the parties will be governed by these Terms and the laws of South Africa, without giving effect to any conflict of laws principles that may provide for the application of the law of another jurisdiction. WHETHER THE DISPUTE IS HEARD IN ARBITRATION OR IN COURT, YOU AND MYQRLWALLET WILL NOT COMMENCE AGAINST THE OTHER A CLASS ACTION, CLASS ARBITRATION OR REPRESENTATIVE ACTION OR PROCEEDING.
                     </p>
 
                     <h2 className="text-2xl font-semibold mt-6 mb-3">17. Miscellaneous</h2>
@@ -251,7 +251,7 @@ const Terms = () => {
                     <h3 className="text-xl font-semibold mt-4 mb-2">17.1. Entire Agreement; Order of Precedence</h3>
 
                     <p className="mb-6">
-                        These Terms contain the entire agreement, and supersede all prior and contemporaneous understandings between the parties regarding the Services. These Terms do not alter the terms or conditions of any other electronic or written agreement you may have with Zond Wallet for the Services or for any other Zond Wallet product or service or otherwise. In the event of any conflict between these Terms and any other agreement you may have with Zond Wallet, the terms of that other agreement will control only if these Terms are specifically identified and declared to be overridden by such other agreement.
+                        These Terms contain the entire agreement, and supersede all prior and contemporaneous understandings between the parties regarding the Services. These Terms do not alter the terms or conditions of any other electronic or written agreement you may have with MyQRLWallet for the Services or for any other MyQRLWallet product or service or otherwise. In the event of any conflict between these Terms and any other agreement you may have with MyQRLWallet, the terms of that other agreement will control only if these Terms are specifically identified and declared to be overridden by such other agreement.
                     </p>
 
                     <h3 className="text-xl font-semibold mt-4 mb-2">17.2. Amendment</h3>
@@ -275,13 +275,13 @@ const Terms = () => {
                     <h3 className="text-xl font-semibold mt-4 mb-2">17.5. Force Majeure Events</h3>
 
                     <p className="mb-6">
-                        Zond Wallet will not be liable for any loss or damage arising from any event beyond Zond Wallet's reasonable control, including, but not limited to, flood, extraordinary weather conditions, earthquake, or other act of God, fire, war, insurrection, riot, labor dispute, accident, action of government, communications, power failure, or equipment or software malfunction (each, a "Force Majeure Event").
+                        MyQRLWallet will not be liable for any loss or damage arising from any event beyond MyQRLWallet's reasonable control, including, but not limited to, flood, extraordinary weather conditions, earthquake, or other act of God, fire, war, insurrection, riot, labor dispute, accident, action of government, communications, power failure, or equipment or software malfunction (each, a "Force Majeure Event").
                     </p>
 
                     <h3 className="text-xl font-semibold mt-4 mb-2">17.6. Assignment</h3>
 
                     <p className="mb-6">
-                        You may not assign or transfer any of your rights or obligations under these Terms without prior written consent from Zond Wallet, including by operation of law or in connection with any change of control. Zond Wallet may assign or transfer any or all of its rights under these Terms, in whole or in part, without obtaining your consent or approval.
+                        You may not assign or transfer any of your rights or obligations under these Terms without prior written consent from MyQRLWallet, including by operation of law or in connection with any change of control. MyQRLWallet may assign or transfer any or all of its rights under these Terms, in whole or in part, without obtaining your consent or approval.
                     </p>
 
                     <h3 className="text-xl font-semibold mt-4 mb-2">17.7. Headings</h3>

@@ -1,12 +1,12 @@
-import { Button } from "../../../../UI/Button";
+import { Button } from "@/components/UI/Button";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "../../../../UI/Card";
-import StringUtil from "../../../../../utilities/stringUtil";
+} from "@/components/UI/Card";
+import StringUtil from "@/utilities/stringUtil";
 import { TransactionReceipt, utils } from "@theqrl/web3";
 import { Check, ExternalLink } from "lucide-react";
 

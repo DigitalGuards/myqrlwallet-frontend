@@ -1,11 +1,11 @@
-import { Button } from "../../../UI/Button";
+import { Button } from "@/components/UI/Button";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "../../../UI/Card";
+} from "@/components/UI/Card";
 import {
   Form,
   FormControl,
@@ -41,7 +41,7 @@ const FormSchema = z
   .object({
     receiverAddress: z.string().min(1, "Receiver address is required"),
     amount: z.coerce.number().gt(0, "Amount should be more than 0"),
-    mnemonicPhrases: z.string().min(1, "Mnemonic phrases are required"),
+    mnemonicPhrases: z.string().optional(),
   })
   .superRefine((fields, ctx) => {
     // Skip empty addresses - they'll be caught by the required validator
@@ -68,6 +68,8 @@ const AccountDetails = observer(() => {
     activeAccount,
     getAccountBalance,
     signAndSendTransaction,
+    sendTransactionViaExtension,
+    extensionProvider,
     zondConnection,
     transactionStatus,
     resetTransactionStatus,
@@ -124,49 +126,66 @@ const AccountDetails = observer(() => {
     setTimer(newTimer);
   };
 
+  const isUsingExtension = !!extensionProvider;
+
   async function onSubmit(formData: z.infer<typeof FormSchema>) {
-    try {
-      // Get the encrypted seed from storage
-      const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchain, accountAddress);
-      
-      if (!encryptedSeed) {
-        // If no encrypted seed is found, show a message to set up a PIN
-        control.setError("mnemonicPhrases", {
-          message: "No stored seed found for this account. Please import your account again to set up a PIN.",
-        });
-        return;
-      }
-      
-      let mnemonicPhrases;
-      
-      try {
-        // Decrypt the seed using the PIN
-        const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.mnemonicPhrases);
-        mnemonicPhrases = decryptedSeed.mnemonic;
-      } catch (error) {
-        control.setError("mnemonicPhrases", {
-          message: "Invalid PIN. Please try again.",
-        });
-        return;
-      }
+    const valueEther = formData.amount.toString();
 
-      await signAndSendTransaction(
-        accountAddress,
+    if (isUsingExtension) {
+      console.log("Submitting transaction via extension...");
+      await sendTransactionViaExtension(
         formData.receiverAddress,
-        formData.amount,
-        mnemonicPhrases
+        valueEther
       );
-
-      // Reset form after initiating the transaction
-      // The UI will switch based on transactionStatus
       StorageUtil.clearTransactionValues(blockchain);
       resetForm();
       window.scrollTo(0, 0);
+    } else {
+      console.log("Submitting transaction via local signing...");
+      if (!formData.mnemonicPhrases || formData.mnemonicPhrases.length < 4 || formData.mnemonicPhrases.length > 6) {
+        control.setError("mnemonicPhrases", {
+          message: "PIN must be between 4 to 6 digits for local accounts.",
+        });
+        return;
+      }
+      
+      try {
+        const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchain, accountAddress);
+        
+        if (!encryptedSeed) {
+          control.setError("mnemonicPhrases", {
+            message: "No stored seed found for this account. Please import your account again to set up a PIN.",
+          });
+          return;
+        }
+        
+        let mnemonicPhrases;
+        try {
+          const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.mnemonicPhrases);
+          mnemonicPhrases = decryptedSeed.mnemonic;
+        } catch (error) {
+          control.setError("mnemonicPhrases", {
+            message: "Invalid PIN. Please try again.",
+          });
+          return;
+        }
 
-    } catch (error) {
-      control.setError("mnemonicPhrases", {
-        message: `An error occurred. ${error}`,
-      });
+        await signAndSendTransaction(
+          accountAddress,
+          formData.receiverAddress,
+          formData.amount,
+          mnemonicPhrases
+        );
+
+        StorageUtil.clearTransactionValues(blockchain);
+        resetForm();
+        window.scrollTo(0, 0);
+
+      } catch (error) {
+        control.setError("mnemonicPhrases", {
+          message: `An error occurred during local signing. ${error}`,
+        });
+      }
     }
   }
 
@@ -245,6 +264,33 @@ const AccountDetails = observer(() => {
       amount: formValues.amount,
     });
   }, [formValues.receiverAddress, formValues.amount]);
+
+  // --- PLACE renderPinInput FUNCTION HERE ---
+  const renderPinInput = () => {
+    // Only render the PIN input if NOT using the extension
+    if (!isUsingExtension) {
+      return (
+        <FormField
+          control={control}
+          name="mnemonicPhrases"
+          render={({ field }) => (
+            <FormItem className="space-y-2">
+              <Label htmlFor="pin-input">Enter 4 to 6-Digit PIN</Label>
+              <FormControl>
+                {/* Ensure PinInput handles onChange correctly */}
+                <PinInput length={6} onChange={(value) => field.onChange(value)} value={field.value || ''} autoFocus={false} />
+              </FormControl>
+              <FormDescription>
+                Enter the PIN used to encrypt your wallet seed during import.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      );
+    }
+    return null; // Don't render PIN input if using extension
+  };
 
   // ---- Conditional Rendering based on transactionStatus ----
 
@@ -530,28 +576,7 @@ const AccountDetails = observer(() => {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={control}
-                    name="mnemonicPhrases"
-                    render={({ field }) => (
-                      <FormItem>
-                        <Label>Transaction PIN</Label>
-                        <FormControl>
-                          <PinInput
-                            length={6}
-                            placeholder="Enter your PIN"
-                            value={field.value}
-                            onChange={field.onChange}
-                            disabled={isSubmitting}
-                            description="Enter your PIN to authorize this transaction"
-                            error={form.formState.errors.mnemonicPhrases?.message}
-                            autoFocus
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {renderPinInput()}
                   <GasFeeNotice
                     from={accountAddress}
                     to={formValues.receiverAddress}

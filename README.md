@@ -37,11 +37,26 @@ npm install
 ```
 
 3. Start the development server:
-```bash
-npm run dev
-```
 
-4. Visit http://localhost:5173 in your browser
+   You have a few options to start the development server:
+
+   - **Localhost only:**
+     ```bash
+     npm run dev
+     ```
+
+   - **All network interfaces (for LAN access):**
+     ```bash
+     npm run dev:lan
+     ```
+
+   - **Bind to a specific IP address:**
+     ```bash
+     npm run dev:custom --host=YOUR_IP_ADDRESS_HERE
+     ```
+     (Replace `YOUR_IP_ADDRESS_HERE` with the desired IP)
+
+4. Open your browser and navigate to the address shown in the terminal (usually `http://localhost:5173` or a LAN address if using `dev:lan` or `dev:custom`).
 
 ## Technology Stack
 
