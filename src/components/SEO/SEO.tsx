@@ -10,14 +10,15 @@ interface SEOProps {
 }
 
 export const SEO = ({
-  title = "QRL Zond Web3 Wallet",
-  description = "A community-driven web wallet for QRL's Zond blockchain. Create accounts, manage transactions, and interact with the quantum-resistant ledger ecosystem.",
-  keywords = "QRL, Quantum Resistant Ledger, Zond, Web3, Cryptocurrency Wallet, Blockchain, Quantum Computing, Community Wallet",
+  title = "MyQRLWallet - QRL Web Wallet",
+  description = "Web wallet for the QRL Zond blockchain. Create accounts and manage transactions on the quantum resistant ledger.",
+  keywords = "QRL, Quantum Resistant Ledger, Zond, Web3, Cryptocurrency Wallet, Blockchain",
   type = "website",
-  name = "DigitalGuards QRL Zond Wallet Project",
+  name = "DigitalGuards",
   url = "https://qrlwallet.com",
 }: SEOProps) => {
-  const siteTitle = title === "QRL Zond Web3 Wallet" ? title : `${title} | QRL Zond Web3 Wallet`;
+  const siteName = "MyQRLWallet - QRL Web Wallet";
+  const siteTitle = title === siteName ? siteName : `${title} | ${siteName}`;
 
   return (
     <Helmet>

@@ -2,8 +2,22 @@ import { ActiveAccount } from "./ActiveAccount/ActiveAccount";
 import { NewAccount } from "./NewAccount/NewAccount";
 import { OtherAccounts } from "./OtherAccounts/OtherAccounts";
 import { SEO } from "../../../SEO/SEO";
+import { useStore } from "@/stores/store";
+import { observer } from "mobx-react-lite";
+import { lazy } from "react";
+import withSuspense from "../../../../functions/withSuspense";
 
-const AccountList = () => {
+const AccountCreateImport = withSuspense(
+  lazy(() => import("../Home/AccountCreateImport/AccountCreateImport"))
+);
+
+const AccountList = observer(() => {
+  const { zondStore } = useStore();
+  const { activeAccount } = zondStore;
+
+  // Check if there is an active account
+  const noActiveAccount = !activeAccount.accountAddress;
+
   return (
     <>
       <SEO
@@ -21,14 +35,20 @@ const AccountList = () => {
         >
           <source src="/tree.mp4" type="video/mp4" />
         </video> }
-        <NewAccount />
-        <div className="flex flex-col gap-4">
-          <ActiveAccount />
-          <OtherAccounts />
-        </div>
+        {noActiveAccount ? (
+          <AccountCreateImport />
+        ) : (
+          <>
+            <NewAccount />
+            <div className="flex flex-col gap-4">
+              <ActiveAccount />
+              <OtherAccounts />
+            </div>
+          </>
+        )}
       </div>
     </>
   );
-};
+});
 
 export default AccountList;
