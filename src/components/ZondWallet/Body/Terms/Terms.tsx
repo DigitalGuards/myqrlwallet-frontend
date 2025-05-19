@@ -5,7 +5,7 @@ const Terms = () => {
         <div className="min-h-screen">
             <SEO
                 title="Terms of Service"
-                description="Terms of service for the QRL Zond Web3 Wallet"
+                description="Terms of service for the MyQRLWallet - QRL Web Wallet"
             />
             <main className="container mx-auto px-4 py-8">
                 <div >
