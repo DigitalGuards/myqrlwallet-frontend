@@ -28,6 +28,7 @@ import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
 import { toast } from "@/hooks/use-toast";
 import StorageUtil from "../../../../utilities/storageUtil";
 import { Save } from "lucide-react";
+import { SEO } from "@/components/SEO/SEO";
 
 const SettingsFormSchema = z.object({
     autoLockTimeout: z.number().min(1).max(60),
@@ -79,136 +80,139 @@ const Settings = observer(() => {
     }
 
     return (
-        <div className="flex w-full items-start justify-center py-8">
-            <div className="relative w-full max-w-2xl px-4">
-                { /* <video
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    className={"fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden"}
-                >
-                    <source src="/tree.mp4" type="video/mp4" />
-                </video> */ }
-                <div className="relative z-10 space-y-8">
-                    <NetworkSettings />
+        <>
+            <SEO title="Settings" />
+            <div className="flex w-full items-start justify-center py-8">
+                <div className="relative w-full max-w-2xl px-4">
+                    { /* <video
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        className={"fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden"}
+                    >
+                        <source src="/tree.mp4" type="video/mp4" />
+                    </video> */ }
+                    <div className="relative z-10 space-y-8">
+                        <NetworkSettings />
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Wallet Preferences</CardTitle>
-                            <CardDescription>
-                                Customize your wallet experience and security settings
-                            </CardDescription>
-                        </CardHeader>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Wallet Preferences</CardTitle>
+                                <CardDescription>
+                                    Customize your wallet experience and security settings
+                                </CardDescription>
+                            </CardHeader>
 
-                        <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)}>
-                                <CardContent className="space-y-6">
-                                    <FormField
-                                        control={form.control}
-                                        name="autoLockTimeout"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Auto-lock Timer (minutes)</FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        type="number"
-                                                        min={1}
-                                                        max={60}
-                                                        {...field}
-                                                        onChange={(e) => field.onChange(Number(e.target.value))}
-                                                    />
-                                                </FormControl>
-                                                <FormDescription>
-                                                    Automatically lock your wallet after specified minutes of inactivity
-                                                </FormDescription>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-
-                                    <Separator />
-
-                                    <FormField
-                                        control={form.control}
-                                        name="showTestNetworks"
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                                <div className="space-y-0.5">
-                                                    <FormLabel>Show Test Networks</FormLabel>
+                            <Form {...form}>
+                                <form onSubmit={form.handleSubmit(onSubmit)}>
+                                    <CardContent className="space-y-6">
+                                        <FormField
+                                            control={form.control}
+                                            name="autoLockTimeout"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Auto-lock Timer (minutes)</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            min={1}
+                                                            max={60}
+                                                            {...field}
+                                                            onChange={(e) => field.onChange(Number(e.target.value))}
+                                                        />
+                                                    </FormControl>
                                                     <FormDescription>
-                                                        Display test networks in the network selection
+                                                        Automatically lock your wallet after specified minutes of inactivity
                                                     </FormDescription>
-                                                </div>
-                                                <FormControl>
-                                                    <Switch
-                                                        checked={field.value}
-                                                        onCheckedChange={field.onChange}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
 
-                                    <FormField
-                                        control={form.control}
-                                        name="hideSmallBalances"
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                                <div className="space-y-0.5">
-                                                    <FormLabel>Hide Small Balances</FormLabel>
-                                                    <FormDescription>
-                                                        Hide tokens with very small balances
-                                                    </FormDescription>
-                                                </div>
-                                                <FormControl>
-                                                    <Switch
-                                                        checked={field.value}
-                                                        onCheckedChange={field.onChange}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
+                                        <Separator />
 
-                                    <FormField
-                                        control={form.control}
-                                        name="hideUnknownTokens"
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                                <div className="space-y-0.5">
-                                                    <FormLabel>Hide Unknown Tokens</FormLabel>
-                                                    <FormDescription>
-                                                        Hide tokens that haven't been verified or added manually
-                                                    </FormDescription>
-                                                </div>
-                                                <FormControl>
-                                                    <Switch
-                                                        checked={field.value}
-                                                        onCheckedChange={field.onChange}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </CardContent>
+                                        <FormField
+                                            control={form.control}
+                                            name="showTestNetworks"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                                    <div className="space-y-0.5">
+                                                        <FormLabel>Show Test Networks</FormLabel>
+                                                        <FormDescription>
+                                                            Display test networks in the network selection
+                                                        </FormDescription>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={field.value}
+                                                            onCheckedChange={field.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
 
-                                <CardFooter>
-                                    <Button
-                                        type="submit"
-                                        className="w-full"
-                                        disabled={isSubmitting}
-                                    >
-                                        <Save className="mr-2 h-4 w-4" />
-                                        Save Settings
-                                    </Button>
-                                </CardFooter>
-                            </form>
-                        </Form>
-                    </Card>
+                                        <FormField
+                                            control={form.control}
+                                            name="hideSmallBalances"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                                    <div className="space-y-0.5">
+                                                        <FormLabel>Hide Small Balances</FormLabel>
+                                                        <FormDescription>
+                                                            Hide tokens with very small balances
+                                                        </FormDescription>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={field.value}
+                                                            onCheckedChange={field.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={form.control}
+                                            name="hideUnknownTokens"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                                    <div className="space-y-0.5">
+                                                        <FormLabel>Hide Unknown Tokens</FormLabel>
+                                                        <FormDescription>
+                                                            Hide tokens that haven't been verified or added manually
+                                                        </FormDescription>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={field.value}
+                                                            onCheckedChange={field.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </CardContent>
+
+                                    <CardFooter>
+                                        <Button
+                                            type="submit"
+                                            className="w-full"
+                                            disabled={isSubmitting}
+                                        >
+                                            <Save className="mr-2 h-4 w-4" />
+                                            Save Settings
+                                        </Button>
+                                    </CardFooter>
+                                </form>
+                            </Form>
+                        </Card>
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 });
 
