@@ -32,11 +32,22 @@ cd zondwebwallet
 
 2. Install dependencies:
 ```bash
-cd webapp
 npm install
 ```
 
-3. Start the development server:
+3. Set up environment variables:
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+4. Configure your environment:
+   - Update `VITE_RPC_URL_DEVELOPMENT` to point to your Zond node
+   - Update `VITE_SERVER_URL_DEVELOPMENT` to point to your backend API
+   - Set `VITE_CUSTOMERC20FACTORY_ADDRESS` after deploying the token factory
+   - **Note**: Only include `VITE_SEED` for development. Never commit real seeds!
+
+5. Start the development server:
 
    You have a few options to start the development server:
 
@@ -56,7 +67,7 @@ npm install
      ```
      (Replace `YOUR_IP_ADDRESS_HERE` with the desired IP)
 
-4. Open your browser and navigate to the address shown in the terminal (usually `http://localhost:5173` or a LAN address if using `dev:lan` or `dev:custom`).
+6. Open your browser and navigate to the address shown in the terminal (usually `http://localhost:5173` or a LAN address if using `dev:lan` or `dev:custom`).
 
 ## Technology Stack
 

@@ -21,7 +21,7 @@ export const createToken = async (seed: string, rpc_url: string) => {
 
     web3.zond.transactionConfirmationBlocks = 3;
 
-    const contractAddress = "Z38cad9d0889643c271a718ba98c99b32a6a8331c";
+    const contractAddress = "Z0b895c819d249e4016bb603bdcbf6a38b4251c1a";
     const contract1 = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
 
     const contractCreateToken = contract1.methods.createToken("FrontendToken", "FTK", "1000000000000000000000000000", 18, "1000000000000000000000000000", "Z0000000000000000000000000000000000000000", "Z0000000000000000000000000000000000000000", "100000000000000000000000", "100000000000000000000000");
