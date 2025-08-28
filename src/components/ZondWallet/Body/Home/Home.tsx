@@ -114,7 +114,7 @@ const Home = observer(() => {
                       </video>
                     </div>
                     <div className="relative z-10">
-                      <CardHeader className="bg-gradient-to-r from-[#4aafff]/5 to-transparent">
+                      <CardHeader className="bg-gradient-to-r from-[#4aafff]/1 to-transparent">
                         <CardTitle className="text-2xl font-bold">Active account</CardTitle>
                       </CardHeader>
                       <CardContent>
