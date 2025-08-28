@@ -46,11 +46,11 @@ export const ActiveAccountDisplay = observer(() => {
           {copiedItem === 'balance' ? (
             <Check className="w-4 h-4 ml-2 text-green-500" />
           ) : (
-            <Copy className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <Copy className="w-4 h-4 ml-2" />
           )}
         </div>
         <button 
-          className="ml-2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          className="ml-2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center"
           onClick={refreshBalance}
           disabled={isRefreshing || refreshSuccess}
         >
@@ -71,7 +71,7 @@ export const ActiveAccountDisplay = observer(() => {
         {copiedItem === 'address' ? (
           <Check className="w-4 h-4 ml-2 text-green-500" />
         ) : (
-          <Copy className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <Copy className="w-4 h-4 ml-2" />
         )}
       </div>
     </div>
