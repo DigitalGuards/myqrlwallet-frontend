@@ -60,7 +60,7 @@ export const OtherAccounts = observer(() => {
           <Card
             key={accountAddress}
             id={accountAddress}
-            className="flex flex-col md:flex-row items-center gap-4 p-4 font-bold text-foreground hover:bg-accent"
+            className="flex flex-col md:flex-row items-center gap-4 p-4 font-bold text-foreground hover:bg-accent border-l-4 border-l-secondary"
           >
             <div className="flex flex-col gap-1">
               <AccountId className="flex md:hidden" oneLine={true} account={accountAddress} />
