@@ -12,15 +12,24 @@ import { useEffect, useState } from "react";
 import { fetchBalance } from "@/utilities/web3utils/customERC20";
 import { useStore } from "@/stores/store";
 import { Button } from "@/components/UI/Button";
-import { Loader2, Plus, RefreshCw } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Import, Coins } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 import { formatUnits } from "ethers";
 import { ZOND_PROVIDER } from "@/configuration/zondConfig";
 import StorageUtil from "@/utilities/storageUtil";
 import { formatBalance } from "@/utilities/helper";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/UI/DropdownMenu";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "@/router/router";
 
 const TokenForm = observer(() => {
     const { zondStore } = useStore();
+    const navigate = useNavigate();
     const {
         activeAccount: { accountAddress: activeAccountAddress },
         tokenList: tokenListFromStore,
@@ -81,13 +90,23 @@ const TokenForm = observer(() => {
                             <RefreshCw className="h-4 w-4" />
                         )}
                     </Button>
-                    <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => setIsAddTokenModalOpen(true)}
-                    >
-                        <Plus className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                <Plus className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setIsAddTokenModalOpen(true)}>
+                                <Import className="mr-2 h-4 w-4" />
+                                Add Existing Token
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(ROUTES.CREATE_TOKEN)}>
+                                <Coins className="mr-2 h-4 w-4" />
+                                Create New Token
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </CardHeader>
             <CardContent>
