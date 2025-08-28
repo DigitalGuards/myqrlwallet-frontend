@@ -96,9 +96,9 @@ const Settings = observer(() => {
                     <div className="relative z-10 space-y-8">
                         <NetworkSettings />
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Wallet Preferences</CardTitle>
+                        <Card className="border-l-4 border-l-[#4aafff]">
+                            <CardHeader className="bg-gradient-to-r from-[#4aafff]/5 to-transparent">
+                                <CardTitle className="text-2xl font-bold">Wallet Preferences</CardTitle>
                                 <CardDescription>
                                     Customize your wallet experience and security settings
                                 </CardDescription>
