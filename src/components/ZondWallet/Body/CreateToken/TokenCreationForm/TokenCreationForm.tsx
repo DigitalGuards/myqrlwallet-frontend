@@ -236,7 +236,7 @@ export const TokenCreationForm = observer(
                 <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
                     <Card>
                         <CardHeader>
-                            <CardTitle>Create New Token</CardTitle>
+                            <CardTitle>Create New ZRC20 Token</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-8">
                             <FormField
