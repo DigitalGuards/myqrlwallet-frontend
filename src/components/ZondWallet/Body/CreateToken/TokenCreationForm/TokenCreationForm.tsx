@@ -213,9 +213,9 @@ export const TokenCreationForm = observer(
         // Check if user has an active account
         if (!activeAccount.accountAddress) {
             return (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Create New Token</CardTitle>
+                <Card className="border-l-4 border-l-secondary">
+                    <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
+                        <CardTitle className="text-2xl font-bold">Create New Token</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col items-center justify-center p-8 text-center">
@@ -234,9 +234,9 @@ export const TokenCreationForm = observer(
         return (
             <Form {...form}>
                 <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Create New ZRC20 Token</CardTitle>
+                    <Card className="border-l-4 border-l-secondary">
+                        <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
+                            <CardTitle className="text-2xl font-bold">Create New ZRC20 Token</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-8">
                             <FormField
