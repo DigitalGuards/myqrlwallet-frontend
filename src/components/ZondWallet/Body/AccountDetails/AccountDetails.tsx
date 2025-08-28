@@ -470,7 +470,7 @@ const AccountDetails = observer(() => {
                       name="receiverAddress"
                       render={({ field }) => (
                         <FormItem>
-                          <Label>To</Label>
+                          <Label>Send to</Label>
                           <FormControl>
                             <Input
                               {...field}
