@@ -74,9 +74,9 @@ const TokenForm = observer(() => {
     }, [tokenListFromStore]);
 
     return (
-        <Card className="mt-4">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Tokens</CardTitle>
+        <Card className="mt-4 border-l-4 border-l-secondary">
+            <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-secondary/5 to-transparent">
+                <CardTitle className="text-2xl font-bold">Tokens</CardTitle>
                 <div className="flex gap-2">
                     <Button 
                         variant="outline" 
