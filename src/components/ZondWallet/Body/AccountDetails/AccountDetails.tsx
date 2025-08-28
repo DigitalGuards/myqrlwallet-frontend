@@ -430,9 +430,9 @@ const AccountDetails = observer(() => {
           <div className="relative z-10">
             <Form {...form}>
               <form className="w-full" onSubmit={handleSubmit(onSubmit)} autoComplete="on">
-                <Card className="w-full">
-                  <CardHeader>
-                    <CardTitle>Send Quanta</CardTitle>
+                <Card className="w-full border-l-4 border-l-secondary">
+                  <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
+                    <CardTitle className="text-2xl font-bold">Send Quanta</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-8">
                     <div className="flex flex-col gap-2">
