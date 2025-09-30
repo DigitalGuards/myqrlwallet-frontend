@@ -50,8 +50,8 @@ const AccountCreateImport = observer(() => {
     <div
       className={accountCreateImportClasses({ hasAccountCreationPreference })}
     >
-      <Card className="w-full">
-        <CardHeader>
+      <Card className="w-full border-l-4 border-l-secondary">
+        <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
           <CardTitle>
             {hasActiveAccount ? "Add accounts" : "Let's start"}
           </CardTitle>

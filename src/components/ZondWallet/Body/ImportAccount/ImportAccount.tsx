@@ -65,8 +65,8 @@ const ImportAccount = observer(() => {
                 )
               )
             ) : (
-              <Tabs defaultValue="mnemonic" className="w-full space-y-8">
-                <TabsList className="flex w-full flex-col sm:flex-row gap-2 bg-transparent mb-4">
+              <Tabs defaultValue="mnemonic" className="w-full">
+                <TabsList className="flex w-full flex-col sm:flex-row gap-2 bg-transparent h-auto p-0">
                   <TabsTrigger
                     value="mnemonic"
                     className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
@@ -86,26 +86,24 @@ const ImportAccount = observer(() => {
                     Import with Hex Seed
                   </TabsTrigger>
                 </TabsList>
-                <div className="relative pt-8">
-                  <TabsContent
-                    value="mnemonic"
-                    className="top-0 left-0 w-full border-none outline-none data-[state=inactive]:hidden"
-                  >
-                    <ImportAccountForm onAccountImported={onAccountImported} />
-                  </TabsContent>
-                  <TabsContent
-                    value="encrypted"
-                    className="top-0 left-0 w-full border-none outline-none data-[state=inactive]:hidden"
-                  >
-                    <ImportEncryptedWallet onWalletImported={onAccountImported} />
-                  </TabsContent>
-                  <TabsContent
-                    value="hexseed"
-                    className="top-0 left-0 w-full border-none outline-none data-[state=inactive]:hidden"
-                  >
-                    <ImportHexSeedForm onAccountImported={onAccountImported} />
-                  </TabsContent>
-                </div>
+                <TabsContent
+                  value="mnemonic"
+                  className="mt-6 w-full border-none outline-none focus-visible:ring-0"
+                >
+                  <ImportAccountForm onAccountImported={onAccountImported} />
+                </TabsContent>
+                <TabsContent
+                  value="encrypted"
+                  className="mt-6 w-full border-none outline-none focus-visible:ring-0"
+                >
+                  <ImportEncryptedWallet onWalletImported={onAccountImported} />
+                </TabsContent>
+                <TabsContent
+                  value="hexseed"
+                  className="mt-6 w-full border-none outline-none focus-visible:ring-0"
+                >
+                  <ImportHexSeedForm onAccountImported={onAccountImported} />
+                </TabsContent>
               </Tabs>
             )}
           </div>

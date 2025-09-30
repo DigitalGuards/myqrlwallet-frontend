@@ -72,8 +72,8 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card>
-          <CardHeader>
+        <Card className="border-l-4 border-l-[#4aafff]">
+          <CardHeader className="bg-gradient-to-r from-[#4aafff]/5 to-transparent">
             <CardTitle>Import with Mnemonic</CardTitle>
           </CardHeader>
           <CardContent className="space-y-8">

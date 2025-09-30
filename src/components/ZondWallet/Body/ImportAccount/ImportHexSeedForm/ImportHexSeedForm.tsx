@@ -72,8 +72,8 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card>
-          <CardHeader>
+        <Card className="border-l-4 border-l-[#4aafff]">
+          <CardHeader className="bg-gradient-to-r from-[#4aafff]/5 to-transparent">
             <CardTitle>Import with Hex Seed</CardTitle>
           </CardHeader>
           <CardContent className="space-y-8">
