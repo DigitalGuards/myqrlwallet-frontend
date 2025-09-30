@@ -100,22 +100,21 @@ const Home = observer(() => {
               className={accountCreateImportClasses({ hasAccountCreationPreference })}
             >
               {activeAccount.accountAddress && (
-                <>
-                  <Card className="w-full relative overflow-hidden border-l-4 border-l-[#4aafff]">
-                    <div className="absolute inset-0 overflow-hidden">
-                      <video
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        className="w-full h-full object-cover opacity-30"
-                      >
-                        <source src="qrl-video-dark.mp4" type="video/mp4" />
-                      </video>
-                    </div>
-                    <div className="relative z-10">
-                      <CardHeader className="bg-gradient-to-r from-[#4aafff]/1 to-transparent">
-                        <CardTitle className="text-2xl font-bold">Active account</CardTitle>
+                <Card className="w-full relative overflow-hidden border-l-4 border-l-blue-accent">
+                  <div className="absolute inset-0 overflow-hidden">
+                    <video
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="w-full h-full object-cover opacity-30"
+                    >
+                      <source src="qrl-video-dark.mp4" type="video/mp4" />
+                    </video>
+                  </div>
+                  <div className="relative z-10">
+                    <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
+                      <CardTitle className="text-2xl font-bold">Active account</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <ActiveAccountDisplay />
@@ -147,10 +146,11 @@ const Home = observer(() => {
                       </CardFooter>
                     </div>
                   </Card>
-                  <div className="relative z-10">
-                    <TokenForm />
-                  </div>
-                </>
+              )}
+              {activeAccount.accountAddress && (
+                <div className="relative z-10">
+                  <TokenForm />
+                </div>
               )}
               {isConnected ? <AccountCreateImport /> : <ConnectionFailed />}
             </div>

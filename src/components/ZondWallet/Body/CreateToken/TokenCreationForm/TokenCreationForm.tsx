@@ -218,7 +218,7 @@ export const TokenCreationForm = observer(
                     <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
                         <CardTitle className="text-2xl font-bold">Create New Token</CardTitle>
                         <CardDescription>
-                            Deploy your own ERC20 token on the QRL network
+                            Deploy your own QRC20 token on the QRL network
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -242,7 +242,7 @@ export const TokenCreationForm = observer(
                         <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
                             <CardTitle className="text-2xl font-bold">Create New QRC20 Token</CardTitle>
                             <CardDescription>
-                                Deploy your own ERC20 token on the QRL network
+                                Deploy your own QRC20 token on the QRL network
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-8">
