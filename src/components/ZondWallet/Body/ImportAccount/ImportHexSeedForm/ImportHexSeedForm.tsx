@@ -1,6 +1,6 @@
 import { useStore } from "@/stores/store";
 import { ExtendedWalletAccount } from "@/utilities/walletEncryptionUtil";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/UI/Card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/UI/Card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormMessage } from "@/components/UI/Form";
 import { Input } from "@/components/UI/Input";
 import { Button } from "@/components/UI/Button";
@@ -72,9 +72,12 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="border-l-4 border-l-[#4aafff]">
-          <CardHeader className="bg-gradient-to-r from-[#4aafff]/5 to-transparent">
-            <CardTitle>Import with Hex Seed</CardTitle>
+        <Card className="border-l-4 border-l-blue-accent">
+          <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
+            <CardTitle className="text-2xl font-bold">Import with Hex Seed</CardTitle>
+            <CardDescription>
+              Enter your hexadecimal seed to restore your wallet
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
             <FormField

@@ -5,6 +5,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "@/components/UI/Card";
 import {
   Form,
@@ -433,6 +434,9 @@ const AccountDetails = observer(() => {
                 <Card className="w-full border-l-4 border-l-secondary">
                   <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
                     <CardTitle className="text-2xl font-bold">Send Quanta</CardTitle>
+                    <CardDescription>
+                      Transfer QRL to another wallet address
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-8">
                     <div className="flex flex-col gap-2">

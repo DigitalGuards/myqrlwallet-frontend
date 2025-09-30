@@ -5,6 +5,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "../../../../UI/Card";
 import {
   Form,
@@ -72,9 +73,12 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="border-l-4 border-l-[#4aafff]">
-          <CardHeader className="bg-gradient-to-r from-[#4aafff]/5 to-transparent">
-            <CardTitle>Import with Mnemonic</CardTitle>
+        <Card className="border-l-4 border-l-blue-accent">
+          <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
+            <CardTitle className="text-2xl font-bold">Import with Mnemonic</CardTitle>
+            <CardDescription>
+              Enter your mnemonic phrase to restore your wallet
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
             <FormField

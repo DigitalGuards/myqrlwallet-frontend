@@ -16,7 +16,7 @@ const navItems = [
     },
     {
         icon: Plus,
-        label: "ZRC20",
+        label: "QRC20",
         path: ROUTES.CREATE_TOKEN,
     },
     {

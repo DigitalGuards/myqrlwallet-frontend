@@ -33,7 +33,7 @@ const sidebarItems = [
     {
         title: "Create Token",
         url: ROUTES.CREATE_TOKEN,
-        label: "ZRC20",
+        label: "QRC20",
         icon: Plus,
     },
     {

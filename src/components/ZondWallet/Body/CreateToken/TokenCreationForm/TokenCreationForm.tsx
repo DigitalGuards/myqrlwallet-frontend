@@ -6,6 +6,7 @@ import {
     CardFooter,
     CardHeader,
     CardTitle,
+    CardDescription,
 } from "../../../../UI/Card";
 import {
     Form,
@@ -216,6 +217,9 @@ export const TokenCreationForm = observer(
                 <Card className="border-l-4 border-l-secondary">
                     <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
                         <CardTitle className="text-2xl font-bold">Create New Token</CardTitle>
+                        <CardDescription>
+                            Deploy your own ERC20 token on the QRL network
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col items-center justify-center p-8 text-center">
@@ -236,7 +240,10 @@ export const TokenCreationForm = observer(
                 <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
                     <Card className="border-l-4 border-l-secondary">
                         <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
-                            <CardTitle className="text-2xl font-bold">Create New ZRC20 Token</CardTitle>
+                            <CardTitle className="text-2xl font-bold">Create New QRC20 Token</CardTitle>
+                            <CardDescription>
+                                Deploy your own ERC20 token on the QRL network
+                            </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-8">
                             <FormField

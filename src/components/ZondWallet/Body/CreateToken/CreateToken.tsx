@@ -47,7 +47,7 @@ const CreateToken = observer(() => {
 
     return (
         <>
-            <SEO title="Create ZRC20 Token" />
+            <SEO title="Create QRC20 Token" />
             <div className="flex w-full items-start justify-center py-8">
                 <div className="relative w-full max-w-2xl px-4">
                     { <video

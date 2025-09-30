@@ -26,7 +26,7 @@ export const OtherAccounts = observer(() => {
   } = zondStore;
   const { accounts } = zondAccounts;
 
-  const otherAccountsLabel = `${activeAccountAddress ? "Other accounts" : "Accounts"} in the wallet`;
+  const otherAccountsLabel = activeAccountAddress ? "Other accounts" : "Your accounts";
   const otherAccounts = accounts.filter(
     ({ accountAddress }) => accountAddress !== activeAccountAddress
   );

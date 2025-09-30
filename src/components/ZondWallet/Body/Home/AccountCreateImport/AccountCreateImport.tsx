@@ -52,7 +52,7 @@ const AccountCreateImport = observer(() => {
     >
       <Card className="w-full border-l-4 border-l-secondary">
         <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
-          <CardTitle>
+          <CardTitle className="text-2xl font-bold">
             {hasActiveAccount ? "Add accounts" : "Let's start"}
           </CardTitle>
           <CardDescription>

@@ -96,8 +96,8 @@ const Settings = observer(() => {
                     <div className="relative z-10 space-y-8">
                         <NetworkSettings />
 
-                        <Card className="border-l-4 border-l-[#4aafff]">
-                            <CardHeader className="bg-gradient-to-r from-[#4aafff]/5 to-transparent">
+                        <Card className="border-l-4 border-l-blue-accent">
+                            <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
                                 <CardTitle className="text-2xl font-bold">Wallet Preferences</CardTitle>
                                 <CardDescription>
                                     Customize your wallet experience and security settings
@@ -106,7 +106,7 @@ const Settings = observer(() => {
 
                             <Form {...form}>
                                 <form onSubmit={form.handleSubmit(onSubmit)}>
-                                    <CardContent className="space-y-6">
+                                    <CardContent className="space-y-8">
                                         <FormField
                                             control={form.control}
                                             name="autoLockTimeout"
