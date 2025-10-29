@@ -43,3 +43,5 @@ extension/
 webapp/package-lock.json
 /zond-web3-wallet
 zond-erc20-factory/
+zondwebwallet-backend/
+.claude/
