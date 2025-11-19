@@ -33,6 +33,7 @@ import { WalletEncryptionUtil } from "@/utilities/walletEncryptionUtil";
 import StorageUtil from "@/utilities/storageUtil";
 import { getAddressFromMnemonic } from "@/functions/getHexSeedFromMnemonic";
 import { Label } from "@/components/UI/Label";
+import { isValidZondAddress } from "@/utilities/addressValidation";
 
 const FormSchema = z
     .object({
@@ -50,6 +51,26 @@ const FormSchema = z
         maxWalletAmount: z.string().optional(),
         setMaxTransactionLimit: z.boolean(),
         maxTransactionLimit: z.string().optional(),
+    })
+    .refine((data) => {
+        // Validate recipient address if changeInitialRecipient is true
+        if (data.changeInitialRecipient && data.recipientAddress) {
+            return isValidZondAddress(data.recipientAddress);
+        }
+        return true;
+    }, {
+        message: "Invalid recipient address. Must be 42 characters starting with 'Z' followed by 40 hex characters",
+        path: ["recipientAddress"]
+    })
+    .refine((data) => {
+        // Validate owner address if changeTokenOwner is true
+        if (data.changeTokenOwner && data.ownerAddress) {
+            return isValidZondAddress(data.ownerAddress);
+        }
+        return true;
+    }, {
+        message: "Invalid owner address. Must be 42 characters starting with 'Z' followed by 40 hex characters",
+        path: ["ownerAddress"]
     });
 
 type TokenCreationFormProps = {

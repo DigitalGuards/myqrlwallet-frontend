@@ -20,17 +20,28 @@ import { Loader } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { isValidZondAddress } from "@/utilities/addressValidation";
 
 const FormSchema = z
     .object({
-        tokenAddress: z.string().min(1, { message: "Token name is required" }),
-        toAddress: z.string().min(1, { message: "Token symbol is required" }),
-        amount: z.string().min(1, { message: "Initial supply is required"}).transform((val) => Number(val))
-    })
-//   .refine((fields) => fields.password === fields.reEnteredPassword, {
-//     message: "Passwords don't match",
-//     path: ["reEnteredPassword"],
-//   });
+        tokenAddress: z.string()
+            .min(1, { message: "Token address is required" })
+            .refine(isValidZondAddress, {
+                message: "Invalid token address. Must be 42 characters starting with 'Z' followed by 40 hex characters"
+            }),
+        toAddress: z.string()
+            .min(1, { message: "Recipient address is required" })
+            .refine(isValidZondAddress, {
+                message: "Invalid recipient address. Must be 42 characters starting with 'Z' followed by 40 hex characters"
+            }),
+        amount: z.string()
+            .min(1, { message: "Amount is required" })
+            .refine((val) => {
+                const num = Number(val);
+                return !isNaN(num) && num > 0;
+            }, { message: "Amount must be a positive number" })
+            .transform((val) => Number(val))
+    });
 
 type TokenSendingFormProps = {
     onTokenSent: (tokenAddress: string, toAddress: string, amount: number) => void;

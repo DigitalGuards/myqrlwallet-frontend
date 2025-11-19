@@ -22,6 +22,7 @@ import { formatUnits, parseUnits } from "ethers";
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil } from "@/utilities/walletEncryptionUtil";
+import { isValidZondAddress } from "@/utilities/addressValidation";
 
 export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, onClose: () => void, token: TokenInterface }) {
     const { zondStore } = useStore();
@@ -36,12 +37,21 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
     const [pin, setPin] = useState("");
     const [pinError, setPinError] = useState("");
     const [toAddress, setToAddress] = useState("");
+    const [toAddressError, setToAddressError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [sliderValue, setSliderValue] = useState(0);
 
     const sendToken = async () => {
         setIsLoading(true);
         setPinError("");
+        setToAddressError("");
+
+        // Validate address
+        if (!isValidZondAddress(toAddress)) {
+            setToAddressError("Invalid address. Must be 42 characters starting with 'Z' followed by 40 hex characters");
+            setIsLoading(false);
+            return;
+        }
         
         // When using extension accounts PIN should not be required
         const isUsingExtension = activeAccountSource === 'extension';
@@ -105,6 +115,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                             setAmount("");
                             setPin("");
                             setToAddress("");
+                            setToAddressError("");
                             setSliderValue(0);
                             setPinError("");
                             
@@ -203,6 +214,8 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
             setSliderValue(0);
             setPin("");
             setPinError("");
+            setToAddress("");
+            setToAddressError("");
         }
     }, [isOpen, token?.address, activeAccountAddress]);
 
@@ -218,10 +231,23 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                 <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
                   <div className="grid gap-4 py-4">
                     <div className="flex flex-col">
-                        <Label htmlFor="amount" className="mb-2">
+                        <Label htmlFor="toAddress" className="mb-2">
                             To
                         </Label>
-                        <Input disabled={isLoading} value={toAddress} onChange={(e) => setToAddress(e.target.value)} />
+                        <Input
+                            id="toAddress"
+                            disabled={isLoading}
+                            value={toAddress}
+                            onChange={(e) => {
+                                setToAddress(e.target.value);
+                                setToAddressError("");
+                            }}
+                            placeholder="Z20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
+                            className={toAddressError ? "border-red-500" : ""}
+                        />
+                        {toAddressError && (
+                            <p className="text-sm text-red-500 mt-1">{toAddressError}</p>
+                        )}
                     </div>
                     <div className="flex flex-col">
                         <Label htmlFor="amount" className="mb-2">

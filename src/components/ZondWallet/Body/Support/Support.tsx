@@ -83,9 +83,17 @@ const Support: React.FC = () => {
                             name="name"
                             rules={{
                                 required: "Name is required.",
+                                minLength: {
+                                    value: 2,
+                                    message: "Name must be at least 2 characters."
+                                },
+                                maxLength: {
+                                    value: 100,
+                                    message: "Name must be less than 100 characters."
+                                },
                                 pattern: {
-                                    value: /^[a-zA-Z0-9\s]*$/,
-                                    message: "Only letters, numbers, and spaces are allowed."
+                                    value: /^[a-zA-Z0-9\s'\-\.]+$/,
+                                    message: "Only letters, numbers, spaces, hyphens, apostrophes, and periods are allowed."
                                 }
                             }}
                             render={({ field, fieldState }) => (
@@ -103,9 +111,12 @@ const Support: React.FC = () => {
                             name="email"
                             rules={{
                                 required: "Email is required.",
+                                maxLength: {
+                                    value: 254,
+                                    message: "Email must be less than 254 characters."
+                                },
                                 pattern: {
-                                    value:
-                                        /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                                     message: "Invalid email address.",
                                 },
                             }}
@@ -124,9 +135,17 @@ const Support: React.FC = () => {
                             name="subject"
                             rules={{
                                 required: "Subject is required.",
+                                minLength: {
+                                    value: 3,
+                                    message: "Subject must be at least 3 characters."
+                                },
+                                maxLength: {
+                                    value: 200,
+                                    message: "Subject must be less than 200 characters."
+                                },
                                 pattern: {
-                                    value: /^[a-zA-Z0-9\s]*$/,
-                                    message: "Only letters, numbers, and spaces are allowed."
+                                    value: /^[a-zA-Z0-9\s\-_:()]+$/,
+                                    message: "Subject contains invalid characters."
                                 }
                             }}
                             render={({ field, fieldState }) => (
@@ -144,9 +163,27 @@ const Support: React.FC = () => {
                             name="message"
                             rules={{
                                 required: "Message is required.",
-                                pattern: {
-                                    value: /^[a-zA-Z0-9\s.,?!]*$/,
-                                    message: "Only alphanumeric characters, spaces, and basic punctuation are allowed."
+                                minLength: {
+                                    value: 10,
+                                    message: "Message must be at least 10 characters."
+                                },
+                                maxLength: {
+                                    value: 2000,
+                                    message: "Message must be less than 2000 characters."
+                                },
+                                validate: {
+                                    noScriptTags: (value) => {
+                                        if (/<script|<\/script|javascript:|on\w+=/i.test(value)) {
+                                            return "Message contains potentially unsafe content.";
+                                        }
+                                        return true;
+                                    },
+                                    noHtmlTags: (value) => {
+                                        if (/<[^>]+>/g.test(value)) {
+                                            return "HTML tags are not allowed.";
+                                        }
+                                        return true;
+                                    }
                                 }
                             }}
                             render={({ field, fieldState }) => (
