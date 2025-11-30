@@ -45,3 +45,4 @@ webapp/package-lock.json
 zond-erc20-factory/
 zondwebwallet-backend/
 .claude/
+changes-extension.md
