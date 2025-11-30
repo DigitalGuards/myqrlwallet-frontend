@@ -33,11 +33,12 @@ import { GasFeeNotice } from "./GasFeeNotice/GasFeeNotice";
 import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSuccessful";
 import { getExplorerAddressUrl, getExplorerTxUrl } from "@/configuration/zondConfig";
 import { ExternalLink } from "lucide-react";
-import { formatBalance } from "@/utilities/helper";
+
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil } from "@/utilities/walletEncryptionUtil";
 import { SEO } from "@/components/SEO/SEO";
+import { getOptimalTokenBalance } from "@/functions/getOptimalTokenBalance";
 
 const FormSchema = z
   .object({
@@ -48,12 +49,12 @@ const FormSchema = z
   .superRefine((fields, ctx) => {
     // Skip empty addresses - they'll be caught by the required validator
     if (!fields.receiverAddress.trim()) return;
-    
+
     // Validate Zond address format (starts with Z and has correct length)
     const address = fields.receiverAddress.trim();
-    const isValidZondAddress = address.startsWith('Z') && 
-                              (address.length === 41 || address.length === 42);
-    
+    const isValidZondAddress = address.startsWith('Z') &&
+      (address.length === 41 || address.length === 42);
+
     if (!isValidZondAddress) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -79,6 +80,43 @@ const AccountDetails = observer(() => {
   const { blockchain } = zondConnection;
   const { accountAddress } = activeAccount;
 
+  if (!accountAddress) {
+    return (
+      <>
+        <SEO title="Send Transaction" />
+        <div className="flex w-full items-start justify-center py-8 overflow-x-hidden">
+          <div className="relative w-full max-w-2xl px-4">
+            <img
+              className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
+              src="/tree.svg"
+              alt="Background Tree"
+            />
+            <div className="relative z-10">
+              <Card className="w-full border-l-4 border-l-secondary">
+                <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
+                  <CardTitle className="text-2xl font-bold">Send Quanta</CardTitle>
+                  <CardDescription>
+                    Transfer QRL to another wallet address
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col items-center justify-center p-8 text-center">
+                    <p className="text-muted-foreground mb-4">
+                      You need to import an account before sending Quanta.
+                    </p>
+                    <Button onClick={() => navigate(ROUTES.IMPORT_ACCOUNT)}>
+                      Import Account
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   const [sliderValue, setSliderValue] = useState(0);
 
   const [hasJustCopied, setHasJustCopied] = useState(false);
@@ -102,9 +140,9 @@ const AccountDetails = observer(() => {
         console.log("No encrypted seed found for this account");
       }
     };
-    
+
     checkForEncryptedSeed();
-    
+
     return () => {
       if (timer) {
         clearTimeout(timer);
@@ -150,17 +188,17 @@ const AccountDetails = observer(() => {
         });
         return;
       }
-      
+
       try {
         const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchain, accountAddress);
-        
+
         if (!encryptedSeed) {
           control.setError("mnemonicPhrases", {
             message: "No stored seed found for this account. Please import your account again to set up a PIN.",
           });
           return;
         }
-        
+
         let mnemonicPhrases;
         try {
           const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.mnemonicPhrases);
@@ -175,7 +213,7 @@ const AccountDetails = observer(() => {
         await signAndSendTransaction(
           accountAddress,
           formData.receiverAddress,
-          formData.amount,
+          valueEther,
           mnemonicPhrases
         );
 
@@ -239,7 +277,7 @@ const AccountDetails = observer(() => {
   const handleSliderChange = (value: number[]) => {
     const percentage = value[0];
     setSliderValue(percentage);
-    
+
     if (accountBalance && accountBalance !== "0") {
       const maxAmount = parseFloat(accountBalance);
       const calculatedAmount = (maxAmount * (percentage / 100));
@@ -247,11 +285,11 @@ const AccountDetails = observer(() => {
       setValue("amount", parseFloat(formattedAmount));
     }
   };
-  
+
   // Set a preset percentage of the available balance
   const setPercentage = (percentage: number) => () => {
     setSliderValue(percentage);
-    
+
     if (accountBalance && accountBalance !== "0") {
       const maxAmount = parseFloat(accountBalance);
       const calculatedAmount = (maxAmount * (percentage / 100));
@@ -299,117 +337,117 @@ const AccountDetails = observer(() => {
   // Confirmed State
   if (transactionStatus.state === 'confirmed' && transactionStatus.receipt) {
     return (
-        <TransactionSuccessful
-          transactionReceipt={transactionStatus.receipt}
-          onDone={() => {
-            resetTransactionStatus();
-            navigate(ROUTES.HOME);
-          }}
-        />
+      <TransactionSuccessful
+        transactionReceipt={transactionStatus.receipt}
+        onDone={() => {
+          resetTransactionStatus();
+          navigate(ROUTES.HOME);
+        }}
+      />
     );
   }
 
   // Pending State
   if (transactionStatus.state === 'pending') {
     return (
-        <div className="flex w-full flex-col items-center justify-center gap-4 py-16 text-center">
-          <Loader className="h-12 w-12 animate-spin text-primary" />
-          <h2 className="text-2xl font-semibold">Transaction Pending</h2>
-          <p className="text-muted-foreground">
-            Your transaction has been submitted and is awaiting confirmation.
-          </p>
-          {transactionStatus.txHash && (
-            <a
-              href={getExplorerTxUrl(transactionStatus.txHash, blockchain)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
-            >
-              View on ZondScan <ExternalLink className="h-4 w-4" />
-            </a>
-          )}
-          {transactionStatus.pendingDetails ? (
-            <div className="mt-4 w-full max-w-md rounded border bg-muted p-4 text-left text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Hash:</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono" title={transactionStatus.txHash || 'N/A'}>
-                    {transactionStatus.txHash 
-                      ? `${transactionStatus.txHash.substring(0, 10)}...${transactionStatus.txHash.substring(transactionStatus.txHash.length - 8)}` 
-                      : 'N/A'}
-                  </span>
-                  {transactionStatus.txHash && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      type="button"
-                      onClick={() => copyToClipboard(transactionStatus.txHash!)}
-                      title="Copy Hash"
-                    >
-                      {hasJustCopied ? (
-                        <Check className="h-3 w-3 text-green-500" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">From:</span>
-                <span className="font-mono" title={transactionStatus.pendingDetails.from}>{transactionStatus.pendingDetails.from}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">To:</span>
-                <span className="font-mono" title={transactionStatus.pendingDetails.to}>{transactionStatus.pendingDetails.to}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Value:</span>
-                <span>{utils.fromWei(BigInt(transactionStatus.pendingDetails.value), "ether")} QRL</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Gas Price:</span>
-                <span>{utils.fromWei(BigInt(transactionStatus.pendingDetails.gasPrice), "gwei")} Gwei</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Last Seen:</span>
-                <span>{new Date(transactionStatus.pendingDetails.lastSeen * 1000).toLocaleString()}</span>
+      <div className="flex w-full flex-col items-center justify-center gap-4 py-16 text-center">
+        <Loader className="h-12 w-12 animate-spin text-primary" />
+        <h2 className="text-2xl font-semibold">Transaction Pending</h2>
+        <p className="text-muted-foreground">
+          Your transaction has been submitted and is awaiting confirmation.
+        </p>
+        {transactionStatus.txHash && (
+          <a
+            href={getExplorerTxUrl(transactionStatus.txHash, blockchain)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
+          >
+            View on ZondScan <ExternalLink className="h-4 w-4" />
+          </a>
+        )}
+        {transactionStatus.pendingDetails ? (
+          <div className="mt-4 w-full max-w-md rounded border bg-muted p-4 text-left text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Hash:</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono" title={transactionStatus.txHash || 'N/A'}>
+                  {transactionStatus.txHash
+                    ? `${transactionStatus.txHash.substring(0, 10)}...${transactionStatus.txHash.substring(transactionStatus.txHash.length - 8)}`
+                    : 'N/A'}
+                </span>
+                {transactionStatus.txHash && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    type="button"
+                    onClick={() => copyToClipboard(transactionStatus.txHash!)}
+                    title="Copy Hash"
+                  >
+                    {hasJustCopied ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
-          ) : (
-            <p className="mt-4 text-sm text-muted-foreground">Fetching details...</p>
-          )}
-        </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">From:</span>
+              <span className="font-mono" title={transactionStatus.pendingDetails.from}>{transactionStatus.pendingDetails.from}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">To:</span>
+              <span className="font-mono" title={transactionStatus.pendingDetails.to}>{transactionStatus.pendingDetails.to}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Value:</span>
+              <span>{utils.fromWei(BigInt(transactionStatus.pendingDetails.value), "ether")} QRL</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Gas Price:</span>
+              <span>{utils.fromWei(BigInt(transactionStatus.pendingDetails.gasPrice), "gwei")} Gwei</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Last Seen:</span>
+              <span>{new Date(transactionStatus.pendingDetails.lastSeen * 1000).toLocaleString()}</span>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">Fetching details...</p>
+        )}
+      </div>
     );
   }
 
   // Failed State
   if (transactionStatus.state === 'failed') {
     return (
-        <div className="flex w-full flex-col items-center justify-center gap-4 py-16 text-center">
-          <X className="h-12 w-12 text-destructive" /> {/* Using X for failure indication */}
-          <h2 className="text-2xl font-semibold text-destructive">Transaction Failed</h2>
-          <p className="text-destructive">
-            {transactionStatus.error || "An unknown error occurred."}
-          </p>
-          {transactionStatus.txHash && (
-            <a
-              href={getExplorerTxUrl(transactionStatus.txHash, blockchain)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
-            >
-              View on ZondScan <ExternalLink className="h-4 w-4" />
-            </a>
-          )}
-          <Button
-            variant="outline"
-            onClick={resetTransactionStatus} // Go back to the form
-            className="mt-4"
+      <div className="flex w-full flex-col items-center justify-center gap-4 py-16 text-center">
+        <X className="h-12 w-12 text-destructive" /> {/* Using X for failure indication */}
+        <h2 className="text-2xl font-semibold text-destructive">Transaction Failed</h2>
+        <p className="text-destructive">
+          {transactionStatus.error || "An unknown error occurred."}
+        </p>
+        {transactionStatus.txHash && (
+          <a
+            href={getExplorerTxUrl(transactionStatus.txHash, blockchain)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
           >
-            Dismiss
-          </Button>
-        </div>
+            View on ZondScan <ExternalLink className="h-4 w-4" />
+          </a>
+        )}
+        <Button
+          variant="outline"
+          onClick={resetTransactionStatus} // Go back to the form
+          className="mt-4"
+        >
+          Dismiss
+        </Button>
+      </div>
     );
   }
 
@@ -419,15 +457,11 @@ const AccountDetails = observer(() => {
       <SEO title="Send Transaction" />
       <div className="flex w-full items-start justify-center py-8 overflow-x-hidden">
         <div className="relative w-full max-w-2xl px-4">
-          { <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            className={"fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden"}
-          >
-            <source src="/tree.mp4" type="video/mp4" />
-          </video> }
+          <img
+            className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
+            src="/tree.svg"
+            alt="Background Tree"
+          />
           <div className="relative z-10">
             <Form {...form}>
               <form className="w-full" onSubmit={handleSubmit(onSubmit)} autoComplete="on">
@@ -445,7 +479,7 @@ const AccountDetails = observer(() => {
                         {`${prefix} ${addressSplit.join(" ")}`}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Available balance: {formatBalance(accountBalance)} QRL
+                        Available balance: {getOptimalTokenBalance(accountBalance)}
                       </div>
                       <div className="flex gap-4">
                         <Button
@@ -504,7 +538,7 @@ const AccountDetails = observer(() => {
                                   Amount
                                 </Label>
                                 <span className="text-sm text-muted-foreground">
-                                  {formatBalance(accountBalance)} QRL available
+                                  {getOptimalTokenBalance(accountBalance)} available
                                 </span>
                               </div>
                               <Input
@@ -523,13 +557,13 @@ const AccountDetails = observer(() => {
                               />
                             </div>
                           </FormControl>
-                          
+
                           <div className="mt-4 space-y-4">
                             <div className="flex justify-between">
                               <Label>Percentage of balance</Label>
                               <span className="text-sm text-muted-foreground">{sliderValue}%</span>
                             </div>
-                            
+
                             <Slider
                               value={[sliderValue]}
                               min={0}
@@ -538,39 +572,39 @@ const AccountDetails = observer(() => {
                               onValueChange={handleSliderChange}
                               className="w-full"
                             />
-                            
+
                             <div className="flex justify-between gap-2">
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm" 
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
                                 onClick={setPercentage(25)}
                                 className="flex-1"
                               >
                                 25%
                               </Button>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm" 
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
                                 onClick={setPercentage(50)}
                                 className="flex-1"
                               >
                                 50%
                               </Button>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm" 
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
                                 onClick={setPercentage(75)}
                                 className="flex-1"
                               >
                                 75%
                               </Button>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm" 
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
                                 onClick={setPercentage(100)}
                                 className="flex-1"
                               >
@@ -578,7 +612,7 @@ const AccountDetails = observer(() => {
                               </Button>
                             </div>
                           </div>
-                          
+
                           <FormMessage />
                         </FormItem>
                       )}
