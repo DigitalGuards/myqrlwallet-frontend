@@ -3,6 +3,7 @@ import { utils } from "@theqrl/web3";
 import { cva } from "class-variance-authority";
 import { Loader } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
+import { getOptimalGasFee } from "@/functions/getOptimalGasFee";
 
 type GasFeeNoticeProps = {
   from: string;
@@ -55,10 +56,11 @@ export const GasFeeNotice = ({
       const estimatedTransactionGas =
         (await zondInstance?.estimateGas(transaction)) ?? BigInt(0);
       const gasPrice = (await zondInstance?.getGasPrice()) ?? BigInt(0);
-      const estimatedGas = utils.fromWei(
+      const estimatedGasRaw = utils.fromWei(
         BigInt(estimatedTransactionGas) * BigInt(gasPrice),
         "ether"
       );
+      const estimatedGas = getOptimalGasFee(estimatedGasRaw);
       setGasFee({ ...gasFee, estimatedGas, error: "", isLoading: false });
     } catch (error) {
       setGasFee({ ...gasFee, error: `${error}`, isLoading: false });
@@ -77,7 +79,7 @@ export const GasFeeNotice = ({
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
-    
+
     if (hasValuesForGasCalculation) {
       debounceTimerRef.current = setTimeout(() => {
         fetchGasFee();
@@ -97,7 +99,7 @@ export const GasFeeNotice = ({
           <div>{gasFee.error}</div>
         ) : (
           <div className="w-full overflow-hidden">
-            Estimated gas fee is {gasFee?.estimatedGas.toString()} QRL
+            Estimated gas fee is {gasFee?.estimatedGas.toString()}
           </div>
         )}
       </div>

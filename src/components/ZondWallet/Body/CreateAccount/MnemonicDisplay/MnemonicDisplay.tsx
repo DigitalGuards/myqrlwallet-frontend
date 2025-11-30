@@ -23,6 +23,7 @@ import { Web3BaseWalletAccount } from "@theqrl/web3";
 import { ArrowRight, Copy, HardDriveDownload, Undo } from "lucide-react";
 import { lazy, useState } from "react";
 import { WalletEncryptionUtil } from "../../../../../utilities/walletEncryptionUtil";
+import { HexSeedListing } from "@/components/UI/HexSeedListing/HexSeedListing";
 
 const MnemonicWordListing = withSuspense(
   lazy(() => import("./MnemonicWordListing/MnemonicWordListing"))
@@ -86,11 +87,6 @@ const MnemonicDisplay = ({
   const continueWarning =
     "You should only continue if you have downloaded the recovery information. If you haven't, go back, download, and then continue. There is no going back once you click the continue button.";
 
-  const truncateHexSeed = (hexSeed?: string) => {
-    if (!hexSeed) return "";
-    return `${hexSeed.substring(0, 10)}...${hexSeed.substring(hexSeed.length - 8)}`;
-  };
-
   return (
     <Card className="w-full max-w-2xl">
       <CardHeader>
@@ -107,15 +103,13 @@ const MnemonicDisplay = ({
           <div>
             <h3 className="text-lg font-semibold">Hex Seed</h3>
             <p className="text-sm text-muted-foreground">Alternative method to recover your account</p>
-            <div className="mt-2 flex items-center gap-2">
-              <div className="flex-1 overflow-hidden rounded-lg border border-input bg-muted p-3 font-mono text-sm">
-                {truncateHexSeed(accountHexSeed)}
-              </div>
+            <div className="mt-2 flex flex-col gap-2">
+              {accountHexSeed && <HexSeedListing hexSeed={accountHexSeed} />}
               <Button
                 type="button"
                 variant="outline"
                 onClick={onCopyHexSeed}
-                className="h-10 min-w-[80px]"
+                className="w-full"
               >
                 {hasJustCopiedSeed ? (
                   <>
@@ -125,7 +119,7 @@ const MnemonicDisplay = ({
                 ) : (
                   <>
                     <Copy className="mr-2 h-4 w-4" />
-                    Copy
+                    Copy Hex Seed
                   </>
                 )}
               </Button>

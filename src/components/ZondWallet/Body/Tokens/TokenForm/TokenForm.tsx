@@ -17,7 +17,7 @@ import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 import { formatUnits } from "ethers";
 import { ZOND_PROVIDER } from "@/configuration/zondConfig";
 import StorageUtil from "@/utilities/storageUtil";
-import { formatBalance } from "@/utilities/helper";
+
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -26,6 +26,7 @@ import {
 } from "@/components/UI/DropdownMenu";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
+import { getOptimalTokenBalance } from "@/functions/getOptimalTokenBalance";
 
 const TokenForm = observer(() => {
     const { zondStore } = useStore();
@@ -55,11 +56,8 @@ const TokenForm = observer(() => {
 
             for (let i = 0; i < tokenListFromStore.length; i++) {
                 const balance = await fetchBalance(tokenListFromStore[i].address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
-                const formattedBalance = formatBalance(formatUnits(balance, tokenListFromStore[i].decimals));
-                const decimalIndex = formattedBalance.indexOf('.');
-                updatedTokenList[i].amount = decimalIndex === -1
-                    ? formattedBalance
-                    : formattedBalance.slice(0, decimalIndex + 5);
+                const balanceStr = formatUnits(balance, tokenListFromStore[i].decimals);
+                updatedTokenList[i].amount = getOptimalTokenBalance(balanceStr, tokenListFromStore[i].symbol);
             }
             setTokenList(updatedTokenList);
             setIsLoading(false);
@@ -78,10 +76,10 @@ const TokenForm = observer(() => {
             <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-secondary/5 to-transparent">
                 <CardTitle className="text-2xl font-bold">Tokens</CardTitle>
                 <div className="flex gap-2">
-                    <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={refreshBalances} 
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={refreshBalances}
                         disabled={isRefreshing}
                     >
                         {isRefreshing ? (
