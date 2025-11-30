@@ -261,10 +261,10 @@ class ZondStore {
     );
 
     runInAction(() => {
-        this.activeAccount = {
-            ...this.activeAccount,
-            accountAddress: newActiveAccount ?? "",
-        };
+      this.activeAccount = {
+        ...this.activeAccount,
+        accountAddress: newActiveAccount ?? "",
+      };
     });
 
     let storedAccountList: AccountListItem[] = [];
@@ -289,7 +289,7 @@ class ZondStore {
         currentBlockchain,
         storedAccountList,
       );
-      
+
       // Explicitly trigger refreshes after setting active account
       await this.fetchAccounts(); // Refresh the full list and balances
       if (newActiveAccount) {
@@ -304,7 +304,17 @@ class ZondStore {
   async fetchZondConnection() {
     this.zondConnection = { ...this.zondConnection, isLoading: true };
     try {
-      const isListening = (await this.zondInstance?.net.isListening()) ?? false;
+      // Add timeout to prevent hanging on unreachable networks
+      const connectionCheckPromise = this.zondInstance?.net.isListening();
+      const timeoutPromise = new Promise<boolean>((_, reject) =>
+        setTimeout(() => reject(new Error('Connection timeout')), 5000)
+      );
+
+      const isListening = await Promise.race([
+        connectionCheckPromise,
+        timeoutPromise
+      ]).then(result => result ?? false).catch(() => false);
+
       runInAction(() => {
         this.zondConnection = {
           ...this.zondConnection,
@@ -439,10 +449,10 @@ class ZondStore {
         if (!data || !Array.isArray(data.transactions)) {
           log(`Invalid API response structure (attempt ${attempt})`);
           if (attempt === maxAttempts) {
-             throw new Error("Invalid API response structure after multiple attempts.");
+            throw new Error("Invalid API response structure after multiple attempts.");
           }
-           await new Promise(resolve => setTimeout(resolve, pollInterval));
-           continue;
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          continue;
         }
 
         const pendingTx = data.transactions.find(
@@ -452,22 +462,22 @@ class ZondStore {
         if (pendingTx) {
           // Found the transaction!
           runInAction(() => {
-             // Check status again *before* updating, in case it changed while fetching
-             if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-                 this.transactionStatus = {
-                     ...this.transactionStatus,
-                     pendingDetails: {
-                         from: pendingTx.from || '', // Add from address
-                         to: pendingTx.to || '',     // Add to address
-                         gasPrice: pendingTx.gasPrice || '0x0',
-                         value: pendingTx.value || '0x0',
-                         lastSeen: pendingTx.lastSeen || Date.now() / 1000,
-                     }
-                 };
-                 log(`Fetched pending details for tx: ${txHash} on attempt ${attempt}`);
-             } else {
-                 log(`Pending details fetched for ${txHash}, but status already changed.`);
-             }
+            // Check status again *before* updating, in case it changed while fetching
+            if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
+              this.transactionStatus = {
+                ...this.transactionStatus,
+                pendingDetails: {
+                  from: pendingTx.from || '', // Add from address
+                  to: pendingTx.to || '',     // Add to address
+                  gasPrice: pendingTx.gasPrice || '0x0',
+                  value: pendingTx.value || '0x0',
+                  lastSeen: pendingTx.lastSeen || Date.now() / 1000,
+                }
+              };
+              log(`Fetched pending details for tx: ${txHash} on attempt ${attempt}`);
+            } else {
+              log(`Pending details fetched for ${txHash}, but status already changed.`);
+            }
           });
           return; // Exit the function successfully
         }
@@ -481,7 +491,7 @@ class ZondStore {
           // We didn't find it, but don't throw an error, just leave pendingDetails as null
         }
       }
-  
+
     } catch (error) {
       console.error("Error fetching pending transaction details:", error);
       log(`Error fetching pending tx details for ${txHash}: ${error}`);
@@ -493,19 +503,29 @@ class ZondStore {
   async signAndSendTransaction(
     from: string,
     to: string,
-    value: number,
+    value: string,
     mnemonicPhrases: string,
   ) {
     // Reset status before starting a new transaction
     this.resetTransactionStatus();
 
     try {
+      // Fetch the next available nonce, including pending transactions
+      const nonce = await this.zondInstance?.getTransactionCount(from, "pending");
+
+      // Fetch current gas price
+      const gasPrice = (await this.zondInstance?.getGasPrice()) ?? BigInt(0);
+      const gasPriceHex = utils.toHex(gasPrice);
+
       const transactionObject = {
         from,
         to,
         value: utils.toWei(value, "ether"),
-        maxFeePerGas: 21000,
-        maxPriorityFeePerGas: 21000,
+        gas: 21000, // Standard gas limit for native transfer
+        type: '0x2',
+        maxFeePerGas: gasPriceHex,
+        maxPriorityFeePerGas: gasPriceHex,
+        nonce: nonce,
       };
       const privateKey = getHexSeedFromMnemonic(mnemonicPhrases);
 
@@ -692,17 +712,17 @@ class ZondStore {
   async refreshTokenBalances() {
     try {
       if (!this.activeAccount.accountAddress) return;
-      
+
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const updatedTokenList = [...this.tokenList];
-      
+
       for (let i = 0; i < this.tokenList.length; i++) {
         const token = this.tokenList[i];
         const balance = await fetchBalance(token.address, this.activeAccount.accountAddress, ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER].url);
         const formattedBalance = utils.fromWei(balance, "ether");
         updatedTokenList[i] = { ...token, amount: formattedBalance };
       }
-      
+
       await this.setTokenList(updatedTokenList);
     } catch (error) {
       console.error("Error refreshing token balances:", error);
@@ -712,17 +732,17 @@ class ZondStore {
   // NEW: Action to set or clear the extension provider
   setExtensionProvider(provider: ExtensionProvider | null) {
     runInAction(() => {
-        this.extensionProvider = provider;
-        if (provider) {
-            log("Extension provider set.");
-        } else {
-            log("Extension provider cleared.");
-             // Optional: Consider if clearing the provider should also clear the active account
-             // if the active account *was* from the extension.
-             // if (this.activeAccount?.isFromExtension) { // Need a way to track this
-             //   this.setActiveAccount(undefined);
-             // }
-        }
+      this.extensionProvider = provider;
+      if (provider) {
+        log("Extension provider set.");
+      } else {
+        log("Extension provider cleared.");
+        // Optional: Consider if clearing the provider should also clear the active account
+        // if the active account *was* from the extension.
+        // if (this.activeAccount?.isFromExtension) { // Need a way to track this
+        //   this.setActiveAccount(undefined);
+        // }
+      }
     });
   }
 
@@ -757,18 +777,18 @@ class ZondStore {
           runInAction(() => {
             // Double-check state again before updating
             if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-               const txHashString = utils.bytesToHex(receipt.transactionHash);
-               this.transactionStatus = {
-                 state: 'confirmed',
-                 txHash: txHashString,
-                 receipt: receipt,
-                 error: null,
-                 pendingDetails: null, // Clear pending details
-               };
-               log(`Transaction confirmed via polling: ${txHashString}`);
-               this.fetchAccounts(); // Refresh account balance
+              const txHashString = utils.bytesToHex(receipt.transactionHash);
+              this.transactionStatus = {
+                state: 'confirmed',
+                txHash: txHashString,
+                receipt: receipt,
+                error: null,
+                pendingDetails: null, // Clear pending details
+              };
+              log(`Transaction confirmed via polling: ${txHashString}`);
+              this.fetchAccounts(); // Refresh account balance
             } else {
-                log(`Receipt found for ${txHash}, but state changed before update.`);
+              log(`Receipt found for ${txHash}, but state changed before update.`);
             }
           });
         } else if (attempts >= maxAttempts) {
@@ -777,13 +797,13 @@ class ZondStore {
           clearInterval(intervalId);
           runInAction(() => {
             if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-                this.transactionStatus = {
-                  state: 'failed',
-                  txHash: txHash,
-                  receipt: null,
-                  error: 'Transaction confirmation timed out.',
-                  pendingDetails: null,
-                };
+              this.transactionStatus = {
+                state: 'failed',
+                txHash: txHash,
+                receipt: null,
+                error: 'Transaction confirmation timed out.',
+                pendingDetails: null,
+              };
             }
           });
         }
@@ -794,15 +814,15 @@ class ZondStore {
         clearInterval(intervalId);
         // Mark as failed on error
         runInAction(() => {
-           if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-                this.transactionStatus = {
-                 state: 'failed',
-                 txHash: txHash,
-                 receipt: null,
-                 error: `Error checking transaction status: ${error.message || error}`,
-                 pendingDetails: null,
-               };
-           }
+          if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
+            this.transactionStatus = {
+              state: 'failed',
+              txHash: txHash,
+              receipt: null,
+              error: `Error checking transaction status: ${error.message || error}`,
+              pendingDetails: null,
+            };
+          }
         });
       }
     }, pollInterval);
@@ -814,19 +834,19 @@ class ZondStore {
     if (!this.extensionProvider) {
       console.error("sendTransactionViaExtension called but no provider is set.");
       log("Error: sendTransactionViaExtension called without provider.");
-       runInAction(() => {
-            this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: 'Extension not connected.' };
-        });
+      runInAction(() => {
+        this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: 'Extension not connected.' };
+      });
       return;
     }
-     if (!this.activeAccount.accountAddress) {
-       console.error("sendTransactionViaExtension called but no active account.");
-       log("Error: sendTransactionViaExtension called without active account.");
-        runInAction(() => {
-            this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: 'No active account selected.' };
-        });
-       return;
-     }
+    if (!this.activeAccount.accountAddress) {
+      console.error("sendTransactionViaExtension called but no active account.");
+      log("Error: sendTransactionViaExtension called without active account.");
+      runInAction(() => {
+        this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: 'No active account selected.' };
+      });
+      return;
+    }
 
     try {
       // Reset status before starting
@@ -840,18 +860,18 @@ class ZondStore {
       try {
         valueBaseUnit = utils.toWei(valueEther, "ether"); // Use "ether" for 18 decimals
       } catch (calcError) {
-         console.error("Error calculating base unit value with toWei:", calcError);
-         throw new Error("Could not calculate transaction value."); 
+        console.error("Error calculating base unit value with toWei:", calcError);
+        throw new Error("Could not calculate transaction value.");
       }
       // --- End Wei Calculation ---
-      
-      const gasLimit = 53000; 
+
+      const gasLimit = 53000;
       const defaultMaxPriorityFeePerGasWei = '10000000'; // 0.01 Gwei (Tip)
       const defaultMaxFeePerGasWei = '100000000';         // 0.1 Gwei (Cap)
 
       // --- Manual Hex Conversion (still needed as utils.toHex was unreliable) --- 
       // Convert potential string/BigInt from toWei to hex safely
-      const valueHex = "0x" + BigInt(valueBaseUnit).toString(16); 
+      const valueHex = "0x" + BigInt(valueBaseUnit).toString(16);
       const gasHex = "0x" + gasLimit.toString(16);
       const maxPriorityFeeHex = "0x" + parseInt(defaultMaxPriorityFeePerGasWei).toString(16);
       const maxFeeHex = "0x" + parseInt(defaultMaxFeePerGasWei).toString(16);
@@ -861,16 +881,16 @@ class ZondStore {
         from: this.activeAccount.accountAddress,
         to: to,
         value: valueHex, // Use manually hexed value from toWei("ether")
-        gas: gasHex,     
-        maxPriorityFeePerGas: maxPriorityFeeHex, 
-        maxFeePerGas: maxFeeHex,             
+        gas: gasHex,
+        maxPriorityFeePerGas: maxPriorityFeeHex,
+        maxFeePerGas: maxFeeHex,
         type: '0x2'
       }];
 
       log(`Requesting transaction via extension (18 Decimals): ${JSON.stringify(params)}`);
       // Extension provider handles user confirmation popup
       const txHash = await this.extensionProvider.request({
-        method: 'zond_sendTransaction', 
+        method: 'zond_sendTransaction',
         params: params
       });
 
@@ -884,8 +904,8 @@ class ZondStore {
           this.pollForReceipt(txHash);
         });
       } else {
-         log(`Extension returned invalid txHash: ${txHash}`);
-         throw new Error("Extension did not return a valid transaction hash.");
+        log(`Extension returned invalid txHash: ${txHash}`);
+        throw new Error("Extension did not return a valid transaction hash.");
       }
 
     } catch (error: any) {
@@ -898,11 +918,11 @@ class ZondStore {
         this.transactionStatus = {
           ...this.transactionStatus,
           state: 'failed',
-          error: userRejected 
-                    ? 'Transaction rejected in extension.' 
-                    : isCalcError
-                        ? error.message // Show calculation error
-                        : (error.message || 'Transaction failed in extension.')
+          error: userRejected
+            ? 'Transaction rejected in extension.'
+            : isCalcError
+              ? error.message // Show calculation error
+              : (error.message || 'Transaction failed in extension.')
         };
       });
     }

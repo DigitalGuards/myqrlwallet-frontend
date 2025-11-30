@@ -44,7 +44,7 @@ const blockchainSelectionClasses = cva("cursor-pointer", {
 const ConnectionBadge = observer(() => {
   const { zondStore } = useStore();
   const { zondConnection, selectBlockchain } = zondStore;
-  const { isConnected, zondNetworkName } = zondConnection;
+  const { isConnected, zondNetworkName, isLoading } = zondConnection;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCustomRpcModalOpen, setIsCustomRpcModalOpen] = useState(false);
   const { TEST_NET, MAIN_NET, CUSTOM_RPC } = ZOND_PROVIDER;
@@ -76,6 +76,7 @@ const ConnectionBadge = observer(() => {
               isSelected: isTestNetwork,
             })}
             onClick={() => selectBlockchain(TEST_NET.id)}
+            disabled={isLoading}
           >
             <Workflow className="mr-2 h-4 w-4" />
             <span>{TEST_NET.name}</span>
@@ -90,6 +91,7 @@ const ConnectionBadge = observer(() => {
               isSelected: isMainNetwork,
             })}
             onClick={() => selectBlockchain(MAIN_NET.id)}
+            disabled={isLoading}
           >
             <Network className="mr-2 h-4 w-4" />
             <span>{MAIN_NET.name}</span>
@@ -104,6 +106,7 @@ const ConnectionBadge = observer(() => {
               isSelected: isCustomRpcNetwork,
             })}
             onClick={() => { setIsCustomRpcModalOpen(true); setIsDropdownOpen(false) }}
+            disabled={isLoading}
           >
             <Network className="mr-2 h-4 w-4" />
             <span>Custom RPC</span>
