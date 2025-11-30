@@ -545,14 +545,15 @@ const AccountDetails = observer(() => {
                                 id="amount"
                                 placeholder="Enter amount"
                                 {...field}
-                                type="number"
-                                step="0.001"
+                                type="text"
+                                inputMode="decimal"
+                                value={field.value || ""}
                                 onChange={(e) => {
-                                  field.onChange(
-                                    e.target.value === ""
-                                      ? 0
-                                      : parseFloat(e.target.value)
-                                  );
+                                  // Allow only numbers and a single decimal point
+                                  const value = e.target.value.replace(",", ".");
+                                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                                    field.onChange(value === "" ? 0 : parseFloat(value) || 0);
+                                  }
                                 }}
                               />
                             </div>
