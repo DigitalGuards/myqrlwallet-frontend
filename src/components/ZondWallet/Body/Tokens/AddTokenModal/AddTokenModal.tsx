@@ -66,7 +66,7 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
             setIsLoading(false);
         }
         init();
-    }, [tokenAddress]);
+    }, [tokenAddress, activeAccountAddress]);
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>

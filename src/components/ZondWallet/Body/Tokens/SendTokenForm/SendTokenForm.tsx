@@ -71,7 +71,7 @@ export const TokenSendingForm = observer(
                 const toAddress = formData.toAddress;
                 const amount = formData.amount;
                 onTokenSent(tokenAddress, toAddress, amount);
-            } catch (error) {
+            } catch (_error) {
                 // control.setError("reEnteredPassword", {
                 //   message: `${error} There was an error while creating the account`,
                 // });

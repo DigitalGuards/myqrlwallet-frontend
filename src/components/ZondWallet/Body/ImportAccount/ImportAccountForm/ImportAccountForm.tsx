@@ -63,7 +63,7 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
       account.hexSeed = hexSeed;
 
       onAccountImported(account);
-    } catch (error) {
+    } catch (_error) {
       form.setError("mnemonicPhrases", {
         message: "Invalid mnemonic phrases",
       });

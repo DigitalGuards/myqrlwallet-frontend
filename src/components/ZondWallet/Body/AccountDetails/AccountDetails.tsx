@@ -136,7 +136,7 @@ const AccountDetails = observer(() => {
       try {
         await StorageUtil.getEncryptedSeed(blockchain, accountAddress);
         // We don't need to track this state anymore since we always use PIN
-      } catch (error) {
+      } catch (_error) {
         console.log("No encrypted seed found for this account");
       }
     };
@@ -203,7 +203,7 @@ const AccountDetails = observer(() => {
         try {
           const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.mnemonicPhrases);
           mnemonicPhrases = decryptedSeed.mnemonic;
-        } catch (error) {
+        } catch (_error) {
           control.setError("mnemonicPhrases", {
             message: "Invalid PIN. Please try again.",
           });
@@ -303,7 +303,7 @@ const AccountDetails = observer(() => {
       receiverAddress: formValues.receiverAddress,
       amount: formValues.amount,
     });
-  }, [formValues.receiverAddress, formValues.amount]);
+  }, [formValues.receiverAddress, formValues.amount, blockchain]);
 
   // --- PLACE renderPinInput FUNCTION HERE ---
   const renderPinInput = () => {

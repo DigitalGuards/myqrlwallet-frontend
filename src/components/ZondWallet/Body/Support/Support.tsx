@@ -92,7 +92,7 @@ const Support: React.FC = () => {
                                     message: "Name must be less than 100 characters."
                                 },
                                 pattern: {
-                                    value: /^[a-zA-Z0-9\s'\-\.]+$/,
+                                    value: /^[a-zA-Z0-9\s'\-.]+$/,
                                     message: "Only letters, numbers, spaces, hyphens, apostrophes, and periods are allowed."
                                 }
                             }}

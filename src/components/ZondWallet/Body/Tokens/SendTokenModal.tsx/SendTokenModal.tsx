@@ -73,7 +73,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                 try {
                     const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pin);
                     mnemonic = decryptedSeed.mnemonic;
-                } catch (error) {
+                } catch (_error) {
                     setPinError("Invalid PIN. Please try again.");
                     setIsLoading(false);
                     return;
@@ -94,7 +94,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                         const { name, symbol, decimals } = await fetchTokenInfo(token?.address, ZOND_PROVIDER[selectedBlockChain].url);
                         const balance = await fetchBalance(token?.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
                         tokenInfo = { name, symbol, decimals: parseInt(decimals.toString()), address: token?.address, amount: balance.toString() };
-                    } catch (error) {
+                    } catch (_error) {
                         toast({
                             title: "Error fetching token info",
                             description: "Please try again",
@@ -163,13 +163,6 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
         setIsLoading(false);
     }
 
-    const handleMaxAmount = async () => {
-        const selectedBlockChain = await StorageUtil.getBlockChain();
-        const balance = await fetchBalance(token?.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
-        console.log(token, balance)
-        setMaxAmount(formatUnits(balance, token?.decimals || 18));
-    }
-    
     const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setAmount(e.target.value);
         // Reset slider when manually typing
@@ -177,11 +170,11 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
             setSliderValue(0);
         }
     };
-    
+
     const handleSliderChange = (value: number[]) => {
         const percentage = value[0];
         setSliderValue(percentage);
-        
+
         // Calculate amount based on percentage of max
         if (maxAmount !== "0") {
             const calculatedAmount = (parseFloat(maxAmount) * (percentage / 100)).toString();
@@ -191,7 +184,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
             setAmount(formattedAmount.replace(/\.?0+$/, ""));
         }
     };
-    
+
     const getPresetPercentage = (percent: number) => {
         return () => {
             setSliderValue(percent);
@@ -207,8 +200,14 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
 
     useEffect(() => {
         if (isOpen && token?.address) {
-            handleMaxAmount();
+            const fetchMaxBalance = async () => {
+                const selectedBlockChain = await StorageUtil.getBlockChain();
+                const balance = await fetchBalance(token?.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
+                setMaxAmount(formatUnits(balance, token?.decimals || 18));
+            };
+            fetchMaxBalance();
         } else {
+            // Intentional cleanup when modal closes - resetting form state
             setAmount("");
             setMaxAmount("");
             setSliderValue(0);
@@ -217,6 +216,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
             setToAddress("");
             setToAddressError("");
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, token?.address, activeAccountAddress]);
 
     return (

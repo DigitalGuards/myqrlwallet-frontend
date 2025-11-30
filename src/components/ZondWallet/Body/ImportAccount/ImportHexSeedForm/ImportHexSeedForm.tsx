@@ -62,7 +62,7 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
       account.mnemonic = mnemonic;
 
       onAccountImported(account);
-    } catch (error) {
+    } catch (_error) {
       form.setError("hexSeed", {
         message: "Invalid hex seed",
       });

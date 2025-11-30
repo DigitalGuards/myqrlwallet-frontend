@@ -93,7 +93,7 @@ export const ImportEncryptedWallet = ({
       }
 
       onWalletImported(account);
-    } catch (error) {
+    } catch (_error) {
       setError("password", {
         message: "Failed to decrypt wallet. Please check your password.",
       });

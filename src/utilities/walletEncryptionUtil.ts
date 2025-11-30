@@ -80,7 +80,7 @@ export class WalletEncryptionUtil {
         mnemonic: decryptedData.mnemonic,
         hexSeed: decryptedData.hexSeed
       };
-    } catch (error) {
+    } catch (_error) {
       throw new Error('Failed to decrypt wallet. Invalid password or corrupted data.');
     }
   }
@@ -210,9 +210,9 @@ export class WalletEncryptionUtil {
         key,
         { iv: iv }
       );
-      
+
       return JSON.parse(decrypted.toString(CryptoJS.enc.Utf8));
-    } catch (error) {
+    } catch (_error) {
       throw new Error('Failed to decrypt seed. Invalid PIN.');
     }
   }

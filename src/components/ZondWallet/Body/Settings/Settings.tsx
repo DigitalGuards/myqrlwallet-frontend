@@ -68,7 +68,7 @@ const Settings = observer(() => {
                 title: "Settings saved successfully",
                 description: "Your wallet settings have been updated.",
             });
-        } catch (error) {
+        } catch (_error) {
             toast({
                 title: "Error saving settings",
                 description: "There was an error saving your settings.",

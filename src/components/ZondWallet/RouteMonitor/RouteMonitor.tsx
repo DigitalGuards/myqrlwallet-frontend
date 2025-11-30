@@ -22,7 +22,7 @@ const RouteMonitor = observer(() => {
         navigate(ROUTES.HOME);
       }
     })();
-  }, [isConnected]);
+  }, [isConnected, navigate]);
 
   useEffect(() => {
     window.scrollTo(0, 0);

@@ -17,7 +17,7 @@ const Tokens = observer(() => {
             });
             navigate('/add-account');
         }
-    }, [activeAccount]);
+    }, [activeAccount, navigate]);
     return (
         <div className="flex w-full items-start justify-center py-8">
             <div className="relative w-full max-w-2xl px-4">

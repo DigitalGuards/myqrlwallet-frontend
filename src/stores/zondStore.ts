@@ -168,11 +168,12 @@ class ZondStore {
   async initializeBlockchain() {
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      let { name, url } = ZOND_PROVIDER[selectedBlockChain];
+      const { name, url: baseUrl } = ZOND_PROVIDER[selectedBlockChain];
+      let url = baseUrl;
 
       if (selectedBlockChain === "CUSTOM_RPC") {
         const customRpcUrl = await StorageUtil.getCustomRpcUrl();
-        url = `${url}?customRpcUrl=${customRpcUrl}`
+        url = `${baseUrl}?customRpcUrl=${customRpcUrl}`
       }
 
       runInAction(() => {
@@ -361,7 +362,7 @@ class ZondStore {
           accounts: accountsWithBalance,
         };
       });
-    } catch (error) {
+    } catch (_error) {
       runInAction(() => {
         this.zondAccounts = {
           ...this.zondAccounts,

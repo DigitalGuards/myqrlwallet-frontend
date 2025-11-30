@@ -46,6 +46,7 @@ export function DataTable<TData, TValue>({
             // Reset selection after modal opens
             table.resetRowSelection();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [table.getState().rowSelection]);
 
     if (isLoading) {

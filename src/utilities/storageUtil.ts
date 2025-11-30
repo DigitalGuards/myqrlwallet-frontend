@@ -258,7 +258,7 @@ class StorageUtil {
    */
   static async storeEncryptedSeed(blockchain: string, address: string, encryptedSeed: string) {
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
-    let encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
+    const encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
     
     // Update or add the encrypted seed
     const existingIndex = encryptedSeeds.findIndex(item => item.address === address);

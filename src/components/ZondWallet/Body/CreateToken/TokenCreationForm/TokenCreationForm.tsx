@@ -113,7 +113,7 @@ export const TokenCreationForm = observer(
         const formatRealValue = (supply: string, decimals: number) => {
             try {
                 return ethers.formatUnits(supply, decimals);
-            } catch (error) {
+            } catch (_error) {
                 return "Invalid value";
             }
         };
@@ -170,7 +170,7 @@ export const TokenCreationForm = observer(
                             setPinError("PIN decrypted an invalid seed. Please import your account again.");
                             return;
                         }
-                    } catch (error) {
+                    } catch (_error) {
                         setPinError("Invalid PIN. Please try again.");
                         return;
                     }
@@ -230,6 +230,7 @@ export const TokenCreationForm = observer(
 
             }
             init();
+            // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [address]);
 
         // Check if user has an active account

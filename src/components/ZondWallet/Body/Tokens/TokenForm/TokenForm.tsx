@@ -50,7 +50,7 @@ const TokenForm = observer(() => {
     useEffect(() => {
         const init = async () => {
             setIsLoading(true);
-            let updatedTokenList = [...tokenListFromStore];
+            const updatedTokenList = [...tokenListFromStore];
 
             const selectedBlockChain = await StorageUtil.getBlockChain();
 

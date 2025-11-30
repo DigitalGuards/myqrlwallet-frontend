@@ -85,7 +85,8 @@ export const GasFeeNotice = ({
         fetchGasFee();
       }, 500);
     }
-  }, [from, to, value]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from, to, value, hasValuesForGasCalculation]);
 
   return (
     hasValuesForGasCalculation && (

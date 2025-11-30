@@ -71,7 +71,7 @@ const TransactionHistory = observer(() => {
     }, [activeAccount.accountAddress, searchTerm, sortConfig]);
 
     const sortedTransactions = useMemo(() => {
-        let sortableTransactions = [...transactionHistory];
+        const sortableTransactions = [...transactionHistory];
         if (sortConfig !== null) {
             sortableTransactions.sort((a, b) => {
                 let aKey = a[sortConfig.key];
