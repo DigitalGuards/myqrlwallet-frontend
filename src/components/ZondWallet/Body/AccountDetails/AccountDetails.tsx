@@ -118,6 +118,7 @@ const AccountDetails = observer(() => {
   }
 
   const [sliderValue, setSliderValue] = useState(0);
+  const [amountInputValue, setAmountInputValue] = useState("");
 
   const [hasJustCopied, setHasJustCopied] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout>();
@@ -232,6 +233,7 @@ const AccountDetails = observer(() => {
   const resetForm = () => {
     reset({ receiverAddress: "", amount: 0, mnemonicPhrases: "" }, { keepErrors: true });
     setSliderValue(0);
+    setAmountInputValue("");
   };
 
   const cancelTransaction = () => {
@@ -282,6 +284,7 @@ const AccountDetails = observer(() => {
       const maxAmount = parseFloat(accountBalance);
       const calculatedAmount = (maxAmount * (percentage / 100));
       const formattedAmount = calculatedAmount.toFixed(6).replace(/\.?0+$/, "");
+      setAmountInputValue(formattedAmount);
       setValue("amount", parseFloat(formattedAmount));
     }
   };
@@ -294,6 +297,7 @@ const AccountDetails = observer(() => {
       const maxAmount = parseFloat(accountBalance);
       const calculatedAmount = (maxAmount * (percentage / 100));
       const formattedAmount = calculatedAmount.toFixed(6).replace(/\.?0+$/, "");
+      setAmountInputValue(formattedAmount);
       setValue("amount", parseFloat(formattedAmount));
     }
   };
@@ -304,6 +308,13 @@ const AccountDetails = observer(() => {
       amount: formValues.amount,
     });
   }, [formValues.receiverAddress, formValues.amount, blockchain]);
+
+  // Sync amountInputValue with form value when loaded from storage
+  useEffect(() => {
+    if (formValues.amount && formValues.amount > 0 && amountInputValue === "") {
+      setAmountInputValue(formValues.amount.toString());
+    }
+  }, [formValues.amount]);
 
   // --- PLACE renderPinInput FUNCTION HERE ---
   const renderPinInput = () => {
@@ -544,15 +555,27 @@ const AccountDetails = observer(() => {
                               <Input
                                 id="amount"
                                 placeholder="Enter amount"
-                                {...field}
                                 type="text"
                                 inputMode="decimal"
-                                value={field.value || ""}
+                                disabled={field.disabled}
+                                name={field.name}
+                                ref={field.ref}
+                                onBlur={field.onBlur}
+                                value={amountInputValue}
                                 onChange={(e) => {
                                   // Allow only numbers and a single decimal point
+                                  // Convert comma to period for European locales
                                   const value = e.target.value.replace(",", ".");
                                   if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                                    field.onChange(value === "" ? 0 : parseFloat(value) || 0);
+                                    setAmountInputValue(value);
+                                    const numValue = value === "" ? 0 : parseFloat(value) || 0;
+                                    // Update form value for validation
+                                    field.onChange(numValue);
+                                    // Update slider to reflect percentage of balance
+                                    if (accountBalance && parseFloat(accountBalance) > 0) {
+                                      const percentage = Math.min(100, (numValue / parseFloat(accountBalance)) * 100);
+                                      setSliderValue(Math.round(percentage));
+                                    }
                                   }
                                 }}
                               />
