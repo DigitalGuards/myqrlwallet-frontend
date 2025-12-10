@@ -524,6 +524,7 @@ const AccountDetails = observer(() => {
                           <FormControl>
                             <Input
                               {...field}
+                              value={field.value ?? ""}
                               disabled={isSubmitting}
                               placeholder="Receiver address"
                             />

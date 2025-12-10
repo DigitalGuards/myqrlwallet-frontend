@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import { Input } from "../Input";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,7 @@ interface PinInputProps {
 }
 
 export const PinInput = ({
-  length = 4,
+  length = 6,
   onChange,
   value = "",
   disabled = false,
@@ -25,7 +25,6 @@ export const PinInput = ({
   error,
   autoFocus = false,
 }: PinInputProps) => {
-  const [pin, setPin] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -36,38 +35,38 @@ export const PinInput = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    
+
     // Only allow digits and limit to specified length
     if (/^\d*$/.test(newValue) && newValue.length <= length) {
-      setPin(newValue);
       onChange(newValue);
     }
   };
 
-  // Prevent form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Prevent Enter key from submitting parent form
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+    }
   };
 
   return (
     <div className={cn("w-full space-y-2", className)}>
-      <form onSubmit={handleSubmit} className="w-full">
-        <Input
-          ref={inputRef}
-          type="password"
-          inputMode="numeric"
-          placeholder={placeholder}
-          value={pin}
-          onChange={handleChange}
-          disabled={disabled}
-          autoComplete="current-password"
-          className={cn(
-            "placeholder:text-left placeholder:tracking-normal", 
-            pin.length > 0 ? "text-center tracking-widest" : "text-left tracking-normal",
-            error ? "border-destructive" : ""
-          )}
-        />
-      </form>
+      <Input
+        ref={inputRef}
+        type="password"
+        inputMode="numeric"
+        placeholder={placeholder}
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
+        autoComplete="current-password"
+        className={cn(
+          "placeholder:text-left placeholder:tracking-normal",
+          value.length > 0 ? "text-center tracking-widest" : "text-left tracking-normal",
+          error ? "border-destructive" : ""
+        )}
+      />
       {description && (
         <div className="text-sm text-muted-foreground">
           {description}

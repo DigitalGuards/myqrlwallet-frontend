@@ -119,6 +119,7 @@ const Settings = observer(() => {
                                                             min={1}
                                                             max={60}
                                                             {...field}
+                                                            value={field.value ?? 15}
                                                             onChange={(e) => field.onChange(Number(e.target.value))}
                                                         />
                                                     </FormControl>
@@ -145,7 +146,7 @@ const Settings = observer(() => {
                                                     </div>
                                                     <FormControl>
                                                         <Switch
-                                                            checked={field.value}
+                                                            checked={field.value ?? false}
                                                             onCheckedChange={field.onChange}
                                                         />
                                                     </FormControl>
@@ -166,7 +167,7 @@ const Settings = observer(() => {
                                                     </div>
                                                     <FormControl>
                                                         <Switch
-                                                            checked={field.value}
+                                                            checked={field.value ?? false}
                                                             onCheckedChange={field.onChange}
                                                         />
                                                     </FormControl>
@@ -187,7 +188,7 @@ const Settings = observer(() => {
                                                     </div>
                                                     <FormControl>
                                                         <Switch
-                                                            checked={field.value}
+                                                            checked={field.value ?? true}
                                                             onCheckedChange={field.onChange}
                                                         />
                                                     </FormControl>
