@@ -9,9 +9,9 @@
     <link rel="apple-touch-icon" href="/icons/theqrlwallet/apple-touch-icon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
 
-    <!-- Security Headers (frame-ancestors and X-Frame-Options must be set via HTTP headers, not meta tags) -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' blob:; connect-src 'self' https://qrlwallet.com https://zondscan.com; base-uri 'self'; form-action 'self';">
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <!-- Security Headers - main CSP is set via nginx in production -->
+    <!-- This meta CSP provides baseline protection for local development -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' blob:; connect-src 'self' https://qrlwallet.com https://zondscan.com http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; base-uri 'self'; form-action 'self';">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     
     <!-- Primary Meta Tags -->
