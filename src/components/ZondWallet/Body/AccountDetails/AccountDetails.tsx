@@ -309,12 +309,13 @@ const AccountDetails = observer(() => {
     });
   }, [formValues.receiverAddress, formValues.amount, blockchain]);
 
-  // Sync amountInputValue with form value when loaded from storage
+  // Sync amountInputValue with form value when loaded from storage (initial load only)
   useEffect(() => {
-    if (formValues.amount && formValues.amount > 0 && amountInputValue === "") {
+    if (formValues.amount && formValues.amount > 0 && !amountInputValue) {
       setAmountInputValue(formValues.amount.toString());
     }
-  }, [formValues.amount]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formValues.amount]); // Intentionally excluding amountInputValue to only sync on initial load
 
   // --- PLACE renderPinInput FUNCTION HERE ---
   const renderPinInput = () => {
