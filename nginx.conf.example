@@ -1,5 +1,9 @@
 # Example Nginx configuration for QRL Web Wallet
 # Copy this file and modify paths/domains as needed for your deployment
+#
+# IMPORTANT: Nginx does NOT inherit add_header directives from parent blocks
+# when a location block contains any add_header directive. Security headers
+# must be repeated in each location block that uses add_header.
 
 # HTTP to HTTPS redirect
 server {
@@ -32,7 +36,8 @@ server {
     root /var/www/zondwebwallet;
     index index.html;
 
-    # Security Headers
+    # Security Headers (applied to locations without their own add_header)
+    # NOTE: These are NOT inherited by location blocks that have add_header directives
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
@@ -112,7 +117,13 @@ server {
     # Static assets with long cache
     location /assets {
         expires 1y;
+        # IMPORTANT: Must repeat security headers since this block has add_header
         add_header Cache-Control "public, no-transform";
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
         try_files $uri =404;
     }
 
@@ -128,7 +139,13 @@ server {
         add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
 
         # Prevent caching of index.html for instant updates
+        # IMPORTANT: Must repeat security headers since this block has add_header
         add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
         expires 0;
     }
 
