@@ -72,7 +72,7 @@ const Support: React.FC = () => {
         <div className="min-h-screen bg-background">
             <SEO
                 title="Support"
-                description="Support for the MyQRLWallet - QRL Web Wallet"
+                description="Get help with MyQRLWallet"
             />
             <main className="container mx-auto px-4 py-8">
                 <h1 className="text-2xl font-semibold mb-6">Support</h1>

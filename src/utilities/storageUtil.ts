@@ -197,7 +197,7 @@ class StorageUtil {
       return data as AccountListItem[];
     }
 
-    // Old format: array of address strings – convert to new structure (default source = 'seed')
+    // Old format: array of address strings, convert to new structure (default source = 'seed')
     if (Array.isArray(data) && (data.length === 0 || typeof data[0] === 'string')) {
       const converted: AccountListItem[] = (data as string[]).map(addr => ({ address: addr, source: 'seed' }));
       // Persist back in new format so we do the conversion only once
@@ -205,7 +205,7 @@ class StorageUtil {
       return converted;
     }
 
-    // Fallback – unknown structure
+    // Fallback: unknown structure
     return [];
   }
 

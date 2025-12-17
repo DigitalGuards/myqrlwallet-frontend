@@ -14,7 +14,7 @@ const SITE_NAME = "MyQRLWallet";
 const DEFAULT_IMAGE = "https://qrlwallet.com/mqrlwallet.png";
 
 export const SEO = ({
-  title = "MyQRLWallet - QRL Web Wallet",
+  title = "MyQRLWallet",
   description = "Web wallet for the QRL Zond blockchain. Create accounts and manage transactions on the quantum resistant ledger.",
   keywords = "QRL, Quantum Resistant Ledger, Zond, Web3, Cryptocurrency Wallet, Blockchain",
   type = "website",
@@ -22,7 +22,7 @@ export const SEO = ({
   url = "https://qrlwallet.com",
   image = DEFAULT_IMAGE,
 }: SEOProps) => {
-  const fullTitle = title === "MyQRLWallet - QRL Web Wallet" ? title : `${title} | ${SITE_NAME}`;
+  const fullTitle = title === "MyQRLWallet" ? title : `${title} | ${SITE_NAME}`;
 
   return (
     <Helmet>
