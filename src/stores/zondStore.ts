@@ -14,6 +14,8 @@ import { TokenInterface } from "@/lib/constants";
 import { KNOWN_TOKEN_LIST } from "@/lib/constants";
 import CustomERC20ABI from "@/abi/CustomERC20ABI";
 import { getPendingTxApiUrl } from "@/configuration/zondConfig"; // Import the new helper
+import { formatUnits } from "ethers";
+import { getOptimalTokenBalance } from "@/functions/getOptimalTokenBalance";
 
 type ActiveAccountType = {
   accountAddress: string;
@@ -721,8 +723,8 @@ class ZondStore {
         const token = this.tokenList[i];
         try {
           const balance = await fetchBalance(token.address, this.activeAccount.accountAddress, ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER].url);
-          const formattedBalance = utils.fromWei(balance, "ether");
-          updatedTokenList[i] = { ...token, amount: formattedBalance };
+          const balanceStr = formatUnits(balance, token.decimals);
+          updatedTokenList[i] = { ...token, amount: getOptimalTokenBalance(balanceStr, token.symbol) };
         } catch (err) {
           console.error(`Error fetching balance for token ${token.symbol}:`, err);
           updatedTokenList[i] = { ...token, amount: "Error" };

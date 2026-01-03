@@ -25,7 +25,7 @@ export const handleLogout = async (navigate: (path: string) => void) => {
         }
 
         // Clear token list
-        await StorageUtil.clearTokenList();
+        StorageUtil.clearTokenList();
 
         // Clear wallet settings (optional - uncomment if you want to reset settings on logout)
         // await StorageUtil.setWalletSettings({
