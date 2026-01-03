@@ -196,9 +196,9 @@ class ZondStore {
 
       this.tokenList = await StorageUtil.getTokenList();
 
-      KNOWN_TOKEN_LIST.forEach(async (token) => {
+      for (const token of KNOWN_TOKEN_LIST) {
         await this.addToken(token);
-      });
+      }
 
       await this.fetchZondConnection();
       await this.fetchAccounts();
@@ -654,62 +654,79 @@ class ZondStore {
     maxTxLimit: string,
     mnemonicPhrases: string
   ) {
-    this.setCreatingToken(tokenName, true);
-    const selectedBlockChain = await StorageUtil.getBlockChain();
-    const { url } = ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER];
-    const seed = getHexSeedFromMnemonic(mnemonicPhrases);
-    const web3 = new Web3(new Web3.providers.HttpProvider(url));
-    const acc = web3.zond.accounts.seedToAccount(seed)
-    web3.zond.wallet?.add(seed);
-    web3.zond.transactionConfirmationBlocks = 1;
+    try {
+      this.setCreatingToken(tokenName, true);
+      const selectedBlockChain = await StorageUtil.getBlockChain();
+      const { url } = ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER];
+      const seed = getHexSeedFromMnemonic(mnemonicPhrases);
+      const web3 = new Web3(new Web3.providers.HttpProvider(url));
+      const acc = web3.zond.accounts.seedToAccount(seed)
+      web3.zond.wallet?.add(seed);
+      web3.zond.transactionConfirmationBlocks = 1;
 
-    const confirmationHandler = (data: any) => {
+      const contractAddress = import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
+
+      const confirmationHandler = () => {
+        this.setCreatingToken("", false);
+      }
+
+      const receiptHandler = async (data: TransactionReceipt) => {
+        // Find the TokenCreated event by signature instead of relying on fixed log index
+        const tokenCreatedEventSignature = web3.utils.keccak256("TokenCreated(address,address)");
+        const tokenCreatedLog = data.logs.find(
+          (log) => log.topics?.[0] === tokenCreatedEventSignature &&
+                   log.address?.toLowerCase() === contractAddress.toLowerCase()
+        );
+
+        if (!tokenCreatedLog?.topics?.[1]) {
+          console.error("Token address not found in transaction receipt");
+          return;
+        }
+        const tokenTopic = tokenCreatedLog.topics[1];
+        const erc20TokenAddress = `Z${tokenTopic.toString().slice(-40)}`;
+        const tx = data.transactionHash;
+        const blockNumber = Number(data.blockNumber);
+        const gasUsed = Number(data.gasUsed);
+        const effectiveGasPrice = Number(data.effectiveGasPrice);
+        const blockHash = data.blockHash;
+        const { name, symbol, decimals } = await fetchTokenInfo(erc20TokenAddress, url);
+        this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress, utils.bytesToHex(tx), blockNumber, gasUsed, effectiveGasPrice, utils.bytesToHex(blockHash));
+      }
+
+      const errorHandler = (error: Error) => {
+        console.error("Token creation error:", error);
+        this.setCreatingToken("", false);
+      }
+
+      const customERC20Factorycontract = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
+
+      const contractCreateToken = customERC20Factorycontract.methods.createToken(
+        tokenName,
+        tokenSymbol,
+        initialSupply,
+        decimals,
+        maxSupply,
+        receipt,
+        owner,
+        maxWalletAmount,
+        maxTxLimit
+      );
+
+      const estimateGas = await contractCreateToken.estimateGas({ "from": acc.address })
+
+      const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: contractCreateToken.encodeABI(), to: contractAddress }
+
+      await web3.zond.sendTransaction(txObj, undefined, {
+        checkRevertBeforeSending: true
+      })
+        .on('confirmation', confirmationHandler)
+        .on('receipt', receiptHandler)
+        .on('error', errorHandler)
+    } catch (error) {
+      console.error("Failed to create token:", error);
       this.setCreatingToken("", false);
-      console.log(data);
+      throw error;
     }
-
-    const receiptHandler = async (data: any) => {
-      console.log(data);
-      const erc20TokenAddress = `Z${data.logs[3].topics[1].slice(-40)}`;
-      const tx = data.transactionHash;
-      const blockNumber = Number(data.blockNumber);
-      const gasUsed = Number(data.gasUsed);
-      const effectiveGasPrice = Number(data.effectiveGasPrice);
-      const blockHash = data.blockHash;
-      const { name, symbol, decimals } = await fetchTokenInfo(erc20TokenAddress, url);
-      this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress, tx, blockNumber, gasUsed, effectiveGasPrice, blockHash);
-    }
-
-    const errorHandler = (data: any) => {
-      console.error(data);
-    }
-
-    const contractAddress = import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
-
-    const customERC20Factorycontract = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
-
-    const contractCreateToken = customERC20Factorycontract.methods.createToken(
-      tokenName,
-      tokenSymbol,
-      initialSupply,
-      decimals,
-      maxSupply,
-      receipt,
-      owner,
-      maxWalletAmount,
-      maxTxLimit
-    );
-
-    const estimateGas = await contractCreateToken.estimateGas({ "from": acc.address })
-
-    const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: contractCreateToken.encodeABI(), to: contractAddress }
-
-    await web3.zond.sendTransaction(txObj, undefined, {
-      checkRevertBeforeSending: true
-    })
-      .on('confirmation', confirmationHandler)
-      .on('receipt', receiptHandler)
-      .on('error', errorHandler)
   }
 
   async refreshTokenBalances() {

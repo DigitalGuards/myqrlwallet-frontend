@@ -10,11 +10,13 @@ import { Button } from "@/components/UI/Button";
 import { ROUTES } from "@/router/router";
 import { Link } from "react-router-dom";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { ZOND_PROVIDER } from "@/configuration/zondConfig";
 
 const TokenStatus = observer(() => {
     const { zondStore } = useStore();
-    const { addToken, createdToken, creatingToken } = zondStore;
+    const { addToken, createdToken, creatingToken, zondConnection } = zondStore;
     const { name, symbol, decimals, address, tx, blockNumber, blockHash, gasUsed, effectiveGasPrice } = createdToken;
+    const explorerUrl = ZOND_PROVIDER[zondConnection.blockchain as keyof typeof ZOND_PROVIDER]?.explorer || "https://zondscan.com";
 
     const { copiedItem, copyToClipboard } = useCopyToClipboard<"txHash" | "tokenAddress" | "blockHash">();
 
@@ -26,20 +28,23 @@ const TokenStatus = observer(() => {
         .replace(/\.?0+$/, "");
 
     useEffect(() => {
-        const init = async () => {
+        const addCreatedToken = async () => {
             if (address) {
-                await addToken({
-                    name: name,
-                    symbol: symbol,
-                    decimals: decimals,
-                    address: address,
-                    amount: "0",
-                });
+                try {
+                    await addToken({
+                        name,
+                        symbol,
+                        decimals,
+                        address,
+                        amount: "0",
+                    });
+                } catch (error) {
+                    console.error("Failed to add token to list:", error);
+                }
             }
-        }
-        init();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [address]);
+        };
+        addCreatedToken();
+    }, [address, addToken, name, symbol, decimals]);
 
 
     return (
@@ -70,7 +75,7 @@ const TokenStatus = observer(() => {
                                     <div>Transaction Hash</div>
                                     <div className="flex items-center gap-2">
                                         <a
-                                            href={`https://zondscan.com/pending/tx/${tx}`}
+                                            href={`${explorerUrl}/pending/tx/${tx}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="flex items-center gap-2 text-secondary hover:text-secondary/80"
@@ -156,7 +161,7 @@ const TokenStatus = observer(() => {
                                     <div className="flex flex-col gap-2">
                                         <div>Block number</div>
                                         <a
-                                            href={`https://zondscan.com/block/${blockNumber}`}
+                                            href={`${explorerUrl}/block/${blockNumber}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="flex items-center gap-2 font-bold text-secondary hover:text-secondary/80"

@@ -81,8 +81,7 @@ export const TokenCreationForm = observer(
     ({ onTokenCreated }: TokenCreationFormProps) => {
         const navigate = useNavigate();
         const { zondStore } = useStore();
-        const { createdToken, addToken, activeAccount, activeAccountSource } = zondStore;
-        const { name, symbol, decimals, address } = createdToken;
+        const { activeAccount, activeAccountSource } = zondStore;
         const [pin, setPin] = useState("");
         const [pinError, setPinError] = useState("");
 
@@ -113,7 +112,7 @@ export const TokenCreationForm = observer(
         const formatRealValue = (supply: string, decimals: number) => {
             try {
                 return ethers.formatUnits(supply, decimals);
-            } catch (_error) {
+            } catch {
                 return "Invalid value";
             }
         };
@@ -184,9 +183,9 @@ export const TokenCreationForm = observer(
                 const recipientAddress = formData.recipientAddress;
                 const ownerAddress = formData.ownerAddress;
                 const maxWalletAmount = formData.maxWalletAmount ? ethers.parseUnits(formData.maxWalletAmount, decimals).toString() : undefined;
-                const maxTransactionLimit = formData.maxTransactionLimit;
-                
-                onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, ownerAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase);
+                const maxTransactionLimit = formData.maxTransactionLimit ? ethers.parseUnits(formData.maxTransactionLimit, decimals).toString() : undefined;
+
+                await onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, ownerAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase);
                 navigate(ROUTES.TOKEN_STATUS);
             } catch (error) {
                 console.error("Error creating token:", error);
@@ -199,39 +198,18 @@ export const TokenCreationForm = observer(
         }
 
         useEffect(() => {
-            const init = async () => {
-                form.reset({
-                    tokenName: "",
-                    tokenSymbol: "",
-                    initialSupply: "0",
-                    decimals: 18,
-                    mintable: false,
-                    changeInitialRecipient: false,
-                    changeTokenOwner: false,
-                    setMaxWalletAmount: false,
-                    setMaxTransactionLimit: false,
-                });
-                if (address) {
-                    const token = await addToken({
-                        name: name,
-                        symbol: symbol,
-                        decimals: decimals,
-                        address: address,
-                        amount: "0",
-                    });
-                    if (token) {
-                        toast({
-                            title: `${name} token created successfully`,
-                            description: `Address: ${address}\n Name: ${name}\n Symbol: ${symbol}\n Decimals: ${decimals}`,
-                            variant: "default",
-                        });
-                    }
-                }
-
-            }
-            init();
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [address]);
+            form.reset({
+                tokenName: "",
+                tokenSymbol: "",
+                initialSupply: "0",
+                decimals: 18,
+                mintable: false,
+                changeInitialRecipient: false,
+                changeTokenOwner: false,
+                setMaxWalletAmount: false,
+                setMaxTransactionLimit: false,
+            });
+        }, [form]);
 
         // Check if user has an active account
         if (!activeAccount.accountAddress) {
@@ -380,7 +358,7 @@ export const TokenCreationForm = observer(
                                                     {...field}
                                                     disabled={isSubmitting}
                                                     placeholder="Example: 999,999,999,999,999,999"
-                                                    type="string"
+                                                    type="text"
                                                 />
                                             </FormControl>
                                             <FormDescription>
@@ -427,7 +405,7 @@ export const TokenCreationForm = observer(
                                                     {...field}
                                                     disabled={isSubmitting}
                                                     placeholder="Example: Z20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
-                                                    type="string"
+                                                    type="text"
                                                 />
                                             </FormControl>
                                             <FormDescription>Recipient Address</FormDescription>
@@ -472,7 +450,7 @@ export const TokenCreationForm = observer(
                                                     {...field}
                                                     disabled={isSubmitting}
                                                     placeholder="Example: Z20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
-                                                    type="string"
+                                                    type="text"
                                                 />
                                             </FormControl>
                                             <FormDescription>Owner Address</FormDescription>
@@ -604,10 +582,8 @@ export const TokenCreationForm = observer(
                                 className="w-full"
                                 type="submit"
                             >
-                                {isSubmitting ? (
+                                {isSubmitting && (
                                     <Loader className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <></>
                                 )}
                                 Create Token
                             </Button>
