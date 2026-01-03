@@ -4,6 +4,10 @@ export function useCopyToClipboard<T extends string>(timeout = 1500) {
   const [copiedItem, setCopiedItem] = useState<T | null>(null);
 
   const copyToClipboard = useCallback((text: string, type: T) => {
+    if (!navigator.clipboard) {
+      console.error("Clipboard API is not available.");
+      return;
+    }
     navigator.clipboard
       .writeText(text)
       .then(() => {
