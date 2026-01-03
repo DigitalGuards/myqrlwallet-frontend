@@ -50,17 +50,26 @@ const TokenForm = observer(() => {
     useEffect(() => {
         const init = async () => {
             setIsLoading(true);
-            const updatedTokenList = [...tokenListFromStore];
+            try {
+                const updatedTokenList = [...tokenListFromStore];
+                const selectedBlockChain = await StorageUtil.getBlockChain();
 
-            const selectedBlockChain = await StorageUtil.getBlockChain();
-
-            for (let i = 0; i < tokenListFromStore.length; i++) {
-                const balance = await fetchBalance(tokenListFromStore[i].address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
-                const balanceStr = formatUnits(balance, tokenListFromStore[i].decimals);
-                updatedTokenList[i].amount = getOptimalTokenBalance(balanceStr, tokenListFromStore[i].symbol);
+                for (let i = 0; i < tokenListFromStore.length; i++) {
+                    try {
+                        const balance = await fetchBalance(tokenListFromStore[i].address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
+                        const balanceStr = formatUnits(balance, tokenListFromStore[i].decimals);
+                        updatedTokenList[i].amount = getOptimalTokenBalance(balanceStr, tokenListFromStore[i].symbol);
+                    } catch (err) {
+                        console.error(`Failed to fetch balance for token ${tokenListFromStore[i].symbol}:`, err);
+                        updatedTokenList[i].amount = "Error";
+                    }
+                }
+                setTokenList(updatedTokenList);
+            } catch (err) {
+                console.error("Failed to initialize token list:", err);
+            } finally {
+                setIsLoading(false);
             }
-            setTokenList(updatedTokenList);
-            setIsLoading(false);
         };
 
         init();

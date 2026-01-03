@@ -127,12 +127,15 @@ class StorageUtil {
   }
 
   static async updateTokenList(tokenList: TokenInterface[]) {
-    console.log(tokenList)
     this.setItem(TOKEN_LIST_IDENTIFIER, tokenList);
   }
 
   static async getTokenList() {
     return this.getItem<TokenInterface[]>(TOKEN_LIST_IDENTIFIER) ?? [];
+  }
+
+  static async clearTokenList() {
+    localStorage.removeItem(TOKEN_LIST_IDENTIFIER);
   }
 
   static async getBlockChain() {

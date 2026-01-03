@@ -719,9 +719,14 @@ class ZondStore {
 
       for (let i = 0; i < this.tokenList.length; i++) {
         const token = this.tokenList[i];
-        const balance = await fetchBalance(token.address, this.activeAccount.accountAddress, ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER].url);
-        const formattedBalance = utils.fromWei(balance, "ether");
-        updatedTokenList[i] = { ...token, amount: formattedBalance };
+        try {
+          const balance = await fetchBalance(token.address, this.activeAccount.accountAddress, ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER].url);
+          const formattedBalance = utils.fromWei(balance, "ether");
+          updatedTokenList[i] = { ...token, amount: formattedBalance };
+        } catch (err) {
+          console.error(`Error fetching balance for token ${token.symbol}:`, err);
+          updatedTokenList[i] = { ...token, amount: "Error" };
+        }
       }
 
       await this.setTokenList(updatedTokenList);
