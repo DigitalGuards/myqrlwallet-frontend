@@ -24,6 +24,9 @@ export const handleLogout = async (navigate: (path: string) => void) => {
             await StorageUtil.cleanupExpiredSeeds(blockchain);
         }
 
+        // Clear token list
+        await StorageUtil.clearTokenList();
+
         // Clear wallet settings (optional - uncomment if you want to reset settings on logout)
         // await StorageUtil.setWalletSettings({
         //     autoLockTimeout: 15 * 60 * 1000,
