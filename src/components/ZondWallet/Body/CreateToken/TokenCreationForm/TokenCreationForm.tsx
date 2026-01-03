@@ -85,7 +85,7 @@ export const TokenCreationForm = observer(
         const [pin, setPin] = useState("");
         const [pinError, setPinError] = useState("");
 
-        const form = useForm<z.infer<typeof FormSchema>>({
+        const form = useForm({
             resolver: zodResolver(FormSchema),
             mode: "onChange",
             reValidateMode: "onSubmit",
@@ -117,7 +117,7 @@ export const TokenCreationForm = observer(
             }
         };
 
-        async function onSubmit(formData: z.infer<typeof FormSchema>) {
+        async function onSubmit(formData: z.output<typeof FormSchema>) {
             try {
                 setPinError("");
                 

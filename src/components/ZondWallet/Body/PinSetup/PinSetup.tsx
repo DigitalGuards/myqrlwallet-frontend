@@ -48,7 +48,7 @@ export const PinSetup = ({
   const { blockchain } = zondConnection;
   const [isStoringPin, setIsStoringPin] = useState(false);
 
-  const form = useForm<z.infer<typeof FormSchema>>({
+  const form = useForm({
     resolver: zodResolver(FormSchema),
     mode: "onChange",
     reValidateMode: "onSubmit",
@@ -64,7 +64,7 @@ export const PinSetup = ({
     formState: { isSubmitting, isValid },
   } = form;
 
-  async function onSubmit(formData: z.infer<typeof FormSchema>) {
+  async function onSubmit(formData: z.output<typeof FormSchema>) {
     try {
       setIsStoringPin(true);
       const userPin = formData.pin;

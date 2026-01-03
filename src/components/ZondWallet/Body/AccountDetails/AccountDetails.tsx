@@ -169,7 +169,7 @@ const AccountDetails = observer(() => {
 
   const isUsingExtension = activeAccountSource === 'extension';
 
-  async function onSubmit(formData: z.infer<typeof FormSchema>) {
+  async function onSubmit(formData: z.output<typeof FormSchema>) {
     const valueEther = formData.amount.toString();
 
     if (isUsingExtension) {
@@ -243,7 +243,7 @@ const AccountDetails = observer(() => {
     navigate(ROUTES.HOME);
   };
 
-  const form = useForm<z.infer<typeof FormSchema>>({
+  const form = useForm({
     resolver: zodResolver(FormSchema),
     mode: "onChange",
     reValidateMode: "onChange",
@@ -265,7 +265,7 @@ const AccountDetails = observer(() => {
     formState: { isSubmitting, isValid },
   } = form;
 
-  const formValues = watch();
+  const formValues = watch() as z.output<typeof FormSchema>;
 
   const accountBalance = getAccountBalance(accountAddress);
 
