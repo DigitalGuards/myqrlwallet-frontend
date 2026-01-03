@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/UI/Button";
 import {
   Card,
@@ -8,7 +9,7 @@ import {
 } from "@/components/UI/Card";
 import StringUtil from "@/utilities/stringUtil";
 import { TransactionReceipt, utils } from "@theqrl/web3";
-import { Check, ExternalLink } from "lucide-react";
+import { Check, Copy, ExternalLink } from "lucide-react";
 
 type TransactionSuccessfulProps = {
   transactionReceipt: TransactionReceipt;
@@ -27,6 +28,16 @@ export const TransactionSuccessful = ({
     effectiveGasPrice,
   } = transactionReceipt;
 
+  const [copiedItem, setCopiedItem] = useState<"txHash" | "blockHash" | null>(null);
+
+  const copyToClipboard = (text: string, type: "txHash" | "blockHash") => {
+    navigator.clipboard.writeText(text);
+    setCopiedItem(type);
+    setTimeout(() => {
+      setCopiedItem(null);
+    }, 1500);
+  };
+
   return (
     <div className="w-full">
       <img
@@ -42,20 +53,51 @@ export const TransactionSuccessful = ({
           <CardContent className="space-y-8">
             <div className="flex flex-col gap-2">
               <div>Transaction Hash</div>
-              <a
-                href={`https://zondscan.com/pending/tx/${transactionHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 font-bold text-secondary hover:text-secondary/80"
-              >
-                {StringUtil.getSplitAddress(transactionHash.toString())}
-                <ExternalLink className="h-4 w-4" />
-              </a>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`https://zondscan.com/pending/tx/${transactionHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold text-secondary hover:text-secondary/80"
+                >
+                  {StringUtil.getSplitAddress(transactionHash.toString())}
+                </a>
+                <a
+                  href={`https://zondscan.com/pending/tx/${transactionHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-secondary hover:text-secondary/80"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+                <button
+                  onClick={() => copyToClipboard(transactionHash.toString(), "txHash")}
+                  className="text-secondary hover:text-secondary/80"
+                >
+                  {copiedItem === "txHash" ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
             <div className="flex flex-col gap-2">
               <div>Block hash</div>
-              <div className="font-bold text-secondary">
-                {StringUtil.getSplitAddress(blockHash.toString())}
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-secondary">
+                  {StringUtil.getSplitAddress(blockHash.toString())}
+                </span>
+                <button
+                  onClick={() => copyToClipboard(blockHash.toString(), "blockHash")}
+                  className="text-secondary hover:text-secondary/80"
+                >
+                  {copiedItem === "blockHash" ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </button>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-8">
@@ -73,11 +115,15 @@ export const TransactionSuccessful = ({
               </div>
               <div className="flex flex-col gap-2">
                 <div>Gas used</div>
-                <div className="font-bold text-secondary">
-                  {`${utils.fromWei(
-                    BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0),
-                    "ether"
-                  )} QRL`}
+                <div className="font-bold text-secondary break-all">
+                  {`${parseFloat(
+                    utils.fromWei(
+                      BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0),
+                      "ether"
+                    )
+                  )
+                    .toFixed(8)
+                    .replace(/\.?0+$/, "")} QRL`}
                 </div>
               </div>
             </div>
