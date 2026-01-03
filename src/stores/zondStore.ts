@@ -666,20 +666,55 @@ class ZondStore {
 
       const contractAddress = import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
 
+      // Verify factory contract address is configured
+      if (!contractAddress) {
+        throw new Error("Factory contract address not configured. Please set VITE_CUSTOMERC20FACTORY_ADDRESS.");
+      }
+
+      // Verify factory contract exists before attempting token creation
+      const factoryCode = await web3.zond.getCode(contractAddress);
+      if (!factoryCode || factoryCode === '0x' || factoryCode === '0x0') {
+        throw new Error(`Factory contract not deployed at address: ${contractAddress}`);
+      }
+
       const confirmationHandler = () => {
-        this.setCreatingToken("", false);
+        // Don't set creating to false here - confirmation can fire before tx is final
+        // Let receiptHandler and errorHandler manage the final state
       }
 
       const receiptHandler = async (data: TransactionReceipt) => {
-        // Find the TokenCreated event by signature instead of relying on fixed log index
         const tokenCreatedEventSignature = web3.utils.keccak256("TokenCreated(address,address)");
-        const tokenCreatedLog = data.logs.find(
+
+        // Try to find the TokenCreated event in receipt logs first
+        let tokenCreatedLog = data.logs.find(
           (log) => log.topics?.[0] === tokenCreatedEventSignature &&
                    log.address?.toLowerCase() === contractAddress.toLowerCase()
         );
 
+        // If logs are empty in receipt, fetch them separately using getPastLogs
+        if (!tokenCreatedLog && data.blockNumber) {
+          try {
+            const logs = await web3.zond.getPastLogs({
+              fromBlock: data.blockNumber,
+              toBlock: data.blockNumber,
+              address: contractAddress,
+              topics: [tokenCreatedEventSignature]
+            });
+            const txHash = data.transactionHash ? web3.utils.bytesToHex(data.transactionHash).toLowerCase() : null;
+            const matchingLog = logs.find(
+              (log) => typeof log !== 'string' && txHash != null && log.transactionHash?.toLowerCase() === txHash
+            );
+            if (matchingLog && typeof matchingLog !== 'string') {
+              tokenCreatedLog = matchingLog;
+            }
+          } catch (err) {
+            console.error("Failed to fetch logs via getPastLogs:", err);
+          }
+        }
+
         if (!tokenCreatedLog?.topics?.[1]) {
-          console.error("Token address not found in transaction receipt");
+          console.error("Token address not found in transaction receipt or logs");
+          this.setCreatingToken("", false);
           return;
         }
         const tokenTopic = tokenCreatedLog.topics[1];
