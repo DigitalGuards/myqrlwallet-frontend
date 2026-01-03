@@ -73,11 +73,15 @@ export const TransactionSuccessful = ({
               </div>
               <div className="flex flex-col gap-2">
                 <div>Gas used</div>
-                <div className="font-bold text-secondary">
-                  {`${utils.fromWei(
-                    BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0),
-                    "ether"
-                  )} QRL`}
+                <div className="font-bold text-secondary break-all">
+                  {`${parseFloat(
+                    utils.fromWei(
+                      BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0),
+                      "ether"
+                    )
+                  )
+                    .toFixed(8)
+                    .replace(/\.?0+$/, "")} QRL`}
                 </div>
               </div>
             </div>
