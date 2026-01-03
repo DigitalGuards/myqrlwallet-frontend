@@ -51,19 +51,18 @@ const TokenForm = observer(() => {
         const init = async () => {
             setIsLoading(true);
             try {
-                const updatedTokenList = [...tokenListFromStore];
                 const selectedBlockChain = await StorageUtil.getBlockChain();
-
-                for (let i = 0; i < tokenListFromStore.length; i++) {
+                const promises = tokenListFromStore.map(async (token) => {
                     try {
-                        const balance = await fetchBalance(tokenListFromStore[i].address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
-                        const balanceStr = formatUnits(balance, tokenListFromStore[i].decimals);
-                        updatedTokenList[i].amount = getOptimalTokenBalance(balanceStr, tokenListFromStore[i].symbol);
+                        const balance = await fetchBalance(token.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
+                        const balanceStr = formatUnits(balance, token.decimals);
+                        return { ...token, amount: getOptimalTokenBalance(balanceStr, token.symbol) };
                     } catch (err) {
-                        console.error(`Failed to fetch balance for token ${tokenListFromStore[i].symbol}:`, err);
-                        updatedTokenList[i].amount = "Error";
+                        console.error(`Failed to fetch balance for token ${token.symbol}:`, err);
+                        return { ...token, amount: "Error" };
                     }
-                }
+                });
+                const updatedTokenList = await Promise.all(promises);
                 setTokenList(updatedTokenList);
             } catch (err) {
                 console.error("Failed to initialize token list:", err);

@@ -134,7 +134,7 @@ class StorageUtil {
     return this.getItem<TokenInterface[]>(TOKEN_LIST_IDENTIFIER) ?? [];
   }
 
-  static clearTokenList() {
+  static async clearTokenList() {
     localStorage.removeItem(TOKEN_LIST_IDENTIFIER);
   }
 
