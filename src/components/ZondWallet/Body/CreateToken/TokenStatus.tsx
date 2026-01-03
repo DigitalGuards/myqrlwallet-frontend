@@ -1,8 +1,8 @@
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/UI/Card";
-import { Check, ExternalLink, Loader2 } from "lucide-react";
+import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
 import StringUtil from "@/utilities/stringUtil";
 import { utils } from "@theqrl/web3";
 import { Button } from "@/components/UI/Button";
@@ -13,6 +13,16 @@ const TokenStatus = observer(() => {
     const { zondStore } = useStore();
     const { addToken, createdToken, creatingToken } = zondStore;
     const { name, symbol, decimals, address, tx, blockNumber, blockHash, gasUsed, effectiveGasPrice } = createdToken;
+
+    const [copiedItem, setCopiedItem] = useState<"txHash" | "tokenAddress" | "blockHash" | null>(null);
+
+    const copyToClipboard = (text: string, type: "txHash" | "tokenAddress" | "blockHash") => {
+        navigator.clipboard.writeText(text);
+        setCopiedItem(type);
+        setTimeout(() => {
+            setCopiedItem(null);
+        }, 1500);
+    };
 
 
     useEffect(() => {
@@ -58,21 +68,52 @@ const TokenStatus = observer(() => {
 
                                 <div className="flex flex-col gap-2">
                                     <div>Transaction Hash</div>
-                                    <a
-                                        href={`https://zondscan.com/pending/tx/${tx}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-2 font-bold text-secondary hover:text-secondary/80"
-                                    >
-                                        {StringUtil.getSplitAddress(tx.toString())}
-                                        <ExternalLink className="h-4 w-4" />
-                                    </a>
+                                    <div className="flex items-center gap-2">
+                                        <a
+                                            href={`https://zondscan.com/pending/tx/${tx}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="font-bold text-secondary hover:text-secondary/80"
+                                        >
+                                            {StringUtil.getSplitAddress(tx.toString())}
+                                        </a>
+                                        <a
+                                            href={`https://zondscan.com/pending/tx/${tx}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-secondary hover:text-secondary/80"
+                                        >
+                                            <ExternalLink className="h-4 w-4" />
+                                        </a>
+                                        <button
+                                            onClick={() => copyToClipboard(tx.toString(), "txHash")}
+                                            className="text-secondary hover:text-secondary/80"
+                                        >
+                                            {copiedItem === "txHash" ? (
+                                                <Check className="h-4 w-4 text-green-500" />
+                                            ) : (
+                                                <Copy className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="flex flex-col gap-2">
                                     <div>Token Address</div>
-                                    <div className="font-bold text-secondary break-all">
-                                        {StringUtil.getSplitAddress(address)}
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-secondary">
+                                            {StringUtil.getSplitAddress(address)}
+                                        </span>
+                                        <button
+                                            onClick={() => copyToClipboard(address, "tokenAddress")}
+                                            className="text-secondary hover:text-secondary/80"
+                                        >
+                                            {copiedItem === "tokenAddress" ? (
+                                                <Check className="h-4 w-4 text-green-500" />
+                                            ) : (
+                                                <Copy className="h-4 w-4" />
+                                            )}
+                                        </button>
                                     </div>
                                 </div>
 
@@ -99,8 +140,20 @@ const TokenStatus = observer(() => {
 
                                 <div className="flex flex-col gap-2">
                                     <div>Block hash</div>
-                                    <div className="font-bold text-secondary break-all">
-                                        {StringUtil.getSplitAddress(blockHash.toString())}
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-secondary">
+                                            {StringUtil.getSplitAddress(blockHash.toString())}
+                                        </span>
+                                        <button
+                                            onClick={() => copyToClipboard(blockHash.toString(), "blockHash")}
+                                            className="text-secondary hover:text-secondary/80"
+                                        >
+                                            {copiedItem === "blockHash" ? (
+                                                <Check className="h-4 w-4 text-green-500" />
+                                            ) : (
+                                                <Copy className="h-4 w-4" />
+                                            )}
+                                        </button>
                                     </div>
                                 </div>
 
