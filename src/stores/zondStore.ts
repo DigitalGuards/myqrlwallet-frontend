@@ -700,7 +700,7 @@ class ZondStore {
               topics: [tokenCreatedEventSignature]
             });
             const matchingLog = logs.find(
-              (log) => typeof log !== 'string' && data.transactionHash != null && log.transactionHash?.toString().toLowerCase() === data.transactionHash.toString().toLowerCase()
+              (log) => typeof log !== 'string' && data.transactionHash != null && log.transactionHash?.toLowerCase() === web3.utils.bytesToHex(data.transactionHash).toLowerCase()
             );
             if (matchingLog && typeof matchingLog !== 'string') {
               tokenCreatedLog = matchingLog;
