@@ -1,7 +1,86 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
+/* Theme customization for Tailwind v4 */
+@theme {
+  /* Border radius */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  /* Colors using CSS variables for light/dark mode support */
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-blue-accent: hsl(var(--blue-accent));
+  --color-blue-accent-foreground: hsl(var(--blue-accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  /* Animations */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+/* Dark mode variant */
+@variant dark (&:where(.dark, .dark *));
+
+/* CSS Custom Properties for theming */
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -38,29 +117,18 @@
     --radius: 0.5rem;
 
     --chart-1: 12 76% 61%;
-
     --chart-2: 173 58% 39%;
-
     --chart-3: 197 37% 24%;
-
     --chart-4: 43 74% 66%;
-
     --chart-5: 27 87% 67%;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 222.2 84% 4.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 25 95% 53%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -101,11 +169,11 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
     --sidebar-background: 222.2 84% 4.9%;
-    --sidebar-foreground: 210 40% 98%;;
+    --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 210 40% 98%;
     --sidebar-primary-foreground: 222.2 47.4% 11.2%;
     --sidebar-accent: 222.2 84% 4.9%;
-    --sidebar-accent-foreground: 210 40% 98%;;
+    --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 25 95% 53%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
@@ -133,9 +201,7 @@
     scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--background));
     box-sizing: border-box;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
@@ -144,13 +210,14 @@
   html {
     @apply bg-background text-foreground;
     height: 100%;
-    overflow: hidden; /* Prevent double scrollbars */
-    touch-action: manipulation; /* Improve touch behavior */
+    overflow: hidden;
+    touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
 
   /* Main document scrolling container */
   body {
+    @apply bg-background text-foreground;
     height: 100%;
     margin: 0;
     padding: 0;
@@ -159,12 +226,11 @@
     position: fixed;
     top: 0;
     left: 0;
-    right: 0; 
+    right: 0;
     bottom: 0;
     width: 100%;
-    /* Mobile scroll behavior */
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: none; /* Prevent pull-to-refresh */
+    overscroll-behavior-y: none;
   }
 
   /* Root app container */
@@ -190,12 +256,10 @@
 
   /* Ensure content is always visible in webviews */
   @media (max-width: 768px) {
-    /* Ensure content min-height for smaller screens */
     main {
       min-height: calc(100vh - 16rem);
     }
 
-    /* More aggressive touch scrolling for webviews */
     body, main, .scrollable {
       -webkit-overflow-scrolling: touch;
       overscroll-behavior-y: none;
@@ -204,21 +268,8 @@
 
   /* Webview-specific fixes */
   @supports (-webkit-touch-callout: none) {
-    /* iOS specific tweaks */
     body {
-      /* Fix for momentum scrolling on iOS */
       -webkit-overflow-scrolling: touch;
     }
-  }
-}
-
-
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
   }
 }

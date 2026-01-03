@@ -36,7 +36,7 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
   const { zondStore } = useStore();
   const { zondInstance } = zondStore;
 
-  const form = useForm<z.infer<typeof FormSchema>>({
+  const form = useForm({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       mnemonicPhrases: "",
@@ -49,7 +49,7 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
     formState: { isSubmitting },
   } = form;
 
-  async function onSubmit(formData: z.infer<typeof FormSchema>) {
+  async function onSubmit(formData: z.output<typeof FormSchema>) {
     try {
       const hexSeed = await getHexSeedFromMnemonic(formData.mnemonicPhrases);
       const account = zondInstance?.accounts.seedToAccount(hexSeed) as ExtendedWalletAccount;
