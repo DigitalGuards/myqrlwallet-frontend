@@ -666,6 +666,12 @@ class ZondStore {
 
       const contractAddress = import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
 
+      // Verify factory contract exists before attempting token creation
+      const factoryCode = await web3.zond.getCode(contractAddress);
+      if (!factoryCode || factoryCode === '0x' || factoryCode === '0x0') {
+        throw new Error(`Factory contract not deployed at address: ${contractAddress}`);
+      }
+
       const confirmationHandler = () => {
         this.setCreatingToken("", false);
       }
