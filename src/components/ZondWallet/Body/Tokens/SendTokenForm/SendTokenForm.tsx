@@ -50,7 +50,7 @@ type TokenSendingFormProps = {
 export const TokenSendingForm = observer(
     ({ onTokenSent }: TokenSendingFormProps) => {
 
-        const form = useForm<z.infer<typeof FormSchema>>({
+        const form = useForm({
             resolver: zodResolver(FormSchema),
             mode: "onChange",
             reValidateMode: "onSubmit",
@@ -65,7 +65,7 @@ export const TokenSendingForm = observer(
             formState: { isSubmitting, isValid },
         } = form;
 
-        async function onSubmit(formData: z.infer<typeof FormSchema>) {
+        async function onSubmit(formData: z.output<typeof FormSchema>) {
             try {
                 const tokenAddress = formData.tokenAddress;
                 const toAddress = formData.toAddress;
@@ -87,7 +87,7 @@ export const TokenSendingForm = observer(
                         </CardHeader>
                         <CardContent className="space-y-8">
                             <FormField
-                                control={control}
+                                control={control as any}
                                 name="tokenAddress"
                                 render={({ field }) => (
                                     <FormItem>
@@ -105,7 +105,7 @@ export const TokenSendingForm = observer(
                                 )}
                             />
                             <FormField
-                                control={control}
+                                control={control as any}
                                 name="toAddress"
                                 render={({ field }) => (
                                     <FormItem>
@@ -123,7 +123,7 @@ export const TokenSendingForm = observer(
                                 )}
                             />
                             <FormField
-                                control={control}
+                                control={control as any}
                                 name="amount"
                                 render={({ field }) => (
                                     <FormItem>

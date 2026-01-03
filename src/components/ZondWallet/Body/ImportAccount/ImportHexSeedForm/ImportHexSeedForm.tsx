@@ -25,7 +25,7 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
   const { zondStore } = useStore();
   const { zondInstance } = zondStore;
 
-  const form = useForm<z.infer<typeof FormSchema>>({
+  const form = useForm({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       hexSeed: "",
@@ -38,7 +38,7 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
     formState: { isSubmitting },
   } = form;
 
-  async function onSubmit(formData: z.infer<typeof FormSchema>) {
+  async function onSubmit(formData: z.output<typeof FormSchema>) {
     try {
       const account = zondInstance?.accounts.seedToAccount(formData.hexSeed) as ExtendedWalletAccount;
       

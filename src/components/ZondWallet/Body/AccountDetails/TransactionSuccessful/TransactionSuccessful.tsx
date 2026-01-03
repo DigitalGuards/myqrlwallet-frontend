@@ -39,13 +39,13 @@ export const TransactionSuccessful = ({
     .replace(/\.?0+$/, "");
 
   return (
-    <div className="w-full">
-      <img
-        className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
-        src="/tree.svg"
-        alt="Background Tree"
-      />
-      <div className="relative z-10 p-8">
+    <div className="flex w-full items-start justify-center py-8 overflow-x-hidden">
+      <div className="relative w-full max-w-2xl px-4">
+        <img
+          className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
+          src="/tree.svg"
+          alt="Background Tree"
+        />
         <Card className="w-full">
           <CardHeader>
             <CardTitle>Transaction completed</CardTitle>

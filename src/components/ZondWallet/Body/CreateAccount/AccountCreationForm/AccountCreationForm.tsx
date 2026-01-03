@@ -53,7 +53,7 @@ export const AccountCreationForm = observer(
     const { zondStore } = useStore();
     const { zondInstance } = zondStore;
 
-    const form = useForm<z.infer<typeof FormSchema>>({
+    const form = useForm({
       resolver: zodResolver(FormSchema),
       mode: "onChange",
       reValidateMode: "onSubmit",
@@ -70,7 +70,7 @@ export const AccountCreationForm = observer(
       formState: { isSubmitting, isValid },
     } = form;
 
-    async function onSubmit(formData: z.infer<typeof FormSchema>) {
+    async function onSubmit(formData: z.output<typeof FormSchema>) {
       try {
         const userPassword = formData.password;
         const userPin = formData.pin;

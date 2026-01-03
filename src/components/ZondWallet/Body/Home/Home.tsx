@@ -169,7 +169,6 @@ const Home = observer(() => {
             accountAddress={activeAccount.accountAddress}
             isOpen={receiveOpen}
             onClose={() => setReceiveOpen(false)}
-            blockchain={blockchain}
           />
         </>
       )}
