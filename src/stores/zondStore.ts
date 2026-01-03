@@ -678,7 +678,8 @@ class ZondStore {
       }
 
       const confirmationHandler = () => {
-        this.setCreatingToken("", false);
+        // Don't set creating to false here - confirmation can fire before tx is final
+        // Let receiptHandler and errorHandler manage the final state
       }
 
       const receiptHandler = async (data: TransactionReceipt) => {
@@ -699,8 +700,9 @@ class ZondStore {
               address: contractAddress,
               topics: [tokenCreatedEventSignature]
             });
+            const txHash = data.transactionHash ? web3.utils.bytesToHex(data.transactionHash).toLowerCase() : null;
             const matchingLog = logs.find(
-              (log) => typeof log !== 'string' && data.transactionHash != null && log.transactionHash?.toLowerCase() === web3.utils.bytesToHex(data.transactionHash).toLowerCase()
+              (log) => typeof log !== 'string' && txHash != null && log.transactionHash?.toLowerCase() === txHash
             );
             if (matchingLog && typeof matchingLog !== 'string') {
               tokenCreatedLog = matchingLog;
