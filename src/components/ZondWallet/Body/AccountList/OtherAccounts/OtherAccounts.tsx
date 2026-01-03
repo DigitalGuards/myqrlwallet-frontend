@@ -63,8 +63,7 @@ export const OtherAccounts = observer(() => {
             className="flex flex-col md:flex-row items-center gap-4 p-4 font-bold text-foreground hover:bg-accent border-l-4 border-l-secondary"
           >
             <div className="flex flex-col gap-1">
-              <AccountId className="flex md:hidden" oneLine={true} account={accountAddress} />
-              <AccountId className="hidden md:flex" account={accountAddress} />
+              <AccountId className="text-xs md:text-sm" account={accountAddress} />
               <AccountBalance className="m-auto md:m-0" accountAddress={accountAddress} />
               <span
                 className={clsx(
