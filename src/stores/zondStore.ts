@@ -666,6 +666,11 @@ class ZondStore {
 
       const contractAddress = import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
 
+      // Verify factory contract address is configured
+      if (!contractAddress) {
+        throw new Error("Factory contract address not configured. Please set VITE_CUSTOMERC20FACTORY_ADDRESS.");
+      }
+
       // Verify factory contract exists before attempting token creation
       const factoryCode = await web3.zond.getCode(contractAddress);
       if (!factoryCode || factoryCode === '0x' || factoryCode === '0x0') {
@@ -695,7 +700,7 @@ class ZondStore {
               topics: [tokenCreatedEventSignature]
             });
             const matchingLog = logs.find(
-              (log) => typeof log !== 'string' && log.transactionHash?.toString().toLowerCase() === data.transactionHash?.toString().toLowerCase()
+              (log) => typeof log !== 'string' && data.transactionHash != null && log.transactionHash?.toString().toLowerCase() === data.transactionHash.toString().toLowerCase()
             );
             if (matchingLog && typeof matchingLog !== 'string') {
               tokenCreatedLog = matchingLog;
