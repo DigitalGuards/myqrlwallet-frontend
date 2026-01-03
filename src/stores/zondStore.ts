@@ -671,15 +671,37 @@ class ZondStore {
       }
 
       const receiptHandler = async (data: TransactionReceipt) => {
-        // Find the TokenCreated event by signature instead of relying on fixed log index
         const tokenCreatedEventSignature = web3.utils.keccak256("TokenCreated(address,address)");
-        const tokenCreatedLog = data.logs.find(
+
+        // Try to find the TokenCreated event in receipt logs first
+        let tokenCreatedLog = data.logs.find(
           (log) => log.topics?.[0] === tokenCreatedEventSignature &&
                    log.address?.toLowerCase() === contractAddress.toLowerCase()
         );
 
+        // If logs are empty in receipt, fetch them separately using getPastLogs
+        if (!tokenCreatedLog && data.blockNumber) {
+          try {
+            const logs = await web3.zond.getPastLogs({
+              fromBlock: data.blockNumber,
+              toBlock: data.blockNumber,
+              address: contractAddress,
+              topics: [tokenCreatedEventSignature]
+            });
+            const matchingLog = logs.find(
+              (log) => typeof log !== 'string' && log.transactionHash?.toString().toLowerCase() === data.transactionHash?.toString().toLowerCase()
+            );
+            if (matchingLog && typeof matchingLog !== 'string') {
+              tokenCreatedLog = matchingLog;
+            }
+          } catch (err) {
+            console.error("Failed to fetch logs via getPastLogs:", err);
+          }
+        }
+
         if (!tokenCreatedLog?.topics?.[1]) {
-          console.error("Token address not found in transaction receipt");
+          console.error("Token address not found in transaction receipt or logs");
+          this.setCreatingToken("", false);
           return;
         }
         const tokenTopic = tokenCreatedLog.topics[1];
