@@ -1,29 +1,29 @@
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/UI/Card";
 import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
 import StringUtil from "@/utilities/stringUtil";
 import { utils } from "@theqrl/web3";
+import { BigNumber } from "bignumber.js";
 import { Button } from "@/components/UI/Button";
 import { ROUTES } from "@/router/router";
 import { Link } from "react-router-dom";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 const TokenStatus = observer(() => {
     const { zondStore } = useStore();
     const { addToken, createdToken, creatingToken } = zondStore;
     const { name, symbol, decimals, address, tx, blockNumber, blockHash, gasUsed, effectiveGasPrice } = createdToken;
 
-    const [copiedItem, setCopiedItem] = useState<"txHash" | "tokenAddress" | "blockHash" | null>(null);
+    const { copiedItem, copyToClipboard } = useCopyToClipboard<"txHash" | "tokenAddress" | "blockHash">();
 
-    const copyToClipboard = (text: string, type: "txHash" | "tokenAddress" | "blockHash") => {
-        navigator.clipboard.writeText(text);
-        setCopiedItem(type);
-        setTimeout(() => {
-            setCopiedItem(null);
-        }, 1500);
-    };
-
+    const gasInQrl = new BigNumber(
+        utils.fromWei(BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0), "ether")
+    )
+        .dp(8, BigNumber.ROUND_DOWN)
+        .toString()
+        .replace(/\.?0+$/, "");
 
     useEffect(() => {
         const init = async () => {
@@ -73,16 +73,11 @@ const TokenStatus = observer(() => {
                                             href={`https://zondscan.com/pending/tx/${tx}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="font-bold text-secondary hover:text-secondary/80"
+                                            className="flex items-center gap-2 text-secondary hover:text-secondary/80"
                                         >
-                                            {StringUtil.getSplitAddress(tx.toString())}
-                                        </a>
-                                        <a
-                                            href={`https://zondscan.com/pending/tx/${tx}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-secondary hover:text-secondary/80"
-                                        >
+                                            <span className="font-bold">
+                                                {StringUtil.getSplitAddress(tx.toString())}
+                                            </span>
                                             <ExternalLink className="h-4 w-4" />
                                         </a>
                                         <button
@@ -173,14 +168,7 @@ const TokenStatus = observer(() => {
                                     <div className="flex flex-col gap-2">
                                         <div>Gas used</div>
                                         <div className="font-bold text-secondary break-all">
-                                            {`${parseFloat(
-                                                utils.fromWei(
-                                                    BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0),
-                                                    "ether"
-                                                )
-                                            )
-                                                .toFixed(8)
-                                                .replace(/\.?0+$/, "")} QRL`}
+                                            {gasInQrl} QRL
                                         </div>
                                     </div>
                                 </div>
@@ -204,4 +192,4 @@ const TokenStatus = observer(() => {
     );
 });
 
-export default TokenStatus; 
+export default TokenStatus;
