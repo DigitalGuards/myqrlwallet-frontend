@@ -78,8 +78,7 @@ export const ReceivePopup = observer(({
                         </div>
                         
                         <div className="text-center text-sm text-muted-foreground mt-2">
-                            <p>Share this address to receive QRL tokens.</p>
-                            <p>Only send QRL to this address.</p>
+                            <p>Share this address to receive QRL.</p>
                             <p className="mt-1 text-xs">Scan QR code to view in Zondscan</p>
                         </div>
                     </div>
