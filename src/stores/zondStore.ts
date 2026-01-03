@@ -664,32 +664,39 @@ class ZondStore {
       web3.zond.wallet?.add(seed);
       web3.zond.transactionConfirmationBlocks = 1;
 
+      const contractAddress = import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
+
       const confirmationHandler = () => {
         this.setCreatingToken("", false);
       }
 
       const receiptHandler = async (data: TransactionReceipt) => {
-        const tokenTopic = data.logs[3]?.topics?.[1];
-        if (!tokenTopic) {
+        // Find the TokenCreated event by signature instead of relying on fixed log index
+        const tokenCreatedEventSignature = web3.utils.keccak256("TokenCreated(address,address)");
+        const tokenCreatedLog = data.logs.find(
+          (log) => log.topics?.[0] === tokenCreatedEventSignature &&
+                   log.address?.toLowerCase() === contractAddress.toLowerCase()
+        );
+
+        if (!tokenCreatedLog?.topics?.[1]) {
           console.error("Token address not found in transaction receipt");
           return;
         }
-        const erc20TokenAddress = `Z${tokenTopic.slice(-40)}`;
+        const tokenTopic = tokenCreatedLog.topics[1];
+        const erc20TokenAddress = `Z${tokenTopic.toString().slice(-40)}`;
         const tx = data.transactionHash;
         const blockNumber = Number(data.blockNumber);
         const gasUsed = Number(data.gasUsed);
         const effectiveGasPrice = Number(data.effectiveGasPrice);
         const blockHash = data.blockHash;
         const { name, symbol, decimals } = await fetchTokenInfo(erc20TokenAddress, url);
-        this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress, tx.toString(), blockNumber, gasUsed, effectiveGasPrice, blockHash.toString());
+        this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress, utils.bytesToHex(tx), blockNumber, gasUsed, effectiveGasPrice, utils.bytesToHex(blockHash));
       }
 
       const errorHandler = (error: Error) => {
         console.error("Token creation error:", error);
         this.setCreatingToken("", false);
       }
-
-      const contractAddress = import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
 
       const customERC20Factorycontract = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
 
