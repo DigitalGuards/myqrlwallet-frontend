@@ -28,15 +28,22 @@ const TokenStatus = observer(() => {
         .replace(/\.?0+$/, "");
 
     useEffect(() => {
-        if (address) {
-            addToken({
-                name,
-                symbol,
-                decimals,
-                address,
-                amount: "0",
-            });
-        }
+        const addCreatedToken = async () => {
+            if (address) {
+                try {
+                    await addToken({
+                        name,
+                        symbol,
+                        decimals,
+                        address,
+                        amount: "0",
+                    });
+                } catch (error) {
+                    console.error("Failed to add token to list:", error);
+                }
+            }
+        };
+        addCreatedToken();
     }, [address, addToken, name, symbol, decimals]);
 
 
