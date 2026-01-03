@@ -10,14 +10,12 @@ interface ReceivePopupProps {
     accountAddress: string;
     isOpen: boolean;
     onClose: () => void;
-    blockchain?: string;
 }
 
 export const ReceivePopup = observer(({
     accountAddress,
     isOpen,
     onClose,
-    blockchain: _blockchain = "mainnet"
 }: ReceivePopupProps) => {
     const [copied, setCopied] = useState(false);
 
