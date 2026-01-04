@@ -18,6 +18,7 @@ import { AccountBalance } from "../AccountBalance/AccountBalance";
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { TransactionHistoryPopup } from "./TransactionHistoryPopup";
+import { ExtensionBadge } from "../ExtensionBadge/ExtensionBadge";
 
 export const ActiveAccount = observer(() => {
   const { zondStore } = useStore();
@@ -59,11 +60,7 @@ export const ActiveAccount = observer(() => {
             <AccountId className="text-xs md:text-sm" account={accountAddress} />
             <div className="flex flex-col gap-1">
               <AccountBalance className="m-auto md:m-0" accountAddress={accountAddress} />
-              {activeAccountSource === 'extension' && (
-                <span className="w-fit rounded px-2 py-0.5 text-[10px] font-semibold uppercase bg-blue-100 text-blue-700 dark:bg-blue-800/30 dark:text-blue-400">
-                  Extension
-                </span>
-              )}
+              {activeAccountSource === 'extension' && <ExtensionBadge />}
             </div>
           </div>
           <div className="flex gap-4 items-center">
