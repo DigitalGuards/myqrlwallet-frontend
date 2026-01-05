@@ -17,6 +17,7 @@ import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 import { formatUnits } from "ethers";
 import { ZOND_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
+import { useToast } from "@/hooks/use-toast";
 
 import {
     DropdownMenu,
@@ -31,6 +32,7 @@ import { getOptimalTokenBalance } from "@/utils/formatting";
 const TokenForm = observer(() => {
     const { zondStore } = useStore();
     const navigate = useNavigate();
+    const { toast } = useToast();
     const {
         activeAccount: { accountAddress: activeAccountAddress },
         tokenList: tokenListFromStore,
@@ -41,9 +43,26 @@ const TokenForm = observer(() => {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const refreshBalances = async () => {
+    const refreshTokens = async () => {
         setIsRefreshing(true);
+        const previousCount = zondStore.tokenList.length;
+
+        // Discover new tokens first
+        await zondStore.discoverAndAddTokens(activeAccountAddress);
+
+        // Then refresh all balances
         await zondStore.refreshTokenBalances();
+
+        const newCount = zondStore.tokenList.length;
+        const discovered = newCount - previousCount;
+
+        toast({
+            title: "Tokens refreshed",
+            description: discovered > 0
+                ? `Discovered ${discovered} new token${discovered > 1 ? 's' : ''}`
+                : "All balances updated",
+        });
+
         setIsRefreshing(false);
     };
 
@@ -87,7 +106,7 @@ const TokenForm = observer(() => {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={refreshBalances}
+                        onClick={refreshTokens}
                         disabled={isRefreshing}
                     >
                         {isRefreshing ? (

@@ -298,10 +298,14 @@ class ZondStore {
       if (newActiveAccount) {
         log(`Fetching balances for newly active account: ${newActiveAccount}`);
         // Discover new tokens for this account (runs in background)
-        this.discoverAndAddTokens(newActiveAccount).then(() => {
-          // Refresh balances after discovery completes
-          this.refreshTokenBalances();
-        });
+        this.discoverAndAddTokens(newActiveAccount)
+          .then(() => {
+            // Refresh balances after discovery completes
+            void this.refreshTokenBalances();
+          })
+          .catch((error) => {
+            log(`Unexpected error during token discovery: ${error}`);
+          });
       } else {
         log("Active account cleared, skipping token refresh.");
       }
