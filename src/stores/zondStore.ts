@@ -133,7 +133,7 @@ class ZondStore {
       creatingToken: observable.struct,
       createdToken: observable.struct,
       tokenList: observable.struct,
-      hiddenTokens: observable.struct,
+      hiddenTokens: observable,
       customRpcUrl: observable.struct,
       transactionStatus: observable.struct,
       extensionProvider: observable.ref, // Use ref for complex objects like providers
@@ -901,7 +901,7 @@ class ZondStore {
     runInAction(() => {
       const lowerCaseAddress = tokenAddress.toLowerCase();
       if (!this.hiddenTokens.some(addr => addr.toLowerCase() === lowerCaseAddress)) {
-        this.hiddenTokens.push(lowerCaseAddress);
+        this.hiddenTokens = [...this.hiddenTokens, lowerCaseAddress];
       }
     });
     log(`Token hidden: ${tokenAddress}`);
