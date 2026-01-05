@@ -44,6 +44,10 @@ const TokenForm = observer(() => {
     const refreshTokens = async () => {
         setIsRefreshing(true);
         try {
+            // Clear hidden tokens so they reappear
+            await StorageUtil.clearHiddenTokens();
+            await zondStore.loadHiddenTokens();
+
             // Discover new tokens first
             await zondStore.discoverAndAddTokens(activeAccountAddress);
 
