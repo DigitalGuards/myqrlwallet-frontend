@@ -901,7 +901,7 @@ class ZondStore {
     runInAction(() => {
       const lowerCaseAddress = tokenAddress.toLowerCase();
       if (!this.hiddenTokens.some(addr => addr.toLowerCase() === lowerCaseAddress)) {
-        this.hiddenTokens.push(lowerCaseAddress);
+        this.hiddenTokens = [...this.hiddenTokens, lowerCaseAddress];
       }
     });
     log(`Token hidden: ${tokenAddress}`);
