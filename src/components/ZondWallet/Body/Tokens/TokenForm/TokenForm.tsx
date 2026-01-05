@@ -17,7 +17,6 @@ import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 import { formatUnits } from "ethers";
 import { ZOND_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
-import { useToast } from "@/hooks/use-toast";
 
 import {
     DropdownMenu,
@@ -32,7 +31,6 @@ import { getOptimalTokenBalance } from "@/utils/formatting";
 const TokenForm = observer(() => {
     const { zondStore } = useStore();
     const navigate = useNavigate();
-    const { toast } = useToast();
     const {
         activeAccount: { accountAddress: activeAccountAddress },
         tokenList: tokenListFromStore,
@@ -46,30 +44,13 @@ const TokenForm = observer(() => {
     const refreshTokens = async () => {
         setIsRefreshing(true);
         try {
-            const previousCount = zondStore.tokenList.length;
-
             // Discover new tokens first
             await zondStore.discoverAndAddTokens(activeAccountAddress);
 
             // Then refresh all balances
             await zondStore.refreshTokenBalances();
-
-            const newCount = zondStore.tokenList.length;
-            const discovered = newCount - previousCount;
-
-            toast({
-                title: "Tokens refreshed",
-                description: discovered > 0
-                    ? `Discovered ${discovered} new token${discovered > 1 ? 's' : ''}`
-                    : "All balances updated",
-            });
         } catch (error) {
             console.error("Failed to refresh tokens:", error);
-            toast({
-                variant: "destructive",
-                title: "Refresh failed",
-                description: "Could not refresh token list.",
-            });
         } finally {
             setIsRefreshing(false);
         }
