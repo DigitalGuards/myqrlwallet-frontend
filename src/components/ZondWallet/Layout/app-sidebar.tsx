@@ -11,12 +11,6 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/UI/sidebar"
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/UI/Tooltip"
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import ZondWalletLogo from "../Header/ZondWalletLogo/ZondWalletLogo";
@@ -84,21 +78,12 @@ export function AppSidebar() {
             <SidebarFooter>
                 <SidebarMenu>
                     <SidebarMenuItem className="py-2">
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <SidebarMenuButton asChild className="py-2 h-auto" onClick={onLogoutClick}>
-                                        <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground">
-                                            <LogOut className="size-8" />
-                                            <span className="block text-xs font-medium">Logout</span>
-                                        </div>
-                                    </SidebarMenuButton>
-                                </TooltipTrigger>
-                                <TooltipContent side="right">
-                                    <p>Log out of wallet</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                        <SidebarMenuButton asChild className="py-2 h-auto" onClick={onLogoutClick} tooltip={{ side: "right", children: "Log out of wallet" }}>
+                            <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground">
+                                <LogOut />
+                                <span className="block text-xs font-medium">Logout</span>
+                            </div>
+                        </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarFooter>

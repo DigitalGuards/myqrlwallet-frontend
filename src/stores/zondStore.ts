@@ -133,7 +133,7 @@ class ZondStore {
       creatingToken: observable.struct,
       createdToken: observable.struct,
       tokenList: observable.struct,
-      hiddenTokens: observable.struct,
+      hiddenTokens: observable,
       customRpcUrl: observable.struct,
       transactionStatus: observable.struct,
       extensionProvider: observable.ref, // Use ref for complex objects like providers
