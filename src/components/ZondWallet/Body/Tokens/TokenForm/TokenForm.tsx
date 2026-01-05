@@ -41,10 +41,19 @@ const TokenForm = observer(() => {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const refreshBalances = async () => {
+    const refreshTokens = async () => {
         setIsRefreshing(true);
-        await zondStore.refreshTokenBalances();
-        setIsRefreshing(false);
+        try {
+            // Discover new tokens first
+            await zondStore.discoverAndAddTokens(activeAccountAddress);
+
+            // Then refresh all balances
+            await zondStore.refreshTokenBalances();
+        } catch (error) {
+            console.error("Failed to refresh tokens:", error);
+        } finally {
+            setIsRefreshing(false);
+        }
     };
 
     useEffect(() => {
@@ -87,7 +96,7 @@ const TokenForm = observer(() => {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={refreshBalances}
+                        onClick={refreshTokens}
                         disabled={isRefreshing}
                     >
                         {isRefreshing ? (

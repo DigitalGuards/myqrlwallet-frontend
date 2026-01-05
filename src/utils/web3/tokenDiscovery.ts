@@ -48,20 +48,22 @@ export async function discoverTokens(
 
     const data: ZondScanTokenResponse = await response.json();
 
-    if (!data.tokens || !Array.isArray(data.tokens)) {
+    if (!data || !Array.isArray(data.tokens)) {
       log(`Invalid token discovery response format`);
       return [];
     }
 
-    const tokens: TokenInterface[] = data.tokens.map((token) => ({
-      name: token.name || "Unknown Token",
-      symbol: token.symbol || "???",
-      address: token.contractAddress.startsWith("Z")
-        ? token.contractAddress
-        : `Z${token.contractAddress.replace(/^0x/i, "")}`,
-      amount: token.balance || "0",
-      decimals: token.decimals || 18,
-    }));
+    const tokens: TokenInterface[] = data.tokens
+      .filter((token) => token.contractAddress)
+      .map((token) => ({
+        name: token.name || "Unknown Token",
+        symbol: token.symbol || "???",
+        address: token.contractAddress.startsWith("Z")
+          ? token.contractAddress
+          : `Z${token.contractAddress.replace(/^0x/i, "")}`,
+        amount: token.balance || "0",
+        decimals: token.decimals || 18,
+      }));
 
     log(`Discovered ${tokens.length} tokens for ${address}`);
     return tokens;
