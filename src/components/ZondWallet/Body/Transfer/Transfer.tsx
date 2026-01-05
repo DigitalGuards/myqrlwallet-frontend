@@ -226,6 +226,11 @@ const Transfer = observer(() => {
     if (isNativeTransfer) {
       await handleNativeTransfer(formData);
     } else {
+      // Token transfers not supported for extension wallets
+      if (isUsingExtension) {
+        control.setError("asset", { message: "Token transfers are not yet supported with extension wallets." });
+        return;
+      }
       await handleTokenTransfer(formData);
     }
   }
@@ -383,7 +388,12 @@ const Transfer = observer(() => {
                   <div className="mt-4 w-full max-w-md rounded border bg-muted p-4 text-left text-sm space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Value:</span>
-                      <span>{utils.fromWei(BigInt(transactionStatus.pendingDetails.value), "ether")} QRL</span>
+                      <span>
+                        {isNativeTransfer
+                          ? `${utils.fromWei(BigInt(transactionStatus.pendingDetails.value), "ether")} QRL`
+                          : `${getOptimalTokenBalance(formValues.amount.toString())} ${assetSymbol}`
+                        }
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Gas Price:</span>

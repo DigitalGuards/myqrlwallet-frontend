@@ -8,3 +8,8 @@ export {
   fetchBalance,
   fetchTokenInfo,
 } from './customERC20';
+
+export {
+  discoverTokens,
+  mergeTokenLists,
+} from './tokenDiscovery';

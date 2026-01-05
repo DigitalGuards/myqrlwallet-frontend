@@ -11,6 +11,8 @@ import { StringUtil } from "@/utils/formatting";
 import { TransactionReceipt, utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
 import { Check, Copy, ExternalLink } from "lucide-react";
+import { ZOND_PROVIDER } from "@/config";
+import { useStore } from "@/stores/store";
 
 type TransactionSuccessfulProps = {
   transactionReceipt: TransactionReceipt;
@@ -21,6 +23,10 @@ export const TransactionSuccessful = ({
   transactionReceipt,
   onDone,
 }: TransactionSuccessfulProps) => {
+  const { zondStore } = useStore();
+  const { zondConnection } = zondStore;
+  const { blockchain } = zondConnection;
+
   const {
     blockHash,
     blockNumber,
@@ -30,6 +36,8 @@ export const TransactionSuccessful = ({
   } = transactionReceipt;
 
   const { copiedItem, copyToClipboard } = useCopyToClipboard<"txHash" | "blockHash">();
+
+  const explorerUrl = ZOND_PROVIDER[blockchain as keyof typeof ZOND_PROVIDER]?.explorer || "https://zondscan.com";
 
   const gasInQrl = new BigNumber(
     utils.fromWei(BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0), "ether")
@@ -55,7 +63,7 @@ export const TransactionSuccessful = ({
               <div>Transaction Hash</div>
               <div className="flex items-center gap-2">
                 <a
-                  href={`https://zondscan.com/pending/tx/${transactionHash}`}
+                  href={`${explorerUrl}/tx/${transactionHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-secondary hover:text-secondary/80"
@@ -99,7 +107,7 @@ export const TransactionSuccessful = ({
               <div className="flex flex-col gap-2">
                 <div>Block number</div>
                 <a
-                  href={`https://zondscan.com/block/${blockNumber}`}
+                  href={`${explorerUrl}/block/${blockNumber}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 font-bold text-secondary hover:text-secondary/80"

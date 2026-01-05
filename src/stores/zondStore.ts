@@ -9,7 +9,7 @@ import Web3, {
 } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
-import { fetchTokenInfo, fetchBalance } from "@/utils/web3";
+import { fetchTokenInfo, fetchBalance, discoverTokens, mergeTokenLists } from "@/utils/web3";
 import { TokenInterface, KNOWN_TOKEN_LIST } from "@/constants";
 import CustomERC20ABI from "@/abi/CustomERC20ABI";
 import { formatUnits } from "ethers";
@@ -148,6 +148,7 @@ class ZondStore {
       fetchPendingTxDetails: action.bound,
       setExtensionProvider: action.bound, // NEW action
       sendTransactionViaExtension: action.bound, // NEW action
+      discoverAndAddTokens: action.bound, // Token discovery action
     });
 
     // Log initialization
@@ -296,7 +297,11 @@ class ZondStore {
       await this.fetchAccounts(); // Refresh the full list and balances
       if (newActiveAccount) {
         log(`Fetching balances for newly active account: ${newActiveAccount}`);
-        await this.refreshTokenBalances(); // Refresh token balances
+        // Discover new tokens for this account (runs in background)
+        this.discoverAndAddTokens(newActiveAccount).then(() => {
+          // Refresh balances after discovery completes
+          this.refreshTokenBalances();
+        });
       } else {
         log("Active account cleared, skipping token refresh.");
       }
@@ -828,6 +833,37 @@ class ZondStore {
       await this.setTokenList(updatedTokenList);
     } catch (error) {
       console.error("Error refreshing token balances:", error);
+    }
+  }
+
+  // Discover and add tokens for an address using ZondScan API
+  async discoverAndAddTokens(address: string) {
+    try {
+      const blockchain = this.zondConnection.blockchain;
+      if (!blockchain) {
+        log("Cannot discover tokens: no blockchain selected");
+        return;
+      }
+
+      log(`Starting token discovery for ${address}`);
+      const discoveredTokens = await discoverTokens(address, blockchain);
+
+      if (discoveredTokens.length === 0) {
+        log("No new tokens discovered");
+        return;
+      }
+
+      // Merge with existing tokens, avoiding duplicates
+      const mergedTokens = mergeTokenLists(this.tokenList, discoveredTokens);
+
+      if (mergedTokens.length > this.tokenList.length) {
+        const newCount = mergedTokens.length - this.tokenList.length;
+        log(`Adding ${newCount} newly discovered tokens`);
+        await this.setTokenList(mergedTokens);
+      }
+    } catch (error) {
+      console.error("Error discovering tokens:", error);
+      log(`Token discovery failed: ${error}`);
     }
   }
 

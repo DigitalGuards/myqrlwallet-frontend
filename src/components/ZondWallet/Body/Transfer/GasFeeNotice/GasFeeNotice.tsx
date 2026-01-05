@@ -46,7 +46,7 @@ export const GasFeeNotice = ({
   });
 
   const fetchGasFee = async () => {
-    setGasFee({ ...gasFee, isLoading: true, error: "" });
+    setGasFee(prev => ({ ...prev, isLoading: true, error: "" }));
     try {
       const transaction = {
         from,
@@ -61,9 +61,9 @@ export const GasFeeNotice = ({
         "ether"
       );
       const estimatedGas = getOptimalGasFee(estimatedGasRaw);
-      setGasFee({ ...gasFee, estimatedGas, error: "", isLoading: false });
+      setGasFee(prev => ({ ...prev, estimatedGas, error: "", isLoading: false }));
     } catch (error) {
-      setGasFee({ ...gasFee, error: `${error}`, isLoading: false });
+      setGasFee(prev => ({ ...prev, error: `${error}`, isLoading: false }));
     }
   };
 

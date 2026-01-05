@@ -4,4 +4,5 @@ export {
   getExplorerAddressUrl,
   getExplorerTxUrl,
   getPendingTxApiUrl,
+  getTokenDiscoveryApiUrl,
 } from './networks';

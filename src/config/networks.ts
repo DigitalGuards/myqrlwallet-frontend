@@ -49,3 +49,9 @@ export const getPendingTxApiUrl = (blockchain: string) => {
   // Append the known API path to the explorer base URL
   return `${provider.explorer}/api/pending-transactions`;
 };
+
+// Get API endpoint for token discovery by address
+export const getTokenDiscoveryApiUrl = (address: string, blockchain: string) => {
+  const provider = ZOND_PROVIDER[blockchain as keyof typeof ZOND_PROVIDER];
+  return `${provider.explorer}/api/address/${address}/tokens`;
+};
