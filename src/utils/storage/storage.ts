@@ -9,6 +9,7 @@ const ACTIVE_ACCOUNT_IDENTIFIER = "ACTIVE_ACCOUNT";
 const ACCOUNT_LIST_IDENTIFIER = "ACCOUNT_LIST";
 const TRANSACTION_VALUES_IDENTIFIER = "TRANSACTION_VALUES";
 const TOKEN_LIST_IDENTIFIER = "TOKEN_LIST";
+const HIDDEN_TOKENS_IDENTIFIER = "HIDDEN_TOKENS";
 const STORAGE_VERSION = 'v1';
 const MAX_STORAGE_AGE = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
 const WALLET_SETTINGS_IDENTIFIER = "WALLET_SETTINGS";
@@ -328,6 +329,40 @@ class StorageUtil {
     );
 
     this.setItem(encryptedSeedsKey, encryptedSeeds);
+  }
+
+  /**
+   * Get list of hidden token addresses
+   */
+  static async getHiddenTokens(): Promise<string[]> {
+    return this.getItem<string[]>(HIDDEN_TOKENS_IDENTIFIER) ?? [];
+  }
+
+  /**
+   * Add a token address to the hidden list
+   */
+  static async hideToken(tokenAddress: string) {
+    const hiddenTokens = await this.getHiddenTokens();
+    if (!hiddenTokens.some(addr => addr.toLowerCase() === tokenAddress.toLowerCase())) {
+      hiddenTokens.push(tokenAddress.toLowerCase());
+      this.setItem(HIDDEN_TOKENS_IDENTIFIER, hiddenTokens);
+    }
+  }
+
+  /**
+   * Remove a token address from the hidden list
+   */
+  static async unhideToken(tokenAddress: string) {
+    let hiddenTokens = await this.getHiddenTokens();
+    hiddenTokens = hiddenTokens.filter(addr => addr.toLowerCase() !== tokenAddress.toLowerCase());
+    this.setItem(HIDDEN_TOKENS_IDENTIFIER, hiddenTokens);
+  }
+
+  /**
+   * Clear all hidden tokens (used when refreshing to re-show all)
+   */
+  static async clearHiddenTokens() {
+    localStorage.removeItem(HIDDEN_TOKENS_IDENTIFIER);
   }
 }
 

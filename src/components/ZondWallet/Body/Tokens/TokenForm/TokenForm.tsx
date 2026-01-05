@@ -33,10 +33,10 @@ const TokenForm = observer(() => {
     const navigate = useNavigate();
     const {
         activeAccount: { accountAddress: activeAccountAddress },
-        tokenList: tokenListFromStore,
+        visibleTokenList,
     } = zondStore;
 
-    const [tokenList, setTokenList] = useState<TokenInterface[]>(tokenListFromStore);
+    const [tokenList, setTokenList] = useState<TokenInterface[]>(visibleTokenList);
     const [isAddTokenModalOpen, setIsAddTokenModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -44,6 +44,10 @@ const TokenForm = observer(() => {
     const refreshTokens = async () => {
         setIsRefreshing(true);
         try {
+            // Clear hidden tokens so they reappear
+            await StorageUtil.clearHiddenTokens();
+            await zondStore.loadHiddenTokens();
+
             // Discover new tokens first
             await zondStore.discoverAndAddTokens(activeAccountAddress);
 
@@ -61,7 +65,7 @@ const TokenForm = observer(() => {
             setIsLoading(true);
             try {
                 const selectedBlockChain = await StorageUtil.getBlockChain();
-                const promises = tokenListFromStore.map(async (token) => {
+                const promises = visibleTokenList.map(async (token) => {
                     try {
                         const balance = await fetchBalance(token.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
                         const balanceStr = formatUnits(balance, token.decimals);
@@ -81,12 +85,12 @@ const TokenForm = observer(() => {
         };
 
         init();
-    }, [activeAccountAddress, tokenListFromStore]);
+    }, [activeAccountAddress, visibleTokenList]);
 
     // Update local state when store changes
     useEffect(() => {
-        setTokenList(tokenListFromStore);
-    }, [tokenListFromStore]);
+        setTokenList(visibleTokenList);
+    }, [visibleTokenList]);
 
     return (
         <Card className="border-l-4 border-l-secondary">

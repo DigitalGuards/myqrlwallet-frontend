@@ -86,6 +86,7 @@ class ZondStore {
   creatingToken: CreatingTokenType = { name: "", creating: false };
   createdToken: CreatedTokenType = { name: "", symbol: "", decimals: 0, address: "", tx: "", blockNumber: 0, gasUsed: 0, effectiveGasPrice: 0, blockHash: "" };
   tokenList: TokenInterface[] = [];
+  hiddenTokens: string[] = []; // List of hidden token addresses
   customRpcUrl: string = "";
   // Updated initial state
   transactionStatus: TransactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
@@ -114,6 +115,15 @@ class ZondStore {
     );
   }
 
+  // 3) Visible tokens (filtered by hidden list)
+  get visibleTokenList(): TokenInterface[] {
+    return this.tokenList.filter(
+      (token) => !this.hiddenTokens.some(
+        (hidden) => hidden.toLowerCase() === token.address.toLowerCase()
+      )
+    );
+  }
+
   constructor() {
     makeAutoObservable(this, {
       zondInstance: observable.struct,
@@ -123,11 +133,13 @@ class ZondStore {
       creatingToken: observable.struct,
       createdToken: observable.struct,
       tokenList: observable.struct,
+      hiddenTokens: observable.struct,
       customRpcUrl: observable.struct,
       transactionStatus: observable.struct,
       extensionProvider: observable.ref, // Use ref for complex objects like providers
       activeAccountBalance: computed,
       activeAccountSource: computed,
+      visibleTokenList: computed,
       setCustomRpcUrl: action.bound,
       addToken: action.bound,
       removeToken: action.bound,
@@ -146,9 +158,12 @@ class ZondStore {
       sendToken: action.bound,
       refreshTokenBalances: action.bound,
       fetchPendingTxDetails: action.bound,
-      setExtensionProvider: action.bound, // NEW action
-      sendTransactionViaExtension: action.bound, // NEW action
-      discoverAndAddTokens: action.bound, // Token discovery action
+      setExtensionProvider: action.bound,
+      sendTransactionViaExtension: action.bound,
+      discoverAndAddTokens: action.bound,
+      hideToken: action.bound,
+      unhideToken: action.bound,
+      loadHiddenTokens: action.bound,
     });
 
     // Log initialization
@@ -195,6 +210,7 @@ class ZondStore {
       });
 
       this.tokenList = await StorageUtil.getTokenList();
+      await this.loadHiddenTokens();
 
       for (const token of KNOWN_TOKEN_LIST) {
         await this.addToken(token);
@@ -869,6 +885,28 @@ class ZondStore {
       console.error("Error discovering tokens:", error);
       log(`Token discovery failed: ${error}`);
     }
+  }
+
+  // Load hidden tokens from storage
+  async loadHiddenTokens() {
+    const hiddenTokens = await StorageUtil.getHiddenTokens();
+    runInAction(() => {
+      this.hiddenTokens = hiddenTokens;
+    });
+  }
+
+  // Hide a token (add to hidden list)
+  async hideToken(tokenAddress: string) {
+    await StorageUtil.hideToken(tokenAddress);
+    await this.loadHiddenTokens();
+    log(`Token hidden: ${tokenAddress}`);
+  }
+
+  // Unhide a token (remove from hidden list)
+  async unhideToken(tokenAddress: string) {
+    await StorageUtil.unhideToken(tokenAddress);
+    await this.loadHiddenTokens();
+    log(`Token unhidden: ${tokenAddress}`);
   }
 
   // NEW: Action to set or clear the extension provider

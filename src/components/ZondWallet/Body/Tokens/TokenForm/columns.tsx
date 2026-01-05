@@ -1,7 +1,8 @@
 import { TokenInterface } from "@/constants"
 import { ColumnDef } from "@tanstack/react-table"
-import { Copy, Check, Send } from "lucide-react"
+import { Copy, Check, Send, EyeOff } from "lucide-react"
 import { useState } from "react"
+import { useStore } from "@/stores/store"
 
 // Create a component for the cell to manage its own copy state
 const CopyableAddress = ({ address }: { address: string }) => {
@@ -58,6 +59,24 @@ const CopyableText = ({ text }: { text: string }) => {
     );
 };
 
+const HideTokenButton = ({ tokenAddress }: { tokenAddress: string }) => {
+    const { zondStore } = useStore();
+
+    const handleHide = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        await zondStore.hideToken(tokenAddress);
+    };
+
+    return (
+        <span title="Hide token">
+            <EyeOff
+                className="w-4 h-4 opacity-50 hover:opacity-100 cursor-pointer transition-opacity"
+                onClick={handleHide}
+            />
+        </span>
+    );
+};
+
 export const columns: ColumnDef<TokenInterface>[] = [
     {
         accessorKey: "name",
@@ -93,17 +112,21 @@ export const columns: ColumnDef<TokenInterface>[] = [
     },
     {
         id: 'actions',
-        header: 'Send',
+        header: 'Actions',
         cell: ({ row }) => {
+            const token = row.original;
             return (
-                <div className="flex justify-evenly">
-                    <Send
-                        className="w-4 h-4 opacity-50 hover:opacity-100 cursor-pointer transition-opacity"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            row.toggleSelected(true);
-                        }}
-                    />
+                <div className="flex justify-evenly gap-3">
+                    <span title="Send token">
+                        <Send
+                            className="w-4 h-4 opacity-50 hover:opacity-100 cursor-pointer transition-opacity"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                row.toggleSelected(true);
+                            }}
+                        />
+                    </span>
+                    <HideTokenButton tokenAddress={token.address} />
                 </div>
             )
         },
