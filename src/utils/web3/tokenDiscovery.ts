@@ -2,16 +2,23 @@ import { getTokenDiscoveryApiUrl } from "@/config";
 import { TokenInterface } from "@/constants";
 import { log } from "@/utils";
 
-// API response type from ZondScan
-interface ZondScanTokenResponse {
+// Token info from ZondScan API
+interface ZondScanToken {
   contractAddress: string;
   holderAddress: string;
   balance: string;
   name: string;
   symbol: string;
   decimals: number;
-  blockNumber: number;
+  blockNumber: string;
   updatedAt: string;
+}
+
+// API response wrapper from ZondScan
+interface ZondScanTokenResponse {
+  address: string;
+  tokens: ZondScanToken[];
+  count: number;
 }
 
 /**
@@ -39,14 +46,14 @@ export async function discoverTokens(
       throw new Error(`Token discovery failed: ${response.statusText}`);
     }
 
-    const data: ZondScanTokenResponse[] = await response.json();
+    const data: ZondScanTokenResponse = await response.json();
 
-    if (!Array.isArray(data)) {
+    if (!data.tokens || !Array.isArray(data.tokens)) {
       log(`Invalid token discovery response format`);
       return [];
     }
 
-    const tokens: TokenInterface[] = data.map((token) => ({
+    const tokens: TokenInterface[] = data.tokens.map((token) => ({
       name: token.name || "Unknown Token",
       symbol: token.symbol || "???",
       address: token.contractAddress.startsWith("Z")
