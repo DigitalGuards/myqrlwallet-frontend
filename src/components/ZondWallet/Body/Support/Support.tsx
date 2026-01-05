@@ -12,7 +12,7 @@ import { Input } from "@/components/UI/Input";
 import { Button } from "@/components/UI/Button";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { toast } from "@/hooks/use-toast";
-import { SERVER_URL } from "@/configuration/zondConfig";
+import { SERVER_URL } from "@/config";
 
 type SupportFormValues = {
     name: string;

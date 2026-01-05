@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from "react";
 import { Input } from "../Input";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 interface PinInputProps {
   length?: number;

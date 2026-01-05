@@ -2,8 +2,8 @@ import { observer } from "mobx-react-lite";
 import { useStore } from "../../../../stores/store";
 import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
-import { SERVER_URL } from "@/configuration/zondConfig";
-import { formatBalance } from "@/utilities/helper";
+import { SERVER_URL } from "@/config";
+import { formatBalance } from "@/utils/formatting";
 
 type TransactionHistoryType = {
     ID: string;

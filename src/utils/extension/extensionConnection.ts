@@ -1,5 +1,5 @@
-import { ZOND_WEB3_WALLET_PROVIDER_INFO } from "@/lib/constants"; // Import constant for identification
-import type { AccountSource } from "@/utilities/storageUtil";
+import { ZOND_WEB3_WALLET_PROVIDER_INFO } from "@/constants";
+import type { AccountSource } from "@/utils/storage";
 
 // EIP-6963 types (simplified)
 interface EIP6963ProviderInfo {
@@ -74,20 +74,20 @@ async function connectToExtension(
   try {
     // Request account access using the ZOND-specific method
     console.log("Attempting to connect using zond_requestAccounts...");
-    const accounts = await provider.request({ method: 'zond_requestAccounts' }); 
-    
+    const accounts = await provider.request({ method: 'zond_requestAccounts' });
+
     if (accounts && accounts.length > 0) {
       const firstAccount = accounts[0];
       console.log("Connected to extension with accounts:", accounts);
-      
+
       // Call the passed-in setActiveAccount function
       console.log(`Setting active account to: ${firstAccount}`);
       await setActiveAccount(firstAccount, 'extension');
-      
+
       // Set the extension provider in the store
       console.log("Setting extension provider in store.");
       setExtensionProvider(provider);
-            
+
       return accounts;
     } else {
       console.warn("No accounts returned from extension.");
@@ -114,4 +114,4 @@ async function connectToExtension(
   }
 }
 
-export { connectToExtension }; 
+export { connectToExtension };

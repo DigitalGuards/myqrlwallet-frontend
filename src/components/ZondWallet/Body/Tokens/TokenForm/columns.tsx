@@ -1,4 +1,4 @@
-import { TokenInterface } from "@/lib/constants"
+import { TokenInterface } from "@/constants"
 import { ColumnDef } from "@tanstack/react-table"
 import { Copy, Check, Send } from "lucide-react"
 import { useState } from "react"

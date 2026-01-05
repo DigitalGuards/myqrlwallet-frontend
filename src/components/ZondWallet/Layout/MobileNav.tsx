@@ -1,7 +1,7 @@
 import { Users, SendHorizontal, Settings as SettingsIcon, Plus, LogOut } from "lucide-react"
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
-import { handleLogout } from "@/utilities/logoutUtil";
+import { handleLogout } from "@/utils/logout";
 
 const navItems = [
     {

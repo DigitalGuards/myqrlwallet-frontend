@@ -3,7 +3,7 @@ import { utils } from "@theqrl/web3";
 import { cva } from "class-variance-authority";
 import { Loader } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
-import { getOptimalGasFee } from "@/functions/getOptimalGasFee";
+import { getOptimalGasFee } from "@/utils/formatting";
 
 type GasFeeNoticeProps = {
   from: string;

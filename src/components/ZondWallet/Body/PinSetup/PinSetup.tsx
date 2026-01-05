@@ -16,8 +16,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { WalletEncryptionUtil } from "../../../../utilities/walletEncryptionUtil";
-import StorageUtil from "../../../../utilities/storageUtil";
+import { WalletEncryptionUtil } from "@/utils/crypto";
+import { StorageUtil } from "@/utils/storage";
 import { useStore } from "../../../../stores/store";
 
 const FormSchema = z

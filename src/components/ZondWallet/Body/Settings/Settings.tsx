@@ -26,7 +26,7 @@ import { z } from "zod";
 import { useState } from "react";
 import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
 import { toast } from "@/hooks/use-toast";
-import StorageUtil from "../../../../utilities/storageUtil";
+import { StorageUtil } from "@/utils/storage";
 import { Save } from "lucide-react";
 import { SEO } from "@/components/SEO/SEO";
 

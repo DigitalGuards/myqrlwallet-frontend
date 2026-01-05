@@ -14,7 +14,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import ZondWalletLogo from "../Header/ZondWalletLogo/ZondWalletLogo";
-import { handleLogout } from "@/utilities/logoutUtil";
+import { handleLogout } from "@/utils/logout";
 
 // Menu items.
 const sidebarItems = [

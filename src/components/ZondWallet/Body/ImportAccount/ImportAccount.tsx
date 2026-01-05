@@ -6,7 +6,7 @@ import { ImportEncryptedWallet } from "./ImportEncryptedWallet/ImportEncryptedWa
 import { ImportHexSeedForm } from "./ImportHexSeedForm/ImportHexSeedForm";
 import AccountImportSuccess from "./AccountImportSuccess/AccountImportSuccess";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/Tabs";
-import { ExtendedWalletAccount } from "@/utilities/walletEncryptionUtil";
+import { ExtendedWalletAccount } from "@/utils/crypto";
 import { SEO } from "../../../SEO/SEO";
 import { PinSetup } from "../PinSetup/PinSetup";
 

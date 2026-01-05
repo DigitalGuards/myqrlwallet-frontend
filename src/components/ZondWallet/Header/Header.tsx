@@ -1,4 +1,4 @@
-import withSuspense from "../../../functions/withSuspense";
+import { withSuspense } from "@/utils/react";
 import { useStore } from "../../../stores/store";
 import { observer } from "mobx-react-lite";
 import { lazy } from "react";

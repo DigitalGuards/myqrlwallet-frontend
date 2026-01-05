@@ -12,7 +12,7 @@ import { cva } from "class-variance-authority";
 import { Download, Plus, Link2 } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { connectToExtension } from "../../../../../utilities/extensionConnection";
+import { connectToExtension } from "@/utils/extension";
 
 const accountCreateImportClasses = cva("flex gap-8", {
   variants: {

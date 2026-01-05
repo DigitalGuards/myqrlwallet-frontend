@@ -1,5 +1,5 @@
 import { useStore } from "@/stores/store";
-import { ExtendedWalletAccount } from "@/utilities/walletEncryptionUtil";
+import { ExtendedWalletAccount } from "@/utils/crypto";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/UI/Card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormMessage } from "@/components/UI/Form";
 import { Input } from "@/components/UI/Input";
@@ -8,7 +8,7 @@ import { Download, Loader } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { getMnemonicFromHexSeed } from "@/functions/getMnemonicFromHexSeed";
+import { getMnemonicFromHexSeed } from "@/utils/crypto";
 
 const FormSchema = z.object({
   hexSeed: z

@@ -3,14 +3,14 @@ import { useStore } from "@/stores/store";
 import { useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/UI/Card";
 import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
-import StringUtil from "@/utilities/stringUtil";
+import { StringUtil } from "@/utils/formatting";
 import { utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
 import { Button } from "@/components/UI/Button";
 import { ROUTES } from "@/router/router";
 import { Link } from "react-router-dom";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { ZOND_PROVIDER } from "@/configuration/zondConfig";
+import { ZOND_PROVIDER } from "@/config";
 
 const TokenStatus = observer(() => {
     const { zondStore } = useStore();

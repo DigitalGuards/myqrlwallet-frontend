@@ -15,7 +15,7 @@ import {
 } from "@/components/UI/table"
 import { SendTokenModal } from "../SendTokenModal.tsx/SendTokenModal"
 import { useState, useEffect } from "react";
-import { TokenInterface } from "@/lib/constants";
+import { TokenInterface } from "@/constants";
 import { Loader2 } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {

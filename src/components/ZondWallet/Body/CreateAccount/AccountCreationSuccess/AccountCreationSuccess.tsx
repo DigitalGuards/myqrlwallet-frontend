@@ -17,12 +17,12 @@ import {
   DialogTrigger,
 } from "../../../../UI/Dialog";
 import { ROUTES } from "../../../../../router/router";
-import { getExplorerAddressUrl } from "../../../../../configuration/zondConfig";
+import { getExplorerAddressUrl } from "@/config";
 import { useStore } from "../../../../../stores/store";
 import { Check, Copy, ExternalLink, HardDriveDownload, Undo } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { WalletEncryptionUtil, ExtendedWalletAccount } from "../../../../../utilities/walletEncryptionUtil";
+import { WalletEncryptionUtil, ExtendedWalletAccount } from "@/utils/crypto";
 
 type AccountCreationSuccessProps = {
   account?: ExtendedWalletAccount;

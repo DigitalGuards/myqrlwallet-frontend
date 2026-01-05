@@ -1,6 +1,6 @@
 import { ROUTES } from "@/router/router";
-import StorageUtil from "./storageUtil";
-import { ZOND_PROVIDER } from "@/configuration/zondConfig";
+import StorageUtil from "./storage/storage";
+import { ZOND_PROVIDER } from "@/config";
 
 /**
  * A utility function to handle logout by clearing
@@ -27,14 +27,6 @@ export const handleLogout = async (navigate: (path: string) => void) => {
         // Clear token list
         await StorageUtil.clearTokenList();
 
-        // Clear wallet settings (optional - uncomment if you want to reset settings on logout)
-        // await StorageUtil.setWalletSettings({
-        //     autoLockTimeout: 15 * 60 * 1000,
-        //     showTestNetworks: false,
-        //     hideSmallBalances: false,
-        //     hideUnknownTokens: false,
-        // });
-
         // Navigate to homepage
         navigate(ROUTES.HOME);
 
@@ -46,4 +38,4 @@ export const handleLogout = async (navigate: (path: string) => void) => {
         navigate(ROUTES.HOME);
         window.location.reload();
     }
-}; 
+};

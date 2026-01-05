@@ -30,23 +30,23 @@ export class WalletEncryptionUtil {
     // Generate random salt and IV
     const salt = CryptoJS.lib.WordArray.random(128/8);
     const iv = CryptoJS.lib.WordArray.random(128/8);
-    
+
     // Create key using password and salt
     const key = CryptoJS.PBKDF2(password, salt, {
       keySize: 256/32,
       iterations: PBKDF2_ITERATIONS
     });
-    
+
     // Encrypt sensitive data
     const encrypted = CryptoJS.AES.encrypt(
       JSON.stringify({
         mnemonic: walletData.mnemonic,
         hexSeed: walletData.hexSeed
-      }), 
-      key, 
+      }),
+      key,
       { iv: iv }
     );
-    
+
     return {
       address: walletData.address,
       encryptedData: encrypted.toString(),
@@ -61,20 +61,20 @@ export class WalletEncryptionUtil {
     try {
       const salt = CryptoJS.enc.Hex.parse(encryptedWallet.salt);
       const iv = CryptoJS.enc.Hex.parse(encryptedWallet.iv);
-      
+
       const key = CryptoJS.PBKDF2(password, salt, {
         keySize: 256/32,
         iterations: PBKDF2_ITERATIONS
       });
-      
+
       const decrypted = CryptoJS.AES.decrypt(
         encryptedWallet.encryptedData,
         key,
         { iv: iv }
       );
-      
+
       const decryptedData = JSON.parse(decrypted.toString(CryptoJS.enc.Utf8));
-      
+
       return {
         address: encryptedWallet.address,
         mnemonic: decryptedData.mnemonic,
@@ -124,7 +124,7 @@ export class WalletEncryptionUtil {
       fileContent = JSON.stringify(unencryptedContent, null, 2);
       fileName = `wallet-${walletData.address}.json`;
     }
-    
+
     const blob = new Blob([fileContent], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -148,7 +148,7 @@ export class WalletEncryptionUtil {
     const hasLowerCase = /[a-z]/.test(password);
     const hasNumbers = /\d/.test(password);
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    
+
     return (
       password.length >= minLength &&
       hasUpperCase &&
@@ -164,26 +164,26 @@ export class WalletEncryptionUtil {
     if (!this.validatePin(pin)) {
       throw new Error('Invalid PIN format');
     }
-    
+
     // Generate random salt and IV
     const salt = CryptoJS.lib.WordArray.random(128/8);
     const iv = CryptoJS.lib.WordArray.random(128/8);
-    
+
     // Use fewer iterations for PIN-based encryption (still secure but faster)
     const key = CryptoJS.PBKDF2(pin, salt, {
       keySize: 256/32,
       iterations: 5000 // Fewer iterations than password-based encryption
     });
-    
+
     const encrypted = CryptoJS.AES.encrypt(
       JSON.stringify({
         mnemonic,
         hexSeed
-      }), 
-      key, 
+      }),
+      key,
       { iv: iv }
     );
-    
+
     // Return format that can be stored in localStorage
     return JSON.stringify({
       encryptedData: encrypted.toString(),
@@ -199,12 +199,12 @@ export class WalletEncryptionUtil {
       const parsed = JSON.parse(encryptedData);
       const salt = CryptoJS.enc.Hex.parse(parsed.salt);
       const iv = CryptoJS.enc.Hex.parse(parsed.iv);
-      
+
       const key = CryptoJS.PBKDF2(pin, salt, {
         keySize: 256/32,
         iterations: 5000
       });
-      
+
       const decrypted = CryptoJS.AES.decrypt(
         parsed.encryptedData,
         key,

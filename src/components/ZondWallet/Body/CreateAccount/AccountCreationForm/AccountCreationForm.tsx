@@ -22,7 +22,7 @@ import { Loader, Plus } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { WalletEncryptionUtil } from "@/utilities/walletEncryptionUtil";
+import { WalletEncryptionUtil } from "@/utils/crypto";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { Separator } from "@/components/UI/Separator";
 

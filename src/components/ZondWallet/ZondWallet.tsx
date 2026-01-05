@@ -1,10 +1,10 @@
 import RouteMonitor from "./RouteMonitor/RouteMonitor";
-import withSuspense from "../../functions/withSuspense";
+import { withSuspense } from "@/utils/react";
 import { observer } from "mobx-react-lite";
 import { lazy, useEffect } from "react";
 import { Toaster } from "@/components/UI/toaster"
 import { useNavigate } from "react-router-dom";
-import { setupActivityTracking, startAutoLockTimer, clearAutoLockTimer } from "@/utilities/autoLockUtil";
+import { setupActivityTracking, startAutoLockTimer, clearAutoLockTimer } from "@/utils/storage";
 
 // const Header = withSuspense(
 //   lazy(() => import("./Header/Header"))

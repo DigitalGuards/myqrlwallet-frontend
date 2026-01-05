@@ -1,4 +1,4 @@
-import withSuspense from "../../../functions/withSuspense";
+import { withSuspense } from "@/utils/react";
 import { observer } from "mobx-react-lite";
 import { lazy, useState } from "react";
 import { Check, ChevronUp, Copy, Github, Twitter } from "lucide-react";

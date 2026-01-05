@@ -1,4 +1,4 @@
-import withSuspense from "../../../../functions/withSuspense";
+import { withSuspense } from "@/utils/react";
 import { useStore } from "../../../../stores/store";
 import { Loader, Send, History, QrCode } from "lucide-react";
 import { observer } from "mobx-react-lite";

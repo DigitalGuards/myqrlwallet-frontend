@@ -5,7 +5,7 @@ import { SEO } from "../../../SEO/SEO";
 import { useStore } from "@/stores/store";
 import { observer } from "mobx-react-lite";
 import { lazy } from "react";
-import withSuspense from "../../../../functions/withSuspense";
+import { withSuspense } from "@/utils/react";
 
 const AccountCreateImport = withSuspense(
   lazy(() => import("../Home/AccountCreateImport/AccountCreateImport"))

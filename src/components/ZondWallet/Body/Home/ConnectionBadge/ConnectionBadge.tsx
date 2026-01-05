@@ -10,7 +10,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "../../../../UI/DropdownMenu";
-import { ZOND_PROVIDER } from "../../../../../configuration/zondConfig";
+import { ZOND_PROVIDER } from "@/config";
 import { useStore } from "../../../../../stores/store";
 import { cva } from "class-variance-authority";
 import { Check, ChevronDown, Network, Workflow, ExternalLink } from "lucide-react";

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/UI/Card";
 import { useStore } from "../../../../../stores/store";
 import { observer } from "mobx-react-lite";
-import { ZOND_PROVIDER } from "../../../../../configuration/zondConfig";
+import { ZOND_PROVIDER } from "@/config";
 import { CustomRpcModal } from "../../Home/ConnectionBadge/CustomRpcModal";
 import { Button } from "@/components/UI/Button";
 import { Network, Settings2 } from "lucide-react";

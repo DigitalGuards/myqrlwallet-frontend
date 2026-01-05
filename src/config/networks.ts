@@ -47,5 +47,5 @@ export const getExplorerTxUrl = (txHash: string, blockchain: string) => {
 export const getPendingTxApiUrl = (blockchain: string) => {
   const provider = ZOND_PROVIDER[blockchain as keyof typeof ZOND_PROVIDER];
   // Append the known API path to the explorer base URL
-  return `${provider.explorer}/api/pending-transactions`; 
+  return `${provider.explorer}/api/pending-transactions`;
 };

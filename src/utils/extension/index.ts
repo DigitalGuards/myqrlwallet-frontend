@@ -1,0 +1,1 @@
+export { connectToExtension } from './extensionConnection';

@@ -1,6 +1,6 @@
 import { ROUTES } from "../../../router/router";
 import { useStore } from "../../../stores/store";
-import StorageUtil from "../../../utilities/storageUtil";
+import { StorageUtil } from "@/utils/storage";
 import { observer } from "mobx-react-lite";
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";

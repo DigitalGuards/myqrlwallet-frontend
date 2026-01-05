@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "../../../../UI/Card";
 import { ROUTES } from "../../../../../router/router";
-import { getExplorerAddressUrl } from "../../../../../configuration/zondConfig";
+import { getExplorerAddressUrl } from "@/config";
 import { useStore } from "../../../../../stores/store";
 import { Web3BaseWalletAccount } from "@theqrl/web3";
 import { Check, Copy, ExternalLink } from "lucide-react";

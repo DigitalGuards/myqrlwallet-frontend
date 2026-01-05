@@ -1,7 +1,7 @@
-import { ZOND_PROVIDER } from "@/configuration/zondConfig";
-import { getHexSeedFromMnemonic } from "@/functions/getHexSeedFromMnemonic";
-import StorageUtil, { AccountListItem, AccountSource } from "@/utilities/storageUtil";
-import log from "@/utilities/logUtil"; // Assuming there's a log utility
+import { ZOND_PROVIDER, getPendingTxApiUrl } from "@/config";
+import { getHexSeedFromMnemonic } from "@/utils/crypto";
+import { StorageUtil, AccountListItem, AccountSource } from "@/utils/storage";
+import { log } from "@/utils";
 import Web3, {
   TransactionReceipt,
   Web3ZondInterface,
@@ -9,13 +9,11 @@ import Web3, {
 } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
-import { fetchTokenInfo, fetchBalance } from "@/utilities/web3utils/customERC20";
-import { TokenInterface } from "@/lib/constants";
-import { KNOWN_TOKEN_LIST } from "@/lib/constants";
+import { fetchTokenInfo, fetchBalance } from "@/utils/web3";
+import { TokenInterface, KNOWN_TOKEN_LIST } from "@/constants";
 import CustomERC20ABI from "@/abi/CustomERC20ABI";
-import { getPendingTxApiUrl } from "@/configuration/zondConfig"; // Import the new helper
 import { formatUnits } from "ethers";
-import { getOptimalTokenBalance } from "@/functions/getOptimalTokenBalance";
+import { getOptimalTokenBalance } from "@/utils/formatting";
 
 type ActiveAccountType = {
   accountAddress: string;

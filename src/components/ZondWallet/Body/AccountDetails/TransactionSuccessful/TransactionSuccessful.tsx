@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/UI/Card";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import StringUtil from "@/utilities/stringUtil";
+import { StringUtil } from "@/utils/formatting";
 import { TransactionReceipt, utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
 import { Check, Copy, ExternalLink } from "lucide-react";

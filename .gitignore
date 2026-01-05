@@ -38,8 +38,8 @@ yarn-error.log*
 # Vite
 .vite
 
-# Extension directory
-extension/
+# Extension directory (root level only)
+/extension/
 webapp/package-lock.json
 /zond-web3-wallet
 zond-erc20-factory/

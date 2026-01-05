@@ -9,7 +9,7 @@ import {
 } from "../../../../UI/Tooltip";
 import { ROUTES } from "../../../../../router/router";
 import { useStore } from "../../../../../stores/store";
-import { getExplorerAddressUrl } from "../../../../../configuration/zondConfig";
+import { getExplorerAddressUrl } from "@/config";
 import { Copy, ExternalLink, SendHorizontal, History } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Link } from "react-router-dom";

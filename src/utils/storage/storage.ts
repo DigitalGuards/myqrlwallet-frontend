@@ -1,5 +1,5 @@
-import { ZOND_PROVIDER } from "../configuration/zondConfig";
-import { TokenInterface } from "@/lib/constants";
+import { ZOND_PROVIDER } from "@/config";
+import { TokenInterface } from "@/constants";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
 const BLOCKCHAIN_SELECTION_IDENTIFIER = "BLOCKCHAIN_SELECTION";
@@ -262,7 +262,7 @@ class StorageUtil {
   static async storeEncryptedSeed(blockchain: string, address: string, encryptedSeed: string) {
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
     const encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
-    
+
     // Update or add the encrypted seed
     const existingIndex = encryptedSeeds.findIndex(item => item.address === address);
     const seedData: EncryptedSeedData = {
@@ -270,13 +270,13 @@ class StorageUtil {
       encryptedSeed,
       lastAccessed: Date.now()
     };
-    
+
     if (existingIndex >= 0) {
       encryptedSeeds[existingIndex] = seedData;
     } else {
       encryptedSeeds.push(seedData);
     }
-    
+
     this.setItem(encryptedSeedsKey, encryptedSeeds);
   }
 
@@ -289,14 +289,14 @@ class StorageUtil {
   static async getEncryptedSeed(blockchain: string, address: string): Promise<string | null> {
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
     const encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
-    
+
     const seedData = encryptedSeeds.find(item => item.address === address);
     if (seedData) {
       // Update last accessed time
       await this.storeEncryptedSeed(blockchain, address, seedData.encryptedSeed);
       return seedData.encryptedSeed;
     }
-    
+
     return null;
   }
 
@@ -308,7 +308,7 @@ class StorageUtil {
   static async removeEncryptedSeed(blockchain: string, address: string) {
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
     let encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
-    
+
     encryptedSeeds = encryptedSeeds.filter(item => item.address !== address);
     this.setItem(encryptedSeedsKey, encryptedSeeds);
   }
@@ -321,12 +321,12 @@ class StorageUtil {
     const settings = await this.getWalletSettings();
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
     let encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
-    
+
     const now = Date.now();
     encryptedSeeds = encryptedSeeds.filter(
       item => (now - item.lastAccessed) < settings.autoLockTimeout
     );
-    
+
     this.setItem(encryptedSeedsKey, encryptedSeeds);
   }
 }

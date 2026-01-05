@@ -1,13 +1,13 @@
 import { lazy, useState } from "react";
-import withSuspense from "../../../../functions/withSuspense";
+import { withSuspense } from "@/utils/react";
 import { SEO } from "../../../SEO/SEO";
 import { useStore } from "../../../../stores/store";
 import { Web3BaseWalletAccount } from "@theqrl/web3";
 import { observer } from "mobx-react-lite";
 import { AccountCreationForm } from "./AccountCreationForm/AccountCreationForm";
 import { AccountCreationSuccess } from "./AccountCreationSuccess/AccountCreationSuccess";
-import { WalletEncryptionUtil } from "../../../../utilities/walletEncryptionUtil";
-import StorageUtil from "../../../../utilities/storageUtil";
+import { WalletEncryptionUtil } from "@/utils/crypto";
+import { StorageUtil } from "@/utils/storage";
 
 const MnemonicDisplay = withSuspense(
   lazy(() => import("./MnemonicDisplay/MnemonicDisplay"))

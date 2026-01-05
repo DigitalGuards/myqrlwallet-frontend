@@ -1,7 +1,6 @@
 import Web3 from "@theqrl/web3";
 import CustomERC20ABI from "@/abi/CustomERC20ABI";
 
-
 const fetchBalance = async (contractAddress: string, accountAddress: string, rpc_url: string) => {
     const web3 = new Web3(new Web3.providers.HttpProvider(rpc_url));
     const contract = new web3.zond.Contract(CustomERC20ABI, contractAddress);

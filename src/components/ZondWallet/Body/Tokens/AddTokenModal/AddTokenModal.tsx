@@ -11,11 +11,11 @@ import { Input } from "@/components/UI/Input"
 import { Label } from "@/components/UI/Label"
 import { useEffect, useState } from "react";
 import { useStore } from "@/stores/store";
-import { fetchTokenInfo, fetchBalance } from "@/utilities/web3utils/customERC20";
-import { TokenInterface } from "@/lib/constants";
+import { fetchTokenInfo, fetchBalance } from "@/utils/web3";
+import { TokenInterface } from "@/constants";
 import { toast } from "@/hooks/use-toast";
-import { ZOND_PROVIDER } from "@/configuration/zondConfig";
-import StorageUtil from "@/utilities/storageUtil";
+import { ZOND_PROVIDER } from "@/config";
+import { StorageUtil } from "@/utils/storage";
 
 export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     const { zondStore } = useStore();

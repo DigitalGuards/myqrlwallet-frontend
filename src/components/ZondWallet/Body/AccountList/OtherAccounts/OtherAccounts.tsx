@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from "../../../../UI/Tooltip";
 import { useStore } from "../../../../../stores/store";
-import { getExplorerAddressUrl } from "../../../../../configuration/zondConfig";
+import { getExplorerAddressUrl } from "@/config";
 import { ArrowRight, Copy, ExternalLink } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { AccountId } from "../AccountId/AccountId";

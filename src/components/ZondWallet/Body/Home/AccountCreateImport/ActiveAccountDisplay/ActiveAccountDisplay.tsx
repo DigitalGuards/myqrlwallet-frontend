@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useStore } from "../../../../../../stores/store";
 import { observer } from "mobx-react-lite";
 import { Copy, Check, RefreshCw } from "lucide-react";
-import { formatBalance } from "@/utilities/helper";
+import { formatBalance } from "@/utils/formatting";
 
 export const ActiveAccountDisplay = observer(() => {
   const { zondStore } = useStore();

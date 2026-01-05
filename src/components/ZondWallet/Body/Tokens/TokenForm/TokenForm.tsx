@@ -1,4 +1,4 @@
-import { TokenInterface } from "@/lib/constants";
+import { TokenInterface } from "@/constants";
 import {
     Card,
     CardContent,
@@ -9,14 +9,14 @@ import { observer } from "mobx-react-lite";
 import { columns } from "./columns"
 import { DataTable } from "./data-table"
 import { useEffect, useState } from "react";
-import { fetchBalance } from "@/utilities/web3utils/customERC20";
+import { fetchBalance } from "@/utils/web3";
 import { useStore } from "@/stores/store";
 import { Button } from "@/components/UI/Button";
 import { Loader2, Plus, RefreshCw, Import, Coins } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 import { formatUnits } from "ethers";
-import { ZOND_PROVIDER } from "@/configuration/zondConfig";
-import StorageUtil from "@/utilities/storageUtil";
+import { ZOND_PROVIDER } from "@/config";
+import { StorageUtil } from "@/utils/storage";
 
 import {
     DropdownMenu,
@@ -26,7 +26,7 @@ import {
 } from "@/components/UI/DropdownMenu";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
-import { getOptimalTokenBalance } from "@/functions/getOptimalTokenBalance";
+import { getOptimalTokenBalance } from "@/utils/formatting";
 
 const TokenForm = observer(() => {
     const { zondStore } = useStore();
