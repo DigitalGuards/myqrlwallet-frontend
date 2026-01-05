@@ -45,25 +45,34 @@ const TokenForm = observer(() => {
 
     const refreshTokens = async () => {
         setIsRefreshing(true);
-        const previousCount = zondStore.tokenList.length;
+        try {
+            const previousCount = zondStore.tokenList.length;
 
-        // Discover new tokens first
-        await zondStore.discoverAndAddTokens(activeAccountAddress);
+            // Discover new tokens first
+            await zondStore.discoverAndAddTokens(activeAccountAddress);
 
-        // Then refresh all balances
-        await zondStore.refreshTokenBalances();
+            // Then refresh all balances
+            await zondStore.refreshTokenBalances();
 
-        const newCount = zondStore.tokenList.length;
-        const discovered = newCount - previousCount;
+            const newCount = zondStore.tokenList.length;
+            const discovered = newCount - previousCount;
 
-        toast({
-            title: "Tokens refreshed",
-            description: discovered > 0
-                ? `Discovered ${discovered} new token${discovered > 1 ? 's' : ''}`
-                : "All balances updated",
-        });
-
-        setIsRefreshing(false);
+            toast({
+                title: "Tokens refreshed",
+                description: discovered > 0
+                    ? `Discovered ${discovered} new token${discovered > 1 ? 's' : ''}`
+                    : "All balances updated",
+            });
+        } catch (error) {
+            console.error("Failed to refresh tokens:", error);
+            toast({
+                variant: "destructive",
+                title: "Refresh failed",
+                description: "Could not refresh token list.",
+            });
+        } finally {
+            setIsRefreshing(false);
+        }
     };
 
     useEffect(() => {
