@@ -13,10 +13,11 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/UI/table"
-import { SendTokenModal } from "../SendTokenModal.tsx/SendTokenModal"
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { TokenInterface } from "@/constants";
 import { Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "@/router/router";
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -29,25 +30,25 @@ export function DataTable<TData, TValue>({
     data,
     isLoading = false,
 }: DataTableProps<TData, TValue>) {
+    const navigate = useNavigate();
     const table = useReactTable({
         data,
         columns,
         getCoreRowModel: getCoreRowModel(),
     })
-    const [isSendTokenModalOpen, setIsSendTokenModalOpen] = useState(false);
-    const [selectedToken, setSelectedToken] = useState<TData | null>(null);
 
-    // Watch for row selection changes
+    // Watch for row selection changes - navigate to Transfer page
     useEffect(() => {
         const selectedRows = table.getSelectedRowModel().rows;
         if (selectedRows.length > 0) {
-            setSelectedToken(selectedRows[0].original);
-            setIsSendTokenModalOpen(true);
-            // Reset selection after modal opens
+            const token = selectedRows[0].original as TokenInterface;
+            // Reset selection before navigating
             table.resetRowSelection();
+            // Navigate to Transfer page with token address as query param
+            navigate(`${ROUTES.TRANSFER}?asset=${token.address}`);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [table.getState().rowSelection]);
+    }, [table.getState().rowSelection, navigate]);
 
     if (isLoading) {
         return (
@@ -115,11 +116,6 @@ export function DataTable<TData, TValue>({
                     )}
                 </TableBody>
             </Table>
-            <SendTokenModal
-                isOpen={isSendTokenModalOpen}
-                onClose={() => setIsSendTokenModalOpen(false)}
-                token={selectedToken as TokenInterface}
-            />
         </div>
     )
 }

@@ -139,7 +139,7 @@ export const ActiveAccount = observer(() => {
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
                     <Link
-                      to={ROUTES.ACCOUNT_DETAILS}
+                      to={ROUTES.TRANSFER}
                     >
                       <Button
                         className="hover:text-secondary"

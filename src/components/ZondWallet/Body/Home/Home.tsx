@@ -120,10 +120,10 @@ const Home = observer(() => {
                         <ActiveAccountDisplay />
                       </CardContent>
                       <CardFooter className="justify-end gap-2">
-                        <Link className="flex-1" to={ROUTES.ACCOUNT_DETAILS}>
+                        <Link className="flex-1" to={ROUTES.TRANSFER}>
                           <Button className="w-full" type="button">
                             <Send className="mr-2 h-4 w-4" />
-                            Send 
+                            Transfer
                           </Button>
                         </Link>
                         <Button 

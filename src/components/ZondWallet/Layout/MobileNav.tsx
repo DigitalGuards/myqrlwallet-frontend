@@ -7,7 +7,7 @@ const navItems = [
     {
         icon: SendHorizontal,
         label: "Send",
-        path: ROUTES.ACCOUNT_DETAILS,
+        path: ROUTES.TRANSFER,
     },
     {
         icon: Users,

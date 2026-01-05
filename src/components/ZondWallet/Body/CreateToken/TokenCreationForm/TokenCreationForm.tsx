@@ -185,8 +185,16 @@ export const TokenCreationForm = observer(
                 const maxWalletAmount = formData.maxWalletAmount ? ethers.parseUnits(formData.maxWalletAmount, decimals).toString() : undefined;
                 const maxTransactionLimit = formData.maxTransactionLimit ? ethers.parseUnits(formData.maxTransactionLimit, decimals).toString() : undefined;
 
-                await onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, ownerAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase);
+                // Navigate immediately to show loading state, then start creation
+                zondStore.setCreatingToken(tokenName, true);
                 navigate(ROUTES.TOKEN_STATUS);
+
+                // Start token creation in background (don't await here)
+                onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, ownerAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase)
+                    .catch((error) => {
+                        console.error("Token creation failed:", error);
+                        // The error state is set within zondStore and displayed on the status page
+                    });
             } catch (error) {
                 console.error("Error creating token:", error);
                 toast({

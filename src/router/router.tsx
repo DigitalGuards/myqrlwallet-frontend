@@ -9,7 +9,6 @@ const Home = lazy(() => import("../components/ZondWallet/Body/Home/Home.tsx"));
 const CreateAccount = lazy(() => import("../components/ZondWallet/Body/CreateAccount/CreateAccount.tsx"));
 const ImportAccount = lazy(() => import("../components/ZondWallet/Body/ImportAccount/ImportAccount.tsx"));
 const AddAccount = lazy(() => import("../components/ZondWallet/Body/AddAccount/AddAccount.tsx"))
-const AccountDetails = lazy(() => import("../components/ZondWallet/Body/AccountDetails/AccountDetails.tsx"));
 const AccountList = lazy(() => import("../components/ZondWallet/Body/AccountList/AccountList.tsx"));
 const CreateToken = lazy(() => import("../components/ZondWallet/Body/CreateToken/CreateToken.tsx"));
 // const Tokens = lazy(() => import("../components/ZondWallet/Body/Tokens/Tokens.tsx"))
@@ -20,6 +19,7 @@ const Privacy = lazy(() => import("../components/ZondWallet/Body/Privacy/Privacy
 const Support = lazy(() => import("../components/ZondWallet/Body/Support/Support.tsx"));
 const TokenStatus = lazy(() => import("../components/ZondWallet/Body/CreateToken/TokenStatus.tsx"));
 const TransactionHistory = lazy(() => import("../components/ZondWallet/Body/TransactionHistory/TransactionHistory.tsx"));
+const Transfer = lazy(() => import("../components/ZondWallet/Body/Transfer/Transfer.tsx"));
 
 const ROUTES = {
   HOME: "/",
@@ -27,11 +27,9 @@ const ROUTES = {
   IMPORT_ACCOUNT: "/import-account",
   ADD_ACCOUNT: "/add-account",
   ACCOUNT_LIST: "/account-list",
-  ACCOUNT_DETAILS: "/account-details",
   CREATE_TOKEN: "/create-token",
   QR_VIEW: "/qr-view",
-  SEND: "/send",
-  // TOKENS: "/tokens",
+  TRANSFER: "/transfer",
   SETTINGS: "/settings",
   TERMS: "/terms",
   PRIVACY: "/privacy",
@@ -79,14 +77,6 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Loading />}>
             <AddAccount />
-          </Suspense>
-        ),
-      },
-      {
-        path: ROUTES.ACCOUNT_DETAILS,
-        element: (
-          <Suspense fallback={<Loading />}>
-            <AccountDetails />
           </Suspense>
         ),
       },
@@ -159,6 +149,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Loading />}>
             <TransactionHistory />
+          </Suspense>
+        )
+      },
+      {
+        path: ROUTES.TRANSFER,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <Transfer />
           </Suspense>
         )
       },
