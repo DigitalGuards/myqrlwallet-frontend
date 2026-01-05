@@ -24,6 +24,12 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/UI/DropdownMenu";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/UI/Tooltip";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import { getOptimalTokenBalance } from "@/utils/formatting";
@@ -97,18 +103,27 @@ const TokenForm = observer(() => {
             <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-secondary/5 to-transparent">
                 <CardTitle className="text-2xl font-bold">Tokens</CardTitle>
                 <div className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={refreshTokens}
-                        disabled={isRefreshing}
-                    >
-                        {isRefreshing ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <RefreshCw className="h-4 w-4" />
-                        )}
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={refreshTokens}
+                                    disabled={isRefreshing}
+                                >
+                                    {isRefreshing ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <RefreshCw className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Refresh balances and show hidden tokens</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm">

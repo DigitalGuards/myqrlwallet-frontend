@@ -898,14 +898,23 @@ class ZondStore {
   // Hide a token (add to hidden list)
   async hideToken(tokenAddress: string) {
     await StorageUtil.hideToken(tokenAddress);
-    await this.loadHiddenTokens();
+    runInAction(() => {
+      const lowerCaseAddress = tokenAddress.toLowerCase();
+      if (!this.hiddenTokens.some(addr => addr.toLowerCase() === lowerCaseAddress)) {
+        this.hiddenTokens.push(lowerCaseAddress);
+      }
+    });
     log(`Token hidden: ${tokenAddress}`);
   }
 
   // Unhide a token (remove from hidden list)
   async unhideToken(tokenAddress: string) {
     await StorageUtil.unhideToken(tokenAddress);
-    await this.loadHiddenTokens();
+    runInAction(() => {
+      this.hiddenTokens = this.hiddenTokens.filter(
+        (addr) => addr.toLowerCase() !== tokenAddress.toLowerCase()
+      );
+    });
     log(`Token unhidden: ${tokenAddress}`);
   }
 
