@@ -17,7 +17,8 @@ export type WebToNativeMessageType =
   // Seed persistence messages
   | 'SEED_STORED'           // Web stored encrypted seed, native should backup
   | 'REQUEST_BIOMETRIC_UNLOCK'  // Web asks native to unlock with biometric
-  | 'WALLET_CLEARED';       // Web confirmed it cleared localStorage
+  | 'WALLET_CLEARED'        // Web confirmed it cleared localStorage
+  | 'WEB_APP_READY';        // Web app is fully initialized and ready to receive data
 
 /**
  * Message types that can be received from the native app
@@ -203,4 +204,12 @@ export const requestBiometricUnlock = (): boolean => {
  */
 export const confirmWalletCleared = (): boolean => {
   return sendToNative('WALLET_CLEARED');
+};
+
+/**
+ * Notify native app that web app is fully initialized and ready to receive data
+ * Should be called after the app is mounted and ready for native-to-web messages
+ */
+export const notifyWebAppReady = (): boolean => {
+  return sendToNative('WEB_APP_READY');
 };

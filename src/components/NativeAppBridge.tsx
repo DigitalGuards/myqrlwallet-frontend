@@ -15,6 +15,7 @@ import {
   setNativeInjectedPin,
   clearNativeInjectedPin,
   confirmWalletCleared,
+  notifyWebAppReady,
 } from '@/utils/nativeApp';
 import { ROUTES } from '@/router/router';
 import StorageUtil from '@/utils/storage/storage';
@@ -178,6 +179,11 @@ export const NativeAppBridge: React.FC = () => {
     logToNative('Web app bridge initialized');
 
     const unsubscribe = subscribeToNativeMessages(handleNativeMessage);
+
+    // Notify native app that web app is ready to receive data
+    // This enables the handshake mechanism instead of relying on setTimeout
+    notifyWebAppReady();
+    logToNative('Web app ready signal sent');
 
     return () => {
       unsubscribe();
