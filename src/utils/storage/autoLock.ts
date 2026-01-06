@@ -1,5 +1,6 @@
 import { handleLogout } from '../logout';
 import StorageUtil from './storage';
+import { isInNativeApp } from '../nativeApp';
 
 let autoLockTimer: NodeJS.Timeout | null = null;
 let lastActivityTime: number = Date.now();
@@ -32,6 +33,13 @@ export const startAutoLockTimer = async (navigate: (path: string) => void) => {
 
   // Clear any existing timer
   clearAutoLockTimer();
+
+  // Disable auto-lock when running in native app
+  // Native app handles session persistence and has its own biometric unlock
+  if (isInNativeApp()) {
+    console.log("🔒 Auto-lock: DISABLED - Running in native app");
+    return;
+  }
 
   // Check if there's an active wallet
   const walletActive = await hasActiveWallet();

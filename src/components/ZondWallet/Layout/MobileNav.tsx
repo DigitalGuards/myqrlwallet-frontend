@@ -2,6 +2,7 @@ import { Users, SendHorizontal, Settings as SettingsIcon, Plus, LogOut } from "l
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import { handleLogout } from "@/utils/logout";
+import { isInNativeApp } from "@/utils/nativeApp";
 
 const navItems = [
     {
@@ -43,10 +44,13 @@ export default function MobileNav() {
                     </button>
                 ))
             }
-            <button className="cursor-pointer flex flex-col items-center text-sm text-muted-foreground hover:text-foreground transition-colors" onClick={onLogoutClick}>
-                <LogOut className="h-5 w-5" />
-                <span>Logout</span>
-            </button>
+            {/* Hide logout button when running in native app - wallet removal is handled in native settings */}
+            {!isInNativeApp() && (
+                <button className="cursor-pointer flex flex-col items-center text-sm text-muted-foreground hover:text-foreground transition-colors" onClick={onLogoutClick}>
+                    <LogOut className="h-5 w-5" />
+                    <span>Logout</span>
+                </button>
+            )}
         </nav>
     )
 }

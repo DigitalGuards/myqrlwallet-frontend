@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import ZondWalletLogo from "../Header/ZondWalletLogo/ZondWalletLogo";
 import { handleLogout } from "@/utils/logout";
+import { isInNativeApp } from "@/utils/nativeApp";
 
 // Menu items.
 const sidebarItems = [
@@ -75,18 +76,21 @@ export function AppSidebar() {
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
-            <SidebarFooter>
-                <SidebarMenu>
-                    <SidebarMenuItem className="py-2">
-                        <SidebarMenuButton asChild className="py-2 h-auto" onClick={onLogoutClick} tooltip={{ side: "right", children: "Log out of wallet" }}>
-                            <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground">
-                                <LogOut />
-                                <span className="block text-xs font-medium">Logout</span>
-                            </div>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </SidebarFooter>
+            {/* Hide logout button when running in native app - wallet removal is handled in native settings */}
+            {!isInNativeApp() && (
+                <SidebarFooter>
+                    <SidebarMenu>
+                        <SidebarMenuItem className="py-2">
+                            <SidebarMenuButton asChild className="py-2 h-auto" onClick={onLogoutClick} tooltip={{ side: "right", children: "Log out of wallet" }}>
+                                <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground">
+                                    <LogOut />
+                                    <span className="block text-xs font-medium">Logout</span>
+                                </div>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarFooter>
+            )}
         </Sidebar>
     )
 }

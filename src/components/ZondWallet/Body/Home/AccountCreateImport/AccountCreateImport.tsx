@@ -13,6 +13,7 @@ import { Download, Plus, Link2 } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { connectToExtension } from "@/utils/extension";
+import { isInNativeApp } from "@/utils/nativeApp";
 
 const accountCreateImportClasses = cva("flex gap-8", {
   variants: {
@@ -35,6 +36,9 @@ const AccountCreateImport = observer(() => {
 
   const hasActiveAccount = !!accountAddress;
   const hasAccountCreationPreference = !!state?.hasAccountCreationPreference;
+  const description = isInNativeApp()
+    ? "You are connected to the blockchain. Create a new account or import an existing account."
+    : "You are connected to the blockchain. Create a new account, import an existing account, or connect using your browser extension.";
 
   const handleConnectExtension = async () => {
     const accounts = await connectToExtension(setActiveAccount, setExtensionProvider);
@@ -56,8 +60,7 @@ const AccountCreateImport = observer(() => {
             {hasActiveAccount ? "Add accounts" : "Let's start"}
           </CardTitle>
           <CardDescription>
-            You are connected to the blockchain. Create a new account, import
-            an existing account, or connect using your browser extension.
+            {description}
           </CardDescription>
         </CardHeader>
         <CardFooter className="flex-col gap-4">
@@ -73,10 +76,12 @@ const AccountCreateImport = observer(() => {
               Import an existing account
             </Button>
           </Link>
-          <Button className="w-full" type="button" variant="outline" onClick={handleConnectExtension}>
-            <Link2 className="mr-2 h-4 w-4" />
-            Connect Browser Extension
-          </Button>
+          {!isInNativeApp() && (
+            <Button className="w-full" type="button" variant="outline" onClick={handleConnectExtension}>
+              <Link2 className="mr-2 h-4 w-4" />
+              Connect Browser Extension
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </div>
