@@ -138,7 +138,11 @@ export const NativeAppBridge: React.FC = () => {
           const encryptedSeed = payload?.encryptedSeed;
           const blockchain = payload?.blockchain;
 
-          if (typeof address !== 'string' || typeof encryptedSeed !== 'string' || typeof blockchain !== 'string') {
+          if (
+            typeof address !== 'string' || !address ||
+            typeof encryptedSeed !== 'string' || !encryptedSeed ||
+            typeof blockchain !== 'string' || !blockchain
+          ) {
             console.warn('[Bridge] RESTORE_SEED missing or invalid required fields');
             return;
           }
