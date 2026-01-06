@@ -335,7 +335,7 @@ class StorageUtil {
    * Clears ALL encrypted seeds for a blockchain (used by native app wallet removal)
    * @param blockchain The blockchain identifier
    */
-  static async clearAllEncryptedSeeds(blockchain: string) {
+  static clearAllEncryptedSeeds(blockchain: string): void {
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
     localStorage.removeItem(encryptedSeedsKey);
   }
@@ -344,7 +344,7 @@ class StorageUtil {
    * Clears the account list for a blockchain
    * @param blockchain The blockchain identifier
    */
-  static async clearAccountList(blockchain: string) {
+  static clearAccountList(blockchain: string): void {
     const blockChainAccountListIdentifier = `${blockchain}_${ACCOUNT_LIST_IDENTIFIER}`;
     localStorage.removeItem(blockChainAccountListIdentifier);
   }

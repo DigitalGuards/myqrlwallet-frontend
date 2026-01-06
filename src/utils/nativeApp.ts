@@ -118,9 +118,13 @@ export const subscribeToNativeMessages = (
   callback: (message: NativeMessage) => void
 ): (() => void) => {
   const handler = (event: Event) => {
-    const customEvent = event as CustomEvent<NativeMessage>;
-    if (customEvent.detail) {
-      callback(customEvent.detail);
+    // Verify it's a CustomEvent before accessing detail
+    if (!(event instanceof CustomEvent)) {
+      console.warn('[NativeApp] Expected CustomEvent but received:', event.type);
+      return;
+    }
+    if (event.detail) {
+      callback(event.detail as NativeMessage);
     }
   };
 

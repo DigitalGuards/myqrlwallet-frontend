@@ -52,9 +52,9 @@ export const NativeAppBridge: React.FC = () => {
 
       switch (type) {
         case 'QR_RESULT': {
-          const address = payload?.address as string;
-          if (!address) {
-            console.warn('[Bridge] QR result missing address');
+          const address = payload?.address;
+          if (typeof address !== 'string' || !address) {
+            console.warn('[Bridge] QR result missing or invalid address');
             return;
           }
 
@@ -106,9 +106,9 @@ export const NativeAppBridge: React.FC = () => {
 
         // Seed persistence messages
         case 'UNLOCK_WITH_PIN': {
-          const pin = payload?.pin as string;
-          if (!pin) {
-            console.warn('[Bridge] UNLOCK_WITH_PIN missing pin');
+          const pin = payload?.pin;
+          if (typeof pin !== 'string' || !pin) {
+            console.warn('[Bridge] UNLOCK_WITH_PIN missing or invalid pin');
             return;
           }
           logToNative('PIN received from native app');
@@ -119,12 +119,12 @@ export const NativeAppBridge: React.FC = () => {
 
         case 'RESTORE_SEED': {
           // Native app sends backup seed if localStorage is empty
-          const address = payload?.address as string;
-          const encryptedSeed = payload?.encryptedSeed as string;
-          const blockchain = payload?.blockchain as string;
+          const address = payload?.address;
+          const encryptedSeed = payload?.encryptedSeed;
+          const blockchain = payload?.blockchain;
 
-          if (!address || !encryptedSeed || !blockchain) {
-            console.warn('[Bridge] RESTORE_SEED missing required fields');
+          if (typeof address !== 'string' || typeof encryptedSeed !== 'string' || typeof blockchain !== 'string') {
+            console.warn('[Bridge] RESTORE_SEED missing or invalid required fields');
             return;
           }
 
@@ -151,8 +151,7 @@ export const NativeAppBridge: React.FC = () => {
           // Confirm to native that web cleared its data
           confirmWalletCleared();
 
-          // Navigate to home and reload
-          navigate(ROUTES.HOME);
+          // Reload the app - reload will navigate to appropriate page based on wallet state
           window.location.reload();
           break;
         }
