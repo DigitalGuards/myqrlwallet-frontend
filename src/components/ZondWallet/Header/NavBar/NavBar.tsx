@@ -3,6 +3,7 @@ import { observer } from "mobx-react-lite";
 import { Menu, X, Copy, Check } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/stores/store";
+import { isInNativeApp, openNativeSettings } from "@/utils/nativeApp";
 
 import {
     NavigationMenu,
@@ -38,6 +39,14 @@ const NavBar = observer(() => {
         setTimeout(() => {
             setCopiedAddress(null);
         }, 1000);
+    };
+
+    const handleSettingsClick = () => {
+        if (isInNativeApp()) {
+            openNativeSettings();
+        } else {
+            navigate("/settings");
+        }
     };
 
     return (
@@ -91,7 +100,7 @@ const NavBar = observer(() => {
                         </NavigationMenuLink>
                     </NavigationMenuItem> */}
                     <NavigationMenuItem>
-                        <NavigationMenuLink onClick={() => navigate("/settings")} className={navigationMenuTriggerStyle()}>
+                        <NavigationMenuLink onClick={handleSettingsClick} className={navigationMenuTriggerStyle()}>
                             Settings
                         </NavigationMenuLink>
                     </NavigationMenuItem>
@@ -141,7 +150,7 @@ const NavBar = observer(() => {
                             <NavigationMenuItem>
                                 <NavigationMenuLink
                                     onClick={() => {
-                                        navigate("/settings");
+                                        handleSettingsClick();
                                         setOpen(false);
                                     }}
                                     className={navigationMenuTriggerStyle()}
