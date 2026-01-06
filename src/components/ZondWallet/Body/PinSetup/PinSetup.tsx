@@ -19,6 +19,7 @@ import { z } from "zod";
 import { WalletEncryptionUtil } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 import { useStore } from "../../../../stores/store";
+import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
 
 const FormSchema = z
   .object({
@@ -91,6 +92,16 @@ export const PinSetup = ({
         accountAddress,
         encryptedSeed
       );
+
+      // If running in native app, notify it to backup the encrypted seed
+      // Native app will store in AsyncStorage and prompt for biometric setup
+      if (isInNativeApp()) {
+        notifySeedStored({
+          address: accountAddress,
+          encryptedSeed,
+          blockchain,
+        });
+      }
 
       setIsStoringPin(false);
       onPinSetupComplete();

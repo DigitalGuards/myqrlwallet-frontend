@@ -332,6 +332,24 @@ class StorageUtil {
   }
 
   /**
+   * Clears ALL encrypted seeds for a blockchain (used by native app wallet removal)
+   * @param blockchain The blockchain identifier
+   */
+  static async clearAllEncryptedSeeds(blockchain: string) {
+    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    localStorage.removeItem(encryptedSeedsKey);
+  }
+
+  /**
+   * Clears the account list for a blockchain
+   * @param blockchain The blockchain identifier
+   */
+  static async clearAccountList(blockchain: string) {
+    const blockChainAccountListIdentifier = `${blockchain}_${ACCOUNT_LIST_IDENTIFIER}`;
+    localStorage.removeItem(blockChainAccountListIdentifier);
+  }
+
+  /**
    * Get list of hidden token addresses
    */
   static async getHiddenTokens(): Promise<string[]> {
