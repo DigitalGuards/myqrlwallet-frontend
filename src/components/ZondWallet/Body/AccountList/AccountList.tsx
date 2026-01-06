@@ -25,7 +25,7 @@ const AccountList = observer(() => {
         description="Manage your QRL accounts securely. View balances, copy addresses, and interact with your quantum-resistant accounts."
         keywords="QRL Accounts, Wallet Management, Account Balance, Quantum Resistant Accounts, QRL Address"
       />
-      <div className="flex w-full items-start justify-center py-8 overflow-x-hidden">
+      <div className="flex w-full items-start justify-center py-8">
         <div className="relative w-full max-w-2xl px-4">
           <img
             className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
