@@ -578,7 +578,6 @@ export const TokenCreationForm = observer(
                                         disabled={isSubmitting}
                                         description="Enter your PIN to authorize token creation"
                                         error={pinError}
-                                        autoFocus
                                     />
                                 </div>
                             )}
