@@ -21,12 +21,18 @@ import { ROUTES } from '@/router/router';
 import StorageUtil from '@/utils/storage/storage';
 import { ZOND_PROVIDER } from '@/config';
 
-// Store for pending QR result handler
+/**
+ * Simple single-handler storage for QR scan results.
+ * Note: This is a basic implementation that supports one handler at a time.
+ * If multiple components need to listen for QR results simultaneously,
+ * consider migrating to a MobX store or pub/sub pattern.
+ */
 let pendingQRResultHandler: ((address: string) => void) | null = null;
 
 /**
- * Register a handler for QR scan results
- * Call this from components that need to receive QR scan results
+ * Register a handler for QR scan results.
+ * Only one handler can be active at a time - the last registered handler wins.
+ * Returns an unsubscribe function to clear the handler.
  */
 export const registerQRResultHandler = (
   handler: (address: string) => void

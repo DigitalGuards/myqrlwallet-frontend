@@ -36,6 +36,9 @@ const AccountCreateImport = observer(() => {
 
   const hasActiveAccount = !!accountAddress;
   const hasAccountCreationPreference = !!state?.hasAccountCreationPreference;
+  const description = isInNativeApp()
+    ? "You are connected to the blockchain. Create a new account or import an existing account."
+    : "You are connected to the blockchain. Create a new account, import an existing account, or connect using your browser extension.";
 
   const handleConnectExtension = async () => {
     const accounts = await connectToExtension(setActiveAccount, setExtensionProvider);
@@ -57,8 +60,7 @@ const AccountCreateImport = observer(() => {
             {hasActiveAccount ? "Add accounts" : "Let's start"}
           </CardTitle>
           <CardDescription>
-            You are connected to the blockchain. Create a new account{isInNativeApp() ? " or " : ", "}import
-            an existing account{!isInNativeApp() && ", or connect using your browser extension"}.
+            {description}
           </CardDescription>
         </CardHeader>
         <CardFooter className="flex-col gap-4">
