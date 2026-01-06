@@ -24,3 +24,5 @@ declare global {
     ReactNativeWebView?: ReactNativeWebView;
   }
 }
+
+export {};
