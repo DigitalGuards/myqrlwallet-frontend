@@ -75,14 +75,22 @@ export const NativeAppBridge: React.FC = () => {
         }
 
         case 'BIOMETRIC_SUCCESS': {
-          const authenticated = payload?.authenticated as boolean;
+          const authenticated = payload?.authenticated;
+          if (typeof authenticated !== 'boolean') {
+            console.warn('[Bridge] BIOMETRIC_SUCCESS missing or invalid authenticated flag');
+            return;
+          }
           logToNative(`Biometric auth result: ${authenticated}`);
           // Could dispatch to store or trigger app unlock
           break;
         }
 
         case 'APP_STATE': {
-          const state = payload?.state as 'active' | 'background' | 'inactive';
+          const state = payload?.state;
+          if (state !== 'active' && state !== 'background' && state !== 'inactive') {
+            console.warn('[Bridge] APP_STATE missing or invalid state');
+            return;
+          }
           logToNative(`App state changed: ${state}`);
           // Could be used for:
           // - Clearing sensitive data when backgrounded

@@ -57,7 +57,7 @@ export const sendToNative = (
   type: WebToNativeMessageType,
   payload?: Record<string, unknown>
 ): boolean => {
-  const webView = (window as Window & { ReactNativeWebView?: { postMessage: (msg: string) => void } }).ReactNativeWebView;
+  const webView = window.ReactNativeWebView;
 
   if (webView?.postMessage) {
     webView.postMessage(JSON.stringify({ type, payload }));
