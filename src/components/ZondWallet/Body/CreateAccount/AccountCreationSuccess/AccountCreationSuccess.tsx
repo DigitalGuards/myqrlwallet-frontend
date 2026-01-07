@@ -18,7 +18,7 @@ import {
 } from "../../../../UI/Dialog";
 import { ROUTES } from "../../../../../router/router";
 import { getExplorerAddressUrl } from "@/config";
-import { copyToClipboard } from "@/utils/nativeApp";
+import { copyToClipboard, openExternalUrl } from "@/utils/nativeApp";
 import { useStore } from "../../../../../stores/store";
 import { Check, Copy, ExternalLink, HardDriveDownload, Undo } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -80,7 +80,7 @@ export const AccountCreationSuccess = ({
 
   const onViewInExplorer = () => {
     if (accountAddress) {
-      window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
+      openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
     }
   };
 

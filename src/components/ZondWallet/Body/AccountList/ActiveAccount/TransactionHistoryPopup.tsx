@@ -6,6 +6,7 @@ import { formatBalance } from "@/utils/formatting";
 import { Card, CardContent } from "../../../../UI/Card";
 import { Button } from "../../../../UI/Button";
 import { getExplorerAddressUrl } from "@/config";
+import { openExternalUrl } from "@/utils/nativeApp";
 
 type TransactionHistoryType = {
     ID: string;
@@ -59,7 +60,7 @@ export const TransactionHistoryPopup = observer(({
     };
 
     const viewAllTransactions = () => {
-        window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
+        openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
         onClose();
     };
 

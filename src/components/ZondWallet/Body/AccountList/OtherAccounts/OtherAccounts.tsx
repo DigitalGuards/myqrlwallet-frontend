@@ -9,7 +9,7 @@ import {
 } from "../../../../UI/Tooltip";
 import { useStore } from "../../../../../stores/store";
 import { getExplorerAddressUrl } from "@/config";
-import { copyToClipboard } from "@/utils/nativeApp";
+import { copyToClipboard, openExternalUrl } from "@/utils/nativeApp";
 import { ArrowRight, Copy, ExternalLink } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { AccountId } from "../AccountId/AccountId";
@@ -48,7 +48,7 @@ export const OtherAccounts = observer(() => {
   };
 
   const viewInExplorer = (accountAddress: string) => {
-    window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
+    openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
   };
 
   return (

@@ -14,6 +14,7 @@ export type WebToNativeMessageType =
   | 'SHARE'
   | 'TX_CONFIRMED'
   | 'LOG'
+  | 'OPEN_URL'              // Open external URL in device browser
   // Seed persistence messages
   | 'SEED_STORED'           // Web stored encrypted seed, native should backup
   | 'REQUEST_BIOMETRIC_UNLOCK'  // Web asks native to unlock with biometric
@@ -146,6 +147,18 @@ export const notifyTransactionConfirmed = (
  */
 export const logToNative = (message: string): boolean => {
   return sendToNative('LOG', { message });
+};
+
+/**
+ * Open an external URL - uses native browser when in app, window.open otherwise
+ * This is the preferred function to use for external links
+ */
+export const openExternalUrl = (url: string): void => {
+  if (isInNativeApp()) {
+    sendToNative('OPEN_URL', { url });
+  } else {
+    window.open(url, '_blank');
+  }
 };
 
 /**

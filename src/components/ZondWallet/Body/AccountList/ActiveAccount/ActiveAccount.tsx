@@ -10,7 +10,7 @@ import {
 import { ROUTES } from "../../../../../router/router";
 import { useStore } from "../../../../../stores/store";
 import { getExplorerAddressUrl } from "@/config";
-import { copyToClipboard } from "@/utils/nativeApp";
+import { copyToClipboard, openExternalUrl } from "@/utils/nativeApp";
 import { Copy, ExternalLink, SendHorizontal, History } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Link } from "react-router-dom";
@@ -47,7 +47,7 @@ export const ActiveAccount = observer(() => {
   };
 
   const viewInExplorer = () => {
-    window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
+    openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
   };
 
   return (

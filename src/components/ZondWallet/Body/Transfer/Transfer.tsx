@@ -42,7 +42,7 @@ import { getExplorerAddressUrl, getExplorerTxUrl, ZOND_PROVIDER } from "@/config
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonic } from "@/utils/crypto";
-import { copyToClipboard } from "@/utils/nativeApp";
+import { copyToClipboard, openExternalUrl } from "@/utils/nativeApp";
 import { SEO } from "@/components/SEO/SEO";
 import { getOptimalTokenBalance } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
@@ -221,7 +221,7 @@ const Transfer = observer(() => {
 
   const onViewInExplorer = () => {
     if (accountAddress) {
-      window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
+      openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
     }
   };
 
