@@ -64,7 +64,7 @@ export function AppSidebar() {
                             </SidebarMenuItem>
                             {sidebarItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild className="py-2 h-auto" onClick={() => { console.log(`[Sidebar] ${item.title} clicked`); navigateTo(item.url, navigate); }}>
+                                    <SidebarMenuButton asChild className="py-2 h-auto" onClick={() => navigateTo(item.url, navigate)}>
                                         <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground"
                                         >
                                             <item.icon className="size-8" />
