@@ -30,9 +30,9 @@ import { useStore } from "@/stores/store";
 import { StorageUtil } from "@/utils/storage";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { utils } from "@theqrl/web3";
-import { Loader, Send, X, Copy, Coins, ExternalLink } from "lucide-react";
+import { Loader, Send, X, Copy, Coins, ExternalLink, ScanLine, Check } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
@@ -42,7 +42,7 @@ import { getExplorerAddressUrl, getExplorerTxUrl, ZOND_PROVIDER } from "@/config
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonic } from "@/utils/crypto";
-import { copyToClipboard, openExternalUrl } from "@/utils/nativeApp";
+import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
 import { SEO } from "@/components/SEO/SEO";
 import { getOptimalTokenBalance } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
@@ -112,6 +112,11 @@ const Transfer = observer(() => {
   const [tokenBalance, setTokenBalance] = useState("0");
   const [hasJustCopied, setHasJustCopied] = useState(false);
 
+  // QR Scanner state
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanSuccess, setScanSuccess] = useState(false);
+  const [scannedAddressPreview, setScannedAddressPreview] = useState<string | null>(null);
+
   const form = useForm({
     resolver: zodResolver(FormSchema),
     mode: "onChange",
@@ -175,6 +180,65 @@ const Transfer = observer(() => {
     setSliderValue(0);
     setValue("amount", 0);
   }, [selectedAsset, setValue]);
+
+  // Validate QRL address format
+  const isValidQRLAddress = useCallback((address: string): boolean => {
+    const trimmed = address.trim();
+    return trimmed.startsWith('Z') && (trimmed.length === 41 || trimmed.length === 42);
+  }, []);
+
+  // Format address for preview (first 6 + last 6 chars)
+  const formatAddressPreview = useCallback((address: string): string => {
+    if (address.length <= 14) return address;
+    return `${address.slice(0, 7)}...${address.slice(-6)}`;
+  }, []);
+
+  // Handle QR scan request
+  const handleScanQR = useCallback(() => {
+    if (!isInNativeApp()) return;
+    setIsScanning(true);
+    setScannedAddressPreview(null);
+    setScanSuccess(false);
+    requestQRScan();
+  }, []);
+
+  // Subscribe to QR scan results
+  useEffect(() => {
+    if (!isInNativeApp()) return;
+
+    const unsubscribe = subscribeToNativeMessages((message) => {
+      if (message.type === 'QR_RESULT' && message.payload) {
+        const scannedAddress = (message.payload.address as string) || '';
+        setIsScanning(false);
+
+        // Validate the scanned address
+        if (isValidQRLAddress(scannedAddress)) {
+          // Success - trigger haptic, show success animation, set value
+          triggerHaptic('success');
+          setScanSuccess(true);
+          setScannedAddressPreview(formatAddressPreview(scannedAddress));
+          setValue('receiverAddress', scannedAddress, { shouldValidate: true });
+
+          // Clear success state after animation
+          setTimeout(() => {
+            setScanSuccess(false);
+            setScannedAddressPreview(null);
+          }, 2000);
+        } else {
+          // Invalid address - show error haptic
+          triggerHaptic('error');
+          control.setError('receiverAddress', {
+            message: 'Scanned QR does not contain a valid QRL address'
+          });
+        }
+      } else if (message.type === 'ERROR') {
+        setIsScanning(false);
+        triggerHaptic('error');
+      }
+    });
+
+    return unsubscribe;
+  }, [isValidQRLAddress, formatAddressPreview, setValue, control]);
 
   if (!accountAddress) {
     return (
@@ -548,16 +612,49 @@ const Transfer = observer(() => {
                       <FormItem>
                         <Label>Send to</Label>
                         <FormControl>
-                          <Input
-                            {...field}
-                            value={field.value ?? ""}
-                            disabled={isSubmitting}
-                            placeholder="Receiver address"
-                          />
+                          <div className="relative">
+                            <Input
+                              {...field}
+                              value={field.value ?? ""}
+                              disabled={isSubmitting || isScanning}
+                              placeholder="Receiver address"
+                              className="pr-10"
+                            />
+                            {isInNativeApp() && (
+                              <button
+                                type="button"
+                                onClick={handleScanQR}
+                                disabled={isSubmitting || isScanning}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-accent transition-colors disabled:opacity-50"
+                                title="Scan QR code"
+                              >
+                                {scanSuccess ? (
+                                  <Check className="h-5 w-5 text-green-500 animate-pulse" />
+                                ) : isScanning ? (
+                                  <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
+                                ) : (
+                                  <ScanLine className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </FormControl>
-                        <FormDescription>
-                          Enter the receiver's account address
-                        </FormDescription>
+                        {isScanning && (
+                          <div className="text-sm text-muted-foreground animate-pulse">
+                            Scanning for QRL address...
+                          </div>
+                        )}
+                        {scanSuccess && scannedAddressPreview && (
+                          <div className="flex items-center gap-2 text-sm text-green-600">
+                            <Check className="h-4 w-4" />
+                            <span>Scanned: {scannedAddressPreview}</span>
+                          </div>
+                        )}
+                        {!isScanning && !scanSuccess && (
+                          <FormDescription>
+                            Enter the receiver's account address{isInNativeApp() ? ' or scan QR' : ''}
+                          </FormDescription>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}

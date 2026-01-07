@@ -15,6 +15,7 @@ export type WebToNativeMessageType =
   | 'TX_CONFIRMED'
   | 'LOG'
   | 'OPEN_URL'              // Open external URL in device browser
+  | 'HAPTIC'                // Trigger haptic feedback
   // Seed persistence messages
   | 'SEED_STORED'           // Web stored encrypted seed, native should backup
   | 'REQUEST_BIOMETRIC_UNLOCK'  // Web asks native to unlock with biometric
@@ -158,6 +159,17 @@ export const openExternalUrl = (url: string): void => {
     sendToNative('OPEN_URL', { url });
   } else {
     window.open(url, '_blank');
+  }
+};
+
+/**
+ * Trigger haptic feedback on the device
+ * Only works in native app context
+ * @param style - 'success' | 'warning' | 'error' | 'light' | 'medium' | 'heavy'
+ */
+export const triggerHaptic = (style: 'success' | 'warning' | 'error' | 'light' | 'medium' | 'heavy' = 'success'): void => {
+  if (isInNativeApp()) {
+    sendToNative('HAPTIC', { style });
   }
 };
 
