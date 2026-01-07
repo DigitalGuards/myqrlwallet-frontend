@@ -46,3 +46,7 @@ zond-erc20-factory/
 zondwebwallet-backend/
 .claude/
 changes-extension.md
+
+# Claude Code auto-generated context files
+**/CLAUDE.md
+!/CLAUDE.md
