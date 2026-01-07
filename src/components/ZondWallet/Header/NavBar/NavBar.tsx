@@ -4,6 +4,7 @@ import { Menu, X, Copy, Check } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/stores/store";
 import { navigateTo } from "@/utils/navigation";
+import { copyToClipboard } from "@/utils/nativeApp";
 import { ROUTES } from "@/router/router";
 
 import {
@@ -34,12 +35,14 @@ const NavBar = observer(() => {
         setOpen(false); // Close mobile menu on selection
     };
 
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        setCopiedAddress(text);
-        setTimeout(() => {
-            setCopiedAddress(null);
-        }, 1000);
+    const handleCopy = async (text: string) => {
+        const success = await copyToClipboard(text);
+        if (success) {
+            setCopiedAddress(text);
+            setTimeout(() => {
+                setCopiedAddress(null);
+            }, 1000);
+        }
     };
 
     return (
@@ -69,7 +72,7 @@ const NavBar = observer(() => {
                                         ) : (
                                             <Copy
                                                 className="w-4 h-4 hover:text-gray-400 transition-opacity cursor-pointer"
-                                                onClick={() => copyToClipboard(account.accountAddress)}
+                                                onClick={() => handleCopy(account.accountAddress)}
                                             />
                                         )}
                                     </span>
@@ -172,7 +175,7 @@ const NavBar = observer(() => {
                                                 ) : (
                                                     <Copy
                                                         className="w-4 h-4 hover:text-gray-400 transition-opacity cursor-pointer"
-                                                        onClick={() => copyToClipboard(account.accountAddress)}
+                                                        onClick={() => handleCopy(account.accountAddress)}
                                                     />
                                                 )}
                                             </span>

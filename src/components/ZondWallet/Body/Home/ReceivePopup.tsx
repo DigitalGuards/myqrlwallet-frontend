@@ -5,6 +5,7 @@ import { Button } from "../../../UI/Button";
 import { Label } from "../../../UI/Label";
 import { QRCodeSVG } from "qrcode.react";
 import { Copy } from "lucide-react";
+import { copyToClipboard } from "@/utils/nativeApp";
 
 interface ReceivePopupProps {
     accountAddress: string;
@@ -20,14 +21,12 @@ export const ReceivePopup = observer(({
     const [copied, setCopied] = useState(false);
 
     const copyAddress = async () => {
-        try {
-            await navigator.clipboard.writeText(accountAddress);
+        const success = await copyToClipboard(accountAddress);
+        if (success) {
             setCopied(true);
             setTimeout(() => {
                 setCopied(false);
             }, 1500);
-        } catch (error) {
-            console.error('Failed to copy address:', error);
         }
     };
 

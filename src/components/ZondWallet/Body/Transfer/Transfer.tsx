@@ -42,6 +42,7 @@ import { getExplorerAddressUrl, getExplorerTxUrl, ZOND_PROVIDER } from "@/config
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonic } from "@/utils/crypto";
+import { copyToClipboard } from "@/utils/nativeApp";
 import { SEO } from "@/components/SEO/SEO";
 import { getOptimalTokenBalance } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
@@ -210,10 +211,12 @@ const Transfer = observer(() => {
     );
   }
 
-  const copyToClipboard = (text: string) => {
-    setHasJustCopied(true);
-    navigator.clipboard.writeText(text);
-    setTimeout(() => setHasJustCopied(false), 1000);
+  const handleCopy = async (text: string) => {
+    const success = await copyToClipboard(text);
+    if (success) {
+      setHasJustCopied(true);
+      setTimeout(() => setHasJustCopied(false), 1000);
+    }
   };
 
   const onViewInExplorer = () => {
@@ -518,7 +521,7 @@ const Transfer = observer(() => {
                         className="w-full"
                         type="button"
                         variant="outline"
-                        onClick={() => copyToClipboard(accountAddress)}
+                        onClick={() => handleCopy(accountAddress)}
                       >
                         <Copy className="mr-2 h-4 w-4" />
                         {hasJustCopied ? "Copied" : "Copy"}

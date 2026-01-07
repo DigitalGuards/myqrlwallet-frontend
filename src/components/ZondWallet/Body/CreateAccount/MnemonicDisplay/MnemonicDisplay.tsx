@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from "../../../../UI/Dialog";
 import { getMnemonicFromHexSeed } from "@/utils/crypto";
+import { copyToClipboard } from "@/utils/nativeApp";
 import { withSuspense } from "@/utils/react";
 import { Web3BaseWalletAccount } from "@theqrl/web3";
 import { ArrowRight, Copy, HardDriveDownload, Undo } from "lucide-react";
@@ -51,13 +52,15 @@ const MnemonicDisplay = ({
     }
   };
 
-  const onCopyHexSeed = () => {
+  const onCopyHexSeed = async () => {
     if (accountHexSeed) {
-      navigator.clipboard.writeText(accountHexSeed);
-      setHasJustCopiedSeed(true);
-      setTimeout(() => {
-        setHasJustCopiedSeed(false);
-      }, 1000);
+      const success = await copyToClipboard(accountHexSeed);
+      if (success) {
+        setHasJustCopiedSeed(true);
+        setTimeout(() => {
+          setHasJustCopiedSeed(false);
+        }, 1000);
+      }
     }
   };
 

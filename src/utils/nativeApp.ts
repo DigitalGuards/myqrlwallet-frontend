@@ -89,10 +89,34 @@ export const requestQRScan = (): boolean => {
 };
 
 /**
- * Copy text to clipboard via native app
+ * Copy text to clipboard via native app (bridge only)
  */
-export const copyToClipboard = (text: string): boolean => {
+export const copyToClipboardNative = (text: string): boolean => {
   return sendToNative('COPY_TO_CLIPBOARD', { text });
+};
+
+/**
+ * Copy text to clipboard - uses native bridge when in app, browser API otherwise
+ * This is the preferred function to use for clipboard operations
+ */
+export const copyToClipboard = async (text: string): Promise<boolean> => {
+  if (isInNativeApp()) {
+    return sendToNative('COPY_TO_CLIPBOARD', { text });
+  }
+
+  // Fall back to browser clipboard API
+  if (!navigator.clipboard) {
+    console.error("Clipboard API is not available.");
+    return false;
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    console.error("Failed to copy text to clipboard:", err);
+    return false;
+  }
 };
 
 /**

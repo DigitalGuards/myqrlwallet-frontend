@@ -8,6 +8,7 @@ import {
 } from "../../../../UI/Card";
 import { ROUTES } from "../../../../../router/router";
 import { getExplorerAddressUrl } from "@/config";
+import { copyToClipboard } from "@/utils/nativeApp";
 import { useStore } from "../../../../../stores/store";
 import { Web3BaseWalletAccount } from "@theqrl/web3";
 import { Check, Copy, ExternalLink } from "lucide-react";
@@ -43,13 +44,15 @@ const AccountImportSuccess = ({
     };
   }, [timer]);
 
-  const onCopy = () => {
-    setHasJustCopied(true);
-    navigator.clipboard.writeText(accountAddress);
-    const newTimer = setTimeout(() => {
-      setHasJustCopied(false);
-    }, 1000);
-    setTimer(newTimer);
+  const onCopy = async () => {
+    const success = await copyToClipboard(accountAddress);
+    if (success) {
+      setHasJustCopied(true);
+      const newTimer = setTimeout(() => {
+        setHasJustCopied(false);
+      }, 1000);
+      setTimer(newTimer);
+    }
   };
 
   const onViewInExplorer = () => {
