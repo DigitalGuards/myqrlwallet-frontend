@@ -15,7 +15,8 @@ import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import ZondWalletLogo from "../Header/ZondWalletLogo/ZondWalletLogo";
 import { handleLogout } from "@/utils/logout";
-import { isInNativeApp, openNativeSettings } from "@/utils/nativeApp";
+import { isInNativeApp } from "@/utils/nativeApp";
+import { navigateTo } from "@/utils/navigation";
 
 // Menu items.
 const sidebarItems = [
@@ -51,15 +52,6 @@ export function AppSidebar() {
         handleLogout(navigate);
     };
 
-    const handleSidebarItemClick = (item: typeof sidebarItems[0]) => {
-        // Settings item redirects to native settings when in app
-        if (item.url === ROUTES.SETTINGS && isInNativeApp()) {
-            openNativeSettings();
-        } else {
-            navigate(item.url);
-        }
-    };
-
     return (
         <Sidebar className="h-[calc(100vh-2.5rem)] border-r-secondary">
             <SidebarContent>
@@ -72,7 +64,7 @@ export function AppSidebar() {
                             </SidebarMenuItem>
                             {sidebarItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild className="py-2 h-auto" onClick={() => handleSidebarItemClick(item)}>
+                                    <SidebarMenuButton asChild className="py-2 h-auto" onClick={() => navigateTo(item.url, navigate)}>
                                         <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground"
                                         >
                                             <item.icon className="size-8" />
