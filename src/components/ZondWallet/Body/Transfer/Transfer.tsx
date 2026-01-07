@@ -44,7 +44,7 @@ import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonic } from "@/utils/crypto";
 import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
 import { SEO } from "@/components/SEO/SEO";
-import { getOptimalTokenBalance, formatAddress } from "@/utils/formatting";
+import { getOptimalTokenBalance, formatAddress, formatAddressShort } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
 import { formatUnits, parseUnits } from "ethers";
 
@@ -187,12 +187,6 @@ const Transfer = observer(() => {
     return trimmed.startsWith('Z') && (trimmed.length === 41 || trimmed.length === 42);
   }, []);
 
-  // Format address for preview (first 6 + last 6 chars)
-  const formatAddressPreview = useCallback((address: string): string => {
-    if (address.length <= 14) return address;
-    return `${address.slice(0, 7)}...${address.slice(-6)}`;
-  }, []);
-
   // Handle QR scan request
   const handleScanQR = useCallback(() => {
     if (!isInNativeApp()) return;
@@ -216,7 +210,7 @@ const Transfer = observer(() => {
           // Success - trigger haptic, show success animation, set value
           triggerHaptic('success');
           setScanSuccess(true);
-          setScannedAddressPreview(formatAddressPreview(scannedAddress));
+          setScannedAddressPreview(formatAddressShort(scannedAddress));
           setValue('receiverAddress', scannedAddress, { shouldValidate: true });
 
           // Clear success state after animation
@@ -238,7 +232,7 @@ const Transfer = observer(() => {
     });
 
     return unsubscribe;
-  }, [isValidQRLAddress, formatAddressPreview, setValue, control]);
+  }, [isValidQRLAddress, setValue, control]);
 
   if (!accountAddress) {
     return (

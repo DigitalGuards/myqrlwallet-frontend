@@ -45,22 +45,11 @@ export interface NativeMessage {
   payload?: Record<string, unknown>;
 }
 
-// Debug: log user agent once
-let userAgentLogged = false;
-
 /**
  * Check if the web app is running inside the native MyQRLWallet app
  */
 export const isInNativeApp = (): boolean => {
   if (typeof navigator === 'undefined') return false;
-
-  // Log user agent once for debugging
-  if (!userAgentLogged) {
-    console.log(`[NativeApp] User-Agent: ${navigator.userAgent}`);
-    console.log(`[NativeApp] Contains MyQRLWallet: ${navigator.userAgent.includes('MyQRLWallet')}`);
-    userAgentLogged = true;
-  }
-
   return navigator.userAgent.includes('MyQRLWallet');
 };
 
