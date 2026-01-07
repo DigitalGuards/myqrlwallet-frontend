@@ -44,7 +44,7 @@ import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonic } from "@/utils/crypto";
 import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
 import { SEO } from "@/components/SEO/SEO";
-import { getOptimalTokenBalance } from "@/utils/formatting";
+import { getOptimalTokenBalance, formatAddress } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
 import { formatUnits, parseUnits } from "ethers";
 
@@ -404,12 +404,6 @@ const Transfer = observer(() => {
     }
   };
 
-  const prefix = accountAddress.substring(0, 1);
-  const addressSplit: string[] = [];
-  for (let i = 1; i < accountAddress.length; i += 4) {
-    addressSplit.push(accountAddress.substring(i, i + 4));
-  }
-
   const assetSymbol = isNativeTransfer ? "QRL" : (selectedToken?.symbol || "");
 
   // Transaction States
@@ -574,11 +568,11 @@ const Transfer = observer(() => {
                   {/* From Address */}
                   <div className="flex flex-col gap-2">
                     <Label>From</Label>
-                    <div className="font-bold text-secondary">
-                      {`${prefix} ${addressSplit.join(" ")}`}
+                    <div className="font-bold text-secondary font-mono">
+                      {formatAddress(accountAddress)}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Available: {getOptimalTokenBalance(accountBalance)} {assetSymbol}
+                      Available: {getOptimalTokenBalance(accountBalance, assetSymbol)}
                     </div>
                     <div className="flex gap-4">
                       <Button
@@ -668,12 +662,7 @@ const Transfer = observer(() => {
                       <FormItem>
                         <FormControl>
                           <div className="space-y-2">
-                            <div className="flex justify-between">
-                              <Label>Amount</Label>
-                              <span className="text-sm text-muted-foreground">
-                                {getOptimalTokenBalance(accountBalance)} {assetSymbol} available
-                              </span>
-                            </div>
+                            <Label>Amount</Label>
                             <Input
                               placeholder="Enter amount"
                               type="text"

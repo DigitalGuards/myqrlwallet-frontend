@@ -24,6 +24,7 @@ import { Check, Copy, ExternalLink, HardDriveDownload, Undo } from "lucide-react
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { WalletEncryptionUtil, ExtendedWalletAccount } from "@/utils/crypto";
+import { formatAddress } from "@/utils/formatting";
 
 type AccountCreationSuccessProps = {
   account?: ExtendedWalletAccount;
@@ -50,11 +51,6 @@ export const AccountCreationSuccess = ({
   } : undefined;
 
   const accountAddress = extendedAccount?.address ?? "";
-  const accountAddressSplit = [];
-  for (let i = 1; i < accountAddress.length; i += 4) {
-    accountAddressSplit.push(accountAddress.substring(i, i + 4));
-  }
-  const spacedAccountAddress = accountAddressSplit.join(" ");
 
   const [hasJustCopied, setHasJustCopied] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout>();
@@ -92,7 +88,7 @@ export const AccountCreationSuccess = ({
       <CardContent className="space-y-8">
         <div className="flex flex-col gap-2">
           <div>Account public address:</div>
-          <div className="font-bold text-secondary">{`Z ${spacedAccountAddress}`}</div>
+          <div className="font-bold text-secondary font-mono">{formatAddress(accountAddress)}</div>
           <div>
             You can share this account public address with anyone. Others need
             it to interact with you.

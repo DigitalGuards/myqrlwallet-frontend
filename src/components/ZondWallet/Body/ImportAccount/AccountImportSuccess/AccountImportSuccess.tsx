@@ -14,6 +14,7 @@ import { Web3BaseWalletAccount } from "@theqrl/web3";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { formatAddress } from "@/utils/formatting";
 
 type AccountImportSuccessProps = {
   account?: Web3BaseWalletAccount;
@@ -27,11 +28,6 @@ const AccountImportSuccess = ({
   const { blockchain } = zondConnection;
 
   const accountAddress = account?.address ?? "";
-  const accountAddressSplit = [];
-  for (let i = 1; i < accountAddress.length; i += 4) {
-    accountAddressSplit.push(accountAddress.substring(i, i + 4));
-  }
-  const spacedAccountAddress = accountAddressSplit.join(" ");
 
   const [hasJustCopied, setHasJustCopied] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout>();
@@ -69,7 +65,7 @@ const AccountImportSuccess = ({
       <CardContent className="space-y-8">
         <div className="flex flex-col gap-2">
           <div>Account public address:</div>
-          <div className="font-bold text-secondary">{`Z ${spacedAccountAddress}`}</div>
+          <div className="font-bold text-secondary font-mono">{formatAddress(accountAddress)}</div>
           <div>
             You can share this account public address with anyone. Others need
             it to interact with you.

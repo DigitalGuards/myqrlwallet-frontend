@@ -1,20 +1,15 @@
+import { formatAddress } from "./address";
+
 /**
  * A utility for handling string related operations
  */
 class StringUtil {
   /**
-   * A function for splitting the address with spaces between them, making the address more readable.
+   * A function for splitting the address/hash with spaces between them, making it more readable.
+   * Uses groups of 6 characters with the prefix included in the first group.
    */
-  static getSplitAddress(accountAddress: string, splitLength: number = 4) {
-    // Handle "0x" prefix for hex addresses, or single char prefix (e.g., "Z" for future testnet)
-    const prefixLength = accountAddress.startsWith("0x") ? 2 : 1;
-    const prefix = accountAddress.substring(0, prefixLength);
-    const idSplit: string[] = [];
-    for (let i = prefixLength; i < accountAddress.length; i += splitLength) {
-      idSplit.push(accountAddress.substring(i, i + splitLength));
-    }
-
-    return [prefix, ...idSplit].join(" ");
+  static getSplitAddress(value: string, groupSize: number = 6) {
+    return formatAddress(value, groupSize);
   }
 }
 
