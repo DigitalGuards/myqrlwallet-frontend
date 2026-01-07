@@ -18,7 +18,9 @@ export type WebToNativeMessageType =
   | 'SEED_STORED'           // Web stored encrypted seed, native should backup
   | 'REQUEST_BIOMETRIC_UNLOCK'  // Web asks native to unlock with biometric
   | 'WALLET_CLEARED'        // Web confirmed it cleared localStorage
-  | 'WEB_APP_READY';        // Web app is fully initialized and ready to receive data
+  | 'WEB_APP_READY'         // Web app is fully initialized and ready to receive data
+  // Navigation messages
+  | 'OPEN_NATIVE_SETTINGS'; // Request native app to open its settings screen
 
 /**
  * Message types that can be received from the native app
@@ -212,4 +214,12 @@ export const confirmWalletCleared = (): boolean => {
  */
 export const notifyWebAppReady = (): boolean => {
   return sendToNative('WEB_APP_READY');
+};
+
+/**
+ * Request native app to open its settings screen
+ * Used when user clicks settings in web UI while running in native app
+ */
+export const openNativeSettings = (): boolean => {
+  return sendToNative('OPEN_NATIVE_SETTINGS');
 };

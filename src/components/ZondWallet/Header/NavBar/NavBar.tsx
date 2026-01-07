@@ -3,6 +3,8 @@ import { observer } from "mobx-react-lite";
 import { Menu, X, Copy, Check } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "@/stores/store";
+import { navigateTo } from "@/utils/navigation";
+import { ROUTES } from "@/router/router";
 
 import {
     NavigationMenu,
@@ -91,7 +93,7 @@ const NavBar = observer(() => {
                         </NavigationMenuLink>
                     </NavigationMenuItem> */}
                     <NavigationMenuItem>
-                        <NavigationMenuLink onClick={() => navigate("/settings")} className={navigationMenuTriggerStyle()}>
+                        <NavigationMenuLink onClick={() => navigateTo(ROUTES.SETTINGS, navigate)} className={navigationMenuTriggerStyle()}>
                             Settings
                         </NavigationMenuLink>
                     </NavigationMenuItem>
@@ -141,7 +143,7 @@ const NavBar = observer(() => {
                             <NavigationMenuItem>
                                 <NavigationMenuLink
                                     onClick={() => {
-                                        navigate("/settings");
+                                        navigateTo(ROUTES.SETTINGS, navigate);
                                         setOpen(false);
                                     }}
                                     className={navigationMenuTriggerStyle()}

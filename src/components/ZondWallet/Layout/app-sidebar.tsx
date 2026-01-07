@@ -16,6 +16,7 @@ import { ROUTES } from "@/router/router";
 import ZondWalletLogo from "../Header/ZondWalletLogo/ZondWalletLogo";
 import { handleLogout } from "@/utils/logout";
 import { isInNativeApp } from "@/utils/nativeApp";
+import { navigateTo } from "@/utils/navigation";
 
 // Menu items.
 const sidebarItems = [
@@ -63,7 +64,7 @@ export function AppSidebar() {
                             </SidebarMenuItem>
                             {sidebarItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild className="py-2 h-auto" onClick={() => navigate(item.url)}>
+                                    <SidebarMenuButton asChild className="py-2 h-auto" onClick={() => navigateTo(item.url, navigate)}>
                                         <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground"
                                         >
                                             <item.icon className="size-8" />
