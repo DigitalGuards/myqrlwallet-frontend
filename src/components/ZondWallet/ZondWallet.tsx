@@ -5,7 +5,7 @@ import { lazy, useEffect } from "react";
 import { Toaster } from "@/components/UI/toaster"
 import { useNavigate } from "react-router-dom";
 import { setupActivityTracking, startAutoLockTimer, clearAutoLockTimer } from "@/utils/storage";
-import { NativeAppBridge } from "@/components/NativeAppBridge";
+import NativeAppBridge from "@/components/NativeAppBridge";
 
 // const Header = withSuspense(
 //   lazy(() => import("./Header/Header"))

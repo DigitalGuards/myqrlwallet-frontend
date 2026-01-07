@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useStore } from "../../../../../../stores/store";
 import { observer } from "mobx-react-lite";
 import { Copy, Check, RefreshCw } from "lucide-react";
-import { formatBalance } from "@/utils/formatting";
+import { formatBalance, formatAddress } from "@/utils/formatting";
+import { copyToClipboard } from "@/utils/nativeApp";
 
 export const ActiveAccountDisplay = observer(() => {
   const { zondStore } = useStore();
@@ -12,18 +13,14 @@ export const ActiveAccountDisplay = observer(() => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshSuccess, setRefreshSuccess] = useState(false);
 
-  const prefix = accountAddress.substring(0, 1);
-  const addressSplit: string[] = [];
-  for (let i = 1; i < accountAddress.length; i += 4) {
-    addressSplit.push(accountAddress.substring(i, i + 4));
-  }
-
-  const copyToClipboard = (text: string, type: 'balance' | 'address') => {
-    navigator.clipboard.writeText(text);
-    setCopiedItem(type);
-    setTimeout(() => {
-      setCopiedItem(null);
-    }, 1500);
+  const handleCopy = async (text: string, type: 'balance' | 'address') => {
+    const success = await copyToClipboard(text);
+    if (success) {
+      setCopiedItem(type);
+      setTimeout(() => {
+        setCopiedItem(null);
+      }, 1500);
+    }
   };
 
   const refreshBalance = async () => {
@@ -41,7 +38,7 @@ export const ActiveAccountDisplay = observer(() => {
       <div
         className="flex justify-center items-center text-xl font-bold text-secondary group"
       >
-        <div className="cursor-pointer flex items-center" onClick={() => copyToClipboard(activeAccountBalance, 'balance')}>
+        <div className="cursor-pointer flex items-center" onClick={() => handleCopy(activeAccountBalance, 'balance')}>
           <span>{formatBalance(activeAccountBalance)} QRL</span>
           {copiedItem === 'balance' ? (
             <Check className="w-4 h-4 ml-2 text-green-500" />
@@ -65,9 +62,9 @@ export const ActiveAccountDisplay = observer(() => {
       </div>
       <div
         className="text-center text-sm flex justify-center items-center group cursor-pointer"
-        onClick={() => copyToClipboard(accountAddress, 'address')}
+        onClick={() => handleCopy(accountAddress, 'address')}
       >
-        <span>{`${prefix} ${addressSplit.join(" ")}`}</span>
+        <span className="font-mono">{formatAddress(accountAddress)}</span>
         {copiedItem === 'address' ? (
           <Check className="w-4 h-4 ml-2 text-green-500" />
         ) : (

@@ -14,6 +14,8 @@ export type WebToNativeMessageType =
   | 'SHARE'
   | 'TX_CONFIRMED'
   | 'LOG'
+  | 'OPEN_URL'              // Open external URL in device browser
+  | 'HAPTIC'                // Trigger haptic feedback
   // Seed persistence messages
   | 'SEED_STORED'           // Web stored encrypted seed, native should backup
   | 'REQUEST_BIOMETRIC_UNLOCK'  // Web asks native to unlock with biometric
@@ -78,10 +80,34 @@ export const requestQRScan = (): boolean => {
 };
 
 /**
- * Copy text to clipboard via native app
+ * Copy text to clipboard via native app (bridge only)
  */
-export const copyToClipboard = (text: string): boolean => {
+export const copyToClipboardNative = (text: string): boolean => {
   return sendToNative('COPY_TO_CLIPBOARD', { text });
+};
+
+/**
+ * Copy text to clipboard - uses native bridge when in app, browser API otherwise
+ * This is the preferred function to use for clipboard operations
+ */
+export const copyToClipboard = async (text: string): Promise<boolean> => {
+  if (isInNativeApp()) {
+    return sendToNative('COPY_TO_CLIPBOARD', { text });
+  }
+
+  // Fall back to browser clipboard API
+  if (!navigator.clipboard) {
+    console.error("Clipboard API is not available.");
+    return false;
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    console.error("Failed to copy text to clipboard:", err);
+    return false;
+  }
 };
 
 /**
@@ -111,6 +137,29 @@ export const notifyTransactionConfirmed = (
  */
 export const logToNative = (message: string): boolean => {
   return sendToNative('LOG', { message });
+};
+
+/**
+ * Open an external URL - uses native browser when in app, window.open otherwise
+ * This is the preferred function to use for external links
+ */
+export const openExternalUrl = (url: string): void => {
+  if (isInNativeApp()) {
+    sendToNative('OPEN_URL', { url });
+  } else {
+    window.open(url, '_blank');
+  }
+};
+
+/**
+ * Trigger haptic feedback on the device
+ * Only works in native app context
+ * @param style - 'success' | 'warning' | 'error' | 'light' | 'medium' | 'heavy'
+ */
+export const triggerHaptic = (style: 'success' | 'warning' | 'error' | 'light' | 'medium' | 'heavy' = 'success'): void => {
+  if (isInNativeApp()) {
+    sendToNative('HAPTIC', { style });
+  }
 };
 
 /**
@@ -222,4 +271,45 @@ export const notifyWebAppReady = (): boolean => {
  */
 export const openNativeSettings = (): boolean => {
   return sendToNative('OPEN_NATIVE_SETTINGS');
+};
+
+// ============================================================
+// QR Result Handler (for component-level QR scan handling)
+// ============================================================
+
+/**
+ * Simple single-handler storage for QR scan results.
+ * Note: This is a basic implementation that supports one handler at a time.
+ * If multiple components need to listen for QR results simultaneously,
+ * consider migrating to a MobX store or pub/sub pattern.
+ */
+let pendingQRResultHandler: ((address: string) => void) | null = null;
+
+/**
+ * Register a handler for QR scan results.
+ * Only one handler can be active at a time - the last registered handler wins.
+ * Returns an unsubscribe function to clear the handler.
+ */
+export const registerQRResultHandler = (
+  handler: (address: string) => void
+): (() => void) => {
+  pendingQRResultHandler = handler;
+
+  return () => {
+    if (pendingQRResultHandler === handler) {
+      pendingQRResultHandler = null;
+    }
+  };
+};
+
+/**
+ * Dispatch a QR result to the registered handler (if any)
+ * Called internally by NativeAppBridge when QR_RESULT message is received
+ */
+export const dispatchQRResult = (address: string): boolean => {
+  if (pendingQRResultHandler) {
+    pendingQRResultHandler(address);
+    return true;
+  }
+  return false;
 };

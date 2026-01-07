@@ -9,6 +9,7 @@ import {
 } from "../../../../UI/Tooltip";
 import { useStore } from "../../../../../stores/store";
 import { getExplorerAddressUrl } from "@/config";
+import { copyToClipboard, openExternalUrl } from "@/utils/nativeApp";
 import { ArrowRight, Copy, ExternalLink } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { AccountId } from "../AccountId/AccountId";
@@ -35,21 +36,19 @@ export const OtherAccounts = observer(() => {
   const [tooltipStates, setTooltipStates] = useState<{ [key: string]: boolean }>({});
 
   const copyAccount = async (accountAddress: string) => {
-    try {
-      await navigator.clipboard.writeText(accountAddress);
+    const success = await copyToClipboard(accountAddress);
+    if (success) {
       setCopiedAccount(accountAddress);
       setTooltipStates(prev => ({ ...prev, [accountAddress]: true }));
       setTimeout(() => {
         setCopiedAccount(null);
         setTooltipStates(prev => ({ ...prev, [accountAddress]: false }));
       }, 1000);
-    } catch (error) {
-      console.error('Failed to copy address:', error);
     }
   };
 
   const viewInExplorer = (accountAddress: string) => {
-    window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
+    openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
   };
 
   return (

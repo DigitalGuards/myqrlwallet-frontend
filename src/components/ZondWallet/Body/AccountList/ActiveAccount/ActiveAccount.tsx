@@ -10,6 +10,7 @@ import {
 import { ROUTES } from "../../../../../router/router";
 import { useStore } from "../../../../../stores/store";
 import { getExplorerAddressUrl } from "@/config";
+import { copyToClipboard, openExternalUrl } from "@/utils/nativeApp";
 import { Copy, ExternalLink, SendHorizontal, History } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Link } from "react-router-dom";
@@ -34,21 +35,19 @@ export const ActiveAccount = observer(() => {
   const [txHistoryOpen, setTxHistoryOpen] = useState(false);
 
   const copyAccount = async () => {
-    try {
-      await navigator.clipboard.writeText(accountAddress);
+    const success = await copyToClipboard(accountAddress);
+    if (success) {
       setCopied(true);
       setTooltipOpen(true);
       setTimeout(() => {
         setCopied(false);
         setTooltipOpen(false);
       }, 1000);
-    } catch (error) {
-      console.error('Failed to copy address:', error);
     }
   };
 
   const viewInExplorer = () => {
-    window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
+    openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
   };
 
   return (

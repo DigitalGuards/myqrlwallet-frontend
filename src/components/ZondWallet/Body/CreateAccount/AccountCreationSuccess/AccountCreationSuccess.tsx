@@ -18,11 +18,13 @@ import {
 } from "../../../../UI/Dialog";
 import { ROUTES } from "../../../../../router/router";
 import { getExplorerAddressUrl } from "@/config";
+import { copyToClipboard, openExternalUrl } from "@/utils/nativeApp";
 import { useStore } from "../../../../../stores/store";
 import { Check, Copy, ExternalLink, HardDriveDownload, Undo } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { WalletEncryptionUtil, ExtendedWalletAccount } from "@/utils/crypto";
+import { formatAddress } from "@/utils/formatting";
 
 type AccountCreationSuccessProps = {
   account?: ExtendedWalletAccount;
@@ -49,11 +51,6 @@ export const AccountCreationSuccess = ({
   } : undefined;
 
   const accountAddress = extendedAccount?.address ?? "";
-  const accountAddressSplit = [];
-  for (let i = 1; i < accountAddress.length; i += 4) {
-    accountAddressSplit.push(accountAddress.substring(i, i + 4));
-  }
-  const spacedAccountAddress = accountAddressSplit.join(" ");
 
   const [hasJustCopied, setHasJustCopied] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout>();
@@ -66,18 +63,20 @@ export const AccountCreationSuccess = ({
     };
   }, [timer]);
 
-  const onCopy = () => {
-    setHasJustCopied(true);
-    navigator.clipboard.writeText(accountAddress);
-    const newTimer = setTimeout(() => {
-      setHasJustCopied(false);
-    }, 1000);
-    setTimer(newTimer);
+  const onCopy = async () => {
+    const success = await copyToClipboard(accountAddress);
+    if (success) {
+      setHasJustCopied(true);
+      const newTimer = setTimeout(() => {
+        setHasJustCopied(false);
+      }, 1000);
+      setTimer(newTimer);
+    }
   };
 
   const onViewInExplorer = () => {
     if (accountAddress) {
-      window.open(getExplorerAddressUrl(accountAddress, blockchain), '_blank');
+      openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
     }
   };
 
@@ -89,7 +88,7 @@ export const AccountCreationSuccess = ({
       <CardContent className="space-y-8">
         <div className="flex flex-col gap-2">
           <div>Account public address:</div>
-          <div className="font-bold text-secondary">{`Z ${spacedAccountAddress}`}</div>
+          <div className="font-bold text-secondary font-mono">{formatAddress(accountAddress)}</div>
           <div>
             You can share this account public address with anyone. Others need
             it to interact with you.

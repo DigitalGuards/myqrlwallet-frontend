@@ -1,5 +1,6 @@
 import CryptoJS from 'crypto-js';
 import { Web3BaseWalletAccount } from '@theqrl/web3';
+import { isInNativeApp, shareContent } from '@/utils/nativeApp';
 
 export interface WalletData {
   address: string;
@@ -125,6 +126,16 @@ export class WalletEncryptionUtil {
       fileName = `wallet-${walletData.address}.json`;
     }
 
+    // In native app, use share functionality instead of browser download
+    if (isInNativeApp()) {
+      shareContent({
+        title: `QRL Wallet - ${walletData.address.substring(0, 10)}...`,
+        text: fileContent,
+      });
+      return;
+    }
+
+    // Browser download
     const blob = new Blob([fileContent], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

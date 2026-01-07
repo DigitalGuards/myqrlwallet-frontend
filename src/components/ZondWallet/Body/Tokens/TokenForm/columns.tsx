@@ -3,17 +3,20 @@ import { ColumnDef } from "@tanstack/react-table"
 import { Copy, Check, Send, EyeOff } from "lucide-react"
 import { useState } from "react"
 import { useStore } from "@/stores/store"
+import { copyToClipboard } from "@/utils/nativeApp"
 
 // Create a component for the cell to manage its own copy state
 const CopyableAddress = ({ address }: { address: string }) => {
     const [isCopied, setIsCopied] = useState(false);
 
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        setIsCopied(true);
-        setTimeout(() => {
-            setIsCopied(false);
-        }, 1500);
+    const handleCopy = async (text: string) => {
+        const success = await copyToClipboard(text);
+        if (success) {
+            setIsCopied(true);
+            setTimeout(() => {
+                setIsCopied(false);
+            }, 1500);
+        }
     };
 
     const formattedAddress = `${address?.substring(0, 5)}...${address?.substring(address?.length - 5)}`;
@@ -26,7 +29,7 @@ const CopyableAddress = ({ address }: { address: string }) => {
             ) : (
                 <Copy
                     className="w-4 h-4 opacity-0 group-hover:opacity-100 hover:text-gray-400 transition-opacity cursor-pointer"
-                    onClick={() => copyToClipboard(address)}
+                    onClick={() => handleCopy(address)}
                 />
             )}
         </div>
@@ -36,12 +39,14 @@ const CopyableAddress = ({ address }: { address: string }) => {
 const CopyableText = ({ text }: { text: string }) => {
     const [isCopied, setIsCopied] = useState(false);
 
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        setIsCopied(true);
-        setTimeout(() => {
-            setIsCopied(false);
-        }, 1500);
+    const handleCopy = async (textToCopy: string) => {
+        const success = await copyToClipboard(textToCopy);
+        if (success) {
+            setIsCopied(true);
+            setTimeout(() => {
+                setIsCopied(false);
+            }, 1500);
+        }
     };
 
     return (
@@ -52,7 +57,7 @@ const CopyableText = ({ text }: { text: string }) => {
             ) : (
                 <Copy
                     className="w-4 h-4 opacity-0 group-hover:opacity-100 hover:text-gray-400 transition-opacity cursor-pointer"
-                    onClick={() => copyToClipboard(text)}
+                    onClick={() => handleCopy(text)}
                 />
             )}
         </div>

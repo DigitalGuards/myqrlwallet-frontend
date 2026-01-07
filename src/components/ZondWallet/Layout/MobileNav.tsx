@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import { handleLogout } from "@/utils/logout";
 import { isInNativeApp } from "@/utils/nativeApp";
+import { navigateTo } from "@/utils/navigation";
 
 const navItems = [
     {
@@ -38,7 +39,7 @@ export default function MobileNav() {
         <nav className="md:hidden fixed bottom-6 border-t-2 border-t-secondary border-t-opacity-50 bg-background w-full z-10 h-14 flex items-center justify-around px-4 pt-0">
             {
                 navItems.map((item) => (
-                    <button key={item.path} className="cursor-pointer flex flex-col items-center text-sm text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(item.path)}>
+                    <button key={item.path} className="cursor-pointer flex flex-col items-center text-sm text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigateTo(item.path, navigate)}>
                         <item.icon className="h-5 w-5" />
                         <span>{item.label}</span>
                     </button>

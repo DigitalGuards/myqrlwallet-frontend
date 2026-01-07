@@ -7,6 +7,7 @@ import { useStore } from "../../../stores/store";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/UI/Button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuSeparator } from "@/components/UI/DropdownMenu";
+import { copyToClipboard } from "@/utils/nativeApp";
 
 const ZondWalletLogo = withSuspense(
     lazy(() => import("../Header/ZondWalletLogo/ZondWalletLogo"))
@@ -17,12 +18,14 @@ const Footer = observer(() => {
     const { zondAccounts, setActiveAccount, activeAccount } = zondStore;
     const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
     const navigate = useNavigate();
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        setCopiedAddress(text);
-        setTimeout(() => {
-            setCopiedAddress(null);
-        }, 1000);
+    const handleCopy = async (text: string) => {
+        const success = await copyToClipboard(text);
+        if (success) {
+            setCopiedAddress(text);
+            setTimeout(() => {
+                setCopiedAddress(null);
+            }, 1000);
+        }
     };
     const switchAccount = (accountAddress: string) => {
         setActiveAccount(accountAddress);
@@ -123,7 +126,7 @@ const Footer = observer(() => {
                                     ) : (
                                         <Copy
                                             className="w-4 h-4 hover:text-gray-400 transition-opacity cursor-pointer"
-                                            onClick={() => copyToClipboard(account.accountAddress)}
+                                            onClick={() => handleCopy(account.accountAddress)}
                                         />
                                     )}
                                 </DropdownMenuItem>

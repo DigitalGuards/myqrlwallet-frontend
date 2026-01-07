@@ -5,3 +5,8 @@ export {
   getOptimalTokenBalance,
   formatBalance,
 } from './balance';
+
+export {
+  formatAddress,
+  formatAddressShort,
+} from './address';
