@@ -93,7 +93,7 @@ const NavBar = observer(() => {
                         </NavigationMenuLink>
                     </NavigationMenuItem> */}
                     <NavigationMenuItem>
-                        <NavigationMenuLink onClick={() => navigateTo(ROUTES.SETTINGS, navigate)} className={navigationMenuTriggerStyle()}>
+                        <NavigationMenuLink onClick={() => { console.log('[NavBar] Desktop Settings clicked'); navigateTo(ROUTES.SETTINGS, navigate); }} className={navigationMenuTriggerStyle()}>
                             Settings
                         </NavigationMenuLink>
                     </NavigationMenuItem>
@@ -143,6 +143,7 @@ const NavBar = observer(() => {
                             <NavigationMenuItem>
                                 <NavigationMenuLink
                                     onClick={() => {
+                                        console.log('[NavBar] Mobile Settings clicked');
                                         navigateTo(ROUTES.SETTINGS, navigate);
                                         setOpen(false);
                                     }}
