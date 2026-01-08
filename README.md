@@ -1,227 +1,149 @@
-# Zond Web Wallet
+# MyQRLWallet
 
-A modern, secure web wallet for the Quantum Resistant Ledger's Zond blockchain. This wallet provides a user-friendly interface for interacting with QRL's next-generation blockchain, featuring quantum-resistant security.
+A modern, secure web wallet for the Quantum Resistant Ledger's Zond blockchain. Built with React 19 and featuring quantum-resistant security, mobile app integration, and ERC20/QRC20 token support.
 
-## Overview
+**Live**: [qrlwallet.com](https://qrlwallet.com)
 
-The Zond Web Wallet is designed to provide secure and intuitive access to the QRL Zond blockchain. Built with modern web technologies, it offers a seamless experience for managing your quantum-resistant accounts.
+## Features
 
-### Key Features
-
-- 🛡️ **Quantum-Resistant Security**: Built on QRL's post-quantum cryptography
-- 🔐 **Secure Account Management**: Create and import accounts with mnemonic phrase backup
-- 🌐 **Multi-Network Support**: Connect to Testnet or Local Node
-- 🎨 **Modern Interface**: Clean, intuitive design with dark mode
-- 📱 **Responsive Design**: Works seamlessly across all devices
-- ⚡ **Fast & Lightweight**: Built with performance in mind
+- **Quantum-Resistant Security** - Built on QRL's post-quantum cryptography (ML-DSA-87/Dilithium)
+- **Account Management** - Create accounts, import via mnemonic or hex seed, connect extension wallets
+- **PIN Authentication** - Encrypted seed storage with PIN protection
+- **Token Support** - Create and manage ERC20/QRC20 tokens via factory contract
+- **Token Discovery** - Automatic detection of tokens held by your address
+- **Multi-Network** - Testnet, Mainnet, and custom RPC support
+- **Mobile App Integration** - Native features when running in [MyQRLWallet App](https://github.com/DigitalGuards/myqrlwallet-app)
+- **Responsive Design** - Works on desktop and mobile browsers
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 16.x or later
-- npm 7.x or later
+- Node.js 18.x or later
+- npm 9.x or later
 
-### Local Development
+### Installation
 
-1. Clone the repository:
 ```bash
-git clone https://github.com/DigitalGuards/zondwebwallet.git
-cd zondwebwallet
-```
-
-2. Install dependencies:
-```bash
+git clone https://github.com/DigitalGuards/myqrlwallet-frontend.git
+cd myqrlwallet-frontend
 npm install
 ```
 
-3. Set up environment variables:
+### Configuration
+
 ```bash
 cp .env.example .env
-# Edit .env with your configuration
 ```
 
-4. Configure your environment:
-   - Update `VITE_RPC_URL_DEVELOPMENT` to point to your Zond node
-   - Update `VITE_SERVER_URL_DEVELOPMENT` to point to your backend API
-   - Set `VITE_CUSTOMERC20FACTORY_ADDRESS` after deploying the token factory
-   - **Note**: Only include `VITE_SEED` for development. Never commit real seeds!
+Edit `.env` with your settings:
+- `VITE_RPC_URL_*` - Zond blockchain RPC endpoints
+- `VITE_SERVER_URL_*` - Backend API endpoints
+- `VITE_CUSTOMERC20FACTORY_ADDRESS` - Token factory contract address
+- `VITE_DEPLOYER` - Factory deployer account
+- `VITE_SEED` - Deployer seed (development only - never commit!)
 
-5. Start the development server:
+### Development
 
-   You have a few options to start the development server:
+```bash
+npm run dev         # Localhost (127.0.0.1:5173)
+npm run dev:lan     # LAN access (0.0.0.0:5173)
+```
 
-   - **Localhost only:**
-     ```bash
-     npm run dev
-     ```
+### Build
 
-   - **All network interfaces (for LAN access):**
-     ```bash
-     npm run dev:lan
-     ```
-
-   - **Bind to a specific IP address:**
-     ```bash
-     npm run dev:custom --host=YOUR_IP_ADDRESS_HERE
-     ```
-     (Replace `YOUR_IP_ADDRESS_HERE` with the desired IP)
-
-6. Open your browser and navigate to the address shown in the terminal (usually `http://localhost:5173` or a LAN address if using `dev:lan` or `dev:custom`).
+```bash
+npm run build       # TypeScript check + production build
+npm run preview     # Preview production build
+npm run lint        # ESLint with zero warnings policy
+npm test            # Run tests
+```
 
 ## Technology Stack
 
-- **Frontend Framework**: React 18 with TypeScript
-- **Build Tool**: Vite
-- **Styling**: TailwindCSS
-- **State Management**: MobX
-- **Routing**: React Router v6
-- **Blockchain Integration**: @theqrl/web3
-- **Development Server**: Node.js/Express
+| Category | Technology |
+|----------|------------|
+| Framework | React 19 + TypeScript |
+| Build | Vite 7 |
+| Styling | TailwindCSS 4 + Shadcn/ui |
+| State | MobX |
+| Routing | React Router 7 |
+| Blockchain | @theqrl/web3 |
 
 ## Project Structure
 
 ```
-zondwebwallet/
-├── webapp/                 # Frontend application
-│   ├── public/            # Static assets
-│   ├── src/              # Source code
-│   │   ├── App.tsx       # Root application component
-│   │   ├── main.tsx      # Application entry point
-│   │   ├── components/   # React components
-│   │   │   ├── UI/      # Shared UI components
-│   │   │   │   ├── Button.tsx
-│   │   │   │   ├── Card.tsx
-│   │   │   │   ├── Dialog.tsx
-│   │   │   │   ├── DropdownMenu.tsx
-│   │   │   │   ├── Form.tsx
-│   │   │   │   ├── Input.tsx
-│   │   │   │   ├── Label.tsx
-│   │   │   │   ├── Separator.tsx
-│   │   │   │   └── Tooltip.tsx
-│   │   │   └── ZondWallet/  # Main wallet component
-│   │   │       ├── ZondWallet.tsx
-│   │   │       ├── Body/    # Main content components
-│   │   │       │   ├── Body.tsx
-│   │   │       │   ├── AccountDetails/
-│   │   │       │   │   ├── AccountDetails.tsx
-│   │   │       │   │   ├── GasFeeNotice/
-│   │   │       │   │   │   └── GasFeeNotice.tsx
-│   │   │       │   │   └── TransactionSuccessful/
-│   │   │       │   │       └── TransactionSuccessful.tsx
-│   │   │       │   ├── AccountList/
-│   │   │       │   │   ├── AccountList.tsx
-│   │   │       │   │   ├── AccountId/
-│   │   │       │   │   │   └── AccountId.tsx
-│   │   │       │   │   ├── ActiveAccount/
-│   │   │       │   │   │   └── ActiveAccount.tsx
-│   │   │       │   │   ├── NewAccount/
-│   │   │       │   │   │   └── NewAccount.tsx
-│   │   │       │   │   └── OtherAccounts/
-│   │   │       │   │       └── OtherAccounts.tsx
-│   │   │       │   ├── CreateAccount/
-│   │   │       │   │   ├── CreateAccount.tsx
-│   │   │       │   │   ├── AccountCreationForm/
-│   │   │       │   │   │   └── AccountCreationForm.tsx
-│   │   │       │   │   ├── AccountCreationSuccess/
-│   │   │       │   │   │   └── AccountCreationSuccess.tsx
-│   │   │       │   │   └── MnemonicDisplay/
-│   │   │       │   │       ├── MnemonicDisplay.tsx
-│   │   │       │   │       └── MnemonicWordListing/
-│   │   │       │   │           └── MnemonicWordListing.tsx
-│   │   │       │   ├── Home/
-│   │   │       │   │   ├── Home.tsx
-│   │   │       │   │   ├── AccountCreateImport/
-│   │   │       │   │   │   ├── AccountCreateImport.tsx
-│   │   │       │   │   │   └── ActiveAccountDisplay/
-│   │   │       │   │   │       └── ActiveAccountDisplay.tsx
-│   │   │       │   │   ├── BackgroundVideo/
-│   │   │       │   │   │   └── BackgroundVideo.tsx
-│   │   │       │   │   ├── ConnectionBadge/
-│   │   │       │   │   │   └── ConnectionBadge.tsx
-│   │   │       │   │   └── ConnectionFailed/
-│   │   │       │   │       └── ConnectionFailed.tsx
-│   │   │       │   └── ImportAccount/
-│   │   │       │       ├── ImportAccount.tsx
-│   │   │       │       └── AccountImportSuccess/
-│   │   │       │           └── AccountImportSuccess.tsx
-│   │   │       ├── Header/
-│   │   │       │   ├── Header.tsx
-│   │   │       │   ├── AccountBadge/
-│   │   │       │   │   └── AccountBadge.tsx
-│   │   │       │   └── ZondWalletLogo/
-│   │   │       │       └── ZondWalletLogo.tsx
-│   │   │       └── RouteMonitor/
-│   │   │           └── RouteMonitor.tsx
-│   │   ├── functions/    # Utility functions
-│   │   │   └── withSuspense.tsx
-│   │   ├── router/      # React Router setup
-│   │   │   └── router.tsx
-│   │   ├── stores/      # MobX state stores
-│   │   └── utilities/   # Helper utilities
-│   ├── index.html       # Entry HTML file
-│   ├── package.json     # Frontend dependencies
-│   ├── tailwind.config.cjs # Tailwind CSS configuration
-│   ├── tsconfig.json    # TypeScript configuration
-│   └── vite.config.ts   # Vite build configuration
-├── backend/             # Backend server
-│   ├── server.js        # Express server setup
-│   └── package.json     # Backend dependencies
-├── nginx.conf          # Nginx configuration
-└── todos.md           # Project todos and roadmap
+src/
+├── abi/                    # Contract ABIs
+├── components/
+│   ├── NativeAppBridge.tsx # Mobile app message handler
+│   ├── SEO/                # Meta tags
+│   ├── UI/                 # Shadcn/ui components
+│   └── ZondWallet/
+│       ├── Header/         # Logo, NavBar, AccountBadge
+│       ├── Body/           # Feature pages
+│       │   ├── AccountList/
+│       │   ├── AccountDetails/
+│       │   ├── Transfer/
+│       │   ├── Tokens/
+│       │   ├── CreateToken/
+│       │   ├── ImportAccount/
+│       │   ├── Settings/
+│       │   └── Support/
+│       └── Footer/
+├── config/                 # Network configuration
+├── constants/              # Token lists, chains
+├── hooks/                  # React hooks
+├── router/                 # React Router config
+├── stores/                 # MobX stores (zondStore, settingsStore)
+└── utils/
+    ├── crypto/             # Encryption utilities
+    ├── extension/          # Wallet extension detection
+    ├── formatting/         # Address/number formatting
+    ├── storage/            # localStorage helpers
+    ├── web3/               # Blockchain utilities
+    └── nativeApp.ts        # Mobile app bridge
 ```
 
-## Available Networks
+## Mobile App Integration
 
-- **Testnet**: Development and testing network
-- **Mainnet**: Production network
+When running inside the [MyQRLWallet App](https://github.com/DigitalGuards/myqrlwallet-app), the web wallet detects the native context via User-Agent and enables additional features:
 
-## Security Features
+- **QR Scanner** - Native camera for scanning addresses
+- **Biometric Auth** - Face ID / Touch ID for PIN unlock
+- **Haptic Feedback** - Native device vibration
+- **Native Share** - System share sheet
+- **Secure Storage** - Seeds backed up in device secure storage
 
-- Secure mnemonic phrase generation
-- Client-side transaction signing
-- No private key storage
-- Secure connection handling
+## Related Projects
+
+- [myqrlwallet-backend](https://github.com/DigitalGuards/myqrlwallet-backend) - API server (RPC proxy, support email, tx history)
+- [myqrlwallet-app](https://github.com/DigitalGuards/myqrlwallet-app) - React Native mobile app
+- [QuantaPool](https://github.com/DigitalGuards/QuantaPool) - Liquid staking protocol
+
+## Security
+
+- Client-side transaction signing only
+- PIN-encrypted seed storage in localStorage
+- No private keys sent to server
+- Extension wallets handle their own signing
+- Automatic session expiration
 
 ## Links
 
 - [QRL Website](https://www.theqrl.org/)
 - [QRL Documentation](https://docs.theqrl.org/)
+- [ZondScan Explorer](https://zondscan.com)
 - [Twitter](https://x.com/DigitalGuards)
-- [GitHub Repository](https://github.com/DigitalGuards/zondwebwallet/)
-
-## Development
-
-### Building for Production
-
-```bash
-npm run build
-```
-
-The production build will be available in the `dist` directory.
-
-### Deployment
-
-The application can be served using the included nginx configuration:
-
-1. Copy the build files to your server
-2. Use the provided nginx.conf for proper routing and security headers
-3. Enable HTTPS (required for security)
 
 ## Contributing
 
-We welcome contributions! Please feel free to submit a Pull Request.
-
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Contact
-
-For any queries regarding the wallet, please open an issue in the GitHub repository.
+MIT License - see LICENSE file for details.
