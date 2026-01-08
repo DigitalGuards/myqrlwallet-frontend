@@ -1,4 +1,4 @@
-# MyQRL Wallet
+# MyQRLWallet
 
 A modern, secure web wallet for the Quantum Resistant Ledger's Zond blockchain. Built with React 19 and featuring quantum-resistant security, mobile app integration, and ERC20/QRC20 token support.
 
@@ -12,7 +12,7 @@ A modern, secure web wallet for the Quantum Resistant Ledger's Zond blockchain. 
 - **Token Support** - Create and manage ERC20/QRC20 tokens via factory contract
 - **Token Discovery** - Automatic detection of tokens held by your address
 - **Multi-Network** - Testnet, Mainnet, and custom RPC support
-- **Mobile App Integration** - Native features when running in [MyQRL Wallet App](https://github.com/DigitalGuards/myqrlwallet-app)
+- **Mobile App Integration** - Native features when running in [MyQRLWallet App](https://github.com/DigitalGuards/myqrlwallet-app)
 - **Responsive Design** - Works on desktop and mobile browsers
 
 ## Getting Started
@@ -107,7 +107,7 @@ src/
 
 ## Mobile App Integration
 
-When running inside the [MyQRL Wallet App](https://github.com/DigitalGuards/myqrlwallet-app), the web wallet detects the native context via User-Agent and enables additional features:
+When running inside the [MyQRLWallet App](https://github.com/DigitalGuards/myqrlwallet-app), the web wallet detects the native context via User-Agent and enables additional features:
 
 - **QR Scanner** - Native camera for scanning addresses
 - **Biometric Auth** - Face ID / Touch ID for PIN unlock
