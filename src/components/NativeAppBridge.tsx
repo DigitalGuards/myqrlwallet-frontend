@@ -178,28 +178,41 @@ const NativeAppBridge: React.FC = () => {
 
           // Use async IIFE with proper error handling to avoid unhandled rejections
           (async () => {
+            // Outer try/catch for storage operations
+            let blockchain: string;
+            let activeAccount: string | null;
+            let encryptedSeed: string | null;
+
             try {
-              const blockchain = await StorageUtil.getBlockChain();
-              const activeAccount = await StorageUtil.getActiveAccount(blockchain);
+              blockchain = await StorageUtil.getBlockChain();
+              activeAccount = await StorageUtil.getActiveAccount(blockchain);
               if (!activeAccount) {
                 logToNative('No active account found');
                 sendPinVerified(false, PIN_VERIFY_ERRORS.NO_ACTIVE_ACCOUNT);
                 return;
               }
 
-              const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchain, activeAccount);
+              encryptedSeed = await StorageUtil.getEncryptedSeed(blockchain, activeAccount);
               if (!encryptedSeed) {
                 logToNative('No encrypted seed found');
                 sendPinVerified(false, PIN_VERIFY_ERRORS.NO_ENCRYPTED_SEED);
                 return;
               }
+            } catch (storageError) {
+              console.error('[Bridge] Storage error during PIN verification:', storageError);
+              logToNative('PIN verification failed - storage error');
+              sendPinVerified(false, 'Storage error');
+              return;
+            }
 
-              // Try to decrypt with the provided PIN
+            // Inner try/catch specifically for PIN decryption
+            try {
+              // decryptSeedWithPin throws if PIN is incorrect
               WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pin);
               logToNative('PIN verified successfully');
               sendPinVerified(true);
-            } catch (error) {
-              console.error('[Bridge] Error during PIN verification:', error);
+            } catch (decryptError) {
+              console.error('[Bridge] Decryption failed - incorrect PIN:', decryptError);
               logToNative('PIN verification failed - incorrect PIN');
               sendPinVerified(false, PIN_VERIFY_ERRORS.INCORRECT_PIN);
             }
