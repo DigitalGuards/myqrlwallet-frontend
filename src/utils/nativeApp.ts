@@ -21,6 +21,7 @@ export type WebToNativeMessageType =
   | 'REQUEST_BIOMETRIC_UNLOCK'  // Web asks native to unlock with biometric
   | 'WALLET_CLEARED'        // Web confirmed it cleared localStorage
   | 'WEB_APP_READY'         // Web app is fully initialized and ready to receive data
+  | 'PIN_VERIFIED'          // Web responds to PIN verification request
   // Navigation messages
   | 'OPEN_NATIVE_SETTINGS'; // Request native app to open its settings screen
 
@@ -38,7 +39,8 @@ export type NativeToWebMessageType =
   | 'UNLOCK_WITH_PIN'       // Native sends PIN after biometric success
   | 'RESTORE_SEED'          // Native sends backup seed if localStorage empty
   | 'CLEAR_WALLET'          // Native requests web to clear wallet
-  | 'BIOMETRIC_SETUP_PROMPT'; // Native prompts user to enable biometric
+  | 'BIOMETRIC_SETUP_PROMPT' // Native prompts user to enable biometric
+  | 'VERIFY_PIN';           // Native asks web to verify PIN can decrypt seed
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
@@ -255,6 +257,13 @@ export const requestBiometricUnlock = (): boolean => {
  */
 export const confirmWalletCleared = (): boolean => {
   return sendToNative('WALLET_CLEARED');
+};
+
+/**
+ * Send PIN verification result to native app
+ */
+export const sendPinVerified = (success: boolean, error?: string): boolean => {
+  return sendToNative('PIN_VERIFIED', { success, error });
 };
 
 /**
