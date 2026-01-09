@@ -110,10 +110,11 @@ src/
 When running inside the [MyQRLWallet App](https://github.com/DigitalGuards/myqrlwallet-app), the web wallet detects the native context via User-Agent and enables additional features:
 
 - **QR Scanner** - Native camera for scanning addresses
-- **Biometric Auth** - Face ID / Touch ID for PIN unlock
+- **Device Login** - Face ID / Touch ID / PIN / pattern for wallet unlock
+- **Auto-Lock** - App locks when backgrounded, requires re-auth on return
 - **Haptic Feedback** - Native device vibration
 - **Native Share** - System share sheet
-- **Secure Storage** - Seeds backed up in device secure storage
+- **Secure Storage** - Seeds backed up in device SecureStore (iOS Keychain / Android Keystore)
 
 ## Related Projects
 

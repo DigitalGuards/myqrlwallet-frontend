@@ -17,10 +17,20 @@ import {
   confirmWalletCleared,
   notifyWebAppReady,
   dispatchQRResult,
+  sendPinVerified,
 } from '@/utils/nativeApp';
+import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
 import { ROUTES } from '@/router/router';
 import StorageUtil from '@/utils/storage/storage';
 import { ZOND_PROVIDER } from '@/config';
+
+/** Error messages for PIN verification - forms API contract with native app */
+const PIN_VERIFY_ERRORS = {
+  INVALID_FORMAT: 'Invalid PIN format',
+  NO_ACTIVE_ACCOUNT: 'No active account',
+  NO_ENCRYPTED_SEED: 'No encrypted seed found',
+  INCORRECT_PIN: 'Incorrect PIN',
+} as const;
 
 /**
  * Main bridge component - mount at app root
@@ -154,6 +164,48 @@ const NativeAppBridge: React.FC = () => {
           // Native is prompting user to enable biometric - nothing to do in web
           logToNative('Biometric setup prompt shown');
           break;
+
+        case 'VERIFY_PIN': {
+          // Native asks web to verify PIN can decrypt the stored seed
+          const pin = payload?.pin;
+          if (typeof pin !== 'string' || !pin) {
+            console.warn('[Bridge] VERIFY_PIN missing or invalid pin');
+            sendPinVerified(false, PIN_VERIFY_ERRORS.INVALID_FORMAT);
+            return;
+          }
+
+          logToNative('Verifying PIN...');
+
+          // Use async IIFE with proper error handling to avoid unhandled rejections
+          (async () => {
+            try {
+              const blockchain = await StorageUtil.getBlockChain();
+              const activeAccount = await StorageUtil.getActiveAccount(blockchain);
+              if (!activeAccount) {
+                logToNative('No active account found');
+                sendPinVerified(false, PIN_VERIFY_ERRORS.NO_ACTIVE_ACCOUNT);
+                return;
+              }
+
+              const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchain, activeAccount);
+              if (!encryptedSeed) {
+                logToNative('No encrypted seed found');
+                sendPinVerified(false, PIN_VERIFY_ERRORS.NO_ENCRYPTED_SEED);
+                return;
+              }
+
+              // Try to decrypt with the provided PIN
+              WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pin);
+              logToNative('PIN verified successfully');
+              sendPinVerified(true);
+            } catch (error) {
+              console.error('[Bridge] Error during PIN verification:', error);
+              logToNative('PIN verification failed - incorrect PIN');
+              sendPinVerified(false, PIN_VERIFY_ERRORS.INCORRECT_PIN);
+            }
+          })();
+          break;
+        }
 
         default:
           console.warn('[Bridge] Unknown message type:', type);
