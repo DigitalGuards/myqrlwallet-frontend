@@ -1,0 +1,21 @@
+# Kustomize configuration for frontend
+# Apply with: kubectl apply -k k8s/
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: myqrlwallet
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml
+  - ingress.yaml
+  - certificate.yaml
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+
+images:
+  - name: ghcr.io/myqrlwallet/frontend
+    newTag: latest
