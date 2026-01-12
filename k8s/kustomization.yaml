@@ -12,10 +12,11 @@ resources:
   - hpa.yaml
   - ingress.yaml
   - certificate.yaml
+  - cluster-issuer.yaml
 
 commonLabels:
   app.kubernetes.io/managed-by: kustomize
 
 images:
   - name: ghcr.io/myqrlwallet/frontend
-    newTag: latest
+    newTag: dev

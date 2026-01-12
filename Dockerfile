@@ -25,8 +25,8 @@ ARG VITE_DEPLOYER
 # Build the application
 RUN npm run build
 
-# Stage 2: Serve with nginx
-FROM nginx:alpine
+# Stage 2: Serve with unprivileged nginx (runs as non-root on port 8080)
+FROM nginxinc/nginx-unprivileged:alpine
 
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
@@ -34,20 +34,12 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Add non-root user for security
-RUN addgroup -S webapp && adduser -S webapp -G webapp && \
-    chown -R webapp:webapp /usr/share/nginx/html && \
-    chown -R webapp:webapp /var/cache/nginx && \
-    chown -R webapp:webapp /var/log/nginx && \
-    touch /var/run/nginx.pid && \
-    chown -R webapp:webapp /var/run/nginx.pid
-
-# Expose port 80
-EXPOSE 80
+# Expose port 8080 (unprivileged)
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget -q --spider http://localhost/health || exit 1
+    CMD wget -q --spider http://localhost:8080/health || exit 1
 
-# Start nginx
+# Start nginx (runs as non-root user nginx, UID 101)
 CMD ["nginx", "-g", "daemon off;"]

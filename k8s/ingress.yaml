@@ -18,7 +18,6 @@ metadata:
     app.kubernetes.io/part-of: myqrlwallet
   annotations:
     # nginx-ingress annotations
-    kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
@@ -28,14 +27,10 @@ metadata:
     # Rate limiting
     nginx.ingress.kubernetes.io/limit-rps: "100"
     nginx.ingress.kubernetes.io/limit-connections: "50"
+    # Redirect www to non-www
+    nginx.ingress.kubernetes.io/from-to-www-redirect: "true"
     # TLS with cert-manager
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    # Security headers
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      add_header X-Frame-Options "SAMEORIGIN" always;
-      add_header X-Content-Type-Options "nosniff" always;
-      add_header X-XSS-Protection "1; mode=block" always;
-      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 spec:
   ingressClassName: nginx
   tls:
@@ -56,23 +51,6 @@ spec:
                 port:
                   number: 3000
           # Frontend (catch-all)
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: myqrlwallet-frontend
-                port:
-                  number: 80
-    - host: www.qrlwallet.com
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: myqrlwallet-backend
-                port:
-                  number: 3000
           - path: /
             pathType: Prefix
             backend:

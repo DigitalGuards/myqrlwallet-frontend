@@ -20,11 +20,12 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/myqrlwallet/frontend:latest
+          # Image tag is updated by CI/CD pipeline via kustomize
+          image: ghcr.io/myqrlwallet/frontend:dev
           imagePullPolicy: Always
           ports:
             - name: http
-              containerPort: 80
+              containerPort: 8080
               protocol: TCP
           livenessProbe:
             httpGet:
@@ -52,7 +53,9 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: false
-            runAsNonRoot: false
+            runAsNonRoot: true
+            runAsUser: 101
+            runAsGroup: 101
       # Spread pods across nodes for high availability
       topologySpreadConstraints:
         - maxSkew: 1

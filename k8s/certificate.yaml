@@ -4,7 +4,8 @@
 # Install cert-manager:
 #   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.0/cert-manager.yaml
 #
-# Create ClusterIssuer first (see cluster-issuer.yaml)
+# Note: ClusterIssuer is in a separate file (cluster-issuer.yaml) as it's a
+# cluster-scoped resource that should be applied once by a cluster admin.
 #
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -19,21 +20,3 @@ spec:
   dnsNames:
     - qrlwallet.com
     - www.qrlwallet.com
----
-# ClusterIssuer for Let's Encrypt production
-# Apply this once per cluster, not per namespace
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-spec:
-  acme:
-    # Update this email address
-    email: admin@qrlwallet.com
-    server: https://acme-v02.api.letsencrypt.org/directory
-    privateKeySecretRef:
-      name: letsencrypt-prod-account-key
-    solvers:
-      - http01:
-          ingress:
-            class: nginx
