@@ -30,6 +30,7 @@ export type WebToNativeMessageType =
  */
 export type NativeToWebMessageType =
   | 'QR_RESULT'
+  | 'QR_CANCELLED'          // User closed QR scanner without scanning
   | 'BIOMETRIC_SUCCESS'
   | 'APP_STATE'
   | 'CLIPBOARD_SUCCESS'
