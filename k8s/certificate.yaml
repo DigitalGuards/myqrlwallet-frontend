@@ -1,0 +1,22 @@
+# Certificate resource for TLS
+# Requires cert-manager to be installed in the cluster
+#
+# Install cert-manager:
+#   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.0/cert-manager.yaml
+#
+# Note: ClusterIssuer is in a separate file (cluster-issuer.yaml) as it's a
+# cluster-scoped resource that should be applied once by a cluster admin.
+#
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: qrlwallet-tls
+  namespace: myqrlwallet
+spec:
+  secretName: qrlwallet-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - qrlwallet.com
+    - www.qrlwallet.com

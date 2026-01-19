@@ -225,6 +225,9 @@ const Transfer = observer(() => {
             message: 'Scanned QR does not contain a valid QRL address'
           });
         }
+      } else if (message.type === 'QR_CANCELLED') {
+        // User closed scanner without scanning - just reset the scanning state
+        setIsScanning(false);
       } else if (message.type === 'ERROR') {
         setIsScanning(false);
         triggerHaptic('error');

@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, dev]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   lint-and-build:
     runs-on: ubuntu-latest
@@ -25,10 +29,105 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Run lint
         run: npm run lint
 
       - name: Run build
         run: npm run build
+
+  docker:
+    needs: lint-and-build
+    runs-on: ubuntu-latest
+    # Only build Docker images on push to main/dev (not PRs)
+    if: github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VITE_RPC_URL_TESTNET=${{ vars.VITE_RPC_URL_TESTNET }}
+            VITE_RPC_URL_MAINNET=${{ vars.VITE_RPC_URL_MAINNET }}
+            VITE_SERVER_URL_TESTNET=${{ vars.VITE_SERVER_URL_TESTNET }}
+            VITE_SERVER_URL_MAINNET=${{ vars.VITE_SERVER_URL_MAINNET }}
+            VITE_CUSTOMERC20FACTORY_ADDRESS=${{ vars.VITE_CUSTOMERC20FACTORY_ADDRESS }}
+            VITE_DEPLOYER=${{ vars.VITE_DEPLOYER }}
+
+  deploy:
+    needs: docker
+    runs-on: ubuntu-latest
+    # Only deploy on push to main branch
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Update image tag in kustomization
+        run: |
+          cd k8s
+          # Update the image tag to the SHA-prefixed tag
+          kustomize edit set image ghcr.io/${{ env.IMAGE_NAME }}:main-${{ github.sha }}
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -k k8s/
+          kubectl rollout status deployment/myqrlwallet-frontend -n myqrlwallet --timeout=300s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n myqrlwallet -l app=myqrlwallet-frontend
+          kubectl get services -n myqrlwallet -l app=myqrlwallet-frontend
