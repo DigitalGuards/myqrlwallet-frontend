@@ -59,6 +59,95 @@ npm run lint        # ESLint with zero warnings policy
 npm test            # Run tests
 ```
 
+## Docker Deployment
+
+### Build Image
+
+```bash
+docker build -t myqrlwallet-frontend:latest \
+  --build-arg VITE_RPC_URL_TESTNET=https://qrlwallet.com/api/zond-rpc/testnet \
+  --build-arg VITE_RPC_URL_MAINNET=https://qrlwallet.com/api/zond-rpc/mainnet \
+  --build-arg VITE_SERVER_URL_TESTNET=https://qrlwallet.com/api \
+  --build-arg VITE_SERVER_URL_MAINNET=https://qrlwallet.com/api \
+  .
+```
+
+### Run Container
+
+```bash
+docker run -d -p 8080:8080 myqrlwallet-frontend:latest
+```
+
+The container:
+- Uses `nginx-unprivileged` (runs as non-root, UID 101)
+- Serves on port 8080
+- Includes health check at `/health`
+- Has gzip compression and security headers configured
+
+## Kubernetes Deployment
+
+Kubernetes manifests are provided in the `k8s/` directory.
+
+### Prerequisites
+
+- Kubernetes cluster with nginx-ingress controller
+- cert-manager for TLS certificates
+
+### Deploy
+
+```bash
+# Apply all manifests
+kubectl apply -k k8s/
+
+# Or apply individually
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/hpa.yaml
+kubectl apply -f k8s/ingress.yaml
+kubectl apply -f k8s/certificate.yaml
+kubectl apply -f k8s/cluster-issuer.yaml  # Once per cluster
+```
+
+### Manifests
+
+| File | Description |
+|------|-------------|
+| `namespace.yaml` | Creates `myqrlwallet` namespace |
+| `deployment.yaml` | 2 replicas with health checks, resource limits |
+| `service.yaml` | ClusterIP service (port 80 → 8080) |
+| `hpa.yaml` | Horizontal Pod Autoscaler (2-10 replicas) |
+| `ingress.yaml` | nginx ingress with TLS, routes `/` and `/api` |
+| `certificate.yaml` | Let's Encrypt TLS certificate |
+| `cluster-issuer.yaml` | Let's Encrypt ClusterIssuer |
+
+## CI/CD
+
+The GitHub Actions workflow (`.github/workflows/ci.yml`) automatically:
+
+1. **On PR/Push**: Runs lint and build checks
+2. **On Push to main/dev**: Builds and pushes Docker image to GitHub Container Registry
+3. **On Push to main**: Deploys to Kubernetes cluster
+
+### Image Tags
+
+- `ghcr.io/<owner>/myqrlwallet-frontend:latest` - Latest main branch
+- `ghcr.io/<owner>/myqrlwallet-frontend:main-<sha>` - Specific commit
+- `ghcr.io/<owner>/myqrlwallet-frontend:dev` - Dev branch
+
+### Required GitHub Configuration
+
+**Variables** (Settings → Secrets and variables → Actions → Variables):
+- `VITE_RPC_URL_TESTNET`
+- `VITE_RPC_URL_MAINNET`
+- `VITE_SERVER_URL_TESTNET`
+- `VITE_SERVER_URL_MAINNET`
+- `VITE_CUSTOMERC20FACTORY_ADDRESS`
+- `VITE_DEPLOYER`
+
+**Secrets**:
+- `KUBECONFIG` - Base64-encoded kubeconfig for deployment
+
 ## Technology Stack
 
 | Category | Technology |
@@ -69,6 +158,7 @@ npm test            # Run tests
 | State | MobX |
 | Routing | React Router 7 |
 | Blockchain | @theqrl/web3 |
+| Container | nginx-unprivileged (Alpine) |
 
 ## Project Structure
 

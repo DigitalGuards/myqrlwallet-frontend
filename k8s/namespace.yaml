@@ -1,0 +1,8 @@
+# Shared namespace for MyQRLWallet services
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: myqrlwallet
+  labels:
+    app.kubernetes.io/name: myqrlwallet
+    app.kubernetes.io/part-of: myqrlwallet
