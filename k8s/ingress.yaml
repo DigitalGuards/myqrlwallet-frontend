@@ -1,0 +1,60 @@
+# Ingress for MyQRLWallet
+# Routes:
+#   - /api/* -> backend service
+#   - /* -> frontend service
+#
+# Prerequisites:
+#   - nginx-ingress controller installed
+#   - cert-manager installed (for TLS)
+#   - DNS configured to point qrlwallet.com to cluster ingress
+#
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myqrlwallet
+  namespace: myqrlwallet
+  labels:
+    app.kubernetes.io/name: myqrlwallet
+    app.kubernetes.io/part-of: myqrlwallet
+  annotations:
+    # nginx-ingress annotations
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    # Enable CORS for API
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://qrlwallet.com"
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+    # Redirect www to non-www
+    nginx.ingress.kubernetes.io/from-to-www-redirect: "true"
+    # TLS with cert-manager
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - qrlwallet.com
+        - www.qrlwallet.com
+      secretName: qrlwallet-tls
+  rules:
+    - host: qrlwallet.com
+      http:
+        paths:
+          # Backend API routes
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: myqrlwallet-backend
+                port:
+                  number: 3000
+          # Frontend (catch-all)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: myqrlwallet-frontend
+                port:
+                  number: 80
