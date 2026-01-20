@@ -1,5 +1,6 @@
 import { ZOND_PROVIDER } from "@/config";
 import { TokenInterface } from "@/constants";
+import { isInNativeApp } from "@/utils/nativeApp";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
 const BLOCKCHAIN_SELECTION_IDENTIFIER = "BLOCKCHAIN_SELECTION";
@@ -64,6 +65,11 @@ class StorageUtil {
   }
 
   private static isExpired(timestamp: number): boolean {
+    // Native app has its own security (Device Login, auto-lock on background)
+    // so we don't need the 6-hour expiration guardrail there
+    if (isInNativeApp()) {
+      return false;
+    }
     return Date.now() - timestamp > MAX_STORAGE_AGE;
   }
 
@@ -148,7 +154,7 @@ class StorageUtil {
   /**
    * A function for storing the active account in the wallet.
    * Call the getActiveAccount function to retrieve the stored value.
-   * Data expires after 6 hours.
+   * Data expires after 6 hours on desktop web (native app bypasses expiration).
    */
   static async setActiveAccount(blockchain: string, activeAccount?: string) {
     const blockChainAccountIdentifier = `${blockchain}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
