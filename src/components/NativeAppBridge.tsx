@@ -33,6 +33,41 @@ const PIN_VERIFY_ERRORS = {
 } as const;
 
 /**
+ * Restores account state after RESTORE_SEED message.
+ * Adds account to list and sets as active if needed, then reloads to fetch fresh balance.
+ */
+async function restoreAccountState(blockchain: string, address: string): Promise<void> {
+  try {
+    let needsReload = false;
+
+    // Add to account list if not already present
+    const accountList = await StorageUtil.getAccountList(blockchain);
+    if (!accountList.some(item => item.address.toLowerCase() === address.toLowerCase())) {
+      await StorageUtil.setAccountList(blockchain, [...accountList, { address, source: 'seed' }]);
+      logToNative(`Added ${address} to account list`);
+      needsReload = true;
+    }
+
+    // Set as active account if no active account exists
+    const currentActive = await StorageUtil.getActiveAccount(blockchain);
+    if (!currentActive) {
+      await StorageUtil.setActiveAccount(blockchain, address);
+      logToNative(`Set ${address} as active account`);
+      needsReload = true;
+    }
+
+    // Reload to reflect restored state and fetch fresh balance
+    if (needsReload) {
+      window.location.reload();
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Bridge] Error restoring account state:', error);
+    logToNative(`Error restoring account state: ${errorMsg}`);
+  }
+}
+
+/**
  * Main bridge component - mount at app root
  */
 const NativeAppBridge: React.FC = () => {
@@ -137,36 +172,8 @@ const NativeAppBridge: React.FC = () => {
           // Restore the encrypted seed
           StorageUtil.storeEncryptedSeed(blockchain, address, encryptedSeed);
 
-          // Also restore account to account list and set as active if no active account
-          // This handles the case where localStorage was cleared but native backup exists
-          (async () => {
-            try {
-              let needsReload = false;
-
-              // Add to account list if not already present
-              const accountList = await StorageUtil.getAccountList(blockchain);
-              if (!accountList.some(item => item.address.toLowerCase() === address.toLowerCase())) {
-                await StorageUtil.setAccountList(blockchain, [...accountList, { address, source: 'seed' }]);
-                logToNative(`Added ${address} to account list`);
-                needsReload = true;
-              }
-
-              // Set as active account if no active account exists
-              const currentActive = await StorageUtil.getActiveAccount(blockchain);
-              if (!currentActive) {
-                await StorageUtil.setActiveAccount(blockchain, address);
-                logToNative(`Set ${address} as active account`);
-                needsReload = true;
-              }
-
-              // Reload to reflect restored state and fetch fresh balance
-              if (needsReload) {
-                window.location.reload();
-              }
-            } catch (error) {
-              console.error('[Bridge] Error restoring account state:', error);
-            }
-          })();
+          // Restore full account state (handles localStorage cleared but native backup exists)
+          restoreAccountState(blockchain, address);
           break;
         }
 
