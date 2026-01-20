@@ -165,8 +165,14 @@ const NativeAppBridge: React.FC = () => {
 
           // Restore encrypted seed and account state
           (async () => {
-            await StorageUtil.storeEncryptedSeed(blockchain, address, encryptedSeed);
-            await restoreAccountState(blockchain, address);
+            try {
+              await StorageUtil.storeEncryptedSeed(blockchain, address, encryptedSeed);
+              await restoreAccountState(blockchain, address);
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              console.error(`[Bridge] Error restoring seed for ${address}:`, error);
+              logToNative(`Error restoring seed: ${errorMsg}`);
+            }
           })();
           break;
         }
