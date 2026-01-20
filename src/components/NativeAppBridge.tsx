@@ -34,30 +34,24 @@ const PIN_VERIFY_ERRORS = {
 
 /**
  * Restores account state after RESTORE_SEED message.
- * Adds account to list and sets as active if needed, then reloads to fetch fresh balance.
+ * Sets as active if needed (which also adds to account list), then reloads to fetch fresh balance.
  */
 async function restoreAccountState(blockchain: string, address: string): Promise<void> {
   try {
-    let needsReload = false;
+    const currentActive = await StorageUtil.getActiveAccount(blockchain);
+    if (!currentActive) {
+      // setActiveAccount also adds to account list if not present
+      await StorageUtil.setActiveAccount(blockchain, address);
+      logToNative(`Set ${address} as active account`);
+      window.location.reload();
+      return;
+    }
 
-    // Add to account list if not already present
+    // Active account exists - just ensure restored account is in the list
     const accountList = await StorageUtil.getAccountList(blockchain);
     if (!accountList.some(item => item.address.toLowerCase() === address.toLowerCase())) {
       await StorageUtil.setAccountList(blockchain, [...accountList, { address, source: 'seed' }]);
       logToNative(`Added ${address} to account list`);
-      needsReload = true;
-    }
-
-    // Set as active account if no active account exists
-    const currentActive = await StorageUtil.getActiveAccount(blockchain);
-    if (!currentActive) {
-      await StorageUtil.setActiveAccount(blockchain, address);
-      logToNative(`Set ${address} as active account`);
-      needsReload = true;
-    }
-
-    // Reload to reflect restored state and fetch fresh balance
-    if (needsReload) {
       window.location.reload();
     }
   } catch (error) {
@@ -169,11 +163,11 @@ const NativeAppBridge: React.FC = () => {
 
           logToNative(`Restoring seed for ${address}`);
 
-          // Restore the encrypted seed
-          StorageUtil.storeEncryptedSeed(blockchain, address, encryptedSeed);
-
-          // Restore full account state (handles localStorage cleared but native backup exists)
-          restoreAccountState(blockchain, address);
+          // Restore encrypted seed and account state
+          (async () => {
+            await StorageUtil.storeEncryptedSeed(blockchain, address, encryptedSeed);
+            await restoreAccountState(blockchain, address);
+          })();
           break;
         }
 
