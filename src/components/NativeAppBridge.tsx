@@ -33,6 +33,35 @@ const PIN_VERIFY_ERRORS = {
 } as const;
 
 /**
+ * Restores account state after RESTORE_SEED message.
+ * Sets as active if needed (which also adds to account list), then reloads to fetch fresh balance.
+ */
+async function restoreAccountState(blockchain: string, address: string): Promise<void> {
+  try {
+    const currentActive = await StorageUtil.getActiveAccount(blockchain);
+    if (!currentActive) {
+      // setActiveAccount also adds to account list if not present
+      await StorageUtil.setActiveAccount(blockchain, address);
+      logToNative(`Set ${address} as active account`);
+      window.location.reload();
+      return;
+    }
+
+    // Active account exists - just ensure restored account is in the list
+    const accountList = await StorageUtil.getAccountList(blockchain);
+    if (!accountList.some(item => item.address.toLowerCase() === address.toLowerCase())) {
+      await StorageUtil.setAccountList(blockchain, [...accountList, { address, source: 'seed' }]);
+      logToNative(`Added ${address} to account list`);
+      window.location.reload();
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Bridge] Error restoring account state:', error);
+    logToNative(`Error restoring account state: ${errorMsg}`);
+  }
+}
+
+/**
  * Main bridge component - mount at app root
  */
 const NativeAppBridge: React.FC = () => {
@@ -133,7 +162,18 @@ const NativeAppBridge: React.FC = () => {
           }
 
           logToNative(`Restoring seed for ${address}`);
-          StorageUtil.storeEncryptedSeed(blockchain, address, encryptedSeed);
+
+          // Restore encrypted seed and account state
+          (async () => {
+            try {
+              await StorageUtil.storeEncryptedSeed(blockchain, address, encryptedSeed);
+              await restoreAccountState(blockchain, address);
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              console.error(`[Bridge] Error restoring seed for ${address}:`, error);
+              logToNative(`Error restoring seed: ${errorMsg}`);
+            }
+          })();
           break;
         }
 
