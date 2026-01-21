@@ -25,6 +25,7 @@ import { z } from "zod";
 import { WalletEncryptionUtil } from "@/utils/crypto";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { Separator } from "@/components/UI/Separator";
+import { isInNativeApp } from "@/utils/nativeApp";
 
 const FormSchema = z
   .object({
@@ -161,7 +162,9 @@ export const AccountCreationForm = observer(
               <div>
                 <h3 className="text-lg font-medium mb-4">Transaction PIN</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  This PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. This pin is used to decrypt your seed phrase when it's imported. Which is also erased after 15 minutes which is the default inactivity timer setting. It is still recommended to press the "Logout" button when you're done using the wallet.
+                  {isInNativeApp()
+                    ? "This PIN will be used for daily transactions and to enable security features like Device Login. You'll enter this PIN instead of your seed phrase when sending funds. Your wallet is secured by Device Login and automatically locks when you switch apps."
+                    : "This PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press \"Logout\" when done for extra security."}
                 </p>
                 <div className="space-y-4">
                   <FormField
