@@ -11,7 +11,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <div className="hidden md:block">
                         <AppSidebar />
                     </div>
-                    <main className="flex-1 mb-28 md:mb-20">
+                    <main className="flex-1 mb-28 md:mb-20 md:ml-20 overflow-x-hidden">
                         {children}
                     </main>
                 </div>
