@@ -20,7 +20,7 @@ import {
   sendPinVerified,
   sendPinChanged,
 } from '@/utils/nativeApp';
-import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
+import { WalletEncryptionUtil, PinDecryptionError } from '@/utils/crypto/walletEncryption';
 import { ROUTES } from '@/router/router';
 import StorageUtil from '@/utils/storage/storage';
 import { ZOND_PROVIDER } from '@/config';
@@ -315,15 +315,16 @@ const NativeAppBridge: React.FC = () => {
               logToNative(`PIN changed successfully for ${updatedSeeds.length} wallet(s)`);
               sendPinChanged(true, newPin);
             } catch (error) {
-              const errorMsg = error instanceof Error ? error.message : String(error);
               console.error('[Bridge] Error changing PIN:', error);
-              logToNative(`PIN change failed: ${errorMsg}`);
 
-              // Check if it's a decryption error (incorrect current PIN)
-              if (errorMsg.includes('decrypt') || errorMsg.includes('Invalid PIN')) {
+              // Check if it's a PIN decryption error (incorrect current PIN)
+              if (error instanceof PinDecryptionError) {
+                logToNative('PIN change failed: incorrect current PIN');
                 sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.INCORRECT_PIN);
               } else {
-                sendPinChanged(false, undefined, errorMsg);
+                // Don't expose internal error details to native app
+                logToNative(`PIN change failed: ${error instanceof Error ? error.message : String(error)}`);
+                sendPinChanged(false, undefined, 'An unexpected error occurred during PIN change.');
               }
             }
           })();
