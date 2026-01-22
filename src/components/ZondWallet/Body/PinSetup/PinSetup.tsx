@@ -30,7 +30,7 @@ const pinValidation = z.string()
 // Unified schema - reEnteredPin validation handled conditionally
 const FormSchema = z.object({
   pin: pinValidation,
-  reEnteredPin: z.string(),
+  reEnteredPin: pinValidation,
 });
 
 type FormValues = z.infer<typeof FormSchema>;
