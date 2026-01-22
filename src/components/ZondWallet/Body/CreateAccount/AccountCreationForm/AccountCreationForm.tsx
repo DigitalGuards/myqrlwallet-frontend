@@ -41,7 +41,7 @@ const FormSchema = z.object({
   password: passwordValidation,
   reEnteredPassword: passwordValidation,
   pin: pinValidation,
-  reEnteredPin: z.string(),
+  reEnteredPin: pinValidation,
 }).refine((data) => data.password === data.reEnteredPassword, {
   message: "Passwords don't match",
   path: ["reEnteredPassword"],
