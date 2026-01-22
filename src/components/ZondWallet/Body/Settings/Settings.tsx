@@ -70,6 +70,7 @@ const Settings = observer(() => {
     const [hasEncryptedSeeds, setHasEncryptedSeeds] = useState(false);
     const [isChangingPin, setIsChangingPin] = useState(false);
     const [changePinError, setChangePinError] = useState<string | null>(null);
+    const [changePinSuccess, setChangePinSuccess] = useState(false);
     const [pinLockout, setPinLockout] = useState<{ isLocked: boolean; remainingMs: number }>({ isLocked: false, remainingMs: 0 });
     const [attemptsLeft, setAttemptsLeft] = useState(5);
 
@@ -162,6 +163,7 @@ const Settings = observer(() => {
 
         setIsChangingPin(true);
         setChangePinError(null);
+        setChangePinSuccess(false);
 
         try {
             const blockchain = await StorageUtil.getBlockChain();
@@ -211,10 +213,8 @@ const Settings = observer(() => {
             recordSuccessfulAttempt();
             setAttemptsLeft(5);
 
-            toast({
-                title: "PIN changed successfully",
-                description: "Your wallet PIN has been updated.",
-            });
+            // Show success in card
+            setChangePinSuccess(true);
 
             // Reset form
             changePinForm.reset();
@@ -277,6 +277,11 @@ const Settings = observer(() => {
                                             {changePinError && !pinLockout.isLocked && (
                                                 <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                                                     {changePinError}
+                                                </div>
+                                            )}
+                                            {changePinSuccess && (
+                                                <div className="rounded-md bg-green-500/15 p-3 text-sm text-green-600 dark:text-green-400">
+                                                    PIN changed successfully! Your wallet PIN has been updated.
                                                 </div>
                                             )}
 
