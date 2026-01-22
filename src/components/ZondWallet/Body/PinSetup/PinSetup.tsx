@@ -80,6 +80,7 @@ export const PinSetup = ({
     watch,
   } = form;
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form watch() is intentionally used for real-time validation
   const pin = watch("pin");
   const reEnteredPin = watch("reEnteredPin");
 
