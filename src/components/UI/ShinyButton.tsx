@@ -84,9 +84,15 @@ export const ShinyButton = React.forwardRef<HTMLButtonElement, ShinyButtonProps>
               --gradient-angle-offset, --gradient-percent, --gradient-shine;
           }
 
-          .shiny-btn:disabled {
+          .shiny-btn:disabled:not(.shiny-btn--processing) {
             cursor: not-allowed;
             opacity: 0.5;
+          }
+
+          /* When processing, prevent clicks but keep animation running */
+          .shiny-btn--processing {
+            pointer-events: none;
+            cursor: wait;
           }
 
           .shiny-btn::before,
@@ -225,7 +231,8 @@ export const ShinyButton = React.forwardRef<HTMLButtonElement, ShinyButtonProps>
             processing && "shiny-btn--processing",
             className
           )}
-          disabled={disabled || processing}
+          disabled={disabled && !processing}
+          aria-busy={processing}
           {...props}
         >
           <span className="shiny-btn__content flex items-center justify-center">
