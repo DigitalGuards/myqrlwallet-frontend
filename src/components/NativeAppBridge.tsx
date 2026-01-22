@@ -18,8 +18,9 @@ import {
   notifyWebAppReady,
   dispatchQRResult,
   sendPinVerified,
+  sendPinChanged,
 } from '@/utils/nativeApp';
-import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
+import { WalletEncryptionUtil, PinDecryptionError } from '@/utils/crypto/walletEncryption';
 import { ROUTES } from '@/router/router';
 import StorageUtil from '@/utils/storage/storage';
 import { ZOND_PROVIDER } from '@/config';
@@ -30,6 +31,14 @@ const PIN_VERIFY_ERRORS = {
   NO_ACTIVE_ACCOUNT: 'No active account',
   NO_ENCRYPTED_SEED: 'No encrypted seed found',
   INCORRECT_PIN: 'Incorrect PIN',
+} as const;
+
+/** Error messages for PIN change - forms API contract with native app */
+const PIN_CHANGE_ERRORS = {
+  INVALID_OLD_PIN: 'Invalid old PIN format',
+  INVALID_NEW_PIN: 'Invalid new PIN format',
+  NO_ENCRYPTED_SEEDS: 'No encrypted seeds found',
+  INCORRECT_PIN: 'Incorrect current PIN',
 } as const;
 
 /**
@@ -58,6 +67,51 @@ async function restoreAccountState(blockchain: string, address: string): Promise
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error('[Bridge] Error restoring account state:', error);
     logToNative(`Error restoring account state: ${errorMsg}`);
+  }
+}
+
+/**
+ * Handles CHANGE_PIN request from native app.
+ * Re-encrypts all seeds with the new PIN.
+ */
+async function handleChangePinRequest(oldPin: string, newPin: string): Promise<void> {
+  try {
+    const blockchain = await StorageUtil.getBlockChain();
+    const allSeeds = await StorageUtil.getAllEncryptedSeeds(blockchain);
+
+    if (allSeeds.length === 0) {
+      logToNative('No encrypted seeds found to re-encrypt');
+      sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.NO_ENCRYPTED_SEEDS);
+      return;
+    }
+
+    // Re-encrypt all seeds with the new PIN
+    const updatedSeeds = allSeeds.map(seedData => ({
+      ...seedData,
+      encryptedSeed: WalletEncryptionUtil.reEncryptSeed(
+        seedData.encryptedSeed,
+        oldPin,
+        newPin
+      ),
+    }));
+
+    // Save all re-encrypted seeds atomically
+    await StorageUtil.updateAllEncryptedSeeds(blockchain, updatedSeeds);
+
+    logToNative(`PIN changed successfully for ${updatedSeeds.length} wallet(s)`);
+    sendPinChanged(true, newPin);
+  } catch (error) {
+    console.error('[Bridge] Error changing PIN:', error);
+
+    // Check if it's a PIN decryption error (incorrect current PIN)
+    if (error instanceof PinDecryptionError) {
+      logToNative('PIN change failed: incorrect current PIN');
+      sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.INCORRECT_PIN);
+    } else {
+      // Don't expose internal error details to native app
+      logToNative(`PIN change failed: ${error instanceof Error ? error.message : String(error)}`);
+      sendPinChanged(false, undefined, 'An unexpected error occurred during PIN change.');
+    }
   }
 }
 
@@ -257,6 +311,28 @@ const NativeAppBridge: React.FC = () => {
               sendPinVerified(false, PIN_VERIFY_ERRORS.INCORRECT_PIN);
             }
           })();
+          break;
+        }
+
+        case 'CHANGE_PIN': {
+          // Native app requests web to re-encrypt all seeds with a new PIN
+          const oldPin = payload?.oldPin;
+          const newPin = payload?.newPin;
+
+          if (typeof oldPin !== 'string' || !WalletEncryptionUtil.validatePin(oldPin)) {
+            console.warn('[Bridge] CHANGE_PIN missing or invalid oldPin');
+            sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.INVALID_OLD_PIN);
+            return;
+          }
+
+          if (typeof newPin !== 'string' || !WalletEncryptionUtil.validatePin(newPin)) {
+            console.warn('[Bridge] CHANGE_PIN missing or invalid newPin');
+            sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.INVALID_NEW_PIN);
+            return;
+          }
+
+          logToNative('Changing PIN for all encrypted seeds...');
+          handleChangePinRequest(oldPin, newPin);
           break;
         }
 

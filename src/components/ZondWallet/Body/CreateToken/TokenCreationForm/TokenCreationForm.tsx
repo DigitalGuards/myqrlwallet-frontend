@@ -1,5 +1,6 @@
 import { Checkbox } from "@/components/UI/CheckBox";
 import { Button } from "../../../../UI/Button";
+import { ShinyButton } from "../../../../UI/ShinyButton";
 import {
     Card,
     CardContent,
@@ -18,7 +19,6 @@ import {
 } from "../../../../UI/Form";
 import { Input } from "../../../../UI/Input";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -106,7 +106,7 @@ export const TokenCreationForm = observer(
             control,
             formState: { isSubmitting, isValid },
         } = form;
-        
+
         const isUsingExtension = activeAccountSource === 'extension';
 
         const formatRealValue = (supply: string, decimals: number) => {
@@ -120,7 +120,7 @@ export const TokenCreationForm = observer(
         async function onSubmit(formData: z.output<typeof FormSchema>) {
             try {
                 setPinError("");
-                
+
                 // Check if account exists
                 if (!activeAccount.accountAddress) {
                     toast({
@@ -131,7 +131,7 @@ export const TokenCreationForm = observer(
                     navigate(ROUTES.IMPORT_ACCOUNT);
                     return;
                 }
-                
+
                 // For extension wallets, we need to handle differently
                 if (isUsingExtension) {
                     toast({
@@ -141,7 +141,7 @@ export const TokenCreationForm = observer(
                     });
                     return;
                 }
-                
+
                 // Get encrypted seed and validate PIN (only for seed accounts)
                 let mnemonicPhrase = "";
                 if (!isUsingExtension) {
@@ -149,20 +149,20 @@ export const TokenCreationForm = observer(
                         setPinError("PIN is required");
                         return;
                     }
-                    
+
                     const selectedBlockChain = await StorageUtil.getBlockChain();
                     const encryptedSeed = await StorageUtil.getEncryptedSeed(selectedBlockChain, activeAccount.accountAddress);
-                    
+
                     if (!encryptedSeed) {
                         setPinError("No stored seed found for this account. Please import your account again to set up a PIN.");
                         return;
                     }
-                    
+
                     // Decrypt the seed using the PIN
                     try {
                         const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pin);
                         mnemonicPhrase = decryptedSeed.mnemonic;
-                        
+
                         // Verify the mnemonic corresponds to the active account
                         const address = getAddressFromMnemonic(mnemonicPhrase);
                         if (address.toLowerCase() !== activeAccount.accountAddress.toLowerCase()) {
@@ -174,7 +174,7 @@ export const TokenCreationForm = observer(
                         return;
                     }
                 }
-                
+
                 const tokenName = formData.tokenName;
                 const tokenSymbol = formData.tokenSymbol;
                 const initialSupply = ethers.parseUnits(formData.initialSupply, formData.decimals).toString();
@@ -262,7 +262,7 @@ export const TokenCreationForm = observer(
                                         <FormControl>
                                             <Input
                                                 disabled={isSubmitting}
-                                                placeholder="Example: DigitalGuards"
+                                                placeholder="Example: MyQRLWallet"
                                                 type="text"
                                                 {...field}
                                             />
@@ -281,7 +281,7 @@ export const TokenCreationForm = observer(
                                             <Input
                                                 {...field}
                                                 disabled={isSubmitting}
-                                                placeholder="Example: DG"
+                                                placeholder="Example: MQW"
                                                 type="text"
                                             />
                                         </FormControl>
@@ -561,7 +561,7 @@ export const TokenCreationForm = observer(
                             {isUsingExtension ? (
                                 <div className="flex flex-col p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                                     <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                                        Token creation is currently only supported for imported seed accounts. 
+                                        Token creation is currently only supported for imported seed accounts.
                                         Please import an account with a seed phrase to create tokens.
                                     </p>
                                 </div>
@@ -584,16 +584,14 @@ export const TokenCreationForm = observer(
 
                         </CardContent>
                         <CardFooter>
-                            <Button
-                                disabled={!isValid || isSubmitting || (!isUsingExtension && pin.length === 0) || isUsingExtension}
+                            <ShinyButton
+                                disabled={!isValid || (!isUsingExtension && pin.length === 0) || isUsingExtension}
+                                processing={isSubmitting}
                                 className="w-full"
                                 type="submit"
                             >
-                                {isSubmitting && (
-                                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                                )}
-                                Create Token
-                            </Button>
+                                {isSubmitting ? "Creating Token..." : "Create Token"}
+                            </ShinyButton>
                         </CardFooter>
                     </Card>
                 </form>

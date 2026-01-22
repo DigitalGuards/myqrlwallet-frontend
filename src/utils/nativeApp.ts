@@ -22,6 +22,7 @@ export type WebToNativeMessageType =
   | 'WALLET_CLEARED'        // Web confirmed it cleared localStorage
   | 'WEB_APP_READY'         // Web app is fully initialized and ready to receive data
   | 'PIN_VERIFIED'          // Web responds to PIN verification request
+  | 'PIN_CHANGED'           // Web responds to PIN change request
   // Navigation messages
   | 'OPEN_NATIVE_SETTINGS'; // Request native app to open its settings screen
 
@@ -41,7 +42,8 @@ export type NativeToWebMessageType =
   | 'RESTORE_SEED'          // Native sends backup seed if localStorage empty
   | 'CLEAR_WALLET'          // Native requests web to clear wallet
   | 'BIOMETRIC_SETUP_PROMPT' // Native prompts user to enable biometric
-  | 'VERIFY_PIN';           // Native asks web to verify PIN can decrypt seed
+  | 'VERIFY_PIN'            // Native asks web to verify PIN can decrypt seed
+  | 'CHANGE_PIN';           // Native requests web to re-encrypt seeds with new PIN
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
@@ -265,6 +267,14 @@ export const confirmWalletCleared = (): boolean => {
  */
 export const sendPinVerified = (success: boolean, error?: string): boolean => {
   return sendToNative('PIN_VERIFIED', { success, error });
+};
+
+/**
+ * Send PIN change result to native app
+ * Called after web re-encrypts all seeds with the new PIN
+ */
+export const sendPinChanged = (success: boolean, newPin?: string, error?: string): boolean => {
+  return sendToNative('PIN_CHANGED', { success, newPin, error });
 };
 
 /**

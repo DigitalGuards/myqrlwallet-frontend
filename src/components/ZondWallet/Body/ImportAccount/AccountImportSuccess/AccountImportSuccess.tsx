@@ -58,9 +58,9 @@ const AccountImportSuccess = ({
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Account imported</CardTitle>
+    <Card className="w-full border-l-4 border-l-green-500">
+      <CardHeader className="bg-gradient-to-r from-green-500/5 to-transparent">
+        <CardTitle className="text-2xl font-bold">Account imported</CardTitle>
       </CardHeader>
       <CardContent className="space-y-8">
         <div className="flex flex-col gap-2">
