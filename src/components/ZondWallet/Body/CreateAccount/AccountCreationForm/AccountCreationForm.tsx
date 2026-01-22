@@ -59,12 +59,9 @@ export const AccountCreationForm = observer(
     // Check for existing encrypted seeds on mount
     useEffect(() => {
       const checkExistingSeeds = async () => {
-        const hasSeeds = await StorageUtil.hasEncryptedSeeds(blockchain);
-        setHasExistingSeeds(hasSeeds);
-        if (hasSeeds) {
-          const seeds = await StorageUtil.getAllEncryptedSeeds(blockchain);
-          setExistingSeeds(seeds);
-        }
+        const seeds = await StorageUtil.getAllEncryptedSeeds(blockchain);
+        setHasExistingSeeds(seeds.length > 0);
+        setExistingSeeds(seeds);
       };
       checkExistingSeeds();
     }, [blockchain]);
@@ -149,10 +146,21 @@ export const AccountCreationForm = observer(
         }
         onAccountCreated(newAccount, userPassword, userPin);
       } catch (error) {
-        setError("reEnteredPassword", {
+        setError("root", {
           message: `${error} There was an error while creating the account`,
         });
       }
+    }
+
+    // Show loading state while checking for existing seeds
+    if (hasExistingSeeds === null) {
+      return (
+        <Card>
+          <CardContent className="flex items-center justify-center py-8">
+            <Loader className="h-6 w-6 animate-spin" />
+          </CardContent>
+        </Card>
+      );
     }
 
     return (
@@ -257,7 +265,12 @@ export const AccountCreationForm = observer(
                 </div>
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex-col gap-4">
+              {form.formState.errors.root && (
+                <p className="text-sm text-destructive w-full">
+                  {form.formState.errors.root.message}
+                </p>
+              )}
               <Button
                 disabled={isSubmitting || !isFormValid || hasExistingSeeds === null}
                 className="w-full"

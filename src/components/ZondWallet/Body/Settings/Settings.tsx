@@ -31,7 +31,7 @@ import { Save, Shield } from "lucide-react";
 import { SEO } from "@/components/SEO/SEO";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil } from "@/utils/crypto/walletEncryption";
-import { isInNativeApp, sendToNative } from "@/utils/nativeApp";
+import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
 
 const SettingsFormSchema = z.object({
     autoLockTimeout: z.number().min(1).max(60),
@@ -156,7 +156,7 @@ const Settings = observer(() => {
 
             // Notify native app if running in native context
             if (isInNativeApp()) {
-                sendToNative('PIN_CHANGED' as 'LOG', { success: true, newPin: data.newPin });
+                sendPinChanged(true, data.newPin);
             }
 
             toast({

@@ -52,12 +52,9 @@ export const PinSetup = ({
   // Check for existing encrypted seeds on mount
   useEffect(() => {
     const checkExistingSeeds = async () => {
-      const hasSeeds = await StorageUtil.hasEncryptedSeeds(blockchain);
-      setHasExistingSeeds(hasSeeds);
-      if (hasSeeds) {
-        const seeds = await StorageUtil.getAllEncryptedSeeds(blockchain);
-        setExistingSeeds(seeds);
-      }
+      const seeds = await StorageUtil.getAllEncryptedSeeds(blockchain);
+      setHasExistingSeeds(seeds.length > 0);
+      setExistingSeeds(seeds);
     };
     checkExistingSeeds();
   }, [blockchain]);
