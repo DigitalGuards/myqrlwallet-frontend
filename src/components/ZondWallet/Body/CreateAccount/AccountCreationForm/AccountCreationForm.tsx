@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/UI/Button";
+import { ShinyButton } from "@/components/UI/ShinyButton";
 import {
   Card,
   CardContent,
@@ -154,9 +154,9 @@ export const AccountCreationForm = observer(
     return (
       <Form {...form}>
         <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Create new account</CardTitle>
+          <Card className="border-l-4 border-l-blue-accent">
+            <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
+              <CardTitle className="text-2xl font-bold">Create new account</CardTitle>
             </CardHeader>
             <CardContent className="space-y-8">
               <div>
@@ -259,18 +259,15 @@ export const AccountCreationForm = observer(
                   {form.formState.errors.root.message}
                 </p>
               )}
-              <Button
-                disabled={isSubmitting || !isValid || hasExistingSeeds === null}
+              <ShinyButton
+                disabled={!isValid || hasExistingSeeds === null}
+                processing={isSubmitting}
                 className="w-full"
                 type="submit"
               >
-                {isSubmitting ? (
-                  <Loader className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="mr-2 h-4 w-4" />
-                )}
-                Create account
-              </Button>
+                <Plus className="mr-2 h-4 w-4" />
+                {isSubmitting ? "Creating account..." : "Create account"}
+              </ShinyButton>
             </CardFooter>
           </Card>
         </form>
