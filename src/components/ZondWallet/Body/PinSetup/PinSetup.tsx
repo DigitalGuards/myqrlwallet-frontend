@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../../../UI/Button";
 import {
   Card,
@@ -21,15 +21,13 @@ import { StorageUtil } from "@/utils/storage";
 import { useStore } from "../../../../stores/store";
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
 
-const FormSchema = z
-  .object({
-    pin: z.string().min(4, "PIN must be at least 4 digits").max(6, "PIN must be at most 6 digits"),
-    reEnteredPin: z.string().min(4, "PIN must be at least 4 digits").max(6, "PIN must be at most 6 digits"),
-  })
-  .refine((fields) => fields.pin === fields.reEnteredPin, {
-    message: "PINs don't match",
-    path: ["reEnteredPin"],
-  });
+// Unified form schema - reEnteredPin is optional and only validated when needed
+const FormSchema = z.object({
+  pin: z.string().min(4, "PIN must be at least 4 digits").max(6, "PIN must be at most 6 digits"),
+  reEnteredPin: z.string().optional(),
+});
+
+type FormValues = z.infer<typeof FormSchema>;
 
 type PinSetupProps = {
   accountAddress: string;
@@ -48,8 +46,23 @@ export const PinSetup = ({
   const { zondConnection } = zondStore;
   const { blockchain } = zondConnection;
   const [isStoringPin, setIsStoringPin] = useState(false);
+  const [hasExistingSeeds, setHasExistingSeeds] = useState<boolean | null>(null);
+  const [existingSeeds, setExistingSeeds] = useState<{ address: string; encryptedSeed: string }[]>([]);
 
-  const form = useForm({
+  // Check for existing encrypted seeds on mount
+  useEffect(() => {
+    const checkExistingSeeds = async () => {
+      const hasSeeds = await StorageUtil.hasEncryptedSeeds(blockchain);
+      setHasExistingSeeds(hasSeeds);
+      if (hasSeeds) {
+        const seeds = await StorageUtil.getAllEncryptedSeeds(blockchain);
+        setExistingSeeds(seeds);
+      }
+    };
+    checkExistingSeeds();
+  }, [blockchain]);
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     mode: "onChange",
     reValidateMode: "onSubmit",
@@ -62,21 +75,55 @@ export const PinSetup = ({
   const {
     handleSubmit,
     control,
-    formState: { isSubmitting, isValid },
+    formState: { isSubmitting },
+    setError,
+    watch,
   } = form;
 
-  async function onSubmit(formData: z.output<typeof FormSchema>) {
+  const pin = watch("pin");
+  const reEnteredPin = watch("reEnteredPin");
+
+  // For new PIN setup, check if PINs match and are valid length
+  const isFormValid = hasExistingSeeds
+    ? pin.length >= 4 && pin.length <= 6
+    : pin.length >= 4 && pin.length <= 6 && pin === reEnteredPin;
+
+  async function onSubmit(formData: FormValues) {
     try {
       setIsStoringPin(true);
       const userPin = formData.pin;
-      
+
       // Validate PIN format
       if (!WalletEncryptionUtil.validatePin(userPin)) {
-        control.setError("pin", {
+        setError("pin", {
           message: "PIN must be 4-6 digits",
         });
         setIsStoringPin(false);
         return;
+      }
+
+      // For new PIN setup, validate PINs match
+      if (!hasExistingSeeds) {
+        if (formData.pin !== formData.reEnteredPin) {
+          setError("reEnteredPin", {
+            message: "PINs don't match",
+          });
+          setIsStoringPin(false);
+          return;
+        }
+      }
+
+      // If existing seeds exist, verify PIN by attempting to decrypt one
+      if (hasExistingSeeds && existingSeeds.length > 0) {
+        try {
+          WalletEncryptionUtil.decryptSeedWithPin(existingSeeds[0].encryptedSeed, userPin);
+        } catch {
+          setError("pin", {
+            message: "Incorrect PIN. Please try again.",
+          });
+          setIsStoringPin(false);
+          return;
+        }
       }
 
       // Encrypt the seed with the PIN
@@ -85,7 +132,7 @@ export const PinSetup = ({
         hexSeed,
         userPin
       );
-      
+
       // Store the encrypted seed in localStorage
       await StorageUtil.storeEncryptedSeed(
         blockchain,
@@ -107,10 +154,21 @@ export const PinSetup = ({
       onPinSetupComplete();
     } catch (error) {
       setIsStoringPin(false);
-      control.setError("reEnteredPin", {
+      setError("pin", {
         message: `${error} There was an error while setting up the PIN`,
       });
     }
+  }
+
+  // Show loading state while checking for existing seeds
+  if (hasExistingSeeds === null) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader className="h-6 w-6 animate-spin" />
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -118,13 +176,16 @@ export const PinSetup = ({
       <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>
-            <CardTitle>Set Transaction PIN</CardTitle>
+            <CardTitle>
+              {hasExistingSeeds ? "Enter Your Wallet PIN" : "Set Transaction PIN"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-8">
             <div>
               <p className="text-sm text-muted-foreground mb-4">
-                Set a PIN to use for transactions instead of entering your seed phrase each time.
-                Your seed phrase will be encrypted with this PIN and stored securely.
+                {hasExistingSeeds
+                  ? "Enter your existing PIN to add this wallet. All wallets use the same PIN for security."
+                  : "Set a PIN to use for transactions instead of entering your seed phrase each time. Your seed phrase will be encrypted with this PIN and stored securely."}
               </p>
               <div className="space-y-4">
                 <FormField
@@ -133,41 +194,45 @@ export const PinSetup = ({
                   render={({ field }) => (
                     <PinInput
                       length={6}
-                      placeholder="Enter PIN (4-6 digits)"
+                      placeholder={hasExistingSeeds ? "Enter your existing PIN" : "Enter PIN (4-6 digits)"}
                       value={field.value}
                       onChange={field.onChange}
                       disabled={isSubmitting || isStoringPin}
-                      description="Enter a 4-6 digit PIN"
+                      description={hasExistingSeeds ? "Your existing wallet PIN" : "Enter a 4-6 digit PIN"}
                       error={form.formState.errors.pin?.message}
                     />
                   )}
                 />
-                <FormField
-                  control={control}
-                  name="reEnteredPin"
-                  render={({ field }) => (
-                    <PinInput
-                      length={6}
-                      placeholder="Re-enter PIN"
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={isSubmitting || isStoringPin}
-                      description="Re-enter your PIN"
-                      error={form.formState.errors.reEnteredPin?.message}
-                    />
-                  )}
-                />
+                {!hasExistingSeeds && (
+                  <FormField
+                    control={control}
+                    name="reEnteredPin"
+                    render={({ field }) => (
+                      <PinInput
+                        length={6}
+                        placeholder="Re-enter PIN"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        disabled={isSubmitting || isStoringPin}
+                        description="Re-enter your PIN"
+                        error={form.formState.errors.reEnteredPin?.message}
+                      />
+                    )}
+                  />
+                )}
               </div>
             </div>
           </CardContent>
           <CardFooter>
             <Button
-              disabled={isSubmitting || isStoringPin || !isValid}
+              disabled={isSubmitting || isStoringPin || !isFormValid}
               className="w-full"
               type="submit"
             >
               {isSubmitting || isStoringPin ? (
                 <Loader className="mr-2 h-4 w-4 animate-spin" />
+              ) : hasExistingSeeds ? (
+                "Import Wallet"
               ) : (
                 "Set PIN"
               )}
