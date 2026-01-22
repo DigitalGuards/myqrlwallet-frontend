@@ -164,9 +164,9 @@ export const PinSetup = ({
   return (
     <Form {...form}>
       <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-        <Card>
-          <CardHeader>
-            <CardTitle>
+        <Card className="border-l-4 border-l-orange-500">
+          <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
+            <CardTitle className="text-2xl font-bold">
               {hasExistingSeeds ? "Enter Your Wallet PIN" : "Set Transaction PIN"}
             </CardTitle>
           </CardHeader>
