@@ -232,4 +232,13 @@ export class WalletEncryptionUtil {
   static validatePin(pin: string): boolean {
     return /^\d{4,6}$/.test(pin);
   }
+
+  // Re-encrypt a seed with a new PIN (for Change PIN feature)
+  static reEncryptSeed(encryptedSeed: string, oldPin: string, newPin: string): string {
+    // Decrypt with old PIN (throws if oldPin is incorrect)
+    const decrypted = this.decryptSeedWithPin(encryptedSeed, oldPin);
+
+    // Re-encrypt with new PIN
+    return this.encryptSeedWithPin(decrypted.mnemonic, decrypted.hexSeed, newPin);
+  }
 }
