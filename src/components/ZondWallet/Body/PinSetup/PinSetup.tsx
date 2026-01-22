@@ -30,7 +30,7 @@ const pinValidation = z.string()
 // Unified schema - reEnteredPin validation handled conditionally
 const FormSchema = z.object({
   pin: pinValidation,
-  reEnteredPin: pinValidation,
+  reEnteredPin: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -38,7 +38,9 @@ type FormValues = z.infer<typeof FormSchema>;
 // Create schema with PIN confirmation for new users
 const createSchema = (requireConfirmation: boolean) => {
   if (requireConfirmation) {
-    return FormSchema.refine((data) => data.pin === data.reEnteredPin, {
+    return FormSchema.extend({
+      reEnteredPin: pinValidation,
+    }).refine((data) => data.pin === data.reEnteredPin, {
       message: "PINs don't match",
       path: ["reEnteredPin"],
     });
@@ -221,8 +223,8 @@ export const PinSetup = ({
               {isStoringPin
                 ? "Encrypting..."
                 : hasExistingSeeds
-                ? "Import Wallet"
-                : "Set PIN"}
+                  ? "Import Wallet"
+                  : "Set PIN"}
             </ShinyButton>
           </CardFooter>
         </Card>
