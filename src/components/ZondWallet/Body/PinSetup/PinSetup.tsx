@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Button } from "../../../UI/Button";
 import {
   Card,
   CardContent,
@@ -12,8 +11,8 @@ import {
   FormField,
 } from "../../../UI/Form";
 import { PinInput } from "../../../UI/PinInput/PinInput";
+import { ShinyButton } from "../../../UI/ShinyButton";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { WalletEncryptionUtil } from "@/utils/crypto";
@@ -210,19 +209,18 @@ export const PinSetup = ({
             </div>
           </CardContent>
           <CardFooter>
-            <Button
-              disabled={isSubmitting || isStoringPin || !isValid}
+            <ShinyButton
+              disabled={isSubmitting || !isValid}
+              processing={isStoringPin}
               className="w-full"
               type="submit"
             >
-              {isSubmitting || isStoringPin ? (
-                <Loader className="mr-2 h-4 w-4 animate-spin" />
-              ) : hasExistingSeeds ? (
-                "Import Wallet"
-              ) : (
-                "Set PIN"
-              )}
-            </Button>
+              {isStoringPin
+                ? "Encrypting..."
+                : hasExistingSeeds
+                ? "Import Wallet"
+                : "Set PIN"}
+            </ShinyButton>
           </CardFooter>
         </Card>
       </form>
