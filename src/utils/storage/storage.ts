@@ -328,6 +328,17 @@ class StorageUtil {
   }
 
   /**
+   * Updates all encrypted seeds for a blockchain atomically
+   * Used when changing PIN - replaces all encrypted seeds with newly encrypted versions
+   * @param blockchain The blockchain identifier
+   * @param seeds Array of updated encrypted seed data
+   */
+  static async updateAllEncryptedSeeds(blockchain: string, seeds: EncryptedSeedData[]): Promise<void> {
+    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    this.setItem(encryptedSeedsKey, seeds);
+  }
+
+  /**
    * Removes an encrypted seed for an account
    * @param blockchain The blockchain identifier
    * @param address The account address
