@@ -1,5 +1,6 @@
 import { Checkbox } from "@/components/UI/CheckBox";
 import { Button } from "../../../../UI/Button";
+import { ShinyButton } from "../../../../UI/ShinyButton";
 import {
     Card,
     CardContent,
@@ -584,16 +585,14 @@ export const TokenCreationForm = observer(
 
                         </CardContent>
                         <CardFooter>
-                            <Button
-                                disabled={!isValid || isSubmitting || (!isUsingExtension && pin.length === 0) || isUsingExtension}
+                            <ShinyButton
+                                disabled={!isValid || (!isUsingExtension && pin.length === 0) || isUsingExtension}
+                                processing={isSubmitting}
                                 className="w-full"
                                 type="submit"
                             >
-                                {isSubmitting && (
-                                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                                )}
-                                Create Token
-                            </Button>
+                                {isSubmitting ? "Creating Token..." : "Create Token"}
+                            </ShinyButton>
                         </CardFooter>
                     </Card>
                 </form>
