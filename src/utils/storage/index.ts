@@ -2,6 +2,7 @@ export {
   default as StorageUtil,
   type AccountSource,
   type AccountListItem,
+  type EncryptedSeedData,
 } from './storage';
 
 export {
