@@ -71,6 +71,51 @@ async function restoreAccountState(blockchain: string, address: string): Promise
 }
 
 /**
+ * Handles CHANGE_PIN request from native app.
+ * Re-encrypts all seeds with the new PIN.
+ */
+async function handleChangePinRequest(oldPin: string, newPin: string): Promise<void> {
+  try {
+    const blockchain = await StorageUtil.getBlockChain();
+    const allSeeds = await StorageUtil.getAllEncryptedSeeds(blockchain);
+
+    if (allSeeds.length === 0) {
+      logToNative('No encrypted seeds found to re-encrypt');
+      sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.NO_ENCRYPTED_SEEDS);
+      return;
+    }
+
+    // Re-encrypt all seeds with the new PIN
+    const updatedSeeds = allSeeds.map(seedData => ({
+      ...seedData,
+      encryptedSeed: WalletEncryptionUtil.reEncryptSeed(
+        seedData.encryptedSeed,
+        oldPin,
+        newPin
+      ),
+    }));
+
+    // Save all re-encrypted seeds atomically
+    await StorageUtil.updateAllEncryptedSeeds(blockchain, updatedSeeds);
+
+    logToNative(`PIN changed successfully for ${updatedSeeds.length} wallet(s)`);
+    sendPinChanged(true, newPin);
+  } catch (error) {
+    console.error('[Bridge] Error changing PIN:', error);
+
+    // Check if it's a PIN decryption error (incorrect current PIN)
+    if (error instanceof PinDecryptionError) {
+      logToNative('PIN change failed: incorrect current PIN');
+      sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.INCORRECT_PIN);
+    } else {
+      // Don't expose internal error details to native app
+      logToNative(`PIN change failed: ${error instanceof Error ? error.message : String(error)}`);
+      sendPinChanged(false, undefined, 'An unexpected error occurred during PIN change.');
+    }
+  }
+}
+
+/**
  * Main bridge component - mount at app root
  */
 const NativeAppBridge: React.FC = () => {
@@ -274,60 +319,20 @@ const NativeAppBridge: React.FC = () => {
           const oldPin = payload?.oldPin;
           const newPin = payload?.newPin;
 
-          if (typeof oldPin !== 'string' || !oldPin || !WalletEncryptionUtil.validatePin(oldPin)) {
+          if (typeof oldPin !== 'string' || !WalletEncryptionUtil.validatePin(oldPin)) {
             console.warn('[Bridge] CHANGE_PIN missing or invalid oldPin');
             sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.INVALID_OLD_PIN);
             return;
           }
 
-          if (typeof newPin !== 'string' || !newPin || !WalletEncryptionUtil.validatePin(newPin)) {
+          if (typeof newPin !== 'string' || !WalletEncryptionUtil.validatePin(newPin)) {
             console.warn('[Bridge] CHANGE_PIN missing or invalid newPin');
             sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.INVALID_NEW_PIN);
             return;
           }
 
           logToNative('Changing PIN for all encrypted seeds...');
-
-          (async () => {
-            try {
-              const blockchain = await StorageUtil.getBlockChain();
-              const allSeeds = await StorageUtil.getAllEncryptedSeeds(blockchain);
-
-              if (allSeeds.length === 0) {
-                logToNative('No encrypted seeds found to re-encrypt');
-                sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.NO_ENCRYPTED_SEEDS);
-                return;
-              }
-
-              // Re-encrypt all seeds with the new PIN
-              const updatedSeeds = allSeeds.map(seedData => ({
-                ...seedData,
-                encryptedSeed: WalletEncryptionUtil.reEncryptSeed(
-                  seedData.encryptedSeed,
-                  oldPin,
-                  newPin
-                ),
-              }));
-
-              // Save all re-encrypted seeds atomically
-              await StorageUtil.updateAllEncryptedSeeds(blockchain, updatedSeeds);
-
-              logToNative(`PIN changed successfully for ${updatedSeeds.length} wallet(s)`);
-              sendPinChanged(true, newPin);
-            } catch (error) {
-              console.error('[Bridge] Error changing PIN:', error);
-
-              // Check if it's a PIN decryption error (incorrect current PIN)
-              if (error instanceof PinDecryptionError) {
-                logToNative('PIN change failed: incorrect current PIN');
-                sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.INCORRECT_PIN);
-              } else {
-                // Don't expose internal error details to native app
-                logToNative(`PIN change failed: ${error instanceof Error ? error.message : String(error)}`);
-                sendPinChanged(false, undefined, 'An unexpected error occurred during PIN change.');
-              }
-            }
-          })();
+          handleChangePinRequest(oldPin, newPin);
           break;
         }
 
