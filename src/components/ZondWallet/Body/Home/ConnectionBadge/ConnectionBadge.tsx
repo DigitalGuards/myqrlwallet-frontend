@@ -50,19 +50,34 @@ const PulsingDot = ({ isConnected }: { isConnected: boolean }) => {
   const color = isConnected ? "#22c55e" : "#ef4444"; // green-500 / red-500
 
   return (
-    <div
-      className="relative flex h-2 w-2 items-center justify-center rounded-full"
-      style={{ backgroundColor: hexToRgba(color, 0.4) }}
-    >
+    <>
+      <style>{`
+        @keyframes slow-ping {
+          75%, 100% {
+            transform: scale(2);
+            opacity: 0;
+          }
+        }
+        .animate-slow-ping {
+          animation: slow-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+      `}</style>
       <div
-        className="absolute flex h-3 w-3 animate-ping items-center justify-center rounded-full"
-        style={{ backgroundColor: color, opacity: 0.75 }}
-      />
-      <div
-        className="absolute flex h-2 w-2 items-center justify-center rounded-full"
-        style={{ backgroundColor: hexToRgba(color, 0.9) }}
-      />
-    </div>
+        className="relative flex h-2 w-2 items-center justify-center rounded-full"
+        style={{ backgroundColor: hexToRgba(color, 0.4) }}
+      >
+        <div
+          className={`absolute flex h-3 w-3 items-center justify-center rounded-full ${
+            isConnected ? "animate-slow-ping" : "animate-ping"
+          }`}
+          style={{ backgroundColor: color, opacity: 0.75 }}
+        />
+        <div
+          className="absolute flex h-2 w-2 items-center justify-center rounded-full"
+          style={{ backgroundColor: hexToRgba(color, 0.9) }}
+        />
+      </div>
+    </>
   );
 };
 

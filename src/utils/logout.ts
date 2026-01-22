@@ -2,6 +2,7 @@ import { ROUTES } from "@/router/router";
 import StorageUtil from "./storage/storage";
 import { ZOND_PROVIDER } from "@/config";
 import { isInNativeApp } from "./nativeApp";
+import { clearAttemptTracker } from "./crypto/pinAttemptTracker";
 
 /**
  * A utility function to handle logout by clearing
@@ -31,6 +32,11 @@ export const handleLogout = async (navigate: (path: string) => void) => {
                 StorageUtil.clearAllEncryptedSeeds(blockchain);
                 StorageUtil.clearAccountList(blockchain);
             }
+        }
+
+        // Clear PIN attempt tracker on web logout
+        if (!isInNativeApp()) {
+            clearAttemptTracker();
         }
 
         // Clear token list

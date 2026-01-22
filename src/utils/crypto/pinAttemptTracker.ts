@@ -87,6 +87,21 @@ export function getRemainingAttempts(): number {
 }
 
 /**
+ * Check if there have been any failed attempts
+ */
+export function hasFailedAttempts(): boolean {
+  const data = getAttemptData();
+  return data.failedAttempts > 0;
+}
+
+/**
+ * Clear all attempt tracking data (used on logout)
+ */
+export function clearAttemptTracker(): void {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+/**
  * Format remaining lockout time for display
  */
 export function formatLockoutTime(ms: number): string {
