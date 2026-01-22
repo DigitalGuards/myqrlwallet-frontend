@@ -27,22 +27,24 @@ const pinValidation = z.string()
   .max(6, "PIN must be at most 6 digits")
   .regex(/^\d+$/, "PIN must contain only digits");
 
-// Schema for existing users - just need to enter their PIN
-const ExistingPinSchema = z.object({
+// Unified schema - reEnteredPin validation handled conditionally
+const FormSchema = z.object({
   pin: pinValidation,
-  reEnteredPin: z.string().optional(),
+  reEnteredPin: z.string(),
 });
 
-// Schema for new users - must confirm their PIN
-const NewPinSchema = z.object({
-  pin: pinValidation,
-  reEnteredPin: pinValidation,
-}).refine((data) => data.pin === data.reEnteredPin, {
-  message: "PINs don't match",
-  path: ["reEnteredPin"],
-});
+type FormValues = z.infer<typeof FormSchema>;
 
-type FormValues = z.infer<typeof NewPinSchema>;
+// Create schema with PIN confirmation for new users
+const createSchema = (requireConfirmation: boolean) => {
+  if (requireConfirmation) {
+    return FormSchema.refine((data) => data.pin === data.reEnteredPin, {
+      message: "PINs don't match",
+      path: ["reEnteredPin"],
+    });
+  }
+  return FormSchema;
+};
 
 type PinSetupProps = {
   accountAddress: string;
@@ -74,9 +76,9 @@ export const PinSetup = ({
     checkExistingSeeds();
   }, [blockchain]);
 
-  // Use dynamic schema based on whether user has existing seeds
+  // Use dynamic schema - require PIN confirmation only for new users
   const form = useForm<FormValues>({
-    resolver: zodResolver(hasExistingSeeds ? ExistingPinSchema : NewPinSchema),
+    resolver: zodResolver(createSchema(!hasExistingSeeds)),
     mode: "onChange",
     reValidateMode: "onChange",
     defaultValues: {
