@@ -218,11 +218,13 @@ const Settings = observer(() => {
             // Reset form
             changePinForm.reset();
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "An error occurred";
-            setChangePinError(errorMessage);
+            // Log internally but show generic message to user
+            console.error("Error changing PIN:", error);
+            const genericMessage = "An unexpected error occurred while changing your PIN. Please try again.";
+            setChangePinError(genericMessage);
             toast({
                 title: "Error changing PIN",
-                description: errorMessage,
+                description: genericMessage,
                 variant: "destructive",
             });
         } finally {

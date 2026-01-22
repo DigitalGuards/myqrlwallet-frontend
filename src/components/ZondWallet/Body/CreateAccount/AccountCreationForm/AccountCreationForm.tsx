@@ -29,20 +29,39 @@ import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { Separator } from "@/components/UI/Separator";
 import { isInNativeApp } from "@/utils/nativeApp";
 
-// Unified form schema - reEnteredPin is optional and only validated when no existing seeds
-const FormSchema = z.object({
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  reEnteredPassword: z
-    .string()
-    .min(8, "Password must be at least 8 characters"),
-  pin: z.string().min(4, "PIN must be at least 4 digits").max(6, "PIN must be at most 6 digits"),
+// Base validation rules
+const passwordValidation = z.string().min(8, "Password must be at least 8 characters");
+const pinValidation = z.string()
+  .min(4, "PIN must be at least 4 digits")
+  .max(6, "PIN must be at most 6 digits")
+  .regex(/^\d+$/, "PIN must contain only digits");
+
+// Schema for existing users - just need to enter their PIN (no confirmation)
+const ExistingUserSchema = z.object({
+  password: passwordValidation,
+  reEnteredPassword: passwordValidation,
+  pin: pinValidation,
   reEnteredPin: z.string().optional(),
-}).refine((fields) => fields.password === fields.reEnteredPassword, {
+}).refine((data) => data.password === data.reEnteredPassword, {
   message: "Passwords don't match",
   path: ["reEnteredPassword"],
 });
 
-type FormValues = z.infer<typeof FormSchema>;
+// Schema for new users - must confirm their PIN
+const NewUserSchema = z.object({
+  password: passwordValidation,
+  reEnteredPassword: passwordValidation,
+  pin: pinValidation,
+  reEnteredPin: pinValidation,
+}).refine((data) => data.password === data.reEnteredPassword, {
+  message: "Passwords don't match",
+  path: ["reEnteredPassword"],
+}).refine((data) => data.pin === data.reEnteredPin, {
+  message: "PINs don't match",
+  path: ["reEnteredPin"],
+});
+
+type FormValues = z.infer<typeof NewUserSchema>;
 
 type AccountCreationFormProps = {
   onAccountCreated: (account: Web3BaseWalletAccount, password: string, pin: string) => void;
@@ -66,10 +85,11 @@ export const AccountCreationForm = observer(
       checkExistingSeeds();
     }, [blockchain]);
 
+    // Use dynamic schema based on whether user has existing seeds
     const form = useForm<FormValues>({
-      resolver: zodResolver(FormSchema),
+      resolver: zodResolver(hasExistingSeeds ? ExistingUserSchema : NewUserSchema),
       mode: "onChange",
-      reValidateMode: "onSubmit",
+      reValidateMode: "onChange",
       defaultValues: {
         password: "",
         reEnteredPassword: "",
@@ -80,29 +100,16 @@ export const AccountCreationForm = observer(
     const {
       handleSubmit,
       control,
-      formState: { isSubmitting },
+      formState: { isSubmitting, isValid },
       setError,
-      watch,
     } = form;
-
-    const password = watch("password");
-    const reEnteredPassword = watch("reEnteredPassword");
-    const pin = watch("pin");
-    const reEnteredPin = watch("reEnteredPin");
-
-    // Compute form validity manually to handle conditional PIN confirmation
-    const isPasswordValid = password.length >= 8 && password === reEnteredPassword;
-    const isPinValid = hasExistingSeeds
-      ? pin.length >= 4 && pin.length <= 6
-      : pin.length >= 4 && pin.length <= 6 && pin === reEnteredPin;
-    const isFormValid = isPasswordValid && isPinValid;
 
     async function onSubmit(formData: FormValues) {
       try {
         const userPassword = formData.password;
         const userPin = formData.pin;
 
-        // Validate password strength
+        // Validate password strength (more complex than basic zod validation)
         if (!WalletEncryptionUtil.validatePassword(userPassword)) {
           setError("password", {
             message: "Password must be at least 8 characters and contain uppercase, lowercase, numbers, and special characters",
@@ -110,23 +117,7 @@ export const AccountCreationForm = observer(
           return;
         }
 
-        // Validate PIN format
-        if (!WalletEncryptionUtil.validatePin(userPin)) {
-          setError("pin", {
-            message: "PIN must be 4-6 digits",
-          });
-          return;
-        }
-
-        // For new PIN setup, validate PINs match
-        if (!hasExistingSeeds) {
-          if (formData.pin !== formData.reEnteredPin) {
-            setError("reEnteredPin", {
-              message: "PINs don't match",
-            });
-            return;
-          }
-        }
+        // PIN format and matching validation is handled by zod schema
 
         // If existing seeds exist, verify PIN by attempting to decrypt one
         if (hasExistingSeeds && existingSeeds.length > 0) {
@@ -272,7 +263,7 @@ export const AccountCreationForm = observer(
                 </p>
               )}
               <Button
-                disabled={isSubmitting || !isFormValid || hasExistingSeeds === null}
+                disabled={isSubmitting || !isValid || hasExistingSeeds === null}
                 className="w-full"
                 type="submit"
               >

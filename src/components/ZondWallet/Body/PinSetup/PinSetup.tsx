@@ -21,13 +21,28 @@ import { StorageUtil } from "@/utils/storage";
 import { useStore } from "../../../../stores/store";
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
 
-// Unified form schema - reEnteredPin is optional and only validated when needed
-const FormSchema = z.object({
-  pin: z.string().min(4, "PIN must be at least 4 digits").max(6, "PIN must be at most 6 digits"),
+// Base PIN validation
+const pinValidation = z.string()
+  .min(4, "PIN must be at least 4 digits")
+  .max(6, "PIN must be at most 6 digits")
+  .regex(/^\d+$/, "PIN must contain only digits");
+
+// Schema for existing users - just need to enter their PIN
+const ExistingPinSchema = z.object({
+  pin: pinValidation,
   reEnteredPin: z.string().optional(),
 });
 
-type FormValues = z.infer<typeof FormSchema>;
+// Schema for new users - must confirm their PIN
+const NewPinSchema = z.object({
+  pin: pinValidation,
+  reEnteredPin: pinValidation,
+}).refine((data) => data.pin === data.reEnteredPin, {
+  message: "PINs don't match",
+  path: ["reEnteredPin"],
+});
+
+type FormValues = z.infer<typeof NewPinSchema>;
 
 type PinSetupProps = {
   accountAddress: string;
@@ -59,10 +74,11 @@ export const PinSetup = ({
     checkExistingSeeds();
   }, [blockchain]);
 
+  // Use dynamic schema based on whether user has existing seeds
   const form = useForm<FormValues>({
-    resolver: zodResolver(FormSchema),
+    resolver: zodResolver(hasExistingSeeds ? ExistingPinSchema : NewPinSchema),
     mode: "onChange",
-    reValidateMode: "onSubmit",
+    reValidateMode: "onChange",
     defaultValues: {
       pin: "",
       reEnteredPin: "",
@@ -72,44 +88,16 @@ export const PinSetup = ({
   const {
     handleSubmit,
     control,
-    formState: { isSubmitting },
+    formState: { isSubmitting, isValid },
     setError,
-    watch,
   } = form;
-
-  // eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form watch() is intentionally used for real-time validation
-  const pin = watch("pin");
-  const reEnteredPin = watch("reEnteredPin");
-
-  // For new PIN setup, check if PINs match and are valid length
-  const isFormValid = hasExistingSeeds
-    ? pin.length >= 4 && pin.length <= 6
-    : pin.length >= 4 && pin.length <= 6 && pin === reEnteredPin;
 
   async function onSubmit(formData: FormValues) {
     try {
       setIsStoringPin(true);
       const userPin = formData.pin;
 
-      // Validate PIN format
-      if (!WalletEncryptionUtil.validatePin(userPin)) {
-        setError("pin", {
-          message: "PIN must be 4-6 digits",
-        });
-        setIsStoringPin(false);
-        return;
-      }
-
-      // For new PIN setup, validate PINs match
-      if (!hasExistingSeeds) {
-        if (formData.pin !== formData.reEnteredPin) {
-          setError("reEnteredPin", {
-            message: "PINs don't match",
-          });
-          setIsStoringPin(false);
-          return;
-        }
-      }
+      // PIN format and matching validation is handled by zod schema
 
       // If existing seeds exist, verify PIN by attempting to decrypt one
       if (hasExistingSeeds && existingSeeds.length > 0) {
@@ -223,7 +211,7 @@ export const PinSetup = ({
           </CardContent>
           <CardFooter>
             <Button
-              disabled={isSubmitting || isStoringPin || !isFormValid}
+              disabled={isSubmitting || isStoringPin || !isValid}
               className="w-full"
               type="submit"
             >
