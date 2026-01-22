@@ -37,7 +37,7 @@ interface WalletSettings {
   hideUnknownTokens: boolean;
 }
 
-interface EncryptedSeedData {
+export interface EncryptedSeedData {
   address: string;
   encryptedSeed: string; // JSON string from WalletEncryptionUtil.encryptSeedWithPin
   lastAccessed: number;
@@ -305,6 +305,26 @@ class StorageUtil {
     }
 
     return null;
+  }
+
+  /**
+   * Retrieves all encrypted seeds for a blockchain
+   * @param blockchain The blockchain identifier
+   * @returns Array of all stored encrypted seeds
+   */
+  static async getAllEncryptedSeeds(blockchain: string): Promise<EncryptedSeedData[]> {
+    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    return this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
+  }
+
+  /**
+   * Checks if any encrypted seeds exist for a blockchain
+   * @param blockchain The blockchain identifier
+   * @returns True if at least one encrypted seed exists
+   */
+  static async hasEncryptedSeeds(blockchain: string): Promise<boolean> {
+    const seeds = await this.getAllEncryptedSeeds(blockchain);
+    return seeds.length > 0;
   }
 
   /**
