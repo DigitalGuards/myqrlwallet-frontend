@@ -32,6 +32,13 @@ import { SEO } from "@/components/SEO/SEO";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil } from "@/utils/crypto/walletEncryption";
 import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
+import {
+    checkLockout,
+    recordFailedAttempt,
+    recordSuccessfulAttempt,
+    formatLockoutTime,
+    getRemainingAttempts,
+} from "@/utils/crypto/pinAttemptTracker";
 
 const SettingsFormSchema = z.object({
     autoLockTimeout: z.number().min(1).max(60),
@@ -62,6 +69,8 @@ const Settings = observer(() => {
     const [hasEncryptedSeeds, setHasEncryptedSeeds] = useState(false);
     const [isChangingPin, setIsChangingPin] = useState(false);
     const [changePinError, setChangePinError] = useState<string | null>(null);
+    const [pinLockout, setPinLockout] = useState<{ isLocked: boolean; remainingMs: number }>({ isLocked: false, remainingMs: 0 });
+    const [attemptsLeft, setAttemptsLeft] = useState(5);
 
     // Check for existing encrypted seeds on mount
     useEffect(() => {
@@ -71,6 +80,28 @@ const Settings = observer(() => {
             setHasEncryptedSeeds(hasSeeds);
         };
         checkSeeds();
+    }, []);
+
+    // Check and update lockout status
+    useEffect(() => {
+        const updateLockoutStatus = () => {
+            const lockoutStatus = checkLockout();
+            setPinLockout(lockoutStatus);
+            setAttemptsLeft(getRemainingAttempts());
+        };
+
+        updateLockoutStatus();
+
+        // Update every second if locked out (to show countdown)
+        const interval = setInterval(() => {
+            const lockoutStatus = checkLockout();
+            setPinLockout(lockoutStatus);
+            if (!lockoutStatus.isLocked) {
+                setAttemptsLeft(getRemainingAttempts());
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
     }, []);
 
     const form = useForm<SettingsFormValues>({
@@ -121,6 +152,13 @@ const Settings = observer(() => {
     });
 
     async function onChangePinSubmit(data: ChangePinFormValues) {
+        // Check if locked out
+        const lockoutStatus = checkLockout();
+        if (lockoutStatus.isLocked) {
+            setChangePinError(`Too many failed attempts. Please wait ${formatLockoutTime(lockoutStatus.remainingMs)}.`);
+            return;
+        }
+
         setIsChangingPin(true);
         setChangePinError(null);
 
@@ -137,7 +175,16 @@ const Settings = observer(() => {
             try {
                 WalletEncryptionUtil.decryptSeedWithPin(allSeeds[0].encryptedSeed, data.currentPin);
             } catch {
-                setChangePinError("Incorrect PIN. Please try again.");
+                // Record failed attempt
+                const result = recordFailedAttempt();
+                setPinLockout({ isLocked: result.isLocked, remainingMs: result.remainingMs });
+                setAttemptsLeft(result.attemptsLeft);
+
+                if (result.isLocked) {
+                    setChangePinError(`Too many failed attempts. Please wait ${formatLockoutTime(result.remainingMs)}.`);
+                } else {
+                    setChangePinError(`Incorrect PIN. ${result.attemptsLeft} attempt${result.attemptsLeft === 1 ? '' : 's'} remaining.`);
+                }
                 return;
             }
 
@@ -158,6 +205,10 @@ const Settings = observer(() => {
             if (isInNativeApp()) {
                 sendPinChanged(true, data.newPin);
             }
+
+            // Record successful attempt (resets counter)
+            recordSuccessfulAttempt();
+            setAttemptsLeft(5);
 
             toast({
                 title: "PIN changed successfully",
@@ -327,7 +378,17 @@ const Settings = observer(() => {
                                 <Form {...changePinForm}>
                                     <form onSubmit={changePinForm.handleSubmit(onChangePinSubmit)}>
                                         <CardContent className="space-y-6">
-                                            {changePinError && (
+                                            {pinLockout.isLocked && (
+                                                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                                                    Too many failed attempts. Please wait {formatLockoutTime(pinLockout.remainingMs)}.
+                                                </div>
+                                            )}
+                                            {!pinLockout.isLocked && attemptsLeft < 5 && attemptsLeft > 0 && (
+                                                <div className="rounded-md bg-yellow-500/15 p-3 text-sm text-yellow-600 dark:text-yellow-400">
+                                                    {attemptsLeft} attempt{attemptsLeft === 1 ? '' : 's'} remaining before lockout.
+                                                </div>
+                                            )}
+                                            {changePinError && !pinLockout.isLocked && (
                                                 <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                                                     {changePinError}
                                                 </div>
@@ -345,7 +406,7 @@ const Settings = observer(() => {
                                                                 onChange={field.onChange}
                                                                 placeholder="Enter current PIN"
                                                                 error={fieldState.error?.message}
-                                                                disabled={isChangingPin}
+                                                                disabled={isChangingPin || pinLockout.isLocked}
                                                             />
                                                         </FormControl>
                                                     </FormItem>
@@ -364,7 +425,7 @@ const Settings = observer(() => {
                                                                 onChange={field.onChange}
                                                                 placeholder="Enter new PIN"
                                                                 error={fieldState.error?.message}
-                                                                disabled={isChangingPin}
+                                                                disabled={isChangingPin || pinLockout.isLocked}
                                                             />
                                                         </FormControl>
                                                         <FormDescription>
@@ -386,7 +447,7 @@ const Settings = observer(() => {
                                                                 onChange={field.onChange}
                                                                 placeholder="Confirm new PIN"
                                                                 error={fieldState.error?.message}
-                                                                disabled={isChangingPin}
+                                                                disabled={isChangingPin || pinLockout.isLocked}
                                                             />
                                                         </FormControl>
                                                     </FormItem>
@@ -398,7 +459,7 @@ const Settings = observer(() => {
                                             <Button
                                                 type="submit"
                                                 className="w-full"
-                                                disabled={isChangingPin}
+                                                disabled={isChangingPin || pinLockout.isLocked}
                                             >
                                                 <Shield className="mr-2 h-4 w-4" />
                                                 {isChangingPin ? "Changing PIN..." : "Change PIN"}
