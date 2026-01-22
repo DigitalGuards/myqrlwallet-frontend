@@ -36,32 +36,29 @@ const pinValidation = z.string()
   .max(6, "PIN must be at most 6 digits")
   .regex(/^\d+$/, "PIN must contain only digits");
 
-// Schema for existing users - just need to enter their PIN (no confirmation)
-const ExistingUserSchema = z.object({
+// Unified schema with password confirmation always required
+const FormSchema = z.object({
   password: passwordValidation,
   reEnteredPassword: passwordValidation,
   pin: pinValidation,
-  reEnteredPin: z.string().optional(),
+  reEnteredPin: z.string(),
 }).refine((data) => data.password === data.reEnteredPassword, {
   message: "Passwords don't match",
   path: ["reEnteredPassword"],
 });
 
-// Schema for new users - must confirm their PIN
-const NewUserSchema = z.object({
-  password: passwordValidation,
-  reEnteredPassword: passwordValidation,
-  pin: pinValidation,
-  reEnteredPin: pinValidation,
-}).refine((data) => data.password === data.reEnteredPassword, {
-  message: "Passwords don't match",
-  path: ["reEnteredPassword"],
-}).refine((data) => data.pin === data.reEnteredPin, {
-  message: "PINs don't match",
-  path: ["reEnteredPin"],
-});
+type FormValues = z.infer<typeof FormSchema>;
 
-type FormValues = z.infer<typeof NewUserSchema>;
+// Create schema with PIN confirmation for new users
+const createSchema = (requirePinConfirmation: boolean) => {
+  if (requirePinConfirmation) {
+    return FormSchema.refine((data) => data.pin === data.reEnteredPin, {
+      message: "PINs don't match",
+      path: ["reEnteredPin"],
+    });
+  }
+  return FormSchema;
+};
 
 type AccountCreationFormProps = {
   onAccountCreated: (account: Web3BaseWalletAccount, password: string, pin: string) => void;
@@ -85,9 +82,9 @@ export const AccountCreationForm = observer(
       checkExistingSeeds();
     }, [blockchain]);
 
-    // Use dynamic schema based on whether user has existing seeds
+    // Use dynamic schema - require PIN confirmation only for new users
     const form = useForm<FormValues>({
-      resolver: zodResolver(hasExistingSeeds ? ExistingUserSchema : NewUserSchema),
+      resolver: zodResolver(createSchema(!hasExistingSeeds)),
       mode: "onChange",
       reValidateMode: "onChange",
       defaultValues: {
