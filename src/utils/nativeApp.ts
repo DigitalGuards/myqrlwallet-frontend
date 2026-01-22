@@ -42,7 +42,8 @@ export type NativeToWebMessageType =
   | 'RESTORE_SEED'          // Native sends backup seed if localStorage empty
   | 'CLEAR_WALLET'          // Native requests web to clear wallet
   | 'BIOMETRIC_SETUP_PROMPT' // Native prompts user to enable biometric
-  | 'VERIFY_PIN';           // Native asks web to verify PIN can decrypt seed
+  | 'VERIFY_PIN'            // Native asks web to verify PIN can decrypt seed
+  | 'CHANGE_PIN';           // Native requests web to re-encrypt seeds with new PIN
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
