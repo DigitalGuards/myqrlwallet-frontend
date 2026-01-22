@@ -194,7 +194,7 @@ export class WalletEncryptionUtil {
     // Use PBKDF2 to derive key from PIN
     const key = CryptoJS.PBKDF2(pin, salt, {
       keySize: 256/32,
-      iterations: 100000 // High iteration count for brute force resistance
+      iterations: 600000 // OWASP 2023 recommended minimum for brute force resistance
     });
 
     const encrypted = CryptoJS.AES.encrypt(
@@ -211,7 +211,7 @@ export class WalletEncryptionUtil {
       encryptedData: encrypted.toString(),
       salt: salt.toString(),
       iv: iv.toString(),
-      version: 'pin_v2', // v2 uses 100k iterations (v1 used 5k)
+      version: 'pin_v3', // v3 uses 600k iterations (v2 used 100k, v1 used 5k)
       timestamp: Date.now()
     });
   }
@@ -222,8 +222,10 @@ export class WalletEncryptionUtil {
       const salt = CryptoJS.enc.Hex.parse(parsed.salt);
       const iv = CryptoJS.enc.Hex.parse(parsed.iv);
 
-      // Support both v1 (5k iterations) and v2 (100k iterations)
-      const iterations = parsed.version === 'pin_v2' ? 100000 : 5000;
+      // Support v1 (5k), v2 (100k), and v3 (600k) iterations for backward compatibility
+      const iterations = parsed.version === 'pin_v3' ? 600000
+                       : parsed.version === 'pin_v2' ? 100000
+                       : 5000;
 
       const key = CryptoJS.PBKDF2(pin, salt, {
         keySize: 256/32,
