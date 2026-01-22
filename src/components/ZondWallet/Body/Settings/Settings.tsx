@@ -38,6 +38,7 @@ import {
     recordSuccessfulAttempt,
     formatLockoutTime,
     getRemainingAttempts,
+    hasFailedAttempts,
 } from "@/utils/crypto/pinAttemptTracker";
 
 const SettingsFormSchema = z.object({
@@ -247,6 +248,114 @@ const Settings = observer(() => {
                         <source src="/tree.mp4" type="video/mp4" />
                     </video> */ }
                     <div className="relative z-10 space-y-8">
+                        {/* PIN Management Card - only visible when user has encrypted seeds */}
+                        {hasEncryptedSeeds && (
+                            <Card className="border-l-4 border-l-orange-500">
+                                <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
+                                    <div className="flex items-center gap-2">
+                                        <Shield className="h-6 w-6 text-orange-500" />
+                                        <CardTitle className="text-2xl font-bold">PIN Management</CardTitle>
+                                    </div>
+                                    <CardDescription>
+                                        Change your wallet PIN used to encrypt your seeds
+                                    </CardDescription>
+                                </CardHeader>
+
+                                <Form {...changePinForm}>
+                                    <form onSubmit={changePinForm.handleSubmit(onChangePinSubmit)}>
+                                        <CardContent className="space-y-6">
+                                            {pinLockout.isLocked && (
+                                                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                                                    Too many failed attempts. Please wait {formatLockoutTime(pinLockout.remainingMs)}.
+                                                </div>
+                                            )}
+                                            {!pinLockout.isLocked && hasFailedAttempts() && attemptsLeft > 0 && (
+                                                <div className="rounded-md bg-yellow-500/15 p-3 text-sm text-yellow-600 dark:text-yellow-400">
+                                                    {attemptsLeft} attempt{attemptsLeft === 1 ? '' : 's'} remaining before lockout.
+                                                </div>
+                                            )}
+                                            {changePinError && !pinLockout.isLocked && (
+                                                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                                                    {changePinError}
+                                                </div>
+                                            )}
+
+                                            <FormField
+                                                control={changePinForm.control}
+                                                name="currentPin"
+                                                render={({ field, fieldState }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Current PIN</FormLabel>
+                                                        <FormControl>
+                                                            <PinInput
+                                                                value={field.value}
+                                                                onChange={field.onChange}
+                                                                placeholder="Enter current PIN"
+                                                                error={fieldState.error?.message}
+                                                                disabled={isChangingPin || pinLockout.isLocked}
+                                                            />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={changePinForm.control}
+                                                name="newPin"
+                                                render={({ field, fieldState }) => (
+                                                    <FormItem>
+                                                        <FormLabel>New PIN</FormLabel>
+                                                        <FormControl>
+                                                            <PinInput
+                                                                value={field.value}
+                                                                onChange={field.onChange}
+                                                                placeholder="Enter new PIN"
+                                                                error={fieldState.error?.message}
+                                                                disabled={isChangingPin || pinLockout.isLocked}
+                                                            />
+                                                        </FormControl>
+                                                        <FormDescription>
+                                                            PIN must be 4-6 digits
+                                                        </FormDescription>
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={changePinForm.control}
+                                                name="confirmNewPin"
+                                                render={({ field, fieldState }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Confirm New PIN</FormLabel>
+                                                        <FormControl>
+                                                            <PinInput
+                                                                value={field.value}
+                                                                onChange={field.onChange}
+                                                                placeholder="Confirm new PIN"
+                                                                error={fieldState.error?.message}
+                                                                disabled={isChangingPin || pinLockout.isLocked}
+                                                            />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </CardContent>
+
+                                        <CardFooter>
+                                            <Button
+                                                type="submit"
+                                                className="w-full"
+                                                disabled={isChangingPin || pinLockout.isLocked}
+                                            >
+                                                <Shield className="mr-2 h-4 w-4" />
+                                                {isChangingPin ? "Changing PIN..." : "Change PIN"}
+                                            </Button>
+                                        </CardFooter>
+                                    </form>
+                                </Form>
+                            </Card>
+                        )}
+
                         <NetworkSettings />
 
                         <Card className="border-l-4 border-l-blue-accent">
@@ -363,114 +472,6 @@ const Settings = observer(() => {
                                 </form>
                             </Form>
                         </Card>
-
-                        {/* PIN Management Card - only visible when user has encrypted seeds */}
-                        {hasEncryptedSeeds && (
-                            <Card className="border-l-4 border-l-orange-500">
-                                <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
-                                    <div className="flex items-center gap-2">
-                                        <Shield className="h-6 w-6 text-orange-500" />
-                                        <CardTitle className="text-2xl font-bold">PIN Management</CardTitle>
-                                    </div>
-                                    <CardDescription>
-                                        Change your wallet PIN used to encrypt your seeds
-                                    </CardDescription>
-                                </CardHeader>
-
-                                <Form {...changePinForm}>
-                                    <form onSubmit={changePinForm.handleSubmit(onChangePinSubmit)}>
-                                        <CardContent className="space-y-6">
-                                            {pinLockout.isLocked && (
-                                                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-                                                    Too many failed attempts. Please wait {formatLockoutTime(pinLockout.remainingMs)}.
-                                                </div>
-                                            )}
-                                            {!pinLockout.isLocked && attemptsLeft < 5 && attemptsLeft > 0 && (
-                                                <div className="rounded-md bg-yellow-500/15 p-3 text-sm text-yellow-600 dark:text-yellow-400">
-                                                    {attemptsLeft} attempt{attemptsLeft === 1 ? '' : 's'} remaining before lockout.
-                                                </div>
-                                            )}
-                                            {changePinError && !pinLockout.isLocked && (
-                                                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-                                                    {changePinError}
-                                                </div>
-                                            )}
-
-                                            <FormField
-                                                control={changePinForm.control}
-                                                name="currentPin"
-                                                render={({ field, fieldState }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Current PIN</FormLabel>
-                                                        <FormControl>
-                                                            <PinInput
-                                                                value={field.value}
-                                                                onChange={field.onChange}
-                                                                placeholder="Enter current PIN"
-                                                                error={fieldState.error?.message}
-                                                                disabled={isChangingPin || pinLockout.isLocked}
-                                                            />
-                                                        </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
-
-                                            <FormField
-                                                control={changePinForm.control}
-                                                name="newPin"
-                                                render={({ field, fieldState }) => (
-                                                    <FormItem>
-                                                        <FormLabel>New PIN</FormLabel>
-                                                        <FormControl>
-                                                            <PinInput
-                                                                value={field.value}
-                                                                onChange={field.onChange}
-                                                                placeholder="Enter new PIN"
-                                                                error={fieldState.error?.message}
-                                                                disabled={isChangingPin || pinLockout.isLocked}
-                                                            />
-                                                        </FormControl>
-                                                        <FormDescription>
-                                                            PIN must be 4-6 digits
-                                                        </FormDescription>
-                                                    </FormItem>
-                                                )}
-                                            />
-
-                                            <FormField
-                                                control={changePinForm.control}
-                                                name="confirmNewPin"
-                                                render={({ field, fieldState }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Confirm New PIN</FormLabel>
-                                                        <FormControl>
-                                                            <PinInput
-                                                                value={field.value}
-                                                                onChange={field.onChange}
-                                                                placeholder="Confirm new PIN"
-                                                                error={fieldState.error?.message}
-                                                                disabled={isChangingPin || pinLockout.isLocked}
-                                                            />
-                                                        </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </CardContent>
-
-                                        <CardFooter>
-                                            <Button
-                                                type="submit"
-                                                className="w-full"
-                                                disabled={isChangingPin || pinLockout.isLocked}
-                                            >
-                                                <Shield className="mr-2 h-4 w-4" />
-                                                {isChangingPin ? "Changing PIN..." : "Change PIN"}
-                                            </Button>
-                                        </CardFooter>
-                                    </form>
-                                </Form>
-                            </Card>
-                        )}
                     </div>
                 </div>
             </div>
