@@ -118,7 +118,10 @@ export const CopyAddressButton = ({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <div className="absolute invisible group-hover:visible -bottom-[270px] left-1/2 transform -translate-x-1/2 bg-card rounded-lg p-4 shadow-lg z-50 border border-border">
+      <div className="absolute invisible group-hover:visible hover:visible -bottom-[270px] left-1/2 transform -translate-x-1/2 z-50">
+        {/* Invisible bridge to maintain hover when moving from button to popup */}
+        <div className="absolute -top-4 left-0 right-0 h-4" />
+        <div className="bg-card rounded-lg p-4 shadow-lg border border-border">
         <div className="flex flex-col items-center gap-3">
           <QRCodeSVG
             ref={qrRef}
@@ -147,6 +150,7 @@ export const CopyAddressButton = ({
               </>
             )}
           </Button>
+        </div>
         </div>
       </div>
     </span>
