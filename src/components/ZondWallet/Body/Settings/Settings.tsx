@@ -30,7 +30,7 @@ import { StorageUtil, EncryptedSeedData } from "@/utils/storage";
 import { Save, Shield } from "lucide-react";
 import { SEO } from "@/components/SEO/SEO";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
-import { WalletEncryptionUtil } from "@/utils/crypto/walletEncryption";
+import { decryptSeedAsync, reEncryptSeedAsync } from "@/utils/crypto";
 import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
 import {
     checkLockout,
@@ -175,8 +175,9 @@ const Settings = observer(() => {
             }
 
             // Verify current PIN by attempting to decrypt the first seed
+            // Uses Web Worker to avoid blocking UI during PBKDF2
             try {
-                WalletEncryptionUtil.decryptSeedWithPin(allSeeds[0].encryptedSeed, data.currentPin);
+                await decryptSeedAsync(allSeeds[0].encryptedSeed, data.currentPin);
             } catch {
                 // Record failed attempt
                 const result = recordFailedAttempt();
@@ -191,15 +192,18 @@ const Settings = observer(() => {
                 return;
             }
 
-            // Re-encrypt all seeds with the new PIN
-            const updatedSeeds: EncryptedSeedData[] = allSeeds.map((seed) => ({
-                ...seed,
-                encryptedSeed: WalletEncryptionUtil.reEncryptSeed(
-                    seed.encryptedSeed,
-                    data.currentPin,
-                    data.newPin
-                ),
-            }));
+            // Re-encrypt all seeds with the new PIN using Web Worker
+            // This runs PBKDF2 (600k iterations) off the main thread
+            const updatedSeeds: EncryptedSeedData[] = await Promise.all(
+                allSeeds.map(async (seed) => ({
+                    ...seed,
+                    encryptedSeed: await reEncryptSeedAsync(
+                        seed.encryptedSeed,
+                        data.currentPin,
+                        data.newPin
+                    ),
+                }))
+            );
 
             // Update all seeds atomically
             await StorageUtil.updateAllEncryptedSeeds(blockchain, updatedSeeds);

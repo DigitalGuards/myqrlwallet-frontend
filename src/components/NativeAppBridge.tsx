@@ -20,10 +20,12 @@ import {
   sendPinVerified,
   sendPinChanged,
 } from '@/utils/nativeApp';
-import { WalletEncryptionUtil, PinDecryptionError } from '@/utils/crypto/walletEncryption';
+import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
+import { reEncryptSeedAsync } from '@/utils/crypto';
 import { ROUTES } from '@/router/router';
 import StorageUtil from '@/utils/storage/storage';
 import { ZOND_PROVIDER } from '@/config';
+import { store } from '@/stores/store';
 
 /** Error messages for PIN verification - forms API contract with native app */
 const PIN_VERIFY_ERRORS = {
@@ -43,25 +45,30 @@ const PIN_CHANGE_ERRORS = {
 
 /**
  * Restores account state after RESTORE_SEED message.
- * Sets as active if needed (which also adds to account list), then reloads to fetch fresh balance.
+ * Updates MobX store directly instead of reloading the page.
  */
 async function restoreAccountState(blockchain: string, address: string): Promise<void> {
   try {
+    const { zondStore } = store;
     const currentActive = await StorageUtil.getActiveAccount(blockchain);
+
     if (!currentActive) {
-      // setActiveAccount also adds to account list if not present
-      await StorageUtil.setActiveAccount(blockchain, address);
-      logToNative(`Set ${address} as active account`);
-      window.location.reload();
+      // Set as active account - zondStore.setActiveAccount handles:
+      // - Adding to account list
+      // - Fetching balances
+      // - Token discovery
+      await zondStore.setActiveAccount(address, 'seed');
+      logToNative(`Set ${address} as active account via store`);
       return;
     }
 
-    // Active account exists - just ensure restored account is in the list
+    // Active account exists - ensure restored account is in the list
     const accountList = await StorageUtil.getAccountList(blockchain);
     if (!accountList.some(item => item.address.toLowerCase() === address.toLowerCase())) {
       await StorageUtil.setAccountList(blockchain, [...accountList, { address, source: 'seed' }]);
       logToNative(`Added ${address} to account list`);
-      window.location.reload();
+      // Refresh accounts to pick up the new one
+      await zondStore.fetchAccounts();
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -72,7 +79,7 @@ async function restoreAccountState(blockchain: string, address: string): Promise
 
 /**
  * Handles CHANGE_PIN request from native app.
- * Re-encrypts all seeds with the new PIN.
+ * Re-encrypts all seeds with the new PIN using Web Worker.
  */
 async function handleChangePinRequest(oldPin: string, newPin: string): Promise<void> {
   try {
@@ -85,15 +92,14 @@ async function handleChangePinRequest(oldPin: string, newPin: string): Promise<v
       return;
     }
 
-    // Re-encrypt all seeds with the new PIN
-    const updatedSeeds = allSeeds.map(seedData => ({
-      ...seedData,
-      encryptedSeed: WalletEncryptionUtil.reEncryptSeed(
-        seedData.encryptedSeed,
-        oldPin,
-        newPin
-      ),
-    }));
+    // Re-encrypt all seeds with the new PIN using Web Worker
+    // This runs PBKDF2 off the main thread to keep UI responsive
+    const updatedSeeds = await Promise.all(
+      allSeeds.map(async (seedData) => ({
+        ...seedData,
+        encryptedSeed: await reEncryptSeedAsync(seedData.encryptedSeed, oldPin, newPin),
+      }))
+    );
 
     // Save all re-encrypted seeds atomically
     await StorageUtil.updateAllEncryptedSeeds(blockchain, updatedSeeds);
@@ -103,13 +109,16 @@ async function handleChangePinRequest(oldPin: string, newPin: string): Promise<v
   } catch (error) {
     console.error('[Bridge] Error changing PIN:', error);
 
-    // Check if it's a PIN decryption error (incorrect current PIN)
-    if (error instanceof PinDecryptionError) {
+    // Check if error message indicates incorrect PIN
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isIncorrectPin = errorMessage.includes('decrypt') || errorMessage.includes('Invalid PIN');
+
+    if (isIncorrectPin) {
       logToNative('PIN change failed: incorrect current PIN');
       sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.INCORRECT_PIN);
     } else {
       // Don't expose internal error details to native app
-      logToNative(`PIN change failed: ${error instanceof Error ? error.message : String(error)}`);
+      logToNative(`PIN change failed: ${errorMessage}`);
       sendPinChanged(false, undefined, 'An unexpected error occurred during PIN change.');
     }
   }
@@ -249,8 +258,12 @@ const NativeAppBridge: React.FC = () => {
           // Confirm to native that web cleared its data
           confirmWalletCleared();
 
-          // Reload the app - reload will navigate to appropriate page based on wallet state
-          window.location.reload();
+          // Reset MobX store and navigate to home
+          const { zondStore } = store;
+          zondStore.setActiveAccount(undefined);
+          zondStore.fetchAccounts();
+          navigate(ROUTES.HOME);
+          logToNative('Wallet cleared, navigated to home');
           break;
         }
 

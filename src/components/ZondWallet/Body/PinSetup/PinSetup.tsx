@@ -16,7 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { WalletEncryptionUtil } from "@/utils/crypto";
+import { encryptSeedAsync, decryptSeedAsync } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 import { useStore } from "../../../../stores/store";
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
@@ -104,9 +104,10 @@ export const PinSetup = ({
       // PIN format and matching validation is handled by zod schema
 
       // If existing seeds exist, verify PIN by attempting to decrypt one
+      // Uses Web Worker to avoid blocking UI during PBKDF2
       if (hasExistingSeeds && existingSeeds.length > 0) {
         try {
-          WalletEncryptionUtil.decryptSeedWithPin(existingSeeds[0].encryptedSeed, userPin);
+          await decryptSeedAsync(existingSeeds[0].encryptedSeed, userPin);
         } catch {
           setError("pin", {
             message: "Incorrect PIN. Please try again.",
@@ -116,12 +117,9 @@ export const PinSetup = ({
         }
       }
 
-      // Encrypt the seed with the PIN
-      const encryptedSeed = WalletEncryptionUtil.encryptSeedWithPin(
-        mnemonic,
-        hexSeed,
-        userPin
-      );
+      // Encrypt the seed with the PIN using Web Worker
+      // This runs PBKDF2 (600k iterations) off the main thread
+      const encryptedSeed = await encryptSeedAsync(mnemonic, hexSeed, userPin);
 
       // Store the encrypted seed in localStorage
       await StorageUtil.storeEncryptedSeed(
