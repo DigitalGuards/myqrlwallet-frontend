@@ -25,7 +25,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useState, useEffect } from "react";
 import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
-import { toast } from "@/hooks/use-toast";
 import { StorageUtil, EncryptedSeedData } from "@/utils/storage";
 import { Save, Shield } from "lucide-react";
 import { SEO } from "@/components/SEO/SEO";
@@ -73,6 +72,8 @@ const Settings = observer(() => {
     const [changePinSuccess, setChangePinSuccess] = useState(false);
     const [pinLockout, setPinLockout] = useState<{ isLocked: boolean; remainingMs: number }>({ isLocked: false, remainingMs: 0 });
     const [attemptsLeft, setAttemptsLeft] = useState(5);
+    const [settingsSaveSuccess, setSettingsSaveSuccess] = useState(false);
+    const [settingsSaveError, setSettingsSaveError] = useState<string | null>(null);
 
     // Check for existing encrypted seeds on mount
     useEffect(() => {
@@ -120,6 +121,8 @@ const Settings = observer(() => {
     });
 
     async function onSubmit(data: SettingsFormValues) {
+        setSettingsSaveSuccess(false);
+        setSettingsSaveError(null);
         try {
             setIsSubmitting(true);
             // Convert minutes to milliseconds for storage
@@ -128,16 +131,9 @@ const Settings = observer(() => {
                 autoLockTimeout: data.autoLockTimeout * 60 * 1000
             };
             await StorageUtil.setWalletSettings(settingsToSave);
-            toast({
-                title: "Settings saved successfully",
-                description: "Your wallet settings have been updated.",
-            });
+            setSettingsSaveSuccess(true);
         } catch (_error) {
-            toast({
-                title: "Error saving settings",
-                description: "There was an error saving your settings.",
-                variant: "destructive",
-            });
+            setSettingsSaveError("There was an error saving your settings.");
         } finally {
             setIsSubmitting(false);
         }
@@ -225,13 +221,7 @@ const Settings = observer(() => {
         } catch (error) {
             // Log internally but show generic message to user
             console.error("Error changing PIN:", error);
-            const genericMessage = "An unexpected error occurred while changing your PIN. Please try again.";
-            setChangePinError(genericMessage);
-            toast({
-                title: "Error changing PIN",
-                description: genericMessage,
-                variant: "destructive",
-            });
+            setChangePinError("An unexpected error occurred while changing your PIN. Please try again.");
         } finally {
             setIsChangingPin(false);
         }
@@ -378,6 +368,16 @@ const Settings = observer(() => {
                             <Form {...form}>
                                 <form onSubmit={form.handleSubmit(onSubmit)}>
                                     <CardContent className="space-y-8">
+                                        {settingsSaveSuccess && (
+                                            <div className="rounded-md bg-green-500/15 p-3 text-sm text-green-600 dark:text-green-400">
+                                                Settings saved successfully! Your wallet settings have been updated.
+                                            </div>
+                                        )}
+                                        {settingsSaveError && (
+                                            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                                                {settingsSaveError}
+                                            </div>
+                                        )}
                                         <FormField
                                             control={form.control}
                                             name="autoLockTimeout"

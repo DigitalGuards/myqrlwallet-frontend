@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { SEO } from "@/components/SEO/SEO";
 import {
     Form,
@@ -11,7 +11,6 @@ import {
 import { Input } from "@/components/UI/Input";
 import { Button } from "@/components/UI/Button";
 import { useForm, SubmitHandler } from "react-hook-form";
-import { toast } from "@/hooks/use-toast";
 import { SERVER_URL } from "@/config";
 
 type SupportFormValues = {
@@ -22,6 +21,9 @@ type SupportFormValues = {
 };
 
 const Support: React.FC = () => {
+    const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+
     const form = useForm<SupportFormValues>({
         defaultValues: {
             name: "",
@@ -38,6 +40,7 @@ const Support: React.FC = () => {
     } = form;
 
     const onSubmit: SubmitHandler<SupportFormValues> = async (data) => {
+        setSubmitError(null);
         try {
             // Replace with your actual API endpoint
             const response = await fetch(`${SERVER_URL}/support`, {
@@ -52,19 +55,10 @@ const Support: React.FC = () => {
                 throw new Error("Failed to submit the support request.");
             }
 
-            toast({
-                title: "Request Submitted",
-                description: "Thank you for reaching out. We'll get back to you shortly.",
-                variant: "default",
-            });
-
+            setSubmitSuccess(true);
             reset();
         } catch (error: any) {
-            toast({
-                title: "Submission Failed",
-                description: error.message || "Something went wrong. Please try again.",
-                variant: "destructive",
-            });
+            setSubmitError(error.message || "Something went wrong. Please try again.");
         }
     };
 
@@ -76,8 +70,30 @@ const Support: React.FC = () => {
             />
             <main className="container mx-auto px-4 py-8">
                 <h1 className="text-2xl font-semibold mb-6">Support</h1>
+                {submitSuccess ? (
+                    <div className="rounded-md bg-green-500/15 p-6 text-center">
+                        <h2 className="text-lg font-semibold text-green-600 dark:text-green-400 mb-2">
+                            Request Submitted
+                        </h2>
+                        <p className="text-sm text-green-600 dark:text-green-400">
+                            Thank you for reaching out. We'll get back to you shortly.
+                        </p>
+                        <Button
+                            variant="outline"
+                            className="mt-4"
+                            onClick={() => setSubmitSuccess(false)}
+                        >
+                            Submit Another Request
+                        </Button>
+                    </div>
+                ) : (
                 <Form {...form}>
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                        {submitError && (
+                            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                                {submitError}
+                            </div>
+                        )}
                         <FormField
                             control={form.control}
                             name="name"
@@ -208,6 +224,7 @@ const Support: React.FC = () => {
                         </div>
                     </form>
                 </Form>
+                )}
             </main>
         </div>
     );

@@ -13,7 +13,6 @@ import { useEffect, useState } from "react";
 import { useStore } from "@/stores/store";
 import { fetchTokenInfo, fetchBalance } from "@/utils/web3";
 import { TokenInterface } from "@/constants";
-import { toast } from "@/hooks/use-toast";
 import { ZOND_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 
@@ -26,8 +25,10 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
     const [tokenAddress, setTokenAddress] = useState("");
     const [tokenInfo, setTokenInfo] = useState<TokenInterface | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const addToken = async () => {
+        setError(null);
         if (tokenInfo) {
             const data = await addTokenToStore(tokenInfo);
             if (data) {
@@ -35,18 +36,10 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
                 setTokenAddress("");
                 onClose();
             } else {
-                toast({
-                    title: "Token already exists",
-                    description: "Please enter a different token address",
-                    variant: "destructive",
-                });
+                setError("Token already exists. Please enter a different token address.");
             }
         } else {
-            toast({
-                title: "Please enter a valid token address",
-                description: "Please enter a valid token address",
-                variant: "destructive",
-            });
+            setError("Please enter a valid token address.");
         }
     }
 
@@ -77,11 +70,16 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
                         Add a new token to your wallet
                     </DialogDescription>
                 </DialogHeader>
+                {error && (
+                    <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                        {error}
+                    </div>
+                )}
                 <div className="flex flex-col">
                     <Label htmlFor="name" className="mb-2">
                         Token Contract Address
                     </Label>
-                    <Input className="col-span-3" value={tokenAddress} onChange={(e) => setTokenAddress(e.target.value)} />
+                    <Input className="col-span-3" value={tokenAddress} onChange={(e) => { setTokenAddress(e.target.value); setError(null); }} />
                 </div>
                 {tokenInfo && (
                     <div className="grid gap-4 py-4">
