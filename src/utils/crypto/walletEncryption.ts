@@ -211,7 +211,7 @@ export class WalletEncryptionUtil {
       encryptedData: encrypted.toString(),
       salt: salt.toString(),
       iv: iv.toString(),
-      version: 'pin_v3', // v3 uses 600k iterations (v2 used 100k, v1 used 5k)
+      version: 'pin_v3', // v3 uses 600k iterations (v1 used 5k)
       timestamp: Date.now()
     });
   }
@@ -222,10 +222,8 @@ export class WalletEncryptionUtil {
       const salt = CryptoJS.enc.Hex.parse(parsed.salt);
       const iv = CryptoJS.enc.Hex.parse(parsed.iv);
 
-      // Support v1 (5k), v2 (100k), and v3 (600k) iterations for backward compatibility
-      const iterations = parsed.version === 'pin_v3' ? 600000
-                       : parsed.version === 'pin_v2' ? 100000
-                       : 5000;
+      // Support v1 (5k) and v3 (600k) iterations for backward compatibility
+      const iterations = parsed.version === 'pin_v3' ? 600000 : 5000;
 
       const key = CryptoJS.PBKDF2(pin, salt, {
         keySize: 256/32,

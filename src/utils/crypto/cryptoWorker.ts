@@ -18,14 +18,10 @@ export type CryptoWorkerResponse =
 
 // Version constants
 const PIN_VERSION = 'pin_v3';
-const ITERATIONS_V3 = 600000;
-const ITERATIONS_V2 = 100000;
-const ITERATIONS_V1 = 5000;
+const ITERATIONS = 600000;
 
-function getIterations(version: string | undefined): number {
-  if (version === 'pin_v3') return ITERATIONS_V3;
-  if (version === 'pin_v2') return ITERATIONS_V2;
-  return ITERATIONS_V1;
+function getIterations(_version: string | undefined): number {
+  return ITERATIONS;
 }
 
 function encryptSeed(mnemonic: string, hexSeed: string, pin: string): string {
@@ -34,7 +30,7 @@ function encryptSeed(mnemonic: string, hexSeed: string, pin: string): string {
 
   const key = CryptoJS.PBKDF2(pin, salt, {
     keySize: 256 / 32,
-    iterations: ITERATIONS_V3,
+    iterations: ITERATIONS,
   });
 
   const encrypted = CryptoJS.AES.encrypt(
