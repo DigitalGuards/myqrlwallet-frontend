@@ -55,7 +55,7 @@ const ConnectionBadge = observer(() => {
   return (
     <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 px-4 py-2 bg-card border border-border border-l-4 border-l-secondary rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
+        <button className="flex items-center gap-2 px-4 py-2 bg-card border border-border border-l-4 border-l-secondary rounded-lg cursor-pointer hover:bg-accent/50 transition-colors ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50">
           <div
             className={networkStatusClasses({
               networkStatus: isConnected,
