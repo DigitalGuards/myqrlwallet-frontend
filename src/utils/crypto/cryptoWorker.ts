@@ -63,21 +63,24 @@ function decryptSeed(encryptedData: string, pin: string): { mnemonic: string; he
   return JSON.parse(decrypted.toString(CryptoJS.enc.Utf8));
 }
 
+// Message type with optional requestId for matching concurrent requests
+type MessageWithRequestId = CryptoWorkerMessage & { requestId?: number };
+
 // Worker message handler
-self.onmessage = (event: MessageEvent<CryptoWorkerMessage>) => {
-  const message = event.data;
+self.onmessage = (event: MessageEvent<MessageWithRequestId>) => {
+  const { requestId, ...message } = event.data;
 
   try {
     switch (message.type) {
       case 'encrypt': {
         const encryptedSeed = encryptSeed(message.mnemonic, message.hexSeed, message.pin);
-        self.postMessage({ type: 'encrypt', success: true, encryptedSeed } as CryptoWorkerResponse);
+        self.postMessage({ type: 'encrypt', success: true, encryptedSeed, requestId });
         break;
       }
 
       case 'decrypt': {
         const { mnemonic, hexSeed } = decryptSeed(message.encryptedData, message.pin);
-        self.postMessage({ type: 'decrypt', success: true, mnemonic, hexSeed } as CryptoWorkerResponse);
+        self.postMessage({ type: 'decrypt', success: true, mnemonic, hexSeed, requestId });
         break;
       }
 
@@ -85,12 +88,12 @@ self.onmessage = (event: MessageEvent<CryptoWorkerMessage>) => {
         // Decrypt with old PIN, re-encrypt with new PIN
         const decrypted = decryptSeed(message.encryptedSeed, message.oldPin);
         const reEncrypted = encryptSeed(decrypted.mnemonic, decrypted.hexSeed, message.newPin);
-        self.postMessage({ type: 'reEncrypt', success: true, encryptedSeed: reEncrypted } as CryptoWorkerResponse);
+        self.postMessage({ type: 'reEncrypt', success: true, encryptedSeed: reEncrypted, requestId });
         break;
       }
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    self.postMessage({ type: 'error', success: false, error: errorMessage } as CryptoWorkerResponse);
+    self.postMessage({ type: 'error', success: false, error: errorMessage, requestId });
   }
 };
