@@ -1,5 +1,5 @@
 import { Loader } from "lucide-react";
-import { cn } from "../../utils";
+import { cn } from "../../utils/cn";
 
 interface LoadingProps {
   className?: string;

@@ -9,6 +9,7 @@ import type { CryptoWorkerMessage, CryptoWorkerResponse } from './cryptoWorker';
 import CryptoWorker from './cryptoWorker?worker';
 
 let workerInstance: Worker | null = null;
+let requestIdCounter = 0;
 
 function getWorker(): Worker {
   if (!workerInstance) {
@@ -17,23 +18,32 @@ function getWorker(): Worker {
   return workerInstance;
 }
 
+// Response type with requestId for matching concurrent requests
+type WorkerResponseWithId = CryptoWorkerResponse & { requestId: number };
+
 /**
  * Send a message to the worker and wait for response.
+ * Uses request IDs to correctly match responses when multiple concurrent requests are made.
  */
 function postToWorker<T extends CryptoWorkerResponse['type']>(
   message: CryptoWorkerMessage
 ): Promise<Extract<CryptoWorkerResponse, { type: T; success: true }>> {
   return new Promise((resolve, reject) => {
     const worker = getWorker();
+    const requestId = ++requestIdCounter;
 
-    const handler = (event: MessageEvent<CryptoWorkerResponse>) => {
+    const handler = (event: MessageEvent<WorkerResponseWithId>) => {
+      // Only process if this response matches our request ID
+      if (event.data.requestId !== requestId) return;
+
       worker.removeEventListener('message', handler);
       worker.removeEventListener('error', errorHandler);
 
-      if (event.data.success) {
-        resolve(event.data as Extract<CryptoWorkerResponse, { type: T; success: true }>);
+      const { requestId: _reqId, ...response } = event.data;
+      if (response.success) {
+        resolve(response as Extract<CryptoWorkerResponse, { type: T; success: true }>);
       } else {
-        reject(new Error((event.data as { error: string }).error));
+        reject(new Error((response as { error: string }).error));
       }
     };
 
@@ -45,7 +55,7 @@ function postToWorker<T extends CryptoWorkerResponse['type']>(
 
     worker.addEventListener('message', handler);
     worker.addEventListener('error', errorHandler);
-    worker.postMessage(message);
+    worker.postMessage({ ...message, requestId });
   });
 }
 

@@ -5,7 +5,6 @@ import { useStore } from "../../../../stores/store";
 import { Web3BaseWalletAccount } from "@theqrl/web3";
 import { observer } from "mobx-react-lite";
 import { AccountCreationForm } from "./AccountCreationForm/AccountCreationForm";
-import { AccountCreationSuccess } from "./AccountCreationSuccess/AccountCreationSuccess";
 
 const MnemonicDisplay = withSuspense(
   lazy(() => import("./MnemonicDisplay/MnemonicDisplay"))
@@ -17,34 +16,20 @@ const CreateAccount = observer(() => {
 
   const [account, setAccount] = useState<Web3BaseWalletAccount>();
   const [hasAccountCreated, setHasAccountCreated] = useState(false);
-  const [hasMnemonicNoted, setHasMnemonicNoted] = useState(false);
   const [userPassword, setUserPassword] = useState<string>("");
-  const [mnemonic, setMnemonic] = useState<string>("");
-  const [hexSeed, setHexSeed] = useState<string>("");
 
   // Called after account is created AND seed is encrypted/stored
   const onAccountCreated = async (
     newAccount: Web3BaseWalletAccount,
     password: string,
-    accountMnemonic: string,
-    accountHexSeed: string
   ) => {
     if (newAccount?.address) {
       window.scrollTo(0, 0);
       setAccount(newAccount);
       setUserPassword(password);
-      setMnemonic(accountMnemonic);
-      setHexSeed(accountHexSeed);
       await setActiveAccount(newAccount.address);
       setHasAccountCreated(true);
     }
-  };
-
-  // Called when user confirms they've noted the mnemonic
-  const onMnemonicNoted = () => {
-    window.scrollTo(0, 0);
-    // Encryption already done in AccountCreationForm
-    setHasMnemonicNoted(true);
   };
 
   return (
@@ -63,20 +48,10 @@ const CreateAccount = observer(() => {
           />
           <div className="relative z-10">
             {hasAccountCreated ? (
-              hasMnemonicNoted ? (
-                <AccountCreationSuccess
-                  account={account}
-                  userPassword={userPassword}
-                  mnemonic={mnemonic}
-                  hexSeed={hexSeed}
-                />
-              ) : (
-                <MnemonicDisplay
-                  account={account}
-                  userPassword={userPassword}
-                  onMnemonicNoted={onMnemonicNoted}
-                />
-              )
+              <MnemonicDisplay
+                account={account}
+                userPassword={userPassword}
+              />
             ) : (
               <AccountCreationForm onAccountCreated={onAccountCreated} />
             )}

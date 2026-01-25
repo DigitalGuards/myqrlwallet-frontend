@@ -324,6 +324,13 @@ const Transfer = observer(() => {
           return;
         }
 
+        // Verify decrypted mnemonic matches the expected account address
+        const senderAddress = getAddressFromMnemonic(mnemonicPhrases);
+        if (senderAddress.toLowerCase() !== accountAddress.toLowerCase()) {
+          control.setError("pin", { message: "Security error: seed mismatch detected. Please re-import this account." });
+          return;
+        }
+
         await signAndSendTransaction(accountAddress, formData.receiverAddress, valueEther, mnemonicPhrases);
         resetForm();
         window.scrollTo(0, 0);
