@@ -23,11 +23,11 @@ import { Loader, Plus } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { WalletEncryptionUtil } from "@/utils/crypto";
+import { encryptSeedAsync, decryptSeedAsync, getMnemonicFromHexSeed } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
+import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { Separator } from "@/components/UI/Separator";
-import { isInNativeApp } from "@/utils/nativeApp";
 
 // Password must match WalletEncryptionUtil.validatePassword() requirements
 const passwordValidation = z.string()
@@ -76,22 +76,34 @@ const ExistingUserSchema = z.object({
 });
 
 type AccountCreationFormProps = {
-  onAccountCreated: (account: Web3BaseWalletAccount, password: string, pin: string) => void;
+  onAccountCreated: (
+    account: Web3BaseWalletAccount,
+    password: string,
+    mnemonic: string,
+    hexSeed: string
+  ) => void;
 };
 
 type InnerFormProps = {
-  onAccountCreated: (account: Web3BaseWalletAccount, password: string, pin: string) => void;
+  onAccountCreated: (
+    account: Web3BaseWalletAccount,
+    password: string,
+    mnemonic: string,
+    hexSeed: string
+  ) => void;
   hasExistingSeeds: boolean;
   existingSeeds: { address: string; encryptedSeed: string }[];
+  blockchain: string;
 };
 
 /**
  * Inner form component - only rendered after we know if user has existing seeds.
  * This ensures the correct schema is used from the start.
  */
-const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds }: InnerFormProps) => {
+const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds, blockchain }: InnerFormProps) => {
   const { zondStore } = useStore();
   const { zondInstance } = zondStore;
+  const [isEncrypting, setIsEncrypting] = useState(false);
 
   // Select schema based on whether user has existing seeds
   const schema = hasExistingSeeds ? ExistingUserSchema : NewUserSchema;
@@ -123,7 +135,7 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds 
       // If existing seeds exist, verify PIN by attempting to decrypt one
       if (hasExistingSeeds && existingSeeds.length > 0) {
         try {
-          WalletEncryptionUtil.decryptSeedWithPin(existingSeeds[0].encryptedSeed, userPin);
+          await decryptSeedAsync(existingSeeds[0].encryptedSeed, userPin);
         } catch {
           setError("pin", {
             message: "Incorrect PIN. Please enter your existing wallet PIN.",
@@ -132,17 +144,51 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds 
         }
       }
 
+      // Create the account
       const newAccount = await zondInstance?.accounts.create();
-      if (!newAccount) {
+      if (!newAccount || !newAccount.seed) {
         throw new Error("Failed to create account");
       }
-      onAccountCreated(newAccount, userPassword, userPin);
+
+      // Get mnemonic from hex seed
+      const hexSeed = newAccount.seed;
+      const mnemonic = getMnemonicFromHexSeed(hexSeed);
+      if (!mnemonic) {
+        throw new Error("Failed to generate mnemonic");
+      }
+
+      // Encrypt the seed with PIN (runs in Web Worker)
+      setIsEncrypting(true);
+      const encryptedSeed = await encryptSeedAsync(mnemonic, hexSeed, userPin);
+
+      // Store the encrypted seed in localStorage
+      await StorageUtil.storeEncryptedSeed(blockchain, newAccount.address, encryptedSeed);
+
+      // Notify native app if running in native context
+      if (isInNativeApp()) {
+        notifySeedStored({
+          address: newAccount.address,
+          encryptedSeed,
+          blockchain,
+        });
+      }
+
+      setIsEncrypting(false);
+      onAccountCreated(newAccount, userPassword, mnemonic, hexSeed);
     } catch (error) {
+      setIsEncrypting(false);
       setError("root", {
         message: `${error} There was an error while creating the account`,
       });
     }
   }
+
+  const isProcessing = isSubmitting || isEncrypting;
+  const buttonText = isEncrypting
+    ? "Encrypting..."
+    : isSubmitting
+    ? "Creating account..."
+    : "Create account";
 
   return (
     <Form {...form}>
@@ -255,13 +301,13 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds 
               </p>
             )}
             <ShinyButton
-              disabled={!isValid}
-              processing={isSubmitting}
+              disabled={!isValid || isProcessing}
+              processing={isProcessing}
               className="w-full"
               type="submit"
             >
               <Plus className="mr-2 h-4 w-4" />
-              {isSubmitting ? "Creating account..." : "Create account"}
+              {buttonText}
             </ShinyButton>
           </CardFooter>
         </Card>
@@ -309,6 +355,7 @@ export const AccountCreationForm = observer(
         onAccountCreated={onAccountCreated}
         hasExistingSeeds={hasExistingSeeds}
         existingSeeds={existingSeeds}
+        blockchain={blockchain}
       />
     );
   }
