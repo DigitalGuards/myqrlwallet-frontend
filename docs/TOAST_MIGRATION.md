@@ -33,7 +33,7 @@ All 17 toast notifications have been migrated to inline feedback, and toast infr
 
 ```tsx
 // State
-const [successMessage, setSuccessMessage] = useState(false);
+const [successMessage, setSuccessMessage] = useState<string | null>(null);
 const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 // Clear on new action
