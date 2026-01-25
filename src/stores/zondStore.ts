@@ -243,13 +243,25 @@ class ZondStore {
   }
 
   async addToken(token: TokenInterface) {
-    if (!this.tokenList.some(t => t.address.toLowerCase() === token.address.toLowerCase())) {
+    const existingToken = this.tokenList.find(t => t.address.toLowerCase() === token.address.toLowerCase());
+
+    if (!existingToken) {
+      // Token doesn't exist, add it
       await StorageUtil.updateTokenList([...this.tokenList, token]);
       this.tokenList = [...this.tokenList, token];
       return token;
-    } else {
-      return null;
     }
+
+    // Token exists - check if it's hidden
+    const isHidden = this.hiddenTokens.some(addr => addr.toLowerCase() === token.address.toLowerCase());
+    if (isHidden) {
+      // Unhide the token
+      await this.unhideToken(token.address);
+      return existingToken;
+    }
+
+    // Token exists and is already visible
+    return null;
   }
 
   async removeToken(token: TokenInterface) {

@@ -24,7 +24,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useEffect, useState } from "react";
 import { useStore } from "@/stores/store";
-import { toast } from "@/hooks/use-toast";
 import { ethers } from "ethers";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
@@ -84,6 +83,7 @@ export const TokenCreationForm = observer(
         const { activeAccount, activeAccountSource } = zondStore;
         const [pin, setPin] = useState("");
         const [pinError, setPinError] = useState("");
+        const [formError, setFormError] = useState<string | null>(null);
 
         const form = useForm({
             resolver: zodResolver(FormSchema),
@@ -120,25 +120,17 @@ export const TokenCreationForm = observer(
         async function onSubmit(formData: z.output<typeof FormSchema>) {
             try {
                 setPinError("");
+                setFormError(null);
 
                 // Check if account exists
                 if (!activeAccount.accountAddress) {
-                    toast({
-                        title: "No active account",
-                        description: "Please import an account first",
-                        variant: "destructive",
-                    });
                     navigate(ROUTES.IMPORT_ACCOUNT);
                     return;
                 }
 
                 // For extension wallets, we need to handle differently
                 if (isUsingExtension) {
-                    toast({
-                        title: "Extension wallet detected",
-                        description: "Token creation with extension wallets is not yet supported. Please use an imported seed account.",
-                        variant: "destructive",
-                    });
+                    setFormError("Token creation with extension wallets is not yet supported. Please use an imported seed account.");
                     return;
                 }
 
@@ -197,11 +189,7 @@ export const TokenCreationForm = observer(
                     });
             } catch (error) {
                 console.error("Error creating token:", error);
-                toast({
-                    title: "Error creating token",
-                    description: "Please try again",
-                    variant: "destructive",
-                });
+                setFormError("An error occurred while creating the token. Please try again.");
             }
         }
 
@@ -254,6 +242,11 @@ export const TokenCreationForm = observer(
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-8">
+                            {formError && (
+                                <div role="alert" className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                                    {formError}
+                                </div>
+                            )}
                             <FormField
                                 control={control}
                                 name="tokenName"
