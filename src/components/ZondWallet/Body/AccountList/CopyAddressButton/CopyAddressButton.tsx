@@ -47,11 +47,10 @@ export const CopyAddressButton = ({
     if (!qrRef.current) return;
 
     try {
-      // Convert SVG to canvas
+      // Convert SVG to canvas using data URL (CSP-compliant)
       const svg = qrRef.current;
       const svgData = new XMLSerializer().serializeToString(svg);
-      const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-      const svgUrl = URL.createObjectURL(svgBlob);
+      const svgDataUrl = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
 
       const img = new Image();
       img.onload = async () => {
@@ -79,21 +78,18 @@ export const CopyAddressButton = ({
             setQrCopied(true);
             setTimeout(() => setQrCopied(false), 1500);
           } catch (_err) {
-            // Fallback: download the image
-            const url = URL.createObjectURL(blob);
+            // Fallback: download the image as data URL
+            const dataUrl = canvas.toDataURL("image/png");
             const a = document.createElement("a");
-            a.href = url;
+            a.href = dataUrl;
             a.download = `address-${accountAddress.slice(0, 8)}.png`;
             a.click();
-            URL.revokeObjectURL(url);
             setQrCopied(true);
             setTimeout(() => setQrCopied(false), 1500);
           }
         }, "image/png");
-
-        URL.revokeObjectURL(svgUrl);
       };
-      img.src = svgUrl;
+      img.src = svgDataUrl;
     } catch (err) {
       console.error("Failed to copy QR code:", err);
     }
