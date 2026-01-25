@@ -213,12 +213,12 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                     </DialogDescription>
                 </DialogHeader>
                 {sendSuccess && (
-                    <div className="rounded-md bg-green-500/15 p-3 text-sm text-green-600 dark:text-green-400">
+                    <div role="status" className="rounded-md bg-green-500/15 p-3 text-sm text-green-600 dark:text-green-400">
                         Token sent successfully! Please check your wallet.
                     </div>
                 )}
                 {sendError && (
-                    <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                    <div role="alert" className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                         {sendError}
                     </div>
                 )}
