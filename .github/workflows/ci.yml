@@ -96,8 +96,8 @@ jobs:
   deploy:
     needs: docker
     runs-on: ubuntu-latest
-    # Only deploy on push to main branch
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Disabled - Kubernetes deployment not configured
+    if: false
 
     environment: production
 
