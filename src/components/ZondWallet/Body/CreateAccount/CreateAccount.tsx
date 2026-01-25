@@ -6,7 +6,7 @@ import { Web3BaseWalletAccount } from "@theqrl/web3";
 import { observer } from "mobx-react-lite";
 import { AccountCreationForm } from "./AccountCreationForm/AccountCreationForm";
 import { AccountCreationSuccess } from "./AccountCreationSuccess/AccountCreationSuccess";
-import { WalletEncryptionUtil } from "@/utils/crypto";
+import { encryptSeedAsync } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 
 const MnemonicDisplay = withSuspense(
@@ -41,17 +41,18 @@ const CreateAccount = observer(() => {
     window.scrollTo(0, 0);
     setMnemonic(notedMnemonic);
     setHexSeed(notedHexSeed);
-    
+
     // Store the encrypted seed in localStorage if we have all required data
     if (account?.address && userPin && notedMnemonic && notedHexSeed) {
       try {
-        // Encrypt the seed with the PIN
-        const encryptedSeed = WalletEncryptionUtil.encryptSeedWithPin(
+        // Encrypt the seed with the PIN using Web Worker
+        // This runs PBKDF2 (600k iterations) off the main thread
+        const encryptedSeed = await encryptSeedAsync(
           notedMnemonic,
           notedHexSeed,
           userPin
         );
-        
+
         // Store the encrypted seed in localStorage
         await StorageUtil.storeEncryptedSeed(
           blockchain,
@@ -62,7 +63,7 @@ const CreateAccount = observer(() => {
         console.error("Failed to store encrypted seed:", error);
       }
     }
-    
+
     setHasMnemonicNoted(true);
   };
 
