@@ -1,5 +1,3 @@
-import { Button } from "../../../../UI/Button";
-import { Card } from "../../../../UI/Card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,22 +11,28 @@ import {
 import { ZOND_PROVIDER } from "@/config";
 import { useStore } from "../../../../../stores/store";
 import { cva } from "class-variance-authority";
-import { Check, ChevronDown, Network, Workflow, ExternalLink } from "lucide-react";
+import { Check, ChevronRight, Network, Workflow, ExternalLink } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { CustomRpcModal } from "./CustomRpcModal";
 import { useState } from "react";
 
-const networkStatusClasses = cva("h-2 w-2 rounded-full", {
-  variants: {
-    networkStatus: {
-      true: ["bg-green-500"],
-      false: ["bg-destructive"],
-    },
-  },
-  defaultVariants: {
-    networkStatus: false,
-  },
-});
+// Helper to convert hex to rgba
+function hexToRgba(hexColor: string, alpha: number): string {
+  const hex = hexColor.replace("#", "");
+  if (hex.length === 3) {
+    const r = parseInt(hex[0] + hex[0], 16);
+    const g = parseInt(hex[1] + hex[1], 16);
+    const b = parseInt(hex[2] + hex[2], 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  if (hex.length === 6) {
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return hexColor;
+}
 
 const blockchainSelectionClasses = cva("cursor-pointer", {
   variants: {
@@ -40,6 +44,42 @@ const blockchainSelectionClasses = cva("cursor-pointer", {
     isSelected: false,
   },
 });
+
+// Animated pulsing dot component
+const PulsingDot = ({ isConnected }: { isConnected: boolean }) => {
+  const color = isConnected ? "#22c55e" : "#ef4444"; // green-500 / red-500
+
+  return (
+    <>
+      <style>{`
+        @keyframes slow-ping {
+          75%, 100% {
+            transform: scale(2);
+            opacity: 0;
+          }
+        }
+        .animate-slow-ping {
+          animation: slow-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+      `}</style>
+      <div
+        className="relative flex h-2 w-2 items-center justify-center rounded-full"
+        style={{ backgroundColor: hexToRgba(color, 0.4) }}
+      >
+        <div
+          className={`absolute flex h-3 w-3 items-center justify-center rounded-full ${
+            isConnected ? "animate-slow-ping" : "animate-ping"
+          }`}
+          style={{ backgroundColor: color, opacity: 0.75 }}
+        />
+        <div
+          className="absolute flex h-2 w-2 items-center justify-center rounded-full"
+          style={{ backgroundColor: hexToRgba(color, 0.9) }}
+        />
+      </div>
+    </>
+  );
+};
 
 const ConnectionBadge = observer(() => {
   const { zondStore } = useStore();
@@ -55,17 +95,20 @@ const ConnectionBadge = observer(() => {
   ];
 
   return (
-    <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+    <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen} modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="flex gap-2 rounded-full">
-          <Card
-            className={networkStatusClasses({
-              networkStatus: isConnected,
-            })}
+        <button
+          className="group relative flex items-center justify-center gap-3 rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-neutral-700 transition-all duration-200 hover:border-neutral-400 dark:border-neutral-700/80 dark:bg-card dark:text-zinc-300 dark:hover:border-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-accent focus-visible:ring-offset-2"
+        >
+          <PulsingDot isConnected={isConnected} />
+          <div className="mx-1 h-4 w-px bg-neutral-300 dark:bg-neutral-600/80" />
+          <span className="text-sm font-medium">{zondNetworkName}</span>
+          <ChevronRight
+            className={`ml-1 h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 dark:text-neutral-500 ${
+              isDropdownOpen ? "rotate-90" : "group-hover:translate-x-0.5"
+            }`}
           />
-          {zondNetworkName}
-          <ChevronDown className="h-4 w-4" />
-        </Button>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56">
         <DropdownMenuLabel>Blockchain network</DropdownMenuLabel>

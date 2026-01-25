@@ -1,4 +1,5 @@
 import { Button } from "@/components/UI/Button";
+import { ShinyButton } from "@/components/UI/ShinyButton";
 import {
   Card,
   CardContent,
@@ -225,6 +226,9 @@ const Transfer = observer(() => {
             message: 'Scanned QR does not contain a valid QRL address'
           });
         }
+      } else if (message.type === 'QR_CANCELLED') {
+        // User closed scanner without scanning - just reset the scanning state
+        setIsScanning(false);
       } else if (message.type === 'ERROR') {
         setIsScanning(false);
         triggerHaptic('error');
@@ -757,17 +761,14 @@ const Transfer = observer(() => {
                     <X className="mr-2 h-4 w-4" />
                     Cancel
                   </Button>
-                  <Button
-                    disabled={isSubmitting || !isValid}
+                  <ShinyButton
+                    disabled={!isValid}
+                    processing={isSubmitting}
                     type="submit"
                   >
-                    {isSubmitting ? (
-                      <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="mr-2 h-4 w-4" />
-                    )}
-                    Send {assetSymbol}
-                  </Button>
+                    <Send className="mr-2 h-4 w-4" />
+                    {isSubmitting ? `Sending ${assetSymbol}...` : `Send ${assetSymbol}`}
+                  </ShinyButton>
                 </CardFooter>
               </Card>
             </form>

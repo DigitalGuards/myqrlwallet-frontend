@@ -23,12 +23,23 @@ import { observer } from "mobx-react-lite";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
 import { toast } from "@/hooks/use-toast";
-import { StorageUtil } from "@/utils/storage";
-import { Save } from "lucide-react";
+import { StorageUtil, EncryptedSeedData } from "@/utils/storage";
+import { Save, Shield } from "lucide-react";
 import { SEO } from "@/components/SEO/SEO";
+import { PinInput } from "@/components/UI/PinInput/PinInput";
+import { decryptSeedAsync, reEncryptSeedAsync } from "@/utils/crypto";
+import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
+import {
+    checkLockout,
+    recordFailedAttempt,
+    recordSuccessfulAttempt,
+    formatLockoutTime,
+    getRemainingAttempts,
+    hasFailedAttempts,
+} from "@/utils/crypto/pinAttemptTracker";
 
 const SettingsFormSchema = z.object({
     autoLockTimeout: z.number().min(1).max(60),
@@ -39,8 +50,61 @@ const SettingsFormSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof SettingsFormSchema>;
 
+// Separate schema for Change PIN form
+const ChangePinSchema = z.object({
+    currentPin: z.string().regex(/^\d{4,6}$/, "PIN must be 4-6 digits"),
+    newPin: z.string().regex(/^\d{4,6}$/, "PIN must be 4-6 digits"),
+    confirmNewPin: z.string().regex(/^\d{4,6}$/, "PIN must be 4-6 digits"),
+}).refine((data) => data.newPin === data.confirmNewPin, {
+    message: "New PINs must match",
+    path: ["confirmNewPin"],
+}).refine((data) => data.newPin !== data.currentPin, {
+    message: "New PIN must be different from current PIN",
+    path: ["newPin"],
+});
+
+type ChangePinFormValues = z.infer<typeof ChangePinSchema>;
+
 const Settings = observer(() => {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [hasEncryptedSeeds, setHasEncryptedSeeds] = useState(false);
+    const [isChangingPin, setIsChangingPin] = useState(false);
+    const [changePinError, setChangePinError] = useState<string | null>(null);
+    const [changePinSuccess, setChangePinSuccess] = useState(false);
+    const [pinLockout, setPinLockout] = useState<{ isLocked: boolean; remainingMs: number }>({ isLocked: false, remainingMs: 0 });
+    const [attemptsLeft, setAttemptsLeft] = useState(5);
+
+    // Check for existing encrypted seeds on mount
+    useEffect(() => {
+        const checkSeeds = async () => {
+            const blockchain = await StorageUtil.getBlockChain();
+            const hasSeeds = await StorageUtil.hasEncryptedSeeds(blockchain);
+            setHasEncryptedSeeds(hasSeeds);
+        };
+        checkSeeds();
+    }, []);
+
+    // Check and update lockout status
+    useEffect(() => {
+        const updateLockoutStatus = () => {
+            const lockoutStatus = checkLockout();
+            setPinLockout(lockoutStatus);
+            setAttemptsLeft(getRemainingAttempts());
+        };
+
+        updateLockoutStatus();
+
+        // Update every second if locked out (to show countdown)
+        const interval = setInterval(() => {
+            const lockoutStatus = checkLockout();
+            setPinLockout(lockoutStatus);
+            if (!lockoutStatus.isLocked) {
+                setAttemptsLeft(getRemainingAttempts());
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     const form = useForm<SettingsFormValues>({
         resolver: zodResolver(SettingsFormSchema),
@@ -79,6 +143,100 @@ const Settings = observer(() => {
         }
     }
 
+    // Change PIN form
+    const changePinForm = useForm<ChangePinFormValues>({
+        resolver: zodResolver(ChangePinSchema),
+        defaultValues: {
+            currentPin: "",
+            newPin: "",
+            confirmNewPin: "",
+        },
+    });
+
+    async function onChangePinSubmit(data: ChangePinFormValues) {
+        // Check if locked out
+        const lockoutStatus = checkLockout();
+        if (lockoutStatus.isLocked) {
+            setChangePinError(`Too many failed attempts. Please wait ${formatLockoutTime(lockoutStatus.remainingMs)}.`);
+            return;
+        }
+
+        setIsChangingPin(true);
+        setChangePinError(null);
+        setChangePinSuccess(false);
+
+        try {
+            const blockchain = await StorageUtil.getBlockChain();
+            const allSeeds = await StorageUtil.getAllEncryptedSeeds(blockchain);
+
+            if (allSeeds.length === 0) {
+                setChangePinError("No encrypted seeds found.");
+                return;
+            }
+
+            // Verify current PIN by attempting to decrypt the first seed
+            // Uses Web Worker to avoid blocking UI during PBKDF2
+            try {
+                await decryptSeedAsync(allSeeds[0].encryptedSeed, data.currentPin);
+            } catch {
+                // Record failed attempt
+                const result = recordFailedAttempt();
+                setPinLockout({ isLocked: result.isLocked, remainingMs: result.remainingMs });
+                setAttemptsLeft(result.attemptsLeft);
+
+                if (result.isLocked) {
+                    setChangePinError(`Too many failed attempts. Please wait ${formatLockoutTime(result.remainingMs)}.`);
+                } else {
+                    setChangePinError(`Incorrect PIN. ${result.attemptsLeft} attempt${result.attemptsLeft === 1 ? '' : 's'} remaining.`);
+                }
+                return;
+            }
+
+            // Re-encrypt all seeds with the new PIN using Web Worker
+            // This runs PBKDF2 (600k iterations) off the main thread
+            const updatedSeeds: EncryptedSeedData[] = await Promise.all(
+                allSeeds.map(async (seed) => ({
+                    ...seed,
+                    encryptedSeed: await reEncryptSeedAsync(
+                        seed.encryptedSeed,
+                        data.currentPin,
+                        data.newPin
+                    ),
+                }))
+            );
+
+            // Update all seeds atomically
+            await StorageUtil.updateAllEncryptedSeeds(blockchain, updatedSeeds);
+
+            // Notify native app if running in native context
+            if (isInNativeApp()) {
+                sendPinChanged(true, data.newPin);
+            }
+
+            // Record successful attempt (resets counter)
+            recordSuccessfulAttempt();
+            setAttemptsLeft(5);
+
+            // Show success in card
+            setChangePinSuccess(true);
+
+            // Reset form
+            changePinForm.reset();
+        } catch (error) {
+            // Log internally but show generic message to user
+            console.error("Error changing PIN:", error);
+            const genericMessage = "An unexpected error occurred while changing your PIN. Please try again.";
+            setChangePinError(genericMessage);
+            toast({
+                title: "Error changing PIN",
+                description: genericMessage,
+                variant: "destructive",
+            });
+        } finally {
+            setIsChangingPin(false);
+        }
+    }
+
     return (
         <>
             <SEO title="Settings" />
@@ -94,6 +252,119 @@ const Settings = observer(() => {
                         <source src="/tree.mp4" type="video/mp4" />
                     </video> */ }
                     <div className="relative z-10 space-y-8">
+                        {/* PIN Management Card - only visible when user has encrypted seeds */}
+                        {hasEncryptedSeeds && (
+                            <Card className="border-l-4 border-l-orange-500">
+                                <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
+                                    <div className="flex items-center gap-2">
+                                        <Shield className="h-6 w-6 text-orange-500" />
+                                        <CardTitle className="text-2xl font-bold">PIN Management</CardTitle>
+                                    </div>
+                                    <CardDescription>
+                                        Change your wallet PIN used to encrypt your seeds
+                                    </CardDescription>
+                                </CardHeader>
+
+                                <Form {...changePinForm}>
+                                    <form onSubmit={changePinForm.handleSubmit(onChangePinSubmit)}>
+                                        <CardContent className="space-y-6">
+                                            {pinLockout.isLocked && (
+                                                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                                                    Too many failed attempts. Please wait {formatLockoutTime(pinLockout.remainingMs)}.
+                                                </div>
+                                            )}
+                                            {!pinLockout.isLocked && hasFailedAttempts() && attemptsLeft > 0 && (
+                                                <div className="rounded-md bg-yellow-500/15 p-3 text-sm text-yellow-600 dark:text-yellow-400">
+                                                    {attemptsLeft} attempt{attemptsLeft === 1 ? '' : 's'} remaining before lockout.
+                                                </div>
+                                            )}
+                                            {changePinError && !pinLockout.isLocked && (
+                                                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                                                    {changePinError}
+                                                </div>
+                                            )}
+                                            {changePinSuccess && (
+                                                <div className="rounded-md bg-green-500/15 p-3 text-sm text-green-600 dark:text-green-400">
+                                                    PIN changed successfully! Your wallet PIN has been updated.
+                                                </div>
+                                            )}
+
+                                            <FormField
+                                                control={changePinForm.control}
+                                                name="currentPin"
+                                                render={({ field, fieldState }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Current PIN</FormLabel>
+                                                        <FormControl>
+                                                            <PinInput
+                                                                value={field.value}
+                                                                onChange={field.onChange}
+                                                                placeholder="Enter current PIN"
+                                                                error={fieldState.error?.message}
+                                                                disabled={isChangingPin || pinLockout.isLocked}
+                                                            />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={changePinForm.control}
+                                                name="newPin"
+                                                render={({ field, fieldState }) => (
+                                                    <FormItem>
+                                                        <FormLabel>New PIN</FormLabel>
+                                                        <FormControl>
+                                                            <PinInput
+                                                                value={field.value}
+                                                                onChange={field.onChange}
+                                                                placeholder="Enter new PIN"
+                                                                error={fieldState.error?.message}
+                                                                disabled={isChangingPin || pinLockout.isLocked}
+                                                            />
+                                                        </FormControl>
+                                                        <FormDescription>
+                                                            PIN must be 4-6 digits
+                                                        </FormDescription>
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={changePinForm.control}
+                                                name="confirmNewPin"
+                                                render={({ field, fieldState }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Confirm New PIN</FormLabel>
+                                                        <FormControl>
+                                                            <PinInput
+                                                                value={field.value}
+                                                                onChange={field.onChange}
+                                                                placeholder="Confirm new PIN"
+                                                                error={fieldState.error?.message}
+                                                                disabled={isChangingPin || pinLockout.isLocked}
+                                                            />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </CardContent>
+
+                                        <CardFooter>
+                                            <Button
+                                                type="submit"
+                                                className="w-full"
+                                                disabled={isChangingPin || pinLockout.isLocked}
+                                            >
+                                                <Shield className="mr-2 h-4 w-4" />
+                                                {isChangingPin ? "Changing PIN..." : "Change PIN"}
+                                            </Button>
+                                        </CardFooter>
+                                    </form>
+                                </Form>
+                            </Card>
+                        )}
+
                         <NetworkSettings />
 
                         <Card className="border-l-4 border-l-blue-accent">

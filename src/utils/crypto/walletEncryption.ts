@@ -26,6 +26,17 @@ export interface ExtendedWalletAccount extends Web3BaseWalletAccount {
 const CURRENT_WALLET_VERSION = 'v1';
 const PBKDF2_ITERATIONS = 10000;
 
+/**
+ * Custom error class for PIN decryption failures.
+ * Allows reliable error type checking without fragile string matching.
+ */
+export class PinDecryptionError extends Error {
+  constructor(message: string = 'Failed to decrypt seed. Invalid PIN.') {
+    super(message);
+    this.name = 'PinDecryptionError';
+  }
+}
+
 export class WalletEncryptionUtil {
   static encryptWallet(walletData: WalletData, password: string): EncryptedWallet {
     // Generate random salt and IV
@@ -180,10 +191,10 @@ export class WalletEncryptionUtil {
     const salt = CryptoJS.lib.WordArray.random(128/8);
     const iv = CryptoJS.lib.WordArray.random(128/8);
 
-    // Use fewer iterations for PIN-based encryption (still secure but faster)
+    // Use PBKDF2 to derive key from PIN
     const key = CryptoJS.PBKDF2(pin, salt, {
       keySize: 256/32,
-      iterations: 5000 // Fewer iterations than password-based encryption
+      iterations: 600000 // OWASP 2023 recommended minimum for brute force resistance
     });
 
     const encrypted = CryptoJS.AES.encrypt(
@@ -200,7 +211,7 @@ export class WalletEncryptionUtil {
       encryptedData: encrypted.toString(),
       salt: salt.toString(),
       iv: iv.toString(),
-      version: 'pin_v1',
+      version: 'pin_v3', // v3 uses 600k iterations (v1 used 5k)
       timestamp: Date.now()
     });
   }
@@ -211,9 +222,12 @@ export class WalletEncryptionUtil {
       const salt = CryptoJS.enc.Hex.parse(parsed.salt);
       const iv = CryptoJS.enc.Hex.parse(parsed.iv);
 
+      // Support v1 (5k) and v3 (600k) iterations for backward compatibility
+      const iterations = parsed.version === 'pin_v3' ? 600000 : 5000;
+
       const key = CryptoJS.PBKDF2(pin, salt, {
         keySize: 256/32,
-        iterations: 5000
+        iterations
       });
 
       const decrypted = CryptoJS.AES.decrypt(
@@ -224,12 +238,21 @@ export class WalletEncryptionUtil {
 
       return JSON.parse(decrypted.toString(CryptoJS.enc.Utf8));
     } catch (_error) {
-      throw new Error('Failed to decrypt seed. Invalid PIN.');
+      throw new PinDecryptionError();
     }
   }
 
   // Simple PIN validation (4-6 digits)
   static validatePin(pin: string): boolean {
     return /^\d{4,6}$/.test(pin);
+  }
+
+  // Re-encrypt a seed with a new PIN (for Change PIN feature)
+  static reEncryptSeed(encryptedSeed: string, oldPin: string, newPin: string): string {
+    // Decrypt with old PIN (throws if oldPin is incorrect)
+    const decrypted = this.decryptSeedWithPin(encryptedSeed, oldPin);
+
+    // Re-encrypt with new PIN
+    return this.encryptSeedWithPin(decrypted.mnemonic, decrypted.hexSeed, newPin);
   }
 }
