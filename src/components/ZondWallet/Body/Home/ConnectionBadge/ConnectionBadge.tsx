@@ -1,5 +1,3 @@
-import { Button } from "../../../../UI/Button";
-import { Card } from "../../../../UI/Card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,15 +55,15 @@ const ConnectionBadge = observer(() => {
   return (
     <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="flex gap-2 rounded-full">
-          <Card
+        <button className="flex items-center gap-2 px-4 py-2 bg-card border border-border border-l-4 border-l-secondary rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
+          <div
             className={networkStatusClasses({
               networkStatus: isConnected,
             })}
           />
-          {zondNetworkName}
-          <ChevronDown className="h-4 w-4" />
-        </Button>
+          <span className="text-sm font-medium">{zondNetworkName}</span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56">
         <DropdownMenuLabel>Blockchain network</DropdownMenuLabel>
