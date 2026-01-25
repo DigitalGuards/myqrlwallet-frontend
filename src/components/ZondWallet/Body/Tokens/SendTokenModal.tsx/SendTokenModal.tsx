@@ -12,7 +12,6 @@ import { Label } from "@/components/UI/Label"
 import { useEffect, useState } from "react";
 import { useStore } from "@/stores/store";
 import { TokenInterface } from "@/constants";
-import { toast } from "@/hooks/use-toast";
 import { fetchBalance, fetchTokenInfo } from "@/utils/web3";
 import { Loader2 } from "lucide-react";
 import { getAddressFromMnemonic } from "@/utils/crypto";
@@ -40,11 +39,15 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
     const [toAddressError, setToAddressError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [sliderValue, setSliderValue] = useState(0);
+    const [sendError, setSendError] = useState<string | null>(null);
+    const [sendSuccess, setSendSuccess] = useState(false);
 
     const sendToken = async () => {
         setIsLoading(true);
         setPinError("");
         setToAddressError("");
+        setSendError(null);
+        setSendSuccess(false);
 
         // Validate address
         if (!isValidZondAddress(toAddress)) {
@@ -95,11 +98,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                         const balance = await fetchBalance(token?.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
                         tokenInfo = { name, symbol, decimals: parseInt(decimals.toString()), address: token?.address, amount: balance.toString() };
                     } catch (_error) {
-                        toast({
-                            title: "Error fetching token info",
-                            description: "Please try again",
-                            variant: "destructive",
-                        });
+                        setSendError("Error fetching token info. Please try again.");
                         setIsLoading(false);
                         return;
                     }
@@ -118,47 +117,30 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                             setToAddressError("");
                             setSliderValue(0);
                             setPinError("");
-                            
-                            toast({
-                                title: "Token sent successfully",
-                                description: "Please check your wallet",
-                            });
-                            
-                            // Close the modal AFTER setting state
-                            onClose();
-                            // Wait a short time to ensure modal is fully closed before refreshing balances
+                            setSendSuccess(true);
+
+                            // Close the modal after brief success display
                             setTimeout(() => {
-                                zondStore.refreshTokenBalances();
-                            }, 300);
+                                onClose();
+                                // Wait a short time to ensure modal is fully closed before refreshing balances
+                                setTimeout(() => {
+                                    zondStore.refreshTokenBalances();
+                                }, 300);
+                            }, 1500);
                         } else {
-                            toast({
-                                title: "Error sending token",
-                                description: "Please try again",
-                                variant: "destructive",
-                            });
+                            setSendError("Error sending token. Please try again.");
                         }
                     } catch (error) {
                         console.error("Error parsing amount:", error);
-                        toast({
-                            title: "Invalid amount",
-                            description: "Please enter a valid number",
-                            variant: "destructive",
-                        });
+                        setSendError("Invalid amount. Please enter a valid number.");
                     }
                 }
             } catch (error) {
                 console.error("Error sending token:", error);
-                toast({
-                    title: "Error sending token",
-                    description: "Please try again",
-                    variant: "destructive",
-                });
+                setSendError("Error sending token. Please try again.");
             }
         } else {
-            toast({
-                title: "Please fill in all fields",
-                variant: "destructive",
-            });
+            setSendError("Please fill in all fields.");
         }
         setIsLoading(false);
     }
@@ -215,6 +197,8 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
             setPinError("");
             setToAddress("");
             setToAddressError("");
+            setSendError(null);
+            setSendSuccess(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, token?.address, activeAccountAddress]);
@@ -228,6 +212,16 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                         Send a token to another address
                     </DialogDescription>
                 </DialogHeader>
+                {sendSuccess && (
+                    <div role="status" className="rounded-md bg-green-500/15 p-3 text-sm text-green-600 dark:text-green-400">
+                        Token sent successfully! Please check your wallet.
+                    </div>
+                )}
+                {sendError && (
+                    <div role="alert" className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                        {sendError}
+                    </div>
+                )}
                 <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
                   <div className="grid gap-4 py-4">
                     <div className="flex flex-col">
