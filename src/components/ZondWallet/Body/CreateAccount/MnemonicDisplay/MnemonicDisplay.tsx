@@ -21,9 +21,10 @@ import { getMnemonicFromHexSeed } from "@/utils/crypto";
 import { copyToClipboard } from "@/utils/nativeApp";
 import { withSuspense } from "@/utils/react";
 import { Web3BaseWalletAccount } from "@theqrl/web3";
-import { Check, Copy, HardDriveDownload, Undo } from "lucide-react";
+import { Check, Copy, HardDriveDownload, QrCode, Undo } from "lucide-react";
 import { lazy, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react";
 import { WalletEncryptionUtil } from "@/utils/crypto";
 import { HexSeedListing } from "@/components/UI/HexSeedListing/HexSeedListing";
 import { ROUTES } from "@/router/router";
@@ -109,16 +110,50 @@ const MnemonicDisplay = ({
         <CardDescription className="flex flex-col gap-2">
           <span>{cardDescription}</span>
           <span className="text-orange-500 break-all">{accountAddress}</span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onCopyAddress}
-            className="w-fit"
-          >
-            <Copy className="mr-2 h-4 w-4" />
-            {hasJustCopiedAddress ? "Copied" : "Copy Address"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCopyAddress}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              {hasJustCopiedAddress ? "Copied" : "Copy Address"}
+            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button type="button" variant="outline" size="sm">
+                  <QrCode className="mr-2 h-4 w-4" />
+                  View QR
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-fit rounded-md">
+                <DialogHeader className="text-left">
+                  <DialogTitle>Wallet Address QR Code</DialogTitle>
+                  <DialogDescription>
+                    Scan this QR code to get the wallet address
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex justify-center p-4">
+                  <QRCodeSVG
+                    value={accountAddress || ""}
+                    size={200}
+                    bgColor="#000000"
+                    fgColor="#ffffff"
+                    level="L"
+                    includeMargin={false}
+                  />
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline" className="w-full">
+                      Close
+                    </Button>
+                  </DialogClose>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
