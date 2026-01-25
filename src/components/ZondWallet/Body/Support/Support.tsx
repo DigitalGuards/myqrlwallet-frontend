@@ -71,7 +71,7 @@ const Support: React.FC = () => {
             <main className="container mx-auto px-4 py-8">
                 <h1 className="text-2xl font-semibold mb-6">Support</h1>
                 {submitSuccess ? (
-                    <div className="rounded-md bg-green-500/15 p-6 text-center">
+                    <div role="status" className="rounded-md bg-green-500/15 p-6 text-center">
                         <h2 className="text-lg font-semibold text-green-600 dark:text-green-400 mb-2">
                             Request Submitted
                         </h2>
