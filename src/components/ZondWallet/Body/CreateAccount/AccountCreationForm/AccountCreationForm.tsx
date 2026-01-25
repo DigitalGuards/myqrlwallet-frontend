@@ -79,8 +79,6 @@ type AccountCreationFormProps = {
   onAccountCreated: (
     account: Web3BaseWalletAccount,
     password: string,
-    mnemonic: string,
-    hexSeed: string
   ) => void;
 };
 
@@ -88,8 +86,6 @@ type InnerFormProps = {
   onAccountCreated: (
     account: Web3BaseWalletAccount,
     password: string,
-    mnemonic: string,
-    hexSeed: string
   ) => void;
   hasExistingSeeds: boolean;
   existingSeeds: { address: string; encryptedSeed: string }[];
@@ -174,7 +170,7 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds,
       }
 
       setIsEncrypting(false);
-      onAccountCreated(newAccount, userPassword, mnemonic, hexSeed);
+      onAccountCreated(newAccount, userPassword);
     } catch (error) {
       setIsEncrypting(false);
       setError("root", {
