@@ -98,7 +98,7 @@ const ConnectionBadge = observer(() => {
     <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen} modal={false}>
       <DropdownMenuTrigger asChild>
         <button
-          className="group relative flex items-center justify-center gap-3 rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-neutral-700 transition-all duration-200 hover:border-neutral-400 dark:border-neutral-700/80 dark:bg-black dark:text-zinc-300 dark:hover:border-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-accent focus-visible:ring-offset-2"
+          className="group relative flex items-center justify-center gap-3 rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-neutral-700 transition-all duration-200 hover:border-neutral-400 dark:border-neutral-700/80 dark:bg-card dark:text-zinc-300 dark:hover:border-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-accent focus-visible:ring-offset-2"
         >
           <PulsingDot isConnected={isConnected} />
           <div className="mx-1 h-4 w-px bg-neutral-300 dark:bg-neutral-600/80" />
