@@ -10,3 +10,9 @@ export {
   getHexSeedFromMnemonic,
   getAddressFromMnemonic,
 } from './mnemonic';
+
+export {
+  encryptSeedAsync,
+  decryptSeedAsync,
+  reEncryptSeedAsync,
+} from './cryptoWorkerClient';

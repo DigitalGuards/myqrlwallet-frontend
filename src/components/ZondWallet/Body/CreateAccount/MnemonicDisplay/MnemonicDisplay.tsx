@@ -33,7 +33,7 @@ const MnemonicWordListing = withSuspense(
 type MnemonicDisplayProps = {
   account?: Web3BaseWalletAccount;
   userPassword: string;
-  onMnemonicNoted: (mnemonic: string, hexSeed: string) => void;
+  onMnemonicNoted: () => void;
 };
 
 const MnemonicDisplay = ({
@@ -47,9 +47,7 @@ const MnemonicDisplay = ({
   const [hasJustCopiedSeed, setHasJustCopiedSeed] = useState(false);
 
   const onProceed = () => {
-    if (mnemonic && accountHexSeed) {
-      onMnemonicNoted(mnemonic, accountHexSeed);
-    }
+    onMnemonicNoted();
   };
 
   const onCopyHexSeed = async () => {

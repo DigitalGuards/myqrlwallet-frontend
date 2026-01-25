@@ -1,5 +1,6 @@
 import { ZOND_PROVIDER } from "@/config";
 import { TokenInterface } from "@/constants";
+import { isInNativeApp } from "@/utils/nativeApp";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
 const BLOCKCHAIN_SELECTION_IDENTIFIER = "BLOCKCHAIN_SELECTION";
@@ -36,7 +37,7 @@ interface WalletSettings {
   hideUnknownTokens: boolean;
 }
 
-interface EncryptedSeedData {
+export interface EncryptedSeedData {
   address: string;
   encryptedSeed: string; // JSON string from WalletEncryptionUtil.encryptSeedWithPin
   lastAccessed: number;
@@ -64,6 +65,11 @@ class StorageUtil {
   }
 
   private static isExpired(timestamp: number): boolean {
+    // Native app has its own security (Device Login, auto-lock on background)
+    // so we don't need the 6-hour expiration guardrail there
+    if (isInNativeApp()) {
+      return false;
+    }
     return Date.now() - timestamp > MAX_STORAGE_AGE;
   }
 
@@ -148,7 +154,7 @@ class StorageUtil {
   /**
    * A function for storing the active account in the wallet.
    * Call the getActiveAccount function to retrieve the stored value.
-   * Data expires after 6 hours.
+   * Data expires after 6 hours on desktop web (native app bypasses expiration).
    */
   static async setActiveAccount(blockchain: string, activeAccount?: string) {
     const blockChainAccountIdentifier = `${blockchain}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
@@ -299,6 +305,37 @@ class StorageUtil {
     }
 
     return null;
+  }
+
+  /**
+   * Retrieves all encrypted seeds for a blockchain
+   * @param blockchain The blockchain identifier
+   * @returns Array of all stored encrypted seeds
+   */
+  static async getAllEncryptedSeeds(blockchain: string): Promise<EncryptedSeedData[]> {
+    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    return this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
+  }
+
+  /**
+   * Checks if any encrypted seeds exist for a blockchain
+   * @param blockchain The blockchain identifier
+   * @returns True if at least one encrypted seed exists
+   */
+  static async hasEncryptedSeeds(blockchain: string): Promise<boolean> {
+    const seeds = await this.getAllEncryptedSeeds(blockchain);
+    return seeds.length > 0;
+  }
+
+  /**
+   * Updates all encrypted seeds for a blockchain atomically
+   * Used when changing PIN - replaces all encrypted seeds with newly encrypted versions
+   * @param blockchain The blockchain identifier
+   * @param seeds Array of updated encrypted seed data
+   */
+  static async updateAllEncryptedSeeds(blockchain: string, seeds: EncryptedSeedData[]): Promise<void> {
+    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    this.setItem(encryptedSeedsKey, seeds);
   }
 
   /**
