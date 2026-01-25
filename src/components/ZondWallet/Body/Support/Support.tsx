@@ -90,7 +90,7 @@ const Support: React.FC = () => {
                 <Form {...form}>
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                         {submitError && (
-                            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                            <div role="alert" className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                                 {submitError}
                             </div>
                         )}
