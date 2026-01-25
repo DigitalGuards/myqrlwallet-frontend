@@ -369,12 +369,12 @@ const Settings = observer(() => {
                                 <form onSubmit={form.handleSubmit(onSubmit)}>
                                     <CardContent className="space-y-8">
                                         {settingsSaveSuccess && (
-                                            <div className="rounded-md bg-green-500/15 p-3 text-sm text-green-600 dark:text-green-400">
+                                            <div role="status" className="rounded-md bg-green-500/15 p-3 text-sm text-green-600 dark:text-green-400">
                                                 Settings saved successfully! Your wallet settings have been updated.
                                             </div>
                                         )}
                                         {settingsSaveError && (
-                                            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                                            <div role="alert" className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                                                 {settingsSaveError}
                                             </div>
                                         )}
