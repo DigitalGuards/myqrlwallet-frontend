@@ -10,8 +10,8 @@ import {
 import { ROUTES } from "../../../../../router/router";
 import { useStore } from "../../../../../stores/store";
 import { getExplorerAddressUrl } from "@/config";
-import { copyToClipboard, openExternalUrl } from "@/utils/nativeApp";
-import { Copy, ExternalLink, SendHorizontal, History } from "lucide-react";
+import { openExternalUrl } from "@/utils/nativeApp";
+import { ExternalLink, SendHorizontal, History } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Link } from "react-router-dom";
 import { AccountId } from "../AccountId/AccountId";
@@ -20,6 +20,7 @@ import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { TransactionHistoryPopup } from "./TransactionHistoryPopup";
 import { ExtensionBadge } from "../ExtensionBadge/ExtensionBadge";
+import { CopyAddressButton } from "../CopyAddressButton/CopyAddressButton";
 
 export const ActiveAccount = observer(() => {
   const { zondStore } = useStore();
@@ -30,21 +31,7 @@ export const ActiveAccount = observer(() => {
   } = zondStore;
 
   const activeAccountLabel = "Active account";
-  const [copied, setCopied] = useState(false);
-  const [tooltipOpen, setTooltipOpen] = useState(false);
   const [txHistoryOpen, setTxHistoryOpen] = useState(false);
-
-  const copyAccount = async () => {
-    const success = await copyToClipboard(accountAddress);
-    if (success) {
-      setCopied(true);
-      setTooltipOpen(true);
-      setTimeout(() => {
-        setCopied(false);
-        setTooltipOpen(false);
-      }, 1000);
-    }
-  };
 
   const viewInExplorer = () => {
     openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
@@ -63,25 +50,7 @@ export const ActiveAccount = observer(() => {
             </div>
           </div>
           <div className="flex gap-4 items-center">
-            <span>
-              <TooltipProvider>
-                <Tooltip open={tooltipOpen} onOpenChange={setTooltipOpen} delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="hover:text-secondary"
-                      variant="outline"
-                      size="icon"
-                      onClick={copyAccount}
-                    >
-                      <Copy size={18} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <Label>{copied ? "Copied!" : "Copy Address"}</Label>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </span>
+            <CopyAddressButton accountAddress={accountAddress} />
             <span className="group relative">
               <TooltipProvider>
                 <Tooltip>
@@ -150,7 +119,7 @@ export const ActiveAccount = observer(() => {
                     </Link>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
-                    <Label>Send Quanta</Label>
+                    <Label>Transfer</Label>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
