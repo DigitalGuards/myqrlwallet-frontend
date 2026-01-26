@@ -6,10 +6,24 @@
  * crypto operations are requested concurrently (e.g., PIN change for multiple seeds).
  */
 
-import type { CryptoWorkerMessage, CryptoWorkerResponse } from './cryptoWorker';
+import type { CryptoWorkerMessage, CryptoWorkerResponse, CryptoErrorCode } from './cryptoWorker';
+import { CryptoErrorCode as CryptoErrorCodes } from './cryptoWorker';
 
 // Vite worker import syntax
 import CryptoWorker from './cryptoWorker?worker';
+
+// Re-export error codes for consumers
+export { CryptoErrorCode } from './cryptoWorker';
+
+/**
+ * Custom error class that carries an error code for programmatic handling.
+ */
+export class CryptoOperationError extends Error {
+  constructor(public code: CryptoErrorCode, message: string) {
+    super(message);
+    this.name = 'CryptoOperationError';
+  }
+}
 
 // === Worker Pool Configuration ===
 const MAX_WORKERS = Math.min(navigator.hardwareConcurrency || 2, 4);
@@ -102,7 +116,8 @@ function postToWorker<T extends CryptoWorkerResponse['type']>(
       if (response.success) {
         resolve(response as Extract<CryptoWorkerResponse, { type: T; success: true }>);
       } else {
-        reject(new Error((response as { error: string }).error));
+        const errorResponse = response as { code: CryptoErrorCode; error: string };
+        reject(new CryptoOperationError(errorResponse.code, errorResponse.error));
       }
     };
 
@@ -110,7 +125,7 @@ function postToWorker<T extends CryptoWorkerResponse['type']>(
       worker.removeEventListener('message', handler);
       worker.removeEventListener('error', errorHandler);
       releaseWorker(pooledWorker);
-      reject(new Error(error.message || 'Worker error'));
+      reject(new CryptoOperationError(CryptoErrorCodes.UNKNOWN, error.message || 'Worker error'));
     };
 
     worker.addEventListener('message', handler);
