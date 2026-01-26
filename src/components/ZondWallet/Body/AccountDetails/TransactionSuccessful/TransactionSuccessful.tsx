@@ -46,9 +46,12 @@ export const TransactionSuccessful = ({
           src="/tree.svg"
           alt="Background Tree"
         />
-        <Card className="w-full">
+        <h1 className="text-3xl font-bold text-foreground mb-6">
+          Transaction Completed
+        </h1>
+        <Card className="w-full border-l-4 border-l-blue-accent">
           <CardHeader>
-            <CardTitle>Transaction completed</CardTitle>
+            <CardTitle>Transaction Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-8">
             <div className="flex flex-col gap-2">
