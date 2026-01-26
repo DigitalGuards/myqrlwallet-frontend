@@ -24,7 +24,10 @@ export type WebToNativeMessageType =
   | 'PIN_VERIFIED'          // Web responds to PIN verification request
   | 'PIN_CHANGED'           // Web responds to PIN change request
   // Navigation messages
-  | 'OPEN_NATIVE_SETTINGS'; // Request native app to open its settings screen
+  | 'OPEN_NATIVE_SETTINGS'  // Request native app to open its settings screen
+  // Key exchange messages
+  | 'KEY_EXCHANGE_INIT'     // Web initiates key exchange with its public key
+  | 'KEY_EXCHANGE_RESPONSE'; // Web responds with its public key (if native initiated)
 
 /**
  * Message types that can be received from the native app
@@ -43,7 +46,10 @@ export type NativeToWebMessageType =
   | 'CLEAR_WALLET'          // Native requests web to clear wallet
   | 'BIOMETRIC_SETUP_PROMPT' // Native prompts user to enable biometric
   | 'VERIFY_PIN'            // Native asks web to verify PIN can decrypt seed
-  | 'CHANGE_PIN';           // Native requests web to re-encrypt seeds with new PIN
+  | 'CHANGE_PIN'            // Native requests web to re-encrypt seeds with new PIN
+  // Key exchange messages
+  | 'KEY_EXCHANGE_INIT'     // Native initiates key exchange with its public key
+  | 'KEY_EXCHANGE_RESPONSE'; // Native responds with its public key (if web initiated)
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
