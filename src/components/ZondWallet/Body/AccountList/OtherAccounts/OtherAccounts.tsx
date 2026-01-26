@@ -9,13 +9,13 @@ import {
 } from "../../../../UI/Tooltip";
 import { useStore } from "../../../../../stores/store";
 import { getExplorerAddressUrl } from "@/config";
-import { copyToClipboard, openExternalUrl } from "@/utils/nativeApp";
-import { ArrowRight, Copy, ExternalLink } from "lucide-react";
+import { openExternalUrl } from "@/utils/nativeApp";
+import { ArrowRight, ExternalLink } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { AccountId } from "../AccountId/AccountId";
 import { AccountBalance } from "../AccountBalance/AccountBalance";
-import { useState } from "react";
 import { ExtensionBadge } from "../ExtensionBadge/ExtensionBadge";
+import { CopyAddressButton } from "../CopyAddressButton/CopyAddressButton";
 
 export const OtherAccounts = observer(() => {
   const { zondStore } = useStore();
@@ -31,21 +31,6 @@ export const OtherAccounts = observer(() => {
   const otherAccounts = accounts.filter(
     ({ accountAddress }) => accountAddress !== activeAccountAddress
   );
-
-  const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
-  const [tooltipStates, setTooltipStates] = useState<{ [key: string]: boolean }>({});
-
-  const copyAccount = async (accountAddress: string) => {
-    const success = await copyToClipboard(accountAddress);
-    if (success) {
-      setCopiedAccount(accountAddress);
-      setTooltipStates(prev => ({ ...prev, [accountAddress]: true }));
-      setTimeout(() => {
-        setCopiedAccount(null);
-        setTooltipStates(prev => ({ ...prev, [accountAddress]: false }));
-      }, 1000);
-    }
-  };
 
   const viewInExplorer = (accountAddress: string) => {
     openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
@@ -67,31 +52,7 @@ export const OtherAccounts = observer(() => {
               {source === 'extension' && <ExtensionBadge />}
             </div>
             <div className="flex gap-4 items-center">
-              <span>
-                <TooltipProvider>
-                  <Tooltip
-                    open={tooltipStates[accountAddress]}
-                    onOpenChange={(open) =>
-                      setTooltipStates(prev => ({ ...prev, [accountAddress]: open }))
-                    }
-                    delayDuration={0}
-                  >
-                    <TooltipTrigger asChild>
-                      <Button
-                        className="hover:text-secondary"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => copyAccount(accountAddress)}
-                      >
-                        <Copy size={18} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <Label>{copiedAccount === accountAddress ? "Copied!" : "Copy Address"}</Label>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </span>
+              <CopyAddressButton accountAddress={accountAddress} />
               <span>
                 <TooltipProvider>
                   <Tooltip delayDuration={0}>

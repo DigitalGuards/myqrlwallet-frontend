@@ -9,14 +9,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/Tabs";
 import { ExtendedWalletAccount } from "@/utils/crypto";
 import { SEO } from "../../../SEO/SEO";
 import { PinSetup } from "../PinSetup/PinSetup";
+import { useWalletLimit } from "@/hooks/useWalletLimit";
+import { AlertCircle } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ROUTES } from "@/router/router";
+import { Button } from "@/components/UI/Button";
 
 const ImportAccount = observer(() => {
   const { zondStore } = useStore();
-  const { setActiveAccount } = zondStore;
+  const { setActiveAccount, zondConnection } = zondStore;
 
   const [account, setAccount] = useState<ExtendedWalletAccount>();
   const [hasAccountImported, setHasAccountImported] = useState(false);
   const [isPinSetupComplete, setIsPinSetupComplete] = useState(false);
+
+  const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(zondConnection.blockchain);
 
   const onAccountImported = async (importedAccount: ExtendedWalletAccount) => {
     window.scrollTo(0, 0);
@@ -44,12 +51,33 @@ const ImportAccount = observer(() => {
             alt="Background Tree"
           />
           <div className="relative z-10">
-            {hasAccountImported ? (
+            {isWalletLimitReached ? (
+              <div className="flex flex-col items-center gap-6 rounded-lg border border-destructive/50 bg-destructive/10 p-8 text-center">
+                <AlertCircle className="h-12 w-12 text-destructive" />
+                <div className="flex flex-col gap-2">
+                  <h2 className="text-xl font-semibold text-foreground">
+                    Wallet Limit Reached
+                  </h2>
+                  <p className="text-muted-foreground">
+                    You have reached the maximum limit of {maxWallets} wallets.
+                    Please remove an existing wallet before importing a new one.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Current wallets: {walletCount} / {maxWallets}
+                  </p>
+                </div>
+                <Link to={ROUTES.ACCOUNT_LIST}>
+                  <Button variant="outline">
+                    Manage Wallets
+                  </Button>
+                </Link>
+              </div>
+            ) : hasAccountImported ? (
               isPinSetupComplete ? (
                 <AccountImportSuccess account={account} />
               ) : (
                 account && account.mnemonic && account.hexSeed ? (
-                  <PinSetup 
+                  <PinSetup
                     accountAddress={account.address}
                     mnemonic={account.mnemonic}
                     hexSeed={account.hexSeed}

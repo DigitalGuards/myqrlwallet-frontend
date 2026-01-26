@@ -1,35 +1,107 @@
 /**
  * Client interface for the crypto Web Worker.
  * Provides async functions that run PBKDF2 off the main thread.
+ *
+ * Uses a worker pool to enable true parallel execution when multiple
+ * crypto operations are requested concurrently (e.g., PIN change for multiple seeds).
  */
 
-import type { CryptoWorkerMessage, CryptoWorkerResponse } from './cryptoWorker';
+import type { CryptoWorkerMessage, CryptoWorkerResponse, CryptoErrorCode } from './cryptoWorker';
+import { CryptoErrorCode as CryptoErrorCodes } from './cryptoWorker';
 
 // Vite worker import syntax
 import CryptoWorker from './cryptoWorker?worker';
 
-let workerInstance: Worker | null = null;
-let requestIdCounter = 0;
+// Re-export error codes for consumers
+export { CryptoErrorCode } from './cryptoWorker';
 
-function getWorker(): Worker {
-  if (!workerInstance) {
-    workerInstance = new CryptoWorker();
+/**
+ * Custom error class that carries an error code for programmatic handling.
+ */
+export class CryptoOperationError extends Error {
+  constructor(public code: CryptoErrorCode, message: string) {
+    super(message);
+    this.name = 'CryptoOperationError';
   }
-  return workerInstance;
 }
+
+// === Worker Pool Configuration ===
+const MAX_WORKERS = Math.min(navigator.hardwareConcurrency || 2, 4);
+const WORKER_IDLE_TIMEOUT_MS = 30000; // 30 seconds
+
+interface PooledWorker {
+  worker: Worker;
+  busy: boolean;
+  idleTimer: ReturnType<typeof setTimeout> | null;
+}
+
+// Pool of workers for parallel operations
+let workerPool: PooledWorker[] = [];
+let requestIdCounter = 0;
 
 // Response type with requestId for matching concurrent requests
 type WorkerResponseWithId = CryptoWorkerResponse & { requestId: number };
 
 /**
- * Send a message to the worker and wait for response.
- * Uses request IDs to correctly match responses when multiple concurrent requests are made.
+ * Get or create a worker from the pool.
+ * Returns an available worker or spawns a new one if pool isn't full.
+ */
+function acquireWorker(): PooledWorker {
+  // Find an idle worker
+  const idleWorker = workerPool.find(w => !w.busy);
+  if (idleWorker) {
+    if (idleWorker.idleTimer) {
+      clearTimeout(idleWorker.idleTimer);
+      idleWorker.idleTimer = null;
+    }
+    idleWorker.busy = true;
+    return idleWorker;
+  }
+
+  // Spawn new worker if pool isn't full
+  if (workerPool.length < MAX_WORKERS) {
+    const pooledWorker: PooledWorker = {
+      worker: new CryptoWorker(),
+      busy: true,
+      idleTimer: null,
+    };
+    workerPool.push(pooledWorker);
+    return pooledWorker;
+  }
+
+  // Pool is full and all busy - shouldn't happen with proper await usage
+  // Fall back to first worker (will queue behind current operation)
+  workerPool[0].busy = true;
+  return workerPool[0];
+}
+
+/**
+ * Release a worker back to the pool.
+ * Starts idle timer for cleanup.
+ */
+function releaseWorker(pooledWorker: PooledWorker): void {
+  pooledWorker.busy = false;
+
+  // Start idle timer for cleanup
+  pooledWorker.idleTimer = setTimeout(() => {
+    const index = workerPool.indexOf(pooledWorker);
+    if (index !== -1 && !pooledWorker.busy) {
+      pooledWorker.worker.terminate();
+      workerPool.splice(index, 1);
+    }
+  }, WORKER_IDLE_TIMEOUT_MS);
+}
+
+/**
+ * Send a message to a worker and wait for response.
+ * Acquires a worker from the pool for parallel execution.
  */
 function postToWorker<T extends CryptoWorkerResponse['type']>(
   message: CryptoWorkerMessage
 ): Promise<Extract<CryptoWorkerResponse, { type: T; success: true }>> {
   return new Promise((resolve, reject) => {
-    const worker = getWorker();
+    const pooledWorker = acquireWorker();
+    const { worker } = pooledWorker;
     const requestId = ++requestIdCounter;
 
     const handler = (event: MessageEvent<WorkerResponseWithId>) => {
@@ -38,19 +110,22 @@ function postToWorker<T extends CryptoWorkerResponse['type']>(
 
       worker.removeEventListener('message', handler);
       worker.removeEventListener('error', errorHandler);
+      releaseWorker(pooledWorker);
 
       const { requestId: _reqId, ...response } = event.data;
       if (response.success) {
         resolve(response as Extract<CryptoWorkerResponse, { type: T; success: true }>);
       } else {
-        reject(new Error((response as { error: string }).error));
+        const errorResponse = response as { code: CryptoErrorCode; error: string };
+        reject(new CryptoOperationError(errorResponse.code, errorResponse.error));
       }
     };
 
     const errorHandler = (error: ErrorEvent) => {
       worker.removeEventListener('message', handler);
       worker.removeEventListener('error', errorHandler);
-      reject(new Error(error.message || 'Worker error'));
+      releaseWorker(pooledWorker);
+      reject(new CryptoOperationError(CryptoErrorCodes.UNKNOWN, error.message || 'Worker error'));
     };
 
     worker.addEventListener('message', handler);
@@ -109,11 +184,15 @@ export async function reEncryptSeedAsync(
 }
 
 /**
- * Terminate the worker when no longer needed.
+ * Terminate all workers in the pool.
+ * Call when crypto operations are no longer needed.
  */
 export function terminateCryptoWorker(): void {
-  if (workerInstance) {
-    workerInstance.terminate();
-    workerInstance = null;
+  for (const pooledWorker of workerPool) {
+    if (pooledWorker.idleTimer) {
+      clearTimeout(pooledWorker.idleTimer);
+    }
+    pooledWorker.worker.terminate();
   }
+  workerPool = [];
 }
