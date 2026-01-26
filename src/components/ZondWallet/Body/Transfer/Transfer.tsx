@@ -43,7 +43,7 @@ import { getExplorerAddressUrl, getExplorerTxUrl, ZOND_PROVIDER } from "@/config
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonic } from "@/utils/crypto";
-import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
+import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic, isEncryptedEnvelope } from "@/utils/nativeApp";
 import { SEO } from "@/components/SEO/SEO";
 import { getOptimalTokenBalance, formatAddress, formatAddressShort } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
@@ -202,6 +202,9 @@ const Transfer = observer(() => {
     if (!isInNativeApp()) return;
 
     const unsubscribe = subscribeToNativeMessages((message) => {
+      // Skip encrypted messages (QR results are never encrypted)
+      if (isEncryptedEnvelope(message)) return;
+
       if (message.type === 'QR_RESULT' && message.payload) {
         const scannedAddress = (message.payload.address as string) || '';
         setIsScanning(false);

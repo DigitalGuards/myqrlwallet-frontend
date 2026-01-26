@@ -121,9 +121,10 @@ class BridgeCryptoService {
       const peerPublicKeyBytes = this.base64ToUint8Array(peerPublicKeyBase64);
 
       // Import peer's public key
+      // Cast to ArrayBuffer to satisfy TypeScript 5.x strict typing
       const peerPublicKey = await crypto.subtle.importKey(
         'raw',
-        peerPublicKeyBytes,
+        peerPublicKeyBytes.buffer as ArrayBuffer,
         { name: 'ECDH', namedCurve: 'P-256' },
         false,
         []
