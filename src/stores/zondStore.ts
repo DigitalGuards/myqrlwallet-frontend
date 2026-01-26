@@ -51,10 +51,13 @@ type CreatedTokenType = {
 
 // Type for relevant pending transaction details from ZondScan API
 type PendingTxInfo = {
-  from: string;    // Add sender address
-  to: string;      // Add receiver address
-  gasPrice: string; // Keep as hex string initially
-  value: string;    // Keep as hex string initially
+  from: string;
+  to: string;
+  gasPrice: string; // Hex string
+  value: string;    // Hex string
+  gas: string;      // Gas limit (hex string)
+  nonce: string;    // Transaction nonce (hex string)
+  hash: string;     // Transaction hash
   lastSeen: number; // Unix timestamp
 }
 
@@ -325,6 +328,16 @@ class ZondStore {
       await this.fetchAccounts(); // Refresh the full list and balances
       if (newActiveAccount) {
         log(`Fetching balances for newly active account: ${newActiveAccount}`);
+        // Clear token list before discovering tokens for the new account
+        // This prevents tokens from inactive accounts showing with 0 balance
+        await StorageUtil.clearTokenList();
+        runInAction(() => {
+          this.tokenList = [];
+        });
+        // Add known tokens back
+        for (const token of KNOWN_TOKEN_LIST) {
+          await this.addToken(token);
+        }
         // Discover new tokens for this account (runs in background)
         this.discoverAndAddTokens(newActiveAccount)
           .then(() => {
@@ -506,10 +519,13 @@ class ZondStore {
               this.transactionStatus = {
                 ...this.transactionStatus,
                 pendingDetails: {
-                  from: pendingTx.from || '', // Add from address
-                  to: pendingTx.to || '',     // Add to address
+                  from: pendingTx.from || '',
+                  to: pendingTx.to || '',
                   gasPrice: pendingTx.gasPrice || '0x0',
                   value: pendingTx.value || '0x0',
+                  gas: pendingTx.gas || '0x0',
+                  nonce: pendingTx.nonce || '0x0',
+                  hash: pendingTx.hash || '',
                   lastSeen: pendingTx.lastSeen || Date.now() / 1000,
                 }
               };
