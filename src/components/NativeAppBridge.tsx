@@ -11,6 +11,7 @@ import {
   isInNativeApp,
   subscribeToNativeMessages,
   NativeMessage,
+  NativeMessageOrEnvelope,
   logToNative,
   setNativeInjectedPin,
   clearNativeInjectedPin,
@@ -19,6 +20,9 @@ import {
   dispatchQRResult,
   sendPinVerified,
   sendPinChanged,
+  sendKeyExchangeResponse,
+  BridgeCrypto,
+  isEncryptedEnvelope,
 } from '@/utils/nativeApp';
 import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
 import { reEncryptSeedAsync, CryptoOperationError, CryptoErrorCode } from '@/utils/crypto';
@@ -129,8 +133,31 @@ const NativeAppBridge: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleNativeMessage = useCallback(
-    (message: NativeMessage) => {
+  /**
+   * Handle incoming message, decrypting if necessary
+   */
+  const processMessage = useCallback(
+    async (rawMessage: NativeMessageOrEnvelope): Promise<void> => {
+      let message: NativeMessage;
+
+      // Check if message is encrypted
+      if (isEncryptedEnvelope(rawMessage)) {
+        const decrypted = await BridgeCrypto.decrypt(rawMessage);
+        if (!decrypted) {
+          console.error('[Bridge] Failed to decrypt message');
+          return;
+        }
+        try {
+          message = JSON.parse(decrypted) as NativeMessage;
+          logToNative('Decrypted message: ' + message.type);
+        } catch {
+          console.error('[Bridge] Failed to parse decrypted message');
+          return;
+        }
+      } else {
+        message = rawMessage as NativeMessage;
+      }
+
       const { type, payload } = message;
 
       switch (type) {
@@ -242,6 +269,7 @@ const NativeAppBridge: React.FC = () => {
           // Native app requests full wallet wipe (from native settings)
           logToNative('Clearing wallet data');
           clearNativeInjectedPin();
+          BridgeCrypto.reset(); // Reset crypto for new session
 
           // Clear all wallet data for all blockchains
           const blockchains = Object.keys(ZOND_PROVIDER);
@@ -347,11 +375,48 @@ const NativeAppBridge: React.FC = () => {
           break;
         }
 
+        // Key exchange messages
+        case 'KEY_EXCHANGE_INIT': {
+          const peerPublicKey = payload?.publicKey;
+          if (typeof peerPublicKey !== 'string') {
+            console.warn('[Bridge] KEY_EXCHANGE_INIT missing publicKey');
+            return;
+          }
+
+          logToNative('Received key exchange init');
+
+          // Generate our key pair and complete exchange
+          (async () => {
+            try {
+              const ourPublicKey = await BridgeCrypto.getPublicKey();
+              const success = await BridgeCrypto.completeKeyExchange(peerPublicKey);
+
+              // Send our public key back
+              sendKeyExchangeResponse(ourPublicKey, success);
+              logToNative(`Key exchange ${success ? 'completed' : 'failed'}`);
+            } catch (error) {
+              console.error('[Bridge] Key exchange error:', error);
+              sendKeyExchangeResponse('', false);
+            }
+          })();
+          break;
+        }
+
         default:
           console.warn('[Bridge] Unknown message type:', type);
       }
     },
     [navigate, location.search]
+  );
+
+  /**
+   * Wrapper to call processMessage from event handler
+   */
+  const handleNativeMessage = useCallback(
+    (message: NativeMessageOrEnvelope) => {
+      processMessage(message);
+    },
+    [processMessage]
   );
 
   useEffect(() => {

@@ -5,6 +5,8 @@
  * when the web app is running inside the native WebView.
  */
 
+import BridgeCrypto, { EncryptedEnvelope, isEncryptedEnvelope } from './crypto/bridgeCrypto';
+
 /**
  * Message types that can be sent to the native app
  */
@@ -57,6 +59,27 @@ export interface NativeMessage {
 }
 
 /**
+ * Message types that contain sensitive data and should be encrypted
+ * when secure channel is established
+ */
+const SENSITIVE_WEB_TO_NATIVE: WebToNativeMessageType[] = [
+  'SEED_STORED',
+  'PIN_VERIFIED',
+  'PIN_CHANGED',
+];
+
+/**
+ * Check if a message type is sensitive and should be encrypted
+ */
+function isSensitiveMessage(type: WebToNativeMessageType): boolean {
+  return SENSITIVE_WEB_TO_NATIVE.includes(type);
+}
+
+// Re-export crypto utilities for use by NativeAppBridge
+export { BridgeCrypto, isEncryptedEnvelope };
+export type { EncryptedEnvelope };
+
+/**
  * Check if the web app is running inside the native MyQRLWallet app
  */
 export const isInNativeApp = (): boolean => {
@@ -81,6 +104,50 @@ export const sendToNative = (
 
   console.warn('[NativeApp] Not running in native app, message not sent:', type);
   return false;
+};
+
+/**
+ * Send a raw message (encrypted envelope) to the native app
+ */
+const sendToNativeRaw = (envelope: EncryptedEnvelope): boolean => {
+  const webView = window.ReactNativeWebView;
+
+  if (webView?.postMessage) {
+    webView.postMessage(JSON.stringify(envelope));
+    return true;
+  }
+
+  console.warn('[NativeApp] Not running in native app, encrypted message not sent');
+  return false;
+};
+
+/**
+ * Send a message to the native app with optional encryption
+ * Encrypts sensitive messages if secure channel is established
+ */
+export const sendToNativeSecure = async (
+  type: WebToNativeMessageType,
+  payload?: Record<string, unknown>
+): Promise<boolean> => {
+  if (BridgeCrypto.shouldEncrypt() && isSensitiveMessage(type)) {
+    const message = { type, payload };
+    const envelope = await BridgeCrypto.encrypt(JSON.stringify(message));
+    if (envelope) {
+      console.debug('[NativeApp] Sending encrypted', type);
+      return sendToNativeRaw(envelope);
+    }
+    // Fall through to unencrypted if encryption failed
+    console.warn('[NativeApp] Encryption failed, sending unencrypted');
+  }
+  return sendToNative(type, payload);
+};
+
+/**
+ * Send key exchange response to native app
+ * Called after receiving KEY_EXCHANGE_INIT
+ */
+export const sendKeyExchangeResponse = (publicKey: string, success: boolean): boolean => {
+  return sendToNative('KEY_EXCHANGE_RESPONSE', { publicKey, success });
 };
 
 /**
@@ -174,11 +241,18 @@ export const triggerHaptic = (style: 'success' | 'warning' | 'error' | 'light' |
 };
 
 /**
+ * Union type for any message that can be received from native
+ * (either plaintext or encrypted)
+ */
+export type NativeMessageOrEnvelope = NativeMessage | EncryptedEnvelope;
+
+/**
  * Subscribe to messages from the native app
+ * Messages may be either plaintext or encrypted envelopes
  * Returns an unsubscribe function
  */
 export const subscribeToNativeMessages = (
-  callback: (message: NativeMessage) => void
+  callback: (message: NativeMessageOrEnvelope) => void
 ): (() => void) => {
   const handler = (event: Event) => {
     // Verify it's a CustomEvent before accessing detail
@@ -187,7 +261,7 @@ export const subscribeToNativeMessages = (
       return;
     }
     if (event.detail) {
-      callback(event.detail as NativeMessage);
+      callback(event.detail as NativeMessageOrEnvelope);
     }
   };
 
@@ -270,17 +344,19 @@ export const confirmWalletCleared = (): boolean => {
 
 /**
  * Send PIN verification result to native app
+ * Uses encrypted channel if available
  */
-export const sendPinVerified = (success: boolean, error?: string): boolean => {
-  return sendToNative('PIN_VERIFIED', { success, error });
+export const sendPinVerified = async (success: boolean, error?: string): Promise<boolean> => {
+  return sendToNativeSecure('PIN_VERIFIED', { success, error });
 };
 
 /**
  * Send PIN change result to native app
  * Called after web re-encrypts all seeds with the new PIN
+ * Uses encrypted channel if available
  */
-export const sendPinChanged = (success: boolean, newPin?: string, error?: string): boolean => {
-  return sendToNative('PIN_CHANGED', { success, newPin, error });
+export const sendPinChanged = async (success: boolean, newPin?: string, error?: string): Promise<boolean> => {
+  return sendToNativeSecure('PIN_CHANGED', { success, newPin, error });
 };
 
 /**
