@@ -453,6 +453,14 @@ const Transfer = observer(() => {
                 {transactionStatus.pendingDetails && (
                   <div className="mt-4 w-full max-w-md rounded border bg-muted p-4 text-left text-sm space-y-2">
                     <div className="flex justify-between">
+                      <span className="text-muted-foreground">From:</span>
+                      <span className="font-mono text-xs">{formatAddressShort(transactionStatus.pendingDetails.from)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">To:</span>
+                      <span className="font-mono text-xs">{formatAddressShort(transactionStatus.pendingDetails.to)}</span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-muted-foreground">Value:</span>
                       <span>
                         {isNativeTransfer
@@ -464,6 +472,14 @@ const Transfer = observer(() => {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Gas Price:</span>
                       <span>{utils.fromWei(BigInt(transactionStatus.pendingDetails.gasPrice), "gwei")} Gwei</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Gas Limit:</span>
+                      <span>{parseInt(transactionStatus.pendingDetails.gas, 16).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Nonce:</span>
+                      <span>{parseInt(transactionStatus.pendingDetails.nonce, 16)}</span>
                     </div>
                   </div>
                 )}

@@ -54,7 +54,11 @@ const TokenForm = observer(() => {
             await StorageUtil.clearHiddenTokens();
             await zondStore.loadHiddenTokens();
 
-            // Discover new tokens first
+            // Clear existing token list to prevent tokens from other accounts showing
+            await StorageUtil.clearTokenList();
+            await zondStore.setTokenList([]);
+
+            // Discover tokens for the active account only
             await zondStore.discoverAndAddTokens(activeAccountAddress);
 
             // Then refresh all balances
