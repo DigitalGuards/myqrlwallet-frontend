@@ -21,7 +21,7 @@ import {
   sendPinChanged,
 } from '@/utils/nativeApp';
 import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
-import { reEncryptSeedAsync } from '@/utils/crypto';
+import { reEncryptSeedAsync, CryptoOperationError, CryptoErrorCode } from '@/utils/crypto';
 import { ROUTES } from '@/router/router';
 import StorageUtil from '@/utils/storage/storage';
 import { ZOND_PROVIDER } from '@/config';
@@ -109,15 +109,13 @@ async function handleChangePinRequest(oldPin: string, newPin: string): Promise<v
   } catch (error) {
     console.error('[Bridge] Error changing PIN:', error);
 
-    // Check if error message indicates incorrect PIN
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const isIncorrectPin = errorMessage.includes('decrypt') || errorMessage.includes('Invalid PIN');
-
-    if (isIncorrectPin) {
+    // Check error code for proper handling
+    if (error instanceof CryptoOperationError && error.code === CryptoErrorCode.INCORRECT_PIN) {
       logToNative('PIN change failed: incorrect current PIN');
       sendPinChanged(false, undefined, PIN_CHANGE_ERRORS.INCORRECT_PIN);
     } else {
       // Don't expose internal error details to native app
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logToNative(`PIN change failed: ${errorMessage}`);
       sendPinChanged(false, undefined, 'An unexpected error occurred during PIN change.');
     }
