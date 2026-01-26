@@ -13,6 +13,7 @@ const TOKEN_LIST_IDENTIFIER = "TOKEN_LIST";
 const HIDDEN_TOKENS_IDENTIFIER = "HIDDEN_TOKENS";
 const STORAGE_VERSION = 'v1';
 const MAX_STORAGE_AGE = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
+const MAX_WALLETS = 10; // Maximum number of wallets that can be imported
 const WALLET_SETTINGS_IDENTIFIER = "WALLET_SETTINGS";
 const ENCRYPTED_SEEDS_IDENTIFIER = "ENCRYPTED_SEEDS";
 const AUTO_LOCK_TIMEOUT = 15 * 60 * 1000; // 15 minutes default auto-lock timeout
@@ -217,6 +218,33 @@ class StorageUtil {
 
     // Fallback: unknown structure
     return [];
+  }
+
+  /**
+   * Returns the maximum number of wallets allowed
+   */
+  static getMaxWallets(): number {
+    return MAX_WALLETS;
+  }
+
+  /**
+   * Checks if the wallet limit has been reached for a blockchain
+   * @param blockchain The blockchain identifier
+   * @returns True if the wallet limit has been reached
+   */
+  static async isWalletLimitReached(blockchain: string): Promise<boolean> {
+    const accountList = await this.getAccountList(blockchain);
+    return accountList.length >= MAX_WALLETS;
+  }
+
+  /**
+   * Gets the current wallet count for a blockchain
+   * @param blockchain The blockchain identifier
+   * @returns The number of wallets currently stored
+   */
+  static async getWalletCount(blockchain: string): Promise<number> {
+    const accountList = await this.getAccountList(blockchain);
+    return accountList.length;
   }
 
   /**

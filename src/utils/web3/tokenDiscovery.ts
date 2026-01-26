@@ -57,7 +57,7 @@ export async function discoverTokens(
       .filter((token) => token.contractAddress)
       .map((token) => ({
         name: token.name || "Unknown Token",
-        symbol: token.symbol || "???",
+        symbol: token.symbol || "UNK",
         address: token.contractAddress.startsWith("Z")
           ? token.contractAddress
           : `Z${token.contractAddress.replace(/^0x/i, "")}`,
