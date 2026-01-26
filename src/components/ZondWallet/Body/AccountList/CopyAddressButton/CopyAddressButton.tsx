@@ -50,7 +50,10 @@ export const CopyAddressButton = ({
       // Convert SVG to canvas using data URL (CSP-compliant)
       const svg = qrRef.current;
       const svgData = new XMLSerializer().serializeToString(svg);
-      const svgDataUrl = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+      // Convert UTF-8 string to base64 (modern replacement for deprecated unescape/encodeURIComponent)
+      const utf8Bytes = new TextEncoder().encode(svgData);
+      const base64 = btoa(Array.from(utf8Bytes, byte => String.fromCharCode(byte)).join(''));
+      const svgDataUrl = "data:image/svg+xml;base64," + base64;
 
       const img = new Image();
       img.onload = async () => {
