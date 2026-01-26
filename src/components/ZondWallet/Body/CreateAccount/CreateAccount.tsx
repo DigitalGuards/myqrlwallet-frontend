@@ -1,11 +1,11 @@
-import { lazy, useState, useEffect } from "react";
+import { lazy, useState } from "react";
 import { withSuspense } from "@/utils/react";
 import { SEO } from "../../../SEO/SEO";
 import { useStore } from "../../../../stores/store";
 import { Web3BaseWalletAccount } from "@theqrl/web3";
 import { observer } from "mobx-react-lite";
 import { AccountCreationForm } from "./AccountCreationForm/AccountCreationForm";
-import { StorageUtil } from "@/utils/storage";
+import { useWalletLimit } from "@/hooks/useWalletLimit";
 import { AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ROUTES } from "@/router/router";
@@ -22,22 +22,8 @@ const CreateAccount = observer(() => {
   const [account, setAccount] = useState<Web3BaseWalletAccount>();
   const [hasAccountCreated, setHasAccountCreated] = useState(false);
   const [userPassword, setUserPassword] = useState<string>("");
-  const [isWalletLimitReached, setIsWalletLimitReached] = useState(false);
-  const [walletCount, setWalletCount] = useState(0);
 
-  const maxWallets = StorageUtil.getMaxWallets();
-
-  useEffect(() => {
-    const checkWalletLimit = async () => {
-      if (zondConnection.blockchain) {
-        const limitReached = await StorageUtil.isWalletLimitReached(zondConnection.blockchain);
-        const count = await StorageUtil.getWalletCount(zondConnection.blockchain);
-        setIsWalletLimitReached(limitReached);
-        setWalletCount(count);
-      }
-    };
-    checkWalletLimit();
-  }, [zondConnection.blockchain]);
+  const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(zondConnection.blockchain);
 
   // Called after account is created AND seed is encrypted/stored
   const onAccountCreated = async (

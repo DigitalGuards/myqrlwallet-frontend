@@ -1,6 +1,6 @@
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../../stores/store";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ImportAccountForm } from "./ImportAccountForm/ImportAccountForm";
 import { ImportEncryptedWallet } from "./ImportEncryptedWallet/ImportEncryptedWallet";
 import { ImportHexSeedForm } from "./ImportHexSeedForm/ImportHexSeedForm";
@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/Tabs";
 import { ExtendedWalletAccount } from "@/utils/crypto";
 import { SEO } from "../../../SEO/SEO";
 import { PinSetup } from "../PinSetup/PinSetup";
-import { StorageUtil } from "@/utils/storage";
+import { useWalletLimit } from "@/hooks/useWalletLimit";
 import { AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ROUTES } from "@/router/router";
@@ -22,22 +22,8 @@ const ImportAccount = observer(() => {
   const [account, setAccount] = useState<ExtendedWalletAccount>();
   const [hasAccountImported, setHasAccountImported] = useState(false);
   const [isPinSetupComplete, setIsPinSetupComplete] = useState(false);
-  const [isWalletLimitReached, setIsWalletLimitReached] = useState(false);
-  const [walletCount, setWalletCount] = useState(0);
 
-  const maxWallets = StorageUtil.getMaxWallets();
-
-  useEffect(() => {
-    const checkWalletLimit = async () => {
-      if (zondConnection.blockchain) {
-        const limitReached = await StorageUtil.isWalletLimitReached(zondConnection.blockchain);
-        const count = await StorageUtil.getWalletCount(zondConnection.blockchain);
-        setIsWalletLimitReached(limitReached);
-        setWalletCount(count);
-      }
-    };
-    checkWalletLimit();
-  }, [zondConnection.blockchain]);
+  const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(zondConnection.blockchain);
 
   const onAccountImported = async (importedAccount: ExtendedWalletAccount) => {
     window.scrollTo(0, 0);
