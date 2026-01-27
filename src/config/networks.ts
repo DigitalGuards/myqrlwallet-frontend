@@ -14,13 +14,13 @@ export const ZOND_PROVIDER = {
   TEST_NET: {
     id: "TEST_NET",
     url: `${RPC_API_BASE}/testnet`,
-    name: "Zond Testnet",
+    name: "QRL 2.0 Testnet",
     explorer: ZONDSCAN_BASE
   },
   MAIN_NET: {
     id: "MAIN_NET",
     url: `${RPC_API_BASE}/mainnet`,
-    name: "Zond Mainnet",
+    name: "QRL 2.0 Mainnet",
     explorer: ZONDSCAN_BASE
   },
   CUSTOM_RPC: {
