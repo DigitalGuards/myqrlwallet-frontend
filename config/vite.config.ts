@@ -3,14 +3,20 @@ import react from '@vitejs/plugin-react-swc'
 import path from 'path'
 import nodePolyfills from 'rollup-plugin-node-polyfills'
 import { createRequire } from 'module'
+import tailwindcss from '@tailwindcss/postcss'
 
 const require = createRequire(import.meta.url)
 
 export default defineConfig({
   plugins: [react()],
+  css: {
+    postcss: {
+      plugins: [tailwindcss()],
+    },
+  },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(__dirname, '../src'),
       'stream': 'rollup-plugin-node-polyfills/polyfills/stream',
       'buffer': 'rollup-plugin-node-polyfills/polyfills/buffer-es6',
       'events': 'rollup-plugin-node-polyfills/polyfills/events',
@@ -33,7 +39,7 @@ export default defineConfig({
             return false
           }
           return 'auto'
-        } catch (error) {
+        } catch {
           return 'auto'
         }
       },
