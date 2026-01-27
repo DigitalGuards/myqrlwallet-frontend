@@ -20,7 +20,7 @@ import {
   dispatchQRResult,
   sendPinVerified,
   sendPinChanged,
-  sendKeyExchangeResponse,
+  initiateKeyExchange,
   BridgeCrypto,
   isEncryptedEnvelope,
 } from '@/utils/nativeApp';
@@ -375,28 +375,29 @@ const NativeAppBridge: React.FC = () => {
           break;
         }
 
-        // Key exchange messages
-        case 'KEY_EXCHANGE_INIT': {
-          const peerPublicKey = payload?.publicKey;
-          if (typeof peerPublicKey !== 'string') {
-            console.warn('[Bridge] KEY_EXCHANGE_INIT missing publicKey');
+        // Key exchange messages (ML-KEM-1024)
+        case 'KEY_EXCHANGE_RESPONSE': {
+          // Native sends ciphertext after encapsulating our public key
+          const ciphertext = payload?.ciphertext;
+          const success = payload?.success;
+
+          if (success !== true || typeof ciphertext !== 'string') {
+            const error = payload?.error || 'Unknown error';
+            console.error('[Bridge] KEY_EXCHANGE_RESPONSE failed:', error);
+            logToNative(`Key exchange failed: ${error}`);
             return;
           }
 
-          logToNative('Received key exchange init');
+          logToNative('Received ML-KEM-1024 ciphertext from native');
 
-          // Generate our key pair and complete exchange
+          // Decapsulate to get shared secret
           (async () => {
             try {
-              const ourPublicKey = await BridgeCrypto.getPublicKey();
-              const success = await BridgeCrypto.completeKeyExchange(peerPublicKey);
-
-              // Send our public key back
-              sendKeyExchangeResponse(ourPublicKey, success);
-              logToNative(`Key exchange ${success ? 'completed' : 'failed'}`);
+              const decapSuccess = await BridgeCrypto.completeKeyExchange(ciphertext);
+              logToNative(`ML-KEM-1024 decapsulation ${decapSuccess ? 'completed' : 'failed'}`);
             } catch (error) {
-              console.error('[Bridge] Key exchange error:', error);
-              sendKeyExchangeResponse('', false);
+              console.error('[Bridge] Decapsulation error:', error);
+              logToNative('Decapsulation error: ' + String(error));
             }
           })();
           break;
@@ -434,6 +435,17 @@ const NativeAppBridge: React.FC = () => {
     // This enables the handshake mechanism instead of relying on setTimeout
     notifyWebAppReady();
     logToNative('Web app ready signal sent');
+
+    // Initiate ML-KEM-1024 key exchange for encrypted communication
+    // Web generates keypair, sends encapsulation key to native
+    // Native will encapsulate and respond with ciphertext
+    initiateKeyExchange().then((success) => {
+      if (success) {
+        logToNative('ML-KEM-1024 key exchange initiated');
+      } else {
+        logToNative('Failed to initiate key exchange');
+      }
+    });
 
     return () => {
       unsubscribe();

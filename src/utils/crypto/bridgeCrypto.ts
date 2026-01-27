@@ -1,26 +1,38 @@
 /**
- * BridgeCrypto - ECDH Key Agreement for Secure Bridge Communication (Web)
+ * BridgeCrypto - ML-KEM-1024 Key Encapsulation for Secure Bridge Communication (Web)
  *
- * Implements ephemeral ECDH key exchange using P-256 (secp256r1) curve
+ * Implements post-quantum secure key exchange using ML-KEM-1024 (FIPS 203)
  * and AES-256-GCM for encrypting sensitive bridge messages.
  *
- * Uses the Web Crypto API (SubtleCrypto) for all cryptographic operations.
- * This is compatible with the native app's BridgeCrypto.ts implementation.
+ * Uses @noble/post-quantum for ML-KEM and Web Crypto API for AES-GCM.
+ * Compatible with native app's BridgeCrypto.ts implementation.
  *
  * Security model:
- * - Each session generates new ephemeral keypairs
- * - Shared secret derived via ECDH
+ * - Post-quantum secure key exchange (NIST Category 5, ~AES-256 equivalent)
+ * - Web acts as DECAPSULATOR: generates keypair, decapsulates to get shared secret
+ * - Native acts as ENCAPSULATOR: receives web's public key, generates shared secret
  * - AES-256-GCM key derived from shared secret using HKDF
  * - Random IV per message, prepended to ciphertext
+ *
+ * Protocol:
+ * 1. Web generates ML-KEM keypair, sends encapsulation key to native
+ * 2. Native encapsulates: (ciphertext, sharedSecret) = encapsulate(webPublicKey)
+ * 3. Native sends ciphertext back to web
+ * 4. Web decapsulates: sharedSecret = decapsulate(ciphertext, secretKey)
+ * 5. Both derive AES key from shared secret
  */
 
-// Constants - MUST match native BridgeCrypto.ts
+import { ml_kem1024 } from '@noble/post-quantum/ml-kem';
+import { hkdf } from '@noble/hashes/hkdf';
+import { sha256 } from '@noble/hashes/sha256';
+
+// Constants
 const AES_KEY_LENGTH = 256; // bits
 const IV_LENGTH = 12; // bytes (96 bits for GCM)
 
-// HKDF parameters - MUST match native
-const HKDF_INFO = 'BridgeCrypto-AES-GCM-Key';
-const HKDF_SALT = 'MyQRLWallet-Bridge-v1';
+// HKDF parameters - MUST match native BridgeCrypto.ts
+const HKDF_INFO = 'BridgeCrypto-ML-KEM-1024-AES-GCM-Key';
+const HKDF_SALT = 'MyQRLWallet-Bridge-v2';
 
 /**
  * Encrypted message envelope - matches native EncryptedEnvelope
@@ -33,12 +45,19 @@ export interface EncryptedEnvelope {
 }
 
 /**
- * Key exchange state
+ * ML-KEM-1024 keypair
  */
-interface KeyExchangeState {
-  keyPair: CryptoKeyPair;
-  publicKeyBytes: Uint8Array; // Raw uncompressed format for exchange
-  sharedSecret: ArrayBuffer | null;
+interface MlKemKeyPair {
+  publicKey: Uint8Array; // 1568 bytes (encapsulation key)
+  secretKey: Uint8Array; // 3168 bytes (decapsulation key)
+}
+
+/**
+ * Key exchange state for decapsulator (web)
+ */
+interface DecapsulatorState {
+  keyPair: MlKemKeyPair;
+  sharedSecret: Uint8Array | null;
   aesKey: CryptoKey | null;
   isReady: boolean;
   encryptionEnabled: boolean;
@@ -46,10 +65,10 @@ interface KeyExchangeState {
 
 /**
  * BridgeCrypto service singleton
- * Manages ECDH key exchange and message encryption/decryption
+ * Web acts as DECAPSULATOR in ML-KEM key exchange
  */
 class BridgeCryptoService {
-  private state: KeyExchangeState | null = null;
+  private state: DecapsulatorState | null = null;
   private onReadyCallbacks: Array<() => void> = [];
 
   /**
@@ -68,84 +87,68 @@ class BridgeCryptoService {
   }
 
   /**
-   * Get the public key for key exchange (base64 encoded)
+   * Get the public key (encapsulation key) for key exchange
    * Generates new keypair if not already initialized
+   *
+   * @returns Base64-encoded ML-KEM-1024 public key (1568 bytes)
    */
   async getPublicKey(): Promise<string> {
     if (!this.state) {
       await this.generateKeyPair();
     }
-    return this.uint8ArrayToBase64(this.state!.publicKeyBytes);
+    return this.uint8ArrayToBase64(this.state!.keyPair.publicKey);
   }
 
   /**
-   * Generate a new ephemeral ECDH keypair using Web Crypto API
+   * Generate a new ML-KEM-1024 keypair
    */
   async generateKeyPair(): Promise<void> {
-    // Generate P-256 key pair
-    const keyPair = await crypto.subtle.generateKey(
-      { name: 'ECDH', namedCurve: 'P-256' },
-      true, // extractable - needed to export public key
-      ['deriveBits']
-    );
-
-    // Export public key in raw format (uncompressed: 0x04 + 32 bytes X + 32 bytes Y)
-    const publicKeyBuffer = await crypto.subtle.exportKey('raw', keyPair.publicKey);
-    const publicKeyBytes = new Uint8Array(publicKeyBuffer);
+    const keyPair = ml_kem1024.keygen();
 
     this.state = {
       keyPair,
-      publicKeyBytes,
       sharedSecret: null,
       aesKey: null,
       isReady: false,
       encryptionEnabled: false,
     };
 
-    console.debug('[BridgeCrypto] Generated new ECDH keypair');
+    console.debug('[BridgeCrypto] Generated new ML-KEM-1024 keypair');
   }
 
   /**
-   * Complete key exchange with peer's public key
-   * Derives shared secret and AES key
+   * Complete key exchange by decapsulating native's ciphertext
    *
-   * @param peerPublicKeyBase64 - Peer's public key in base64 (uncompressed P-256)
+   * @param ciphertextBase64 - Ciphertext from native's encapsulation in base64
+   * @returns true if decapsulation succeeded, false otherwise
    */
-  async completeKeyExchange(peerPublicKeyBase64: string): Promise<boolean> {
+  async completeKeyExchange(ciphertextBase64: string): Promise<boolean> {
     if (!this.state) {
       console.error('[BridgeCrypto] Cannot complete key exchange: no keypair generated');
       return false;
     }
 
     try {
-      const peerPublicKeyBytes = this.base64ToUint8Array(peerPublicKeyBase64);
+      const ciphertext = this.base64ToUint8Array(ciphertextBase64);
 
-      // Import peer's public key
-      // Cast to ArrayBuffer to satisfy TypeScript 5.x strict typing
-      const peerPublicKey = await crypto.subtle.importKey(
-        'raw',
-        peerPublicKeyBytes.buffer as ArrayBuffer,
-        { name: 'ECDH', namedCurve: 'P-256' },
-        false,
-        []
-      );
+      // Validate ciphertext size (ML-KEM-1024 ciphertext is 1568 bytes)
+      if (ciphertext.length !== 1568) {
+        console.error(`[BridgeCrypto] Invalid ciphertext size: ${ciphertext.length} (expected 1568)`);
+        return false;
+      }
 
-      // Derive shared secret via ECDH (256 bits = 32 bytes)
-      const sharedSecret = await crypto.subtle.deriveBits(
-        { name: 'ECDH', public: peerPublicKey },
-        this.state.keyPair.privateKey,
-        256
-      );
+      // Decapsulate: extract shared secret using our secret key
+      const sharedSecret = ml_kem1024.decapsulate(ciphertext, this.state.keyPair.secretKey);
 
-      // Derive AES key using HKDF
+      // Derive AES key using HKDF (via Web Crypto API)
       const aesKey = await this.deriveAesKey(sharedSecret);
 
-      this.state.sharedSecret = sharedSecret;
+      this.state.sharedSecret = new Uint8Array(sharedSecret);
       this.state.aesKey = aesKey;
       this.state.isReady = true;
       this.state.encryptionEnabled = true;
 
-      console.debug('[BridgeCrypto] Key exchange completed successfully');
+      console.debug('[BridgeCrypto] ML-KEM-1024 key decapsulation completed successfully');
 
       // Notify any waiting callbacks
       this.onReadyCallbacks.forEach(cb => cb());
@@ -153,7 +156,7 @@ class BridgeCryptoService {
 
       return true;
     } catch (error) {
-      console.error('[BridgeCrypto] Key exchange failed:', error);
+      console.error('[BridgeCrypto] Key decapsulation failed:', error);
       return false;
     }
   }
@@ -161,24 +164,26 @@ class BridgeCryptoService {
   /**
    * Derive AES-256-GCM key from shared secret using HKDF
    */
-  private async deriveAesKey(sharedSecret: ArrayBuffer): Promise<CryptoKey> {
+  private async deriveAesKey(sharedSecret: Uint8Array): Promise<CryptoKey> {
     const encoder = new TextEncoder();
-    const salt = encoder.encode(HKDF_SALT);
-    const info = encoder.encode(HKDF_INFO);
 
-    // Import shared secret as HKDF key
-    const hkdfKey = await crypto.subtle.importKey(
-      'raw',
+    // Use @noble/hashes HKDF to match native implementation exactly
+    const derivedKeyBytes = hkdf(
+      sha256,
       sharedSecret,
-      'HKDF',
-      false,
-      ['deriveKey']
+      encoder.encode(HKDF_SALT),
+      encoder.encode(HKDF_INFO),
+      32 // 256 bits
     );
 
-    // Derive AES-GCM key
-    return crypto.subtle.deriveKey(
-      { name: 'HKDF', salt, info, hash: 'SHA-256' },
-      hkdfKey,
+    // Import the derived bytes as a CryptoKey for Web Crypto API
+    // Cast to satisfy TypeScript's strict ArrayBuffer typing
+    return crypto.subtle.importKey(
+      'raw',
+      derivedKeyBytes.buffer.slice(
+        derivedKeyBytes.byteOffset,
+        derivedKeyBytes.byteOffset + derivedKeyBytes.byteLength
+      ) as ArrayBuffer,
       { name: 'AES-GCM', length: AES_KEY_LENGTH },
       false, // non-extractable for security
       ['encrypt', 'decrypt']
@@ -264,7 +269,12 @@ class BridgeCryptoService {
    * Reset the crypto state (call on session end or page reload)
    */
   reset(): void {
-    // Clear state (CryptoKey objects are automatically garbage collected)
+    // Clear sensitive data
+    if (this.state) {
+      if (this.state.sharedSecret) this.state.sharedSecret.fill(0);
+      // Secret key should be cleared too
+      this.state.keyPair.secretKey.fill(0);
+    }
     this.state = null;
     this.onReadyCallbacks = [];
     console.debug('[BridgeCrypto] Crypto state reset');

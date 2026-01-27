@@ -27,9 +27,8 @@ export type WebToNativeMessageType =
   | 'PIN_CHANGED'           // Web responds to PIN change request
   // Navigation messages
   | 'OPEN_NATIVE_SETTINGS'  // Request native app to open its settings screen
-  // Key exchange messages
-  | 'KEY_EXCHANGE_INIT'     // Web initiates key exchange with its public key
-  | 'KEY_EXCHANGE_RESPONSE'; // Web responds with its public key (if native initiated)
+  // Key exchange messages (ML-KEM-1024)
+  | 'KEY_EXCHANGE_INIT';    // Web initiates key exchange with its encapsulation key
 
 /**
  * Message types that can be received from the native app
@@ -49,9 +48,8 @@ export type NativeToWebMessageType =
   | 'BIOMETRIC_SETUP_PROMPT' // Native prompts user to enable biometric
   | 'VERIFY_PIN'            // Native asks web to verify PIN can decrypt seed
   | 'CHANGE_PIN'            // Native requests web to re-encrypt seeds with new PIN
-  // Key exchange messages
-  | 'KEY_EXCHANGE_INIT'     // Native initiates key exchange with its public key
-  | 'KEY_EXCHANGE_RESPONSE'; // Native responds with its public key (if web initiated)
+  // Key exchange messages (ML-KEM-1024)
+  | 'KEY_EXCHANGE_RESPONSE'; // Native responds with ciphertext after encapsulation
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
@@ -143,11 +141,19 @@ export const sendToNativeSecure = async (
 };
 
 /**
- * Send key exchange response to native app
- * Called after receiving KEY_EXCHANGE_INIT
+ * Initiate ML-KEM-1024 key exchange with native app
+ * Web generates keypair and sends encapsulation key to native
+ * Native will respond with ciphertext via KEY_EXCHANGE_RESPONSE
  */
-export const sendKeyExchangeResponse = (publicKey: string, success: boolean): boolean => {
-  return sendToNative('KEY_EXCHANGE_RESPONSE', { publicKey, success });
+export const initiateKeyExchange = async (): Promise<boolean> => {
+  try {
+    const encapsulationKey = await BridgeCrypto.getPublicKey();
+    console.debug('[NativeApp] Initiating ML-KEM-1024 key exchange');
+    return sendToNative('KEY_EXCHANGE_INIT', { encapsulationKey });
+  } catch (error) {
+    console.error('[NativeApp] Failed to initiate key exchange:', error);
+    return false;
+  }
 };
 
 /**
