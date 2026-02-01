@@ -15,8 +15,8 @@ const DEFAULT_IMAGE = "https://qrlwallet.com/mqrlwallet.png";
 
 export const SEO = ({
   title = "MyQRLWallet",
-  description = "Web wallet for the QRL Zond blockchain. Create accounts and manage transactions on the quantum resistant ledger.",
-  keywords = "QRL, Quantum Resistant Ledger, Zond, Web3, Cryptocurrency Wallet, Blockchain",
+  description = "Web wallet for QRL 2.0. Create accounts and manage transactions on the quantum resistant ledger.",
+  keywords = "QRL, QRL 2.0, Quantum Resistant Ledger, Web3, Cryptocurrency Wallet, Blockchain",
   type = "website",
   author = "DigitalGuards",
   url = "https://qrlwallet.com",

@@ -9,7 +9,7 @@ export interface TokenInterface {
 export const KNOWN_TOKEN_LIST: TokenInterface[] = [];
 
 export const NATIVE_TOKEN = {
-    name: "Zond",
+    name: "QRL",
     symbol: "QRL",
     decimals: 18,
 };
