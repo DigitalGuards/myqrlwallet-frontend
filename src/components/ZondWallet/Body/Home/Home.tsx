@@ -83,7 +83,7 @@ const Home = observer(() => {
     <>
       <SEO
         title="Home"
-        description="Welcome to the QRL Zond Web3 Wallet. Create or import your quantum-resistant wallet and start managing your QRL assets securely."
+        description="Welcome to the QRL 2.0 Web Wallet. Create or import your quantum-resistant wallet and start managing your QRL assets securely."
         keywords="QRL Wallet, Create Wallet, Import Wallet, Quantum Resistant, Web3"
       />
       <BackgroundVideo />

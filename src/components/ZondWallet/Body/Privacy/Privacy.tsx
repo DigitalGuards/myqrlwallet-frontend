@@ -5,7 +5,7 @@ const Privacy = () => {
         <div className="min-h-screen">
             <SEO
                 title="Privacy Policy"
-                description="Privacy policy for the MyQRLWallet Web3 Wallet"
+                description="Privacy policy for MyQRLWallet"
             />
             <main className="container mx-auto px-4 py-8">
                 <div>

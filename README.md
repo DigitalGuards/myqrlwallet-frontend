@@ -65,6 +65,7 @@ npm test            # Run tests
 
 ```bash
 docker build -t myqrlwallet-frontend:latest \
+  -f deploy/Dockerfile \
   --build-arg VITE_RPC_URL_TESTNET=https://qrlwallet.com/api/zond-rpc/testnet \
   --build-arg VITE_RPC_URL_MAINNET=https://qrlwallet.com/api/zond-rpc/mainnet \
   --build-arg VITE_SERVER_URL_TESTNET=https://qrlwallet.com/api \
@@ -86,7 +87,7 @@ The container:
 
 ## Kubernetes Deployment
 
-Kubernetes manifests are provided in the `k8s/` directory.
+Kubernetes manifests are provided in the `deploy/k8s/` directory.
 
 ### Prerequisites
 
@@ -97,16 +98,16 @@ Kubernetes manifests are provided in the `k8s/` directory.
 
 ```bash
 # Apply all manifests
-kubectl apply -k k8s/
+kubectl apply -k deploy/k8s/
 
 # Or apply individually
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-kubectl apply -f k8s/hpa.yaml
-kubectl apply -f k8s/ingress.yaml
-kubectl apply -f k8s/certificate.yaml
-kubectl apply -f k8s/cluster-issuer.yaml  # Once per cluster
+kubectl apply -f deploy/k8s/namespace.yaml
+kubectl apply -f deploy/k8s/deployment.yaml
+kubectl apply -f deploy/k8s/service.yaml
+kubectl apply -f deploy/k8s/hpa.yaml
+kubectl apply -f deploy/k8s/ingress.yaml
+kubectl apply -f deploy/k8s/certificate.yaml
+kubectl apply -f deploy/k8s/cluster-issuer.yaml  # Once per cluster
 ```
 
 ### Manifests
