@@ -5,13 +5,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host=127.0.0.1",
-    "dev:lan": "vite --host=0.0.0.0",
-    "dev:custom": "vite --host=192.168.1.123",
-    "build": "tsc && vite build",
-    "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
+    "dev": "vite --config config/vite.config.ts --host=127.0.0.1",
+    "dev:lan": "vite --config config/vite.config.ts --host=0.0.0.0",
+    "dev:custom": "vite --config config/vite.config.ts --host=192.168.1.123",
+    "build": "tsc && vite --config config/vite.config.ts build",
+    "lint": "eslint --config config/eslint.config.js . --report-unused-disable-directives --max-warnings 0",
     "test": "jest",
-    "preview": "vite preview"
+    "preview": "vite --config config/vite.config.ts preview"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
