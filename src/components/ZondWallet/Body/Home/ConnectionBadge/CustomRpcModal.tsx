@@ -30,18 +30,35 @@ function isPrivateOrReservedHost(hostname: string): boolean {
     // Common cloud metadata hostname
     if (host === 'metadata.google.internal') return true;
 
+    // IPv6 reserved ranges
+    if (host.startsWith('fc') || host.startsWith('fd')) return true;  // fc00::/7 Unique Local
+    if (host.startsWith('fe8') || host.startsWith('fe9') ||
+        host.startsWith('fea') || host.startsWith('feb')) return true; // fe80::/10 Link-Local
+
+    // IPv4-mapped IPv6 (::ffff:x.x.x.x)
+    const v4MappedMatch = host.match(/^::ffff:(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (v4MappedMatch) {
+        const [a, b] = [Number(v4MappedMatch[1]), Number(v4MappedMatch[2])];
+        if (isPrivateIPv4(a, b)) return true;
+    }
+
     // IPv4 checks
     const ipv4Match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
     if (ipv4Match) {
         const [a, b] = [Number(ipv4Match[1]), Number(ipv4Match[2])];
-        if (a === 0) return true;                             // 0.0.0.0/8
-        if (a === 127) return true;                           // 127.0.0.0/8 loopback
-        if (a === 10) return true;                            // 10.0.0.0/8 private
-        if (a === 172 && b >= 16 && b <= 31) return true;    // 172.16.0.0/12 private
-        if (a === 192 && b === 168) return true;              // 192.168.0.0/16 private
-        if (a === 169 && b === 254) return true;              // 169.254.0.0/16 link-local / cloud metadata
+        if (isPrivateIPv4(a, b)) return true;
     }
 
+    return false;
+}
+
+function isPrivateIPv4(a: number, b: number): boolean {
+    if (a === 0) return true;                             // 0.0.0.0/8
+    if (a === 127) return true;                           // 127.0.0.0/8 loopback
+    if (a === 10) return true;                            // 10.0.0.0/8 private
+    if (a === 172 && b >= 16 && b <= 31) return true;    // 172.16.0.0/12 private
+    if (a === 192 && b === 168) return true;              // 192.168.0.0/16 private
+    if (a === 169 && b === 254) return true;              // 169.254.0.0/16 link-local / cloud metadata
     return false;
 }
 
@@ -69,6 +86,11 @@ function isValidRpcUrl(url: string): { valid: boolean; error?: string } {
     // Must have a hostname
     if (!parsed.hostname) {
         return { valid: false, error: "URL must include a hostname" };
+    }
+
+    // Block credentials in URL
+    if (parsed.username || parsed.password) {
+        return { valid: false, error: "URL must not contain credentials" };
     }
 
     // Block private/reserved IP ranges
