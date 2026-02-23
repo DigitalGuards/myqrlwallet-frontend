@@ -24,7 +24,7 @@ export interface ExtendedWalletAccount extends Web3BaseWalletAccount {
 }
 
 const CURRENT_WALLET_VERSION = 'v1';
-const PBKDF2_ITERATIONS = 10000;
+const PBKDF2_ITERATIONS = 600000;
 
 /**
  * Custom error class for PIN decryption failures.
