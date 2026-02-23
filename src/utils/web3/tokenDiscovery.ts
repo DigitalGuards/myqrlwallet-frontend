@@ -60,7 +60,9 @@ export async function discoverTokens(
         symbol: token.symbol || "UNK",
         address: token.contractAddress.startsWith("Z")
           ? token.contractAddress
-          : `Z${token.contractAddress.replace(/^0x/i, "")}`,
+          : token.contractAddress.startsWith("z")
+            ? `Z${token.contractAddress.slice(1)}`
+            : `Z${token.contractAddress.replace(/^0x/i, "")}`,
         amount: token.balance || "0",
         decimals: token.decimals || 18,
       }));
