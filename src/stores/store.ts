@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import SettingsStore from "./settingsStore";
 import ZondStore from "./zondStore";
+import DAppConnectStore from "./dappConnectStore";
 import { configure } from "mobx";
 
 // Configure MobX
@@ -12,10 +13,12 @@ configure({
 class Store {
   settingsStore;
   zondStore;
+  dappConnectStore;
 
   constructor() {
     this.settingsStore = new SettingsStore();
     this.zondStore = new ZondStore();
+    this.dappConnectStore = new DAppConnectStore();
   }
 }
 
