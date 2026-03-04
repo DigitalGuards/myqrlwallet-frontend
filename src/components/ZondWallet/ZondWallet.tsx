@@ -5,6 +5,8 @@ import { lazy, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { setupActivityTracking, startAutoLockTimer, clearAutoLockTimer } from "@/utils/storage";
 import NativeAppBridge from "@/components/NativeAppBridge";
+import DAppApprovalModal from "./Body/DAppConnect/DAppApprovalModal";
+import DAppConnectionBanner from "./Body/DAppConnect/DAppConnectionBanner";
 
 // const Header = withSuspense(
 //   lazy(() => import("./Header/Header"))
@@ -39,6 +41,8 @@ const ZondWallet = observer(() => {
     <Layout>
       <RouteMonitor />
       <NativeAppBridge />
+      <DAppConnectionBanner />
+      <DAppApprovalModal />
       {/* <Header /> */}
       <Body />
       {/* <Footer /> */}
