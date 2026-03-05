@@ -151,7 +151,7 @@ export class DAppConnectService {
       onParticipantsChanged: (data) => {
         dlog(`Participants changed: ${data.event} (${data.clientType || 'unknown'})`);
         if (data.event === 'disconnect' || data.event === 'leave') {
-          console.log('[DAppConnect] dApp disconnected from channel');
+          dlog(`dApp disconnected from channel - but NOT calling disconnectSession`);
         }
       },
     });
@@ -247,7 +247,10 @@ export class DAppConnectService {
    */
   private handleRelayMessage(channelId: string, data: RelayMessage): void {
     const conn = this.connections.get(channelId);
-    if (!conn) return;
+    if (!conn) {
+      dlog(`handleRelayMessage: no connection found for ${channelId} - ignoring`);
+      return;
+    }
 
     const message = data.message;
 
@@ -435,6 +438,8 @@ export class DAppConnectService {
    * Disconnect a specific session.
    */
   disconnectSession(channelId: string): void {
+    dlog(`disconnectSession called for ${channelId}`);
+    dlog(`Call stack: ${new Error().stack?.split('\n').slice(1, 5).join(' <- ')}`);
     const conn = this.connections.get(channelId);
     if (conn) {
       // Send terminate to dApp
@@ -471,6 +476,8 @@ export class DAppConnectService {
    * Reconnect all stored sessions (called on app launch / foreground).
    */
   async reconnectAll(): Promise<void> {
+    dlog(`reconnectAll called`);
+    dlog(`reconnectAll stack: ${new Error().stack?.split('\n').slice(1, 4).join(' <- ')}`);
     const sessions = SessionStore.getAll();
     for (const session of sessions) {
       if (this.connections.has(session.id)) continue; // Already connected
@@ -533,6 +540,7 @@ export class DAppConnectService {
    * Disconnect all sessions.
    */
   disconnectAll(): void {
+    dlog(`disconnectAll called with ${this.connections.size} connections`);
     for (const channelId of this.connections.keys()) {
       this.disconnectSession(channelId);
     }
