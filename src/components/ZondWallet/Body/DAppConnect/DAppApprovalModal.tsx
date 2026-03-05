@@ -318,7 +318,7 @@ const DAppApprovalModal = observer(() => {
     } finally {
       setLoading(false);
     }
-  }, [currentApproval, pin, dappConnectStore, zondStore, blockchain]);
+  }, [currentApproval, pin, dappConnectStore, zondStore]);
 
   const handleReject = useCallback(() => {
     dappConnectStore.rejectCurrentRequest();
