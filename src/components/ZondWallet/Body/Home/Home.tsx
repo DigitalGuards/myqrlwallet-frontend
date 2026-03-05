@@ -1,6 +1,6 @@
 import { withSuspense } from "@/utils/react";
 import { useStore } from "../../../../stores/store";
-import { Loader, Send, History, QrCode } from "lucide-react";
+import { Loader, Send, History, QrCode, ScanLine } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { lazy, useEffect, useRef, useState } from "react";
 import ConnectionFailed from "./ConnectionFailed/ConnectionFailed";
@@ -14,6 +14,7 @@ import { useLocation, Link } from "react-router-dom";
 import ConnectionBadge from "./ConnectionBadge/ConnectionBadge";
 import { TransactionHistoryPopup } from "../AccountList/ActiveAccount/TransactionHistoryPopup";
 import { ReceivePopup } from "./ReceivePopup";
+import { isInNativeApp, requestQRScan } from "@/utils/nativeApp";
 
 const AccountCreateImport = withSuspense(
   lazy(() => import("./AccountCreateImport/AccountCreateImport"))
@@ -88,7 +89,18 @@ const Home = observer(() => {
       />
       <BackgroundVideo />
       <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-2 md:gap-4 md:py-4">
-        <img className="h-14 md:h-20" src="/mqrlwallet.png" alt="MyQRLWallet Logo" />
+        <div className="flex w-full items-center justify-center px-4">
+          <img className="h-14 md:h-20" src="/mqrlwallet.png" alt="MyQRLWallet Logo" />
+          {isInNativeApp() && (
+            <button
+              onClick={() => requestQRScan()}
+              className="absolute right-4 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Scan QR code"
+            >
+              <ScanLine className="h-6 w-6" />
+            </button>
+          )}
+        </div>
         {isLoading ? (
           <Loader className="animate-spin text-foreground" size={32} />
         ) : (

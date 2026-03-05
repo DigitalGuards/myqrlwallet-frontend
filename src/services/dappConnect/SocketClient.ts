@@ -4,6 +4,7 @@
 
 import { io, Socket } from 'socket.io-client';
 import type { RelayMessage } from './types';
+import { logToNative } from '@/utils/nativeApp';
 
 const RELAY_PATH = '/relay';
 
@@ -31,7 +32,7 @@ export class SocketClient {
 
     this.socket = io(this.relayUrl, {
       path: RELAY_PATH,
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 30000,
@@ -44,7 +45,11 @@ export class SocketClient {
 
       // Re-join channel on reconnect
       if (this.channelId) {
-        this.joinChannel(this.channelId).then(() => {
+        this.joinChannel(this.channelId).then(({ bufferedMessages }) => {
+          // Deliver buffered messages that arrived while disconnected
+          for (const msg of bufferedMessages) {
+            this.handlers.onMessage(msg as RelayMessage);
+          }
           this.handlers.onReconnected();
         });
       }
@@ -64,6 +69,7 @@ export class SocketClient {
 
     this.socket.on('connect_error', (err) => {
       console.warn('[SocketClient] Connection error:', err.message);
+      logToNative(`[SocketClient] connect_error: ${err.message}`);
     });
   }
 
