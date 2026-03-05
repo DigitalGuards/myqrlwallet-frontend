@@ -237,7 +237,12 @@ export class DAppConnectService {
 
     // Notify native app
     if (isInNativeApp()) {
-      sendToNative('DAPP_CONNECTED' as never, { name: conn.dappInfo.name, channelId });
+      sendToNative('DAPP_CONNECTED' as never, {
+        name: conn.dappInfo.name,
+        url: conn.dappInfo.url,
+        channelId,
+        connectedAccount: activeAccount,
+      });
       triggerHaptic('success');
     }
   }
@@ -461,7 +466,7 @@ export class DAppConnectService {
     this.handlers?.onSessionsChanged();
 
     if (isInNativeApp()) {
-      sendToNative('DAPP_DISCONNECTED' as never, { channelId });
+      sendToNative('DAPP_DISCONNECTED' as never, { channelId, explicit: true });
     }
   }
 
