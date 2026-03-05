@@ -21,7 +21,7 @@ import {
   sendPinVerified,
   sendPinChanged,
 } from '@/utils/nativeApp';
-import { dappConnectService } from '@/services/dappConnect/DAppConnectService';
+import { DAppConnectService, dappConnectService } from '@/services/dappConnect/DAppConnectService';
 import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
 import { reEncryptSeedAsync, CryptoOperationError, CryptoErrorCode } from '@/utils/crypto';
 import { ROUTES } from '@/router/router';
@@ -146,7 +146,7 @@ const NativeAppBridge: React.FC = () => {
           logToNative(`QR result received: ${address}`);
 
           // Check if this is a qrlconnect:// URI (dApp connection)
-          if (dappConnectService.constructor && (address.startsWith('qrlconnect://') || address.startsWith('qrlconnect:?'))) {
+          if (DAppConnectService.isConnectionURI(address)) {
             logToNative(`DApp connection URI detected, routing to DAppConnectService`);
             dappConnectService.handleConnectionURI(address);
             return;

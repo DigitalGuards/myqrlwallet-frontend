@@ -54,15 +54,17 @@ function getMessageToSign(
 
   if (method === 'personal_sign') {
     if (second.toLowerCase() === active && first) return first;
-    return first || second;
+    if (first.toLowerCase() === active && second) return second;
+    return '';
   }
 
   if (method === 'zond_sign') {
     if (first.toLowerCase() === active && second) return second;
-    return second || first;
+    if (second.toLowerCase() === active && first) return first;
+    return '';
   }
 
-  return first || second;
+  return '';
 }
 
 const DAppApprovalModal = observer(() => {
@@ -246,6 +248,9 @@ const DAppApprovalModal = observer(() => {
     method !== 'wallet_switchZondChain';
   const hasNativePin = !!getNativeInjectedPin();
   const isTransaction = method === 'zond_sendTransaction' || method === 'zond_signTransaction';
+  const messagePreview = (method === 'personal_sign' || method === 'zond_sign')
+    ? getMessageToSign(method, params, zondStore.activeAccount?.accountAddress || '')
+    : '';
 
   return (
     <Dialog open={approvalModalOpen} onOpenChange={(open) => {
@@ -272,11 +277,11 @@ const DAppApprovalModal = observer(() => {
             <DAppTransactionReview params={params[0] as Record<string, unknown>} />
           )}
 
-          {(method === 'personal_sign' || method === 'zond_sign') && params?.[0] != null && (
+          {(method === 'personal_sign' || method === 'zond_sign') && messagePreview && (
             <div className="rounded-md border border-border bg-muted/30 p-4">
               <p className="mb-2 text-xs text-muted-foreground">Message to sign:</p>
               <p className="max-h-32 overflow-auto break-all font-mono text-sm">
-                {String(params[0])}
+                {messagePreview}
               </p>
             </div>
           )}
