@@ -7,6 +7,8 @@ import { makeAutoObservable, runInAction } from 'mobx';
 import { dappConnectService } from '@/services/dappConnect/DAppConnectService';
 import type { DAppSession, PendingDAppRequest } from '@/services/dappConnect/types';
 
+export type TxProgressState = 'idle' | 'signing' | 'broadcasting' | 'confirming' | 'confirmed' | 'failed';
+
 class DAppConnectStore {
   activeSessions: DAppSession[] = [];
   pendingRequests: PendingDAppRequest[] = [];
@@ -16,6 +18,10 @@ class DAppConnectStore {
   approvalModalOpen = false;
   /** Connection status messages for banners */
   connectionWarnings: Map<string, string> = new Map();
+  /** Transaction progress state for approval modal */
+  txProgress: TxProgressState = 'idle';
+  txHash: string | null = null;
+  txError: string | null = null;
 
   constructor() {
     makeAutoObservable(this);
@@ -96,9 +102,36 @@ class DAppConnectStore {
     this.removeCurrentApproval();
   }
 
+  /** Send approval result to dApp without closing the modal (for progress UI) */
+  sendApprovalResult(result: unknown): void {
+    if (!this.currentApproval) return;
+    dappConnectService.approveRequest(
+      this.currentApproval.sessionId,
+      this.currentApproval.id,
+      result
+    );
+  }
+
+  /** Send rejection to dApp without closing the modal (for progress UI) */
+  sendRejectionResult(message?: string): void {
+    if (!this.currentApproval) return;
+    dappConnectService.rejectRequest(
+      this.currentApproval.sessionId,
+      this.currentApproval.id,
+      message
+    );
+  }
+
+  /** Dismiss the current approval after tx progress is done (called from "Done"/"Close" button) */
+  dismissCurrentApproval(): void {
+    this.removeCurrentApproval();
+  }
+
   /** Remove the current approval and show the next one if any */
   private removeCurrentApproval(): void {
     if (!this.currentApproval) return;
+
+    this.resetTxProgress();
 
     const { id: currentId, sessionId: currentSessionId } = this.currentApproval;
     this.pendingRequests = this.pendingRequests.filter(
@@ -111,6 +144,20 @@ class DAppConnectStore {
       this.currentApproval = null;
       this.approvalModalOpen = false;
     }
+  }
+
+  /** Update transaction progress state */
+  setTxProgress(state: TxProgressState, txHash?: string, error?: string): void {
+    this.txProgress = state;
+    if (txHash !== undefined) this.txHash = txHash;
+    if (error !== undefined) this.txError = error;
+  }
+
+  /** Reset transaction progress to idle */
+  resetTxProgress(): void {
+    this.txProgress = 'idle';
+    this.txHash = null;
+    this.txError = null;
   }
 
   /** Close the approval modal without approving/rejecting */

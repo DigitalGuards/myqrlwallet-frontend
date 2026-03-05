@@ -31,7 +31,7 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({ params }) => 
       {gas && (
         <div className="flex justify-between">
           <span className="text-muted-foreground">Gas Limit</span>
-          <span>{parseInt(gas, 16) || gas}</span>
+          <span>{gas.startsWith('0x') ? parseInt(gas, 16) : parseInt(gas, 10) || gas}</span>
         </div>
       )}
       {data && data !== '0x' && (
