@@ -66,7 +66,19 @@ type ServiceEventHandler = {
   onSessionDisconnected: (sessionId: string) => void;
 };
 
-class DAppConnectService {
+interface RpcRequestProvider {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+}
+
+function getRequestProvider(web3: unknown): RpcRequestProvider | null {
+  if (typeof web3 !== 'object' || web3 === null) return null;
+  const provider = (web3 as { currentProvider?: unknown }).currentProvider;
+  if (typeof provider !== 'object' || provider === null) return null;
+  if (typeof (provider as { request?: unknown }).request !== 'function') return null;
+  return provider as RpcRequestProvider;
+}
+
+export class DAppConnectService {
   private connections = new Map<string, ActiveConnection>();
   private handlers: ServiceEventHandler | null = null;
 
@@ -100,9 +112,14 @@ class DAppConnectService {
     };
 
     const ecies = new ECIESManager();
-    const keyExchange = new KeyExchange(ecies, undefined, () => {
-      this.onKeysExchanged(params.channelId);
-    });
+    const keyExchange = new KeyExchange(
+      ecies,
+      params.pubKey,
+      () => {
+        this.onKeysExchanged(params.channelId);
+      },
+      { keysAlreadyExchanged: false }
+    );
 
     const socketClient = new SocketClient(params.relay, {
       onMessage: (data) => this.handleRelayMessage(params.channelId, data),
@@ -146,7 +163,7 @@ class DAppConnectService {
       dappInfo,
       connectedAccount: activeAccount,
       privateKey: ecies.getPrivateKeyHex(),
-      otherPublicKey: null,
+      otherPublicKey: params.pubKey,
       relayUrl: params.relay,
       status: SessionStatus.CONNECTING,
       createdAt: Date.now(),
@@ -230,13 +247,18 @@ class DAppConnectService {
         msg.type === KeyExchangeMessageType.SYNACK ||
         msg.type === KeyExchangeMessageType.ACK
       ) {
-        const response = conn.keyExchange.onMessage(msg as {
-          type: KeyExchangeMessageType;
-          pubkey?: string;
-          v?: number;
-        });
-        if (response) {
-          this.sendPlaintext(channelId, response);
+        try {
+          const response = conn.keyExchange.onMessage(msg as {
+            type: KeyExchangeMessageType;
+            pubkey?: string;
+            v?: number;
+          });
+          if (response) {
+            this.sendPlaintext(channelId, response);
+          }
+        } catch (err) {
+          console.error('[DAppConnect] Key exchange failed:', err);
+          this.disconnectSession(channelId);
         }
         return;
       }
@@ -342,10 +364,13 @@ class DAppConnectService {
       if (!web3) {
         throw new Error('Web3 not initialized');
       }
+      const provider = getRequestProvider(web3);
+      if (!provider) {
+        throw new Error('Web3 provider does not support request()');
+      }
 
       // Use the web3 provider to forward the request
-      const result = await (web3 as unknown as { currentProvider: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } })
-        .currentProvider.request({ method, params });
+      const result = await provider.request({ method, params });
 
       this.sendJsonRpcResponse(channelId, {
         jsonrpc: '2.0',
@@ -442,7 +467,8 @@ class DAppConnectService {
         const keyExchange = new KeyExchange(
           ecies,
           session.otherPublicKey || undefined,
-          () => this.onKeysExchanged(session.id)
+          () => this.onKeysExchanged(session.id),
+          { keysAlreadyExchanged: Boolean(session.otherPublicKey) }
         );
 
         const socketClient = new SocketClient(session.relayUrl || DEFAULT_RELAY_URL, {
@@ -502,7 +528,7 @@ class DAppConnectService {
    * Check if a URI is a qrlconnect:// URI.
    */
   static isConnectionURI(uri: string): boolean {
-    return uri.startsWith('qrlconnect://') || uri.startsWith('qrlconnect:?');
+    return /^qrlconnect:/i.test(uri);
   }
 
   // --- Private helpers ---

@@ -7,6 +7,11 @@ import { KeyExchangeMessageType } from './types';
 
 const PROTOCOL_VERSION = 1;
 
+interface KeyExchangeOptions {
+  /** Used for restoring previously-established sessions. */
+  keysAlreadyExchanged?: boolean;
+}
+
 export class KeyExchange {
   private ecies: ECIESManager;
   private otherPublicKey: string | null = null;
@@ -16,14 +21,15 @@ export class KeyExchange {
   constructor(
     ecies: ECIESManager,
     otherPublicKey?: string,
-    onKeysExchanged?: () => void
+    onKeysExchanged?: () => void,
+    options: KeyExchangeOptions = {}
   ) {
     this.ecies = ecies;
     this.onKeysExchanged = onKeysExchanged;
 
     if (otherPublicKey) {
       this.otherPublicKey = otherPublicKey;
-      this.keysExchanged = true;
+      this.keysExchanged = options.keysAlreadyExchanged === true;
     }
   }
 
@@ -39,9 +45,15 @@ export class KeyExchange {
   }): object | null {
     switch (msg.type) {
       case KeyExchangeMessageType.SYN: {
-        // dApp sends its public key
         if (msg.pubkey) {
+          if (this.otherPublicKey && this.otherPublicKey !== msg.pubkey) {
+            throw new Error('DApp public key mismatch during handshake');
+          }
           this.otherPublicKey = msg.pubkey;
+        }
+
+        if (!this.otherPublicKey) {
+          throw new Error('Missing dApp public key in handshake');
         }
 
         // Respond with our public key
