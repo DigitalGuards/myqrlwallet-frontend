@@ -16,6 +16,7 @@ export class KeyExchange {
   private ecies: ECIESManager;
   private otherPublicKey: string | null = null;
   private keysExchanged = false;
+  private awaitingAck = false;
   private onKeysExchanged?: () => void;
 
   constructor(
@@ -56,6 +57,8 @@ export class KeyExchange {
           throw new Error('Missing dApp public key in handshake');
         }
 
+        this.awaitingAck = true;
+
         // Respond with our public key
         return {
           type: KeyExchangeMessageType.SYNACK,
@@ -65,7 +68,11 @@ export class KeyExchange {
       }
 
       case KeyExchangeMessageType.ACK: {
-        // dApp confirms - handshake complete
+        if (!this.awaitingAck) {
+          // Duplicate/late ACK - ignore
+          return null;
+        }
+        this.awaitingAck = false;
         this.keysExchanged = true;
         this.onKeysExchanged?.();
         return null;
