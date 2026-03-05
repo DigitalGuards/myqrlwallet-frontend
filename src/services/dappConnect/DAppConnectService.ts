@@ -22,8 +22,14 @@ import {
   MessageType,
   SessionStatus,
 } from './types';
-import { isInNativeApp, sendToNative, triggerHaptic } from '@/utils/nativeApp';
+import { isInNativeApp, sendToNative, triggerHaptic, logToNative } from '@/utils/nativeApp';
 import { store } from '@/stores/store';
+
+/** Debug log that goes to both console and native app logs */
+function dlog(msg: string): void {
+  console.log(`[DAppConnect] ${msg}`);
+  logToNative(`[DAppConnect] ${msg}`);
+}
 
 const DEFAULT_RELAY_URL = 'https://qrlwallet.com';
 
@@ -122,17 +128,20 @@ export class DAppConnectService {
     );
 
     const socketClient = new SocketClient(params.relay, {
-      onMessage: (data) => this.handleRelayMessage(params.channelId, data),
+      onMessage: (data) => {
+        dlog(`Relay message received: ${typeof data.message === 'object' ? JSON.stringify(data.message).slice(0, 100) : 'encrypted'}`);
+        this.handleRelayMessage(params.channelId, data);
+      },
       onConnected: () => {
-        console.log('[DAppConnect] Connected to relay for', params.name);
+        dlog(`Socket connected to relay for ${params.name}`);
       },
       onDisconnected: (reason) => {
-        console.log('[DAppConnect] Disconnected from relay:', reason);
+        dlog(`Socket disconnected: ${reason}`);
         SessionStore.updateStatus(params.channelId, SessionStatus.RECONNECTING);
         this.handlers?.onSessionsChanged();
       },
       onReconnected: () => {
-        console.log('[DAppConnect] Reconnected to relay for', params.name);
+        dlog(`Socket reconnected for ${params.name}`);
         const conn = this.connections.get(params.channelId);
         if (conn?.keyExchange.areKeysExchanged()) {
           SessionStore.updateStatus(params.channelId, SessionStatus.CONNECTED);
@@ -140,6 +149,7 @@ export class DAppConnectService {
         }
       },
       onParticipantsChanged: (data) => {
+        dlog(`Participants changed: ${data.event} (${data.clientType || 'unknown'})`);
         if (data.event === 'disconnect' || data.event === 'leave') {
           console.log('[DAppConnect] dApp disconnected from channel');
         }
@@ -174,8 +184,10 @@ export class DAppConnectService {
 
     // Connect to relay
     try {
+      dlog(`Connecting to relay: ${params.relay}`);
       socketClient.connect();
       const { bufferedMessages } = await socketClient.joinChannel(params.channelId);
+      dlog(`joinChannel returned ${bufferedMessages.length} buffered message(s)`);
 
       // Process buffered messages
       for (const msg of bufferedMessages) {
@@ -185,7 +197,7 @@ export class DAppConnectService {
       return { success: true };
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.error('[DAppConnect] Connection failed:', errMsg);
+      dlog(`Connection failed: ${errMsg}`);
       this.connections.delete(params.channelId);
       SessionStore.remove(params.channelId);
       this.handlers?.onSessionsChanged();
@@ -197,7 +209,7 @@ export class DAppConnectService {
    * Called when key exchange completes for a session.
    */
   private onKeysExchanged(channelId: string): void {
-    console.log('[DAppConnect] Keys exchanged for channel', channelId);
+    dlog(`Keys exchanged for channel ${channelId}`);
 
     const conn = this.connections.get(channelId);
     if (!conn) return;
@@ -247,6 +259,7 @@ export class DAppConnectService {
         msg.type === KeyExchangeMessageType.SYNACK ||
         msg.type === KeyExchangeMessageType.ACK
       ) {
+        dlog(`Key exchange message: ${msg.type}`);
         try {
           const response = conn.keyExchange.onMessage(msg as {
             type: KeyExchangeMessageType;
@@ -254,10 +267,11 @@ export class DAppConnectService {
             v?: number;
           });
           if (response) {
+            dlog(`Sending key exchange response: ${(response as { type?: string }).type}`);
             this.sendPlaintext(channelId, response);
           }
         } catch (err) {
-          console.error('[DAppConnect] Key exchange failed:', err);
+          dlog(`Key exchange failed: ${err instanceof Error ? err.message : String(err)}`);
           this.disconnectSession(channelId);
         }
         return;
