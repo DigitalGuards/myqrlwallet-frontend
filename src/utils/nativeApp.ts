@@ -50,7 +50,8 @@ export type NativeToWebMessageType =
   | 'VERIFY_PIN'            // Native asks web to verify PIN can decrypt seed
   | 'CHANGE_PIN'            // Native requests web to re-encrypt seeds with new PIN
   // DApp Connect messages
-  | 'DAPP_URI';             // Deep link URI received by native, forwarded to WebView
+  | 'DAPP_URI'              // Deep link URI received by native, forwarded to WebView
+  | 'DAPP_DISCONNECT';      // Native requests web to disconnect a specific dApp session
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
