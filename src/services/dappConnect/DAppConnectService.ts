@@ -32,6 +32,8 @@ function dlog(msg: string): void {
 }
 
 const DEFAULT_RELAY_URL = 'https://qrlwallet.com';
+const DAPP_REJOIN_GRACE_MS = 30000;
+const TERMINATE_SEND_TIMEOUT_MS = 800;
 
 /** Parse a qrlconnect:// URI */
 function parseConnectionURI(uri: string): ConnectParams | null {
@@ -86,6 +88,7 @@ function getRequestProvider(web3: unknown): RpcRequestProvider | null {
 
 export class DAppConnectService {
   private connections = new Map<string, ActiveConnection>();
+  private dappLeaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private handlers: ServiceEventHandler | null = null;
 
   /**
@@ -129,6 +132,9 @@ export class DAppConnectService {
 
     const socketClient = new SocketClient(params.relay, {
       onMessage: (data) => {
+        if (data.clientType === 'dapp') {
+          this.clearDappLeaveTimeout(params.channelId);
+        }
         dlog(`Relay message received: ${typeof data.message === 'object' ? JSON.stringify(data.message).slice(0, 100) : 'encrypted'}`);
         this.handleRelayMessage(params.channelId, data);
       },
@@ -149,10 +155,7 @@ export class DAppConnectService {
         }
       },
       onParticipantsChanged: (data) => {
-        dlog(`Participants changed: ${data.event} (${data.clientType || 'unknown'})`);
-        if (data.event === 'disconnect' || data.event === 'leave') {
-          dlog(`dApp disconnected from channel - but NOT calling disconnectSession`);
-        }
+        this.handleParticipantsChanged(params.channelId, data);
       },
     });
 
@@ -442,31 +445,58 @@ export class DAppConnectService {
   /**
    * Disconnect a specific session.
    */
-  disconnectSession(channelId: string): void {
+  disconnectSession(channelId: string, explicit = true): void {
     dlog(`disconnectSession called for ${channelId}`);
     dlog(`Call stack: ${new Error().stack?.split('\n').slice(1, 5).join(' <- ')}`);
+    this.clearDappLeaveTimeout(channelId);
     const conn = this.connections.get(channelId);
-    if (conn) {
-      // Send terminate to dApp
-      if (conn.keyExchange.areKeysExchanged()) {
-        try {
-          this.sendEncrypted(channelId, { type: MessageType.TERMINATE });
-        } catch {
-          // Best effort
-        }
+    let finalized = false;
+    const finalize = () => {
+      if (finalized) return;
+      finalized = true;
+
+      const activeConn = this.connections.get(channelId);
+      if (activeConn) {
+        activeConn.socketClient.leaveChannel();
+        activeConn.socketClient.disconnect();
+        this.connections.delete(channelId);
       }
 
-      conn.socketClient.leaveChannel();
-      conn.socketClient.disconnect();
-      this.connections.delete(channelId);
+      SessionStore.remove(channelId);
+      this.handlers?.onSessionDisconnected(channelId);
+      this.handlers?.onSessionsChanged();
+
+      if (isInNativeApp()) {
+        sendToNative('DAPP_DISCONNECTED' as never, { channelId, explicit });
+      }
+    };
+
+    if (!conn || !conn.keyExchange.areKeysExchanged()) {
+      finalize();
+      return;
     }
 
-    SessionStore.remove(channelId);
-    this.handlers?.onSessionDisconnected(channelId);
-    this.handlers?.onSessionsChanged();
+    try {
+      const encrypted = conn.keyExchange.encryptMessage(JSON.stringify({ type: MessageType.TERMINATE }));
+      const sendPromise = conn.socketClient
+        .sendMessage({
+          id: channelId,
+          clientType: 'wallet',
+          message: encrypted,
+        })
+        .catch((err) => {
+          console.error('[DAppConnect] Failed to send terminate:', err);
+        });
 
-    if (isInNativeApp()) {
-      sendToNative('DAPP_DISCONNECTED' as never, { channelId, explicit: true });
+      void Promise.race([
+        sendPromise,
+        new Promise((resolve) => setTimeout(resolve, TERMINATE_SEND_TIMEOUT_MS)),
+      ]).finally(() => {
+        finalize();
+      });
+    } catch {
+      // Best effort
+      finalize();
     }
   }
 
@@ -498,7 +528,12 @@ export class DAppConnectService {
         );
 
         const socketClient = new SocketClient(session.relayUrl || DEFAULT_RELAY_URL, {
-          onMessage: (data) => this.handleRelayMessage(session.id, data),
+          onMessage: (data) => {
+            if (data.clientType === 'dapp') {
+              this.clearDappLeaveTimeout(session.id);
+            }
+            this.handleRelayMessage(session.id, data);
+          },
           onConnected: () => console.log('[DAppConnect] Reconnected to relay for', session.dappInfo.name),
           onDisconnected: () => {
             SessionStore.updateStatus(session.id, SessionStatus.RECONNECTING);
@@ -510,7 +545,9 @@ export class DAppConnectService {
               this.handlers?.onSessionsChanged();
             }
           },
-          onParticipantsChanged: () => {},
+          onParticipantsChanged: (data) => {
+            this.handleParticipantsChanged(session.id, data);
+          },
         });
 
         this.connections.set(session.id, {
@@ -559,6 +596,40 @@ export class DAppConnectService {
   }
 
   // --- Private helpers ---
+
+  private handleParticipantsChanged(channelId: string, data: { event: string; clientType?: string }): void {
+    dlog(`Participants changed: ${data.event} (${data.clientType || 'unknown'})`);
+
+    if (data.event === 'join' && data.clientType === 'dapp') {
+      this.clearDappLeaveTimeout(channelId);
+      return;
+    }
+
+    if ((data.event === 'disconnect' || data.event === 'leave') && (data.clientType === 'dapp' || !data.clientType)) {
+      this.scheduleDappLeaveTimeout(channelId);
+    }
+  }
+
+  private scheduleDappLeaveTimeout(channelId: string): void {
+    this.clearDappLeaveTimeout(channelId);
+    const timeout = setTimeout(() => {
+      this.dappLeaveTimers.delete(channelId);
+      if (!this.connections.has(channelId)) return;
+      dlog(`dApp absent for ${DAPP_REJOIN_GRACE_MS}ms; disconnecting stale session`);
+      this.disconnectSession(channelId, false);
+    }, DAPP_REJOIN_GRACE_MS);
+    this.dappLeaveTimers.set(channelId, timeout);
+    dlog(`Scheduled stale-session timeout for channel ${channelId}`);
+  }
+
+  private clearDappLeaveTimeout(channelId: string): void {
+    const timeout = this.dappLeaveTimers.get(channelId);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.dappLeaveTimers.delete(channelId);
+      dlog(`Cleared stale-session timeout for channel ${channelId}`);
+    }
+  }
 
   private sendPlaintext(channelId: string, message: object): Promise<void> {
     const conn = this.connections.get(channelId);
