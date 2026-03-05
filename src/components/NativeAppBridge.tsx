@@ -201,6 +201,16 @@ const NativeAppBridge: React.FC = () => {
           break;
         }
 
+        // Native requests disconnect of a specific dApp session
+        case 'DAPP_DISCONNECT' as NativeToWebMessageType: {
+          const channelId = payload?.channelId;
+          if (typeof channelId === 'string' && channelId) {
+            logToNative(`Disconnecting dApp session: ${channelId}`);
+            dappConnectService.disconnectSession(channelId);
+          }
+          break;
+        }
+
         case 'CLIPBOARD_SUCCESS':
           // Could show a toast notification
           console.log('[Bridge] Clipboard success');
