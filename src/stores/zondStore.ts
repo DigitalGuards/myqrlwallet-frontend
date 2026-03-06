@@ -407,6 +407,9 @@ class ZondStore {
             };
           }),
         );
+      const balanceMap: Record<string, string> = {};
+      accountsWithBalance.forEach(a => { balanceMap[a.accountAddress] = a.accountBalance; });
+      await StorageUtil.setBalanceCache(this.zondConnection.blockchain, balanceMap);
       runInAction(() => {
         this.zondAccounts = {
           ...this.zondAccounts,
@@ -414,12 +417,13 @@ class ZondStore {
         };
       });
     } catch (_error) {
+      const cachedBalances = await StorageUtil.getBalanceCache(this.zondConnection.blockchain);
       runInAction(() => {
         this.zondAccounts = {
           ...this.zondAccounts,
           accounts: storedAccountsList.map(({ address, source }) => ({
             accountAddress: address,
-            accountBalance: "0",
+            accountBalance: cachedBalances[address] ?? "0",
             source,
           })),
         };

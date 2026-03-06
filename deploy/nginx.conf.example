@@ -38,7 +38,7 @@ server {
 
     # Security Headers (applied to locations without their own add_header)
     # NOTE: These are NOT inherited by location blocks that have add_header directives
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header X-XSS-Protection "1; mode=block" always;
@@ -108,6 +108,22 @@ server {
         error_page 502 503 504 = @backend_down;
     }
 
+    # QRL Connect relay - Socket.IO WebSocket + polling
+    location /relay {
+        proxy_pass http://localhost:3000/relay;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_cache_bypass $http_upgrade;
+
+        # Long-lived connections for WebSocket
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+
     # Backend down handler - returns JSON error
     location @backend_down {
         add_header Content-Type application/json;
@@ -119,7 +135,7 @@ server {
         expires 1y;
         # IMPORTANT: Must repeat security headers since this block has add_header
         add_header Cache-Control "public, no-transform";
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "DENY" always;
         add_header X-XSS-Protection "1; mode=block" always;
@@ -132,7 +148,7 @@ server {
         try_files $uri $uri/ /index.html?$args;
 
         # Security Headers (must be repeated here because add_header clears parent headers)
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "DENY" always;
         add_header X-XSS-Protection "1; mode=block" always;
@@ -141,7 +157,7 @@ server {
         # Prevent caching of index.html for instant updates
         # IMPORTANT: Must repeat security headers since this block has add_header
         add_header Cache-Control "no-store, no-cache, must-revalidate" always;
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "DENY" always;
         add_header X-XSS-Protection "1; mode=block" always;

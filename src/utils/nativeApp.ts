@@ -24,7 +24,12 @@ export type WebToNativeMessageType =
   | 'PIN_VERIFIED'          // Web responds to PIN verification request
   | 'PIN_CHANGED'           // Web responds to PIN change request
   // Navigation messages
-  | 'OPEN_NATIVE_SETTINGS'; // Request native app to open its settings screen
+  | 'OPEN_NATIVE_SETTINGS'  // Request native app to open its settings screen
+  // DApp Connect messages
+  | 'DAPP_SHOW_WEBVIEW'     // Request native to show/focus WebView (for approval modal)
+  | 'DAPP_CONNECTED'        // Notify native that a dApp connected
+  | 'DAPP_DISCONNECTED'     // Notify native that a dApp disconnected
+  | 'DAPP_HAPTIC';          // Trigger haptic for dApp approve/reject
 
 /**
  * Message types that can be received from the native app
@@ -43,7 +48,10 @@ export type NativeToWebMessageType =
   | 'CLEAR_WALLET'          // Native requests web to clear wallet
   | 'BIOMETRIC_SETUP_PROMPT' // Native prompts user to enable biometric
   | 'VERIFY_PIN'            // Native asks web to verify PIN can decrypt seed
-  | 'CHANGE_PIN';           // Native requests web to re-encrypt seeds with new PIN
+  | 'CHANGE_PIN'            // Native requests web to re-encrypt seeds with new PIN
+  // DApp Connect messages
+  | 'DAPP_URI'              // Deep link URI received by native, forwarded to WebView
+  | 'DAPP_DISCONNECT';      // Native requests web to disconnect a specific dApp session
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
