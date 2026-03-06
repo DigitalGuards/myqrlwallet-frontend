@@ -8,11 +8,28 @@ interface TransactionReviewProps {
   params: Record<string, unknown>;
 }
 
+function formatGasLimit(gas: unknown): string {
+  if (typeof gas === 'number' && Number.isFinite(gas)) {
+    return String(Math.trunc(gas));
+  }
+  if (typeof gas === 'bigint') {
+    return gas.toString();
+  }
+  if (typeof gas === 'string') {
+    const parsed = Number.parseInt(gas, gas.startsWith('0x') ? 16 : 10);
+    if (Number.isFinite(parsed)) {
+      return String(parsed);
+    }
+    return gas;
+  }
+  return 'Unknown';
+}
+
 const DAppTransactionReview: React.FC<TransactionReviewProps> = ({ params }) => {
   const to = (params.to as string) || 'Unknown';
   const value = params.value as string | undefined;
   const data = params.data as string | undefined;
-  const gas = params.gas as string | undefined;
+  const gas = params.gas;
 
   const displayValue = value
     ? `${utils.fromWei(BigInt(value).toString(), 'ether')} QRL`
@@ -28,10 +45,10 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({ params }) => 
         <span className="text-muted-foreground">Value</span>
         <span className="font-semibold">{displayValue}</span>
       </div>
-      {gas && (
+      {gas != null && (
         <div className="flex justify-between">
           <span className="text-muted-foreground">Gas Limit</span>
-          <span>{gas.startsWith('0x') ? parseInt(gas, 16) : parseInt(gas, 10) || gas}</span>
+          <span>{formatGasLimit(gas)}</span>
         </div>
       )}
       {data && data !== '0x' && (
