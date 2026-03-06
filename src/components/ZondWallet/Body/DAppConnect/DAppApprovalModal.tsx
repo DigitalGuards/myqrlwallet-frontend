@@ -34,6 +34,8 @@ const METHOD_LABELS: Record<string, string> = {
   wallet_switchZondChain: 'Switch Network',
 };
 
+const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
+
 function parseRpcNumber(value: unknown, fallback: number): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'bigint') return Number(value);
@@ -54,18 +56,35 @@ function getMessageToSign(
   const active = activeAddress.toLowerCase();
 
   if (method === 'personal_sign') {
-    if (second.toLowerCase() === active && first) return first;
-    if (first.toLowerCase() === active && second) return second;
+    // EIP-191: personal_sign(data, address)
+    if (second.toLowerCase() === active) return first;
     return '';
   }
 
   if (method === 'zond_sign') {
+    // eth_sign/zond_sign: (address, data)
     if (first.toLowerCase() === active && second) return second;
-    if (second.toLowerCase() === active && first) return first;
     return '';
   }
 
   return '';
+}
+
+function toUserFacingError(error: string): string {
+  const msg = error.toLowerCase();
+  if (msg.includes('insufficient funds')) {
+    return 'Insufficient funds for this transaction.';
+  }
+  if (msg.includes('nonce too low')) {
+    return 'Transaction nonce is too low. Please retry.';
+  }
+  if (msg.includes('already known')) {
+    return 'This transaction was already submitted.';
+  }
+  if (msg.includes('user denied') || msg.includes('rejected')) {
+    return 'Request was rejected.';
+  }
+  return 'Transaction failed. Please verify details and try again.';
 }
 
 function getBorderColor(progress: TxProgressState): string {
@@ -172,7 +191,7 @@ const DAppApprovalModal = observer(() => {
             value: txValue,
             data: txData,
           });
-          gas = Math.ceil(Number(estimated) * 1.2);
+          gas = Math.ceil(Number(estimated) * GAS_ESTIMATE_BUFFER_MULTIPLIER);
         } else {
           gas = 21000;
         }
@@ -229,9 +248,10 @@ const DAppApprovalModal = observer(() => {
             })
             .on('error', (txErr: Error) => {
               const txErrMsg = txErr.message || String(txErr);
-              dappConnectStore.setTxProgress('failed', undefined, txErrMsg);
+              const userError = toUserFacingError(txErrMsg);
+              dappConnectStore.setTxProgress('failed', undefined, userError);
               // Send rejection to dApp but keep modal open to show failed state
-              dappConnectStore.sendRejectionResult(`Transaction failed: ${txErrMsg}`);
+              dappConnectStore.sendRejectionResult(`Transaction failed: ${userError}`);
               setPin('');
               setLoading(false);
               resolve();
@@ -303,16 +323,17 @@ const DAppApprovalModal = observer(() => {
       setPin('');
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      setError(errMsg);
+      const userError = toUserFacingError(errMsg);
+      setError(userError);
       if (currentApproval) {
         const isTxMethod = currentApproval.method === 'zond_sendTransaction' ||
           currentApproval.method === 'zond_signTransaction';
         if (isTxMethod && dappConnectStore.txProgress !== 'idle') {
           // Keep modal open to show failed state
-          dappConnectStore.setTxProgress('failed', undefined, errMsg);
-          dappConnectStore.sendRejectionResult(errMsg);
+          dappConnectStore.setTxProgress('failed', undefined, userError);
+          dappConnectStore.sendRejectionResult(userError);
         } else {
-          dappConnectStore.rejectCurrentRequest(errMsg);
+          dappConnectStore.rejectCurrentRequest(userError);
         }
       }
     } finally {
