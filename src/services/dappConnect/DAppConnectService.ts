@@ -512,7 +512,11 @@ export class DAppConnectService {
    */
   async reconnectAll(): Promise<void> {
     dlog(`reconnectAll called`);
-    dlog(`reconnectAll stack: ${new Error().stack?.split('\n').slice(1, 4).join(' <- ')}`);
+    // Clear any pending stale-session timers (wallet returning from background
+    // should not auto-disconnect sessions that were waiting for dApp rejoin)
+    for (const channelId of this.dappLeaveTimers.keys()) {
+      this.clearDappLeaveTimeout(channelId);
+    }
     const sessions = SessionStore.getAll();
     for (const session of sessions) {
       if (this.connections.has(session.id)) continue; // Already connected
