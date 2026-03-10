@@ -4,6 +4,7 @@ import { observer } from "mobx-react-lite";
 import { Copy, Check, RefreshCw } from "lucide-react";
 import { formatBalance, formatAddress } from "@/utils/formatting";
 import { copyToClipboard } from "@/utils/nativeApp";
+import { SlotBalance } from "./SlotBalance";
 
 export const ActiveAccountDisplay = observer(() => {
   const { zondStore } = useStore();
@@ -12,6 +13,7 @@ export const ActiveAccountDisplay = observer(() => {
   const [copiedItem, setCopiedItem] = useState<'balance' | 'address' | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshSuccess, setRefreshSuccess] = useState(false);
+  const [isSlotSpinning, setIsSlotSpinning] = useState(false);
 
   const handleCopy = async (text: string, type: 'balance' | 'address') => {
     const success = await copyToClipboard(text);
@@ -25,8 +27,11 @@ export const ActiveAccountDisplay = observer(() => {
 
   const refreshBalance = async () => {
     setIsRefreshing(true);
+    setIsSlotSpinning(true);
     await fetchAccounts();
     setIsRefreshing(false);
+    // Let the slot animation finish its cascade before clearing
+    setTimeout(() => setIsSlotSpinning(false), 1200);
     setRefreshSuccess(true);
     setTimeout(() => {
       setRefreshSuccess(false);
@@ -39,7 +44,7 @@ export const ActiveAccountDisplay = observer(() => {
         className="flex justify-center items-center text-xl font-bold text-blue-accent group"
       >
         <div className="cursor-pointer flex items-center" onClick={() => handleCopy(activeAccountBalance, 'balance')}>
-          <span>{formatBalance(activeAccountBalance)} QRL</span>
+          <span><SlotBalance value={formatBalance(activeAccountBalance)} spinning={isSlotSpinning} /> QRL</span>
           {copiedItem === 'balance' ? (
             <Check className="w-4 h-4 ml-2 text-blue-accent" />
           ) : (
