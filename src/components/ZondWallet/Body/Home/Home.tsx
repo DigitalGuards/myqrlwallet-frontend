@@ -68,7 +68,7 @@ const Home = observer(() => {
     };
   }, [activeAccount.accountAddress, zondStore]);
 
-  const accountCreateImportClasses = cva("flex gap-8", {
+  const accountCreateImportClasses = cva("flex gap-4 md:gap-8", {
     variants: {
       hasAccountCreationPreference: {
         true: ["flex-col-reverse"],

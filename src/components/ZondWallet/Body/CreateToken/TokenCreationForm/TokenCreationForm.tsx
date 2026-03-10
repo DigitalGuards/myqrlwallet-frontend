@@ -252,6 +252,7 @@ export const TokenCreationForm = observer(
                                 name="tokenName"
                                 render={({ field }) => (
                                     <FormItem>
+                                        <Label>Token Name</Label>
                                         <FormControl>
                                             <Input
                                                 disabled={isSubmitting}
@@ -260,7 +261,6 @@ export const TokenCreationForm = observer(
                                                 {...field}
                                             />
                                         </FormControl>
-                                        <FormDescription>Token Name</FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -270,6 +270,7 @@ export const TokenCreationForm = observer(
                                 name="tokenSymbol"
                                 render={({ field }) => (
                                     <FormItem>
+                                        <Label>Token Symbol</Label>
                                         <FormControl>
                                             <Input
                                                 {...field}
@@ -278,7 +279,6 @@ export const TokenCreationForm = observer(
                                                 type="text"
                                             />
                                         </FormControl>
-                                        <FormDescription>Token Symbol</FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -288,6 +288,7 @@ export const TokenCreationForm = observer(
                                 name="initialSupply"
                                 render={({ field }) => (
                                     <FormItem>
+                                        <Label>Initial Supply</Label>
                                         <FormControl>
                                             <Input
                                                 {...field}
@@ -296,10 +297,6 @@ export const TokenCreationForm = observer(
                                                 type="number"
                                             />
                                         </FormControl>
-                                        <FormDescription>
-                                            {/* Initial Supply (Real Value: {formatRealValue(field.value || "0", form.watch("decimals"))}) */}
-                                            Initial Supply
-                                        </FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -309,6 +306,7 @@ export const TokenCreationForm = observer(
                                 name="decimals"
                                 render={({ field }) => (
                                     <FormItem>
+                                        <Label>Decimals</Label>
                                         <FormControl>
                                             <Input
                                                 {...field}
@@ -318,7 +316,6 @@ export const TokenCreationForm = observer(
                                                 onChange={(e) => field.onChange(Number(e.target.value))}
                                             />
                                         </FormControl>
-                                        <FormDescription>Decimals</FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -354,6 +351,7 @@ export const TokenCreationForm = observer(
                                     name="maxSupply"
                                     render={({ field }) => (
                                         <FormItem>
+                                            <Label>Max Supply</Label>
                                             <FormControl>
                                                 <Input
                                                     {...field}
@@ -363,7 +361,7 @@ export const TokenCreationForm = observer(
                                                 />
                                             </FormControl>
                                             <FormDescription>
-                                                Max Supply (Real Value: {formatRealValue(field.value || "0", form.watch("decimals"))})
+                                                Real Value: {formatRealValue(field.value || "0", form.watch("decimals"))}
                                             </FormDescription>
                                             <FormMessage />
                                         </FormItem>
@@ -401,6 +399,7 @@ export const TokenCreationForm = observer(
                                     name="recipientAddress"
                                     render={({ field }) => (
                                         <FormItem>
+                                            <Label>Recipient Address</Label>
                                             <FormControl>
                                                 <Input
                                                     {...field}
@@ -409,7 +408,6 @@ export const TokenCreationForm = observer(
                                                     type="text"
                                                 />
                                             </FormControl>
-                                            <FormDescription>Recipient Address</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -446,6 +444,7 @@ export const TokenCreationForm = observer(
                                     name="ownerAddress"
                                     render={({ field }) => (
                                         <FormItem>
+                                            <Label>Owner Address</Label>
                                             <FormControl>
                                                 <Input
                                                     {...field}
@@ -454,7 +453,6 @@ export const TokenCreationForm = observer(
                                                     type="text"
                                                 />
                                             </FormControl>
-                                            <FormDescription>Owner Address</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -491,6 +489,7 @@ export const TokenCreationForm = observer(
                                     name="maxWalletAmount"
                                     render={({ field }) => (
                                         <FormItem>
+                                            <Label>Max Wallet Amount</Label>
                                             <FormControl>
                                                 <Input
                                                     {...field}
@@ -499,7 +498,6 @@ export const TokenCreationForm = observer(
                                                     type="number"
                                                 />
                                             </FormControl>
-                                            <FormDescription>Max Wallet Amount</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -536,6 +534,7 @@ export const TokenCreationForm = observer(
                                     name="maxTransactionLimit"
                                     render={({ field }) => (
                                         <FormItem>
+                                            <Label>Max Transaction Limit</Label>
                                             <FormControl>
                                                 <Input
                                                     {...field}
@@ -544,7 +543,6 @@ export const TokenCreationForm = observer(
                                                     type="number"
                                                 />
                                             </FormControl>
-                                            <FormDescription>Max Transaction Limit</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
