@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const DIGIT_HEIGHT = 32; // px – matches text-xl line height
 const DIGITS = "0123456789";
@@ -18,56 +18,55 @@ interface SlotDigitProps {
  */
 export const SlotDigit = ({ target, spinning, delay }: SlotDigitProps) => {
   const isDigit = /\d/.test(target);
-  const [landed, setLanded] = useState(true);
   const [offset, setOffset] = useState(0);
-  const rafRef = useRef<number>(0);
-  const startRef = useRef(0);
 
-  // Total spin duration for this column (delay + spin time)
   const spinDuration = 600; // ms of actual spinning after delay
+
+  const runAnimation = useCallback(() => {
+    const start = performance.now();
+    let cancelled = false;
+
+    const animate = (now: number) => {
+      if (cancelled) return;
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / spinDuration, 1);
+
+      // Easing: fast start, smooth deceleration (ease-out cubic)
+      const eased = 1 - Math.pow(1 - progress, 3);
+
+      // Spin through several full cycles + land on target
+      const targetIdx = parseInt(target);
+      const totalTravel = 3 * 10 + targetIdx; // 3 full loops + target position
+      const currentPos = eased * totalTravel;
+      setOffset(-(currentPos % 10) * DIGIT_HEIGHT);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setOffset(-targetIdx * DIGIT_HEIGHT);
+      }
+    };
+
+    requestAnimationFrame(animate);
+
+    return () => { cancelled = true; };
+  }, [target]);
 
   useEffect(() => {
     if (!spinning || !isDigit) return;
 
-    setLanded(false);
-    let cancelled = false;
-
     const delayTimer = setTimeout(() => {
-      if (cancelled) return;
-      startRef.current = performance.now();
-
-      const animate = (now: number) => {
-        if (cancelled) return;
-        const elapsed = now - startRef.current;
-        const progress = Math.min(elapsed / spinDuration, 1);
-
-        // Easing: fast start, smooth deceleration (ease-out cubic)
-        const eased = 1 - Math.pow(1 - progress, 3);
-
-        // Spin through several full cycles + land on target
-        const targetIdx = parseInt(target);
-        const totalTravel = 3 * 10 + targetIdx; // 3 full loops + target position
-        const currentPos = eased * totalTravel;
-        setOffset(-(currentPos % 10) * DIGIT_HEIGHT);
-
-        if (progress < 1) {
-          rafRef.current = requestAnimationFrame(animate);
-        } else {
-          // Snap to target
-          setOffset(-targetIdx * DIGIT_HEIGHT);
-          setLanded(true);
-        }
-      };
-
-      rafRef.current = requestAnimationFrame(animate);
+      const cancelAnimation = runAnimation();
+      cleanupRef = cancelAnimation;
     }, delay);
 
+    let cleanupRef: (() => void) | undefined;
+
     return () => {
-      cancelled = true;
       clearTimeout(delayTimer);
-      cancelAnimationFrame(rafRef.current);
+      cleanupRef?.();
     };
-  }, [spinning, target, delay, isDigit]);
+  }, [spinning, target, delay, isDigit, runAnimation]);
 
   // Static characters (comma, period, space)
   if (!isDigit) {
@@ -78,8 +77,8 @@ export const SlotDigit = ({ target, spinning, delay }: SlotDigitProps) => {
     );
   }
 
-  // When not spinning, just show the digit
-  if (!spinning && landed) {
+  // When not spinning, show static digit
+  if (!spinning) {
     return (
       <span className="inline-block" style={{ height: DIGIT_HEIGHT, lineHeight: `${DIGIT_HEIGHT}px` }}>
         {target}
