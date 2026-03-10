@@ -40,7 +40,7 @@ export const ActiveAccountDisplay = observer(() => {
   };
 
   return (
-    <div className="flex flex-col min-w-0">
+    <div className="flex flex-col">
       <div
         className="flex justify-center items-center text-xl font-bold text-blue-accent group"
       >
@@ -78,12 +78,12 @@ export const ActiveAccountDisplay = observer(() => {
           )}
         </div>
       )}
-      <div className="flex justify-center min-w-0">
+      <div className="flex justify-center">
         <div
-          className="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-1.5 text-sm group cursor-pointer backdrop-blur-sm whitespace-nowrap text-[clamp(0.65rem,2.8vw,0.875rem)] max-w-full overflow-hidden"
+          className="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-1.5 text-sm group cursor-pointer backdrop-blur-sm whitespace-nowrap text-[clamp(0.65rem,2.8vw,0.875rem)]"
           onClick={() => handleCopy(accountAddress, 'address')}
         >
-          <span className="font-mono text-orange-400 truncate">{formatAddress(accountAddress)}</span>
+          <span className="font-mono text-orange-400">{formatAddress(accountAddress)}</span>
           {copiedItem === 'address' ? (
             <Check className="w-3.5 h-3.5 text-orange-400" />
           ) : (
