@@ -45,7 +45,7 @@ import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonic } from "@/utils/crypto";
 import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
 import { SEO } from "@/components/SEO/SEO";
-import { getOptimalTokenBalance, formatAddress, formatAddressShort } from "@/utils/formatting";
+import { getOptimalTokenBalance, formatAddressShort } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
 import { formatUnits, parseUnits } from "ethers";
 
