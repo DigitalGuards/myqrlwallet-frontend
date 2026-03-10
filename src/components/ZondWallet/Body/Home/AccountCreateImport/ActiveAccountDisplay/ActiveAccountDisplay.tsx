@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useStore } from "../../../../../../stores/store";
 import { observer } from "mobx-react-lite";
 import { Copy, Check, RefreshCw } from "lucide-react";
-import { formatBalance, formatAddress } from "@/utils/formatting";
+import { formatBalance, formatAddress, formatAddressShort } from "@/utils/formatting";
 import { copyToClipboard } from "@/utils/nativeApp";
 import { SlotBalance } from "./SlotBalance";
 
@@ -83,7 +83,8 @@ export const ActiveAccountDisplay = observer(() => {
           className="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-1.5 text-sm group cursor-pointer backdrop-blur-sm"
           onClick={() => handleCopy(accountAddress, 'address')}
         >
-          <span className="font-mono text-orange-400">{formatAddress(accountAddress)}</span>
+          <span className="font-mono text-orange-400 sm:hidden">{formatAddressShort(accountAddress)}</span>
+          <span className="font-mono text-orange-400 hidden sm:inline">{formatAddress(accountAddress)}</span>
           {copiedItem === 'address' ? (
             <Check className="w-3.5 h-3.5 text-orange-400" />
           ) : (
