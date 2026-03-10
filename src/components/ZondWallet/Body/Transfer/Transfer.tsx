@@ -589,8 +589,8 @@ const Transfer = observer(() => {
                   {/* From Address */}
                   <div className="flex flex-col gap-2">
                     <Label>From</Label>
-                    <div className="font-bold text-secondary font-mono">
-                      {formatAddress(accountAddress)}
+                    <div className="font-bold text-secondary font-mono text-sm break-all">
+                      {accountAddress}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       Available: {getOptimalTokenBalance(accountBalance, assetSymbol)}

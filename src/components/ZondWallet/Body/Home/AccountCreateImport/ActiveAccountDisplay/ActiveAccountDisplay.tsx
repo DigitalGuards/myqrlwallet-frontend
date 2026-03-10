@@ -36,12 +36,12 @@ export const ActiveAccountDisplay = observer(() => {
   return (
     <div className="flex flex-col gap-4">
       <div
-        className="flex justify-center items-center text-xl font-bold text-secondary group"
+        className="flex justify-center items-center text-xl font-bold text-blue-accent group"
       >
         <div className="cursor-pointer flex items-center" onClick={() => handleCopy(activeAccountBalance, 'balance')}>
           <span>{formatBalance(activeAccountBalance)} QRL</span>
           {copiedItem === 'balance' ? (
-            <Check className="w-4 h-4 ml-2 text-green-500" />
+            <Check className="w-4 h-4 ml-2 text-blue-accent" />
           ) : (
             <Copy className="w-4 h-4 ml-2" />
           )}
@@ -52,7 +52,7 @@ export const ActiveAccountDisplay = observer(() => {
           disabled={isRefreshing || refreshSuccess}
         >
           {refreshSuccess ? (
-            <Check className="w-4 h-4 text-green-500" />
+            <Check className="w-4 h-4 text-blue-accent" />
           ) : isRefreshing ? (
             <RefreshCw className="w-4 h-4 animate-spin" />
           ) : (
@@ -60,16 +60,18 @@ export const ActiveAccountDisplay = observer(() => {
           )}
         </button>
       </div>
-      <div
-        className="text-center text-sm flex justify-center items-center group cursor-pointer"
-        onClick={() => handleCopy(accountAddress, 'address')}
-      >
-        <span className="font-mono">{formatAddress(accountAddress)}</span>
-        {copiedItem === 'address' ? (
-          <Check className="w-4 h-4 ml-2 text-green-500" />
-        ) : (
-          <Copy className="w-4 h-4 ml-2" />
-        )}
+      <div className="flex justify-center">
+        <div
+          className="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-1.5 text-sm group cursor-pointer backdrop-blur-sm"
+          onClick={() => handleCopy(accountAddress, 'address')}
+        >
+          <span className="font-mono text-orange-400">{formatAddress(accountAddress)}</span>
+          {copiedItem === 'address' ? (
+            <Check className="w-3.5 h-3.5 text-orange-400" />
+          ) : (
+            <Copy className="w-3.5 h-3.5 text-orange-400/60" />
+          )}
+        </div>
       </div>
     </div>
   );
