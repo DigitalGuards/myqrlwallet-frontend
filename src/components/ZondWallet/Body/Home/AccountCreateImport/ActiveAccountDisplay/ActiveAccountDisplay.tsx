@@ -80,7 +80,7 @@ export const ActiveAccountDisplay = observer(() => {
       )}
       <div className="flex justify-center">
         <div
-          className="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-1.5 text-sm group cursor-pointer backdrop-blur-sm"
+          className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full bg-black/20 px-3 sm:px-4 py-1.5 text-[clamp(0.6rem,2.5vw,0.875rem)] group cursor-pointer backdrop-blur-sm"
           onClick={() => handleCopy(accountAddress, 'address')}
         >
           <span className="font-mono text-orange-400">{formatAddress(accountAddress)}</span>
