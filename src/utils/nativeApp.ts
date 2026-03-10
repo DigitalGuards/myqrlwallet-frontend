@@ -105,7 +105,9 @@ export const copyToClipboardNative = (text: string): boolean => {
  */
 export const copyToClipboard = async (text: string): Promise<boolean> => {
   if (isInNativeApp()) {
-    return sendToNative('COPY_TO_CLIPBOARD', { text });
+    const sent = sendToNative('COPY_TO_CLIPBOARD', { text });
+    if (sent) return true;
+    // Native bridge unavailable, fall through to browser API
   }
 
   // Fall back to browser clipboard API
