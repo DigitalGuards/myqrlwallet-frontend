@@ -25,14 +25,14 @@ const AccountList = observer(() => {
         description="Manage your QRL accounts securely. View balances, copy addresses, and interact with your quantum-resistant accounts."
         keywords="QRL Accounts, Wallet Management, Account Balance, Quantum Resistant Accounts, QRL Address"
       />
-      <div className="flex w-full items-start justify-center py-8 overflow-x-clip">
-        <div className="relative w-full max-w-2xl px-4">
+      <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-clip">
+        <div className="relative w-full max-w-2xl px-2 md:px-4">
           <img
             className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
             src="/tree.svg"
             alt="Background Tree"
           />
-          <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-4 md:gap-8">
             {noActiveAccount ? (
               <AccountCreateImport />
             ) : (

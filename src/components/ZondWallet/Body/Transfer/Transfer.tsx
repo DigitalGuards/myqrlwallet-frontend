@@ -45,7 +45,7 @@ import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonic } from "@/utils/crypto";
 import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
 import { SEO } from "@/components/SEO/SEO";
-import { getOptimalTokenBalance, formatAddress, formatAddressShort } from "@/utils/formatting";
+import { getOptimalTokenBalance, formatAddressShort } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
 import { formatUnits, parseUnits } from "ethers";
 
@@ -242,8 +242,8 @@ const Transfer = observer(() => {
     return (
       <>
         <SEO title="Transfer" />
-        <div className="flex w-full items-start justify-center py-8 overflow-x-hidden">
-          <div className="relative w-full max-w-2xl px-4">
+        <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
+          <div className="relative w-full max-w-2xl px-2 md:px-4">
             <img
               className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
               src="/tree.svg"
@@ -426,8 +426,8 @@ const Transfer = observer(() => {
 
   if (transactionStatus.state === 'pending') {
     return (
-      <div className="flex w-full items-start justify-center py-8 overflow-x-hidden">
-        <div className="relative w-full max-w-2xl px-4">
+      <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
+        <div className="relative w-full max-w-2xl px-2 md:px-4">
           <Card className="w-full border-l-4 border-l-orange-500">
             <CardHeader className="bg-gradient-to-r from-orange-500/10 to-transparent">
               <CardTitle className="flex items-center gap-2">
@@ -493,8 +493,8 @@ const Transfer = observer(() => {
 
   if (transactionStatus.state === 'failed') {
     return (
-      <div className="flex w-full items-start justify-center py-8 overflow-x-hidden">
-        <div className="relative w-full max-w-2xl px-4">
+      <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
+        <div className="relative w-full max-w-2xl px-2 md:px-4">
           <Card className="w-full border-l-4 border-l-destructive">
             <CardHeader className="bg-gradient-to-r from-destructive/10 to-transparent">
               <CardTitle className="flex items-center gap-2 text-destructive">
@@ -532,8 +532,8 @@ const Transfer = observer(() => {
   return (
     <>
       <SEO title="Transfer" />
-      <div className="flex w-full items-start justify-center py-8 overflow-x-hidden">
-        <div className="relative w-full max-w-2xl px-4">
+      <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
+        <div className="relative w-full max-w-2xl px-2 md:px-4">
           <img
             className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
             src="/tree.svg"
@@ -589,8 +589,8 @@ const Transfer = observer(() => {
                   {/* From Address */}
                   <div className="flex flex-col gap-2">
                     <Label>From</Label>
-                    <div className="font-bold text-secondary font-mono">
-                      {formatAddress(accountAddress)}
+                    <div className="font-bold text-secondary font-mono text-sm break-all">
+                      {accountAddress}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       Available: {getOptimalTokenBalance(accountBalance, assetSymbol)}

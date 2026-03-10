@@ -43,8 +43,8 @@ const ImportAccount = observer(() => {
         description="Import your existing QRL account using a mnemonic phrase or encrypted wallet file. Securely access your quantum-resistant assets."
         keywords="Import QRL Account, Restore Wallet, Mnemonic Recovery, Encrypted Wallet Import"
       />
-      <div className="flex w-full items-start justify-center pt-16">
-        <div className="relative w-full max-w-2xl px-4">
+      <div className="flex w-full items-start justify-center pt-8 md:pt-16">
+        <div className="relative w-full max-w-2xl px-2 md:px-4">
           <img
             className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
             src="/tree.svg"

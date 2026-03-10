@@ -230,8 +230,8 @@ const Settings = observer(() => {
     return (
         <>
             <SEO title="Settings" />
-            <div className="flex w-full items-start justify-center py-8">
-                <div className="relative w-full max-w-2xl px-4">
+            <div className="flex w-full items-start justify-center py-2 md:py-8">
+                <div className="relative w-full max-w-2xl px-2 md:px-4">
                     { /* <video
                         autoPlay
                         muted
@@ -241,7 +241,7 @@ const Settings = observer(() => {
                     >
                         <source src="/tree.mp4" type="video/mp4" />
                     </video> */ }
-                    <div className="relative z-10 space-y-8">
+                    <div className="relative z-10 space-y-4 md:space-y-8">
                         {/* PIN Management Card - only visible when user has encrypted seeds */}
                         {hasEncryptedSeeds && (
                             <Card className="border-l-4 border-l-orange-500">
