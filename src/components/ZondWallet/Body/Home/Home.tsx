@@ -50,13 +50,15 @@ const Home = observer(() => {
       // Refresh immediately on mount
       zondStore.fetchAccounts();
       zondStore.refreshTokenBalances();
-      
+      zondStore.fetchQrlPrice();
+
       // Set up recurring refresh every 30 seconds
       refreshIntervalRef.current = setInterval(() => {
         // Only refresh if no modals are open
         if (!checkIfModalOpen()) {
           zondStore.fetchAccounts();
           zondStore.refreshTokenBalances();
+          zondStore.fetchQrlPrice();
         }
       }, 30000); // 30 seconds
     }

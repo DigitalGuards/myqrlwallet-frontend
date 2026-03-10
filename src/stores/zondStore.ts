@@ -94,6 +94,7 @@ class ZondStore {
   // Updated initial state
   transactionStatus: TransactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
   extensionProvider: ExtensionProvider | null = null; // NEW: Store the extension provider
+  qrlPrice: number = 0; // USD price from ZondScan
 
   // NEW: Computed properties
   // 1) active account balance
@@ -118,7 +119,13 @@ class ZondStore {
     );
   }
 
-  // 3) Visible tokens (filtered by hidden list)
+  // 3) Active account balance in USD
+  get activeAccountBalanceUsd(): number {
+    const balance = parseFloat(this.activeAccountBalance) || 0;
+    return balance * this.qrlPrice;
+  }
+
+  // 4) Visible tokens (filtered by hidden list)
   get visibleTokenList(): TokenInterface[] {
     return this.tokenList.filter(
       (token) => !this.hiddenTokens.some(
@@ -140,9 +147,12 @@ class ZondStore {
       customRpcUrl: observable.struct,
       transactionStatus: observable.struct,
       extensionProvider: observable.ref, // Use ref for complex objects like providers
+      qrlPrice: observable,
       activeAccountBalance: computed,
       activeAccountSource: computed,
+      activeAccountBalanceUsd: computed,
       visibleTokenList: computed,
+      fetchQrlPrice: action.bound,
       setCustomRpcUrl: action.bound,
       addToken: action.bound,
       removeToken: action.bound,
@@ -176,6 +186,21 @@ class ZondStore {
     setTimeout(() => {
       this.initializeBlockchain();
     }, 0);
+  }
+
+  async fetchQrlPrice() {
+    try {
+      const res = await fetch("https://zondscan.com/api/overview");
+      const data = await res.json();
+      const price = data?.currentPrice;
+      if (typeof price === "number" && price > 0) {
+        runInAction(() => {
+          this.qrlPrice = price;
+        });
+      }
+    } catch (e) {
+      log("Failed to fetch QRL price: " + e);
+    }
   }
 
   // Updated reset action
@@ -221,6 +246,7 @@ class ZondStore {
 
       await this.fetchZondConnection();
       await this.fetchAccounts();
+      this.fetchQrlPrice(); // Fire-and-forget, non-blocking
       await this.validateActiveAccount();
 
       // Log successful initialization
