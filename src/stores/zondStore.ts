@@ -95,6 +95,7 @@ class ZondStore {
   transactionStatus: TransactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
   extensionProvider: ExtensionProvider | null = null; // NEW: Store the extension provider
   qrlPrice: number = 0; // USD price from ZondScan
+  qrlPriceChange24h: number = 0; // 24h price change percentage
 
   // NEW: Computed properties
   // 1) active account balance
@@ -148,6 +149,7 @@ class ZondStore {
       transactionStatus: observable.struct,
       extensionProvider: observable.ref, // Use ref for complex objects like providers
       qrlPrice: observable,
+      qrlPriceChange24h: observable,
       activeAccountBalance: computed,
       activeAccountSource: computed,
       activeAccountBalanceUsd: computed,
@@ -193,9 +195,13 @@ class ZondStore {
       const res = await fetch("https://zondscan.com/api/overview");
       const data = await res.json();
       const price = data?.currentPrice;
+      const change = data?.priceChange24h;
       if (typeof price === "number" && price > 0) {
         runInAction(() => {
           this.qrlPrice = price;
+          if (typeof change === "number") {
+            this.qrlPriceChange24h = change;
+          }
         });
       }
     } catch (e) {

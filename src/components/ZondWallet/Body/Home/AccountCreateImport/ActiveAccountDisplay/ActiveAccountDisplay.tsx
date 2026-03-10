@@ -8,7 +8,7 @@ import { SlotBalance } from "./SlotBalance";
 
 export const ActiveAccountDisplay = observer(() => {
   const { zondStore } = useStore();
-  const { activeAccount, fetchAccounts, activeAccountBalance, activeAccountBalanceUsd, qrlPrice } = zondStore;
+  const { activeAccount, fetchAccounts, activeAccountBalance, activeAccountBalanceUsd, qrlPrice, qrlPriceChange24h } = zondStore;
   const { accountAddress } = activeAccount;
   const [copiedItem, setCopiedItem] = useState<'balance' | 'address' | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -67,8 +67,15 @@ export const ActiveAccountDisplay = observer(() => {
         </button>
       </div>
       {qrlPrice > 0 && (
-        <div className="text-center text-sm text-slate-400 mt-2 mb-4">
-          ≈ ${activeAccountBalanceUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        <div className="flex items-center justify-center gap-2 text-sm mt-2 mb-4">
+          <span className="text-slate-400">
+            ≈ ${activeAccountBalanceUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+          {qrlPriceChange24h !== 0 && (
+            <span className={qrlPriceChange24h > 0 ? "text-emerald-400" : "text-red-400"}>
+              {qrlPriceChange24h > 0 ? "▲" : "▼"} {qrlPriceChange24h > 0 ? "+" : ""}{qrlPriceChange24h.toFixed(2)}%
+            </span>
+          )}
         </div>
       )}
       <div className="flex justify-center">
