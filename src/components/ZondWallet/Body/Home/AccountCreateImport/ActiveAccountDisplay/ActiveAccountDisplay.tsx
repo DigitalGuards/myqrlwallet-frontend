@@ -8,7 +8,7 @@ import { SlotBalance } from "./SlotBalance";
 
 export const ActiveAccountDisplay = observer(() => {
   const { zondStore } = useStore();
-  const { activeAccount, fetchAccounts, activeAccountBalance } = zondStore;
+  const { activeAccount, fetchAccounts, activeAccountBalance, activeAccountBalanceUsd, qrlPrice } = zondStore;
   const { accountAddress } = activeAccount;
   const [copiedItem, setCopiedItem] = useState<'balance' | 'address' | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -29,6 +29,7 @@ export const ActiveAccountDisplay = observer(() => {
     setIsRefreshing(true);
     setIsSlotSpinning(true);
     await fetchAccounts();
+    zondStore.fetchQrlPrice();
     setIsRefreshing(false);
     // Let the slot animation finish its cascade before clearing
     setTimeout(() => setIsSlotSpinning(false), 1200);
@@ -39,7 +40,7 @@ export const ActiveAccountDisplay = observer(() => {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col">
       <div
         className="flex justify-center items-center text-xl font-bold text-blue-accent group"
       >
@@ -51,7 +52,7 @@ export const ActiveAccountDisplay = observer(() => {
             <Copy className="w-4 h-4 ml-2" />
           )}
         </div>
-        <button 
+        <button
           className="ml-2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center"
           onClick={refreshBalance}
           disabled={isRefreshing || refreshSuccess}
@@ -65,6 +66,11 @@ export const ActiveAccountDisplay = observer(() => {
           )}
         </button>
       </div>
+      {qrlPrice > 0 && (
+        <div className="text-center text-sm text-slate-400 mt-2 mb-4">
+          ≈ ${activeAccountBalanceUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </div>
+      )}
       <div className="flex justify-center">
         <div
           className="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-1.5 text-sm group cursor-pointer backdrop-blur-sm"
