@@ -70,7 +70,7 @@ const Home = observer(() => {
     };
   }, [activeAccount.accountAddress, zondStore]);
 
-  const accountCreateImportClasses = cva("flex gap-4 md:gap-8", {
+  const accountCreateImportClasses = cva("flex w-full gap-4 md:gap-8", {
     variants: {
       hasAccountCreationPreference: {
         true: ["flex-col-reverse"],
@@ -90,8 +90,8 @@ const Home = observer(() => {
         keywords="QRL Wallet, Create Wallet, Import Wallet, Quantum Resistant, Web3"
       />
       <BackgroundVideo />
-      <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-2 md:gap-4 md:py-4">
-        <div className="flex w-full items-center justify-center px-4">
+      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-col items-center gap-2 md:gap-4 md:py-4 px-4">
+        <div className="flex w-full items-center justify-center">
           <img className="h-14 md:h-20" src="/mqrlwallet.png" alt="MyQRLWallet Logo" />
           {isInNativeApp() && (
             <button
