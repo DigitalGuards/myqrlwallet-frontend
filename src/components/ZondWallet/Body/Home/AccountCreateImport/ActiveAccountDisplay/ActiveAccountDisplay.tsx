@@ -42,7 +42,7 @@ export const ActiveAccountDisplay = observer(() => {
   return (
     <div className="flex flex-col">
       <div
-        className="flex justify-center items-center text-xl font-bold text-blue-accent group"
+        className="flex justify-center items-center text-xl font-bold text-white group"
       >
         <div className="cursor-pointer flex items-center" onClick={() => handleCopy(activeAccountBalance, 'balance')}>
           <span><SlotBalance value={formatBalance(activeAccountBalance)} spinning={isSlotSpinning} /> QRL</span>
