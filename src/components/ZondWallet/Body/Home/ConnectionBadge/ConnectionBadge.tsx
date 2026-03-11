@@ -8,10 +8,16 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "../../../../UI/DropdownMenu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../../../../UI/Tooltip";
 import { ZOND_PROVIDER } from "@/config";
 import { useStore } from "../../../../../stores/store";
 import { cva } from "class-variance-authority";
-import { Check, ChevronRight, Network, Workflow, ExternalLink } from "lucide-react";
+import { Check, ChevronDown, Globe, Network, Workflow, ExternalLink } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { CustomRpcModal } from "./CustomRpcModal";
 import { useState } from "react";
@@ -96,21 +102,30 @@ const ConnectionBadge = observer(() => {
 
   return (
     <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen} modal={false}>
-      <DropdownMenuTrigger asChild>
-        <button
-          className="group relative flex items-center justify-center gap-3 rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-neutral-700 transition-all duration-200 hover:border-neutral-400 dark:border-neutral-700/80 dark:bg-card dark:text-zinc-300 dark:hover:border-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-accent focus-visible:ring-offset-2"
-        >
-          <PulsingDot isConnected={isConnected} />
-          <div className="mx-1 h-4 w-px bg-neutral-300 dark:bg-neutral-600/80" />
-          <span className="text-sm font-medium">{zondNetworkName}</span>
-          <ChevronRight
-            className={`ml-1 h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 dark:text-neutral-500 ${
-              isDropdownOpen ? "rotate-90" : "group-hover:translate-x-0.5"
-            }`}
-          />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56">
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="group flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-2.5 py-1.5 text-neutral-700 transition-all duration-200 hover:border-neutral-400 dark:border-neutral-700/80 dark:bg-card dark:text-zinc-300 dark:hover:border-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-accent focus-visible:ring-offset-2"
+                aria-label={`Network: ${zondNetworkName}`}
+              >
+                <PulsingDot isConnected={isConnected} />
+                <Globe className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                <ChevronDown
+                  className={`h-3 w-3 text-neutral-400 transition-transform duration-200 dark:text-neutral-500 ${
+                    isDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>{zondNetworkName}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <DropdownMenuContent className="w-56" align="start">
         <DropdownMenuLabel>Blockchain network</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
