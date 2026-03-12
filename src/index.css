@@ -249,10 +249,5 @@
     user-select: none;
   }
 
-  /* Ensure content is always visible in webviews */
-  @media (max-width: 768px) {
-    main {
-      min-height: calc(100vh - 16rem);
-    }
-  }
+  /* min-height handled by Body.tsx (md: only) to avoid bottom gaps on mobile */
 }
