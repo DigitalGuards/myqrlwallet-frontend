@@ -47,7 +47,7 @@ export const ActiveAccountDisplay = observer(() => {
         <div className="cursor-pointer flex items-center" onClick={() => handleCopy(activeAccountBalance, 'balance')}>
           <span><SlotBalance value={formatBalance(activeAccountBalance)} spinning={isSlotSpinning} /> QRL</span>
           {copiedItem === 'balance' ? (
-            <Check className="w-4 h-4 ml-2 text-blue-accent" />
+            <Check className="w-4 h-4 ml-2 text-white" />
           ) : (
             <Copy className="w-4 h-4 ml-2 text-white" />
           )}
@@ -58,7 +58,7 @@ export const ActiveAccountDisplay = observer(() => {
           disabled={isRefreshing || refreshSuccess}
         >
           {refreshSuccess ? (
-            <Check className="w-4 h-4 text-blue-accent" />
+            <Check className="w-4 h-4 text-white" />
           ) : isRefreshing ? (
             <RefreshCw className="w-4 h-4 text-white animate-spin" />
           ) : (
