@@ -1,7 +1,7 @@
 import { SidebarProvider } from "@/components/UI/sidebar"
-import { AppSidebar } from "@/components/ZondWallet/Layout/app-sidebar"
-import Footer from "@/components/ZondWallet/Layout/Footer"
-import MobileNav from "@/components/ZondWallet/Layout/MobileNav"
+import { AppSidebar } from "@/components/Core/Layout/app-sidebar"
+import Footer from "@/components/Core/Layout/Footer"
+import MobileNav from "@/components/Core/Layout/MobileNav"
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (
