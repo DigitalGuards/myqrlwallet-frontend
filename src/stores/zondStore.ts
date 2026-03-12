@@ -1,4 +1,4 @@
-import { ZOND_PROVIDER, getPendingTxApiUrl } from "@/config";
+import { ZOND_PROVIDER, ZONDSCAN_BASE, getPendingTxApiUrl } from "@/config";
 import { getHexSeedFromMnemonic } from "@/utils/crypto";
 import { StorageUtil, AccountListItem, AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
@@ -192,7 +192,7 @@ class ZondStore {
 
   async fetchQrlPrice() {
     try {
-      const res = await fetch("https://zondscan.com/api/overview");
+      const res = await fetch(`${ZONDSCAN_BASE}/api/overview`);
       const data = await res.json();
       const price = data?.currentPrice;
       const change = data?.priceChange24h;

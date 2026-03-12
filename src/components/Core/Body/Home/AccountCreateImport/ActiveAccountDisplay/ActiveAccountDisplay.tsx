@@ -28,15 +28,18 @@ export const ActiveAccountDisplay = observer(() => {
   const refreshBalance = async () => {
     setIsRefreshing(true);
     setIsSlotSpinning(true);
-    await fetchAccounts();
-    zondStore.fetchQrlPrice();
-    setIsRefreshing(false);
-    // Let the slot animation finish its cascade before clearing
-    setTimeout(() => setIsSlotSpinning(false), 1200);
-    setRefreshSuccess(true);
-    setTimeout(() => {
-      setRefreshSuccess(false);
-    }, 1500);
+    try {
+      await fetchAccounts();
+      zondStore.fetchQrlPrice();
+    } finally {
+      setIsRefreshing(false);
+      // Let the slot animation finish its cascade before clearing
+      setTimeout(() => setIsSlotSpinning(false), 1200);
+      setRefreshSuccess(true);
+      setTimeout(() => {
+        setRefreshSuccess(false);
+      }, 1500);
+    }
   };
 
   return (
