@@ -49,7 +49,7 @@ export const ActiveAccountDisplay = observer(() => {
           {copiedItem === 'balance' ? (
             <Check className="w-4 h-4 ml-2 text-blue-accent" />
           ) : (
-            <Copy className="w-4 h-4 ml-2" />
+            <Copy className="w-4 h-4 ml-2 text-white" />
           )}
         </div>
         <button
@@ -60,9 +60,9 @@ export const ActiveAccountDisplay = observer(() => {
           {refreshSuccess ? (
             <Check className="w-4 h-4 text-blue-accent" />
           ) : isRefreshing ? (
-            <RefreshCw className="w-4 h-4 animate-spin" />
+            <RefreshCw className="w-4 h-4 text-white animate-spin" />
           ) : (
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4 text-white" />
           )}
         </button>
       </div>
