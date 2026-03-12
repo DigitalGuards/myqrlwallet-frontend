@@ -1,4 +1,4 @@
-import { ZOND_PROVIDER, getPendingTxApiUrl } from "@/config";
+import { ZOND_PROVIDER, ZONDSCAN_BASE, getPendingTxApiUrl } from "@/config";
 import { getHexSeedFromMnemonic } from "@/utils/crypto";
 import { StorageUtil, AccountListItem, AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
@@ -94,6 +94,8 @@ class ZondStore {
   // Updated initial state
   transactionStatus: TransactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
   extensionProvider: ExtensionProvider | null = null; // NEW: Store the extension provider
+  qrlPrice: number = 0; // USD price from ZondScan
+  qrlPriceChange24h: number = 0; // 24h price change percentage
 
   // NEW: Computed properties
   // 1) active account balance
@@ -118,7 +120,13 @@ class ZondStore {
     );
   }
 
-  // 3) Visible tokens (filtered by hidden list)
+  // 3) Active account balance in USD
+  get activeAccountBalanceUsd(): number {
+    const balance = parseFloat(this.activeAccountBalance) || 0;
+    return balance * this.qrlPrice;
+  }
+
+  // 4) Visible tokens (filtered by hidden list)
   get visibleTokenList(): TokenInterface[] {
     return this.tokenList.filter(
       (token) => !this.hiddenTokens.some(
@@ -140,9 +148,13 @@ class ZondStore {
       customRpcUrl: observable.struct,
       transactionStatus: observable.struct,
       extensionProvider: observable.ref, // Use ref for complex objects like providers
+      qrlPrice: observable,
+      qrlPriceChange24h: observable,
       activeAccountBalance: computed,
       activeAccountSource: computed,
+      activeAccountBalanceUsd: computed,
       visibleTokenList: computed,
+      fetchQrlPrice: action.bound,
       setCustomRpcUrl: action.bound,
       addToken: action.bound,
       removeToken: action.bound,
@@ -176,6 +188,25 @@ class ZondStore {
     setTimeout(() => {
       this.initializeBlockchain();
     }, 0);
+  }
+
+  async fetchQrlPrice() {
+    try {
+      const res = await fetch(`${ZONDSCAN_BASE}/api/overview`);
+      const data = await res.json();
+      const price = data?.currentPrice;
+      const change = data?.priceChange24h;
+      if (typeof price === "number" && price > 0) {
+        runInAction(() => {
+          this.qrlPrice = price;
+          if (typeof change === "number") {
+            this.qrlPriceChange24h = change;
+          }
+        });
+      }
+    } catch (e) {
+      log("Failed to fetch QRL price: " + e);
+    }
   }
 
   // Updated reset action
@@ -221,6 +252,7 @@ class ZondStore {
 
       await this.fetchZondConnection();
       await this.fetchAccounts();
+      this.fetchQrlPrice(); // Fire-and-forget, non-blocking
       await this.validateActiveAccount();
 
       // Log successful initialization
@@ -407,6 +439,9 @@ class ZondStore {
             };
           }),
         );
+      const balanceMap: Record<string, string> = {};
+      accountsWithBalance.forEach(a => { balanceMap[a.accountAddress] = a.accountBalance; });
+      await StorageUtil.setBalanceCache(this.zondConnection.blockchain, balanceMap);
       runInAction(() => {
         this.zondAccounts = {
           ...this.zondAccounts,
@@ -414,12 +449,13 @@ class ZondStore {
         };
       });
     } catch (_error) {
+      const cachedBalances = await StorageUtil.getBalanceCache(this.zondConnection.blockchain);
       runInAction(() => {
         this.zondAccounts = {
           ...this.zondAccounts,
           accounts: storedAccountsList.map(({ address, source }) => ({
             accountAddress: address,
-            accountBalance: "0",
+            accountBalance: cachedBalances[address] ?? "0",
             source,
           })),
         };

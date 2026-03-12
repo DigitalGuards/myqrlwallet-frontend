@@ -7,12 +7,15 @@ import tailwindcss from '@tailwindcss/postcss'
 
 const require = createRequire(import.meta.url)
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   css: {
     postcss: {
       plugins: [tailwindcss()],
     },
+  },
+  esbuild: {
+    drop: mode === 'production' ? ['console', 'debugger'] : [],
   },
   resolve: {
     alias: {
@@ -53,4 +56,4 @@ export default defineConfig({
     },
     include: ['buffer', 'process', 'events', 'util', 'cross-fetch', '@theqrl/web3-providers-http'],
   },
-})
+}))

@@ -10,8 +10,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   isInNativeApp,
   subscribeToNativeMessages,
-  NativeMessage,
-  NativeMessageOrEnvelope,
+  type NativeMessage,
+  type NativeMessageOrEnvelope,
+  type NativeToWebMessageType,
   logToNative,
   setNativeInjectedPin,
   clearNativeInjectedPin,
@@ -24,6 +25,7 @@ import {
   BridgeCrypto,
   isEncryptedEnvelope,
 } from '@/utils/nativeApp';
+import { DAppConnectService, dappConnectService } from '@/services/dappConnect/DAppConnectService';
 import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
 import { reEncryptSeedAsync, CryptoOperationError, CryptoErrorCode } from '@/utils/crypto';
 import { ROUTES } from '@/router/router';
@@ -170,6 +172,13 @@ const NativeAppBridge: React.FC = () => {
 
           logToNative(`QR result received: ${address}`);
 
+          // Check if this is a qrlconnect:// URI (dApp connection)
+          if (DAppConnectService.isConnectionURI(address)) {
+            logToNative(`DApp connection URI detected, routing to DAppConnectService`);
+            dappConnectService.handleConnectionURI(address);
+            return;
+          }
+
           // If there's a registered handler, dispatch to it
           if (dispatchQRResult(address)) {
             return;
@@ -200,10 +209,32 @@ const NativeAppBridge: React.FC = () => {
             return;
           }
           logToNative(`App state changed: ${state}`);
-          // Could be used for:
-          // - Clearing sensitive data when backgrounded
-          // - Refreshing data when app becomes active
-          // - Auto-lock functionality
+          // Reconnect dApp sessions when app returns to foreground
+          if (state === 'active') {
+            dappConnectService.reconnectAll();
+          }
+          break;
+        }
+
+        // Deep link URI from native app (qrlconnect:// scheme)
+        case 'DAPP_URI' as NativeToWebMessageType: {
+          const uri = payload?.uri;
+          if (typeof uri !== 'string' || !uri) {
+            console.warn('[Bridge] DAPP_URI missing or invalid uri');
+            return;
+          }
+          logToNative(`DApp URI received via deep link: ${uri}`);
+          dappConnectService.handleConnectionURI(uri);
+          break;
+        }
+
+        // Native requests disconnect of a specific dApp session
+        case 'DAPP_DISCONNECT' as NativeToWebMessageType: {
+          const channelId = payload?.channelId;
+          if (typeof channelId === 'string' && channelId) {
+            logToNative(`Disconnecting dApp session: ${channelId}`);
+            dappConnectService.disconnectSession(channelId);
+          }
           break;
         }
 

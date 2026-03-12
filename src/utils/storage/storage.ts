@@ -11,6 +11,7 @@ const ACCOUNT_LIST_IDENTIFIER = "ACCOUNT_LIST";
 const TRANSACTION_VALUES_IDENTIFIER = "TRANSACTION_VALUES";
 const TOKEN_LIST_IDENTIFIER = "TOKEN_LIST";
 const HIDDEN_TOKENS_IDENTIFIER = "HIDDEN_TOKENS";
+const BALANCE_CACHE_IDENTIFIER = "BALANCE_CACHE";
 const STORAGE_VERSION = 'v1';
 const MAX_STORAGE_AGE = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
 const MAX_WALLETS = 10; // Maximum number of wallets that can be imported
@@ -439,6 +440,16 @@ class StorageUtil {
     let hiddenTokens = await this.getHiddenTokens();
     hiddenTokens = hiddenTokens.filter(addr => addr.toLowerCase() !== tokenAddress.toLowerCase());
     this.setItem(HIDDEN_TOKENS_IDENTIFIER, hiddenTokens);
+  }
+
+  static async setBalanceCache(blockchain: string, balances: Record<string, string>) {
+    const key = `${blockchain}_${BALANCE_CACHE_IDENTIFIER}`;
+    this.setItem(key, balances);
+  }
+
+  static async getBalanceCache(blockchain: string): Promise<Record<string, string>> {
+    const key = `${blockchain}_${BALANCE_CACHE_IDENTIFIER}`;
+    return this.getItem<Record<string, string>>(key) ?? {};
   }
 
   /**

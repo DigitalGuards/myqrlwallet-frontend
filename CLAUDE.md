@@ -58,7 +58,7 @@ src/
 │   ├── NativeAppBridge.tsx # Mobile app message handler
 │   ├── SEO/                # Meta tags
 │   ├── UI/                 # Shadcn/ui components
-│   └── ZondWallet/
+│   └── Core/
 │       ├── Header/         # Logo, NavBar, AccountBadge
 │       ├── Body/           # Feature pages:
 │       │   ├── AccountList/    # Wallet accounts

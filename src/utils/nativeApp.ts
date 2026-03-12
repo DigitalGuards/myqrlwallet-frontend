@@ -28,7 +28,12 @@ export type WebToNativeMessageType =
   // Navigation messages
   | 'OPEN_NATIVE_SETTINGS'  // Request native app to open its settings screen
   // Key exchange messages (ML-KEM-1024)
-  | 'KEY_EXCHANGE_INIT';    // Web initiates key exchange with its encapsulation key
+  | 'KEY_EXCHANGE_INIT'     // Web initiates key exchange with its encapsulation key
+  // DApp Connect messages
+  | 'DAPP_SHOW_WEBVIEW'     // Request native to show/focus WebView (for approval modal)
+  | 'DAPP_CONNECTED'        // Notify native that a dApp connected
+  | 'DAPP_DISCONNECTED'     // Notify native that a dApp disconnected
+  | 'DAPP_HAPTIC';          // Trigger haptic for dApp approve/reject
 
 /**
  * Message types that can be received from the native app
@@ -49,7 +54,10 @@ export type NativeToWebMessageType =
   | 'VERIFY_PIN'            // Native asks web to verify PIN can decrypt seed
   | 'CHANGE_PIN'            // Native requests web to re-encrypt seeds with new PIN
   // Key exchange messages (ML-KEM-1024)
-  | 'KEY_EXCHANGE_RESPONSE'; // Native responds with ciphertext after encapsulation
+  | 'KEY_EXCHANGE_RESPONSE' // Native responds with ciphertext after encapsulation
+  // DApp Connect messages
+  | 'DAPP_URI'              // Deep link URI received by native, forwarded to WebView
+  | 'DAPP_DISCONNECT';      // Native requests web to disconnect a specific dApp session
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
@@ -176,7 +184,9 @@ export const copyToClipboardNative = (text: string): boolean => {
  */
 export const copyToClipboard = async (text: string): Promise<boolean> => {
   if (isInNativeApp()) {
-    return sendToNative('COPY_TO_CLIPBOARD', { text });
+    const sent = sendToNative('COPY_TO_CLIPBOARD', { text });
+    if (sent) return true;
+    // Native bridge unavailable, fall through to browser API
   }
 
   // Fall back to browser clipboard API

@@ -4,22 +4,23 @@ import { Loading } from "@/components/UI/Loading";
 import { Navigate } from "react-router-dom";
 
 // Lazy load components
-const ZondWallet = lazy(() => import("../components/ZondWallet/ZondWallet.tsx"));
-const Home = lazy(() => import("../components/ZondWallet/Body/Home/Home.tsx"));
-const CreateAccount = lazy(() => import("../components/ZondWallet/Body/CreateAccount/CreateAccount.tsx"));
-const ImportAccount = lazy(() => import("../components/ZondWallet/Body/ImportAccount/ImportAccount.tsx"));
-const AddAccount = lazy(() => import("../components/ZondWallet/Body/AddAccount/AddAccount.tsx"))
-const AccountList = lazy(() => import("../components/ZondWallet/Body/AccountList/AccountList.tsx"));
-const CreateToken = lazy(() => import("../components/ZondWallet/Body/CreateToken/CreateToken.tsx"));
-// const Tokens = lazy(() => import("../components/ZondWallet/Body/Tokens/Tokens.tsx"))
-const Settings = lazy(() => import("../components/ZondWallet/Body/Settings/Settings.tsx"));
-const QRView = lazy(() => import("../components/ZondWallet/Body/QRView/QRView.tsx"));
-const Terms = lazy(() => import("../components/ZondWallet/Body/Terms/Terms.tsx"));
-const Privacy = lazy(() => import("../components/ZondWallet/Body/Privacy/Privacy.tsx"));
-const Support = lazy(() => import("../components/ZondWallet/Body/Support/Support.tsx"));
-const TokenStatus = lazy(() => import("../components/ZondWallet/Body/CreateToken/TokenStatus.tsx"));
-const TransactionHistory = lazy(() => import("../components/ZondWallet/Body/TransactionHistory/TransactionHistory.tsx"));
-const Transfer = lazy(() => import("../components/ZondWallet/Body/Transfer/Transfer.tsx"));
+const MyQRLWallet = lazy(() => import("../components/Core/MyQRLWallet.tsx"));
+const Home = lazy(() => import("../components/Core/Body/Home/Home.tsx"));
+const CreateAccount = lazy(() => import("../components/Core/Body/CreateAccount/CreateAccount.tsx"));
+const ImportAccount = lazy(() => import("../components/Core/Body/ImportAccount/ImportAccount.tsx"));
+const AddAccount = lazy(() => import("../components/Core/Body/AddAccount/AddAccount.tsx"))
+const AccountList = lazy(() => import("../components/Core/Body/AccountList/AccountList.tsx"));
+const CreateToken = lazy(() => import("../components/Core/Body/CreateToken/CreateToken.tsx"));
+// const Tokens = lazy(() => import("../components/Core/Body/Tokens/Tokens.tsx"))
+const Settings = lazy(() => import("../components/Core/Body/Settings/Settings.tsx"));
+const QRView = lazy(() => import("../components/Core/Body/QRView/QRView.tsx"));
+const Terms = lazy(() => import("../components/Core/Body/Terms/Terms.tsx"));
+const Privacy = lazy(() => import("../components/Core/Body/Privacy/Privacy.tsx"));
+const Support = lazy(() => import("../components/Core/Body/Support/Support.tsx"));
+const TokenStatus = lazy(() => import("../components/Core/Body/CreateToken/TokenStatus.tsx"));
+const TransactionHistory = lazy(() => import("../components/Core/Body/TransactionHistory/TransactionHistory.tsx"));
+const Transfer = lazy(() => import("../components/Core/Body/Transfer/Transfer.tsx"));
+const DAppSessionsList = lazy(() => import("../components/Core/Body/DAppConnect/DAppSessionsList.tsx"));
 
 const ROUTES = {
   HOME: "/",
@@ -37,6 +38,7 @@ const ROUTES = {
   DEFAULT: "*",
   TOKEN_STATUS: "/token-status",
   TRANSACTION_HISTORY: "/tx-history",
+  DAPP_SESSIONS: "/dapp-sessions",
 } as const;
 
 const router = createBrowserRouter([
@@ -44,7 +46,7 @@ const router = createBrowserRouter([
     path: ROUTES.HOME,
     element: (
       <Suspense fallback={<Loading />}>
-        <ZondWallet />
+        <MyQRLWallet />
       </Suspense>
     ),
     children: [
@@ -157,6 +159,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Loading />}>
             <Transfer />
+          </Suspense>
+        )
+      },
+      {
+        path: ROUTES.DAPP_SESSIONS,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <DAppSessionsList />
           </Suspense>
         )
       },
