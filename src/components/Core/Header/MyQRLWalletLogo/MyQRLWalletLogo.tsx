@@ -1,12 +1,12 @@
 import { ROUTES } from "../../../../router/router";
 import { Link } from "react-router-dom";
 
-interface ZondWalletLogoProps {
+interface MyQRLWalletLogoProps {
   showText?: boolean;
   size?: 'sm' | 'md' | 'lg';
 }
 
-const ZondWalletLogo = ({ showText = true, size = 'md' }: ZondWalletLogoProps) => {
+const MyQRLWalletLogo = ({ showText = true, size = 'md' }: MyQRLWalletLogoProps) => {
   const logoSizes = {
     sm: 'h-5 w-5',
     md: 'h-8 w-8',
@@ -27,4 +27,4 @@ const ZondWalletLogo = ({ showText = true, size = 'md' }: ZondWalletLogoProps) =
   );
 };
 
-export default ZondWalletLogo;
+export default MyQRLWalletLogo;

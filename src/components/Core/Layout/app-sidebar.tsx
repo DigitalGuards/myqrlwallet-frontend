@@ -13,7 +13,7 @@ import {
 } from "@/components/UI/sidebar"
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
-import ZondWalletLogo from "../Header/ZondWalletLogo/ZondWalletLogo";
+import MyQRLWalletLogo from "../Header/MyQRLWalletLogo/MyQRLWalletLogo";
 import { handleLogout } from "@/utils/logout";
 import { isInNativeApp } from "@/utils/nativeApp";
 import { navigateTo } from "@/utils/navigation";
@@ -60,7 +60,7 @@ export function AppSidebar() {
                     <SidebarGroupContent className="mt-5">
                         <SidebarMenu>
                             <SidebarMenuItem className="cursor-pointer flex justify-center py-5" onClick={() => navigate(ROUTES.HOME)}>
-                                <ZondWalletLogo showText={false} size="lg" />
+                                <MyQRLWalletLogo showText={false} size="lg" />
                             </SidebarMenuItem>
                             {sidebarItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>

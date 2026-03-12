@@ -21,7 +21,7 @@ const Layout = withSuspense(
   lazy(() => import("./Layout/Layout"))
 );
 
-const ZondWallet = observer(() => {
+const MyQRLWallet = observer(() => {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -50,4 +50,4 @@ const ZondWallet = observer(() => {
   );
 });
 
-export default ZondWallet;
+export default MyQRLWallet;

@@ -3,8 +3,8 @@ import { useStore } from "../../../stores/store";
 import { observer } from "mobx-react-lite";
 import { lazy } from "react";
 
-const ZondWalletLogo = withSuspense(
-  lazy(() => import("./ZondWalletLogo/ZondWalletLogo"))
+const MyQRLWalletLogo = withSuspense(
+  lazy(() => import("./MyQRLWalletLogo/MyQRLWalletLogo"))
 );
 const AccountBadge = withSuspense(
   lazy(() => import("./AccountBadge/AccountBadge"))
@@ -23,7 +23,7 @@ const Header = observer(() => {
       className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b-2 bg-background px-4 shadow-sm"
       style={{ borderBottomColor: 'hsl(25, 95%, 53%)' }}
     >
-      <ZondWalletLogo />
+      <MyQRLWalletLogo />
       <div className="flex flex-row-reverse md:flex-row gap-0 md:gap-4 items-center">
         <NavBar />
         {isConnected && <AccountBadge />}
