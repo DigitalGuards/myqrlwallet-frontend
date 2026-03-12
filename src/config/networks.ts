@@ -6,7 +6,7 @@ export const SERVER_URL = import.meta.env.VITE_NODE_ENV === 'production'
   ? import.meta.env.VITE_SERVER_URL_PRODUCTION
   : import.meta.env.VITE_SERVER_URL_DEVELOPMENT;
 
-const ZONDSCAN_BASE = import.meta.env.VITE_NODE_ENV === 'production'
+export const ZONDSCAN_BASE = import.meta.env.VITE_NODE_ENV === 'production'
   ? import.meta.env.VITE_ZOND_SCAN_URL_PRODUCTION
   : import.meta.env.VITE_ZOND_SCAN_URL_DEVELOPMENT;
 
