@@ -1,29 +1,19 @@
 import { useStore } from "@/stores/store";
-import { FeeLevel } from "@/stores/qrlStore";
 import { utils } from "@theqrl/web3";
 import { cva } from "class-variance-authority";
-import { Loader, Fuel } from "lucide-react";
+import { Loader } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { getOptimalGasFee } from "@/utils/formatting";
-import { Button } from "@/components/UI/Button";
-
-const FEE_DISPLAY: Record<FeeLevel, { label: string; multiplier: number }> = {
-  low:    { label: "Low",    multiplier: 1 },
-  medium: { label: "Medium", multiplier: 1.5 },
-  high:   { label: "High",   multiplier: 2 },
-};
 
 type GasFeeNoticeProps = {
   from: string;
   to: string;
   value: number;
   isSubmitting: boolean;
-  feeLevel: FeeLevel;
-  onFeeLevelChange: (level: FeeLevel) => void;
 };
 
 const gasFeeNoticeClasses = cva(
-  "m-1 flex flex-col gap-3 rounded-lg border border-white px-4 py-3",
+  "m-1 flex justify-around rounded-lg border border-white px-4 py-2",
   {
     variants: {
       isSubmitting: {
@@ -42,8 +32,6 @@ export const GasFeeNotice = ({
   to,
   value,
   isSubmitting,
-  feeLevel,
-  onFeeLevelChange,
 }: GasFeeNoticeProps) => {
   const { qrlStore } = useStore();
   const { qrlInstance } = qrlStore;
@@ -68,9 +56,8 @@ export const GasFeeNotice = ({
       const estimatedTransactionGas =
         (await qrlInstance?.estimateGas(transaction)) ?? BigInt(0);
       const gasPrice = (await qrlInstance?.getGasPrice()) ?? BigInt(0);
-      const multiplied = BigInt(Math.round(Number(gasPrice) * FEE_DISPLAY[feeLevel].multiplier));
       const estimatedGasRaw = utils.fromPlanck(
-        BigInt(estimatedTransactionGas) * multiplied,
+        BigInt(estimatedTransactionGas) * BigInt(gasPrice),
         "quanta"
       );
       const estimatedGas = getOptimalGasFee(estimatedGasRaw);
@@ -99,41 +86,23 @@ export const GasFeeNotice = ({
       }, 500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from, to, value, feeLevel, hasValuesForGasCalculation]);
+  }, [from, to, value, hasValuesForGasCalculation]);
 
   return (
     hasValuesForGasCalculation && (
       <div className={gasFeeNoticeClasses({ isSubmitting })}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Fuel className="h-4 w-4" />
-            {gasFee.isLoading ? (
-              <div className="flex gap-2">
-                <Loader className="h-4 w-4 animate-spin" />
-                Estimating fee...
-              </div>
-            ) : gasFee.error ? (
-              <span className="text-sm">{gasFee.error}</span>
-            ) : (
-              <span className="text-sm">~{gasFee.estimatedGas} QRL</span>
-            )}
+        {gasFee.isLoading ? (
+          <div className="flex gap-2">
+            <Loader className="h-4 w-4 animate-spin" />
+            Estimating gas fee
           </div>
-        </div>
-        <div className="flex gap-2">
-          {(["low", "medium", "high"] as FeeLevel[]).map((level) => (
-            <Button
-              key={level}
-              type="button"
-              variant={feeLevel === level ? "default" : "outline"}
-              size="sm"
-              onClick={() => onFeeLevelChange(level)}
-              disabled={isSubmitting}
-              className="flex-1"
-            >
-              {FEE_DISPLAY[level].label}
-            </Button>
-          ))}
-        </div>
+        ) : gasFee.error ? (
+          <div>{gasFee.error}</div>
+        ) : (
+          <div className="w-full overflow-hidden">
+            Estimated gas fee is {gasFee?.estimatedGas.toString()}
+          </div>
+        )}
       </div>
     )
   );
