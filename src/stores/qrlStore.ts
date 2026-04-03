@@ -622,7 +622,7 @@ class QrlStore {
       const nonce = await this.qrlInstance?.getTransactionCount(from, "pending");
 
       // Fetch current gas price and apply fee level multiplier
-      const baseGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(0);
+      const baseGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(1000000000);
       const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
 
       const transactionObject = {
@@ -713,7 +713,7 @@ class QrlStore {
     }
   }
 
-  async sendToken(token: TokenInterface, amount: string, mnemonicPhrases: string, toAddress: string) {
+  async sendToken(token: TokenInterface, amount: string, mnemonicPhrases: string, toAddress: string, feeLevel: FeeLevel = 'medium') {
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
@@ -722,10 +722,12 @@ class QrlStore {
       const acc = web3.qrl.accounts.seedToAccount(seed)
       web3.qrl.wallet?.add(seed);
       web3.qrl.transactionConfirmationBlocks = 1;
+      const baseGasPrice = (await web3.qrl.getGasPrice()) ?? BigInt(1000000000);
+      const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
       const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
       const tx = contract.methods.transfer(toAddress, amount).encodeABI();
       const estimateGas = await contract.methods.transfer(toAddress, amount).estimateGas({ "from": acc.address })
-      const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: tx, to: token.address }
+      const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: tx, to: token.address, maxFeePerGas, maxPriorityFeePerGas }
 
       const promiEvent = web3.qrl.sendTransaction(txObj, undefined, {
         checkRevertBeforeSending: true

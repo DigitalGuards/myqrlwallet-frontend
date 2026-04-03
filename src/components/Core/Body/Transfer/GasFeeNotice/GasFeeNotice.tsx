@@ -68,7 +68,7 @@ export const GasFeeNotice = ({
       const estimatedTransactionGas =
         (await qrlInstance?.estimateGas(transaction)) ?? BigInt(0);
       const gasPrice = (await qrlInstance?.getGasPrice()) ?? BigInt(0);
-      const multiplied = BigInt(Math.round(Number(gasPrice) * FEE_DISPLAY[feeLevel].multiplier));
+      const multiplied = (gasPrice * BigInt(Math.round(FEE_DISPLAY[feeLevel].multiplier * 100))) / BigInt(100);
       const estimatedGasRaw = utils.fromPlanck(
         BigInt(estimatedTransactionGas) * multiplied,
         "quanta"
