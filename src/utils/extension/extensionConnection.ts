@@ -1,4 +1,4 @@
-import { ZOND_WEB3_WALLET_PROVIDER_INFO } from "@/constants";
+import { QRL_WEB3_WALLET_PROVIDER_INFO } from "@/constants";
 import type { AccountSource } from "@/utils/storage";
 
 // EIP-6963 types (simplified)
@@ -18,22 +18,22 @@ interface EIP6963AnnounceProviderEvent extends CustomEvent {
   detail: EIP6963ProviderDetail;
 }
 
-let zondProviderDetail: EIP6963ProviderDetail | null = null;
+let qrlProviderDetail: EIP6963ProviderDetail | null = null;
 
-// Function to find the Zond provider via EIP-6963
-function findZondProvider(): Promise<EIP6963ProviderDetail | null> {
+// Function to find the QRL provider via EIP-6963
+function findQrlProvider(): Promise<EIP6963ProviderDetail | null> {
   return new Promise((resolve) => {
     let isResolved = false;
     const handleAnnounceProvider = (event: Event) => {
       const announceEvent = event as EIP6963AnnounceProviderEvent;
-      // Check if the announced provider is the Zond Wallet (using RDNS)
-      if (announceEvent.detail.info.rdns === ZOND_WEB3_WALLET_PROVIDER_INFO.RDNS) {
-        console.log("Zond Wallet Provider Found (EIP-6963):", announceEvent.detail);
-        zondProviderDetail = announceEvent.detail;
+      // Check if the announced provider is the QRL Wallet (using RDNS)
+      if (announceEvent.detail.info.rdns === QRL_WEB3_WALLET_PROVIDER_INFO.RDNS) {
+        console.log("QRL Wallet Provider Found (EIP-6963):", announceEvent.detail);
+        qrlProviderDetail = announceEvent.detail;
         if (!isResolved) {
           isResolved = true;
           window.removeEventListener("eip6963:announceProvider", handleAnnounceProvider);
-          resolve(zondProviderDetail);
+          resolve(qrlProviderDetail);
         }
       }
     };
@@ -48,7 +48,7 @@ function findZondProvider(): Promise<EIP6963ProviderDetail | null> {
       if (!isResolved) {
         isResolved = true;
         window.removeEventListener("eip6963:announceProvider", handleAnnounceProvider);
-        resolve(zondProviderDetail); // Resolve with whatever was found (null if nothing)
+        resolve(qrlProviderDetail); // Resolve with whatever was found (null if nothing)
       }
     }, 1000); // Wait 1 second
   });
@@ -60,11 +60,11 @@ async function connectToExtension(
   setExtensionProvider: (provider: any | null) => void // Add the new setter
 ): Promise<string[] | null> {
   // Attempt to find the provider via EIP-6963
-  const foundProviderDetail = await findZondProvider();
+  const foundProviderDetail = await findQrlProvider();
 
   if (!foundProviderDetail) {
-    console.error("Zond Wallet extension provider not found (EIP-6963).");
-    alert("Zond Wallet Extension not detected. Please ensure it is installed and enabled.");
+    console.error("QRL Wallet extension provider not found (EIP-6963).");
+    alert("QRL Wallet Extension not detected. Please ensure it is installed and enabled.");
     setExtensionProvider(null); // Ensure provider is cleared if not found
     return null;
   }
@@ -72,9 +72,9 @@ async function connectToExtension(
   const provider = foundProviderDetail.provider;
 
   try {
-    // Request account access using the ZOND-specific method
-    console.log("Attempting to connect using zond_requestAccounts...");
-    const accounts = await provider.request({ method: 'zond_requestAccounts' });
+    // Request account access using the QRL-specific method
+    console.log("Attempting to connect using qrl_requestAccounts...");
+    const accounts = await provider.request({ method: 'qrl_requestAccounts' });
 
     if (accounts && accounts.length > 0) {
       const firstAccount = accounts[0];
@@ -101,7 +101,7 @@ async function connectToExtension(
       console.log('User rejected connection request.');
       alert('Connection request rejected.');
     } else {
-      // Check for the specific method not found error, although we expect zond_requestAccounts to exist now
+      // Check for the specific method not found error, although we expect qrl_requestAccounts to exist now
       if (error.code === -32601) {
          console.error("RPC Error: Method not found", error);
          alert(`RPC Error: ${error.message}`);

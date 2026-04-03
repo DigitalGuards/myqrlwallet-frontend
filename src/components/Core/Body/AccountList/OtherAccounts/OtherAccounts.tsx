@@ -18,14 +18,14 @@ import { ExtensionBadge } from "../ExtensionBadge/ExtensionBadge";
 import { CopyAddressButton } from "../CopyAddressButton/CopyAddressButton";
 
 export const OtherAccounts = observer(() => {
-  const { zondStore } = useStore();
+  const { qrlStore } = useStore();
   const {
-    zondAccounts,
+    qrlAccounts,
     activeAccount: { accountAddress: activeAccountAddress },
     setActiveAccount,
-    zondConnection: { blockchain },
-  } = zondStore;
-  const { accounts } = zondAccounts;
+    qrlConnection: { blockchain },
+  } = qrlStore;
+  const { accounts } = qrlAccounts;
 
   const otherAccountsLabel = activeAccountAddress ? "Other accounts" : "Your accounts";
   const otherAccounts = accounts.filter(
@@ -67,7 +67,7 @@ export const OtherAccounts = observer(() => {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      <Label>View in Zondscan</Label>
+                      <Label>View on Explorer</Label>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

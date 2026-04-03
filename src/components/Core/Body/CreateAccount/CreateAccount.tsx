@@ -16,14 +16,14 @@ const MnemonicDisplay = withSuspense(
 );
 
 const CreateAccount = observer(() => {
-  const { zondStore } = useStore();
-  const { setActiveAccount, zondConnection } = zondStore;
+  const { qrlStore } = useStore();
+  const { setActiveAccount, qrlConnection } = qrlStore;
 
   const [account, setAccount] = useState<Web3BaseWalletAccount>();
   const [hasAccountCreated, setHasAccountCreated] = useState(false);
   const [userPassword, setUserPassword] = useState<string>("");
 
-  const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(zondConnection.blockchain);
+  const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(qrlConnection.blockchain);
 
   // Called after account is created AND seed is encrypted/stored
   const onAccountCreated = async (

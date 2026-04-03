@@ -22,16 +22,16 @@ import { Loader, Check, X, ExternalLink, Shield, Globe } from 'lucide-react';
 import type { TxProgressState } from '@/stores/dappConnectStore';
 
 const METHOD_LABELS: Record<string, string> = {
-  zond_requestAccounts: 'Connect Account',
-  zond_sendTransaction: 'Send Transaction',
-  zond_signTransaction: 'Sign Transaction',
-  zond_sign: 'Sign Message',
+  qrl_requestAccounts: 'Connect Account',
+  qrl_sendTransaction: 'Send Transaction',
+  qrl_signTransaction: 'Sign Transaction',
+  qrl_sign: 'Sign Message',
   personal_sign: 'Sign Message',
-  zond_signTypedData: 'Sign Typed Data',
-  zond_signTypedData_v3: 'Sign Typed Data',
-  zond_signTypedData_v4: 'Sign Typed Data',
-  wallet_addZondChain: 'Add Network',
-  wallet_switchZondChain: 'Switch Network',
+  qrl_signTypedData: 'Sign Typed Data',
+  qrl_signTypedData_v3: 'Sign Typed Data',
+  qrl_signTypedData_v4: 'Sign Typed Data',
+  wallet_addQrlChain: 'Add Network',
+  wallet_switchQrlChain: 'Switch Network',
 };
 
 const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
@@ -61,8 +61,8 @@ function getMessageToSign(
     return '';
   }
 
-  if (method === 'zond_sign') {
-    // eth_sign/zond_sign: (address, data)
+  if (method === 'qrl_sign') {
+    // eth_sign/qrl_sign: (address, data)
     if (first.toLowerCase() === active && second) return second;
     return '';
   }
@@ -97,13 +97,13 @@ function getBorderColor(progress: TxProgressState): string {
 }
 
 const DAppApprovalModal = observer(() => {
-  const { dappConnectStore, zondStore } = useStore();
+  const { dappConnectStore, qrlStore } = useStore();
   const { currentApproval, approvalModalOpen, txProgress, txHash, txError } = dappConnectStore;
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const blockchain = zondStore.zondConnection.blockchain;
+  const blockchain = qrlStore.qrlConnection.blockchain;
 
   const handleApprove = useCallback(async () => {
     if (!currentApproval) return;
@@ -114,20 +114,20 @@ const DAppApprovalModal = observer(() => {
     try {
       const { method, params } = currentApproval;
 
-      if (method === 'zond_requestAccounts') {
-        const activeAddress = zondStore.activeAccount?.accountAddress;
+      if (method === 'qrl_requestAccounts') {
+        const activeAddress = qrlStore.activeAccount?.accountAddress;
         dappConnectStore.approveCurrentRequest(activeAddress ? [activeAddress] : []);
         setPin('');
         return;
       }
 
-      if (method === 'wallet_addZondChain' || method === 'wallet_switchZondChain') {
+      if (method === 'wallet_addQrlChain' || method === 'wallet_switchQrlChain') {
         dappConnectStore.approveCurrentRequest(null);
         setPin('');
         return;
       }
 
-      if (method === 'zond_sendTransaction' || method === 'zond_signTransaction') {
+      if (method === 'qrl_sendTransaction' || method === 'qrl_signTransaction') {
         const pinToUse = getNativeInjectedPin() || pin;
         if (!pinToUse) {
           setError('Please enter your PIN');
@@ -135,7 +135,7 @@ const DAppApprovalModal = observer(() => {
           return;
         }
 
-        const activeAddress = zondStore.activeAccount?.accountAddress;
+        const activeAddress = qrlStore.activeAccount?.accountAddress;
         if (!activeAddress) {
           setError('No active account');
           setLoading(false);
@@ -167,7 +167,7 @@ const DAppApprovalModal = observer(() => {
         }
 
         const txParams = (params?.[0] || {}) as Record<string, unknown>;
-        const web3 = zondStore.zondInstance;
+        const web3 = qrlStore.qrlInstance;
         if (!web3) {
           setError('Web3 not initialized');
           dappConnectStore.setTxProgress('failed', undefined, 'Web3 not initialized');
@@ -219,7 +219,7 @@ const DAppApprovalModal = observer(() => {
           return;
         }
 
-        if (method === 'zond_signTransaction') {
+        if (method === 'qrl_signTransaction') {
           dappConnectStore.approveCurrentRequest(signedTx.rawTransaction);
           setPin('');
           setLoading(false);
@@ -260,12 +260,12 @@ const DAppApprovalModal = observer(() => {
         return;
       }
 
-      if (method.startsWith('zond_signTypedData')) {
+      if (method.startsWith('qrl_signTypedData')) {
         dappConnectStore.rejectCurrentRequest('Typed data signing is not supported yet');
         return;
       }
 
-      if (method === 'personal_sign' || method === 'zond_sign') {
+      if (method === 'personal_sign' || method === 'qrl_sign') {
         const pinToUse = getNativeInjectedPin() || pin;
         if (!pinToUse) {
           setError('Please enter your PIN');
@@ -273,7 +273,7 @@ const DAppApprovalModal = observer(() => {
           return;
         }
 
-        const activeAddress = zondStore.activeAccount?.accountAddress;
+        const activeAddress = qrlStore.activeAccount?.accountAddress;
         if (!activeAddress) {
           setError('No active account');
           setLoading(false);
@@ -299,7 +299,7 @@ const DAppApprovalModal = observer(() => {
           return;
         }
 
-        const web3 = zondStore.zondInstance;
+        const web3 = qrlStore.qrlInstance;
         if (!web3) {
           setError('Web3 not initialized');
           setLoading(false);
@@ -326,8 +326,8 @@ const DAppApprovalModal = observer(() => {
       const userError = toUserFacingError(errMsg);
       setError(userError);
       if (currentApproval) {
-        const isTxMethod = currentApproval.method === 'zond_sendTransaction' ||
-          currentApproval.method === 'zond_signTransaction';
+        const isTxMethod = currentApproval.method === 'qrl_sendTransaction' ||
+          currentApproval.method === 'qrl_signTransaction';
         if (isTxMethod && dappConnectStore.txProgress !== 'idle') {
           // Keep modal open to show failed state
           dappConnectStore.setTxProgress('failed', undefined, userError);
@@ -339,7 +339,7 @@ const DAppApprovalModal = observer(() => {
     } finally {
       setLoading(false);
     }
-  }, [currentApproval, pin, dappConnectStore, zondStore]);
+  }, [currentApproval, pin, dappConnectStore, qrlStore]);
 
   const handleReject = useCallback(() => {
     dappConnectStore.rejectCurrentRequest();
@@ -357,13 +357,13 @@ const DAppApprovalModal = observer(() => {
 
   const { method, params, dappInfo } = currentApproval;
   const label = METHOD_LABELS[method] || method;
-  const needsPin = method !== 'zond_requestAccounts' &&
-    method !== 'wallet_addZondChain' &&
-    method !== 'wallet_switchZondChain';
+  const needsPin = method !== 'qrl_requestAccounts' &&
+    method !== 'wallet_addQrlChain' &&
+    method !== 'wallet_switchQrlChain';
   const hasNativePin = !!getNativeInjectedPin();
-  const isTransaction = method === 'zond_sendTransaction' || method === 'zond_signTransaction';
-  const messagePreview = (method === 'personal_sign' || method === 'zond_sign')
-    ? getMessageToSign(method, params, zondStore.activeAccount?.accountAddress || '')
+  const isTransaction = method === 'qrl_sendTransaction' || method === 'qrl_signTransaction';
+  const messagePreview = (method === 'personal_sign' || method === 'qrl_sign')
+    ? getMessageToSign(method, params, qrlStore.activeAccount?.accountAddress || '')
     : '';
 
   const isTxInProgress = txProgress !== 'idle';
@@ -372,7 +372,7 @@ const DAppApprovalModal = observer(() => {
   // Transaction details for display during progress
   const txParams = isTransaction ? (params?.[0] as Record<string, unknown> | undefined) : undefined;
   const txDisplayValue = txParams?.value
-    ? `${utils.fromWei(BigInt(txParams.value as string).toString(), 'ether')} QRL`
+    ? `${utils.fromPlanck(BigInt(txParams.value as string).toString(), 'quanta')} QRL`
     : '0 QRL';
 
   return (
@@ -445,7 +445,7 @@ const DAppApprovalModal = observer(() => {
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
                 >
-                  View on ZondScan <ExternalLink className="h-4 w-4" />
+                  View on Explorer <ExternalLink className="h-4 w-4" />
                 </a>
               )}
 
@@ -471,7 +471,7 @@ const DAppApprovalModal = observer(() => {
           ) : (
             /* Normal approval content (before tx progress starts) */
             <div className="space-y-4">
-              {method === 'zond_requestAccounts' && (
+              {method === 'qrl_requestAccounts' && (
                 <p className="text-sm text-muted-foreground">
                   This dApp wants to view your account address.
                 </p>
@@ -481,7 +481,7 @@ const DAppApprovalModal = observer(() => {
                 <DAppTransactionReview params={params[0] as Record<string, unknown>} />
               )}
 
-              {(method === 'personal_sign' || method === 'zond_sign') && messagePreview && (
+              {(method === 'personal_sign' || method === 'qrl_sign') && messagePreview && (
                 <div className="rounded-md border border-border bg-muted/30 p-4">
                   <p className="mb-2 text-xs text-muted-foreground">Message to sign:</p>
                   <p className="max-h-32 overflow-auto break-all font-mono text-sm">

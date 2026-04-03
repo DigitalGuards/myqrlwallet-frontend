@@ -29,9 +29,9 @@ const TokenForm = withSuspense(
 
 const Home = observer(() => {
   const { state } = useLocation();
-  const { zondStore } = useStore();
-  const { zondConnection, activeAccount } = zondStore;
-  const { isLoading, isConnected, blockchain } = zondConnection;
+  const { qrlStore } = useStore();
+  const { qrlConnection, activeAccount } = qrlStore;
+  const { isLoading, isConnected, blockchain } = qrlConnection;
   const hasAccountCreationPreference = !!state?.hasAccountCreationPreference;
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [txHistoryOpen, setTxHistoryOpen] = useState(false);
@@ -48,17 +48,17 @@ const Home = observer(() => {
   useEffect(() => {
     if (activeAccount.accountAddress) {
       // Refresh immediately on mount
-      zondStore.fetchAccounts();
-      zondStore.refreshTokenBalances();
-      zondStore.fetchQrlPrice();
+      qrlStore.fetchAccounts();
+      qrlStore.refreshTokenBalances();
+      qrlStore.fetchQrlPrice();
 
       // Set up recurring refresh every 30 seconds
       refreshIntervalRef.current = setInterval(() => {
         // Only refresh if no modals are open
         if (!checkIfModalOpen()) {
-          zondStore.fetchAccounts();
-          zondStore.refreshTokenBalances();
-          zondStore.fetchQrlPrice();
+          qrlStore.fetchAccounts();
+          qrlStore.refreshTokenBalances();
+          qrlStore.fetchQrlPrice();
         }
       }, 30000); // 30 seconds
     }
@@ -68,7 +68,7 @@ const Home = observer(() => {
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, [activeAccount.accountAddress, zondStore]);
+  }, [activeAccount.accountAddress, qrlStore]);
 
   const accountCreateImportClasses = cva("flex gap-4 md:gap-8", {
     variants: {

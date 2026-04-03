@@ -33,8 +33,8 @@ export const GasFeeNotice = ({
   value,
   isSubmitting,
 }: GasFeeNoticeProps) => {
-  const { zondStore } = useStore();
-  const { zondInstance } = zondStore;
+  const { qrlStore } = useStore();
+  const { qrlInstance } = qrlStore;
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const hasValuesForGasCalculation = !!from && !!to && !!value;
@@ -51,14 +51,14 @@ export const GasFeeNotice = ({
       const transaction = {
         from,
         to,
-        value: utils.toWei(value, "ether"),
+        value: utils.toPlanck(value, "quanta"),
       };
       const estimatedTransactionGas =
-        (await zondInstance?.estimateGas(transaction)) ?? BigInt(0);
-      const gasPrice = (await zondInstance?.getGasPrice()) ?? BigInt(0);
-      const estimatedGasRaw = utils.fromWei(
+        (await qrlInstance?.estimateGas(transaction)) ?? BigInt(0);
+      const gasPrice = (await qrlInstance?.getGasPrice()) ?? BigInt(0);
+      const estimatedGasRaw = utils.fromPlanck(
         BigInt(estimatedTransactionGas) * BigInt(gasPrice),
-        "ether"
+        "quanta"
       );
       const estimatedGas = getOptimalGasFee(estimatedGasRaw);
       setGasFee(prev => ({ ...prev, estimatedGas, error: "", isLoading: false }));

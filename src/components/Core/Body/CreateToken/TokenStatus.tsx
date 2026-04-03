@@ -10,18 +10,18 @@ import { Button } from "@/components/UI/Button";
 import { ROUTES } from "@/router/router";
 import { Link } from "react-router-dom";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { ZOND_PROVIDER } from "@/config";
+import { QRL_PROVIDER } from "@/config";
 
 const TokenStatus = observer(() => {
-    const { zondStore } = useStore();
-    const { addToken, createdToken, creatingToken, zondConnection } = zondStore;
+    const { qrlStore } = useStore();
+    const { addToken, createdToken, creatingToken, qrlConnection } = qrlStore;
     const { name, symbol, decimals, address, tx, blockNumber, blockHash, gasUsed, effectiveGasPrice } = createdToken;
-    const explorerUrl = ZOND_PROVIDER[zondConnection.blockchain as keyof typeof ZOND_PROVIDER]?.explorer || "https://zondscan.com";
+    const explorerUrl = QRL_PROVIDER[qrlConnection.blockchain as keyof typeof QRL_PROVIDER]?.explorer || "https://zondscan.com";
 
     const { copiedItem, copyToClipboard } = useCopyToClipboard<"txHash" | "tokenAddress" | "blockHash">();
 
     const gasInQrl = new BigNumber(
-        utils.fromWei(BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0), "ether")
+        utils.fromPlanck(BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0), "quanta")
     )
         .dp(8, BigNumber.ROUND_DOWN)
         .toString()

@@ -16,21 +16,21 @@ import { fetchBalance, fetchTokenInfo } from "@/utils/web3";
 import { Loader2 } from "lucide-react";
 import { getAddressFromMnemonic } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
-import { ZOND_PROVIDER } from "@/config";
+import { QRL_PROVIDER } from "@/config";
 import { formatUnits, parseUnits } from "ethers";
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil } from "@/utils/crypto";
-import { isValidZondAddress } from "@/utils/web3";
+import { isValidQrlAddress } from "@/utils/web3";
 
 export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, onClose: () => void, token: TokenInterface }) {
-    const { zondStore } = useStore();
+    const { qrlStore } = useStore();
     const {
         activeAccount: { accountAddress: activeAccountAddress },
         tokenList,
         activeAccountSource,
         sendToken: sendTokenToStore
-    } = zondStore;
+    } = qrlStore;
     const [amount, setAmount] = useState("");
     const [maxAmount, setMaxAmount] = useState("0");
     const [pin, setPin] = useState("");
@@ -50,8 +50,8 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
         setSendSuccess(false);
 
         // Validate address
-        if (!isValidZondAddress(toAddress)) {
-            setToAddressError("Invalid address. Must be 42 characters starting with 'Z' followed by 40 hex characters");
+        if (!isValidQrlAddress(toAddress)) {
+            setToAddressError("Invalid address. Must be 42 characters starting with 'Q' followed by 40 hex characters");
             setIsLoading(false);
             return;
         }
@@ -94,8 +94,8 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
 
                 if (!tokenInfo) {
                     try {
-                        const { name, symbol, decimals } = await fetchTokenInfo(token?.address, ZOND_PROVIDER[selectedBlockChain].url);
-                        const balance = await fetchBalance(token?.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
+                        const { name, symbol, decimals } = await fetchTokenInfo(token?.address, QRL_PROVIDER[selectedBlockChain].url);
+                        const balance = await fetchBalance(token?.address, activeAccountAddress, QRL_PROVIDER[selectedBlockChain].url);
                         tokenInfo = { name, symbol, decimals: parseInt(decimals.toString()), address: token?.address, amount: balance.toString() };
                     } catch (_error) {
                         setSendError("Error fetching token info. Please try again.");
@@ -124,7 +124,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                                 onClose();
                                 // Wait a short time to ensure modal is fully closed before refreshing balances
                                 setTimeout(() => {
-                                    zondStore.refreshTokenBalances();
+                                    qrlStore.refreshTokenBalances();
                                 }, 300);
                             }, 1500);
                         } else {
@@ -184,7 +184,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
         if (isOpen && token?.address) {
             const fetchMaxBalance = async () => {
                 const selectedBlockChain = await StorageUtil.getBlockChain();
-                const balance = await fetchBalance(token?.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
+                const balance = await fetchBalance(token?.address, activeAccountAddress, QRL_PROVIDER[selectedBlockChain].url);
                 setMaxAmount(formatUnits(balance, token?.decimals || 18));
             };
             fetchMaxBalance();
@@ -236,7 +236,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                                 setToAddress(e.target.value);
                                 setToAddressError("");
                             }}
-                            placeholder="Z20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
+                            placeholder="Q20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
                             className={toAddressError ? "border-red-500" : ""}
                         />
                         {toAddressError && (

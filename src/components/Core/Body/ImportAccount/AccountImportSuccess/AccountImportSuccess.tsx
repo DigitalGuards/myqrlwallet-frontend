@@ -23,9 +23,9 @@ type AccountImportSuccessProps = {
 const AccountImportSuccess = ({
   account,
 }: AccountImportSuccessProps) => {
-  const { zondStore } = useStore();
-  const { zondConnection } = zondStore;
-  const { blockchain } = zondConnection;
+  const { qrlStore } = useStore();
+  const { qrlConnection } = qrlStore;
+  const { blockchain } = qrlConnection;
 
   const accountAddress = account?.address ?? "";
 
@@ -90,7 +90,7 @@ const AccountImportSuccess = ({
             onClick={onViewInExplorer}
           >
             <ExternalLink className="mr-2 h-4 w-4" />
-            View in Zondscan
+            View on Explorer
           </Button>
         </div>
         <Link className="w-full" to={ROUTES.HOME}>

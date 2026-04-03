@@ -14,8 +14,8 @@ const MyQRLWalletLogo = withSuspense(
 );
 
 const Footer = observer(() => {
-    const { zondStore } = useStore();
-    const { zondAccounts, setActiveAccount, activeAccount } = zondStore;
+    const { qrlStore } = useStore();
+    const { qrlAccounts, setActiveAccount, activeAccount } = qrlStore;
     const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
     const navigate = useNavigate();
     const handleCopy = async (text: string) => {
@@ -108,7 +108,7 @@ const Footer = observer(() => {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="center">
-                            {zondAccounts.accounts.map((account, idx) => (
+                            {qrlAccounts.accounts.map((account, idx) => (
                                 <DropdownMenuItem
                                     key={idx}
                                     onClick={() => switchAccount(account.accountAddress)}

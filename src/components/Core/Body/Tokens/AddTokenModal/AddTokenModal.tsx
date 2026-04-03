@@ -13,15 +13,15 @@ import { useEffect, useState } from "react";
 import { useStore } from "@/stores/store";
 import { fetchTokenInfo, fetchBalance } from "@/utils/web3";
 import { TokenInterface } from "@/constants";
-import { ZOND_PROVIDER } from "@/config";
+import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 
 export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-    const { zondStore } = useStore();
+    const { qrlStore } = useStore();
     const {
         addToken: addTokenToStore,
         activeAccount: { accountAddress: activeAccountAddress },
-    } = zondStore;
+    } = qrlStore;
     const [tokenAddress, setTokenAddress] = useState("");
     const [tokenInfo, setTokenInfo] = useState<TokenInterface | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -45,12 +45,12 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
 
     useEffect(() => {
         const init = async () => {
-            if (tokenAddress.length === 41 && tokenAddress.startsWith("Z")) {
+            if (tokenAddress.length === 41 && tokenAddress.startsWith("Q")) {
                 try {
                     setIsLoading(true);
                     const selectedBlockChain = await StorageUtil.getBlockChain();
-                    const { name, symbol, decimals } = await fetchTokenInfo(tokenAddress, ZOND_PROVIDER[selectedBlockChain].url);
-                    const balance = await fetchBalance(tokenAddress, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
+                    const { name, symbol, decimals } = await fetchTokenInfo(tokenAddress, QRL_PROVIDER[selectedBlockChain].url);
+                    const balance = await fetchBalance(tokenAddress, activeAccountAddress, QRL_PROVIDER[selectedBlockChain].url);
                     setTokenInfo({ name, symbol, decimals: parseInt(decimals.toString()), address: tokenAddress, amount: balance.toString() });
                 } catch (error) {
                     console.error("Error fetching token info", error);

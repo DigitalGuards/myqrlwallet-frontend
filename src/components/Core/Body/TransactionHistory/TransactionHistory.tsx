@@ -20,8 +20,8 @@ type TransactionHistoryType = {
 }
 
 const TransactionHistory = observer(() => {
-    const { zondStore } = useStore();
-    const { activeAccount } = zondStore;
+    const { qrlStore } = useStore();
+    const { activeAccount } = qrlStore;
     const [transactionHistory, setTransactionHistory] = useState<TransactionHistoryType[]>([]);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
