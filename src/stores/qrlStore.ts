@@ -70,6 +70,22 @@ type TransactionStatus = {
   pendingDetails: PendingTxInfo | null; // Add field for pending details
 }
 
+export type FeeLevel = 'low' | 'medium' | 'high';
+
+const FEE_MULTIPLIERS: Record<FeeLevel, { maxFee: bigint; priorityFee: bigint }> = {
+  low:    { maxFee: BigInt(100), priorityFee: BigInt(100) },  // 1x
+  medium: { maxFee: BigInt(150), priorityFee: BigInt(125) },  // 1.5x / 1.25x
+  high:   { maxFee: BigInt(200), priorityFee: BigInt(150) },  // 2x / 1.5x
+};
+
+function applyFeeLevel(baseGasPrice: bigint, level: FeeLevel) {
+  const m = FEE_MULTIPLIERS[level];
+  return {
+    maxFeePerGas: (baseGasPrice * m.maxFee) / BigInt(100),
+    maxPriorityFeePerGas: (baseGasPrice * m.priorityFee) / BigInt(100),
+  };
+}
+
 // Interface for the extension provider (adjust based on actual provider methods)
 interface ExtensionProvider {
   request: (args: { method: string; params?: any[] | object }) => Promise<any>;
@@ -596,6 +612,7 @@ class QrlStore {
     to: string,
     value: string,
     mnemonicPhrases: string,
+    feeLevel: FeeLevel = 'medium',
   ) {
     // Reset status before starting a new transaction
     this.resetTransactionStatus();
@@ -604,9 +621,9 @@ class QrlStore {
       // Fetch the next available nonce, including pending transactions
       const nonce = await this.qrlInstance?.getTransactionCount(from, "pending");
 
-      // Fetch current gas price
-      const gasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(0);
-      const gasPriceHex = utils.toHex(gasPrice);
+      // Fetch current gas price and apply fee level multiplier
+      const baseGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(0);
+      const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
 
       const transactionObject = {
         from,
@@ -614,8 +631,8 @@ class QrlStore {
         value: utils.toPlanck(value, "quanta"),
         gas: 21000, // Standard gas limit for native transfer
         type: '0x2',
-        maxFeePerGas: gasPriceHex,
-        maxPriorityFeePerGas: gasPriceHex,
+        maxFeePerGas: utils.toHex(maxFeePerGas),
+        maxPriorityFeePerGas: utils.toHex(maxPriorityFeePerGas),
         nonce: nonce,
       };
       const privateKey = getHexSeedFromMnemonic(mnemonicPhrases);
@@ -1083,7 +1100,7 @@ class QrlStore {
   // --- END NEW Function ---
 
   // --- NEW: Send Transaction via Extension ---
-  async sendTransactionViaExtension(to: string, valueEther: string /* Value in Ether */) {
+  async sendTransactionViaExtension(to: string, valueEther: string, feeLevel: FeeLevel = 'medium') {
     if (!this.extensionProvider) {
       console.error("sendTransactionViaExtension called but no provider is set.");
       log("Error: sendTransactionViaExtension called without provider.");
@@ -1120,19 +1137,14 @@ class QrlStore {
 
       const gasLimit = 53000;
 
-      // Fetch current gas price from the network instead of using hardcoded values
-      const networkGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(1000000000);
-      // Use network gas price as priority fee, and 2x as max fee (standard EIP-1559 approach)
-      const priorityFee = networkGasPrice;
-      const maxFee = networkGasPrice * BigInt(2);
+      // Fetch current gas price and apply fee level multiplier
+      const baseGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(1000000000);
+      const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
 
-      // --- Manual Hex Conversion (still needed as utils.toHex was unreliable) --- 
-      // Convert potential string/BigInt from toPlanck to hex safely
       const valueHex = "0x" + BigInt(valueBaseUnit).toString(16);
       const gasHex = "0x" + gasLimit.toString(16);
-      const maxPriorityFeeHex = "0x" + priorityFee.toString(16);
-      const maxFeeHex = "0x" + maxFee.toString(16);
-      // --- End Manual Hex Conversion ---
+      const maxPriorityFeeHex = "0x" + maxPriorityFeePerGas.toString(16);
+      const maxFeeHex = "0x" + maxFeePerGas.toString(16);
 
       const params = [{
         from: this.activeAccount.accountAddress,
