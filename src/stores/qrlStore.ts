@@ -1119,15 +1119,19 @@ class QrlStore {
       // --- End Wei Calculation ---
 
       const gasLimit = 53000;
-      const defaultMaxPriorityFeePerGasPlanck = '10000000'; // 0.01 Shor (Tip)
-      const defaultMaxFeePerGasPlanck = '100000000';         // 0.1 Shor (Cap)
+
+      // Fetch current gas price from the network instead of using hardcoded values
+      const networkGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(1000000000);
+      // Use network gas price as priority fee, and 2x as max fee (standard EIP-1559 approach)
+      const priorityFee = networkGasPrice;
+      const maxFee = networkGasPrice * BigInt(2);
 
       // --- Manual Hex Conversion (still needed as utils.toHex was unreliable) --- 
       // Convert potential string/BigInt from toPlanck to hex safely
       const valueHex = "0x" + BigInt(valueBaseUnit).toString(16);
       const gasHex = "0x" + gasLimit.toString(16);
-      const maxPriorityFeeHex = "0x" + parseInt(defaultMaxPriorityFeePerGasPlanck).toString(16);
-      const maxFeeHex = "0x" + parseInt(defaultMaxFeePerGasPlanck).toString(16);
+      const maxPriorityFeeHex = "0x" + priorityFee.toString(16);
+      const maxFeeHex = "0x" + maxFee.toString(16);
       // --- End Manual Hex Conversion ---
 
       const params = [{
