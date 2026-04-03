@@ -33,7 +33,7 @@ server {
     ssl_session_tickets off;
 
     # Root directory for static files (output of `npm run build`)
-    root /var/www/zondwebwallet;
+    root /var/www/myqrlwallet;
     index index.html;
 
     # Security Headers (applied to locations without their own add_header)
@@ -45,8 +45,8 @@ server {
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
 
     # Backend API proxy - JSON-RPC endpoint
-    location /api/zond-rpc/ {
-        proxy_pass http://localhost:3000/api/zond-rpc/;
+    location /api/qrl-rpc/ {
+        proxy_pass http://localhost:3000/api/qrl-rpc/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
