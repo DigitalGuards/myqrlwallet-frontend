@@ -16,14 +16,14 @@ import { ROUTES } from "@/router/router";
 import { Button } from "@/components/UI/Button";
 
 const ImportAccount = observer(() => {
-  const { zondStore } = useStore();
-  const { setActiveAccount, zondConnection } = zondStore;
+  const { qrlStore } = useStore();
+  const { setActiveAccount, qrlConnection } = qrlStore;
 
   const [account, setAccount] = useState<ExtendedWalletAccount>();
   const [hasAccountImported, setHasAccountImported] = useState(false);
   const [isPinSetupComplete, setIsPinSetupComplete] = useState(false);
 
-  const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(zondConnection.blockchain);
+  const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(qrlConnection.blockchain);
 
   const onAccountImported = async (importedAccount: ExtendedWalletAccount) => {
     window.scrollTo(0, 0);

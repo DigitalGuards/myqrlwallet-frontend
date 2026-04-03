@@ -1,6 +1,6 @@
 export {
-  isValidZondAddress,
-  normalizeZondAddress,
+  isValidQrlAddress,
+  normalizeQrlAddress,
   getAddressValidationError,
 } from './address';
 

@@ -8,16 +8,16 @@ import type { PendingDAppRequest, DAppInfo, JsonRpcRequest } from './types';
 
 /** Methods that require user approval */
 const RESTRICTED_METHODS = new Set([
-  'zond_requestAccounts',
-  'zond_sendTransaction',
-  'zond_signTransaction',
-  'zond_sign',
+  'qrl_requestAccounts',
+  'qrl_sendTransaction',
+  'qrl_signTransaction',
+  'qrl_sign',
   'personal_sign',
-  'zond_signTypedData',
-  'zond_signTypedData_v3',
-  'zond_signTypedData_v4',
-  'wallet_addZondChain',
-  'wallet_switchZondChain',
+  'qrl_signTypedData',
+  'qrl_signTypedData_v3',
+  'qrl_signTypedData_v4',
+  'wallet_addQrlChain',
+  'wallet_switchQrlChain',
 ]);
 
 export class RequestHandler {
@@ -50,7 +50,7 @@ export class RequestHandler {
    * Validate that a method is known/supported.
    */
   static isKnownMethod(method: string): boolean {
-    // Accept all zond_*, net_*, web3_*, personal_*, wallet_* methods
-    return /^(zond|net|web3|personal|wallet)_/.test(method);
+    // Accept all qrl_*, net_*, web3_*, personal_*, wallet_* methods
+    return /^(qrl|net|web3|personal|wallet)_/.test(method);
   }
 }

@@ -32,7 +32,7 @@ export const TransactionSuccessful = ({
   const { copiedItem, copyToClipboard } = useCopyToClipboard<"txHash" | "blockHash">();
 
   const gasInQrl = new BigNumber(
-    utils.fromWei(BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0), "ether")
+    utils.fromPlanck(BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0), "quanta")
   )
     .dp(8, BigNumber.ROUND_DOWN)
     .toString()

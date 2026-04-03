@@ -5,11 +5,11 @@ import { Label } from "@/components/UI/Label";
 import { useStore } from "@/stores/store";
 
 const QRView = observer(() => {
-    const { zondStore } = useStore();
+    const { qrlStore } = useStore();
     const {
         activeAccount: { accountAddress },
-        zondConnection: { blockchain },
-    } = zondStore;
+        qrlConnection: { blockchain },
+    } = qrlStore;
 
     return (
         <div className="absolute top-1/2 mt-[-100px] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
@@ -21,7 +21,7 @@ const QRView = observer(() => {
                 level="L"
                 includeMargin={false}
             />
-            <Label className="text-xs text-muted-foreground">Scan to open in Zondscan</Label>
+            <Label className="text-xs text-muted-foreground">Scan to open in Explorer</Label>
         </div>
     );
 });

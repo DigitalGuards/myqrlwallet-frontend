@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 ## Project Overview
 
-**MyQRLWallet Frontend** is a modern React web wallet for the QRL Zond blockchain.
+**MyQRLWallet Frontend** is a modern React web wallet for the QRL blockchain.
 
 - **URL**: https://qrlwallet.com
 - **Technologies**: Vite 7, React 19, TypeScript, MobX, TailwindCSS 4, Shadcn/ui
@@ -19,8 +19,8 @@ This frontend is part of the MyQRLWallet ecosystem:
 
 ## Current Deployments
 
-- **Token Factory Contract**: `Za5a330ce8d19f9f906baf6e8255beb2aeb2c1d73`
-- **Deployer**: `Z2019EA08f4e24201B98f9154906Da4b924A04892`
+- **Token Factory Contract**: `Qa5a330ce8d19f9f906baf6e8255beb2aeb2c1d73`
+- **Deployer**: `Q2019EA08f4e24201B98f9154906Da4b924A04892`
 - **Production API**: https://qrlwallet.com/api
 
 ## Development Commands
@@ -37,7 +37,7 @@ npm test            # Jest tests
 ## Environment Configuration
 
 Create `.env` from `.env.example`:
-- `VITE_RPC_URL_*`: Zond blockchain RPC endpoints
+- `VITE_RPC_URL_*`: QRL blockchain RPC endpoints
 - `VITE_SERVER_URL_*`: Backend API endpoints
 - `VITE_CUSTOMERC20FACTORY_ADDRESS`: Token factory contract address
 - `VITE_DEPLOYER`: Account that deployed the factory
@@ -46,7 +46,7 @@ Create `.env` from `.env.example`:
 ## Architecture
 
 ### State Management (MobX)
-- **zondStore**: Core blockchain state, wallet functionality, transaction handling
+- **qrlStore**: Core blockchain state, wallet functionality, transaction handling
 - **settingsStore**: User preferences and application settings
 - Singleton pattern with HMR persistence in `stores/store.ts`
 
