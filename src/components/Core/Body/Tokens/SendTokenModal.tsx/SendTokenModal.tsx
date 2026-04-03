@@ -51,7 +51,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
 
         // Validate address
         if (!isValidQrlAddress(toAddress)) {
-            setToAddressError("Invalid address. Must be 42 characters starting with 'Q' followed by 40 hex characters");
+            setToAddressError("Invalid address. Must be 41 characters starting with 'Q' followed by 40 hex characters");
             setIsLoading(false);
             return;
         }
