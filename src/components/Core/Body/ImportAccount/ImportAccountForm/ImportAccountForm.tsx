@@ -33,8 +33,8 @@ type ImportAccountFormProps = {
 };
 
 export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps) => {
-  const { zondStore } = useStore();
-  const { zondInstance } = zondStore;
+  const { qrlStore } = useStore();
+  const { qrlInstance } = qrlStore;
 
   const form = useForm({
     resolver: zodResolver(FormSchema),
@@ -52,7 +52,7 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
   async function onSubmit(formData: z.output<typeof FormSchema>) {
     try {
       const hexSeed = await getHexSeedFromMnemonic(formData.mnemonicPhrases);
-      const account = zondInstance?.accounts.seedToAccount(hexSeed) as ExtendedWalletAccount;
+      const account = qrlInstance?.accounts.seedToAccount(hexSeed) as ExtendedWalletAccount;
       
       if (!account) {
         throw new Error("Failed to create account from mnemonic");

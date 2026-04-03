@@ -29,8 +29,8 @@ const accountCreateImportClasses = cva("flex gap-8", {
 
 const AccountCreateImport = observer(() => {
   const { state } = useLocation();
-  const { zondStore } = useStore();
-  const { activeAccount, setActiveAccount, setExtensionProvider } = zondStore;
+  const { qrlStore } = useStore();
+  const { activeAccount, setActiveAccount, setExtensionProvider } = qrlStore;
   const { accountAddress } = activeAccount;
   const navigate = useNavigate();
 

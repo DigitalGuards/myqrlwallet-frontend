@@ -12,8 +12,8 @@ const AccountCreateImport = withSuspense(
 );
 
 const AccountList = observer(() => {
-  const { zondStore } = useStore();
-  const { activeAccount } = zondStore;
+  const { qrlStore } = useStore();
+  const { activeAccount } = qrlStore;
 
   // Check if there is an active account
   const noActiveAccount = !activeAccount.accountAddress;

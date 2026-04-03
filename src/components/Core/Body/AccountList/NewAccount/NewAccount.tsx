@@ -8,8 +8,8 @@ import { useState, useEffect } from "react";
 import { StorageUtil } from "@/utils/storage";
 
 export const NewAccount = observer(() => {
-  const { zondStore } = useStore();
-  const { zondConnection } = zondStore;
+  const { qrlStore } = useStore();
+  const { qrlConnection } = qrlStore;
 
   const [isLimitReached, setIsLimitReached] = useState(false);
   const [walletCount, setWalletCount] = useState(0);
@@ -17,15 +17,15 @@ export const NewAccount = observer(() => {
 
   useEffect(() => {
     const checkLimit = async () => {
-      if (zondConnection.blockchain) {
-        const limitReached = await StorageUtil.isWalletLimitReached(zondConnection.blockchain);
-        const count = await StorageUtil.getWalletCount(zondConnection.blockchain);
+      if (qrlConnection.blockchain) {
+        const limitReached = await StorageUtil.isWalletLimitReached(qrlConnection.blockchain);
+        const count = await StorageUtil.getWalletCount(qrlConnection.blockchain);
         setIsLimitReached(limitReached);
         setWalletCount(count);
       }
     };
     checkLimit();
-  }, [zondConnection.blockchain]);
+  }, [qrlConnection.blockchain]);
 
   if (isLimitReached) {
     return (
