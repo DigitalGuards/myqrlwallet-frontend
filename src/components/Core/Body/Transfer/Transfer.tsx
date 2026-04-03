@@ -44,7 +44,6 @@ import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonic } from "@/utils/crypto";
 import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
-import { FeeLevel } from "@/stores/qrlStore";
 import { SEO } from "@/components/SEO/SEO";
 import { getOptimalTokenBalance, formatAddressShort } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
@@ -110,7 +109,6 @@ const Transfer = observer(() => {
   const initialAsset = searchParams.get('asset') || 'native';
 
   const [sliderValue, setSliderValue] = useState(0);
-  const [feeLevel, setFeeLevel] = useState<FeeLevel>("medium");
   const [amountInputValue, setAmountInputValue] = useState("");
   const [tokenBalance, setTokenBalance] = useState("0");
   const [hasJustCopied, setHasJustCopied] = useState(false);
@@ -306,7 +304,7 @@ const Transfer = observer(() => {
     const valueEther = formData.amount.toString();
 
     if (isUsingExtension) {
-      await sendTransactionViaExtension(formData.receiverAddress, valueEther, feeLevel);
+      await sendTransactionViaExtension(formData.receiverAddress, valueEther);
       resetForm();
       window.scrollTo(0, 0);
     } else {
@@ -333,7 +331,7 @@ const Transfer = observer(() => {
           return;
         }
 
-        await signAndSendTransaction(accountAddress, formData.receiverAddress, valueEther, mnemonicPhrases, feeLevel);
+        await signAndSendTransaction(accountAddress, formData.receiverAddress, valueEther, mnemonicPhrases);
         resetForm();
         window.scrollTo(0, 0);
       } catch (error) {
@@ -778,8 +776,6 @@ const Transfer = observer(() => {
                       to={formValues.receiverAddress}
                       value={formValues.amount}
                       isSubmitting={isSubmitting}
-                      feeLevel={feeLevel}
-                      onFeeLevelChange={setFeeLevel}
                     />
                   )}
                 </CardContent>
