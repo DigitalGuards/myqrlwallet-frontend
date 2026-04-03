@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/UI/Card";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { ZONDSCAN_BASE } from "@/config";
 import { StringUtil } from "@/utils/formatting";
 import { TransactionReceipt, utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
@@ -58,7 +59,7 @@ export const TransactionSuccessful = ({
               <div>Transaction Hash</div>
               <div className="flex items-center gap-2">
                 <a
-                  href={`https://zondscan.com/pending/tx/${transactionHash}`}
+                  href={`${ZONDSCAN_BASE}/pending/tx/${transactionHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-secondary hover:text-secondary/80"
@@ -102,7 +103,7 @@ export const TransactionSuccessful = ({
               <div className="flex flex-col gap-2">
                 <div>Block number</div>
                 <a
-                  href={`https://zondscan.com/block/${blockNumber}`}
+                  href={`${ZONDSCAN_BASE}/block/${blockNumber}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 font-bold text-secondary hover:text-secondary/80"
