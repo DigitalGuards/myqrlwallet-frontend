@@ -26,7 +26,7 @@ import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
 import { reEncryptSeedAsync, CryptoOperationError, CryptoErrorCode } from '@/utils/crypto';
 import { ROUTES } from '@/router/router';
 import StorageUtil from '@/utils/storage/storage';
-import { ZOND_PROVIDER } from '@/config';
+import { QRL_PROVIDER } from '@/config';
 import { store } from '@/stores/store';
 
 /** Error messages for PIN verification - forms API contract with native app */
@@ -51,15 +51,15 @@ const PIN_CHANGE_ERRORS = {
  */
 async function restoreAccountState(blockchain: string, address: string): Promise<void> {
   try {
-    const { zondStore } = store;
+    const { qrlStore } = store;
     const currentActive = await StorageUtil.getActiveAccount(blockchain);
 
     if (!currentActive) {
-      // Set as active account - zondStore.setActiveAccount handles:
+      // Set as active account - qrlStore.setActiveAccount handles:
       // - Adding to account list
       // - Fetching balances
       // - Token discovery
-      await zondStore.setActiveAccount(address, 'seed');
+      await qrlStore.setActiveAccount(address, 'seed');
       logToNative(`Set ${address} as active account via store`);
       return;
     }
@@ -70,7 +70,7 @@ async function restoreAccountState(blockchain: string, address: string): Promise
       await StorageUtil.setAccountList(blockchain, [...accountList, { address, source: 'seed' }]);
       logToNative(`Added ${address} to account list`);
       // Refresh accounts to pick up the new one
-      await zondStore.fetchAccounts();
+      await qrlStore.fetchAccounts();
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -275,7 +275,7 @@ const NativeAppBridge: React.FC = () => {
           clearNativeInjectedPin();
 
           // Clear all wallet data for all blockchains
-          const blockchains = Object.keys(ZOND_PROVIDER);
+          const blockchains = Object.keys(QRL_PROVIDER);
           for (const blockchain of blockchains) {
             StorageUtil.clearActiveAccount(blockchain);
             StorageUtil.clearAllEncryptedSeeds(blockchain);
@@ -288,9 +288,9 @@ const NativeAppBridge: React.FC = () => {
           confirmWalletCleared();
 
           // Reset MobX store and navigate to home
-          const { zondStore } = store;
-          zondStore.setActiveAccount(undefined);
-          zondStore.fetchAccounts();
+          const { qrlStore } = store;
+          qrlStore.setActiveAccount(undefined);
+          qrlStore.fetchAccounts();
           navigate(ROUTES.HOME);
           logToNative('Wallet cleared, navigated to home');
           break;

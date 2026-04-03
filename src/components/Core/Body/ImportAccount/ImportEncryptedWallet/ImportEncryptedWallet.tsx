@@ -28,8 +28,8 @@ type ImportEncryptedWalletProps = {
 export const ImportEncryptedWallet = ({
   onWalletImported,
 }: ImportEncryptedWalletProps) => {
-  const { zondStore } = useStore();
-  const { zondInstance } = zondStore;
+  const { qrlStore } = useStore();
+  const { qrlInstance } = qrlStore;
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string>("");
@@ -77,7 +77,7 @@ export const ImportEncryptedWallet = ({
         formData.password
       );
 
-      const account = zondInstance?.accounts.seedToAccount(decryptedWallet.hexSeed) as ExtendedWalletAccount;
+      const account = qrlInstance?.accounts.seedToAccount(decryptedWallet.hexSeed) as ExtendedWalletAccount;
       if (!account) {
         throw new Error("Failed to import account from wallet");
       }

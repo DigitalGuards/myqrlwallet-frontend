@@ -97,8 +97,8 @@ type InnerFormProps = {
  * This ensures the correct schema is used from the start.
  */
 const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds, blockchain }: InnerFormProps) => {
-  const { zondStore } = useStore();
-  const { zondInstance } = zondStore;
+  const { qrlStore } = useStore();
+  const { qrlInstance } = qrlStore;
   const [isEncrypting, setIsEncrypting] = useState(false);
 
   // Select schema based on whether user has existing seeds
@@ -141,7 +141,7 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds,
       }
 
       // Create the account
-      const newAccount = await zondInstance?.accounts.create();
+      const newAccount = await qrlInstance?.accounts.create();
       if (!newAccount || !newAccount.seed) {
         throw new Error("Failed to create account");
       }
@@ -318,9 +318,9 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds,
  */
 export const AccountCreationForm = observer(
   ({ onAccountCreated }: AccountCreationFormProps) => {
-    const { zondStore } = useStore();
-    const { zondConnection } = zondStore;
-    const { blockchain } = zondConnection;
+    const { qrlStore } = useStore();
+    const { qrlConnection } = qrlStore;
+    const { blockchain } = qrlConnection;
     const [hasExistingSeeds, setHasExistingSeeds] = useState<boolean | null>(null);
     const [existingSeeds, setExistingSeeds] = useState<{ address: string; encryptedSeed: string }[]>([]);
 

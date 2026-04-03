@@ -11,7 +11,7 @@ import { StringUtil } from "@/utils/formatting";
 import { TransactionReceipt, utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
 import { Check, Copy, ExternalLink } from "lucide-react";
-import { ZOND_PROVIDER } from "@/config";
+import { QRL_PROVIDER } from "@/config";
 import { useStore } from "@/stores/store";
 
 type TransactionSuccessfulProps = {
@@ -23,9 +23,9 @@ export const TransactionSuccessful = ({
   transactionReceipt,
   onDone,
 }: TransactionSuccessfulProps) => {
-  const { zondStore } = useStore();
-  const { zondConnection } = zondStore;
-  const { blockchain } = zondConnection;
+  const { qrlStore } = useStore();
+  const { qrlConnection } = qrlStore;
+  const { blockchain } = qrlConnection;
 
   const {
     blockHash,
@@ -37,10 +37,10 @@ export const TransactionSuccessful = ({
 
   const { copiedItem, copyToClipboard } = useCopyToClipboard<"txHash" | "blockHash">();
 
-  const explorerUrl = ZOND_PROVIDER[blockchain as keyof typeof ZOND_PROVIDER]?.explorer || "https://zondscan.com";
+  const explorerUrl = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER]?.explorer || "https://zondscan.com";
 
   const gasInQrl = new BigNumber(
-    utils.fromWei(BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0), "ether")
+    utils.fromPlanck(BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0), "quanta")
   )
     .dp(8, BigNumber.ROUND_DOWN)
     .toString()

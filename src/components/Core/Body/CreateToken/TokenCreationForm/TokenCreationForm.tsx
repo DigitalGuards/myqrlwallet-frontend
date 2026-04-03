@@ -32,7 +32,7 @@ import { WalletEncryptionUtil } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 import { getAddressFromMnemonic } from "@/utils/crypto";
 import { Label } from "@/components/UI/Label";
-import { isValidZondAddress } from "@/utils/web3";
+import { isValidQrlAddress } from "@/utils/web3";
 
 const FormSchema = z
     .object({
@@ -54,21 +54,21 @@ const FormSchema = z
     .refine((data) => {
         // Validate recipient address if changeInitialRecipient is true
         if (data.changeInitialRecipient && data.recipientAddress) {
-            return isValidZondAddress(data.recipientAddress);
+            return isValidQrlAddress(data.recipientAddress);
         }
         return true;
     }, {
-        message: "Invalid recipient address. Must be 42 characters starting with 'Z' followed by 40 hex characters",
+        message: "Invalid recipient address. Must be 41 characters starting with 'Q' followed by 40 hex characters",
         path: ["recipientAddress"]
     })
     .refine((data) => {
         // Validate owner address if changeTokenOwner is true
         if (data.changeTokenOwner && data.ownerAddress) {
-            return isValidZondAddress(data.ownerAddress);
+            return isValidQrlAddress(data.ownerAddress);
         }
         return true;
     }, {
-        message: "Invalid owner address. Must be 42 characters starting with 'Z' followed by 40 hex characters",
+        message: "Invalid owner address. Must be 41 characters starting with 'Q' followed by 40 hex characters",
         path: ["ownerAddress"]
     });
 
@@ -79,8 +79,8 @@ type TokenCreationFormProps = {
 export const TokenCreationForm = observer(
     ({ onTokenCreated }: TokenCreationFormProps) => {
         const navigate = useNavigate();
-        const { zondStore } = useStore();
-        const { activeAccount, activeAccountSource } = zondStore;
+        const { qrlStore } = useStore();
+        const { activeAccount, activeAccountSource } = qrlStore;
         const [pin, setPin] = useState("");
         const [pinError, setPinError] = useState("");
         const [formError, setFormError] = useState<string | null>(null);
@@ -178,14 +178,14 @@ export const TokenCreationForm = observer(
                 const maxTransactionLimit = formData.maxTransactionLimit ? ethers.parseUnits(formData.maxTransactionLimit, decimals).toString() : undefined;
 
                 // Navigate immediately to show loading state, then start creation
-                zondStore.setCreatingToken(tokenName, true);
+                qrlStore.setCreatingToken(tokenName, true);
                 navigate(ROUTES.TOKEN_STATUS);
 
                 // Start token creation in background (don't await here)
                 onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, ownerAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase)
                     .catch((error) => {
                         console.error("Token creation failed:", error);
-                        // The error state is set within zondStore and displayed on the status page
+                        // The error state is set within qrlStore and displayed on the status page
                     });
             } catch (error) {
                 console.error("Error creating token:", error);
@@ -404,7 +404,7 @@ export const TokenCreationForm = observer(
                                                 <Input
                                                     {...field}
                                                     disabled={isSubmitting}
-                                                    placeholder="Example: Z20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
+                                                    placeholder="Example: Q20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
                                                     type="text"
                                                 />
                                             </FormControl>
@@ -449,7 +449,7 @@ export const TokenCreationForm = observer(
                                                 <Input
                                                     {...field}
                                                     disabled={isSubmitting}
-                                                    placeholder="Example: Z20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
+                                                    placeholder="Example: Q20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
                                                     type="text"
                                                 />
                                             </FormControl>

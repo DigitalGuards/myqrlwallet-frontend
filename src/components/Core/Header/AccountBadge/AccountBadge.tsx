@@ -6,10 +6,10 @@ import { observer } from "mobx-react-lite";
 import { Link } from "react-router-dom";
 
 const AccountBadge = observer(() => {
-  const { zondStore } = useStore();
+  const { qrlStore } = useStore();
   const {
     activeAccount: { accountAddress },
-  } = zondStore;
+  } = qrlStore;
 
   const account = accountAddress
     .substring(0, 7)

@@ -48,9 +48,22 @@ const MnemonicDisplay = ({
   const mnemonic = getMnemonicFromHexSeed(accountHexSeed);
   const [hasJustCopiedSeed, setHasJustCopiedSeed] = useState(false);
   const [hasJustCopiedAddress, setHasJustCopiedAddress] = useState(false);
+  const [hasJustCopiedMnemonic, setHasJustCopiedMnemonic] = useState(false);
 
   const onProceed = () => {
     navigate(ROUTES.HOME);
+  };
+
+  const onCopyMnemonic = async () => {
+    if (mnemonic) {
+      const success = await copyToClipboard(mnemonic);
+      if (success) {
+        setHasJustCopiedMnemonic(true);
+        setTimeout(() => {
+          setHasJustCopiedMnemonic(false);
+        }, 1000);
+      }
+    }
   };
 
   const onCopyHexSeed = async () => {
@@ -110,7 +123,7 @@ const MnemonicDisplay = ({
         <CardDescription className="flex flex-col gap-2">
           <span>{cardDescription}</span>
           <span className="text-orange-500 break-all">{accountAddress}</span>
-          <div className="flex gap-2">
+          <span className="flex gap-2">
             <Button
               type="button"
               variant="outline"
@@ -153,7 +166,7 @@ const MnemonicDisplay = ({
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </div>
+          </span>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -162,6 +175,15 @@ const MnemonicDisplay = ({
             <h3 className="text-lg font-semibold">Mnemonic Phrases</h3>
             <p className="text-sm text-muted-foreground">These words can be used to recover your account</p>
             <MnemonicWordListing mnemonic={mnemonic} />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCopyMnemonic}
+              className="w-full mt-2"
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              {hasJustCopiedMnemonic ? "Copied" : "Copy Mnemonic"}
+            </Button>
           </div>
           <div>
             <h3 className="text-lg font-semibold">Hex Seed</h3>

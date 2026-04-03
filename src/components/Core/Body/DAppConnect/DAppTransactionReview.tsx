@@ -32,7 +32,7 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({ params }) => 
   const gas = params.gas;
 
   const displayValue = value
-    ? `${utils.fromWei(BigInt(value).toString(), 'ether')} QRL`
+    ? `${utils.fromPlanck(BigInt(value).toString(), 'quanta')} QRL`
     : '0 QRL';
 
   return (
