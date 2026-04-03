@@ -18,13 +18,13 @@ export const isValidQrlAddress = (address: string): boolean => {
   // Trim any whitespace
   const trimmedAddress = address.trim();
 
-  // Check basic format: must start with 'Q' and be 42 characters total
+  // Check basic format: must start with 'Q' and be 41 characters total
   // (Q + 40 hex chars)
   if (!trimmedAddress.startsWith('Q')) {
     return false;
   }
 
-  if (trimmedAddress.length !== 42) {
+  if (trimmedAddress.length !== 41) {
     return false;
   }
 
@@ -70,12 +70,12 @@ export const getAddressValidationError = (address: string): string => {
     return "Address must start with 'Q'";
   }
 
-  if (trimmedAddress.length < 42) {
-    return `Address is too short (${trimmedAddress.length}/42 characters)`;
+  if (trimmedAddress.length < 41) {
+    return `Address is too short (${trimmedAddress.length}/41 characters)`;
   }
 
-  if (trimmedAddress.length > 42) {
-    return `Address is too long (${trimmedAddress.length}/42 characters)`;
+  if (trimmedAddress.length > 41) {
+    return `Address is too long (${trimmedAddress.length}/41 characters)`;
   }
 
   const hexPart = trimmedAddress.slice(1);

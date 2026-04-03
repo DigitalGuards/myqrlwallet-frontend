@@ -27,12 +27,12 @@ const FormSchema = z
         tokenAddress: z.string()
             .min(1, { message: "Token address is required" })
             .refine(isValidQrlAddress, {
-                message: "Invalid token address. Must be 42 characters starting with 'Q' followed by 40 hex characters"
+                message: "Invalid token address. Must be 41 characters starting with 'Q' followed by 40 hex characters"
             }),
         toAddress: z.string()
             .min(1, { message: "Recipient address is required" })
             .refine(isValidQrlAddress, {
-                message: "Invalid recipient address. Must be 42 characters starting with 'Q' followed by 40 hex characters"
+                message: "Invalid recipient address. Must be 41 characters starting with 'Q' followed by 40 hex characters"
             }),
         amount: z.string()
             .min(1, { message: "Amount is required" })

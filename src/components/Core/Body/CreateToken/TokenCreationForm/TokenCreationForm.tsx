@@ -58,7 +58,7 @@ const FormSchema = z
         }
         return true;
     }, {
-        message: "Invalid recipient address. Must be 42 characters starting with 'Q' followed by 40 hex characters",
+        message: "Invalid recipient address. Must be 41 characters starting with 'Q' followed by 40 hex characters",
         path: ["recipientAddress"]
     })
     .refine((data) => {
@@ -68,7 +68,7 @@ const FormSchema = z
         }
         return true;
     }, {
-        message: "Invalid owner address. Must be 42 characters starting with 'Q' followed by 40 hex characters",
+        message: "Invalid owner address. Must be 41 characters starting with 'Q' followed by 40 hex characters",
         path: ["ownerAddress"]
     });
 

@@ -83,7 +83,7 @@ const Transfer = observer(() => {
       if (fields.receiverAddress.trim()) {
         const address = fields.receiverAddress.trim();
         const isValidQrlAddress = address.startsWith('Q') &&
-          (address.length === 41 || address.length === 42);
+          address.length === 41;
         if (!isValidQrlAddress) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -185,7 +185,7 @@ const Transfer = observer(() => {
   // Validate QRL address format
   const isValidQRLAddress = useCallback((address: string): boolean => {
     const trimmed = address.trim();
-    return trimmed.startsWith('Q') && (trimmed.length === 41 || trimmed.length === 42);
+    return trimmed.startsWith('Q') && trimmed.length === 41;
   }, []);
 
   // Handle QR scan request
