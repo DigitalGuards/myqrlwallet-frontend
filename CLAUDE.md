@@ -100,7 +100,7 @@ The web wallet detects when running inside the native app via User-Agent contain
 ## Key Features
 
 1. **Account Management**: Import via mnemonic/hex seed or connect extension wallets
-2. **Token Support**: ERC20/QRC20 token creation via factory contract, token discovery via ZondScan
+2. **Token Support**: ERC20/QRC20 token creation via factory contract, token discovery via Explorer API
 3. **PIN Security**: Encrypted seed storage with PIN authentication
 4. **Multi-Network**: Testnet, Mainnet, and custom RPC support
 5. **Native App Support**: Conditional UI and bridge messaging when in mobile app
