@@ -39,11 +39,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { GasFeeNotice } from "./GasFeeNotice/GasFeeNotice";
 import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSuccessful";
-import { getExplorerAddressUrl, getExplorerTxUrl, ZOND_PROVIDER } from "@/config";
+import { getExplorerAddressUrl, getExplorerTxUrl, QRL_PROVIDER } from "@/config";
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonic } from "@/utils/crypto";
 import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
+import { FeeLevel } from "@/stores/qrlStore";
 import { SEO } from "@/components/SEO/SEO";
 import { getOptimalTokenBalance, formatAddressShort } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
@@ -52,20 +53,20 @@ import { formatUnits, parseUnits } from "ethers";
 const Transfer = observer(() => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { zondStore } = useStore();
+  const { qrlStore } = useStore();
   const {
     activeAccount,
     getAccountBalance,
     signAndSendTransaction,
     sendTransactionViaExtension,
     activeAccountSource,
-    zondConnection,
+    qrlConnection,
     transactionStatus,
     resetTransactionStatus,
     tokenList,
     sendToken: sendTokenToStore,
-  } = zondStore;
-  const { blockchain } = zondConnection;
+  } = qrlStore;
+  const { blockchain } = qrlConnection;
   const { accountAddress } = activeAccount;
 
   const isUsingExtension = activeAccountSource === 'extension';
@@ -82,12 +83,12 @@ const Transfer = observer(() => {
       // Validate address format
       if (fields.receiverAddress.trim()) {
         const address = fields.receiverAddress.trim();
-        const isValidZondAddress = address.startsWith('Z') &&
-          (address.length === 41 || address.length === 42);
-        if (!isValidZondAddress) {
+        const isValidQrlAddress = address.startsWith('Q') &&
+          address.length === 41;
+        if (!isValidQrlAddress) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: "Invalid Zond address format",
+            message: "Invalid QRL address format",
             path: ["receiverAddress"]
           });
         }
@@ -109,6 +110,7 @@ const Transfer = observer(() => {
   const initialAsset = searchParams.get('asset') || 'native';
 
   const [sliderValue, setSliderValue] = useState(0);
+  const [feeLevel, setFeeLevel] = useState<FeeLevel>("medium");
   const [amountInputValue, setAmountInputValue] = useState("");
   const [tokenBalance, setTokenBalance] = useState("0");
   const [hasJustCopied, setHasJustCopied] = useState(false);
@@ -162,7 +164,7 @@ const Transfer = observer(() => {
           const balance = await fetchBalance(
             selectedAsset,
             accountAddress,
-            ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER].url
+            QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url
           );
           const token = tokenList.find(t => t.address === selectedAsset);
           setTokenBalance(formatUnits(balance, token?.decimals || 18));
@@ -185,7 +187,7 @@ const Transfer = observer(() => {
   // Validate QRL address format
   const isValidQRLAddress = useCallback((address: string): boolean => {
     const trimmed = address.trim();
-    return trimmed.startsWith('Z') && (trimmed.length === 41 || trimmed.length === 42);
+    return trimmed.startsWith('Q') && trimmed.length === 41;
   }, []);
 
   // Handle QR scan request
@@ -304,7 +306,7 @@ const Transfer = observer(() => {
     const valueEther = formData.amount.toString();
 
     if (isUsingExtension) {
-      await sendTransactionViaExtension(formData.receiverAddress, valueEther);
+      await sendTransactionViaExtension(formData.receiverAddress, valueEther, feeLevel);
       resetForm();
       window.scrollTo(0, 0);
     } else {
@@ -325,13 +327,13 @@ const Transfer = observer(() => {
         }
 
         // Verify decrypted mnemonic matches the expected account address
-        const senderAddress = getAddressFromMnemonic(mnemonicPhrases);
+        const senderAddress = getAddressFromMnemonic(mnemonicPhrases, qrlStore.qrlInstance!);
         if (senderAddress.toLowerCase() !== accountAddress.toLowerCase()) {
           control.setError("pin", { message: "Security error: seed mismatch detected. Please re-import this account." });
           return;
         }
 
-        await signAndSendTransaction(accountAddress, formData.receiverAddress, valueEther, mnemonicPhrases);
+        await signAndSendTransaction(accountAddress, formData.receiverAddress, valueEther, mnemonicPhrases, feeLevel);
         resetForm();
         window.scrollTo(0, 0);
       } catch (error) {
@@ -359,7 +361,7 @@ const Transfer = observer(() => {
         return;
       }
 
-      const senderAddress = getAddressFromMnemonic(mnemonic);
+      const senderAddress = getAddressFromMnemonic(mnemonic, qrlStore.qrlInstance!);
       if (senderAddress.toLowerCase() !== accountAddress.toLowerCase()) {
         control.setError("pin", { message: "PIN decrypted an invalid seed." });
         return;
@@ -447,7 +449,7 @@ const Transfer = observer(() => {
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
                   >
-                    View on ZondScan <ExternalLink className="h-4 w-4" />
+                    View on Explorer <ExternalLink className="h-4 w-4" />
                   </a>
                 )}
                 {transactionStatus.pendingDetails && (
@@ -464,14 +466,14 @@ const Transfer = observer(() => {
                       <span className="text-muted-foreground">Value:</span>
                       <span>
                         {isNativeTransfer
-                          ? `${utils.fromWei(BigInt(transactionStatus.pendingDetails.value), "ether")} QRL`
+                          ? `${utils.fromPlanck(BigInt(transactionStatus.pendingDetails.value), "quanta")} QRL`
                           : `${getOptimalTokenBalance(formValues.amount.toString())} ${assetSymbol}`
                         }
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Gas Price:</span>
-                      <span>{utils.fromWei(BigInt(transactionStatus.pendingDetails.gasPrice), "gwei")} Gwei</span>
+                      <span>{utils.fromPlanck(BigInt(transactionStatus.pendingDetails.gasPrice), "shor")} Shor</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Gas Limit:</span>
@@ -512,7 +514,7 @@ const Transfer = observer(() => {
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
                   >
-                    View on ZondScan <ExternalLink className="h-4 w-4" />
+                    View on Explorer <ExternalLink className="h-4 w-4" />
                   </a>
                 )}
               </div>
@@ -612,7 +614,7 @@ const Transfer = observer(() => {
                         onClick={onViewInExplorer}
                       >
                         <ExternalLink className="mr-2 h-4 w-4" />
-                        View in Zondscan
+                        View on Explorer
                       </Button>
                     </div>
                   </div>
@@ -776,6 +778,8 @@ const Transfer = observer(() => {
                       to={formValues.receiverAddress}
                       value={formValues.amount}
                       isSubmitting={isSubmitting}
+                      feeLevel={feeLevel}
+                      onFeeLevelChange={setFeeLevel}
                     />
                   )}
                 </CardContent>

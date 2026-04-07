@@ -1,6 +1,6 @@
 # MyQRLWallet
 
-A modern, secure web wallet for the Quantum Resistant Ledger's Zond blockchain. Built with React 19 and featuring quantum-resistant security, mobile app integration, and ERC20/QRC20 token support.
+A modern, secure web wallet for the Quantum Resistant Ledger's QRL 2.0 blockchain. Built with React 19 and featuring quantum-resistant security, mobile app integration, and ERC20/QRC20 token support.
 
 **Live**: [qrlwallet.com](https://qrlwallet.com)
 
@@ -37,7 +37,7 @@ cp .env.example .env
 ```
 
 Edit `.env` with your settings:
-- `VITE_RPC_URL_*` - Zond blockchain RPC endpoints
+- `VITE_RPC_URL_*` - QRL blockchain RPC endpoints
 - `VITE_SERVER_URL_*` - Backend API endpoints
 - `VITE_CUSTOMERC20FACTORY_ADDRESS` - Token factory contract address
 - `VITE_DEPLOYER` - Factory deployer account
@@ -66,8 +66,8 @@ npm test            # Run tests
 ```bash
 docker build -t myqrlwallet-frontend:latest \
   -f deploy/Dockerfile \
-  --build-arg VITE_RPC_URL_TESTNET=https://qrlwallet.com/api/zond-rpc/testnet \
-  --build-arg VITE_RPC_URL_MAINNET=https://qrlwallet.com/api/zond-rpc/mainnet \
+  --build-arg VITE_RPC_URL_TESTNET=https://qrlwallet.com/api/qrl-rpc/testnet \
+  --build-arg VITE_RPC_URL_MAINNET=https://qrlwallet.com/api/qrl-rpc/mainnet \
   --build-arg VITE_SERVER_URL_TESTNET=https://qrlwallet.com/api \
   --build-arg VITE_SERVER_URL_MAINNET=https://qrlwallet.com/api \
   .
@@ -186,7 +186,7 @@ src/
 ├── constants/              # Token lists, chains
 ├── hooks/                  # React hooks
 ├── router/                 # React Router config
-├── stores/                 # MobX stores (zondStore, settingsStore)
+├── stores/                 # MobX stores (qrlStore, settingsStore)
 └── utils/
     ├── crypto/             # Encryption utilities
     ├── extension/          # Wallet extension detection
@@ -225,7 +225,7 @@ When running inside the [MyQRLWallet App](https://github.com/DigitalGuards/myqrl
 
 - [QRL Website](https://www.theqrl.org/)
 - [QRL Documentation](https://docs.theqrl.org/)
-- [ZondScan Explorer](https://zondscan.com)
+- [Block Explorer (ZondScan)](https://zondscan.com)
 - [Twitter](https://x.com/DigitalGuards)
 
 ## Contributing

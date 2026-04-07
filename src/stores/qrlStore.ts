@@ -1,10 +1,10 @@
-import { ZOND_PROVIDER, ZONDSCAN_BASE, getPendingTxApiUrl } from "@/config";
+import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
 import { getHexSeedFromMnemonic } from "@/utils/crypto";
 import { StorageUtil, AccountListItem, AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
 import Web3, {
   TransactionReceipt,
-  Web3ZondInterface,
+  Web3QRLInterface,
   utils,
 } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
@@ -20,14 +20,14 @@ type ActiveAccountType = {
   lastSeen: number; // Unix timestamp
 };
 
-type ZondAccountType = {
+type QrlAccountType = {
   accountAddress: string;
   accountBalance: string;
   source: AccountSource;
 };
 
-type ZondAccountsType = {
-  accounts: ZondAccountType[];
+type QrlAccountsType = {
+  accounts: QrlAccountType[];
   isLoading: boolean;
 };
 
@@ -49,7 +49,7 @@ type CreatedTokenType = {
   blockHash: string;
 }
 
-// Type for relevant pending transaction details from ZondScan API
+// Type for relevant pending transaction details from Explorer API
 type PendingTxInfo = {
   from: string;
   to: string;
@@ -70,21 +70,37 @@ type TransactionStatus = {
   pendingDetails: PendingTxInfo | null; // Add field for pending details
 }
 
+export type FeeLevel = 'low' | 'medium' | 'high';
+
+const FEE_MULTIPLIERS: Record<FeeLevel, { maxFee: bigint; priorityFee: bigint }> = {
+  low:    { maxFee: BigInt(100), priorityFee: BigInt(100) },  // 1x
+  medium: { maxFee: BigInt(150), priorityFee: BigInt(125) },  // 1.5x / 1.25x
+  high:   { maxFee: BigInt(200), priorityFee: BigInt(150) },  // 2x / 1.5x
+};
+
+function applyFeeLevel(baseGasPrice: bigint, level: FeeLevel) {
+  const m = FEE_MULTIPLIERS[level];
+  return {
+    maxFeePerGas: (baseGasPrice * m.maxFee) / BigInt(100),
+    maxPriorityFeePerGas: (baseGasPrice * m.priorityFee) / BigInt(100),
+  };
+}
+
 // Interface for the extension provider (adjust based on actual provider methods)
 interface ExtensionProvider {
   request: (args: { method: string; params?: any[] | object }) => Promise<any>;
   // Add other methods if needed, e.g., for event handling
 }
 
-class ZondStore {
-  zondInstance?: Web3ZondInterface;
-  zondConnection = {
+class QrlStore {
+  qrlInstance?: Web3QRLInterface;
+  qrlConnection = {
     isConnected: false,
     isLoading: false,
-    zondNetworkName: "",
+    qrlNetworkName: "",
     blockchain: "",
   };
-  zondAccounts: ZondAccountsType = { accounts: [], isLoading: false };
+  qrlAccounts: QrlAccountsType = { accounts: [], isLoading: false };
   activeAccount: ActiveAccountType = { accountAddress: "", lastSeen: 0 };
   creatingToken: CreatingTokenType = { name: "", creating: false };
   createdToken: CreatedTokenType = { name: "", symbol: "", decimals: 0, address: "", tx: "", blockNumber: 0, gasUsed: 0, effectiveGasPrice: 0, blockHash: "" };
@@ -94,7 +110,7 @@ class ZondStore {
   // Updated initial state
   transactionStatus: TransactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
   extensionProvider: ExtensionProvider | null = null; // NEW: Store the extension provider
-  qrlPrice: number = 0; // USD price from ZondScan
+  qrlPrice: number = 0; // USD price from Explorer
   qrlPriceChange24h: number = 0; // 24h price change percentage
 
   // NEW: Computed properties
@@ -104,7 +120,7 @@ class ZondStore {
       return "0";
     }
     return (
-      this.zondAccounts.accounts.find(
+      this.qrlAccounts.accounts.find(
         (account) => account.accountAddress === this.activeAccount.accountAddress,
       )?.accountBalance ?? "0"
     );
@@ -114,7 +130,7 @@ class ZondStore {
   get activeAccountSource(): AccountSource {
     const currentAddr = this.activeAccount.accountAddress.toLowerCase();
     return (
-      this.zondAccounts.accounts.find(
+      this.qrlAccounts.accounts.find(
         (account) => account.accountAddress.toLowerCase() === currentAddr,
       )?.source ?? 'seed'
     );
@@ -137,9 +153,9 @@ class ZondStore {
 
   constructor() {
     makeAutoObservable(this, {
-      zondInstance: observable.struct,
-      zondConnection: observable.struct,
-      zondAccounts: observable.struct,
+      qrlInstance: observable.struct,
+      qrlConnection: observable.struct,
+      qrlAccounts: observable.struct,
       activeAccount: observable.struct,
       creatingToken: observable.struct,
       createdToken: observable.struct,
@@ -164,7 +180,7 @@ class ZondStore {
       setCreatingToken: action.bound,
       selectBlockchain: action.bound,
       setActiveAccount: action.bound,
-      fetchZondConnection: action.bound,
+      fetchQrlConnection: action.bound,
       fetchAccounts: action.bound,
       getAccountBalance: action.bound,
       signAndSendTransaction: action.bound,
@@ -182,7 +198,7 @@ class ZondStore {
     });
 
     // Log initialization
-    log("ZondStore initialized");
+    log("QrlStore initialized");
 
     // Initialize blockchain asynchronously to avoid blocking constructor
     setTimeout(() => {
@@ -192,7 +208,7 @@ class ZondStore {
 
   async fetchQrlPrice() {
     try {
-      const res = await fetch(`${ZONDSCAN_BASE}/api/overview`);
+      const res = await fetch(`${EXPLORER_BASE}/api/overview`);
       const data = await res.json();
       const price = data?.currentPrice;
       const change = data?.priceChange24h;
@@ -219,7 +235,7 @@ class ZondStore {
   async initializeBlockchain() {
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { name, url: baseUrl } = ZOND_PROVIDER[selectedBlockChain];
+      const { name, url: baseUrl } = QRL_PROVIDER[selectedBlockChain];
       let url = baseUrl;
 
       if (selectedBlockChain === "CUSTOM_RPC") {
@@ -228,19 +244,19 @@ class ZondStore {
       }
 
       runInAction(() => {
-        this.zondConnection = {
-          ...this.zondConnection,
-          zondNetworkName: name,
+        this.qrlConnection = {
+          ...this.qrlConnection,
+          qrlNetworkName: name,
           blockchain: selectedBlockChain,
         };
       });
 
-      const zondHttpProvider = new Web3.providers.HttpProvider(url);
-      const { zond } = new Web3({ provider: zondHttpProvider });
+      const httpProvider = new Web3.providers.HttpProvider(url);
+      const { qrl } = new Web3({ provider: httpProvider });
 
 
       runInAction(() => {
-        this.zondInstance = zond;
+        this.qrlInstance = qrl;
       });
 
       this.tokenList = await StorageUtil.getTokenList();
@@ -250,7 +266,7 @@ class ZondStore {
         await this.addToken(token);
       }
 
-      await this.fetchZondConnection();
+      await this.fetchQrlConnection();
       await this.fetchAccounts();
       this.fetchQrlPrice(); // Fire-and-forget, non-blocking
       await this.validateActiveAccount();
@@ -320,7 +336,7 @@ class ZondStore {
   }
 
   async setActiveAccount(newActiveAccount?: string, source: AccountSource = 'seed') {
-    const currentBlockchain = this.zondConnection.blockchain;
+    const currentBlockchain = this.qrlConnection.blockchain;
     await StorageUtil.setActiveAccount(
       currentBlockchain,
       newActiveAccount,
@@ -385,11 +401,11 @@ class ZondStore {
     }
   }
 
-  async fetchZondConnection() {
-    this.zondConnection = { ...this.zondConnection, isLoading: true };
+  async fetchQrlConnection() {
+    this.qrlConnection = { ...this.qrlConnection, isLoading: true };
     try {
       // Add timeout to prevent hanging on unreachable networks
-      const connectionCheckPromise = this.zondInstance?.net.isListening();
+      const connectionCheckPromise = this.qrlInstance?.net.isListening();
       const timeoutPromise = new Promise<boolean>((_, reject) =>
         setTimeout(() => reject(new Error('Connection timeout')), 5000)
       );
@@ -400,38 +416,38 @@ class ZondStore {
       ]).then(result => result ?? false).catch(() => false);
 
       runInAction(() => {
-        this.zondConnection = {
-          ...this.zondConnection,
+        this.qrlConnection = {
+          ...this.qrlConnection,
           isConnected: isListening,
         };
       });
     } catch (error) {
-      console.error('Failed to fetch zond connection:', error);
+      console.error('Failed to fetch qrl connection:', error);
       runInAction(() => {
-        this.zondConnection = { ...this.zondConnection, isConnected: false };
+        this.qrlConnection = { ...this.qrlConnection, isConnected: false };
       });
     } finally {
       runInAction(() => {
-        this.zondConnection = { ...this.zondConnection, isLoading: false };
+        this.qrlConnection = { ...this.qrlConnection, isLoading: false };
       });
     }
   }
 
   async fetchAccounts() {
-    this.zondAccounts = { ...this.zondAccounts, isLoading: true };
+    this.qrlAccounts = { ...this.qrlAccounts, isLoading: true };
 
     let storedAccountsList: AccountListItem[] = [];
     const accountListFromStorage = await StorageUtil.getAccountList(
-      this.zondConnection.blockchain,
+      this.qrlConnection.blockchain,
     );
     storedAccountsList = accountListFromStorage;
     try {
-      const accountsWithBalance: ZondAccountsType["accounts"] =
+      const accountsWithBalance: QrlAccountsType["accounts"] =
         await Promise.all(
           storedAccountsList.map(async ({ address, source }) => {
             const accountBalance =
-              (await this.zondInstance?.getBalance(address)) ?? BigInt(0);
-            const convertedAccountBalance = utils.fromWei(accountBalance, "ether");
+              (await this.qrlInstance?.getBalance(address)) ?? BigInt(0);
+            const convertedAccountBalance = utils.fromPlanck(accountBalance, "quanta");
             return {
               accountAddress: address,
               accountBalance: convertedAccountBalance,
@@ -441,18 +457,18 @@ class ZondStore {
         );
       const balanceMap: Record<string, string> = {};
       accountsWithBalance.forEach(a => { balanceMap[a.accountAddress] = a.accountBalance; });
-      await StorageUtil.setBalanceCache(this.zondConnection.blockchain, balanceMap);
+      await StorageUtil.setBalanceCache(this.qrlConnection.blockchain, balanceMap);
       runInAction(() => {
-        this.zondAccounts = {
-          ...this.zondAccounts,
+        this.qrlAccounts = {
+          ...this.qrlAccounts,
           accounts: accountsWithBalance,
         };
       });
     } catch (_error) {
-      const cachedBalances = await StorageUtil.getBalanceCache(this.zondConnection.blockchain);
+      const cachedBalances = await StorageUtil.getBalanceCache(this.qrlConnection.blockchain);
       runInAction(() => {
-        this.zondAccounts = {
-          ...this.zondAccounts,
+        this.qrlAccounts = {
+          ...this.qrlAccounts,
           accounts: storedAccountsList.map(({ address, source }) => ({
             accountAddress: address,
             accountBalance: cachedBalances[address] ?? "0",
@@ -462,7 +478,7 @@ class ZondStore {
       });
     } finally {
       runInAction(() => {
-        this.zondAccounts = { ...this.zondAccounts, isLoading: false };
+        this.qrlAccounts = { ...this.qrlAccounts, isLoading: false };
       });
     }
   }
@@ -470,16 +486,16 @@ class ZondStore {
   async validateActiveAccount() {
     try {
       const storedActiveAccount = await StorageUtil.getActiveAccount(
-        this.zondConnection.blockchain,
+        this.qrlConnection.blockchain,
       );
 
       const confirmedExistingActiveAccount =
-        this.zondAccounts.accounts.find(
+        this.qrlAccounts.accounts.find(
           (account) => account.accountAddress === storedActiveAccount,
         )?.accountAddress ?? "";
 
       if (!confirmedExistingActiveAccount) {
-        await StorageUtil.clearActiveAccount(this.zondConnection.blockchain);
+        await StorageUtil.clearActiveAccount(this.qrlConnection.blockchain);
       }
 
       this.activeAccount = {
@@ -499,13 +515,13 @@ class ZondStore {
 
   getAccountBalance(accountAddress: string) {
     return (
-      this.zondAccounts.accounts.find(
+      this.qrlAccounts.accounts.find(
         (account) => account.accountAddress === accountAddress,
       )?.accountBalance ?? "0"
     );
   }
 
-  // Action to fetch details for a pending transaction from ZondScan API with polling
+  // Action to fetch details for a pending transaction from Explorer API with polling
   async fetchPendingTxDetails(txHash: string) {
     const maxAttempts = 10; // Try up to 10 times
     const pollInterval = 1500; // Wait 1.5 seconds between attempts
@@ -519,7 +535,7 @@ class ZondStore {
         }
 
         log(`Fetching pending details for ${txHash}, attempt ${attempt}`);
-        const apiUrl = getPendingTxApiUrl(this.zondConnection.blockchain);
+        const apiUrl = getPendingTxApiUrl(this.qrlConnection.blockchain);
         const response = await fetch(apiUrl);
 
         if (!response.ok) {
@@ -596,33 +612,34 @@ class ZondStore {
     to: string,
     value: string,
     mnemonicPhrases: string,
+    feeLevel: FeeLevel = 'medium',
   ) {
     // Reset status before starting a new transaction
     this.resetTransactionStatus();
 
     try {
       // Fetch the next available nonce, including pending transactions
-      const nonce = await this.zondInstance?.getTransactionCount(from, "pending");
+      const nonce = await this.qrlInstance?.getTransactionCount(from, "pending");
 
-      // Fetch current gas price
-      const gasPrice = (await this.zondInstance?.getGasPrice()) ?? BigInt(0);
-      const gasPriceHex = utils.toHex(gasPrice);
+      // Fetch current gas price and apply fee level multiplier
+      const baseGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(1000000000);
+      const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
 
       const transactionObject = {
         from,
         to,
-        value: utils.toWei(value, "ether"),
+        value: utils.toPlanck(value, "quanta"),
         gas: 21000, // Standard gas limit for native transfer
         type: '0x2',
-        maxFeePerGas: gasPriceHex,
-        maxPriorityFeePerGas: gasPriceHex,
+        maxFeePerGas: utils.toHex(maxFeePerGas),
+        maxPriorityFeePerGas: utils.toHex(maxPriorityFeePerGas),
         nonce: nonce,
       };
       const privateKey = getHexSeedFromMnemonic(mnemonicPhrases);
 
       // Sign the transaction first to ensure validity before proceeding
       const signedTransaction =
-        await this.zondInstance?.accounts.signTransaction(
+        await this.qrlInstance?.accounts.signTransaction(
           transactionObject,
           privateKey
         );
@@ -632,7 +649,7 @@ class ZondStore {
       }
 
       // Send the signed transaction and handle PromiEvents
-      const promiEvent = this.zondInstance?.sendSignedTransaction(
+      const promiEvent = this.qrlInstance?.sendSignedTransaction(
         signedTransaction.rawTransaction
       );
 
@@ -696,21 +713,23 @@ class ZondStore {
     }
   }
 
-  async sendToken(token: TokenInterface, amount: string, mnemonicPhrases: string, toAddress: string) {
+  async sendToken(token: TokenInterface, amount: string, mnemonicPhrases: string, toAddress: string, feeLevel: FeeLevel = 'medium') {
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { url } = ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER];
+      const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       const seed = getHexSeedFromMnemonic(mnemonicPhrases);
-      const acc = web3.zond.accounts.seedToAccount(seed)
-      web3.zond.wallet?.add(seed);
-      web3.zond.transactionConfirmationBlocks = 1;
-      const contract = new web3.zond.Contract(CustomERC20ABI, token.address);
+      const acc = web3.qrl.accounts.seedToAccount(seed)
+      web3.qrl.wallet?.add(seed);
+      web3.qrl.transactionConfirmationBlocks = 1;
+      const baseGasPrice = (await web3.qrl.getGasPrice()) ?? BigInt(1000000000);
+      const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
+      const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
       const tx = contract.methods.transfer(toAddress, amount).encodeABI();
       const estimateGas = await contract.methods.transfer(toAddress, amount).estimateGas({ "from": acc.address })
-      const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: tx, to: token.address }
+      const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: tx, to: token.address, maxFeePerGas, maxPriorityFeePerGas }
 
-      const promiEvent = web3.zond.sendTransaction(txObj, undefined, {
+      const promiEvent = web3.qrl.sendTransaction(txObj, undefined, {
         checkRevertBeforeSending: true
       });
 
@@ -786,12 +805,12 @@ class ZondStore {
     try {
       this.setCreatingToken(tokenName, true);
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { url } = ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER];
+      const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
       const seed = getHexSeedFromMnemonic(mnemonicPhrases);
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
-      const acc = web3.zond.accounts.seedToAccount(seed)
-      web3.zond.wallet?.add(seed);
-      web3.zond.transactionConfirmationBlocks = 1;
+      const acc = web3.qrl.accounts.seedToAccount(seed)
+      web3.qrl.wallet?.add(seed);
+      web3.qrl.transactionConfirmationBlocks = 1;
 
       const contractAddress = import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
 
@@ -801,7 +820,7 @@ class ZondStore {
       }
 
       // Verify factory contract exists before attempting token creation
-      const factoryCode = await web3.zond.getCode(contractAddress);
+      const factoryCode = await web3.qrl.getCode(contractAddress);
       if (!factoryCode || factoryCode === '0x' || factoryCode === '0x0') {
         throw new Error(`Factory contract not deployed at address: ${contractAddress}`);
       }
@@ -823,7 +842,7 @@ class ZondStore {
         // If logs are empty in receipt, fetch them separately using getPastLogs
         if (!tokenCreatedLog && data.blockNumber) {
           try {
-            const logs = await web3.zond.getPastLogs({
+            const logs = await web3.qrl.getPastLogs({
               fromBlock: data.blockNumber,
               toBlock: data.blockNumber,
               address: contractAddress,
@@ -847,7 +866,7 @@ class ZondStore {
           return;
         }
         const tokenTopic = tokenCreatedLog.topics[1];
-        const erc20TokenAddress = `Z${tokenTopic.toString().slice(-40)}`;
+        const erc20TokenAddress = `Q${tokenTopic.toString().slice(-40)}`;
         const tx = data.transactionHash;
         const blockNumber = Number(data.blockNumber);
         const gasUsed = Number(data.gasUsed);
@@ -863,7 +882,7 @@ class ZondStore {
         this.setCreatingToken("", false, error.message || "Transaction failed");
       }
 
-      const customERC20Factorycontract = new web3.zond.Contract(customERC20FactoryABI, contractAddress);
+      const customERC20Factorycontract = new web3.qrl.Contract(customERC20FactoryABI, contractAddress);
 
       const contractCreateToken = customERC20Factorycontract.methods.createToken(
         tokenName,
@@ -881,7 +900,7 @@ class ZondStore {
 
       const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: contractCreateToken.encodeABI(), to: contractAddress }
 
-      await web3.zond.sendTransaction(txObj, undefined, {
+      await web3.qrl.sendTransaction(txObj, undefined, {
         checkRevertBeforeSending: true
       })
         .on('confirmation', confirmationHandler)
@@ -905,7 +924,7 @@ class ZondStore {
       for (let i = 0; i < this.tokenList.length; i++) {
         const token = this.tokenList[i];
         try {
-          const balance = await fetchBalance(token.address, this.activeAccount.accountAddress, ZOND_PROVIDER[selectedBlockChain as keyof typeof ZOND_PROVIDER].url);
+          const balance = await fetchBalance(token.address, this.activeAccount.accountAddress, QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url);
           const balanceStr = formatUnits(balance, token.decimals);
           updatedTokenList[i] = { ...token, amount: getOptimalTokenBalance(balanceStr, token.symbol) };
         } catch (err) {
@@ -920,10 +939,10 @@ class ZondStore {
     }
   }
 
-  // Discover and add tokens for an address using ZondScan API
+  // Discover and add tokens for an address using Explorer API
   async discoverAndAddTokens(address: string) {
     try {
-      const blockchain = this.zondConnection.blockchain;
+      const blockchain = this.qrlConnection.blockchain;
       if (!blockchain) {
         log("Cannot discover tokens: no blockchain selected");
         return;
@@ -1001,7 +1020,7 @@ class ZondStore {
 
   // --- NEW: Function to poll for transaction receipt ---
   async pollForReceipt(txHash: string) {
-    if (!txHash || !this.zondInstance) return;
+    if (!txHash || !this.qrlInstance) return;
 
     const maxAttempts = 60; // Poll for ~5 minutes (60 attempts * 5 seconds)
     const pollInterval = 5000; // 5 seconds
@@ -1021,7 +1040,7 @@ class ZondStore {
       log(`Polling for receipt ${txHash}, attempt ${attempts}`);
 
       try {
-        const receipt = await this.zondInstance?.getTransactionReceipt(txHash);
+        const receipt = await this.qrlInstance?.getTransactionReceipt(txHash);
 
         if (receipt) {
           log(`Receipt found for ${txHash}`);
@@ -1083,7 +1102,7 @@ class ZondStore {
   // --- END NEW Function ---
 
   // --- NEW: Send Transaction via Extension ---
-  async sendTransactionViaExtension(to: string, valueEther: string /* Value in Ether */) {
+  async sendTransactionViaExtension(to: string, valueEther: string, feeLevel: FeeLevel = 'medium') {
     if (!this.extensionProvider) {
       console.error("sendTransactionViaExtension called but no provider is set.");
       log("Error: sendTransactionViaExtension called without provider.");
@@ -1108,32 +1127,31 @@ class ZondStore {
         this.transactionStatus = { ...this.transactionStatus, state: 'pending' };
       });
 
-      // --- Use 18 decimals via "ether" unit --- 
-      let valueBaseUnit: string | bigint; // toWei returns string or bigint
+      // --- Use 18 decimals via "quanta" unit ---
+      let valueBaseUnit: string | bigint; // toPlanck returns string or bigint
       try {
-        valueBaseUnit = utils.toWei(valueEther, "ether"); // Use "ether" for 18 decimals
+        valueBaseUnit = utils.toPlanck(valueEther, "quanta"); // Use "quanta" for 18 decimals
       } catch (calcError) {
-        console.error("Error calculating base unit value with toWei:", calcError);
+        console.error("Error calculating base unit value with toPlanck:", calcError);
         throw new Error("Could not calculate transaction value.");
       }
       // --- End Wei Calculation ---
 
       const gasLimit = 53000;
-      const defaultMaxPriorityFeePerGasWei = '10000000'; // 0.01 Gwei (Tip)
-      const defaultMaxFeePerGasWei = '100000000';         // 0.1 Gwei (Cap)
 
-      // --- Manual Hex Conversion (still needed as utils.toHex was unreliable) --- 
-      // Convert potential string/BigInt from toWei to hex safely
+      // Fetch current gas price and apply fee level multiplier
+      const baseGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(1000000000);
+      const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
+
       const valueHex = "0x" + BigInt(valueBaseUnit).toString(16);
       const gasHex = "0x" + gasLimit.toString(16);
-      const maxPriorityFeeHex = "0x" + parseInt(defaultMaxPriorityFeePerGasWei).toString(16);
-      const maxFeeHex = "0x" + parseInt(defaultMaxFeePerGasWei).toString(16);
-      // --- End Manual Hex Conversion ---
+      const maxPriorityFeeHex = "0x" + maxPriorityFeePerGas.toString(16);
+      const maxFeeHex = "0x" + maxFeePerGas.toString(16);
 
       const params = [{
         from: this.activeAccount.accountAddress,
         to: to,
-        value: valueHex, // Use manually hexed value from toWei("ether")
+        value: valueHex, // Use manually hexed value from toPlanck("quanta")
         gas: gasHex,
         maxPriorityFeePerGas: maxPriorityFeeHex,
         maxFeePerGas: maxFeeHex,
@@ -1143,7 +1161,7 @@ class ZondStore {
       log(`Requesting transaction via extension (18 Decimals): ${JSON.stringify(params)}`);
       // Extension provider handles user confirmation popup
       const txHash = await this.extensionProvider.request({
-        method: 'zond_sendTransaction',
+        method: 'qrl_sendTransaction',
         params: params
       });
 
@@ -1182,4 +1200,4 @@ class ZondStore {
   }
 }
 
-export default ZondStore;
+export default QrlStore;

@@ -2,8 +2,8 @@ import { getTokenDiscoveryApiUrl } from "@/config";
 import { TokenInterface } from "@/constants";
 import { log } from "@/utils";
 
-// Token info from ZondScan API
-interface ZondScanToken {
+// Token info from Explorer API
+interface ExplorerToken {
   contractAddress: string;
   holderAddress: string;
   balance: string;
@@ -14,15 +14,15 @@ interface ZondScanToken {
   updatedAt: string;
 }
 
-// API response wrapper from ZondScan
-interface ZondScanTokenResponse {
+// API response wrapper from Explorer
+interface ExplorerTokenResponse {
   address: string;
-  tokens: ZondScanToken[];
+  tokens: ExplorerToken[];
   count: number;
 }
 
 /**
- * Discovers QRC-20 tokens held by an address using the ZondScan API
+ * Discovers QRC-20 tokens held by an address using the Explorer API
  * @param address - The wallet address to check for tokens
  * @param blockchain - The blockchain network (e.g., "TEST_NET", "MAIN_NET")
  * @returns Array of discovered tokens with balances
@@ -46,7 +46,7 @@ export async function discoverTokens(
       throw new Error(`Token discovery failed: ${response.statusText}`);
     }
 
-    const data: ZondScanTokenResponse = await response.json();
+    const data: ExplorerTokenResponse = await response.json();
 
     if (!data || !Array.isArray(data.tokens)) {
       log(`Invalid token discovery response format`);
@@ -58,11 +58,11 @@ export async function discoverTokens(
       .map((token) => ({
         name: token.name || "Unknown Token",
         symbol: token.symbol || "UNK",
-        address: token.contractAddress.startsWith("Z")
+        address: token.contractAddress.startsWith("Q")
           ? token.contractAddress
-          : token.contractAddress.startsWith("z")
-            ? `Z${token.contractAddress.slice(1)}`
-            : `Z${token.contractAddress.replace(/^0x/i, "")}`,
+          : token.contractAddress.startsWith("q")
+            ? `Q${token.contractAddress.slice(1)}`
+            : `Q${token.contractAddress.replace(/^0x/i, "")}`,
         amount: token.balance || "0",
         decimals: token.decimals || 18,
       }));

@@ -4,19 +4,19 @@ import { useStore } from "@/stores/store";
 import { SEO } from "@/components/SEO/SEO";
 
 const CreateToken = observer(() => {
-    const { zondStore } = useStore();
+    const { qrlStore } = useStore();
     const {
         createToken,
-    } = zondStore;
+    } = qrlStore;
 
     const onTokenCreated = async (tokenName: string, tokenSymbol: string, initialSupply: string, decimals: number, maxSupply: undefined | string, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | string, maxTransactionLimit: undefined | string, mnemonicPhrases: string) => {
 
         if (!initialRecipient) {
-            initialRecipient = "Z0000000000000000000000000000000000000000";
+            initialRecipient = "Q0000000000000000000000000000000000000000";
         }
 
         if (!tokenOwner) {
-            tokenOwner = "Z0000000000000000000000000000000000000000";
+            tokenOwner = "Q0000000000000000000000000000000000000000";
         }
 
         if (!maxSupply) {

@@ -9,8 +9,8 @@ type AccountBalanceProps = {
 };
 
 export const AccountBalance = observer(({ accountAddress, className }: AccountBalanceProps) => {
-  const { zondStore } = useStore();
-  const { getAccountBalance } = zondStore;
+  const { qrlStore } = useStore();
+  const { getAccountBalance } = qrlStore;
   const balance = getAccountBalance(accountAddress);
 
   return (

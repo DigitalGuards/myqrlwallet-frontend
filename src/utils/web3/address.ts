@@ -1,16 +1,16 @@
 /**
- * Address validation utilities for Zond blockchain addresses
+ * Address validation utilities for QRL blockchain addresses
  *
- * Zond addresses follow the format: Z + 40 hexadecimal characters (total 41 chars)
- * Example: Z20b4fb2929cfBe8b002b8A0c572551F755e54aEF
+ * QRL addresses follow the format: Q + 40 hexadecimal characters (total 41 chars)
+ * Example: Q20b4fb2929cfBe8b002b8A0c572551F755e54aEF
  */
 
 /**
- * Validates if a string is a properly formatted Zond address
+ * Validates if a string is a properly formatted QRL address
  * @param address - The address string to validate
  * @returns boolean - True if address is valid, false otherwise
  */
-export const isValidZondAddress = (address: string): boolean => {
+export const isValidQrlAddress = (address: string): boolean => {
   if (!address || typeof address !== 'string') {
     return false;
   }
@@ -18,17 +18,17 @@ export const isValidZondAddress = (address: string): boolean => {
   // Trim any whitespace
   const trimmedAddress = address.trim();
 
-  // Check basic format: must start with 'Z' and be 42 characters total
-  // (Z + 40 hex chars)
-  if (!trimmedAddress.startsWith('Z')) {
+  // Check basic format: must start with 'Q' and be 41 characters total
+  // (Q + 40 hex chars)
+  if (!trimmedAddress.startsWith('Q')) {
     return false;
   }
 
-  if (trimmedAddress.length !== 42) {
+  if (trimmedAddress.length !== 41) {
     return false;
   }
 
-  // Check that characters after 'Z' are valid hexadecimal
+  // Check that characters after 'Q' are valid hexadecimal
   const hexPart = trimmedAddress.slice(1);
   const hexRegex = /^[0-9a-fA-F]{40}$/;
 
@@ -40,18 +40,18 @@ export const isValidZondAddress = (address: string): boolean => {
 };
 
 /**
- * Validates and normalizes a Zond address
+ * Validates and normalizes a QRL address
  * @param address - The address string to validate and normalize
  * @returns string | null - Normalized address or null if invalid
  */
-export const normalizeZondAddress = (address: string): string | null => {
-  if (!isValidZondAddress(address)) {
+export const normalizeQrlAddress = (address: string): string | null => {
+  if (!isValidQrlAddress(address)) {
     return null;
   }
 
-  // Return the address with 'Z' and lowercase hex
+  // Return the address with 'Q' and lowercase hex
   const trimmedAddress = address.trim();
-  return 'Z' + trimmedAddress.slice(1).toLowerCase();
+  return 'Q' + trimmedAddress.slice(1).toLowerCase();
 };
 
 /**
@@ -66,21 +66,21 @@ export const getAddressValidationError = (address: string): string => {
 
   const trimmedAddress = address.trim();
 
-  if (!trimmedAddress.startsWith('Z')) {
-    return "Address must start with 'Z'";
+  if (!trimmedAddress.startsWith('Q')) {
+    return "Address must start with 'Q'";
   }
 
-  if (trimmedAddress.length < 42) {
-    return `Address is too short (${trimmedAddress.length}/42 characters)`;
+  if (trimmedAddress.length < 41) {
+    return `Address is too short (${trimmedAddress.length}/41 characters)`;
   }
 
-  if (trimmedAddress.length > 42) {
-    return `Address is too long (${trimmedAddress.length}/42 characters)`;
+  if (trimmedAddress.length > 41) {
+    return `Address is too long (${trimmedAddress.length}/41 characters)`;
   }
 
   const hexPart = trimmedAddress.slice(1);
   if (!/^[0-9a-fA-F]+$/.test(hexPart)) {
-    return "Address contains invalid characters (only 0-9, a-f, A-F allowed after 'Z')";
+    return "Address contains invalid characters (only 0-9, a-f, A-F allowed after 'Q')";
   }
 
   return "Invalid address format";

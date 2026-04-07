@@ -24,8 +24,8 @@ import { DialogTitle } from "@/components/UI/Dialog";
 
 const NavBar = observer(() => {
     const navigate = useNavigate();
-    const { zondStore } = useStore();
-    const { zondAccounts, setActiveAccount, activeAccount } = zondStore;
+    const { qrlStore } = useStore();
+    const { qrlAccounts, setActiveAccount, activeAccount } = qrlStore;
 
     const [open, setOpen] = useState(false);
     const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
@@ -55,7 +55,7 @@ const NavBar = observer(() => {
                         <NavigationMenuTrigger>Wallets</NavigationMenuTrigger>
                         <NavigationMenuContent>
                             <ul className="flex flex-col gap-1 p-4 w-full">
-                                {zondAccounts.accounts.map((account, idx) => (
+                                {qrlAccounts.accounts.map((account, idx) => (
                                     <span
                                         key={idx}
                                         className="cursor-pointer font-mono hover:bg-gray-900 p-1 rounded flex items-center justify-between gap-2 group"
@@ -158,7 +158,7 @@ const NavBar = observer(() => {
                                 <NavigationMenuTrigger>Wallets</NavigationMenuTrigger>
                                 <NavigationMenuContent>
                                     <ul className="flex flex-col gap-1 p-4 w-full">
-                                        {zondAccounts.accounts.map((account, idx) => (
+                                        {qrlAccounts.accounts.map((account, idx) => (
                                             <span
                                                 key={idx}
                                                 className="cursor-pointer font-mono hover:bg-gray-900 p-1 rounded flex items-center justify-between gap-2 group"

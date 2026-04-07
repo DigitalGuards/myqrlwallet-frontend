@@ -170,7 +170,7 @@ export class DAppConnectService {
     this.connections.set(params.channelId, connection);
 
     // Save initial session
-    const activeAccount = store.zondStore.activeAccount?.accountAddress || '';
+    const activeAccount = store.qrlStore.activeAccount?.accountAddress || '';
     const session: DAppSession = {
       id: params.channelId,
       dappInfo,
@@ -228,7 +228,7 @@ export class DAppConnectService {
     }
 
     // Send wallet info to dApp
-    const activeAccount = store.zondStore.activeAccount?.accountAddress || '';
+    const activeAccount = store.qrlStore.activeAccount?.accountAddress || '';
     this.sendEncrypted(channelId, {
       type: MessageType.WALLET_INFO,
       accounts: activeAccount ? [activeAccount] : [],
@@ -385,7 +385,7 @@ export class DAppConnectService {
     params?: unknown[]
   ): Promise<void> {
     try {
-      const web3 = store.zondStore.zondInstance;
+      const web3 = store.qrlStore.qrlInstance;
       if (!web3) {
         throw new Error('Web3 not initialized');
       }
