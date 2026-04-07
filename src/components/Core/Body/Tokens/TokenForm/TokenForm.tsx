@@ -15,7 +15,7 @@ import { Button } from "@/components/UI/Button";
 import { Loader2, Plus, RefreshCw, Import, Coins } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 import { formatUnits } from "ethers";
-import { ZOND_PROVIDER } from "@/config";
+import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 
 import {
@@ -35,12 +35,12 @@ import { ROUTES } from "@/router/router";
 import { getOptimalTokenBalance } from "@/utils/formatting";
 
 const TokenForm = observer(() => {
-    const { zondStore } = useStore();
+    const { qrlStore } = useStore();
     const navigate = useNavigate();
     const {
         activeAccount: { accountAddress: activeAccountAddress },
         visibleTokenList,
-    } = zondStore;
+    } = qrlStore;
 
     const [tokenList, setTokenList] = useState<TokenInterface[]>(visibleTokenList);
     const [isAddTokenModalOpen, setIsAddTokenModalOpen] = useState(false);
@@ -52,17 +52,17 @@ const TokenForm = observer(() => {
         try {
             // Clear hidden tokens so they reappear
             await StorageUtil.clearHiddenTokens();
-            await zondStore.loadHiddenTokens();
+            await qrlStore.loadHiddenTokens();
 
             // Clear existing token list to prevent tokens from other accounts showing
             await StorageUtil.clearTokenList();
-            await zondStore.setTokenList([]);
+            await qrlStore.setTokenList([]);
 
             // Discover tokens for the active account only
-            await zondStore.discoverAndAddTokens(activeAccountAddress);
+            await qrlStore.discoverAndAddTokens(activeAccountAddress);
 
             // Then refresh all balances
-            await zondStore.refreshTokenBalances();
+            await qrlStore.refreshTokenBalances();
         } catch (error) {
             console.error("Failed to refresh tokens:", error);
         } finally {
@@ -77,7 +77,7 @@ const TokenForm = observer(() => {
                 const selectedBlockChain = await StorageUtil.getBlockChain();
                 const promises = visibleTokenList.map(async (token) => {
                     try {
-                        const balance = await fetchBalance(token.address, activeAccountAddress, ZOND_PROVIDER[selectedBlockChain].url);
+                        const balance = await fetchBalance(token.address, activeAccountAddress, QRL_PROVIDER[selectedBlockChain].url);
                         const balanceStr = formatUnits(balance, token.decimals);
                         return { ...token, amount: getOptimalTokenBalance(balanceStr, token.symbol) };
                     } catch (err) {

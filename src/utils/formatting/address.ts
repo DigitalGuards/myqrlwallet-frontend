@@ -1,7 +1,7 @@
 /**
- * Formats a Zond address into groups of 6 characters.
- * The Z prefix is included with the first group.
- * Example: Z2019EA08... -> "Z2019E A08f4e 24201B..."
+ * Formats a QRL address into groups of 6 characters.
+ * The Q prefix is included with the first group.
+ * Example: Q2019EA08... -> "Q2019E A08f4e 24201B..."
  */
 export const formatAddress = (address: string, groupSize: number = 6): string => {
   if (!address) return "";
@@ -15,7 +15,7 @@ export const formatAddress = (address: string, groupSize: number = 6): string =>
 };
 
 /**
- * Formats a Zond address for display in a shortened form.
+ * Formats a QRL address for display in a shortened form.
  * Shows first and last groups with ellipsis in between.
  * Example: Z2019EA08...4b924A04892 -> "Z2019E ... 04892"
  */

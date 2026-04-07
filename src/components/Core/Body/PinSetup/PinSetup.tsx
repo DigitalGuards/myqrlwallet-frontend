@@ -61,9 +61,9 @@ export const PinSetup = ({
   hexSeed,
   onPinSetupComplete,
 }: PinSetupProps) => {
-  const { zondStore } = useStore();
-  const { zondConnection } = zondStore;
-  const { blockchain } = zondConnection;
+  const { qrlStore } = useStore();
+  const { qrlConnection } = qrlStore;
+  const { blockchain } = qrlConnection;
   const [isStoringPin, setIsStoringPin] = useState(false);
   const [hasExistingSeeds, setHasExistingSeeds] = useState<boolean | null>(null);
   const [existingSeeds, setExistingSeeds] = useState<{ address: string; encryptedSeed: string }[]>([]);

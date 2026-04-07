@@ -6,9 +6,9 @@ import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const RouteMonitor = observer(() => {
-  const { zondStore } = useStore();
-  const { zondConnection } = zondStore;
-  const { isConnected } = zondConnection;
+  const { qrlStore } = useStore();
+  const { qrlConnection } = qrlStore;
+  const { isConnected } = qrlConnection;
 
   const navigate = useNavigate();
   const { pathname } = useLocation();
