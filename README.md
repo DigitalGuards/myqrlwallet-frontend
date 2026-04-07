@@ -225,7 +225,7 @@ When running inside the [MyQRLWallet App](https://github.com/DigitalGuards/myqrl
 
 - [QRL Website](https://www.theqrl.org/)
 - [QRL Documentation](https://docs.theqrl.org/)
-- [ZondScan Explorer](https://zondscan.com)
+- [Block Explorer (ZondScan)](https://zondscan.com)
 - [Twitter](https://x.com/DigitalGuards)
 
 ## Contributing
