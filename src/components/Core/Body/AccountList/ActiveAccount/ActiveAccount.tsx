@@ -23,12 +23,12 @@ import { ExtensionBadge } from "../ExtensionBadge/ExtensionBadge";
 import { CopyAddressButton } from "../CopyAddressButton/CopyAddressButton";
 
 export const ActiveAccount = observer(() => {
-  const { zondStore } = useStore();
+  const { qrlStore } = useStore();
   const {
     activeAccount: { accountAddress },
     activeAccountSource,
-    zondConnection: { blockchain },
-  } = zondStore;
+    qrlConnection: { blockchain },
+  } = qrlStore;
 
   const activeAccountLabel = "Active account";
   const [txHistoryOpen, setTxHistoryOpen] = useState(false);
@@ -65,7 +65,7 @@ export const ActiveAccount = observer(() => {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top">
-                    <Label>View in Zondscan</Label>
+                    <Label>View on Explorer</Label>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -79,7 +79,7 @@ export const ActiveAccount = observer(() => {
                     level="L"
                     includeMargin={false}
                   />
-                  <Label className="text-xs text-muted-foreground">Scan to open in Zondscan</Label>
+                  <Label className="text-xs text-muted-foreground">Scan to open in Explorer</Label>
                 </div>
               </div>
             </span>

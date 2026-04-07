@@ -14,9 +14,9 @@ const NavBar = withSuspense(
 )
 
 const Header = observer(() => {
-  const { zondStore } = useStore();
-  const { zondConnection } = zondStore;
-  const { isConnected } = zondConnection;
+  const { qrlStore } = useStore();
+  const { qrlConnection } = qrlStore;
+  const { isConnected } = qrlConnection;
 
   return (
     <header
