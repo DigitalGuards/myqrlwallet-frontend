@@ -1,6 +1,6 @@
 export {
   QRL_PROVIDER,
-  ZONDSCAN_BASE,
+  EXPLORER_BASE,
   SERVER_URL,
   getExplorerAddressUrl,
   getExplorerTxUrl,

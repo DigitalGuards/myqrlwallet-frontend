@@ -1,4 +1,4 @@
-import { QRL_PROVIDER, ZONDSCAN_BASE, getPendingTxApiUrl } from "@/config";
+import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
 import { getHexSeedFromMnemonic } from "@/utils/crypto";
 import { StorageUtil, AccountListItem, AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
@@ -208,7 +208,7 @@ class QrlStore {
 
   async fetchQrlPrice() {
     try {
-      const res = await fetch(`${ZONDSCAN_BASE}/api/overview`);
+      const res = await fetch(`${EXPLORER_BASE}/api/overview`);
       const data = await res.json();
       const price = data?.currentPrice;
       const change = data?.priceChange24h;
