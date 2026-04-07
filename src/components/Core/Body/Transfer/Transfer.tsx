@@ -327,7 +327,7 @@ const Transfer = observer(() => {
         }
 
         // Verify decrypted mnemonic matches the expected account address
-        const senderAddress = getAddressFromMnemonic(mnemonicPhrases);
+        const senderAddress = getAddressFromMnemonic(mnemonicPhrases, qrlStore.qrlInstance!);
         if (senderAddress.toLowerCase() !== accountAddress.toLowerCase()) {
           control.setError("pin", { message: "Security error: seed mismatch detected. Please re-import this account." });
           return;
@@ -361,7 +361,7 @@ const Transfer = observer(() => {
         return;
       }
 
-      const senderAddress = getAddressFromMnemonic(mnemonic);
+      const senderAddress = getAddressFromMnemonic(mnemonic, qrlStore.qrlInstance!);
       if (senderAddress.toLowerCase() !== accountAddress.toLowerCase()) {
         control.setError("pin", { message: "PIN decrypted an invalid seed." });
         return;

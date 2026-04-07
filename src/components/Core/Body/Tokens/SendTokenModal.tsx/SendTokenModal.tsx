@@ -83,7 +83,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                 }
                 
                 // Verify the mnemonic corresponds to the active account
-                const senderAddress = getAddressFromMnemonic(mnemonic);
+                const senderAddress = getAddressFromMnemonic(mnemonic, qrlStore.qrlInstance!);
                 if (senderAddress.toLowerCase() !== activeAccountAddress.toLowerCase()) {
                     setPinError("PIN decrypted an invalid seed. Please import your account again.");
                     setIsLoading(false);

@@ -156,7 +156,7 @@ export const TokenCreationForm = observer(
                         mnemonicPhrase = decryptedSeed.mnemonic;
 
                         // Verify the mnemonic corresponds to the active account
-                        const address = getAddressFromMnemonic(mnemonicPhrase);
+                        const address = getAddressFromMnemonic(mnemonicPhrase, qrlStore.qrlInstance!);
                         if (address.toLowerCase() !== activeAccount.accountAddress.toLowerCase()) {
                             setPinError("PIN decrypted an invalid seed. Please import your account again.");
                             return;
