@@ -1,18 +1,18 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/UI/Card";
 import { useStore } from "../../../../../stores/store";
 import { observer } from "mobx-react-lite";
-import { ZOND_PROVIDER } from "@/config";
+import { QRL_PROVIDER } from "@/config";
 import { CustomRpcModal } from "../../Home/ConnectionBadge/CustomRpcModal";
 import { Button } from "@/components/UI/Button";
 import { Network, Settings2 } from "lucide-react";
 import { useState } from "react";
 
 export const NetworkSettings = observer(() => {
-    const { zondStore } = useStore();
-    const { zondConnection, selectBlockchain } = zondStore;
-    const { blockchain, isLoading } = zondConnection;
+    const { qrlStore } = useStore();
+    const { qrlConnection, selectBlockchain } = qrlStore;
+    const { blockchain, isLoading } = qrlConnection;
     const [isCustomRpcModalOpen, setIsCustomRpcModalOpen] = useState(false);
-    const { TEST_NET, MAIN_NET, CUSTOM_RPC } = ZOND_PROVIDER;
+    const { TEST_NET, MAIN_NET, CUSTOM_RPC } = QRL_PROVIDER;
 
     return (
         <Card className="border-l-4 border-l-blue-accent">

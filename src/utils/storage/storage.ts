@@ -1,4 +1,4 @@
-import { ZOND_PROVIDER } from "@/config";
+import { QRL_PROVIDER } from "@/config";
 import { TokenInterface } from "@/constants";
 import { isInNativeApp } from "@/utils/nativeApp";
 
@@ -24,7 +24,7 @@ type TransactionValuesType = {
   amount?: number;
 };
 
-type BlockchainType = keyof typeof ZOND_PROVIDER;
+type BlockchainType = keyof typeof QRL_PROVIDER;
 
 interface StorageItem<T> {
   value: T;
@@ -148,7 +148,7 @@ class StorageUtil {
   }
 
   static async getBlockChain() {
-    const DEFAULT_BLOCKCHAIN = ZOND_PROVIDER.TEST_NET.id;
+    const DEFAULT_BLOCKCHAIN = QRL_PROVIDER.TEST_NET.id;
     const storedBlockchain = this.getItem<string>(BLOCKCHAIN_SELECTION_IDENTIFIER);
     return (storedBlockchain ?? DEFAULT_BLOCKCHAIN) as BlockchainType;
   }

@@ -7,8 +7,8 @@ import { copyToClipboard } from "@/utils/nativeApp";
 import { SlotBalance } from "./SlotBalance";
 
 export const ActiveAccountDisplay = observer(() => {
-  const { zondStore } = useStore();
-  const { activeAccount, fetchAccounts, activeAccountBalance, activeAccountBalanceUsd, qrlPrice, qrlPriceChange24h } = zondStore;
+  const { qrlStore } = useStore();
+  const { activeAccount, fetchAccounts, activeAccountBalance, activeAccountBalanceUsd, qrlPrice, qrlPriceChange24h } = qrlStore;
   const { accountAddress } = activeAccount;
   const [copiedItem, setCopiedItem] = useState<'balance' | 'address' | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -30,7 +30,7 @@ export const ActiveAccountDisplay = observer(() => {
     setIsSlotSpinning(true);
     try {
       await fetchAccounts();
-      zondStore.fetchQrlPrice();
+      qrlStore.fetchQrlPrice();
     } finally {
       setIsRefreshing(false);
       // Let the slot animation finish its cascade before clearing

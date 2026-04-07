@@ -1,6 +1,6 @@
 import { ROUTES } from "@/router/router";
 import StorageUtil from "./storage/storage";
-import { ZOND_PROVIDER } from "@/config";
+import { QRL_PROVIDER } from "@/config";
 import { isInNativeApp } from "./nativeApp";
 import { clearAttemptTracker } from "./crypto/pinAttemptTracker";
 
@@ -19,7 +19,7 @@ import { clearAttemptTracker } from "./crypto/pinAttemptTracker";
 export const handleLogout = async (navigate: (path: string) => void) => {
     try {
         // Get all blockchain types
-        const blockchains = Object.keys(ZOND_PROVIDER);
+        const blockchains = Object.keys(QRL_PROVIDER);
 
         // Clear active accounts and encrypted seeds for all blockchains
         for (const blockchain of blockchains) {

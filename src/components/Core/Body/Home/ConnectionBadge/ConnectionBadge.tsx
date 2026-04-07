@@ -14,7 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../../../../UI/Tooltip";
-import { ZOND_PROVIDER } from "@/config";
+import { QRL_PROVIDER } from "@/config";
 import { useStore } from "../../../../../stores/store";
 import { cva } from "class-variance-authority";
 import { Check, ChevronDown, Globe, Network, Workflow, ExternalLink } from "lucide-react";
@@ -88,16 +88,16 @@ const PulsingDot = ({ isConnected }: { isConnected: boolean }) => {
 };
 
 const ConnectionBadge = observer(() => {
-  const { zondStore } = useStore();
-  const { zondConnection, selectBlockchain } = zondStore;
-  const { isConnected, zondNetworkName, isLoading } = zondConnection;
+  const { qrlStore } = useStore();
+  const { qrlConnection, selectBlockchain } = qrlStore;
+  const { isConnected, qrlNetworkName, isLoading } = qrlConnection;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCustomRpcModalOpen, setIsCustomRpcModalOpen] = useState(false);
-  const { TEST_NET, MAIN_NET, CUSTOM_RPC } = ZOND_PROVIDER;
+  const { TEST_NET, MAIN_NET, CUSTOM_RPC } = QRL_PROVIDER;
   const [isTestNetwork, isMainNetwork, isCustomRpcNetwork] = [
-    TEST_NET.name === zondNetworkName,
-    MAIN_NET.name === zondNetworkName,
-    CUSTOM_RPC.name === zondNetworkName,
+    TEST_NET.name === qrlNetworkName,
+    MAIN_NET.name === qrlNetworkName,
+    CUSTOM_RPC.name === qrlNetworkName,
   ];
 
   return (
@@ -108,7 +108,7 @@ const ConnectionBadge = observer(() => {
             <DropdownMenuTrigger asChild>
               <button
                 className="group flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-2.5 py-1.5 text-neutral-700 transition-all duration-200 hover:border-neutral-400 dark:border-neutral-700/80 dark:bg-card dark:text-zinc-300 dark:hover:border-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-accent focus-visible:ring-offset-2"
-                aria-label={`Network: ${zondNetworkName}`}
+                aria-label={`Network: ${qrlNetworkName}`}
               >
                 <PulsingDot isConnected={isConnected} />
                 <Globe className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
@@ -121,7 +121,7 @@ const ConnectionBadge = observer(() => {
             </DropdownMenuTrigger>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p>{zondNetworkName}</p>
+            <p>{qrlNetworkName}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

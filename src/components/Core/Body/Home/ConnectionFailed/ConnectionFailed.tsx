@@ -11,8 +11,8 @@ import { RefreshCw } from "lucide-react";
 import { observer } from "mobx-react-lite";
 
 const ConnectionFailed = observer(() => {
-  const { zondStore } = useStore();
-  const { fetchZondConnection } = zondStore;
+  const { qrlStore } = useStore();
+  const { fetchQrlConnection } = qrlStore;
 
   return (
     <Card>
@@ -27,7 +27,7 @@ const ConnectionFailed = observer(() => {
         <Button
           className="w-full"
           type="button"
-          onClick={() => fetchZondConnection()}
+          onClick={() => fetchQrlConnection()}
         >
           <RefreshCw className="mr-2 h-4 w-4" />
           Retry

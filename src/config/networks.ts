@@ -10,7 +10,7 @@ export const ZONDSCAN_BASE = import.meta.env.VITE_NODE_ENV === 'production'
   ? import.meta.env.VITE_ZOND_SCAN_URL_PRODUCTION
   : import.meta.env.VITE_ZOND_SCAN_URL_DEVELOPMENT;
 
-export const ZOND_PROVIDER = {
+export const QRL_PROVIDER = {
   TEST_NET: {
     id: "TEST_NET",
     url: `${RPC_API_BASE}/testnet`,
@@ -32,26 +32,26 @@ export const ZOND_PROVIDER = {
 };
 
 export const getExplorerAddressUrl = (address: string, blockchain: string) => {
-  const provider = ZOND_PROVIDER[blockchain as keyof typeof ZOND_PROVIDER];
+  const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
   return `${provider.explorer}/address/${address}`;
 };
 
 // New function to get explorer URL for a transaction hash
 export const getExplorerTxUrl = (txHash: string, blockchain: string) => {
-  const provider = ZOND_PROVIDER[blockchain as keyof typeof ZOND_PROVIDER];
+  const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
   // Assuming the explorer path for transactions is /tx/
   return `${provider.explorer}/tx/${txHash}`;
 };
 
 // New function to get the API endpoint for pending transactions
 export const getPendingTxApiUrl = (blockchain: string) => {
-  const provider = ZOND_PROVIDER[blockchain as keyof typeof ZOND_PROVIDER];
+  const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
   // Append the known API path to the explorer base URL
   return `${provider.explorer}/api/pending-transactions`;
 };
 
 // Get API endpoint for token discovery by address
 export const getTokenDiscoveryApiUrl = (address: string, blockchain: string) => {
-  const provider = ZOND_PROVIDER[blockchain as keyof typeof ZOND_PROVIDER];
+  const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
   return `${provider.explorer}/api/address/${address}/tokens`;
 };

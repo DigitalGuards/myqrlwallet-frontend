@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/UI/Input"
 import { Label } from "@/components/UI/Label"
 import { useEffect, useState } from "react";
-import { ZOND_PROVIDER } from "@/config";
+import { QRL_PROVIDER } from "@/config";
 import { useStore } from "@/stores/store";
 import { StorageUtil } from "@/utils/storage";
 import { Loader2 } from "lucide-react";
@@ -144,12 +144,12 @@ async function testRpcConnection(url: string): Promise<{ success: boolean; error
 }
 
 export function CustomRpcModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-    const { CUSTOM_RPC } = ZOND_PROVIDER;
+    const { CUSTOM_RPC } = QRL_PROVIDER;
     const [rpcUrl, setRpcUrl] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [isTesting, setIsTesting] = useState(false);
-    const { zondStore } = useStore();
-    const { setCustomRpcUrl, selectBlockchain } = zondStore;
+    const { qrlStore } = useStore();
+    const { setCustomRpcUrl, selectBlockchain } = qrlStore;
 
     const selectCustomRpc = async () => {
         setError(null);

@@ -20,19 +20,19 @@ import { Loader } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { isValidZondAddress } from "@/utils/web3";
+import { isValidQrlAddress } from "@/utils/web3";
 
 const FormSchema = z
     .object({
         tokenAddress: z.string()
             .min(1, { message: "Token address is required" })
-            .refine(isValidZondAddress, {
-                message: "Invalid token address. Must be 42 characters starting with 'Z' followed by 40 hex characters"
+            .refine(isValidQrlAddress, {
+                message: "Invalid token address. Must be 41 characters starting with 'Q' followed by 40 hex characters"
             }),
         toAddress: z.string()
             .min(1, { message: "Recipient address is required" })
-            .refine(isValidZondAddress, {
-                message: "Invalid recipient address. Must be 42 characters starting with 'Z' followed by 40 hex characters"
+            .refine(isValidQrlAddress, {
+                message: "Invalid recipient address. Must be 41 characters starting with 'Q' followed by 40 hex characters"
             }),
         amount: z.string()
             .min(1, { message: "Amount is required" })
@@ -94,7 +94,7 @@ export const TokenSendingForm = observer(
                                         <FormControl>
                                             <Input
                                                 disabled={isSubmitting}
-                                                placeholder="Example: Z20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
+                                                placeholder="Example: Q20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
                                                 type="text"
                                                 {...field}
                                             />
@@ -113,7 +113,7 @@ export const TokenSendingForm = observer(
                                             <Input
                                                 {...field}
                                                 disabled={isSubmitting}
-                                                placeholder="Example: Z20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
+                                                placeholder="Example: Q20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
                                                 type="text"
                                             />
                                         </FormControl>
