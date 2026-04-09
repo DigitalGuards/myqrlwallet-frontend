@@ -115,7 +115,7 @@ export const GasFeeNotice = ({
             ) : gasFee.error ? (
               <span className="text-sm">{gasFee.error}</span>
             ) : (
-              <span className="text-sm">~{gasFee.estimatedGas} QRL</span>
+              <span className="text-sm">~{gasFee.estimatedGas}</span>
             )}
           </div>
         </div>
