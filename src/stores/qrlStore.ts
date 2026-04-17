@@ -606,6 +606,15 @@ class QrlStore {
     }
   }
 
+  // Worst-case fee reserve for a native QRL transfer at the given fee level.
+  // Returns the amount in QRL that must stay in the wallet to cover gas.
+  async estimateNativeTransferFee(feeLevel: FeeLevel = 'medium'): Promise<string> {
+    const baseGasPrice = await this.qrlInstance?.getGasPrice();
+    if (!baseGasPrice) return "0";
+    const { maxFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
+    return utils.fromPlanck(BigInt(21000) * maxFeePerGas, "quanta");
+  }
+
   // Refactored signAndSendTransaction
   async signAndSendTransaction(
     from: string,
