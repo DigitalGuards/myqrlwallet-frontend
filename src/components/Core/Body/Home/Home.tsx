@@ -34,6 +34,7 @@ const Home = observer(() => {
   const { isLoading, isConnected, blockchain } = qrlConnection;
   const hasAccountCreationPreference = !!state?.hasAccountCreationPreference;
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const activeAccountVideoRef = useRef<HTMLVideoElement | null>(null);
   const [txHistoryOpen, setTxHistoryOpen] = useState(false);
   const [receiveOpen, setReceiveOpen] = useState(false);
 
@@ -43,6 +44,19 @@ const Home = observer(() => {
     const openDialogs = document.querySelectorAll('div[role="dialog"]');
     return openDialogs.length > 0;
   };
+
+  // Kick off playback of the active-account card video. iOS Safari and some
+  // other browsers don't reliably honor the autoPlay attribute on
+  // React-managed <video> elements after a route change, so call play()
+  // explicitly once the element is mounted.
+  useEffect(() => {
+    const video = activeAccountVideoRef.current;
+    if (!video) return;
+    video.play().catch(() => {
+      // Autoplay policy may still block playback; fail silently so the
+      // element degrades to a static first frame.
+    });
+  }, [activeAccount.accountAddress]);
 
   // Set up auto-refresh for balances
   useEffect(() => {
@@ -118,11 +132,13 @@ const Home = observer(() => {
                 <Card className="w-full relative overflow-hidden border-l-4 border-l-blue-accent">
                   <div className="absolute inset-0 overflow-hidden">
                     <video
+                      ref={activeAccountVideoRef}
                       autoPlay
                       muted
                       loop
                       playsInline
-                      className="w-full h-full object-cover opacity-30"
+                      preload="auto"
+                      className="decorative-video w-full h-full object-cover opacity-30"
                     >
                       <source src="qrl-video-dark.mp4" type="video/mp4" />
                     </video>
