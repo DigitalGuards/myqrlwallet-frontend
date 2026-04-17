@@ -195,6 +195,7 @@ class QrlStore {
       hideToken: action.bound,
       unhideToken: action.bound,
       loadHiddenTokens: action.bound,
+      estimateNativeTransferFee: action.bound,
     });
 
     // Log initialization
