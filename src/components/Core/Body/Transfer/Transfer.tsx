@@ -49,6 +49,7 @@ import { SEO } from "@/components/SEO/SEO";
 import { getOptimalTokenBalance, formatAddressShort } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
 import { formatUnits, parseUnits } from "ethers";
+import { BigNumber } from "bignumber.js";
 
 const Transfer = observer(() => {
   const navigate = useNavigate();
@@ -65,6 +66,7 @@ const Transfer = observer(() => {
     resetTransactionStatus,
     tokenList,
     sendToken: sendTokenToStore,
+    estimateNativeTransferFee,
   } = qrlStore;
   const { blockchain } = qrlConnection;
   const { accountAddress } = activeAccount;
@@ -114,6 +116,7 @@ const Transfer = observer(() => {
   const [amountInputValue, setAmountInputValue] = useState("");
   const [tokenBalance, setTokenBalance] = useState("0");
   const [hasJustCopied, setHasJustCopied] = useState(false);
+  const [nativeGasReserve, setNativeGasReserve] = useState("0");
 
   // QR Scanner state
   const [isScanning, setIsScanning] = useState(false);
@@ -183,6 +186,36 @@ const Transfer = observer(() => {
     setSliderValue(0);
     setValue("amount", 0);
   }, [selectedAsset, setValue]);
+
+  // Keep a worst-case gas fee reserve for native transfers so the slider's
+  // "Max" option doesn't pick a value that leaves nothing for gas. Extension
+  // wallets sign with a 53000 gas limit (vs 21000 for the in-app path).
+  useEffect(() => {
+    if (!isNativeTransfer) {
+      setNativeGasReserve("0");
+      return;
+    }
+    const gasLimit = isUsingExtension ? 53000 : 21000;
+    let cancelled = false;
+    (async () => {
+      try {
+        const fee = await estimateNativeTransferFee(feeLevel, gasLimit);
+        if (!cancelled) setNativeGasReserve(fee);
+      } catch {
+        if (!cancelled) setNativeGasReserve("0");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isNativeTransfer, isUsingExtension, feeLevel, estimateNativeTransferFee, accountAddress]);
+
+  // Balance available for the transfer amount itself (subtracting gas reserve for native).
+  const maxSendableBalance = useMemo(() => {
+    if (!isNativeTransfer) return accountBalance;
+    const balanceBn = new BigNumber(accountBalance || "0");
+    const reserveBn = new BigNumber(nativeGasReserve || "0");
+    const sendable = balanceBn.minus(reserveBn);
+    return sendable.isPositive() ? sendable.toString() : "0";
+  }, [accountBalance, nativeGasReserve, isNativeTransfer]);
 
   // Validate QRL address format
   const isValidQRLAddress = useCallback((address: string): boolean => {
@@ -388,27 +421,33 @@ const Transfer = observer(() => {
     navigate(ROUTES.HOME);
   };
 
-  const handleSliderChange = (value: number[]) => {
-    const percentage = value[0];
+  const applyPercentage = (percentage: number) => {
     setSliderValue(percentage);
-    if (accountBalance && accountBalance !== "0") {
-      const maxAmount = parseFloat(accountBalance);
-      const calculatedAmount = (maxAmount * (percentage / 100));
-      const formattedAmount = calculatedAmount.toFixed(6).replace(/\.?0+$/, "");
-      setAmountInputValue(formattedAmount);
-      setValue("amount", parseFloat(formattedAmount));
+    const sendableBn = new BigNumber(maxSendableBalance || "0");
+    if (sendableBn.isZero()) {
+      setAmountInputValue("");
+      setValue("amount", 0);
+      return;
     }
+    // For 100% use the raw max so rounding can't push the amount above the
+    // gas-adjusted balance. Below 100% round down to 6 decimals for display.
+    const formattedAmount = percentage === 100
+      ? sendableBn.toString()
+      : sendableBn
+          .multipliedBy(percentage)
+          .dividedBy(100)
+          .toFixed(6, BigNumber.ROUND_DOWN)
+          .replace(/\.?0+$/, "");
+    setAmountInputValue(formattedAmount);
+    setValue("amount", parseFloat(formattedAmount));
+  };
+
+  const handleSliderChange = (value: number[]) => {
+    applyPercentage(value[0]);
   };
 
   const setPercentage = (percentage: number) => () => {
-    setSliderValue(percentage);
-    if (accountBalance && accountBalance !== "0") {
-      const maxAmount = parseFloat(accountBalance);
-      const calculatedAmount = (maxAmount * (percentage / 100));
-      const formattedAmount = calculatedAmount.toFixed(6).replace(/\.?0+$/, "");
-      setAmountInputValue(formattedAmount);
-      setValue("amount", parseFloat(formattedAmount));
-    }
+    applyPercentage(percentage);
   };
 
   const assetSymbol = isNativeTransfer ? "QRL" : (selectedToken?.symbol || "");
@@ -698,8 +737,8 @@ const Transfer = observer(() => {
                                   setAmountInputValue(value);
                                   const numValue = value === "" ? 0 : parseFloat(value) || 0;
                                   field.onChange(numValue);
-                                  if (accountBalance && parseFloat(accountBalance) > 0) {
-                                    const percentage = Math.min(100, (numValue / parseFloat(accountBalance)) * 100);
+                                  if (maxSendableBalance && parseFloat(maxSendableBalance) > 0) {
+                                    const percentage = Math.min(100, (numValue / parseFloat(maxSendableBalance)) * 100);
                                     setSliderValue(Math.round(percentage));
                                   }
                                 }
