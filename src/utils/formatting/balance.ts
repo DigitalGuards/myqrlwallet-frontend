@@ -77,12 +77,10 @@ export const formatBalance = (
     let formatted = bn.toFixed(decimals, BigNumber.ROUND_DOWN);
 
     // If a non-zero balance rounds to zero at the requested precision,
-    // expand precision so small amounts aren't misleadingly shown as 0.
-    if (!bn.isZero() && new BigNumber(formatted).isZero()) {
-        formatted = bn
-            .toFixed(18, BigNumber.ROUND_DOWN)
-            .replace(/0+$/, '')
-            .replace(/\.$/, '');
+    // expand precision to show the first few significant digits so small
+    // amounts are visible without cluttering the UI.
+    if (!bn.isZero() && parseFloat(formatted) === 0) {
+        formatted = bn.precision(4, BigNumber.ROUND_DOWN).toString();
     }
 
     if (useThousandSeparator) {
