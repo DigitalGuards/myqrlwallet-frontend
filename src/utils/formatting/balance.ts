@@ -70,16 +70,21 @@ export const formatBalance = (
     decimals: number = 2,
     useThousandSeparator: boolean = true
 ): string => {
-    // Convert to number if string
-    const num = typeof balance === 'string' ? parseFloat(balance) : balance;
+    const bn = new BigNumber(balance);
 
-    // Handle invalid input
-    if (isNaN(num)) return '0';
+    if (bn.isNaN()) return '0';
 
-    // Format with fixed decimals
-    let formatted = num.toFixed(decimals);
+    let formatted = bn.toFixed(decimals, BigNumber.ROUND_DOWN);
 
-    // Add thousand separators if requested
+    // If a non-zero balance rounds to zero at the requested precision,
+    // expand precision so small amounts aren't misleadingly shown as 0.
+    if (!bn.isZero() && new BigNumber(formatted).isZero()) {
+        formatted = bn
+            .toFixed(18, BigNumber.ROUND_DOWN)
+            .replace(/0+$/, '')
+            .replace(/\.$/, '');
+    }
+
     if (useThousandSeparator) {
         const parts = formatted.split('.');
         parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
