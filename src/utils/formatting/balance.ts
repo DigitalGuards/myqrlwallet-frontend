@@ -74,13 +74,22 @@ export const formatBalance = (
 
     if (bn.isNaN()) return '0';
 
-    let formatted = bn.toFixed(decimals, BigNumber.ROUND_DOWN);
+    // Sub-unit balances get up to 6 decimals so values like 0.249 aren't
+    // truncated to 0.24; trailing zeros are stripped below.
+    const subUnit = bn.abs().lt(1);
+    const effectiveDecimals = subUnit ? Math.max(decimals, 6) : decimals;
 
-    // If a non-zero balance rounds to zero at the requested precision,
-    // expand precision to show the first few significant digits so small
-    // amounts are visible without cluttering the UI.
+    let formatted = bn.toFixed(effectiveDecimals, BigNumber.ROUND_DOWN);
+
     if (!bn.isZero() && parseFloat(formatted) === 0) {
+        // Balance is non-zero but rounds to zero even at the expanded
+        // precision — fall back to the first ~4 significant digits.
         formatted = bn.precision(4, BigNumber.ROUND_DOWN).toString();
+    } else if (effectiveDecimals > decimals) {
+        // Strip trailing zeros beyond the requested minimum decimal count
+        // (e.g. 0.240000 → 0.24, 0.249000 → 0.249).
+        const trimRe = new RegExp(`(\\.\\d{${decimals}}\\d*?)0+$`);
+        formatted = formatted.replace(trimRe, '$1');
     }
 
     if (useThousandSeparator) {
