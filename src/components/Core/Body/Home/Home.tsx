@@ -48,7 +48,10 @@ const Home = observer(() => {
   // Kick off playback of the active-account card video. iOS Safari and some
   // other browsers don't reliably honor the autoPlay attribute on
   // React-managed <video> elements after a route change, so call play()
-  // explicitly once the element is mounted.
+  // explicitly once the element is mounted. isLoading is in the deps
+  // because the <video> is gated behind the loading spinner; without it
+  // the effect first runs while the ref is still null and never re-runs
+  // once the element actually mounts.
   useEffect(() => {
     const video = activeAccountVideoRef.current;
     if (!video) return;
@@ -56,7 +59,7 @@ const Home = observer(() => {
       // Autoplay policy may still block playback; fail silently so the
       // element degrades to a static first frame.
     });
-  }, [activeAccount.accountAddress]);
+  }, [activeAccount.accountAddress, isLoading]);
 
   // Set up auto-refresh for balances
   useEffect(() => {
