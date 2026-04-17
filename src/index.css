@@ -249,5 +249,16 @@
     user-select: none;
   }
 
+  /* Hide WebKit's overlay play-button on decorative background videos
+     when autoplay is blocked (e.g. iOS Safari), so they degrade to a
+     static first frame instead of showing a prominent play icon. */
+  .decorative-video::-webkit-media-controls,
+  .decorative-video::-webkit-media-controls-start-playback-button,
+  .decorative-video::-webkit-media-controls-overlay-play-button,
+  .decorative-video::-webkit-media-controls-panel {
+    display: none !important;
+    -webkit-appearance: none;
+  }
+
   /* min-height handled by Body.tsx (md: only) to avoid bottom gaps on mobile */
 }
