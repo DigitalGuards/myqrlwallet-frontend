@@ -188,23 +188,25 @@ const Transfer = observer(() => {
   }, [selectedAsset, setValue]);
 
   // Keep a worst-case gas fee reserve for native transfers so the slider's
-  // "Max" option doesn't pick a value that leaves nothing for gas.
+  // "Max" option doesn't pick a value that leaves nothing for gas. Extension
+  // wallets sign with a 53000 gas limit (vs 21000 for the in-app path).
   useEffect(() => {
     if (!isNativeTransfer) {
       setNativeGasReserve("0");
       return;
     }
+    const gasLimit = isUsingExtension ? 53000 : 21000;
     let cancelled = false;
     (async () => {
       try {
-        const fee = await estimateNativeTransferFee(feeLevel);
+        const fee = await estimateNativeTransferFee(feeLevel, gasLimit);
         if (!cancelled) setNativeGasReserve(fee);
       } catch {
         if (!cancelled) setNativeGasReserve("0");
       }
     })();
     return () => { cancelled = true; };
-  }, [isNativeTransfer, feeLevel, estimateNativeTransferFee, accountAddress]);
+  }, [isNativeTransfer, isUsingExtension, feeLevel, estimateNativeTransferFee, accountAddress]);
 
   // Balance available for the transfer amount itself (subtracting gas reserve for native).
   const maxSendableBalance = useMemo(() => {
@@ -421,16 +423,23 @@ const Transfer = observer(() => {
 
   const applyPercentage = (percentage: number) => {
     setSliderValue(percentage);
-    if (maxSendableBalance && maxSendableBalance !== "0") {
-      const maxAmount = parseFloat(maxSendableBalance);
-      const calculatedAmount = (maxAmount * (percentage / 100));
-      const formattedAmount = calculatedAmount.toFixed(6).replace(/\.?0+$/, "");
-      setAmountInputValue(formattedAmount);
-      setValue("amount", parseFloat(formattedAmount));
-    } else {
+    const sendableBn = new BigNumber(maxSendableBalance || "0");
+    if (sendableBn.isZero()) {
       setAmountInputValue("");
       setValue("amount", 0);
+      return;
     }
+    // For 100% use the raw max so rounding can't push the amount above the
+    // gas-adjusted balance. Below 100% round down to 6 decimals for display.
+    const formattedAmount = percentage === 100
+      ? sendableBn.toString()
+      : sendableBn
+          .multipliedBy(percentage)
+          .dividedBy(100)
+          .toFixed(6, BigNumber.ROUND_DOWN)
+          .replace(/\.?0+$/, "");
+    setAmountInputValue(formattedAmount);
+    setValue("amount", parseFloat(formattedAmount));
   };
 
   const handleSliderChange = (value: number[]) => {

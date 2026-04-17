@@ -607,12 +607,17 @@ class QrlStore {
   }
 
   // Worst-case fee reserve for a native QRL transfer at the given fee level.
+  // gasLimit defaults to 21000 (matches signAndSendTransaction); callers using
+  // sendTransactionViaExtension must pass 53000 to match that path.
   // Returns the amount in QRL that must stay in the wallet to cover gas.
-  async estimateNativeTransferFee(feeLevel: FeeLevel = 'medium'): Promise<string> {
+  async estimateNativeTransferFee(
+    feeLevel: FeeLevel = 'medium',
+    gasLimit: number = 21000,
+  ): Promise<string> {
     const baseGasPrice = await this.qrlInstance?.getGasPrice();
     if (!baseGasPrice) return "0";
     const { maxFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
-    return utils.fromPlanck(BigInt(21000) * maxFeePerGas, "quanta");
+    return utils.fromPlanck(BigInt(gasLimit) * maxFeePerGas, "quanta");
   }
 
   // Refactored signAndSendTransaction
