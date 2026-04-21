@@ -105,7 +105,12 @@ export class DAppConnectService {
       chainId: '0x0',
     };
 
-    const relayUrl = DEFAULT_RELAY_URL;
+    // v2 preserves v1's flexibility to target a non-default relay: the dApp
+    // may carry an `r=<url>` query param alongside the PQP1 blob. The relay
+    // URL is OUTSIDE the fingerprint-covered blob — a tampered relay can
+    // only cause DoS, not break confidentiality (AEAD + transcript-bound
+    // session key stand independent of the relay we connect to).
+    const relayUrl = parsed.relayUrl || DEFAULT_RELAY_URL;
     const keyExchange = new KeyExchange(undefined, {
       onKeysExchanged: () => this.onKeysExchanged(channelId),
     });
@@ -239,9 +244,15 @@ export class DAppConnectService {
   private enqueueRelayMessage(channelId: string, data: RelayMessage): void {
     const conn = this.connections.get(channelId);
     if (!conn) return;
-    conn.messageQueue = conn.messageQueue.then(() =>
-      this.handleRelayMessage(channelId, data)
-    );
+    // .catch keeps the queue alive: a single rejected handler (tag-fail,
+    // bad JSON) must not starve every subsequent message on this channel.
+    conn.messageQueue = conn.messageQueue
+      .then(() => this.handleRelayMessage(channelId, data))
+      .catch((err) =>
+        dlog(
+          `messageQueue error on ${channelId}: ${err instanceof Error ? err.message : String(err)}`
+        )
+      );
   }
 
   private async handleRelayMessage(channelId: string, data: RelayMessage): Promise<void> {

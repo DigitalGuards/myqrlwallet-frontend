@@ -29,6 +29,7 @@ async function sha256First4(bytes: Uint8Array): Promise<Uint8Array> {
 export interface ParsedURI {
   cid: Uint8Array;
   pk: Uint8Array;
+  relayUrl?: string;
 }
 
 export async function parseConnectionURI(uri: string): Promise<ParsedURI> {
@@ -81,7 +82,8 @@ export async function parseConnectionURI(uri: string): Promise<ParsedURI> {
     throw new Error('qrUri: fingerprint mismatch');
   }
 
-  return { cid, pk };
+  const relayUrl = params.get('r') || undefined;
+  return { cid, pk, relayUrl };
 }
 
 export function cidToString(cid: Uint8Array): string {

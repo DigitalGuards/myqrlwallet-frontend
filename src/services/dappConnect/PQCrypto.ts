@@ -107,14 +107,18 @@ export function nonce(dir: Uint8Array, seq: number): Uint8Array {
   }
   const n = new Uint8Array(12);
   n.set(dir, 0);
-  new DataView(n.buffer).setBigUint64(4, BigInt(seq), true);
+  new DataView(n.buffer, n.byteOffset, n.byteLength).setBigUint64(4, BigInt(seq), true);
   return n;
 }
 
 export function aad(htx: Uint8Array, seq: number): Uint8Array {
   const out = new Uint8Array(htx.length + 8);
   out.set(htx, 0);
-  new DataView(out.buffer).setBigUint64(htx.length, BigInt(seq), true);
+  new DataView(out.buffer, out.byteOffset, out.byteLength).setBigUint64(
+    htx.length,
+    BigInt(seq),
+    true
+  );
   return out;
 }
 
@@ -165,8 +169,14 @@ export function concat(...parts: Uint8Array[]): Uint8Array {
 }
 
 export function toBase64(bytes: Uint8Array): string {
+  // Chunked to avoid `String.fromCharCode(...bytes)` stack-limit issues on
+  // large inputs while amortizing concatenation.
+  const CHUNK = 0x8000;
   let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    const slice = bytes.subarray(i, i + CHUNK);
+    bin += String.fromCharCode.apply(null, slice as unknown as number[]);
+  }
   return btoa(bin);
 }
 

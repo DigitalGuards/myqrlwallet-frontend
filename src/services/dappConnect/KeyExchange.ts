@@ -6,6 +6,24 @@
  * camera. We encapsulate, seal HELLO_WALLET, and emit SYNACK over the relay.
  * The dApp answers with ACK carrying a sealed HELLO_DAPP; verifying it
  * completes the handshake.
+ *
+ * Session-key at-rest model
+ * -------------------------
+ * exportPersisted() emits the derived AES-256 session key as raw bytes so
+ * SessionStore can write it to `localStorage` and survive a page reload.
+ * The trust boundary is the browser origin — same as the ECIES private key
+ * held by v1 sessions. Anyone with read access to `localStorage` for the
+ * wallet origin can decrypt traffic for an active pairing.
+ *
+ * This is not a regression from v1, but it is a known limitation. The
+ * follow-up path (tracked separately) is to wrap the session key with an
+ * AES-KW key derived from the user's PIN (already present for seed
+ * encryption via `crypto-js`), so a pilfered localStorage dump is useless
+ * without the PIN. Out of scope for this PR.
+ *
+ * Mitigations in place today: 7-day session TTL, explicit disconnect
+ * clears the record, `qrlconnect:sessions` records without `version: 2`
+ * are dropped on load so stale keys cannot leak across protocol versions.
  */
 
 import {
