@@ -45,21 +45,29 @@ const Home = observer(() => {
     return openDialogs.length > 0;
   };
 
-  // Kick off playback of the active-account card video. iOS Safari and some
-  // other browsers don't reliably honor the autoPlay attribute on
-  // React-managed <video> elements after a route change, so call play()
-  // explicitly once the element is mounted. isLoading is in the deps
-  // because the <video> is gated behind the loading spinner; without it
-  // the effect first runs while the ref is still null and never re-runs
-  // once the element actually mounts.
+  // WebKit-based browsers (Safari and Chrome on iOS both) don't reliably
+  // honor the autoPlay attribute on React-managed <video> elements after
+  // a route change. The <video>'s onCanPlay handler below covers the
+  // normal case; this effect is a backup for when the element was
+  // buffered in a previous render (canPlay already fired) and it just
+  // needs a nudge.
   useEffect(() => {
     const video = activeAccountVideoRef.current;
-    if (!video) return;
+    if (!video || !video.paused) return;
     video.play().catch(() => {
       // Autoplay policy may still block playback; fail silently so the
       // element degrades to a static first frame.
     });
   }, [activeAccount.accountAddress, isLoading]);
+
+  const handleVideoCanPlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    if (!video.paused) return;
+    video.play().catch(() => {
+      // Autoplay policy may still block playback; fail silently so the
+      // element degrades to a static first frame.
+    });
+  };
 
   // Set up auto-refresh for balances
   useEffect(() => {
@@ -141,6 +149,9 @@ const Home = observer(() => {
                       loop
                       playsInline
                       preload="auto"
+                      disableRemotePlayback
+                      onCanPlay={handleVideoCanPlay}
+                      onLoadedData={handleVideoCanPlay}
                       className="decorative-video w-full h-full object-cover opacity-30"
                     >
                       <source src="qrl-video-dark.mp4" type="video/mp4" />
