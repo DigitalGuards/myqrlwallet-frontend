@@ -1,105 +1,224 @@
 /**
- * Key Exchange - Wallet side of the 3-step SYN/SYNACK/ACK handshake.
+ * Post-quantum handshake — wallet side.
+ *
+ * The wallet's entry point is receiveQR(cid, pk): the QR scan hands us
+ * the dApp's ML-KEM-768 public key directly, out-of-band through the user's
+ * camera. We encapsulate, seal HELLO_WALLET, and emit SYNACK over the relay.
+ * The dApp answers with ACK carrying a sealed HELLO_DAPP; verifying it
+ * completes the handshake.
+ *
+ * Session-key at-rest model
+ * -------------------------
+ * exportPersisted() emits the derived AES-256 session key as raw bytes so
+ * SessionStore can write it to `localStorage` and survive a page reload.
+ * The trust boundary is the browser origin — same as the ECIES private key
+ * held by v1 sessions. Anyone with read access to `localStorage` for the
+ * wallet origin can decrypt traffic for an active pairing.
+ *
+ * This is not a regression from v1, but it is a known limitation. The
+ * follow-up path (tracked separately) is to wrap the session key with an
+ * AES-KW key derived from the user's PIN (already present for seed
+ * encryption via `crypto-js`), so a pilfered localStorage dump is useless
+ * without the PIN. Out of scope for this PR.
+ *
+ * Mitigations in place today: 7-day session TTL, explicit disconnect
+ * clears the record, `qrlconnect:sessions` records without `version: 2`
+ * are dropped on load so stale keys cannot leak across protocol versions.
  */
 
-import { ECIESManager } from './ECIESManager';
+import {
+  DIR_DAPP_TX,
+  DIR_WALLET_TX,
+  constantTimeEquals,
+  deriveAeadKey,
+  exportRawAeadKey,
+  fromBase64,
+  importRawAeadKey,
+  kemEncaps,
+  open,
+  seal,
+  toBase64,
+  transcriptHash,
+  zeroize,
+} from './PQCrypto';
 import { KeyExchangeMessageType } from './types';
 
-const PROTOCOL_VERSION = 1;
+const PROTOCOL_VERSION = 2;
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+const HELLO_WALLET = textEncoder.encode('hello/wallet/v1');
+const HELLO_DAPP = textEncoder.encode('hello/dapp/v1');
+
+export interface Session {
+  cid: Uint8Array;
+  key: CryptoKey;
+  htx: Uint8Array;
+  sendDir: Uint8Array;
+  recvDir: Uint8Array;
+  sendSeq: number;
+  recvSeq: number;
+}
+
+export interface PersistedSession {
+  cid: string;
+  kAeadRaw: string;
+  htx: string;
+  sendDir: string;
+  recvDir: string;
+  sendSeq: number;
+  recvSeq: number;
+}
+
+export interface SynAckMessage {
+  type: KeyExchangeMessageType.SYNACK;
+  ct: string;
+  c0: string;
+  v: number;
+}
+
+export interface AckMessage {
+  type: KeyExchangeMessageType.ACK;
+  c1: string;
+  v: number;
+}
 
 interface KeyExchangeOptions {
-  /** Used for restoring previously-established sessions. */
-  keysAlreadyExchanged?: boolean;
+  /** Fires when the handshake reaches CONNECTED state. */
+  onKeysExchanged?: () => void;
 }
 
 export class KeyExchange {
-  private ecies: ECIESManager;
-  private otherPublicKey: string | null = null;
-  private keysExchanged = false;
+  private session: Session | null = null;
   private awaitingAck = false;
+  private keysExchanged = false;
   private onKeysExchanged?: () => void;
 
-  constructor(
-    ecies: ECIESManager,
-    otherPublicKey?: string,
-    onKeysExchanged?: () => void,
-    options: KeyExchangeOptions = {}
-  ) {
-    this.ecies = ecies;
-    this.onKeysExchanged = onKeysExchanged;
-
-    if (otherPublicKey) {
-      this.otherPublicKey = otherPublicKey;
-      this.keysExchanged = options.keysAlreadyExchanged === true;
+  constructor(restored?: Session, options: KeyExchangeOptions = {}) {
+    this.onKeysExchanged = options.onKeysExchanged;
+    if (restored) {
+      this.session = restored;
+      this.keysExchanged = true;
     }
   }
 
   /**
-   * Process an incoming key exchange message.
-   * Wallet receives SYN, sends SYNACK, then receives ACK.
-   * Returns a response to send, or null if handshake is complete.
+   * Run Encaps on the dApp's ML-KEM pk and prepare the SYNACK wire message.
+   * After this call, the wallet is waiting for a valid ACK.
    */
-  onMessage(msg: {
-    type: KeyExchangeMessageType;
-    pubkey?: string;
-    v?: number;
-  }): object | null {
-    switch (msg.type) {
-      case KeyExchangeMessageType.SYN: {
-        if (msg.pubkey) {
-          if (this.otherPublicKey && this.otherPublicKey !== msg.pubkey) {
-            throw new Error('DApp public key mismatch during handshake');
-          }
-          this.otherPublicKey = msg.pubkey;
-        }
+  async receiveQR(cid: Uint8Array, pk: Uint8Array): Promise<SynAckMessage> {
+    const { ct, ss } = kemEncaps(pk);
+    const htx = await transcriptHash(cid, pk, ct);
+    const key = await deriveAeadKey(ss, htx);
+    const c0 = await seal(key, DIR_WALLET_TX, 0, htx, HELLO_WALLET);
+    zeroize(ss);
 
-        if (!this.otherPublicKey) {
-          throw new Error('Missing dApp public key in handshake');
-        }
+    this.session = {
+      cid,
+      key,
+      htx,
+      sendDir: DIR_WALLET_TX,
+      recvDir: DIR_DAPP_TX,
+      sendSeq: 1,
+      recvSeq: 1,
+    };
+    this.awaitingAck = true;
 
-        this.awaitingAck = true;
-
-        // Respond with our public key
-        return {
-          type: KeyExchangeMessageType.SYNACK,
-          pubkey: this.ecies.getPublicKey(),
-          v: PROTOCOL_VERSION,
-        };
-      }
-
-      case KeyExchangeMessageType.ACK: {
-        if (!this.awaitingAck) {
-          // Duplicate/late ACK - ignore
-          return null;
-        }
-        this.awaitingAck = false;
-        this.keysExchanged = true;
-        this.onKeysExchanged?.();
-        return null;
-      }
-
-      default:
-        console.warn('[KeyExchange] Unexpected message type:', msg.type);
-        return null;
-    }
+    return {
+      type: KeyExchangeMessageType.SYNACK,
+      ct: toBase64(ct),
+      c0: toBase64(c0),
+      v: PROTOCOL_VERSION,
+    };
   }
 
-  encryptMessage(data: string): string {
-    if (!this.otherPublicKey) {
-      throw new Error('Cannot encrypt: no other public key');
+  /** Verify the dApp's ACK and finalize the session. */
+  async onAck(msg: AckMessage): Promise<void> {
+    if (!this.awaitingAck) return;
+    if (!this.session) {
+      throw new Error('KeyExchange: onAck without a session');
     }
-    return this.ecies.encrypt(data, this.otherPublicKey);
+    this.awaitingAck = false;
+
+    const c1 = fromBase64(msg.c1);
+    let hello: Uint8Array;
+    try {
+      hello = await open(this.session.key, DIR_DAPP_TX, 0, this.session.htx, c1);
+    } catch {
+      throw new Error('KeyExchange: dApp hello AEAD tag failed');
+    }
+    if (!constantTimeEquals(hello, HELLO_DAPP)) {
+      throw new Error('KeyExchange: dApp hello mismatch');
+    }
+
+    this.keysExchanged = true;
+    this.onKeysExchanged?.();
   }
 
-  decryptMessage(encryptedBase64: string): string {
-    return this.ecies.decrypt(encryptedBase64);
+  async encryptMessage(data: string): Promise<string> {
+    if (!this.session) {
+      throw new Error('KeyExchange: session not established');
+    }
+    const pt = textEncoder.encode(data);
+    const ct = await seal(
+      this.session.key,
+      this.session.sendDir,
+      this.session.sendSeq,
+      this.session.htx,
+      pt
+    );
+    this.session.sendSeq++;
+    return toBase64(ct);
+  }
+
+  async decryptMessage(b64: string): Promise<string> {
+    if (!this.session) {
+      throw new Error('KeyExchange: session not established');
+    }
+    const ct = fromBase64(b64);
+    const pt = await open(
+      this.session.key,
+      this.session.recvDir,
+      this.session.recvSeq,
+      this.session.htx,
+      ct
+    );
+    this.session.recvSeq++;
+    return textDecoder.decode(pt);
   }
 
   areKeysExchanged(): boolean {
     return this.keysExchanged;
   }
 
-  getOtherPublicKey(): string | null {
-    return this.otherPublicKey;
+  getSession(): Session | null {
+    return this.session;
+  }
+
+  async exportPersisted(): Promise<PersistedSession | null> {
+    if (!this.session) return null;
+    return {
+      cid: toBase64(this.session.cid),
+      kAeadRaw: toBase64(await exportRawAeadKey(this.session.key)),
+      htx: toBase64(this.session.htx),
+      sendDir: toBase64(this.session.sendDir),
+      recvDir: toBase64(this.session.recvDir),
+      sendSeq: this.session.sendSeq,
+      recvSeq: this.session.recvSeq,
+    };
+  }
+
+  static async sessionFromPersisted(p: PersistedSession): Promise<Session> {
+    const key = await importRawAeadKey(fromBase64(p.kAeadRaw));
+    return {
+      cid: fromBase64(p.cid),
+      key,
+      htx: fromBase64(p.htx),
+      sendDir: fromBase64(p.sendDir),
+      recvDir: fromBase64(p.recvDir),
+      sendSeq: p.sendSeq,
+      recvSeq: p.recvSeq,
+    };
   }
 }

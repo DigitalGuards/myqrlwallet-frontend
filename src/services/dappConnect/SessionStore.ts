@@ -1,18 +1,18 @@
 /**
- * Session Store - localStorage persistence for dApp sessions.
- * Stores ECIES keys and session metadata for reconnection.
+ * Session store — localStorage persistence for dApp sessions (v2).
+ *
+ * v2 stores an AES-256 session key (derived via ML-KEM-768 + HKDF-SHA-256)
+ * rather than an ECIES private key. Records without `version: 2` are
+ * dropped on load — v1 sessions cannot be migrated and users re-pair.
  */
 
 import type { DAppSession } from './types';
 import { SessionStatus } from './types';
 
 const STORAGE_KEY = 'qrlconnect:sessions';
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export class SessionStore {
-  /**
-   * Save a session to localStorage.
-   */
   static save(session: DAppSession): void {
     const sessions = SessionStore.getAll();
     const index = sessions.findIndex((s) => s.id === session.id);
@@ -24,51 +24,43 @@ export class SessionStore {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
   }
 
-  /**
-   * Get all stored sessions, filtering out expired ones.
-   */
   static getAll(): DAppSession[] {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
-
-      const sessions: DAppSession[] = JSON.parse(raw);
+      const parsed = JSON.parse(raw) as Partial<DAppSession>[];
       const now = Date.now();
-
-      // Filter out expired sessions
-      const valid = sessions.filter(
-        (s) => now - s.createdAt < SESSION_TTL_MS
-      );
-
-      // Clean up if we removed any
-      if (valid.length !== sessions.length) {
+      const valid: DAppSession[] = [];
+      let dropped = 0;
+      for (const s of parsed) {
+        if (s.version !== 2) {
+          dropped++;
+          continue;
+        }
+        if (!s.createdAt || now - s.createdAt >= SESSION_TTL_MS) {
+          dropped++;
+          continue;
+        }
+        valid.push(s as DAppSession);
+      }
+      if (dropped > 0) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
       }
-
       return valid;
     } catch {
       return [];
     }
   }
 
-  /**
-   * Get a specific session by channel ID.
-   */
   static get(channelId: string): DAppSession | null {
     return SessionStore.getAll().find((s) => s.id === channelId) || null;
   }
 
-  /**
-   * Remove a session.
-   */
   static remove(channelId: string): void {
     const sessions = SessionStore.getAll().filter((s) => s.id !== channelId);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
   }
 
-  /**
-   * Update session status.
-   */
   static updateStatus(channelId: string, status: SessionStatus): void {
     const session = SessionStore.get(channelId);
     if (session) {
@@ -78,9 +70,6 @@ export class SessionStore {
     }
   }
 
-  /**
-   * Clear all sessions.
-   */
   static clearAll(): void {
     localStorage.removeItem(STORAGE_KEY);
   }
