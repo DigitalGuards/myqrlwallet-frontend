@@ -251,3 +251,18 @@
 
   /* min-height handled by Body.tsx (md: only) to avoid bottom gaps on mobile */
 }
+
+/* Hide WebKit's overlay play-button on decorative background videos when
+   autoplay is blocked (Safari and Chrome on iOS both use WebKit). These
+   rules sit outside @layer base so they outrank the UA stylesheet for
+   the shadow-DOM pseudo-elements. */
+.decorative-video::-webkit-media-controls,
+.decorative-video::-webkit-media-controls-start-playback-button,
+.decorative-video::-webkit-media-controls-overlay-play-button,
+.decorative-video::-webkit-media-controls-panel,
+.decorative-video::-webkit-media-controls-enclosure {
+  display: none !important;
+  -webkit-appearance: none !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
