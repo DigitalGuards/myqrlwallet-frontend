@@ -33,12 +33,18 @@ export class SocketClient {
 
     this.socket = io(this.relayUrl, {
       path: RELAY_PATH,
-      transports: ['polling', 'websocket'],
+      // Websocket-first so cold-start reconnects (e.g. after the mobile app
+      // is swipe-killed and relaunched) don't spend 60–90s stuck in the
+      // polling handshake behind Cloudflare. The SDK side already does this.
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 30000,
       reconnectionAttempts: Infinity,
-      timeout: 20000,
+      // 20s was too tight for a CF cold path — the client would bail and
+      // retry with a fresh sid every 20s, accumulating orphan sessions on
+      // the relay and never actually connecting.
+      timeout: 45000,
     });
 
     this.socket.on('connect', () => {
