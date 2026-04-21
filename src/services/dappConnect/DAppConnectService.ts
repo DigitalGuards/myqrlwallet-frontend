@@ -44,6 +44,12 @@ interface ActiveConnection {
   channelId: string;
   originatorInfoReceived: boolean;
   messageQueue: Promise<void>;
+  // Relay URL the live SocketClient is actually talking to. Tracked
+  // separately from the persisted session so persistSession() can store
+  // the real URL rather than falling back to DEFAULT_RELAY_URL on first
+  // save, which would silently point reconnects at prod when running on
+  // dev/staging.
+  relayUrl: string;
 }
 
 type ServiceEventHandler = {
@@ -150,6 +156,7 @@ export class DAppConnectService {
       channelId,
       originatorInfoReceived: false,
       messageQueue: Promise.resolve(),
+      relayUrl,
     };
     this.connections.set(channelId, connection);
     this.handlers?.onSessionsChanged();
@@ -231,7 +238,7 @@ export class DAppConnectService {
       dappInfo: conn.dappInfo,
       connectedAccount: activeAccount || existing?.connectedAccount || '',
       keyExchange: persistedKex,
-      relayUrl: existing?.relayUrl || DEFAULT_RELAY_URL,
+      relayUrl: conn.relayUrl,
       status: conn.keyExchange.areKeysExchanged()
         ? SessionStatus.CONNECTED
         : SessionStatus.KEY_EXCHANGE,
@@ -505,8 +512,9 @@ export class DAppConnectService {
           onKeysExchanged: () => this.onKeysExchanged(session.id),
         });
 
+        const reconnectRelayUrl = session.relayUrl || DEFAULT_RELAY_URL;
         const socketClient = new SocketClient(
-          session.relayUrl || DEFAULT_RELAY_URL,
+          reconnectRelayUrl,
           {
             onMessage: (data) => {
               if (data.clientType === 'dapp') {
@@ -539,6 +547,7 @@ export class DAppConnectService {
           channelId: session.id,
           originatorInfoReceived: true,
           messageQueue: Promise.resolve(),
+          relayUrl: reconnectRelayUrl,
         });
 
         socketClient.connect();
