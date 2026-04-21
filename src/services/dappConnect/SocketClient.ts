@@ -33,20 +33,14 @@ export class SocketClient {
 
     this.socket = io(this.relayUrl, {
       path: RELAY_PATH,
-      // Polling-first: Cloudflare's cold-path handshake (especially after an
-      // iOS WebView swipe-kill relaunch) can challenge/redirect at the HTTP
-      // layer, which polling handles cleanly but a direct WS upgrade can't.
-      // After polling succeeds, socket.io auto-upgrades to WS anyway.
+      // Polling-first so Cloudflare can negotiate any challenge/cookie
+      // handshake at the HTTP layer before auto-upgrading to WS.
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 30000,
       reconnectionAttempts: Infinity,
-      // Need enough headroom for a CF cold path (observed ~60s worst case)
-      // + the server-side pingTimeout (20s) that has to expire before the
-      // stale wallet socket from the killed process is evicted and we can
-      // re-take the wallet slot in the channel.
-      timeout: 60000,
+      timeout: 20000,
     });
 
     this.socket.on('connect', () => {
@@ -96,7 +90,7 @@ export class SocketClient {
       // Match the socket.io `timeout` above; a shorter wait here would
       // reject joinChannel while the underlying socket is still legitimately
       // trying to connect, corrupting our session state.
-      await this.waitForConnect(60000);
+      await this.waitForConnect(20000);
     }
     const result = await this.emitJoinChannel(channelId);
     this.hasJoinedOnce = true;
