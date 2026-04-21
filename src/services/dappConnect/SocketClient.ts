@@ -33,18 +33,20 @@ export class SocketClient {
 
     this.socket = io(this.relayUrl, {
       path: RELAY_PATH,
-      // Websocket-first so cold-start reconnects (e.g. after the mobile app
-      // is swipe-killed and relaunched) don't spend 60–90s stuck in the
-      // polling handshake behind Cloudflare. The SDK side already does this.
-      transports: ['websocket', 'polling'],
+      // Polling-first: Cloudflare's cold-path handshake (especially after an
+      // iOS WebView swipe-kill relaunch) can challenge/redirect at the HTTP
+      // layer, which polling handles cleanly but a direct WS upgrade can't.
+      // After polling succeeds, socket.io auto-upgrades to WS anyway.
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 30000,
       reconnectionAttempts: Infinity,
-      // 20s was too tight for a CF cold path — the client would bail and
-      // retry with a fresh sid every 20s, accumulating orphan sessions on
-      // the relay and never actually connecting.
-      timeout: 45000,
+      // Need enough headroom for a CF cold path (observed ~60s worst case)
+      // + the server-side pingTimeout (20s) that has to expire before the
+      // stale wallet socket from the killed process is evicted and we can
+      // re-take the wallet slot in the channel.
+      timeout: 60000,
     });
 
     this.socket.on('connect', () => {
@@ -91,7 +93,10 @@ export class SocketClient {
       throw new Error('Socket not initialised; call connect() before joinChannel()');
     }
     if (!this.socket.connected) {
-      await this.waitForConnect(20000);
+      // Match the socket.io `timeout` above; a shorter wait here would
+      // reject joinChannel while the underlying socket is still legitimately
+      // trying to connect, corrupting our session state.
+      await this.waitForConnect(60000);
     }
     const result = await this.emitJoinChannel(channelId);
     this.hasJoinedOnce = true;
