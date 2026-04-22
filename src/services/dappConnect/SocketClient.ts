@@ -81,7 +81,9 @@ export class SocketClient {
     });
   }
 
-  async joinChannel(channelId: string): Promise<{ bufferedMessages: unknown[] }> {
+  async joinChannel(
+    channelId: string
+  ): Promise<{ bufferedMessages: unknown[]; channelPublicKey: string | null }> {
     this.channelId = channelId;
     if (!this.socket) {
       throw new Error('Socket not initialised; call connect() before joinChannel()');
@@ -122,14 +124,24 @@ export class SocketClient {
     });
   }
 
-  private emitJoinChannel(channelId: string): Promise<{ bufferedMessages: unknown[] }> {
+  private emitJoinChannel(
+    channelId: string
+  ): Promise<{ bufferedMessages: unknown[]; channelPublicKey: string | null }> {
     return new Promise((resolve, reject) => {
       this.socket!.emit(
         'join_channel',
         { channelId, clientType: 'wallet' },
-        (response: { success: boolean; error?: string; bufferedMessages?: unknown[] }) => {
+        (response: {
+          success: boolean;
+          error?: string;
+          bufferedMessages?: unknown[];
+          channelPublicKey?: string | null;
+        }) => {
           if (response?.success) {
-            resolve({ bufferedMessages: response.bufferedMessages || [] });
+            resolve({
+              bufferedMessages: response.bufferedMessages || [],
+              channelPublicKey: response.channelPublicKey ?? null,
+            });
           } else {
             reject(new Error(response?.error || 'Failed to join channel'));
           }
