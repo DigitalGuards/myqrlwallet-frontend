@@ -16,7 +16,6 @@ const Settings = lazy(() => import("../components/Core/Body/Settings/Settings.ts
 const QRView = lazy(() => import("../components/Core/Body/QRView/QRView.tsx"));
 const Terms = lazy(() => import("../components/Core/Body/Terms/Terms.tsx"));
 const Privacy = lazy(() => import("../components/Core/Body/Privacy/Privacy.tsx"));
-const Support = lazy(() => import("../components/Core/Body/Support/Support.tsx"));
 const TokenStatus = lazy(() => import("../components/Core/Body/CreateToken/TokenStatus.tsx"));
 const TransactionHistory = lazy(() => import("../components/Core/Body/TransactionHistory/TransactionHistory.tsx"));
 const Transfer = lazy(() => import("../components/Core/Body/Transfer/Transfer.tsx"));
@@ -34,7 +33,6 @@ const ROUTES = {
   SETTINGS: "/settings",
   TERMS: "/terms",
   PRIVACY: "/privacy",
-  SUPPORT: "/support",
   DEFAULT: "*",
   TOKEN_STATUS: "/token-status",
   TRANSACTION_HISTORY: "/tx-history",
@@ -127,14 +125,6 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Loading />}>
             <Privacy />
-          </Suspense>
-        ),
-      },
-      {
-        path: ROUTES.SUPPORT,
-        element: (
-          <Suspense fallback={<Loading />}>
-            <Support />
           </Suspense>
         ),
       },
