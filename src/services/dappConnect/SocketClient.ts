@@ -21,6 +21,7 @@ export class SocketClient {
   private relayUrl: string;
   private channelId: string | null = null;
   private handlers: SocketEventHandler;
+  private hasJoinedOnce = false;
 
   constructor(relayUrl: string, handlers: SocketEventHandler) {
     this.relayUrl = relayUrl;
@@ -32,6 +33,8 @@ export class SocketClient {
 
     this.socket = io(this.relayUrl, {
       path: RELAY_PATH,
+      // Polling-first so Cloudflare can negotiate any challenge/cookie
+      // handshake at the HTTP layer before auto-upgrading to WS.
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
@@ -43,15 +46,20 @@ export class SocketClient {
     this.socket.on('connect', () => {
       this.handlers.onConnected();
 
-      // Re-join channel on reconnect
-      if (this.channelId) {
-        this.joinChannel(this.channelId).then(({ bufferedMessages }) => {
-          // Deliver buffered messages that arrived while disconnected
-          for (const msg of bufferedMessages) {
-            this.handlers.onMessage(msg as RelayMessage);
-          }
-          this.handlers.onReconnected();
-        });
+      // Auto-rejoin only after the initial join has succeeded. The initial
+      // join is driven by the caller via joinChannel(); otherwise we'd race
+      // with it here and emit join_channel twice on the first connect.
+      if (this.channelId && this.hasJoinedOnce) {
+        this.emitJoinChannel(this.channelId)
+          .then(({ bufferedMessages }) => {
+            for (const msg of bufferedMessages) {
+              this.handlers.onMessage(msg as RelayMessage);
+            }
+            this.handlers.onReconnected();
+          })
+          .catch((err) => {
+            console.warn('[SocketClient] Auto-rejoin failed:', err?.message ?? err);
+          });
       }
     });
 
@@ -73,24 +81,69 @@ export class SocketClient {
     });
   }
 
-  async joinChannel(channelId: string): Promise<{ bufferedMessages: unknown[] }> {
+  async joinChannel(
+    channelId: string
+  ): Promise<{ bufferedMessages: unknown[]; channelPublicKey: string | null }> {
+    this.channelId = channelId;
+    if (!this.socket) {
+      throw new Error('Socket not initialised; call connect() before joinChannel()');
+    }
+    if (!this.socket.connected) {
+      // Match the socket.io `timeout` above; a shorter wait here would
+      // reject joinChannel while the underlying socket is still legitimately
+      // trying to connect, corrupting our session state.
+      await this.waitForConnect(20000);
+    }
+    const result = await this.emitJoinChannel(channelId);
+    this.hasJoinedOnce = true;
+    return result;
+  }
+
+  private waitForConnect(timeoutMs: number): Promise<void> {
+    const socket = this.socket!;
     return new Promise((resolve, reject) => {
-      if (!this.socket?.connected) {
-        this.channelId = channelId;
-        resolve({ bufferedMessages: [] });
-        return;
-      }
+      const cleanup = () => {
+        clearTimeout(timer);
+        socket.off('connect', onConnect);
+        socket.off('connect_error', onError);
+      };
+      const onConnect = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = (err: Error) => {
+        cleanup();
+        reject(err);
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error('Socket connect timeout'));
+      }, timeoutMs);
+      socket.once('connect', onConnect);
+      socket.once('connect_error', onError);
+    });
+  }
 
-      this.channelId = channelId;
-
-      this.socket.emit(
+  private emitJoinChannel(
+    channelId: string
+  ): Promise<{ bufferedMessages: unknown[]; channelPublicKey: string | null }> {
+    return new Promise((resolve, reject) => {
+      this.socket!.emit(
         'join_channel',
         { channelId, clientType: 'wallet' },
-        (response: { success: boolean; error?: string; bufferedMessages?: unknown[] }) => {
-          if (response.success) {
-            resolve({ bufferedMessages: response.bufferedMessages || [] });
+        (response: {
+          success: boolean;
+          error?: string;
+          bufferedMessages?: unknown[];
+          channelPublicKey?: string | null;
+        }) => {
+          if (response?.success) {
+            resolve({
+              bufferedMessages: response.bufferedMessages || [],
+              channelPublicKey: response.channelPublicKey ?? null,
+            });
           } else {
-            reject(new Error(response.error || 'Failed to join channel'));
+            reject(new Error(response?.error || 'Failed to join channel'));
           }
         }
       );

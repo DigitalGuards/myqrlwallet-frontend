@@ -44,8 +44,6 @@ const FormSchema = z
         maxSupply: z.string().optional(),
         changeInitialRecipient: z.boolean(),
         recipientAddress: z.string().optional(),
-        changeTokenOwner: z.boolean(),
-        ownerAddress: z.string().optional(),
         setMaxWalletAmount: z.boolean(),
         maxWalletAmount: z.string().optional(),
         setMaxTransactionLimit: z.boolean(),
@@ -60,20 +58,10 @@ const FormSchema = z
     }, {
         message: "Invalid recipient address. Must be 41 characters starting with 'Q' followed by 40 hex characters",
         path: ["recipientAddress"]
-    })
-    .refine((data) => {
-        // Validate owner address if changeTokenOwner is true
-        if (data.changeTokenOwner && data.ownerAddress) {
-            return isValidQrlAddress(data.ownerAddress);
-        }
-        return true;
-    }, {
-        message: "Invalid owner address. Must be 41 characters starting with 'Q' followed by 40 hex characters",
-        path: ["ownerAddress"]
     });
 
 type TokenCreationFormProps = {
-    onTokenCreated: (tokenName: string, tokenSymbol: string, initialSupply: string, decimals: number, maxSupply: undefined | string, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | string, maxTransactionLimit: undefined | string, mnemonicPhrases: string) => Promise<void>;
+    onTokenCreated: (tokenName: string, tokenSymbol: string, initialSupply: string, decimals: number, maxSupply: undefined | string, initialRecipient: undefined | string, maxWalletAmount: undefined | string, maxTransactionLimit: undefined | string, mnemonicPhrases: string) => Promise<void>;
 };
 
 export const TokenCreationForm = observer(
@@ -96,7 +84,6 @@ export const TokenCreationForm = observer(
                 decimals: 18,
                 mintable: false,
                 changeInitialRecipient: false,
-                changeTokenOwner: false,
                 setMaxWalletAmount: false,
                 setMaxTransactionLimit: false,
             },
@@ -173,7 +160,6 @@ export const TokenCreationForm = observer(
                 const decimals = formData.decimals;
                 const maxSupply = formData.maxSupply ? ethers.parseUnits(formData.maxSupply, decimals).toString() : undefined;
                 const recipientAddress = formData.recipientAddress;
-                const ownerAddress = formData.ownerAddress;
                 const maxWalletAmount = formData.maxWalletAmount ? ethers.parseUnits(formData.maxWalletAmount, decimals).toString() : undefined;
                 const maxTransactionLimit = formData.maxTransactionLimit ? ethers.parseUnits(formData.maxTransactionLimit, decimals).toString() : undefined;
 
@@ -182,7 +168,7 @@ export const TokenCreationForm = observer(
                 navigate(ROUTES.TOKEN_STATUS);
 
                 // Start token creation in background (don't await here)
-                onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, ownerAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase)
+                onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase)
                     .catch((error) => {
                         console.error("Token creation failed:", error);
                         // The error state is set within qrlStore and displayed on the status page
@@ -201,7 +187,6 @@ export const TokenCreationForm = observer(
                 decimals: 18,
                 mintable: false,
                 changeInitialRecipient: false,
-                changeTokenOwner: false,
                 setMaxWalletAmount: false,
                 setMaxTransactionLimit: false,
             });
@@ -400,51 +385,6 @@ export const TokenCreationForm = observer(
                                     render={({ field }) => (
                                         <FormItem>
                                             <Label>Recipient Address</Label>
-                                            <FormControl>
-                                                <Input
-                                                    {...field}
-                                                    disabled={isSubmitting}
-                                                    placeholder="Example: Q20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
-                                                    type="text"
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            )}
-                            <FormField
-                                control={control}
-                                name="changeTokenOwner"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormControl>
-                                            <div className="flex items-center space-x-2">
-                                                <Checkbox
-                                                    checked={field.value}
-                                                    onCheckedChange={field.onChange}
-                                                    disabled={isSubmitting}
-                                                    id="changeTokenOwner"
-                                                />
-                                                <label
-                                                    htmlFor="changeTokenOwner"
-                                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                                >
-                                                    Change Token Owner
-                                                </label>
-                                            </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            {form.watch("changeTokenOwner") && (
-                                <FormField
-                                    control={control}
-                                    name="ownerAddress"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <Label>Owner Address</Label>
                                             <FormControl>
                                                 <Input
                                                     {...field}
