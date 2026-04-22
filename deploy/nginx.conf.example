@@ -42,6 +42,10 @@ server {
 
     # Security Headers (applied to locations without their own add_header)
     # NOTE: These are NOT inherited by location blocks that have add_header directives
+    # If you serve both apex and www subdomain, adjust connect-src to include
+    # both variants (or use a wildcard like *.yourdomain.com) so CSP doesn't
+    # flag the other variant as cross-origin when a user lands on one but
+    # the API / relay answers on the other.
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* wss://yourdomain.com https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;

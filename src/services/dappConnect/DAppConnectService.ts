@@ -330,11 +330,14 @@ export class DAppConnectService {
           await conn.keyExchange.onAck(message as AckMessage);
         } catch (err) {
           dlog(`ACK verify failed: ${err instanceof Error ? err.message : err}`);
-          // Fire-and-forget: we're inside the per-channel message queue
-          // handler. Awaiting disconnectSession here would block the queue
-          // during the 800ms TERMINATE flush and stall any buffered ACK
-          // follow-ups on other channels.
-          void this.disconnectSession(channelId, false);
+          // Await the teardown: the message queue is PER-CHANNEL, so
+          // blocking this queue until the channel is fully torn down is
+          // the correct behaviour on a security failure (prevents any
+          // subsequent buffered message on this compromised channel from
+          // being processed during the 800ms TERMINATE flush window).
+          await this.disconnectSession(channelId, false).catch((err) =>
+            console.error('[DAppConnect] disconnect-on-ack-fail failed:', err)
+          );
         }
         return;
       }
@@ -434,10 +437,13 @@ export class DAppConnectService {
       }
 
       case MessageType.TERMINATE: {
-        // Fire-and-forget: we're in the inbound message handler, and we
-        // don't need to round-trip a TERMINATE back at the dApp that just
-        // sent us one.
-        void this.disconnectSession(channelId);
+        // Await the teardown: the message queue is per-channel, so
+        // halting it while we finalize this same channel is the correct
+        // behaviour — any further buffered messages for a channel that's
+        // being torn down are meaningless.
+        await this.disconnectSession(channelId).catch((err) =>
+          console.error('[DAppConnect] disconnect-on-terminate failed:', err)
+        );
         break;
       }
 
@@ -501,7 +507,15 @@ export class DAppConnectService {
     this.clearDappLeaveTimeout(channelId);
     const conn = this.connections.get(channelId);
 
+    // Idempotence guard: concurrent callers (e.g. the user tapping
+    // Disconnect at the same moment an inbound TERMINATE arrives from the
+    // dApp) must not each run the full teardown and fire a second
+    // DAPP_DISCONNECTED bridge message / onSessionDisconnected callback.
+    let finalized = false;
     const finalize = () => {
+      if (finalized) return;
+      finalized = true;
+
       const activeConn = this.connections.get(channelId);
       if (activeConn) {
         activeConn.socketClient.leaveChannel();
