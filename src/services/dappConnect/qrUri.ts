@@ -1,34 +1,65 @@
 /**
- * v2 QR URI parser — wallet side.
+ * v2 QR URI parser — wallet side (PQP2).
  *
- * Only needs to parse, not generate. Reject legacy v1 URIs (channelId/pubKey
- * query params) with a clear error so the user sees "upgrade dApp" instead
- * of a mysterious crypto failure downstream.
+ * Blob layout: "PQP2" (4) || cid (16) || fp (32) = 52 B
+ *
+ *   fp = SHA-256("pq-fp/v2" || cid || pk)  (full 32 bytes)
+ *
+ * The PK is NOT in the QR — it's uploaded by the dApp to the relay and
+ * handed to the wallet via the join_channel ack. The fingerprint in the
+ * QR is the out-of-band commitment; the wallet verifies
+ * `SHA-256("pq-fp/v2" || cid || pk_from_relay) == fp` before trusting
+ * the served PK. Full SHA-256 (2^128 security) rules out a malicious
+ * relay finding a different PK' with a colliding fingerprint.
  */
 
 import { base45Decode } from './base45';
 
-const MAGIC = new Uint8Array([0x50, 0x51, 0x50, 0x31]); // "PQP1"
-export const CID_LEN = 16;
-export const PK_LEN = 1184;
-export const FP_LEN = 4;
-export const BLOB_LEN = 4 + CID_LEN + PK_LEN + FP_LEN;
+const MAGIC = new Uint8Array([0x50, 0x51, 0x50, 0x32]); // "PQP2"
+const FP_LABEL = new TextEncoder().encode('pq-fp/v2');
 
-async function sha256First4(bytes: Uint8Array): Promise<Uint8Array> {
+export const CID_LEN = 16;
+export const FP_LEN = 32;
+export const BLOB_LEN = 4 + CID_LEN + FP_LEN; // 52
+
+function bs(u: Uint8Array): BufferSource {
+  return u as unknown as BufferSource;
+}
+
+/**
+ * Compute fp = SHA-256("pq-fp/v2" || cid || pk). Used by the wallet to
+ * verify the PK the relay served matches the commitment in the QR.
+ */
+export async function computeFingerprint(
+  cid: Uint8Array,
+  pk: Uint8Array
+): Promise<Uint8Array> {
+  if (cid.length !== CID_LEN) {
+    throw new Error(`qrUri: cid must be ${CID_LEN} bytes`);
+  }
   const c = globalThis.crypto;
   if (!c || !c.subtle) {
     throw new Error('qrUri: WebCrypto SubtleCrypto is not available');
   }
-  const digest = await c.subtle.digest(
-    'SHA-256',
-    bytes as unknown as BufferSource
-  );
-  return new Uint8Array(digest).slice(0, FP_LEN);
+  const buf = new Uint8Array(FP_LABEL.length + cid.length + pk.length);
+  buf.set(FP_LABEL, 0);
+  buf.set(cid, FP_LABEL.length);
+  buf.set(pk, FP_LABEL.length + cid.length);
+  const digest = await c.subtle.digest('SHA-256', bs(buf));
+  return new Uint8Array(digest);
+}
+
+/** Constant-time equality. Both arrays must be the same length. */
+export function fingerprintEquals(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
 }
 
 export interface ParsedURI {
   cid: Uint8Array;
-  pk: Uint8Array;
+  fp: Uint8Array;
   relayUrl?: string;
 }
 
@@ -62,28 +93,26 @@ export async function parseConnectionURI(uri: string): Promise<ParsedURI> {
   }
 
   if (blob.length !== BLOB_LEN) {
+    // Distinguish a PQP1 URI (1208-byte blob) so the user sees a useful
+    // hint instead of a generic size mismatch.
+    if (blob.length === 1208 && blob[3] === 0x31 /* '1' */) {
+      throw new Error(
+        'qrUri: legacy PQP1 URI — regenerate the QR with a v2.0+ dApp SDK'
+      );
+    }
     throw new Error(`qrUri: expected ${BLOB_LEN}-byte blob, got ${blob.length}`);
   }
 
   for (let i = 0; i < MAGIC.length; i++) {
     if (blob[i] !== MAGIC[i]) {
-      throw new Error('qrUri: bad PQP1 magic');
+      throw new Error('qrUri: bad PQP2 magic');
     }
   }
 
   const cid = blob.slice(4, 4 + CID_LEN);
-  const pk = blob.slice(4 + CID_LEN, 4 + CID_LEN + PK_LEN);
-  const fp = blob.slice(BLOB_LEN - FP_LEN, BLOB_LEN);
-
-  const expected = await sha256First4(pk);
-  let diff = 0;
-  for (let i = 0; i < FP_LEN; i++) diff |= fp[i] ^ expected[i];
-  if (diff !== 0) {
-    throw new Error('qrUri: fingerprint mismatch');
-  }
-
+  const fp = blob.slice(4 + CID_LEN, 4 + CID_LEN + FP_LEN);
   const relayUrl = params.get('r') || undefined;
-  return { cid, pk, relayUrl };
+  return { cid, fp, relayUrl };
 }
 
 export function cidToString(cid: Uint8Array): string {

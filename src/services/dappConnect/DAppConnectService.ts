@@ -11,7 +11,8 @@ import {
   type AckMessage,
   type SynAckMessage,
 } from './KeyExchange';
-import { parseConnectionURI, cidToString } from './qrUri';
+import { parseConnectionURI, cidToString, computeFingerprint, fingerprintEquals } from './qrUri';
+import { fromBase64 } from './PQCrypto';
 import { SocketClient } from './SocketClient';
 import { RequestHandler } from './RequestHandler';
 import { SessionStore } from './SessionStore';
@@ -161,22 +162,51 @@ export class DAppConnectService {
     this.connections.set(channelId, connection);
     this.handlers?.onSessionsChanged();
 
-    let synack: SynAckMessage;
-    try {
-      synack = await keyExchange.receiveQR(parsed.cid, parsed.pk);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      dlog(`KEM encaps failed: ${msg}`);
-      this.connections.delete(channelId);
-      this.handlers?.onSessionsChanged();
-      return { success: false, error: msg };
-    }
-
+    // v2 PQP2 protocol: the QR carries only cid + fp. We must join the
+    // relay first to fetch the dApp's PK, verify it against fp, and only
+    // then run Encaps. This is the "PK lives on the relay, fp pins it
+    // cryptographically" design — see docs/qr-uri-v2.md.
+    let channelPublicKey: string | null;
     try {
       dlog(`Connecting to relay ${relayUrl} as wallet participant`);
       socketClient.connect();
-      const { bufferedMessages } = await socketClient.joinChannel(channelId);
-      dlog(`joinChannel returned ${bufferedMessages.length} buffered message(s)`);
+      const joinResult = await socketClient.joinChannel(channelId);
+      channelPublicKey = joinResult.channelPublicKey;
+      dlog(
+        `joinChannel returned ${joinResult.bufferedMessages.length} buffered msg(s), pk present: ${channelPublicKey !== null}`
+      );
+
+      if (!channelPublicKey) {
+        // dApp hasn't registered a PK yet (race), or relay forgot. For a
+        // fresh scan the wallet has no existing session to fall back on,
+        // so bail with a clear error — the user can rescan when the dApp
+        // is actually live.
+        throw new Error(
+          'dApp has not registered its public key with the relay yet — retry the scan'
+        );
+      }
+
+      const pk = fromBase64(channelPublicKey);
+      const expectedFp = await computeFingerprint(parsed.cid, pk);
+      if (!fingerprintEquals(parsed.fp, expectedFp)) {
+        // The relay served a PK whose fingerprint doesn't match the QR.
+        // Either a malicious relay is trying to MITM, or the QR is stale
+        // and pointing at a channel rebound by a different dApp. Refuse.
+        throw new Error(
+          'Relay-provided public key does not match the fingerprint from the QR'
+        );
+      }
+
+      let synack: SynAckMessage;
+      try {
+        synack = await keyExchange.receiveQR(parsed.cid, pk);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        dlog(`KEM encaps failed: ${msg}`);
+        this.connections.delete(channelId);
+        this.handlers?.onSessionsChanged();
+        return { success: false, error: msg };
+      }
 
       // Send SYNACK — this kicks off the visible portion of the handshake.
       await socketClient.sendMessage({
@@ -185,7 +215,7 @@ export class DAppConnectService {
         message: synack,
       });
 
-      for (const msg of bufferedMessages) {
+      for (const msg of joinResult.bufferedMessages) {
         this.enqueueRelayMessage(channelId, msg as RelayMessage);
       }
 
