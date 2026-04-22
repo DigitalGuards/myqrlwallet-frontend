@@ -9,7 +9,6 @@
 import {
   KeyExchange,
   type AckMessage,
-  type SynAckMessage,
 } from './KeyExchange';
 import { parseConnectionURI, cidToString, computeFingerprint, fingerprintEquals } from './qrUri';
 import { fromBase64 } from './PQCrypto';
@@ -219,16 +218,7 @@ export class DAppConnectService {
       }
       connection.dappPublicKey = pk;
 
-      let synack: SynAckMessage;
-      try {
-        synack = await keyExchange.receiveQR(parsed.cid, pk);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        dlog(`KEM encaps failed: ${msg}`);
-        this.connections.delete(channelId);
-        this.handlers?.onSessionsChanged();
-        return { success: false, error: msg };
-      }
+      const synack = await keyExchange.receiveQR(parsed.cid, pk);
 
       // Send SYNACK — this kicks off the visible portion of the handshake.
       await socketClient.sendMessage({
@@ -245,6 +235,16 @@ export class DAppConnectService {
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       dlog(`Connection failed: ${errMsg}`);
+      // Tear the half-built connection down completely: without the
+      // socketClient.disconnect() below, the underlying socket stays
+      // joined to the relay channel and keeps firing onMessage handlers
+      // for a channel whose ActiveConnection we've already dropped.
+      try {
+        socketClient.leaveChannel();
+      } catch {
+        // ignore — we're already in the error path
+      }
+      socketClient.disconnect();
       this.connections.delete(channelId);
       SessionStore.remove(channelId);
       this.handlers?.onSessionsChanged();
@@ -330,7 +330,14 @@ export class DAppConnectService {
           await conn.keyExchange.onAck(message as AckMessage);
         } catch (err) {
           dlog(`ACK verify failed: ${err instanceof Error ? err.message : err}`);
-          this.disconnectSession(channelId, false);
+          // Await the teardown: the message queue is PER-CHANNEL, so
+          // blocking this queue until the channel is fully torn down is
+          // the correct behaviour on a security failure (prevents any
+          // subsequent buffered message on this compromised channel from
+          // being processed during the 800ms TERMINATE flush window).
+          await this.disconnectSession(channelId, false).catch((err) =>
+            console.error('[DAppConnect] disconnect-on-ack-fail failed:', err)
+          );
         }
         return;
       }
@@ -430,7 +437,13 @@ export class DAppConnectService {
       }
 
       case MessageType.TERMINATE: {
-        this.disconnectSession(channelId);
+        // Await the teardown: the message queue is per-channel, so
+        // halting it while we finalize this same channel is the correct
+        // behaviour — any further buffered messages for a channel that's
+        // being torn down are meaningless.
+        await this.disconnectSession(channelId).catch((err) =>
+          console.error('[DAppConnect] disconnect-on-terminate failed:', err)
+        );
         break;
       }
 
@@ -489,10 +502,15 @@ export class DAppConnectService {
     if (isInNativeApp()) triggerHaptic('error');
   }
 
-  disconnectSession(channelId: string, explicit = true): void {
+  async disconnectSession(channelId: string, explicit = true): Promise<void> {
     dlog(`disconnectSession called for ${channelId}`);
     this.clearDappLeaveTimeout(channelId);
     const conn = this.connections.get(channelId);
+
+    // Idempotence guard: concurrent callers (e.g. the user tapping
+    // Disconnect at the same moment an inbound TERMINATE arrives from the
+    // dApp) must not each run the full teardown and fire a second
+    // DAPP_DISCONNECTED bridge message / onSessionDisconnected callback.
     let finalized = false;
     const finalize = () => {
       if (finalized) return;
@@ -534,12 +552,14 @@ export class DAppConnectService {
       }
     };
 
-    void Promise.race([
-      sendTerminate(),
-      new Promise((resolve) => setTimeout(resolve, TERMINATE_SEND_TIMEOUT_MS)),
-    ]).finally(() => {
+    try {
+      await Promise.race([
+        sendTerminate(),
+        new Promise((resolve) => setTimeout(resolve, TERMINATE_SEND_TIMEOUT_MS)),
+      ]);
+    } finally {
       finalize();
-    });
+    }
   }
 
   getActiveSessions(): DAppSession[] {
@@ -621,11 +641,11 @@ export class DAppConnectService {
     this.handlers?.onSessionsChanged();
   }
 
-  disconnectAll(): void {
+  async disconnectAll(): Promise<void> {
     dlog(`disconnectAll called with ${this.connections.size} connections`);
-    for (const channelId of this.connections.keys()) {
-      this.disconnectSession(channelId);
-    }
+    // Snapshot before awaiting — disconnectSession mutates the map.
+    const channelIds = Array.from(this.connections.keys());
+    await Promise.all(channelIds.map((cid) => this.disconnectSession(cid)));
   }
 
   static isConnectionURI(uri: string): boolean {
@@ -659,7 +679,8 @@ export class DAppConnectService {
       this.dappLeaveTimers.delete(channelId);
       if (!this.connections.has(channelId)) return;
       dlog(`dApp absent for ${DAPP_REJOIN_GRACE_MS}ms; disconnecting`);
-      this.disconnectSession(channelId, false);
+      // Fire-and-forget: this is a setTimeout callback, nothing to await into.
+      void this.disconnectSession(channelId, false);
     }, DAPP_REJOIN_GRACE_MS);
     this.dappLeaveTimers.set(channelId, timeout);
     dlog(`Scheduled stale-session timeout for channel ${channelId}`);

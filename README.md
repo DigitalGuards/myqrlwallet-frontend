@@ -13,6 +13,7 @@ A modern, secure web wallet for the Quantum Resistant Ledger's QRL 2.0 blockchai
 - **Token Discovery** - Automatic detection of tokens held by your address
 - **Multi-Network** - Testnet, Mainnet, and custom RPC support
 - **Mobile App Integration** - Native features when running in [MyQRLWallet App](https://github.com/DigitalGuards/myqrlwallet-app)
+- **dApp Connect** - Pair with web dApps by scanning a `qrlconnect://` QR code in the mobile app or tapping a deep link. Handshake and session management run through the [`@qrlwallet/connect`](https://github.com/DigitalGuards/myqrlwallet-connect) SDK with a post-quantum key exchange (ML-KEM-768) and an E2E-encrypted relay channel.
 - **Responsive Design** - Works on desktop and mobile browsers
 
 ## Getting Started
@@ -207,10 +208,30 @@ When running inside the [MyQRLWallet App](https://github.com/DigitalGuards/myqrl
 - **Native Share** - System share sheet
 - **Secure Storage** - Seeds backed up in device SecureStore (iOS Keychain / Android Keystore)
 
+## dApp Connect
+
+The wallet pairs with web dApps over an E2E-encrypted relay channel driven by [`@qrlwallet/connect`](https://github.com/DigitalGuards/myqrlwallet-connect). The dApp publishes a `qrlconnect://` URI (rendered as a QR code or a mobile deep-link button), the wallet joins the channel, and all subsequent dApp ↔ wallet traffic (account requests, transaction signing, `accountsChanged` events) flows encrypted end-to-end.
+
+**Entry points** — one of:
+
+- **QR scan from the mobile app**: tapping "Scan dApp" in MyQRLWallet App opens the native camera; the URI is forwarded to the web wallet as `DAPP_URI`.
+- **Deep link**: tapping a `qrlconnect://…` link in the mobile browser opens MyQRLWallet App, which forwards the URI to the web wallet.
+- **Paste in desktop**: on desktop, a user can paste a `qrlconnect://…` URI into the wallet's dApp Connect screen directly.
+
+**Approval UX** is rendered in the web wallet only — a single source of truth for session approval, signing prompts, and disconnect. The mobile shell is a passive transport.
+
+**Handshake**: post-quantum key exchange (ML-KEM-768) + fingerprint verification against the PK the dApp published to the relay. SYN / SYNACK / ACK is idempotent (duplicate or late messages don't double-connect).
+
+**Session lifecycle**: stored in `localStorage` for auto-reconnect across browser refresh and app relaunch. Either side can disconnect; if the dApp leaves the relay channel, the wallet uses a grace-period stale-session timeout before cleanup.
+
+See [`src/services/dappConnect/`](src/services/dappConnect/) for the wallet-side service, [`DigitalGuards/myqrlwallet-connect`](https://github.com/DigitalGuards/myqrlwallet-connect) for the SDK consumed by dApps.
+
 ## Related Projects
 
-- [myqrlwallet-backend](https://github.com/DigitalGuards/myqrlwallet-backend) - API server (RPC proxy, support email, tx history)
-- [myqrlwallet-app](https://github.com/DigitalGuards/myqrlwallet-app) - React Native mobile app
+- [myqrlwallet-backend](https://github.com/DigitalGuards/myqrlwallet-backend) - API server (RPC proxy, support email, tx history, dApp Connect relay)
+- [myqrlwallet-app](https://github.com/DigitalGuards/myqrlwallet-app) - React Native mobile app (native QR scanning, `qrlconnect://` deep-link handler, SecureStore seed backup)
+- [myqrlwallet-connect](https://github.com/DigitalGuards/myqrlwallet-connect) - `@qrlwallet/connect` npm SDK that dApps use to pair with MyQRLWallet
+- [QRC20-Factory](https://github.com/DigitalGuards/QRC20-Factory) - Hyperion contracts + deploy scripts for the custom QRC20 token factory consumed by the Create Token flow
 - [QuantaPool](https://github.com/DigitalGuards/QuantaPool) - Liquid staking protocol
 
 ## Security

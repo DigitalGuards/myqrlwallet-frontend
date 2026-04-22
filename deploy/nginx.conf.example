@@ -15,8 +15,12 @@ server {
 
 # HTTPS server
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
+    # Do NOT add `http2` here if nginx < 1.25.1 and Cloudflare is in front.
+    # nginx 1.24 doesn't support WebSocket-over-HTTP/2 (RFC 8441), so CF
+    # opens an HTTP/2 connection to the origin and the relay's WebSocket
+    # dies every ~5s. CF still serves HTTP/2 to end users regardless.
+    listen 443 ssl;
+    listen [::]:443 ssl;
     server_name yourdomain.com www.yourdomain.com;
 
     # SSL Configuration - update paths to your certificates
@@ -38,7 +42,11 @@ server {
 
     # Security Headers (applied to locations without their own add_header)
     # NOTE: These are NOT inherited by location blocks that have add_header directives
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
+    # If you serve both apex and www subdomain, adjust connect-src to include
+    # both variants (or use a wildcard like *.yourdomain.com) so CSP doesn't
+    # flag the other variant as cross-origin when a user lands on one but
+    # the API / relay answers on the other.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* wss://yourdomain.com https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header X-XSS-Protection "1; mode=block" always;
@@ -119,9 +127,12 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_cache_bypass $http_upgrade;
 
-        # Long-lived connections for WebSocket
-        proxy_read_timeout 300s;
-        proxy_send_timeout 300s;
+        # Long-lived connections for WebSocket — 24h allows persistent
+        # sessions across phone backgrounding / screen-off cycles.
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        # Disable response buffering so WebSocket frames flow immediately.
+        proxy_buffering off;
     }
 
     # Backend down handler - returns JSON error
@@ -135,7 +146,7 @@ server {
         expires 1y;
         # IMPORTANT: Must repeat security headers since this block has add_header
         add_header Cache-Control "public, no-transform";
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* wss://yourdomain.com https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "DENY" always;
         add_header X-XSS-Protection "1; mode=block" always;
@@ -148,7 +159,7 @@ server {
         try_files $uri $uri/ /index.html?$args;
 
         # Security Headers (must be repeated here because add_header clears parent headers)
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* wss://yourdomain.com https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "DENY" always;
         add_header X-XSS-Protection "1; mode=block" always;
@@ -157,7 +168,7 @@ server {
         # Prevent caching of index.html for instant updates
         # IMPORTANT: Must repeat security headers since this block has add_header
         add_header Cache-Control "no-store, no-cache, must-revalidate" always;
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com/api/* wss://yourdomain.com https://zondscan.com; img-src 'self' data:; font-src 'self' data:;" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "DENY" always;
         add_header X-XSS-Protection "1; mode=block" always;
