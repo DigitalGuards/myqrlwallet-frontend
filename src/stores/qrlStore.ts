@@ -911,7 +911,8 @@ class QrlStore {
 
       const estimatedGas = await contractCreateToken.estimateGas({ from: acc.address })
       const gas = (estimatedGas * 12n) / 10n
-      const gasPrice = await web3.qrl.getGasPrice()
+      const currentGasPrice = await web3.qrl.getGasPrice()
+      const gasPrice = (BigInt(currentGasPrice) * 11n) / 10n
 
       const txObj = { gas, gasPrice, from: acc.address, data: contractCreateToken.encodeABI(), to: contractAddress }
 
