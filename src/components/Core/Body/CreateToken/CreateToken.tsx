@@ -9,18 +9,16 @@ const CreateToken = observer(() => {
         createToken,
     } = qrlStore;
 
-    const onTokenCreated = async (tokenName: string, tokenSymbol: string, initialSupply: string, decimals: number, maxSupply: undefined | string, initialRecipient: undefined | string, tokenOwner: undefined | string, maxWalletAmount: undefined | string, maxTransactionLimit: undefined | string, mnemonicPhrases: string) => {
+    const onTokenCreated = async (tokenName: string, tokenSymbol: string, initialSupply: string, decimals: number, maxSupply: undefined | string, initialRecipient: undefined | string, maxWalletAmount: undefined | string, maxTransactionLimit: undefined | string, mnemonicPhrases: string) => {
 
         if (!initialRecipient) {
             initialRecipient = "Q0000000000000000000000000000000000000000";
         }
 
-        if (!tokenOwner) {
-            tokenOwner = "Q0000000000000000000000000000000000000000";
-        }
-
+        // Factory requires maxSupply > 0 and maxSupply >= initialSupply.
+        // Default to initialSupply so "leave blank" means "fixed supply".
         if (!maxSupply) {
-            maxSupply = "0";
+            maxSupply = initialSupply;
         }
 
         if (!maxWalletAmount) {
@@ -38,7 +36,6 @@ const CreateToken = observer(() => {
             decimals,
             maxSupply,
             initialRecipient,
-            tokenOwner,
             maxWalletAmount,
             maxTransactionLimit,
             mnemonicPhrases
