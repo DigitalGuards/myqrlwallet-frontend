@@ -1,3 +1,5 @@
+import type { PersistedSession } from './KeyExchange';
+
 /** dApp metadata received during connection */
 export interface DAppInfo {
   name: string;
@@ -6,13 +8,19 @@ export interface DAppInfo {
   chainId: string;
 }
 
-/** A connected dApp session */
+/**
+ * A connected dApp session (persisted in localStorage).
+ *
+ * v2 persists the derived AES-256 session key rather than an ML-KEM secret
+ * key — the KEM keypair is ephemeral and zeroized after the handshake.
+ * Re-pair (scan a new QR) to rotate the session key.
+ */
 export interface DAppSession {
-  id: string; // channelId
+  version: 2;
+  id: string;
   dappInfo: DAppInfo;
   connectedAccount: string;
-  privateKey: string;
-  otherPublicKey: string | null;
+  keyExchange: PersistedSession;
   relayUrl?: string;
   status: SessionStatus;
   createdAt: number;
@@ -37,7 +45,7 @@ export interface PendingDAppRequest {
   timestamp: number;
 }
 
-/** Key exchange message types (must match SDK) */
+/** Key-exchange message types (must match SDK) */
 export enum KeyExchangeMessageType {
   SYN = 'key_handshake_SYN',
   SYNACK = 'key_handshake_SYNACK',
@@ -60,17 +68,6 @@ export interface RelayMessage {
   id: string;
   clientType: 'dapp' | 'wallet';
   message: string | object;
-}
-
-/** QR connect URI parameters */
-export interface ConnectParams {
-  channelId: string;
-  pubKey: string;
-  name: string;
-  url: string;
-  icon?: string;
-  chainId: string;
-  relay: string;
 }
 
 /** JSON-RPC request */

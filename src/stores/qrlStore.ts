@@ -11,7 +11,7 @@ import { action, computed, makeAutoObservable, observable, runInAction } from "m
 import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
 import { fetchTokenInfo, fetchBalance, discoverTokens, mergeTokenLists } from "@/utils/web3";
 import { TokenInterface, KNOWN_TOKEN_LIST } from "@/constants";
-import CustomERC20ABI from "@/abi/CustomERC20ABI";
+import { customERC20ABI as CustomERC20ABI } from "@/abi/CustomERC20ABI";
 import { formatUnits } from "ethers";
 import { getOptimalTokenBalance } from "@/utils/formatting";
 
@@ -812,7 +812,6 @@ class QrlStore {
     decimals: number,
     maxSupply: string,
     receipt: string,
-    owner: string,
     maxWalletAmount: string,
     maxTxLimit: string,
     mnemonicPhrases: string
@@ -906,14 +905,16 @@ class QrlStore {
         decimals,
         maxSupply,
         receipt,
-        owner,
         maxWalletAmount,
         maxTxLimit
       );
 
-      const estimateGas = await contractCreateToken.estimateGas({ "from": acc.address })
+      const estimatedGas = await contractCreateToken.estimateGas({ from: acc.address })
+      const gas = (estimatedGas * 12n) / 10n
+      const currentGasPrice = await web3.qrl.getGasPrice()
+      const gasPrice = (BigInt(currentGasPrice) * 11n) / 10n
 
-      const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: contractCreateToken.encodeABI(), to: contractAddress }
+      const txObj = { gas, gasPrice, from: acc.address, data: contractCreateToken.encodeABI(), to: contractAddress }
 
       await web3.qrl.sendTransaction(txObj, undefined, {
         checkRevertBeforeSending: true
