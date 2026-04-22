@@ -51,6 +51,11 @@ interface ActiveConnection {
   // save, which would silently point reconnects at prod when running on
   // dev/staging.
   relayUrl: string;
+  // Pinned dApp public key for the live session, so a duplicate scan of
+  // the same cid can be checked against the real fp instead of being
+  // short-circuited as "already connected". Not persisted — rehydrated
+  // sessions skip the fp check since the AEAD key is already established.
+  dappPublicKey?: Uint8Array;
 }
 
 type ServiceEventHandler = {
@@ -98,7 +103,23 @@ export class DAppConnectService {
 
     const channelId = cidToString(parsed.cid);
 
-    if (this.connections.has(channelId)) {
+    const existingConn = this.connections.get(channelId);
+    if (existingConn) {
+      // Duplicate scan of the same cid — treat as idempotent only if the
+      // fp in the new QR matches the PK we're already paired with. Without
+      // this check a rescan of a stale or attacker QR bearing the same
+      // cid would "succeed" silently even though its commitment differs
+      // from the live session. 128-bit random cids make collisions
+      // vanishingly rare, so this is primarily a UX / correctness guard.
+      if (existingConn.dappPublicKey) {
+        const expectedFp = await computeFingerprint(parsed.cid, existingConn.dappPublicKey);
+        if (!fingerprintEquals(parsed.fp, expectedFp)) {
+          return {
+            success: false,
+            error: 'Scanned QR does not match the already-connected dApp for this channel',
+          };
+        }
+      }
       return { success: true };
     }
 
@@ -196,6 +217,7 @@ export class DAppConnectService {
           'Relay-provided public key does not match the fingerprint from the QR'
         );
       }
+      connection.dappPublicKey = pk;
 
       let synack: SynAckMessage;
       try {

@@ -63,6 +63,16 @@ export interface ParsedURI {
   relayUrl?: string;
 }
 
+const PQP1_MAGIC = new Uint8Array([0x50, 0x51, 0x50, 0x31]);
+
+function startsWith(buf: Uint8Array, prefix: Uint8Array): boolean {
+  if (buf.length < prefix.length) return false;
+  for (let i = 0; i < prefix.length; i++) {
+    if (buf[i] !== prefix[i]) return false;
+  }
+  return true;
+}
+
 export async function parseConnectionURI(uri: string): Promise<ParsedURI> {
   if (typeof uri !== 'string' || uri.length === 0) {
     throw new Error('qrUri: empty URI');
@@ -70,8 +80,16 @@ export async function parseConnectionURI(uri: string): Promise<ParsedURI> {
   if (!/^qrlconnect:/i.test(uri)) {
     throw new Error('qrUri: not a qrlconnect URI');
   }
-  const stripped = uri.replace(/^qrlconnect:\/?\/?\??/i, '');
-  const params = new URLSearchParams(stripped);
+  // WHATWG URL parsing via a dummy-scheme swap so malformed input like
+  // "qrlconnect:q=..." rejects cleanly instead of slipping through a
+  // loose regex.
+  let params: URLSearchParams;
+  try {
+    const swapped = new URL(uri.replace(/^qrlconnect:\/?\/?/i, 'https://qrlconnect/'));
+    params = swapped.searchParams;
+  } catch {
+    throw new Error('qrUri: malformed URI');
+  }
 
   if (params.has('channelId') || params.has('pubKey')) {
     throw new Error(
@@ -95,7 +113,7 @@ export async function parseConnectionURI(uri: string): Promise<ParsedURI> {
   if (blob.length !== BLOB_LEN) {
     // Distinguish a PQP1 URI (1208-byte blob) so the user sees a useful
     // hint instead of a generic size mismatch.
-    if (blob.length === 1208 && blob[3] === 0x31 /* '1' */) {
+    if (blob.length === 1208 && startsWith(blob, PQP1_MAGIC)) {
       throw new Error(
         'qrUri: legacy PQP1 URI — regenerate the QR with a v2.0+ dApp SDK'
       );
@@ -103,10 +121,8 @@ export async function parseConnectionURI(uri: string): Promise<ParsedURI> {
     throw new Error(`qrUri: expected ${BLOB_LEN}-byte blob, got ${blob.length}`);
   }
 
-  for (let i = 0; i < MAGIC.length; i++) {
-    if (blob[i] !== MAGIC[i]) {
-      throw new Error('qrUri: bad PQP2 magic');
-    }
+  if (!startsWith(blob, MAGIC)) {
+    throw new Error('qrUri: bad PQP2 magic');
   }
 
   const cid = blob.slice(4, 4 + CID_LEN);
