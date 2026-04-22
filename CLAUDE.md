@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 ## Related Projects
 
 This frontend is part of the MyQRLWallet ecosystem:
-- **myqrlwallet-backend** - Express.js API (RPC proxy, support email, tx history)
+- **myqrlwallet-backend** - Express.js API (RPC proxy, tx history)
 - **myqrlwallet-app** - React Native/Expo mobile app wrapper
 - **QuantaPool** - Liquid staking protocol
 
@@ -67,8 +67,7 @@ src/
 │       │   ├── Tokens/         # Token management
 │       │   ├── CreateToken/    # ERC20 factory
 │       │   ├── ImportAccount/  # Mnemonic/hex import
-│       │   ├── Settings/       # App settings
-│       │   └── Support/        # Contact form
+│       │   └── Settings/       # App settings
 │       └── Footer/
 ├── config/                 # Network configuration
 ├── constants/              # Token lists, chains

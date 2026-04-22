@@ -17,9 +17,6 @@ export default function Footer() {
                 <a onClick={() => navigate(ROUTES.TERMS)} className="text-xs md:text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
                     Terms
                 </a>
-                <a onClick={() => navigate(ROUTES.SUPPORT)} className="text-xs md:text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
-                    Support
-                </a>
             </div>
         </footer>
     )
