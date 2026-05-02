@@ -63,12 +63,19 @@ function decodeHexForPreview(value: string): string {
   try {
     const bytes = new Uint8Array(hex.length / 2);
     for (let i = 0; i < bytes.length; i++) {
-      bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+      bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
     }
     const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
     // Refuse to "decode" if the result contains control chars — that means
     // it's binary data and the hex form is the honest representation.
-    if (/[\x00-\x08\x0e-\x1f]/.test(text)) return value;
+    // Control range covers C0 (0x00–0x08, 0x0e–0x1f) and DEL (0x7f); we keep
+    // tab/LF/CR/FF (0x09–0x0d) so multi-line or formatted messages survive.
+    for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i);
+      if ((c <= 0x08) || (c >= 0x0e && c <= 0x1f) || c === 0x7f) {
+        return value;
+      }
+    }
     return text;
   } catch {
     return value;
