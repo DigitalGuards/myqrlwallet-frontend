@@ -46,6 +46,35 @@ function parseRpcNumber(value: unknown, fallback: number): number {
   return fallback;
 }
 
+/**
+ * EIP-191 `personal_sign` requires `params[0]` to be hex-encoded data — that's
+ * what the QRL Web3 Wallet extension and conforming dApps send. For the
+ * approval preview, decode hex back to human-readable text so the user sees
+ * what they're actually signing, not a wall of bytes. Falls back to the
+ * original string if it isn't well-formed hex or decodes to non-printable
+ * bytes.
+ */
+function decodeHexForPreview(value: string): string {
+  if (!value || typeof value !== 'string' || !value.startsWith('0x')) return value;
+  const hex = value.slice(2);
+  if (hex.length === 0 || hex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(hex)) {
+    return value;
+  }
+  try {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+    }
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    // Refuse to "decode" if the result contains control chars — that means
+    // it's binary data and the hex form is the honest representation.
+    if (/[\x00-\x08\x0e-\x1f]/.test(text)) return value;
+    return text;
+  } catch {
+    return value;
+  }
+}
+
 function getMessageToSign(
   method: string,
   params: unknown[] | undefined,
@@ -363,7 +392,7 @@ const DAppApprovalModal = observer(() => {
   const hasNativePin = !!getNativeInjectedPin();
   const isTransaction = method === 'qrl_sendTransaction' || method === 'qrl_signTransaction';
   const messagePreview = (method === 'personal_sign' || method === 'qrl_sign')
-    ? getMessageToSign(method, params, qrlStore.activeAccount?.accountAddress || '')
+    ? decodeHexForPreview(getMessageToSign(method, params, qrlStore.activeAccount?.accountAddress || ''))
     : '';
 
   const isTxInProgress = txProgress !== 'idle';
