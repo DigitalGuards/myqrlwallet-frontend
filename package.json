@@ -35,7 +35,7 @@
     "@noble/post-quantum": "^0.5.4",
     "@theqrl/web3": "^0.4.0",
     "@types/crypto-js": "^4.2.2",
-    "axios": "^1.15.0",
+    "axios": "^1.15.2",
     "bignumber.js": "^9.3.1",
     "buffer": "^6.0.3",
     "class-variance-authority": "^0.7.1",
