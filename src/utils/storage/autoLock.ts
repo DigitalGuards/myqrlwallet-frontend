@@ -11,6 +11,12 @@ let navigateFunction: ((path: string) => void) | null = null;
 let timeoutMs: number = 0;
 let timerStartTime: number = 0;
 let isActivityTrackingInitialized = false;
+// Monotonic id for serializing concurrent startAutoLockTimer calls. When
+// multiple async setup paths race (e.g. an active-account event arrives
+// while a wallet-settings event is mid-await), only the latest request
+// gets to install the setInterval — older ones detect they've been
+// superseded and bail before creating an orphaned timer.
+let timerSetupRequestId = 0;
 
 /**
  * Checks if there's an active wallet that needs to be protected
@@ -31,6 +37,13 @@ export const hasActiveWallet = async (): Promise<boolean> => {
  * @param navigate - The navigate function from react-router
  */
 export const startAutoLockTimer = async (navigate: (path: string) => void) => {
+  // Claim a request id before any await. If another setup call lands while
+  // we're awaiting hasActiveWallet / getWalletSettings, its id will be
+  // higher and we'll bail at the install point below — preventing the
+  // orphan-timer race where two parallel setups both assign autoLockTimer
+  // and the earlier one keeps ticking forever.
+  const myRequestId = ++timerSetupRequestId;
+
   // Store the navigate function for later use
   navigateFunction = navigate;
 
@@ -58,6 +71,15 @@ export const startAutoLockTimer = async (navigate: (path: string) => void) => {
   if (!timeoutMs || timeoutMs <= 0) {
     console.log("🔒 Auto-lock: DISABLED (timeout set to 0 or negative)");
     return; // Auto-lock is disabled
+  }
+
+  // Bail out if a newer setup request landed while we were awaiting above.
+  // Without this, our `setInterval` below would orphan whatever timer the
+  // newer request later installs (or vice versa) and we'd silently leak
+  // a ticking interval.
+  if (myRequestId !== timerSetupRequestId) {
+    console.log("🔒 Auto-lock: superseded by newer setup request, abandoning install");
+    return;
   }
 
   // Set the timer start time and last activity time to now
@@ -168,6 +190,13 @@ export const checkAndStartAutoLock = async () => {
  * Attaches event listeners to track user activity
  */
 export const setupActivityTracking = () => {
+  // Guard SSR / test environments where `window` is undefined. Matches
+  // the same guard on the dispatch side in storage.ts so the two halves
+  // stay consistent.
+  if (typeof window === 'undefined') {
+    return;
+  }
+
   // Prevent duplicate initialization
   if (isActivityTrackingInitialized) {
     return;
