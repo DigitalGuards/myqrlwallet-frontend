@@ -1,5 +1,5 @@
 import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
-import { getHexSeedFromMnemonic } from "@/utils/crypto";
+import { getHexSeedFromMnemonic, deriveHexSeedAsync } from "@/utils/crypto";
 import { StorageUtil, AccountListItem, AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
 import Web3, {
@@ -680,7 +680,10 @@ class QrlStore {
         maxPriorityFeePerGas: utils.toHex(maxPriorityFeePerGas),
         nonce: nonce,
       };
-      const privateKey = getHexSeedFromMnemonic(mnemonicPhrases);
+      // Run the MLDSA87 derivation in the crypto worker so the 50–300 ms
+      // expansion doesn't freeze the main thread mid-Send animation.
+      // Subsequent signTransaction call is comparatively cheap.
+      const privateKey = await deriveHexSeedAsync(mnemonicPhrases);
 
       // Sign the transaction first to ensure validity before proceeding
       const signedTransaction =
