@@ -762,6 +762,12 @@ class QrlStore {
   }
 
   async sendToken(token: TokenInterface, amount: string, mnemonicPhrases: string, toAddress: string, feeLevel: FeeLevel = 'medium') {
+    // Reset transaction state up front (matches signAndSendTransaction).
+    // This also cancels any in-flight receipt poller from a previous tx
+    // so it can't race a stale receipt into this send's status updates
+    // — important now that the worker-derive introduces extra awaits
+    // before the new tx hash is observed.
+    this.resetTransactionStatus();
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
@@ -851,6 +857,10 @@ class QrlStore {
     maxTxLimit: string,
     mnemonicPhrases: string
   ) {
+    // Reset transaction state up front (matches signAndSendTransaction /
+    // sendToken). Cancels any in-flight receipt poller from a previous
+    // tx so it can't race into this contract-deploy's status updates.
+    this.resetTransactionStatus();
     try {
       this.setCreatingToken(tokenName, true);
       const selectedBlockChain = await StorageUtil.getBlockChain();
