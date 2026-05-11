@@ -14,7 +14,7 @@ import { useStore } from "@/stores/store";
 import { TokenInterface } from "@/constants";
 import { fetchBalance, fetchTokenInfo } from "@/utils/web3";
 import { Loader2 } from "lucide-react";
-import { getAddressFromMnemonic } from "@/utils/crypto";
+import { getAddressFromMnemonicAsync } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 import { QRL_PROVIDER } from "@/config";
 import { formatUnits, parseUnits } from "ethers";
@@ -82,8 +82,9 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                     return;
                 }
                 
-                // Verify the mnemonic corresponds to the active account
-                const senderAddress = getAddressFromMnemonic(mnemonic, qrlStore.qrlInstance!);
+                // Verify the mnemonic corresponds to the active account.
+                // MLDSA87 derivation runs in the crypto worker.
+                const senderAddress = await getAddressFromMnemonicAsync(mnemonic, qrlStore.qrlInstance!);
                 if (senderAddress.toLowerCase() !== activeAccountAddress.toLowerCase()) {
                     setPinError("PIN decrypted an invalid seed. Please import your account again.");
                     setIsLoading(false);

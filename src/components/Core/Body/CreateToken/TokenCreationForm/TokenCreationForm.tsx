@@ -30,7 +30,7 @@ import { ROUTES } from "@/router/router";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
-import { getAddressFromMnemonic } from "@/utils/crypto";
+import { getAddressFromMnemonicAsync } from "@/utils/crypto";
 import { Label } from "@/components/UI/Label";
 import { isValidQrlAddress } from "@/utils/web3";
 
@@ -142,8 +142,9 @@ export const TokenCreationForm = observer(
                         const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pin);
                         mnemonicPhrase = decryptedSeed.mnemonic;
 
-                        // Verify the mnemonic corresponds to the active account
-                        const address = getAddressFromMnemonic(mnemonicPhrase, qrlStore.qrlInstance!);
+                        // Verify the mnemonic corresponds to the active account.
+                        // MLDSA87 derivation runs in the crypto worker.
+                        const address = await getAddressFromMnemonicAsync(mnemonicPhrase, qrlStore.qrlInstance!);
                         if (address.toLowerCase() !== activeAccount.accountAddress.toLowerCase()) {
                             setPinError("PIN decrypted an invalid seed. Please import your account again.");
                             return;
