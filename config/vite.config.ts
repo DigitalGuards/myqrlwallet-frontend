@@ -30,8 +30,30 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       plugins: [nodePolyfills()],
+      output: {
+        // Split vendor code into separate chunks so the wallet's first paint
+        // doesn't have to parse the entire dependency graph before becoming
+        // interactive. Previously everything below shipped in a single
+        // ~1.2 MB entry chunk, which was 4–8 s of main-thread blocking on
+        // mid-range mobile devices. Now the largest single chunk is the
+        // QRL post-quantum crypto package, which the rest of the app can
+        // load in parallel.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('@radix-ui')) return 'vendor-radix'
+          if (id.includes('@theqrl/web3') || id.includes('@theqrl/wallet.js')) return 'vendor-qrl-crypto'
+          if (id.includes('node_modules/ethers/')) return 'vendor-ethers'
+          if (id.includes('node_modules/mobx') || id.includes('mobx-react-lite')) return 'vendor-mobx'
+          if (id.includes('socket.io-client')) return 'vendor-socket-io'
+          if (id.includes('node_modules/react-dom/')) return 'vendor-react-dom'
+          if (id.includes('node_modules/react/')) return 'vendor-react'
+          return undefined
+        },
+      },
     },
-    sourcemap: true,
+    // Don't ship sourcemaps to production — they expose the full
+    // un-minified store / RPC paths to anyone who guesses the .map URL.
+    sourcemap: mode !== 'production',
     commonjsOptions: {
       include: /node_modules/,
       transformMixedEsModules: true,
