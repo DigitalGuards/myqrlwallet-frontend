@@ -19,6 +19,19 @@ const WALLET_SETTINGS_IDENTIFIER = "WALLET_SETTINGS";
 const ENCRYPTED_SEEDS_IDENTIFIER = "ENCRYPTED_SEEDS";
 const AUTO_LOCK_TIMEOUT = 15 * 60 * 1000; // 15 minutes default auto-lock timeout
 
+// Same-tab change events. The native `storage` event only fires in OTHER
+// tabs, so we dispatch these on `window` to let other modules
+// (e.g. autoLock) react to writes happening in the same tab without
+// monkey-patching `localStorage.setItem`. Guarded against environments
+// where `window` is undefined (SSR / tests).
+export const STORAGE_EVENT_ACTIVE_ACCOUNT = 'qrl-wallet:active-account-changed';
+export const STORAGE_EVENT_WALLET_SETTINGS = 'qrl-wallet:wallet-settings-changed';
+const dispatchStorageEvent = (name: string) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(name));
+  }
+};
+
 type TransactionValuesType = {
   receiverAddress?: string;
   amount?: number;
@@ -171,6 +184,7 @@ class StorageUtil {
     } else {
       localStorage.removeItem(blockChainAccountIdentifier);
     }
+    dispatchStorageEvent(STORAGE_EVENT_ACTIVE_ACCOUNT);
   }
 
   static async getActiveAccount(blockchain: string) {
@@ -181,6 +195,7 @@ class StorageUtil {
   static async clearActiveAccount(blockchain: string) {
     const blockChainAccountIdentifier = `${blockchain}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
     localStorage.removeItem(blockChainAccountIdentifier);
+    dispatchStorageEvent(STORAGE_EVENT_ACTIVE_ACCOUNT);
   }
 
   /**
@@ -278,6 +293,7 @@ class StorageUtil {
 
   static async setWalletSettings(settings: WalletSettings) {
     this.setItem(WALLET_SETTINGS_IDENTIFIER, settings);
+    dispatchStorageEvent(STORAGE_EVENT_WALLET_SETTINGS);
   }
 
   static async getWalletSettings(): Promise<WalletSettings> {
