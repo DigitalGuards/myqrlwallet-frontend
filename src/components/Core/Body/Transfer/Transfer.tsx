@@ -42,7 +42,7 @@ import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSucces
 import { getExplorerAddressUrl, getExplorerTxUrl, QRL_PROVIDER } from "@/config";
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
-import { WalletEncryptionUtil, getAddressFromMnemonic } from "@/utils/crypto";
+import { WalletEncryptionUtil, getAddressFromMnemonicAsync } from "@/utils/crypto";
 import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
 import { FeeLevel } from "@/stores/qrlStore";
 import { SEO } from "@/components/SEO/SEO";
@@ -359,8 +359,10 @@ const Transfer = observer(() => {
           return;
         }
 
-        // Verify decrypted mnemonic matches the expected account address
-        const senderAddress = getAddressFromMnemonic(mnemonicPhrases, qrlStore.qrlInstance!);
+        // Verify decrypted mnemonic matches the expected account address.
+        // MLDSA87 derivation runs in the crypto worker — keeps the
+        // Transfer modal animating smoothly during the 50–300 ms check.
+        const senderAddress = await getAddressFromMnemonicAsync(mnemonicPhrases, qrlStore.qrlInstance!);
         if (senderAddress.toLowerCase() !== accountAddress.toLowerCase()) {
           control.setError("pin", { message: "Security error: seed mismatch detected. Please re-import this account." });
           return;
@@ -394,7 +396,7 @@ const Transfer = observer(() => {
         return;
       }
 
-      const senderAddress = getAddressFromMnemonic(mnemonic, qrlStore.qrlInstance!);
+      const senderAddress = await getAddressFromMnemonicAsync(mnemonic, qrlStore.qrlInstance!);
       if (senderAddress.toLowerCase() !== accountAddress.toLowerCase()) {
         control.setError("pin", { message: "PIN decrypted an invalid seed." });
         return;

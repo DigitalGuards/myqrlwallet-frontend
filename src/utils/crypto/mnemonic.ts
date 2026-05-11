@@ -1,6 +1,7 @@
 import { MLDSA87, ExtendedSeed } from "@theqrl/wallet.js";
 import { Buffer } from "buffer";
 import type { Web3QRLInterface } from "@theqrl/web3";
+import { deriveHexSeedAsync } from "./cryptoWorkerClient";
 
 export const getMnemonicFromHexSeed = (hexSeed?: string) => {
   if (!hexSeed) return "";
@@ -28,4 +29,20 @@ export const getAddressFromMnemonic = (mnemonic: string | undefined, qrlInstance
   const hexSeed = wallet.getHexExtendedSeed();
   const account = qrlInstance.accounts.seedToAccount(hexSeed);
   return account.address;
+};
+
+/**
+ * Async sibling of getAddressFromMnemonic that runs the heavy MLDSA87
+ * expansion in the crypto worker. The subsequent seedToAccount call
+ * (deterministic mapping of hexSeed → address) is comparatively cheap
+ * and stays on the main thread.
+ */
+export const getAddressFromMnemonicAsync = async (
+  mnemonic: string | undefined,
+  qrlInstance: Web3QRLInterface,
+): Promise<string> => {
+  if (!mnemonic) return "";
+  const hexSeed = await deriveHexSeedAsync(mnemonic);
+  if (!hexSeed) return "";
+  return qrlInstance.accounts.seedToAccount(hexSeed).address;
 };
