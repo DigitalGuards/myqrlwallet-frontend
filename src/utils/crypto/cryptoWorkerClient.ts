@@ -184,6 +184,26 @@ export async function reEncryptSeedAsync(
 }
 
 /**
+ * Derive the hex-encoded extended seed from a BIP39 mnemonic using the
+ * Web Worker so the 50–300 ms MLDSA87 expansion runs off the main
+ * thread. Equivalent output to the synchronous getHexSeedFromMnemonic
+ * but doesn't block animations / signing UI during the derivation.
+ *
+ * Matches getHexSeedFromMnemonic's empty-input contract: returns "" for
+ * undefined / empty / whitespace-only input without acquiring a worker.
+ */
+export async function deriveHexSeedAsync(mnemonic: string): Promise<string> {
+  if (!mnemonic || !mnemonic.trim()) {
+    return "";
+  }
+  const result = await postToWorker<'deriveHexSeed'>({
+    type: 'deriveHexSeed',
+    mnemonic,
+  });
+  return result.hexSeed;
+}
+
+/**
  * Terminate all workers in the pool.
  * Call when crypto operations are no longer needed.
  */

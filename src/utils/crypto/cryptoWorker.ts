@@ -1,9 +1,16 @@
 /**
  * Web Worker for CPU-intensive cryptographic operations.
- * Runs PBKDF2 key derivation off the main thread to keep UI responsive.
+ *
+ * Operations handled off the main thread:
+ * - encrypt / decrypt / reEncrypt: PBKDF2 (600k iterations) + AES.
+ * - deriveHexSeed: MLDSA87 wallet expansion from a mnemonic. This is
+ *   50–300 ms of pure JS work and was previously running on the main
+ *   thread inside getHexSeedFromMnemonic, blocking any animation /
+ *   signing UI for the duration.
  */
 
 import CryptoJS from 'crypto-js';
+import { MLDSA87 } from '@theqrl/wallet.js';
 
 // Error codes for crypto operations
 export const CryptoErrorCode = {
@@ -17,12 +24,14 @@ export type CryptoErrorCode = typeof CryptoErrorCode[keyof typeof CryptoErrorCod
 export type CryptoWorkerMessage =
   | { type: 'encrypt'; mnemonic: string; hexSeed: string; pin: string }
   | { type: 'decrypt'; encryptedData: string; pin: string }
-  | { type: 'reEncrypt'; encryptedSeed: string; oldPin: string; newPin: string };
+  | { type: 'reEncrypt'; encryptedSeed: string; oldPin: string; newPin: string }
+  | { type: 'deriveHexSeed'; mnemonic: string };
 
 export type CryptoWorkerResponse =
   | { type: 'encrypt'; success: true; encryptedSeed: string }
   | { type: 'decrypt'; success: true; mnemonic: string; hexSeed: string }
   | { type: 'reEncrypt'; success: true; encryptedSeed: string }
+  | { type: 'deriveHexSeed'; success: true; hexSeed: string }
   | { type: 'error'; success: false; code: CryptoErrorCode; error: string };
 
 // Version constants
@@ -129,6 +138,16 @@ self.onmessage = (event: MessageEvent<MessageWithRequestId>) => {
         const decrypted = decryptSeed(message.encryptedSeed, message.oldPin);
         const reEncrypted = encryptSeed(decrypted.mnemonic, decrypted.hexSeed, message.newPin);
         self.postMessage({ type: 'reEncrypt', success: true, encryptedSeed: reEncrypted, requestId });
+        break;
+      }
+
+      case 'deriveHexSeed': {
+        // MLDSA87 wallet expansion (50–300 ms on mobile). Returns the
+        // extended seed in hex form; the main thread feeds it into
+        // signTransaction() like before.
+        const wallet = MLDSA87.newWalletFromMnemonic(message.mnemonic.trim());
+        const hexSeed = wallet.getHexExtendedSeed();
+        self.postMessage({ type: 'deriveHexSeed', success: true, hexSeed, requestId });
         break;
       }
     }
