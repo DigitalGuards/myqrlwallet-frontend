@@ -15,6 +15,7 @@ export {
   encryptSeedAsync,
   decryptSeedAsync,
   reEncryptSeedAsync,
+  deriveHexSeedAsync,
   CryptoOperationError,
   CryptoErrorCode,
 } from './cryptoWorkerClient';
