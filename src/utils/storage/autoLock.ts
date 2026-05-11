@@ -1,5 +1,8 @@
 import { handleLogout } from '../logout';
-import StorageUtil from './storage';
+import StorageUtil, {
+  STORAGE_EVENT_ACTIVE_ACCOUNT,
+  STORAGE_EVENT_WALLET_SETTINGS,
+} from './storage';
 import { isInNativeApp } from '../nativeApp';
 
 let autoLockTimer: NodeJS.Timeout | null = null;
@@ -179,35 +182,36 @@ export const setupActivityTracking = () => {
     });
   });
 
-  // Listen for storage changes to detect settings updates and account changes
+  // Cross-tab storage updates. The native `storage` event only fires in
+  // OTHER tabs (not the one that wrote), so we still need it for
+  // multi-tab sync.
   window.addEventListener('storage', async (event) => {
     if (event.key?.includes('WALLET_SETTINGS')) {
-      console.log("⚙️ Auto-lock: Settings changed, restarting timer");
+      console.log("⚙️ Auto-lock: Settings changed (cross-tab), restarting timer");
       await restartAutoLockTimer();
     }
 
-    // If active account changes, restart the timer (wallet imported or changed)
     if (event.key?.includes('ACTIVE_ACCOUNT')) {
-      console.log("👛 Auto-lock: Wallet status changed, checking if auto-lock should be enabled");
+      console.log("👛 Auto-lock: Wallet status changed (cross-tab), checking auto-lock");
       await checkAndStartAutoLock();
     }
   });
 
-  // Also listen for localStorage changes in the current window
-  // This helps catch changes that don't trigger the storage event in the same window
-  const originalSetItem = localStorage.setItem;
-  localStorage.setItem = function(key, value) {
-    // Call the original function first
-    originalSetItem.apply(this, [key, value]);
-
-    // Then handle the change if it's related to accounts
-    if (key.includes('ACTIVE_ACCOUNT')) {
-      setTimeout(async () => {
-        console.log("👛 Auto-lock: Active account changed in current window");
-        await checkAndStartAutoLock();
-      }, 500); // Small delay to ensure storage is updated
-    }
-  };
+  // Same-tab storage updates. We previously monkey-patched
+  // localStorage.setItem on the prototype to catch these — that
+  // sprayed an async callback over every localStorage write app-wide
+  // (including third-party libs') and was never torn down. Now
+  // StorageUtil dispatches dedicated custom events from its
+  // setActiveAccount / clearActiveAccount / setWalletSettings methods,
+  // and we just subscribe to those.
+  window.addEventListener(STORAGE_EVENT_ACTIVE_ACCOUNT, async () => {
+    console.log("👛 Auto-lock: Active account changed (same-tab), checking auto-lock");
+    await checkAndStartAutoLock();
+  });
+  window.addEventListener(STORAGE_EVENT_WALLET_SETTINGS, async () => {
+    console.log("⚙️ Auto-lock: Settings changed (same-tab), restarting timer");
+    await restartAutoLockTimer();
+  });
 
   isActivityTrackingInitialized = true;
   console.log("👁️ Auto-lock: Activity tracking initialized");
