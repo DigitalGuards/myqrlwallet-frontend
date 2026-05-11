@@ -113,6 +113,15 @@ class QrlStore {
   qrlPrice: number = 0; // USD price from Explorer
   qrlPriceChange24h: number = 0; // 24h price change percentage
 
+  // Handle for the pollForReceipt setInterval. Stored on the instance so any
+  // disposal path (resetTransactionStatus, store re-init) can clear it.
+  // Previously this lived in a function-local variable so a navigation or
+  // store re-create left the interval ticking, leaking RPC calls and
+  // potentially racing a stale receipt into the current transactionStatus.
+  // Excluded from mobx via `_receiptPollerIntervalId: false` in
+  // makeAutoObservable below — it's a non-observable runtime handle.
+  _receiptPollerIntervalId: ReturnType<typeof setInterval> | null = null;
+
   // NEW: Computed properties
   // 1) active account balance
   get activeAccountBalance(): string {
@@ -166,6 +175,9 @@ class QrlStore {
       extensionProvider: observable.ref, // Use ref for complex objects like providers
       qrlPrice: observable,
       qrlPriceChange24h: observable,
+      // Runtime handles + their cleanup helper — not observable.
+      _receiptPollerIntervalId: false,
+      cancelReceiptPoller: false,
       activeAccountBalance: computed,
       activeAccountSource: computed,
       activeAccountBalanceUsd: computed,
@@ -228,9 +240,23 @@ class QrlStore {
 
   // Updated reset action
   resetTransactionStatus() {
+    // Always cancel any in-flight poller first so it can't race a stale
+    // receipt into the freshly-reset transactionStatus.
+    this.cancelReceiptPoller();
     runInAction(() => {
       this.transactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
     });
+  }
+
+  // Cancels the pollForReceipt setInterval (if any) and clears the handle.
+  // Safe to call when no poller is running. Exposed so any external
+  // teardown (page unmount, dapp disconnect, store re-init) can stop the
+  // up-to-5-minute RPC loop instead of leaking it.
+  cancelReceiptPoller() {
+    if (this._receiptPollerIntervalId !== null) {
+      clearInterval(this._receiptPollerIntervalId);
+      this._receiptPollerIntervalId = null;
+    }
   }
 
   async initializeBlockchain() {
@@ -1044,11 +1070,15 @@ class QrlStore {
 
     log(`Starting receipt polling for ${txHash}`);
 
-    const intervalId = setInterval(async () => {
+    // If a previous poll was somehow left running, kill it before starting
+    // a fresh one so we never have two intervals racing into transactionStatus.
+    this.cancelReceiptPoller();
+
+    this._receiptPollerIntervalId = setInterval(async () => {
       // Stop polling if state is no longer pending or hash changed
       if (this.transactionStatus.state !== 'pending' || this.transactionStatus.txHash !== txHash) {
         log(`Stopping receipt polling for ${txHash} (state changed)`);
-        clearInterval(intervalId);
+        this.cancelReceiptPoller();
         return;
       }
 
@@ -1060,7 +1090,7 @@ class QrlStore {
 
         if (receipt) {
           log(`Receipt found for ${txHash}`);
-          clearInterval(intervalId); // Stop polling
+          this.cancelReceiptPoller(); // Stop polling
 
           runInAction(() => {
             // Double-check state again before updating
@@ -1082,7 +1112,7 @@ class QrlStore {
         } else if (attempts >= maxAttempts) {
           // Max attempts reached, transaction likely failed or stuck
           log(`Max polling attempts reached for ${txHash}. Marking as failed.`);
-          clearInterval(intervalId);
+          this.cancelReceiptPoller();
           runInAction(() => {
             if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
               this.transactionStatus = {
@@ -1099,7 +1129,7 @@ class QrlStore {
       } catch (error: any) {
         console.error(`Error polling for receipt ${txHash}:`, error);
         log(`Error polling for receipt ${txHash}: ${error.message || error}`);
-        clearInterval(intervalId);
+        this.cancelReceiptPoller();
         // Mark as failed on error
         runInAction(() => {
           if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
