@@ -41,10 +41,19 @@ export default defineConfig(({ mode }) => ({
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
           if (id.includes('@radix-ui')) return 'vendor-radix'
-          if (id.includes('@theqrl/web3') || id.includes('@theqrl/wallet.js')) return 'vendor-qrl-crypto'
+          // Keep ALL post-quantum crypto together. @noble/post-quantum is
+          // the underlying ML-DSA implementation pulled in by @theqrl/web3;
+          // listing it explicitly stops it from leaking into the main index
+          // chunk if anything ever imports it directly.
+          if (
+            id.includes('@theqrl/web3') ||
+            id.includes('@theqrl/wallet.js') ||
+            id.includes('@noble/post-quantum')
+          )
+            return 'vendor-qrl-crypto'
           if (id.includes('node_modules/ethers/')) return 'vendor-ethers'
           if (id.includes('node_modules/mobx') || id.includes('mobx-react-lite')) return 'vendor-mobx'
-          if (id.includes('socket.io-client')) return 'vendor-socket-io'
+          if (id.includes('node_modules/socket.io-client')) return 'vendor-socket-io'
           if (id.includes('node_modules/react-dom/')) return 'vendor-react-dom'
           if (id.includes('node_modules/react/')) return 'vendor-react'
           return undefined
