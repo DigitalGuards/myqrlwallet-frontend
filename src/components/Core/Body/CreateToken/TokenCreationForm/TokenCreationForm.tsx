@@ -30,7 +30,7 @@ import { ROUTES } from "@/router/router";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
-import { getAddressFromMnemonic } from "@/utils/crypto";
+import { getAddressFromMnemonicAsync } from "@/utils/crypto";
 import { Label } from "@/components/UI/Label";
 import { isValidQrlAddress } from "@/utils/web3";
 
@@ -137,19 +137,26 @@ export const TokenCreationForm = observer(
                         return;
                     }
 
-                    // Decrypt the seed using the PIN
+                    // Decrypt the seed using the PIN. Keep the worker-derive
+                    // call OUTSIDE this try block — a crash inside the
+                    // crypto worker is not a wrong-PIN error and shouldn't
+                    // be misreported as one.
                     try {
                         const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pin);
                         mnemonicPhrase = decryptedSeed.mnemonic;
-
-                        // Verify the mnemonic corresponds to the active account
-                        const address = getAddressFromMnemonic(mnemonicPhrase, qrlStore.qrlInstance!);
-                        if (address.toLowerCase() !== activeAccount.accountAddress.toLowerCase()) {
-                            setPinError("PIN decrypted an invalid seed. Please import your account again.");
-                            return;
-                        }
                     } catch (_error) {
                         setPinError("Invalid PIN. Please try again.");
+                        return;
+                    }
+
+                    // Verify the mnemonic corresponds to the active account.
+                    // MLDSA87 derivation runs in the crypto worker; any
+                    // failure here propagates to the outer onSubmit handler
+                    // and surfaces as a worker / system error rather than
+                    // "invalid PIN".
+                    const address = await getAddressFromMnemonicAsync(mnemonicPhrase, qrlStore.qrlInstance!);
+                    if (address.toLowerCase() !== activeAccount.accountAddress.toLowerCase()) {
+                        setPinError("PIN decrypted an invalid seed. Please import your account again.");
                         return;
                     }
                 }

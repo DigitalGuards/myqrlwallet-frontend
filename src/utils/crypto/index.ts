@@ -9,6 +9,7 @@ export {
   getMnemonicFromHexSeed,
   getHexSeedFromMnemonic,
   getAddressFromMnemonic,
+  getAddressFromMnemonicAsync,
 } from './mnemonic';
 
 export {
