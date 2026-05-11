@@ -238,14 +238,14 @@ class QrlStore {
     }
   }
 
-  // Updated reset action
+  // Updated reset action. Method body runs inside an action automatically
+  // because makeAutoObservable annotates this as `action.bound` — no
+  // explicit runInAction needed for the synchronous state write.
   resetTransactionStatus() {
     // Always cancel any in-flight poller first so it can't race a stale
     // receipt into the freshly-reset transactionStatus.
     this.cancelReceiptPoller();
-    runInAction(() => {
-      this.transactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
-    });
+    this.transactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
   }
 
   // Cancels the pollForReceipt setInterval (if any) and clears the handle.
@@ -260,6 +260,10 @@ class QrlStore {
   }
 
   async initializeBlockchain() {
+    // Re-initializing the blockchain (e.g. network switch) invalidates any
+    // in-flight receipt poller bound to the previous provider's RPC — cancel
+    // it before bringing up the new connection.
+    this.cancelReceiptPoller();
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { name, url: baseUrl } = QRL_PROVIDER[selectedBlockChain];
