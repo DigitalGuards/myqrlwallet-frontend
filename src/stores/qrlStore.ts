@@ -1,5 +1,5 @@
 import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
-import { getHexSeedFromMnemonic, deriveHexSeedAsync } from "@/utils/crypto";
+import { deriveHexSeedAsync } from "@/utils/crypto";
 import { StorageUtil, AccountListItem, AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
 import Web3, {
@@ -766,7 +766,9 @@ class QrlStore {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
-      const seed = getHexSeedFromMnemonic(mnemonicPhrases);
+      // MLDSA87 derivation on the worker — same reasoning as
+      // signAndSendTransaction (50–300 ms off the main thread).
+      const seed = await deriveHexSeedAsync(mnemonicPhrases);
       const acc = web3.qrl.accounts.seedToAccount(seed)
       web3.qrl.wallet?.add(seed);
       web3.qrl.transactionConfirmationBlocks = 1;
@@ -853,7 +855,9 @@ class QrlStore {
       this.setCreatingToken(tokenName, true);
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
-      const seed = getHexSeedFromMnemonic(mnemonicPhrases);
+      // MLDSA87 derivation on the worker (avoids freezing UI during the
+      // 50–300 ms expansion just before deploying a new token contract).
+      const seed = await deriveHexSeedAsync(mnemonicPhrases);
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       const acc = web3.qrl.accounts.seedToAccount(seed)
       web3.qrl.wallet?.add(seed);

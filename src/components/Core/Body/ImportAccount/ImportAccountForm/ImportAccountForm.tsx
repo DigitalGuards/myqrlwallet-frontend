@@ -21,7 +21,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Download, Loader } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { getHexSeedFromMnemonic } from "@/utils/crypto";
+import { deriveHexSeedAsync } from "@/utils/crypto";
 import { ExtendedWalletAccount } from "@/utils/crypto";
 
 const FormSchema = z.object({
@@ -51,7 +51,7 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
 
   async function onSubmit(formData: z.output<typeof FormSchema>) {
     try {
-      const hexSeed = await getHexSeedFromMnemonic(formData.mnemonicPhrases);
+      const hexSeed = await deriveHexSeedAsync(formData.mnemonicPhrases);
       const account = qrlInstance?.accounts.seedToAccount(hexSeed) as ExtendedWalletAccount;
       
       if (!account) {
