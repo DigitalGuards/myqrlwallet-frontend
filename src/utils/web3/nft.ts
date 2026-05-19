@@ -2,6 +2,7 @@ import Web3 from "@theqrl/web3";
 import { erc165ABI, ERC165_INTERFACE_IDS } from "@/abi/ERC165ABI";
 import { erc721ABI } from "@/abi/ERC721ABI";
 import { erc1155ABI } from "@/abi/ERC1155ABI";
+import { SERVER_URL } from "@/config";
 
 export type NftStandard = "ERC721" | "ERC1155";
 
@@ -20,10 +21,17 @@ export interface NftMetadata {
   attributes?: Array<{ trait_type?: string; value: string | number }>;
 }
 
-// IPFS gateway used to resolve `ipfs://` URIs. Public, free, well-trodden;
-// we expose a hook (resolveIpfsUri) so consumers can swap to a backend
-// proxy later if abuse becomes an issue.
-export const IPFS_GATEWAY = "https://ipfs.io/ipfs/";
+// IPFS gateway: route through the wallet's own backend (`/api/ipfs/:cid`)
+// instead of a public gateway. Two reasons:
+//   1. Same-origin satisfies the wallet's strict `img-src 'self'` CSP, so
+//      `<img src={ipfsResolved}>` renders without allowlisting external
+//      hosts.
+//   2. Public gateways don't reliably set `Access-Control-Allow-Origin`,
+//      so a direct browser `fetch()` of an `ipfs://...` metadata JSON
+//      would frequently fail CORS. The proxy is same-origin, so CORS is
+//      a non-issue.
+// Trailing slash is required: callers concatenate the CID + optional path.
+export const IPFS_GATEWAY = `${SERVER_URL}/ipfs/`;
 
 const METADATA_FETCH_TIMEOUT_MS = 8000;
 
