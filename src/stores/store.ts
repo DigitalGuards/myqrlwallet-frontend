@@ -31,9 +31,11 @@ class Store {
     // avoids circular deps; Store owns the orchestration.
     this.qrlStore.onBlockchainReady = async () => {
       await this.tokenStore.initialize();
+      await this.nftStore.initialize();
     };
     this.qrlStore.onActiveAccountChanged = async (newActiveAccount?: string) => {
       await this.tokenStore.handleActiveAccountChanged(newActiveAccount);
+      await this.nftStore.handleActiveAccountChanged(newActiveAccount);
     };
   }
 }
