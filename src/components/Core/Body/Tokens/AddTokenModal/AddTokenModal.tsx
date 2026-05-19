@@ -17,11 +17,9 @@ import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 
 export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-    const { qrlStore } = useStore();
-    const {
-        addToken: addTokenToStore,
-        activeAccount: { accountAddress: activeAccountAddress },
-    } = qrlStore;
+    const { qrlStore, tokenStore } = useStore();
+    const { addToken: addTokenToStore } = tokenStore;
+    const { accountAddress: activeAccountAddress } = qrlStore.activeAccount;
     const [tokenAddress, setTokenAddress] = useState("");
     const [tokenInfo, setTokenInfo] = useState<TokenInterface | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -48,12 +46,19 @@ export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
             if (tokenAddress.length === 41 && tokenAddress.startsWith("Q")) {
                 try {
                     setIsLoading(true);
+                    setError(null);
                     const selectedBlockChain = await StorageUtil.getBlockChain();
                     const { name, symbol, decimals } = await fetchTokenInfo(tokenAddress, QRL_PROVIDER[selectedBlockChain].url);
                     const balance = await fetchBalance(tokenAddress, activeAccountAddress, QRL_PROVIDER[selectedBlockChain].url);
                     setTokenInfo({ name, symbol, decimals: parseInt(decimals.toString()), address: tokenAddress, amount: balance.toString() });
-                } catch (error) {
-                    console.error("Error fetching token info", error);
+                } catch (err) {
+                    console.error("Error fetching token info", err);
+                    setTokenInfo(null);
+                    setError(
+                        err instanceof Error
+                            ? `Could not fetch token info — the address may not be a QRC-20 token contract. (${err.message})`
+                            : "Could not fetch token info. The address may not be a token contract."
+                    );
                 }
             }
             setIsLoading(false);

@@ -54,7 +54,7 @@ import { BigNumber } from "bignumber.js";
 const Transfer = observer(() => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { qrlStore } = useStore();
+  const { qrlStore, tokenStore } = useStore();
   const {
     activeAccount,
     getAccountBalance,
@@ -64,10 +64,9 @@ const Transfer = observer(() => {
     qrlConnection,
     transactionStatus,
     resetTransactionStatus,
-    tokenList,
-    sendToken: sendTokenToStore,
     estimateNativeTransferFee,
   } = qrlStore;
+  const { tokenList, sendToken: sendTokenToStore } = tokenStore;
   const { blockchain } = qrlConnection;
   const { accountAddress } = activeAccount;
 

@@ -20,6 +20,7 @@ const TokenStatus = lazy(() => import("../components/Core/Body/CreateToken/Token
 const TransactionHistory = lazy(() => import("../components/Core/Body/TransactionHistory/TransactionHistory.tsx"));
 const Transfer = lazy(() => import("../components/Core/Body/Transfer/Transfer.tsx"));
 const DAppSessionsList = lazy(() => import("../components/Core/Body/DAppConnect/DAppSessionsList.tsx"));
+const NftDetail = lazy(() => import("../components/Core/Body/Nfts/NftDetail.tsx"));
 
 const ROUTES = {
   HOME: "/",
@@ -37,6 +38,7 @@ const ROUTES = {
   TOKEN_STATUS: "/token-status",
   TRANSACTION_HISTORY: "/tx-history",
   DAPP_SESSIONS: "/dapp-sessions",
+  NFT_DETAIL: "/nft/:contractAddress/:tokenId",
 } as const;
 
 const router = createBrowserRouter([
@@ -157,6 +159,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Loading />}>
             <DAppSessionsList />
+          </Suspense>
+        )
+      },
+      {
+        path: ROUTES.NFT_DETAIL,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <NftDetail />
           </Suspense>
         )
       },

@@ -45,6 +45,8 @@ const SettingsFormSchema = z.object({
     showTestNetworks: z.boolean(),
     hideSmallBalances: z.boolean(),
     hideUnknownTokens: z.boolean(),
+    showTokensCard: z.boolean(),
+    showNftsCard: z.boolean(),
 });
 
 type SettingsFormValues = z.infer<typeof SettingsFormSchema>;
@@ -116,6 +118,8 @@ const Settings = observer(() => {
                 showTestNetworks: settings.showTestNetworks || false,
                 hideSmallBalances: settings.hideSmallBalances || false,
                 hideUnknownTokens: settings.hideUnknownTokens || true,
+                showTokensCard: settings.showTokensCard ?? true,
+                showNftsCard: settings.showNftsCard ?? true,
             };
         },
     });
@@ -455,6 +459,48 @@ const Settings = observer(() => {
                                                         <FormLabel>Hide Unknown Tokens</FormLabel>
                                                         <FormDescription>
                                                             Hide tokens that haven't been verified or added manually
+                                                        </FormDescription>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={field.value ?? true}
+                                                            onCheckedChange={field.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={form.control}
+                                            name="showTokensCard"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                                    <div className="space-y-0.5">
+                                                        <FormLabel>Show Tokens Card</FormLabel>
+                                                        <FormDescription>
+                                                            Display the Tokens section on the Home page
+                                                        </FormDescription>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={field.value ?? true}
+                                                            onCheckedChange={field.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={form.control}
+                                            name="showNftsCard"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                                    <div className="space-y-0.5">
+                                                        <FormLabel>Show NFTs Card</FormLabel>
+                                                        <FormDescription>
+                                                            Display the NFT collection section on the Home page
                                                         </FormDescription>
                                                     </div>
                                                     <FormControl>
