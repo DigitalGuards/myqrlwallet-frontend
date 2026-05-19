@@ -1,6 +1,8 @@
 import { createContext, useContext } from "react";
 import SettingsStore from "./settingsStore";
 import QrlStore from "./qrlStore";
+import TokenStore from "./tokenStore";
+import NftStore from "./nftStore";
 import DAppConnectStore from "./dappConnectStore";
 import { configure } from "mobx";
 
@@ -13,12 +15,26 @@ configure({
 class Store {
   settingsStore;
   qrlStore;
+  tokenStore;
+  nftStore;
   dappConnectStore;
 
   constructor() {
     this.settingsStore = new SettingsStore();
     this.qrlStore = new QrlStore();
+    this.tokenStore = new TokenStore(this.qrlStore);
+    this.nftStore = new NftStore(this.qrlStore, this.tokenStore);
     this.dappConnectStore = new DAppConnectStore();
+
+    // Wire qrlStore's post-init/post-account-change hooks to the
+    // domain stores. Keeping qrlStore decoupled from tokenStore/nftStore
+    // avoids circular deps; Store owns the orchestration.
+    this.qrlStore.onBlockchainReady = async () => {
+      await this.tokenStore.initialize();
+    };
+    this.qrlStore.onActiveAccountChanged = async (newActiveAccount?: string) => {
+      await this.tokenStore.handleActiveAccountChanged(newActiveAccount);
+    };
   }
 }
 

@@ -67,7 +67,7 @@ type TokenCreationFormProps = {
 export const TokenCreationForm = observer(
     ({ onTokenCreated }: TokenCreationFormProps) => {
         const navigate = useNavigate();
-        const { qrlStore } = useStore();
+        const { qrlStore, tokenStore } = useStore();
         const { activeAccount, activeAccountSource } = qrlStore;
         const [pin, setPin] = useState("");
         const [pinError, setPinError] = useState("");
@@ -171,14 +171,14 @@ export const TokenCreationForm = observer(
                 const maxTransactionLimit = formData.maxTransactionLimit ? ethers.parseUnits(formData.maxTransactionLimit, decimals).toString() : undefined;
 
                 // Navigate immediately to show loading state, then start creation
-                qrlStore.setCreatingToken(tokenName, true);
+                tokenStore.setCreatingToken(tokenName, true);
                 navigate(ROUTES.TOKEN_STATUS);
 
                 // Start token creation in background (don't await here)
                 onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase)
                     .catch((error) => {
                         console.error("Token creation failed:", error);
-                        // The error state is set within qrlStore and displayed on the status page
+                        // The error state is set within tokenStore and displayed on the status page
                     });
             } catch (error) {
                 console.error("Error creating token:", error);

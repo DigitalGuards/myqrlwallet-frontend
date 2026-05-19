@@ -35,12 +35,10 @@ import { ROUTES } from "@/router/router";
 import { getOptimalTokenBalance } from "@/utils/formatting";
 
 const TokenForm = observer(() => {
-    const { qrlStore } = useStore();
+    const { qrlStore, tokenStore } = useStore();
     const navigate = useNavigate();
-    const {
-        activeAccount: { accountAddress: activeAccountAddress },
-        visibleTokenList,
-    } = qrlStore;
+    const { accountAddress: activeAccountAddress } = qrlStore.activeAccount;
+    const { visibleTokenList } = tokenStore;
 
     const [tokenList, setTokenList] = useState<TokenInterface[]>(visibleTokenList);
     const [isAddTokenModalOpen, setIsAddTokenModalOpen] = useState(false);
@@ -52,17 +50,17 @@ const TokenForm = observer(() => {
         try {
             // Clear hidden tokens so they reappear
             await StorageUtil.clearHiddenTokens();
-            await qrlStore.loadHiddenTokens();
+            await tokenStore.loadHiddenTokens();
 
             // Clear existing token list to prevent tokens from other accounts showing
             await StorageUtil.clearTokenList();
-            await qrlStore.setTokenList([]);
+            await tokenStore.setTokenList([]);
 
             // Discover tokens for the active account only
-            await qrlStore.discoverAndAddTokens(activeAccountAddress);
+            await tokenStore.discoverAndAddTokens(activeAccountAddress);
 
             // Then refresh all balances
-            await qrlStore.refreshTokenBalances();
+            await tokenStore.refreshTokenBalances();
         } catch (error) {
             console.error("Failed to refresh tokens:", error);
         } finally {

@@ -17,11 +17,9 @@ import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 
 export function AddTokenModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-    const { qrlStore } = useStore();
-    const {
-        addToken: addTokenToStore,
-        activeAccount: { accountAddress: activeAccountAddress },
-    } = qrlStore;
+    const { qrlStore, tokenStore } = useStore();
+    const { addToken: addTokenToStore } = tokenStore;
+    const { accountAddress: activeAccountAddress } = qrlStore.activeAccount;
     const [tokenAddress, setTokenAddress] = useState("");
     const [tokenInfo, setTokenInfo] = useState<TokenInterface | null>(null);
     const [isLoading, setIsLoading] = useState(false);
