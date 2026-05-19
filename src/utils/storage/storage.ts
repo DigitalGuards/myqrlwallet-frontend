@@ -1,5 +1,5 @@
 import { QRL_PROVIDER } from "@/config";
-import { TokenInterface } from "@/constants";
+import { TokenInterface, NFTInterface } from "@/constants";
 import { isInNativeApp } from "@/utils/nativeApp";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
@@ -11,6 +11,8 @@ const ACCOUNT_LIST_IDENTIFIER = "ACCOUNT_LIST";
 const TRANSACTION_VALUES_IDENTIFIER = "TRANSACTION_VALUES";
 const TOKEN_LIST_IDENTIFIER = "TOKEN_LIST";
 const HIDDEN_TOKENS_IDENTIFIER = "HIDDEN_TOKENS";
+const NFT_LIST_IDENTIFIER = "NFT_LIST";
+const HIDDEN_NFTS_IDENTIFIER = "HIDDEN_NFTS";
 const BALANCE_CACHE_IDENTIFIER = "BALANCE_CACHE";
 const STORAGE_VERSION = 'v1';
 const MAX_STORAGE_AGE = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
@@ -50,6 +52,8 @@ interface WalletSettings {
   showTestNetworks: boolean;
   hideSmallBalances: boolean;
   hideUnknownTokens: boolean;
+  showTokensCard: boolean;
+  showNftsCard: boolean;
 }
 
 export interface EncryptedSeedData {
@@ -297,12 +301,19 @@ class StorageUtil {
   }
 
   static async getWalletSettings(): Promise<WalletSettings> {
-    return this.getItem<WalletSettings>(WALLET_SETTINGS_IDENTIFIER) ?? {
+    const defaults: WalletSettings = {
       autoLockTimeout: AUTO_LOCK_TIMEOUT,
       showTestNetworks: false,
       hideSmallBalances: false,
       hideUnknownTokens: true,
+      showTokensCard: true,
+      showNftsCard: true,
     };
+    // Merge defaults so returning users with a stored settings object
+    // that pre-dates the new keys still get the right defaults instead
+    // of `undefined`.
+    const stored = this.getItem<Partial<WalletSettings>>(WALLET_SETTINGS_IDENTIFIER);
+    return { ...defaults, ...(stored ?? {}) };
   }
 
   /**
@@ -473,6 +484,45 @@ class StorageUtil {
    */
   static async clearHiddenTokens() {
     localStorage.removeItem(HIDDEN_TOKENS_IDENTIFIER);
+  }
+
+  /**
+   * NFT list — per-account scoping is intentionally avoided here because
+   * `setActiveAccount` already triggers a clear+rediscover in nftStore;
+   * matches the TokenList behaviour.
+   */
+  static async getNftList(): Promise<NFTInterface[]> {
+    return this.getItem<NFTInterface[]>(NFT_LIST_IDENTIFIER) ?? [];
+  }
+
+  static async updateNftList(list: NFTInterface[]) {
+    this.setItem(NFT_LIST_IDENTIFIER, list);
+  }
+
+  static async clearNftList() {
+    localStorage.removeItem(NFT_LIST_IDENTIFIER);
+  }
+
+  static async getHiddenNfts(): Promise<string[]> {
+    return this.getItem<string[]>(HIDDEN_NFTS_IDENTIFIER) ?? [];
+  }
+
+  static async hideNft(key: string) {
+    const list = await this.getHiddenNfts();
+    if (!list.some(k => k.toLowerCase() === key.toLowerCase())) {
+      list.push(key.toLowerCase());
+      this.setItem(HIDDEN_NFTS_IDENTIFIER, list);
+    }
+  }
+
+  static async unhideNft(key: string) {
+    let list = await this.getHiddenNfts();
+    list = list.filter(k => k.toLowerCase() !== key.toLowerCase());
+    this.setItem(HIDDEN_NFTS_IDENTIFIER, list);
+  }
+
+  static async clearHiddenNfts() {
+    localStorage.removeItem(HIDDEN_NFTS_IDENTIFIER);
   }
 }
 

@@ -15,6 +15,7 @@ import { TransactionHistoryPopup } from "../AccountList/ActiveAccount/Transactio
 import { ReceivePopup } from "./ReceivePopup";
 import { isInNativeApp, requestQRScan } from "@/utils/nativeApp";
 import ConnectionBadge from "./ConnectionBadge/ConnectionBadge";
+import { StorageUtil, STORAGE_EVENT_WALLET_SETTINGS } from "@/utils/storage";
 
 const AccountCreateImport = withSuspense(
   lazy(() => import("./AccountCreateImport/AccountCreateImport"))
@@ -27,6 +28,10 @@ const TokenForm = withSuspense(
   lazy(() => import("../Tokens/TokenForm/TokenForm"))
 );
 
+const NftGallery = withSuspense(
+  lazy(() => import("../Nfts/NftGallery"))
+);
+
 const Home = observer(() => {
   const { state } = useLocation();
   const { qrlStore, tokenStore } = useStore();
@@ -37,6 +42,28 @@ const Home = observer(() => {
   const activeAccountVideoRef = useRef<HTMLVideoElement | null>(null);
   const [txHistoryOpen, setTxHistoryOpen] = useState(false);
   const [receiveOpen, setReceiveOpen] = useState(false);
+  const [showTokensCard, setShowTokensCard] = useState(true);
+  const [showNftsCard, setShowNftsCard] = useState(true);
+
+  // Load card-visibility prefs and refresh whenever Settings re-saves
+  // (StorageUtil dispatches STORAGE_EVENT_WALLET_SETTINGS on write so
+  // toggles take effect without a page reload).
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const s = await StorageUtil.getWalletSettings();
+      if (cancelled) return;
+      setShowTokensCard(s.showTokensCard ?? true);
+      setShowNftsCard(s.showNftsCard ?? true);
+    };
+    load();
+    const handler = () => { load(); };
+    window.addEventListener(STORAGE_EVENT_WALLET_SETTINGS, handler);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(STORAGE_EVENT_WALLET_SETTINGS, handler);
+    };
+  }, []);
 
   // Function to track if any modal is open
   const checkIfModalOpen = () => {
@@ -192,9 +219,14 @@ const Home = observer(() => {
                     </div>
                   </Card>
               )}
-              {activeAccount.accountAddress && (
+              {activeAccount.accountAddress && showTokensCard && (
                 <div className="relative z-10">
                   <TokenForm />
+                </div>
+              )}
+              {activeAccount.accountAddress && showNftsCard && (
+                <div className="relative z-10">
+                  <NftGallery />
                 </div>
               )}
               {isConnected ? <AccountCreateImport /> : <ConnectionFailed />}
