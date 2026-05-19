@@ -116,6 +116,9 @@ export function AddNftModal({ isOpen, onClose }: AddNftModalProps) {
       const rpcUrl = QRL_PROVIDER[blockchain].url;
 
       let ids: string[] = [];
+      // ERC-1155 balance cache so the metadata loop below doesn't re-fetch
+      // a balance we already needed to check during the ownership gate.
+      const balanceCache: Record<string, bigint> = {};
       if (detection.standard === "ERC721") {
         // Prefer enumeration when available.
         const enumerated = await fetchOwned721Ids(
@@ -158,10 +161,11 @@ export function AddNftModal({ isOpen, onClose }: AddNftModalProps) {
           setIsAdding(false);
           return;
         }
+        const trimmedId = tokenId.trim();
         const balance = await fetchErc1155Balance(
           contractAddress,
           accountAddress,
-          tokenId.trim(),
+          trimmedId,
           rpcUrl,
         );
         if (balance <= 0n) {
@@ -169,7 +173,8 @@ export function AddNftModal({ isOpen, onClose }: AddNftModalProps) {
           setIsAdding(false);
           return;
         }
-        ids = [tokenId.trim()];
+        balanceCache[trimmedId] = balance;
+        ids = [trimmedId];
       }
 
       // Resolve metadata for each id (best-effort; tolerant of failures).
@@ -205,12 +210,15 @@ export function AddNftModal({ isOpen, onClose }: AddNftModalProps) {
           image: metaImage,
           balance:
             detection.standard === "ERC1155"
-              ? (await fetchErc1155Balance(
-                  contractAddress,
-                  accountAddress,
-                  id,
-                  rpcUrl,
-                )).toString()
+              ? (
+                  balanceCache[id] ??
+                  (await fetchErc1155Balance(
+                    contractAddress,
+                    accountAddress,
+                    id,
+                    rpcUrl,
+                  ))
+                ).toString()
               : undefined,
           fetchedAt: Date.now(),
         };
