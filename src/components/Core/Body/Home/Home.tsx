@@ -29,7 +29,7 @@ const TokenForm = withSuspense(
 
 const Home = observer(() => {
   const { state } = useLocation();
-  const { qrlStore } = useStore();
+  const { qrlStore, tokenStore } = useStore();
   const { qrlConnection, activeAccount } = qrlStore;
   const { isLoading, isConnected, blockchain } = qrlConnection;
   const hasAccountCreationPreference = !!state?.hasAccountCreationPreference;
@@ -74,7 +74,7 @@ const Home = observer(() => {
     if (activeAccount.accountAddress) {
       // Refresh immediately on mount
       qrlStore.fetchAccounts();
-      qrlStore.refreshTokenBalances();
+      tokenStore.refreshTokenBalances();
       qrlStore.fetchQrlPrice();
 
       // Set up recurring refresh every 30 seconds
@@ -82,18 +82,18 @@ const Home = observer(() => {
         // Only refresh if no modals are open
         if (!checkIfModalOpen()) {
           qrlStore.fetchAccounts();
-          qrlStore.refreshTokenBalances();
+          tokenStore.refreshTokenBalances();
           qrlStore.fetchQrlPrice();
         }
       }, 30000); // 30 seconds
     }
-    
+
     return () => {
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, [activeAccount.accountAddress, qrlStore]);
+  }, [activeAccount.accountAddress, qrlStore, tokenStore]);
 
   const accountCreateImportClasses = cva("flex gap-4 md:gap-8", {
     variants: {

@@ -4,10 +4,8 @@ import { useStore } from "@/stores/store";
 import { SEO } from "@/components/SEO/SEO";
 
 const CreateToken = observer(() => {
-    const { qrlStore } = useStore();
-    const {
-        createToken,
-    } = qrlStore;
+    const { tokenStore } = useStore();
+    const { createToken } = tokenStore;
 
     const onTokenCreated = async (tokenName: string, tokenSymbol: string, initialSupply: string, decimals: number, maxSupply: undefined | string, initialRecipient: undefined | string, maxWalletAmount: undefined | string, maxTransactionLimit: undefined | string, mnemonicPhrases: string) => {
 

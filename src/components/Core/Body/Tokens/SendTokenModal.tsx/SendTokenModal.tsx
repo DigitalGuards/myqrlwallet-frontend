@@ -24,13 +24,10 @@ import { WalletEncryptionUtil } from "@/utils/crypto";
 import { isValidQrlAddress } from "@/utils/web3";
 
 export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, onClose: () => void, token: TokenInterface }) {
-    const { qrlStore } = useStore();
-    const {
-        activeAccount: { accountAddress: activeAccountAddress },
-        tokenList,
-        activeAccountSource,
-        sendToken: sendTokenToStore
-    } = qrlStore;
+    const { qrlStore, tokenStore } = useStore();
+    const { accountAddress: activeAccountAddress } = qrlStore.activeAccount;
+    const { activeAccountSource } = qrlStore;
+    const { tokenList, sendToken: sendTokenToStore } = tokenStore;
     const [amount, setAmount] = useState("");
     const [maxAmount, setMaxAmount] = useState("0");
     const [pin, setPin] = useState("");
@@ -125,7 +122,7 @@ export function SendTokenModal({ isOpen, onClose, token }: { isOpen: boolean, on
                                 onClose();
                                 // Wait a short time to ensure modal is fully closed before refreshing balances
                                 setTimeout(() => {
-                                    qrlStore.refreshTokenBalances();
+                                    tokenStore.refreshTokenBalances();
                                 }, 300);
                             }, 1500);
                         } else {
