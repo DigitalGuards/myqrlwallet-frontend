@@ -13,8 +13,9 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { QRL_PROVIDER } from "@/config";
 
 const TokenStatus = observer(() => {
-    const { qrlStore } = useStore();
-    const { addToken, createdToken, creatingToken, qrlConnection } = qrlStore;
+    const { qrlStore, tokenStore } = useStore();
+    const { qrlConnection } = qrlStore;
+    const { addToken, createdToken, creatingToken } = tokenStore;
     const { name, symbol, decimals, address, tx, blockNumber, blockHash, gasUsed, effectiveGasPrice } = createdToken;
     const explorerUrl = QRL_PROVIDER[qrlConnection.blockchain as keyof typeof QRL_PROVIDER]?.explorer || "https://zondscan.com";
 

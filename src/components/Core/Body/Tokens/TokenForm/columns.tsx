@@ -65,11 +65,11 @@ const CopyableText = ({ text }: { text: string }) => {
 };
 
 const HideTokenButton = ({ tokenAddress }: { tokenAddress: string }) => {
-    const { qrlStore } = useStore();
+    const { tokenStore } = useStore();
 
     const handleHide = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        await qrlStore.hideToken(tokenAddress);
+        await tokenStore.hideToken(tokenAddress);
     };
 
     return (
