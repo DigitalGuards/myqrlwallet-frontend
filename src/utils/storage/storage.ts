@@ -487,42 +487,59 @@ class StorageUtil {
   }
 
   /**
-   * NFT list — per-account scoping is intentionally avoided here because
-   * `setActiveAccount` already triggers a clear+rediscover in nftStore;
-   * matches the TokenList behaviour.
+   * NFT list — keyed by `${blockchain}_${account}` so collectibles from
+   * one wallet/chain never bleed into another. Returns `[]` when either
+   * scope component is empty (caller's bootstrap typically races init).
+   * Replaces the older global key which leaked across accounts on
+   * re-import and across networks on chain switch.
    */
-  static async getNftList(): Promise<NFTInterface[]> {
-    return this.getItem<NFTInterface[]>(NFT_LIST_IDENTIFIER) ?? [];
+  private static nftListKey(blockchain: string, account: string) {
+    return `${blockchain}_${account.toLowerCase()}_${NFT_LIST_IDENTIFIER}`;
   }
 
-  static async updateNftList(list: NFTInterface[]) {
-    this.setItem(NFT_LIST_IDENTIFIER, list);
+  private static hiddenNftsKey(blockchain: string, account: string) {
+    return `${blockchain}_${account.toLowerCase()}_${HIDDEN_NFTS_IDENTIFIER}`;
   }
 
-  static async clearNftList() {
-    localStorage.removeItem(NFT_LIST_IDENTIFIER);
+  static async getNftList(blockchain: string, account: string): Promise<NFTInterface[]> {
+    if (!blockchain || !account) return [];
+    return this.getItem<NFTInterface[]>(this.nftListKey(blockchain, account)) ?? [];
   }
 
-  static async getHiddenNfts(): Promise<string[]> {
-    return this.getItem<string[]>(HIDDEN_NFTS_IDENTIFIER) ?? [];
+  static async updateNftList(blockchain: string, account: string, list: NFTInterface[]) {
+    if (!blockchain || !account) return;
+    this.setItem(this.nftListKey(blockchain, account), list);
   }
 
-  static async hideNft(key: string) {
-    const list = await this.getHiddenNfts();
+  static async clearNftList(blockchain: string, account: string) {
+    if (!blockchain || !account) return;
+    localStorage.removeItem(this.nftListKey(blockchain, account));
+  }
+
+  static async getHiddenNfts(blockchain: string, account: string): Promise<string[]> {
+    if (!blockchain || !account) return [];
+    return this.getItem<string[]>(this.hiddenNftsKey(blockchain, account)) ?? [];
+  }
+
+  static async hideNft(blockchain: string, account: string, key: string) {
+    if (!blockchain || !account) return;
+    const list = await this.getHiddenNfts(blockchain, account);
     if (!list.some(k => k.toLowerCase() === key.toLowerCase())) {
       list.push(key.toLowerCase());
-      this.setItem(HIDDEN_NFTS_IDENTIFIER, list);
+      this.setItem(this.hiddenNftsKey(blockchain, account), list);
     }
   }
 
-  static async unhideNft(key: string) {
-    let list = await this.getHiddenNfts();
+  static async unhideNft(blockchain: string, account: string, key: string) {
+    if (!blockchain || !account) return;
+    let list = await this.getHiddenNfts(blockchain, account);
     list = list.filter(k => k.toLowerCase() !== key.toLowerCase());
-    this.setItem(HIDDEN_NFTS_IDENTIFIER, list);
+    this.setItem(this.hiddenNftsKey(blockchain, account), list);
   }
 
-  static async clearHiddenNfts() {
-    localStorage.removeItem(HIDDEN_NFTS_IDENTIFIER);
+  static async clearHiddenNfts(blockchain: string, account: string) {
+    if (!blockchain || !account) return;
+    localStorage.removeItem(this.hiddenNftsKey(blockchain, account));
   }
 }
 
