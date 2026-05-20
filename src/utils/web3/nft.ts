@@ -212,12 +212,15 @@ export async function fetchTokenUri(
   }
 }
 
-/** Rewrite `ipfs://CID/path` → public gateway URL. */
+/** Rewrite `ipfs://CID/path` → public gateway URL.
+ * Scheme match is case-insensitive (RFC 3986 §3.1) so `IPFS://...` and
+ * mixed-case variants from older metadata producers also resolve. */
 export function resolveIpfsUri(uri: string): string {
-  if (uri.startsWith("ipfs://ipfs/")) {
+  const lower = uri.toLowerCase();
+  if (lower.startsWith("ipfs://ipfs/")) {
     return `${IPFS_GATEWAY}${uri.slice("ipfs://ipfs/".length)}`;
   }
-  if (uri.startsWith("ipfs://")) {
+  if (lower.startsWith("ipfs://")) {
     return `${IPFS_GATEWAY}${uri.slice("ipfs://".length)}`;
   }
   return uri;
@@ -260,10 +263,11 @@ export async function fetchNftMetadata(uri: string): Promise<NftMetadata | null>
       // at a tracker host and leak the user's IP + a per-wallet
       // correlation token on render. Widening `img-src` to `https:` to
       // accommodate that case was the original cause of the leak.
+      const rawLower = rawImage.toLowerCase();
       const isProxiedIpfs =
-        rawImage.startsWith("ipfs://") &&
+        rawLower.startsWith("ipfs://") &&
         resolvedImage.startsWith(IPFS_GATEWAY);
-      const isInlineImage = resolvedImage.startsWith("data:image/");
+      const isInlineImage = rawLower.startsWith("data:image/");
       image = isProxiedIpfs || isInlineImage ? resolvedImage : undefined;
     }
 
