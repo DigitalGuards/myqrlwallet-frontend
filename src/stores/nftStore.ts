@@ -62,8 +62,19 @@ class NftStore {
     );
   }
 
+  // Storage is now keyed by `${blockchain}_${account}` (see StorageUtil)
+  // so reads from the wrong scope are impossible — but we still need the
+  // scope to write. Pulls live values from qrlStore at the call site.
+  private get scope(): { blockchain: string; account: string } {
+    return {
+      blockchain: this.qrlStore.qrlConnection.blockchain,
+      account: this.qrlStore.activeAccount.accountAddress,
+    };
+  }
+
   async initialize() {
-    const persisted = await StorageUtil.getNftList();
+    const { blockchain, account } = this.scope;
+    const persisted = await StorageUtil.getNftList(blockchain, account);
     runInAction(() => {
       this.nftList = persisted;
     });
@@ -74,17 +85,22 @@ class NftStore {
     if (!newActiveAccount) {
       return;
     }
-    // Mirror the token-store policy: clear list on account change so
-    // collectibles from a prior account don't leak into the new one. The
-    // user re-adds them manually (or via future auto-discovery).
-    await StorageUtil.clearNftList();
+    // Storage is per-account-scoped, so an account switch just means
+    // reloading from the new scope's key. No cross-account clearing
+    // needed — the old account's list stays under its own key for when
+    // the user switches back.
+    const blockchain = this.qrlStore.qrlConnection.blockchain;
+    const persisted = await StorageUtil.getNftList(blockchain, newActiveAccount);
+    const hidden = await StorageUtil.getHiddenNfts(blockchain, newActiveAccount);
     runInAction(() => {
-      this.nftList = [];
+      this.nftList = persisted;
+      this.hiddenNfts = hidden;
     });
   }
 
   async setNftList(list: NFTInterface[]) {
-    await StorageUtil.updateNftList(list);
+    const { blockchain, account } = this.scope;
+    await StorageUtil.updateNftList(blockchain, account, list);
     runInAction(() => {
       this.nftList = list;
     });
@@ -118,14 +134,16 @@ class NftStore {
   }
 
   async loadHiddenNfts() {
-    const list = await StorageUtil.getHiddenNfts();
+    const { blockchain, account } = this.scope;
+    const list = await StorageUtil.getHiddenNfts(blockchain, account);
     runInAction(() => {
       this.hiddenNfts = list;
     });
   }
 
   async hideNft(key: string) {
-    await StorageUtil.hideNft(key);
+    const { blockchain, account } = this.scope;
+    await StorageUtil.hideNft(blockchain, account, key);
     runInAction(() => {
       const lower = key.toLowerCase();
       if (!this.hiddenNfts.some((k) => k.toLowerCase() === lower)) {
@@ -135,7 +153,8 @@ class NftStore {
   }
 
   async unhideNft(key: string) {
-    await StorageUtil.unhideNft(key);
+    const { blockchain, account } = this.scope;
+    await StorageUtil.unhideNft(blockchain, account, key);
     runInAction(() => {
       this.hiddenNfts = this.hiddenNfts.filter(
         (k) => k.toLowerCase() !== key.toLowerCase(),

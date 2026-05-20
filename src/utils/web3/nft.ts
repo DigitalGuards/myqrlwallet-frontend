@@ -225,9 +225,11 @@ export function resolveIpfsUri(uri: string): string {
 
 /**
  * Fetch + parse NFT JSON metadata. Returns null on any failure (timeout,
- * 404, JSON parse error). Sanitizes the `image` field to https/data only
- * — never javascript: or file: schemes (tokenURI content is attacker-
- * controlled).
+ * 404, JSON parse error). Sanitizes the `image` field to proxied IPFS
+ * (same-origin via `/api/ipfs/...`) or inline `data:image/...` only.
+ * Raw http(s):// image URLs are dropped on purpose — tokenURI content
+ * is attacker-controlled and would otherwise leak the wallet user's IP
+ * to any host the JSON points at.
  */
 export async function fetchNftMetadata(uri: string): Promise<NftMetadata | null> {
   const resolved = resolveIpfsUri(uri);
@@ -248,17 +250,21 @@ export async function fetchNftMetadata(uri: string): Promise<NftMetadata | null>
 
     let image = typeof json.image === "string" ? json.image : undefined;
     if (image) {
-      image = resolveIpfsUri(image);
-      // Reject anything that isn't a safe scheme. data:image/... is
-      // allowed since it's the inline-image idiom and React renders it
-      // as a src attribute without script execution.
-      if (
-        !image.startsWith("http://") &&
-        !image.startsWith("https://") &&
-        !image.startsWith("data:image/")
-      ) {
-        image = undefined;
-      }
+      const rawImage = image;
+      const resolvedImage = resolveIpfsUri(image);
+      // Only allow images that are either (a) proxied IPFS — `ipfs://`
+      // resolves to same-origin `/api/ipfs/...` so the browser fetches
+      // through the wallet backend and CSP `img-src 'self'` permits it,
+      // or (b) inline `data:image/...`. Reject raw http(s):// images:
+      // attacker-controlled tokenURI JSON could otherwise point `image`
+      // at a tracker host and leak the user's IP + a per-wallet
+      // correlation token on render. Widening `img-src` to `https:` to
+      // accommodate that case was the original cause of the leak.
+      const isProxiedIpfs =
+        rawImage.startsWith("ipfs://") &&
+        resolvedImage.startsWith(IPFS_GATEWAY);
+      const isInlineImage = resolvedImage.startsWith("data:image/");
+      image = isProxiedIpfs || isInlineImage ? resolvedImage : undefined;
     }
 
     return {
