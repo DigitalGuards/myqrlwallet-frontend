@@ -6,4 +6,5 @@ export {
   getExplorerTxUrl,
   getPendingTxApiUrl,
   getTokenDiscoveryApiUrl,
+  getNFTDiscoveryApiUrl,
 } from './networks';
