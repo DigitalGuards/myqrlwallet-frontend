@@ -53,6 +53,10 @@ const TokenForm = observer(() => {
     // surfaces a picker built from pendingDiscoveredTokens.
     const refreshTokens = async () => {
         setIsRefreshing(true);
+        // Slot-cascade is user-initiated only — toggle the store flag
+        // here, not inside refreshTokenBalances (which also fires on
+        // account-switch / mount and shouldn't animate then).
+        tokenStore.setRefreshingBalances(true);
         try {
             await tokenStore.refreshTokenBalances();
         } catch (error) {
@@ -61,6 +65,9 @@ const TokenForm = observer(() => {
             setIsRefreshing(false);
             setRefreshSuccess(true);
             setTimeout(() => setRefreshSuccess(false), 1500);
+            // Hold the cascade for 1200ms past fetch completion so the
+            // digits visibly settle, matching the QRL refresher.
+            setTimeout(() => tokenStore.setRefreshingBalances(false), 1200);
         }
     };
 
