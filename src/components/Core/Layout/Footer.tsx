@@ -1,3 +1,4 @@
+import { EXPLORER_BASE } from "@/config";
 import { ROUTES } from "@/router/router";
 import { useNavigate } from "react-router-dom";
 
@@ -16,6 +17,14 @@ export default function Footer() {
                 </a>
                 <a onClick={() => navigate(ROUTES.TERMS)} className="text-xs md:text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
                     Terms
+                </a>
+                <a
+                    href={EXPLORER_BASE}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs md:text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    Explorer
                 </a>
             </div>
         </footer>
