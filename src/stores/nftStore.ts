@@ -18,6 +18,7 @@ import {
   isErc721Owner,
   nftKey,
 } from "@/utils/web3/nft";
+import { discoverNFTs } from "@/utils/web3";
 import type QrlStore from "./qrlStore";
 import type TokenStore from "./tokenStore";
 import { applyFeeLevel, type FeeLevel } from "./qrlStore";
@@ -25,6 +26,12 @@ import { applyFeeLevel, type FeeLevel } from "./qrlStore";
 class NftStore {
   nftList: NFTInterface[] = [];
   hiddenNfts: string[] = [];
+  // Phase 3b opt-in: the explorer's view of what NFTs this address
+  // holds. Populated by discoverNftsForReview(); never auto-merged into
+  // nftList. The UI renders pendingDiscoveredNfts as picker rows so a
+  // spam-airdropped NFT can't land in the gallery without an explicit
+  // user pick.
+  discoveredNfts: NFTInterface[] = [];
 
   constructor(
     private qrlStore: QrlStore,
@@ -36,7 +43,9 @@ class NftStore {
     makeAutoObservable(this, {
       nftList: observable.struct,
       hiddenNfts: observable,
+      discoveredNfts: observable.struct,
       visibleNftList: computed,
+      pendingDiscoveredNfts: computed,
       initialize: action.bound,
       handleActiveAccountChanged: action.bound,
       addNft: action.bound,
@@ -47,6 +56,9 @@ class NftStore {
       setNftList: action.bound,
       refreshNftBalances: action.bound,
       transferNft: action.bound,
+      discoverNftsForReview: action.bound,
+      addDiscoveredNfts: action.bound,
+      clearDiscoveredNfts: action.bound,
     });
     void this.tokenStore;
     log("NftStore initialized");
@@ -59,6 +71,20 @@ class NftStore {
           (k) =>
             k.toLowerCase() === nftKey(nft.contractAddress, nft.tokenId),
         ),
+    );
+  }
+
+  // Discovered NFTs minus the ones already in the user's saved gallery.
+  // The "Add NFT" picker renders this list so previously-added items
+  // don't reappear as suggestions.
+  get pendingDiscoveredNfts(): NFTInterface[] {
+    const owned = new Set(
+      this.nftList.map((n) =>
+        nftKey(n.contractAddress, n.tokenId).toLowerCase(),
+      ),
+    );
+    return this.discoveredNfts.filter(
+      (n) => !owned.has(nftKey(n.contractAddress, n.tokenId).toLowerCase()),
     );
   }
 
@@ -95,6 +121,9 @@ class NftStore {
     runInAction(() => {
       this.nftList = persisted;
       this.hiddenNfts = hidden;
+      // Discovered list is per-address; drop it so a picker opened
+      // after the switch can't leak the prior account's results.
+      this.discoveredNfts = [];
     });
   }
 
@@ -359,6 +388,67 @@ class NftStore {
       });
       return false;
     }
+  }
+
+  /**
+   * Phase 3b opt-in: populate `discoveredNfts` with what the explorer
+   * sees this address holding, without auto-merging. The UI reads
+   * pendingDiscoveredNfts to render an "Add NFT" picker; the user then
+   * calls addDiscoveredNfts(picks). Returns the discovered list so
+   * callers can render counts inline.
+   */
+  async discoverNftsForReview(address: string): Promise<NFTInterface[]> {
+    const blockchain = this.qrlStore.qrlConnection.blockchain;
+    if (!blockchain) {
+      log("Cannot discover NFTs: no blockchain selected");
+      return [];
+    }
+    // Synchronously reset before the await so any picker that observes
+    // pendingDiscoveredNfts while the fetch is in flight sees an empty
+    // list, not a stale one from a prior account or connection.
+    runInAction(() => {
+      this.discoveredNfts = [];
+    });
+    try {
+      const discovered = await discoverNFTs(address, blockchain);
+      runInAction(() => {
+        this.discoveredNfts = discovered;
+      });
+      log(`NFT discovery for review: ${discovered.length} NFTs on ${address}`);
+      return discovered;
+    } catch (error) {
+      console.error("discoverNftsForReview:", error);
+      log(`discoverNftsForReview failed: ${error}`);
+      runInAction(() => {
+        this.discoveredNfts = [];
+      });
+      return [];
+    }
+  }
+
+  /**
+   * Explicit opt-in: merge the user-selected subset of discoveredNfts
+   * into the persistent gallery. Dedupes against the existing list by
+   * (contract, tokenID) so a pick already in the gallery is a no-op,
+   * and writes the merged list in a single setNftList call.
+   */
+  async addDiscoveredNfts(picks: NFTInterface[]) {
+    if (picks.length === 0) return;
+    const owned = new Set(
+      this.nftList.map((n) => nftKey(n.contractAddress, n.tokenId)),
+    );
+    const additions = picks.filter(
+      (n) => !owned.has(nftKey(n.contractAddress, n.tokenId)),
+    );
+    if (additions.length === 0) return;
+    await this.setNftList([...this.nftList, ...additions]);
+    log(`Added ${additions.length} discovered NFTs to gallery`);
+  }
+
+  clearDiscoveredNfts() {
+    runInAction(() => {
+      this.discoveredNfts = [];
+    });
   }
 }
 

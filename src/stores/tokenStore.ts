@@ -47,6 +47,12 @@ class TokenStore {
   };
   tokenList: TokenInterface[] = [];
   hiddenTokens: string[] = [];
+  // Phase 3b opt-in: the explorer's view of what this address holds.
+  // Populated by discoverTokensForReview(); never auto-merged into
+  // tokenList. The UI surfaces these as picker rows ("Explorer
+  // recognized N tokens, add?") so spam-airdropped tokens can't sneak
+  // onto the dashboard without an explicit user pick.
+  discoveredTokens: TokenInterface[] = [];
 
   constructor(private qrlStore: QrlStore) {
     makeAutoObservable(this, {
@@ -54,7 +60,9 @@ class TokenStore {
       createdToken: observable.struct,
       tokenList: observable.struct,
       hiddenTokens: observable,
+      discoveredTokens: observable.struct,
       visibleTokenList: computed,
+      pendingDiscoveredTokens: computed,
       setCreatingToken: action.bound,
       setCreatedToken: action.bound,
       addToken: action.bound,
@@ -65,6 +73,9 @@ class TokenStore {
       createToken: action.bound,
       refreshTokenBalances: action.bound,
       discoverAndAddTokens: action.bound,
+      discoverTokensForReview: action.bound,
+      addDiscoveredTokens: action.bound,
+      clearDiscoveredTokens: action.bound,
       loadHiddenTokens: action.bound,
       hideToken: action.bound,
       unhideToken: action.bound,
@@ -81,6 +92,20 @@ class TokenStore {
         !this.hiddenTokens.some(
           (hidden) => hidden.toLowerCase() === token.address.toLowerCase(),
         ),
+    );
+  }
+
+  // Discovered tokens minus the ones the user has already added.
+  // The "Add token" picker renders this filtered list so previously-added
+  // entries don't reappear as suggestions. Lowercased comparison because
+  // the explorer normalises to Q-prefix lowercase and a user's manual
+  // entries might be mixed case.
+  get pendingDiscoveredTokens(): TokenInterface[] {
+    const owned = new Set(
+      this.tokenList.map((t) => t.address.toLowerCase()),
+    );
+    return this.discoveredTokens.filter(
+      (t) => !owned.has(t.address.toLowerCase()),
     );
   }
 
@@ -114,6 +139,9 @@ class TokenStore {
     await StorageUtil.clearTokenList();
     runInAction(() => {
       this.tokenList = [];
+      // Discovered list is per-address; drop it so a picker opened
+      // after the switch can't leak the prior account's results.
+      this.discoveredTokens = [];
     });
 
     for (const token of KNOWN_TOKEN_LIST) {
@@ -523,6 +551,12 @@ class TokenStore {
     }
   }
 
+  // Legacy auto-merge flow. Still wired into the Tokens-page refresh
+  // button which intentionally rebuilds the list from chain state. New
+  // UI flows should prefer discoverTokensForReview + addDiscoveredTokens
+  // for an opt-in picker. The discovery URL now scopes to
+  // standard=ERC-20, so this no longer auto-merges NFT rows, but it
+  // still doesn't gate against spam-airdrop tokens.
   async discoverAndAddTokens(address: string) {
     try {
       const blockchain = this.qrlStore.qrlConnection.blockchain;
@@ -550,6 +584,64 @@ class TokenStore {
       console.error("Error discovering tokens:", error);
       log(`Token discovery failed: ${error}`);
     }
+  }
+
+  // Phase 3b opt-in discovery: populate `discoveredTokens` with whatever
+  // the explorer can see on this address, without auto-merging. The UI
+  // reads pendingDiscoveredTokens to render an "Add token" picker; the
+  // user then calls addDiscoveredTokens(picks) with the ones they want.
+  // Returns the discovered list so callers can render counts inline.
+  async discoverTokensForReview(address: string): Promise<TokenInterface[]> {
+    const blockchain = this.qrlStore.qrlConnection.blockchain;
+    if (!blockchain) {
+      log("Cannot discover tokens: no blockchain selected");
+      return [];
+    }
+    // Synchronously reset before the await so any picker that observes
+    // pendingDiscoveredTokens while the fetch is in flight sees an
+    // empty list, not a stale one from a prior account or connection.
+    runInAction(() => {
+      this.discoveredTokens = [];
+    });
+    try {
+      const discovered = await discoverTokens(address, blockchain);
+      runInAction(() => {
+        this.discoveredTokens = discovered;
+      });
+      log(
+        `Token discovery for review: ${discovered.length} fungibles on ${address}`,
+      );
+      return discovered;
+    } catch (error) {
+      console.error("discoverTokensForReview:", error);
+      log(`discoverTokensForReview failed: ${error}`);
+      runInAction(() => {
+        this.discoveredTokens = [];
+      });
+      return [];
+    }
+  }
+
+  // Explicit opt-in: merge the user-selected subset of discoveredTokens
+  // into the persistent tokenList. Address-dedupes (lowercase) so a
+  // pick that's already in the list is a no-op rather than a duplicate.
+  async addDiscoveredTokens(picks: TokenInterface[]) {
+    if (picks.length === 0) return;
+    const owned = new Set(
+      this.tokenList.map((t) => t.address.toLowerCase()),
+    );
+    const additions = picks.filter(
+      (t) => !owned.has(t.address.toLowerCase()),
+    );
+    if (additions.length === 0) return;
+    await this.setTokenList([...this.tokenList, ...additions]);
+    log(`Added ${additions.length} discovered tokens to user list`);
+  }
+
+  clearDiscoveredTokens() {
+    runInAction(() => {
+      this.discoveredTokens = [];
+    });
   }
 
   async loadHiddenTokens() {

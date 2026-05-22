@@ -50,8 +50,23 @@ export const getPendingTxApiUrl = (blockchain: string) => {
   return `${provider.explorer}/api/pending-transactions`;
 };
 
-// Get API endpoint for token discovery by address
+// Get API endpoint for token discovery by address. Phase 3b on zondscan
+// added a `?standard=` filter; we scope to ERC-20 so this endpoint only
+// returns fungibles. Without the filter the response also includes one
+// row per (NFT contract, tokenID) the address holds, and the wallet's
+// ERC-20-aware renderer treats those as 18-decimal fungibles and shows
+// "Amount: 0" for every NFT row.
 export const getTokenDiscoveryApiUrl = (address: string, blockchain: string) => {
   const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
-  return `${provider.explorer}/api/address/${address}/tokens`;
+  return `${provider.explorer}/api/address/${address}/tokens?standard=ERC-20`;
+};
+
+// Get API endpoint for NFT discovery by address. The /nfts endpoint
+// returns per-(contract, tokenID) rows joined with collection-level
+// metadata (collectionName / collectionSymbol) AND per-token metadata
+// from Phase 3b (name / image / description / attributes), so a single
+// call powers the wallet's NFT picker with thumbnails and names.
+export const getNFTDiscoveryApiUrl = (address: string, blockchain: string) => {
+  const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
+  return `${provider.explorer}/api/address/${address}/nfts`;
 };
