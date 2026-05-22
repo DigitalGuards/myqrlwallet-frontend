@@ -76,6 +76,7 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
             );
             await tokenStore.addDiscoveredTokens(picks);
             setSelectedAddresses(new Set());
+            onClose();
         } catch (err) {
             setError(
                 err instanceof Error

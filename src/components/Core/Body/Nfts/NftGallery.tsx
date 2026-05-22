@@ -116,20 +116,22 @@ function EmptyState({
   discoveredCount: number;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
-      <Sparkles className="h-10 w-10 text-muted-foreground/50" />
-      <div>
-        <p className="text-sm font-medium">
-          {discoveredCount > 0
-            ? `Explorer found this address to own ${discoveredCount} NFT${discoveredCount === 1 ? "" : "s"}.`
-            : "No collectibles yet"}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {discoveredCount > 0
-            ? "Pick the ones to add to your gallery, or paste a contract address."
-            : "Paste an ERC-721 or ERC-1155 contract address to add one."}
-        </p>
-      </div>
+    <div className="flex flex-col items-center gap-2 py-4 text-center">
+      {discoveredCount > 0 ? (
+        <div className="flex items-center gap-2 text-sm">
+          <Sparkles className="h-4 w-4 text-muted-foreground/70" />
+          Explorer found this address to own{" "}
+          <span className="font-medium">{discoveredCount}</span> NFT
+          {discoveredCount === 1 ? "" : "s"}.
+        </div>
+      ) : (
+        <div>
+          <p className="text-sm font-medium">No collectibles yet</p>
+          <p className="text-xs text-muted-foreground">
+            Paste an ERC-721 or ERC-1155 contract address to add one.
+          </p>
+        </div>
+      )}
       <Button variant="outline" size="sm" onClick={onAdd}>
         <Plus className="mr-2 h-4 w-4" />
         {discoveredCount > 0 ? "Review and add" : "Add NFT"}
