@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { fetchBalance } from "@/utils/web3";
 import { useStore } from "@/stores/store";
 import { Button } from "@/components/UI/Button";
-import { Loader2, Plus, RefreshCw, Import, Coins } from "lucide-react";
+import { Check, Plus, RefreshCw, Import, Coins, Sparkles } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 import { formatUnits } from "ethers";
 import { QRL_PROVIDER } from "@/config";
@@ -35,40 +35,51 @@ import { ROUTES } from "@/router/router";
 import { getOptimalTokenBalance } from "@/utils/formatting";
 
 const TokenForm = observer(() => {
-    const { qrlStore } = useStore();
+    const { qrlStore, tokenStore } = useStore();
     const navigate = useNavigate();
-    const {
-        activeAccount: { accountAddress: activeAccountAddress },
-        visibleTokenList,
-    } = qrlStore;
+    const { accountAddress: activeAccountAddress } = qrlStore.activeAccount;
+    const { visibleTokenList, pendingDiscoveredTokens } = tokenStore;
 
     const [tokenList, setTokenList] = useState<TokenInterface[]>(visibleTokenList);
     const [isAddTokenModalOpen, setIsAddTokenModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [refreshSuccess, setRefreshSuccess] = useState(false);
 
+    // Refresh balances of the tokens already in the user's list. Does NOT
+    // re-discover from the explorer — that would re-introduce the spam
+    // vector the gate (PR #142) closes. To find tokens the explorer sees
+    // but the user hasn't added, open "Add Existing Token" — the modal
+    // surfaces a picker built from pendingDiscoveredTokens.
     const refreshTokens = async () => {
         setIsRefreshing(true);
+        // Slot-cascade is user-initiated only — toggle the store flag
+        // here, not inside refreshTokenBalances (which also fires on
+        // account-switch / mount and shouldn't animate then).
+        tokenStore.setRefreshingBalances(true);
         try {
-            // Clear hidden tokens so they reappear
-            await StorageUtil.clearHiddenTokens();
-            await qrlStore.loadHiddenTokens();
-
-            // Clear existing token list to prevent tokens from other accounts showing
-            await StorageUtil.clearTokenList();
-            await qrlStore.setTokenList([]);
-
-            // Discover tokens for the active account only
-            await qrlStore.discoverAndAddTokens(activeAccountAddress);
-
-            // Then refresh all balances
-            await qrlStore.refreshTokenBalances();
+            await tokenStore.refreshTokenBalances();
         } catch (error) {
             console.error("Failed to refresh tokens:", error);
         } finally {
             setIsRefreshing(false);
+            setRefreshSuccess(true);
+            setTimeout(() => setRefreshSuccess(false), 1500);
+            // Hold the cascade for 1200ms past fetch completion so the
+            // digits visibly settle, matching the QRL refresher.
+            setTimeout(() => tokenStore.setRefreshingBalances(false), 1200);
         }
     };
+
+    // Populate the discovery cache so the empty-state ("Explorer found N
+    // tokens") and the AddTokenModal picker have data without any user
+    // gesture. The result lands in tokenStore.discoveredTokens, NOT
+    // tokenList — adding to the live list still requires an explicit
+    // pick.
+    useEffect(() => {
+        if (!activeAccountAddress) return;
+        void tokenStore.discoverTokensForReview(activeAccountAddress);
+    }, [activeAccountAddress, tokenStore]);
 
     useEffect(() => {
         const init = async () => {
@@ -114,17 +125,19 @@ const TokenForm = observer(() => {
                                     variant="outline"
                                     size="sm"
                                     onClick={refreshTokens}
-                                    disabled={isRefreshing}
+                                    disabled={isRefreshing || refreshSuccess}
                                 >
-                                    {isRefreshing ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    {refreshSuccess ? (
+                                        <Check className="h-4 w-4 text-green-500" />
+                                    ) : isRefreshing ? (
+                                        <RefreshCw className="h-4 w-4 animate-spin" />
                                     ) : (
                                         <RefreshCw className="h-4 w-4" />
                                     )}
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>Refresh balances and show hidden tokens</p>
+                                <p>Refresh balances of imported tokens</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
@@ -148,7 +161,34 @@ const TokenForm = observer(() => {
                 </div>
             </CardHeader>
             <CardContent>
-                <DataTable columns={columns} data={tokenList} isLoading={isLoading} />
+                <DataTable
+                    columns={columns}
+                    data={tokenList}
+                    isLoading={isLoading}
+                    emptyMessage={
+                        pendingDiscoveredTokens.length > 0 ? (
+                            <div className="flex flex-col items-center gap-2 py-2">
+                                <div className="flex items-center gap-2 text-sm">
+                                    <Sparkles className="h-4 w-4 text-muted-foreground/70" />
+                                    Explorer found this address to own{" "}
+                                    <span className="font-medium">
+                                        {pendingDiscoveredTokens.length}
+                                    </span>{" "}
+                                    token
+                                    {pendingDiscoveredTokens.length === 1 ? "" : "s"}.
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsAddTokenModalOpen(true)}
+                                >
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Review and add
+                                </Button>
+                            </div>
+                        ) : undefined
+                    }
+                />
             </CardContent>
             <AddTokenModal isOpen={isAddTokenModalOpen} onClose={() => setIsAddTokenModalOpen(false)} />
         </Card>

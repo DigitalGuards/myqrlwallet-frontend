@@ -9,12 +9,14 @@ export {
   getMnemonicFromHexSeed,
   getHexSeedFromMnemonic,
   getAddressFromMnemonic,
+  getAddressFromMnemonicAsync,
 } from './mnemonic';
 
 export {
   encryptSeedAsync,
   decryptSeedAsync,
   reEncryptSeedAsync,
+  deriveHexSeedAsync,
   CryptoOperationError,
   CryptoErrorCode,
 } from './cryptoWorkerClient';

@@ -13,7 +13,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/UI/table"
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { TokenInterface } from "@/constants";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -23,12 +23,14 @@ interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
     isLoading?: boolean
+    emptyMessage?: ReactNode
 }
 
 export function DataTable<TData, TValue>({
     columns,
     data,
     isLoading = false,
+    emptyMessage,
 }: DataTableProps<TData, TValue>) {
     const navigate = useNavigate();
     const table = useReactTable({
@@ -110,7 +112,7 @@ export function DataTable<TData, TValue>({
                     ) : (
                         <TableRow>
                             <TableCell colSpan={columns.length} className="h-24 text-center">
-                                No tokens currently added or created.
+                                {emptyMessage ?? "No tokens currently added or created."}
                             </TableCell>
                         </TableRow>
                     )}

@@ -1,5 +1,5 @@
 import { QRL_PROVIDER } from "@/config";
-import { TokenInterface } from "@/constants";
+import { TokenInterface, NFTInterface } from "@/constants";
 import { isInNativeApp } from "@/utils/nativeApp";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
@@ -11,6 +11,8 @@ const ACCOUNT_LIST_IDENTIFIER = "ACCOUNT_LIST";
 const TRANSACTION_VALUES_IDENTIFIER = "TRANSACTION_VALUES";
 const TOKEN_LIST_IDENTIFIER = "TOKEN_LIST";
 const HIDDEN_TOKENS_IDENTIFIER = "HIDDEN_TOKENS";
+const NFT_LIST_IDENTIFIER = "NFT_LIST";
+const HIDDEN_NFTS_IDENTIFIER = "HIDDEN_NFTS";
 const BALANCE_CACHE_IDENTIFIER = "BALANCE_CACHE";
 const STORAGE_VERSION = 'v1';
 const MAX_STORAGE_AGE = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
@@ -18,6 +20,19 @@ const MAX_WALLETS = 10; // Maximum number of wallets that can be imported
 const WALLET_SETTINGS_IDENTIFIER = "WALLET_SETTINGS";
 const ENCRYPTED_SEEDS_IDENTIFIER = "ENCRYPTED_SEEDS";
 const AUTO_LOCK_TIMEOUT = 15 * 60 * 1000; // 15 minutes default auto-lock timeout
+
+// Same-tab change events. The native `storage` event only fires in OTHER
+// tabs, so we dispatch these on `window` to let other modules
+// (e.g. autoLock) react to writes happening in the same tab without
+// monkey-patching `localStorage.setItem`. Guarded against environments
+// where `window` is undefined (SSR / tests).
+export const STORAGE_EVENT_ACTIVE_ACCOUNT = 'qrl-wallet:active-account-changed';
+export const STORAGE_EVENT_WALLET_SETTINGS = 'qrl-wallet:wallet-settings-changed';
+const dispatchStorageEvent = (name: string) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(name));
+  }
+};
 
 type TransactionValuesType = {
   receiverAddress?: string;
@@ -37,6 +52,8 @@ interface WalletSettings {
   showTestNetworks: boolean;
   hideSmallBalances: boolean;
   hideUnknownTokens: boolean;
+  showTokensCard: boolean;
+  showNftsCard: boolean;
 }
 
 export interface EncryptedSeedData {
@@ -171,6 +188,7 @@ class StorageUtil {
     } else {
       localStorage.removeItem(blockChainAccountIdentifier);
     }
+    dispatchStorageEvent(STORAGE_EVENT_ACTIVE_ACCOUNT);
   }
 
   static async getActiveAccount(blockchain: string) {
@@ -181,6 +199,7 @@ class StorageUtil {
   static async clearActiveAccount(blockchain: string) {
     const blockChainAccountIdentifier = `${blockchain}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
     localStorage.removeItem(blockChainAccountIdentifier);
+    dispatchStorageEvent(STORAGE_EVENT_ACTIVE_ACCOUNT);
   }
 
   /**
@@ -278,15 +297,23 @@ class StorageUtil {
 
   static async setWalletSettings(settings: WalletSettings) {
     this.setItem(WALLET_SETTINGS_IDENTIFIER, settings);
+    dispatchStorageEvent(STORAGE_EVENT_WALLET_SETTINGS);
   }
 
   static async getWalletSettings(): Promise<WalletSettings> {
-    return this.getItem<WalletSettings>(WALLET_SETTINGS_IDENTIFIER) ?? {
+    const defaults: WalletSettings = {
       autoLockTimeout: AUTO_LOCK_TIMEOUT,
       showTestNetworks: false,
       hideSmallBalances: false,
       hideUnknownTokens: true,
+      showTokensCard: true,
+      showNftsCard: true,
     };
+    // Merge defaults so returning users with a stored settings object
+    // that pre-dates the new keys still get the right defaults instead
+    // of `undefined`.
+    const stored = this.getItem<Partial<WalletSettings>>(WALLET_SETTINGS_IDENTIFIER);
+    return { ...defaults, ...(stored ?? {}) };
   }
 
   /**
@@ -457,6 +484,62 @@ class StorageUtil {
    */
   static async clearHiddenTokens() {
     localStorage.removeItem(HIDDEN_TOKENS_IDENTIFIER);
+  }
+
+  /**
+   * NFT list — keyed by `${blockchain}_${account}` so collectibles from
+   * one wallet/chain never bleed into another. Returns `[]` when either
+   * scope component is empty (caller's bootstrap typically races init).
+   * Replaces the older global key which leaked across accounts on
+   * re-import and across networks on chain switch.
+   */
+  private static nftListKey(blockchain: string, account: string) {
+    return `${blockchain}_${account.toLowerCase()}_${NFT_LIST_IDENTIFIER}`;
+  }
+
+  private static hiddenNftsKey(blockchain: string, account: string) {
+    return `${blockchain}_${account.toLowerCase()}_${HIDDEN_NFTS_IDENTIFIER}`;
+  }
+
+  static async getNftList(blockchain: string, account: string): Promise<NFTInterface[]> {
+    if (!blockchain || !account) return [];
+    return this.getItem<NFTInterface[]>(this.nftListKey(blockchain, account)) ?? [];
+  }
+
+  static async updateNftList(blockchain: string, account: string, list: NFTInterface[]) {
+    if (!blockchain || !account) return;
+    this.setItem(this.nftListKey(blockchain, account), list);
+  }
+
+  static async clearNftList(blockchain: string, account: string) {
+    if (!blockchain || !account) return;
+    localStorage.removeItem(this.nftListKey(blockchain, account));
+  }
+
+  static async getHiddenNfts(blockchain: string, account: string): Promise<string[]> {
+    if (!blockchain || !account) return [];
+    return this.getItem<string[]>(this.hiddenNftsKey(blockchain, account)) ?? [];
+  }
+
+  static async hideNft(blockchain: string, account: string, key: string) {
+    if (!blockchain || !account) return;
+    const list = await this.getHiddenNfts(blockchain, account);
+    if (!list.some(k => k.toLowerCase() === key.toLowerCase())) {
+      list.push(key.toLowerCase());
+      this.setItem(this.hiddenNftsKey(blockchain, account), list);
+    }
+  }
+
+  static async unhideNft(blockchain: string, account: string, key: string) {
+    if (!blockchain || !account) return;
+    let list = await this.getHiddenNfts(blockchain, account);
+    list = list.filter(k => k.toLowerCase() !== key.toLowerCase());
+    this.setItem(this.hiddenNftsKey(blockchain, account), list);
+  }
+
+  static async clearHiddenNfts(blockchain: string, account: string) {
+    if (!blockchain || !account) return;
+    localStorage.removeItem(this.hiddenNftsKey(blockchain, account));
   }
 }
 

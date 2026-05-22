@@ -2,8 +2,10 @@ import { TokenInterface } from "@/constants"
 import { ColumnDef } from "@tanstack/react-table"
 import { Copy, Check, Send, EyeOff } from "lucide-react"
 import { useState } from "react"
+import { observer } from "mobx-react-lite"
 import { useStore } from "@/stores/store"
 import { copyToClipboard } from "@/utils/nativeApp"
+import { SlotBalance } from "../../Home/AccountCreateImport/ActiveAccountDisplay/SlotBalance"
 
 // Create a component for the cell to manage its own copy state
 const CopyableAddress = ({ address }: { address: string }) => {
@@ -64,12 +66,42 @@ const CopyableText = ({ text }: { text: string }) => {
     );
 };
 
+// Token amount cell with the QRL-balance-style slot-machine cascade
+// while tokenStore.isRefreshingBalances is on, plus the same copy
+// affordance as CopyableText.
+const BalanceCell = observer(({ amount }: { amount: string }) => {
+    const { tokenStore } = useStore();
+    const [isCopied, setIsCopied] = useState(false);
+
+    const handleCopy = async (textToCopy: string) => {
+        const success = await copyToClipboard(textToCopy);
+        if (success) {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 1500);
+        }
+    };
+
+    return (
+        <div className="flex items-center gap-2 group">
+            <SlotBalance value={amount} spinning={tokenStore.isRefreshingBalances} />
+            {isCopied ? (
+                <Check className="w-4 h-4 text-green-500" />
+            ) : (
+                <Copy
+                    className="w-4 h-4 opacity-0 group-hover:opacity-100 hover:text-gray-400 transition-opacity cursor-pointer"
+                    onClick={() => handleCopy(amount)}
+                />
+            )}
+        </div>
+    );
+});
+
 const HideTokenButton = ({ tokenAddress }: { tokenAddress: string }) => {
-    const { qrlStore } = useStore();
+    const { tokenStore } = useStore();
 
     const handleHide = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        await qrlStore.hideToken(tokenAddress);
+        await tokenStore.hideToken(tokenAddress);
     };
 
     return (
@@ -112,7 +144,7 @@ export const columns: ColumnDef<TokenInterface>[] = [
         header: 'Amount',
         cell: ({ row }) => {
             const amount: string = row.getValue('amount')
-            return <CopyableText text={amount} />;
+            return <BalanceCell amount={amount} />;
         }
     },
     {
