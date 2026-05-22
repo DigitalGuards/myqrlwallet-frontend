@@ -53,6 +53,10 @@ class TokenStore {
   // recognized N tokens, add?") so spam-airdropped tokens can't sneak
   // onto the dashboard without an explicit user pick.
   discoveredTokens: TokenInterface[] = [];
+  // Drives the slot-machine cascade on the Amount column while
+  // refreshTokenBalances is running. Kept on for ~1.2s after the
+  // fetch resolves so the digits settle visibly.
+  isRefreshingBalances = false;
 
   constructor(private qrlStore: QrlStore) {
     makeAutoObservable(this, {
@@ -61,6 +65,7 @@ class TokenStore {
       tokenList: observable.struct,
       hiddenTokens: observable,
       discoveredTokens: observable.struct,
+      isRefreshingBalances: observable,
       visibleTokenList: computed,
       pendingDiscoveredTokens: computed,
       setCreatingToken: action.bound,
@@ -72,6 +77,7 @@ class TokenStore {
       sendToken: action.bound,
       createToken: action.bound,
       refreshTokenBalances: action.bound,
+      setRefreshingBalances: action.bound,
       discoverAndAddTokens: action.bound,
       discoverTokensForReview: action.bound,
       addDiscoveredTokens: action.bound,
@@ -535,6 +541,10 @@ class TokenStore {
     }
   }
 
+  // The slot-cascade animation flag (isRefreshingBalances) is set by
+  // callers, not here. Background invocations (account-switch auto-
+  // refresh, etc.) refresh silently; only the user-pressed Refresh
+  // button toggles the flag, so the digits don't spin on page load.
   async refreshTokenBalances() {
     try {
       const startAccount = this.qrlStore.activeAccount.accountAddress;
@@ -584,6 +594,14 @@ class TokenStore {
     } catch (error) {
       console.error("Error refreshing token balances:", error);
     }
+  }
+
+  // UI-owned setter for the slot-cascade animation flag. TokenForm
+  // turns it on when the user clicks Refresh, off after the animation
+  // tail. The fetch itself doesn't manage this flag — see
+  // refreshTokenBalances comment.
+  setRefreshingBalances(value: boolean) {
+    this.isRefreshingBalances = value;
   }
 
   // Legacy auto-merge flow. Still wired into the Tokens-page refresh
