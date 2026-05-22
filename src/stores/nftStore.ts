@@ -74,17 +74,19 @@ class NftStore {
     );
   }
 
-  // Discovered NFTs minus the ones already in the user's saved gallery.
-  // The "Add NFT" picker renders this list so previously-added items
-  // don't reappear as suggestions.
+  // Discovered NFTs minus the ones already visible in the gallery.
+  // Hidden NFTs are still eligible — picking a hidden NFT in the picker
+  // unhides it. Previously-visible items stay filtered so they don't
+  // reappear as suggestions.
   get pendingDiscoveredNfts(): NFTInterface[] {
-    const owned = new Set(
-      this.nftList.map((n) =>
+    const visible = new Set(
+      this.visibleNftList.map((n) =>
         nftKey(n.contractAddress, n.tokenId).toLowerCase(),
       ),
     );
     return this.discoveredNfts.filter(
-      (n) => !owned.has(nftKey(n.contractAddress, n.tokenId).toLowerCase()),
+      (n) =>
+        !visible.has(nftKey(n.contractAddress, n.tokenId).toLowerCase()),
     );
   }
 
@@ -434,15 +436,57 @@ class NftStore {
    */
   async addDiscoveredNfts(picks: NFTInterface[]) {
     if (picks.length === 0) return;
+    const startAccount = this.qrlStore.activeAccount.accountAddress;
     const owned = new Set(
       this.nftList.map((n) => nftKey(n.contractAddress, n.tokenId)),
     );
-    const additions = picks.filter(
-      (n) => !owned.has(nftKey(n.contractAddress, n.tokenId)),
+    const hidden = new Set(this.hiddenNfts.map((k) => k.toLowerCase()));
+    const additions: NFTInterface[] = [];
+    const unhides: string[] = [];
+    for (const pick of picks) {
+      // nftKey lowercases the contract but not the tokenId. owned is
+      // built from the same helper so equality holds. hidden is fully
+      // lowercased, so use the lowercased key for that check only.
+      const key = nftKey(pick.contractAddress, pick.tokenId);
+      if (!owned.has(key)) {
+        additions.push(pick);
+      } else if (hidden.has(key.toLowerCase())) {
+        unhides.push(key.toLowerCase());
+      }
+      // else: already visible — skip
+    }
+    if (additions.length === 0 && unhides.length === 0) return;
+    // Stale-write guard: NFT storage is per-account-scoped, so the
+    // write lands in the right key even after a switch, but the
+    // in-memory append would still mix the prior account's discovered
+    // picks into the new account's nftList.
+    if (this.qrlStore.activeAccount.accountAddress !== startAccount) {
+      log(
+        "addDiscoveredNfts: active account changed before write, abandoning picks",
+      );
+      return;
+    }
+    if (additions.length > 0) {
+      await this.setNftList([...this.nftList, ...additions]);
+    }
+    if (unhides.length > 0) {
+      // Persist each unhide (StorageUtil.unhideNft is O(read+write) per
+      // call but the lists are small) and then update observable state
+      // once so the UI re-renders a single time.
+      const { blockchain, account } = this.scope;
+      for (const key of unhides) {
+        await StorageUtil.unhideNft(blockchain, account, key);
+      }
+      const drop = new Set(unhides);
+      runInAction(() => {
+        this.hiddenNfts = this.hiddenNfts.filter(
+          (k) => !drop.has(k.toLowerCase()),
+        );
+      });
+    }
+    log(
+      `addDiscoveredNfts: added ${additions.length}, unhid ${unhides.length}`,
     );
-    if (additions.length === 0) return;
-    await this.setNftList([...this.nftList, ...additions]);
-    log(`Added ${additions.length} discovered NFTs to gallery`);
   }
 
   clearDiscoveredNfts() {
