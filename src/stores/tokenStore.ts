@@ -114,6 +114,7 @@ class TokenStore {
   // qrlStore.onBlockchainReady hook). Restores the persisted token list and
   // hidden-token list, then seeds known tokens.
   async initialize() {
+    await this.migrateLegacyAutoAddedTokens();
     const persistedList = await StorageUtil.getTokenList();
     runInAction(() => {
       this.tokenList = persistedList;
@@ -123,6 +124,21 @@ class TokenStore {
     for (const token of KNOWN_TOKEN_LIST) {
       await this.addToken(token);
     }
+  }
+
+  // One-shot migration: pre-gate (before PR #142), the wallet auto-merged
+  // every token the explorer attributed to the active account into
+  // tokenList, and persisted that to localStorage. After the gate, those
+  // legacy entries can't be distinguished from user-curated picks — so we
+  // wipe TOKEN_LIST once on first load post-migration. The discovery
+  // picker (PR #143) repopulates legitimate holdings on the user's
+  // explicit say-so.
+  private async migrateLegacyAutoAddedTokens() {
+    const FLAG = "TOKEN_LIST_GATE_MIGRATED_V1";
+    if (localStorage.getItem(FLAG)) return;
+    await StorageUtil.clearTokenList();
+    localStorage.setItem(FLAG, "1");
+    log("Migration: wiped pre-gate tokenList; flag set");
   }
 
   // Called by Store after QrlStore.setActiveAccount finishes (via the
