@@ -53,6 +53,10 @@ class TokenStore {
   // recognized N tokens, add?") so spam-airdropped tokens can't sneak
   // onto the dashboard without an explicit user pick.
   discoveredTokens: TokenInterface[] = [];
+  // Drives the slot-machine cascade on the Amount column while
+  // refreshTokenBalances is running. Kept on for ~1.2s after the
+  // fetch resolves so the digits settle visibly.
+  isRefreshingBalances = false;
 
   constructor(private qrlStore: QrlStore) {
     makeAutoObservable(this, {
@@ -61,6 +65,7 @@ class TokenStore {
       tokenList: observable.struct,
       hiddenTokens: observable,
       discoveredTokens: observable.struct,
+      isRefreshingBalances: observable,
       visibleTokenList: computed,
       pendingDiscoveredTokens: computed,
       setCreatingToken: action.bound,
@@ -536,6 +541,9 @@ class TokenStore {
   }
 
   async refreshTokenBalances() {
+    runInAction(() => {
+      this.isRefreshingBalances = true;
+    });
     try {
       const startAccount = this.qrlStore.activeAccount.accountAddress;
       if (!startAccount) return;
@@ -583,6 +591,14 @@ class TokenStore {
       await this.setTokenList(updatedTokenList);
     } catch (error) {
       console.error("Error refreshing token balances:", error);
+    } finally {
+      // Hold the flag for the slot animation tail so digits cascade
+      // visibly past the fetch completion. Matches the QRL refresher.
+      setTimeout(() => {
+        runInAction(() => {
+          this.isRefreshingBalances = false;
+        });
+      }, 1200);
     }
   }
 

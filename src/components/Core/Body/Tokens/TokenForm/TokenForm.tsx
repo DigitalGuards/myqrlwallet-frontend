@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { fetchBalance } from "@/utils/web3";
 import { useStore } from "@/stores/store";
 import { Button } from "@/components/UI/Button";
-import { Loader2, Plus, RefreshCw, Import, Coins, Sparkles } from "lucide-react";
+import { Check, Plus, RefreshCw, Import, Coins, Sparkles } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
 import { formatUnits } from "ethers";
 import { QRL_PROVIDER } from "@/config";
@@ -44,6 +44,7 @@ const TokenForm = observer(() => {
     const [isAddTokenModalOpen, setIsAddTokenModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [refreshSuccess, setRefreshSuccess] = useState(false);
 
     // Refresh balances of the tokens already in the user's list. Does NOT
     // re-discover from the explorer — that would re-introduce the spam
@@ -58,6 +59,8 @@ const TokenForm = observer(() => {
             console.error("Failed to refresh tokens:", error);
         } finally {
             setIsRefreshing(false);
+            setRefreshSuccess(true);
+            setTimeout(() => setRefreshSuccess(false), 1500);
         }
     };
 
@@ -115,10 +118,12 @@ const TokenForm = observer(() => {
                                     variant="outline"
                                     size="sm"
                                     onClick={refreshTokens}
-                                    disabled={isRefreshing}
+                                    disabled={isRefreshing || refreshSuccess}
                                 >
-                                    {isRefreshing ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    {refreshSuccess ? (
+                                        <Check className="h-4 w-4 text-green-500" />
+                                    ) : isRefreshing ? (
+                                        <RefreshCw className="h-4 w-4 animate-spin" />
                                     ) : (
                                         <RefreshCw className="h-4 w-4" />
                                     )}
