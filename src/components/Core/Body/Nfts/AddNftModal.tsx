@@ -114,6 +114,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
       );
       await nftStore.addDiscoveredNfts(picks);
       setSelectedKeys(new Set());
+      onClose();
     } catch (err) {
       setError(
         err instanceof Error
