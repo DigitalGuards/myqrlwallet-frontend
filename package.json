@@ -2,7 +2,7 @@
   "name": "qrl-wallet-web",
   "description": "A web application for creating accounts, signing transactions and sending transactions over the QRL blockchain.",
   "private": true,
-  "version": "0.1.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --config config/vite.config.ts --host=127.0.0.1",
