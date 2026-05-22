@@ -125,17 +125,24 @@ class TokenStore {
   }
 
   // Called by Store after QrlStore.setActiveAccount finishes (via the
-  // qrlStore.onActiveAccountChanged hook). Mirrors the previous in-place
-  // logic that lived inside setActiveAccount.
+  // qrlStore.onActiveAccountChanged hook).
+  //
+  // Anti-spam gate: this method intentionally does NOT call the explorer
+  // to discover and auto-merge tokens. A silent merge would let any
+  // airdropped token (or compromised explorer response) land on the
+  // user's dashboard the moment they switched accounts, and renders the
+  // attacker-supplied name/symbol verbatim. Discovery is now strictly
+  // opt-in via discoverTokensForReview + the picker UI; KNOWN_TOKEN_LIST
+  // stays as the curated allowlist bypass.
   async handleActiveAccountChanged(newActiveAccount?: string) {
     if (!newActiveAccount) {
       log("Active account cleared, skipping token refresh.");
       return;
     }
 
-    log(`Fetching balances for newly active account: ${newActiveAccount}`);
-    // Clear token list before discovering tokens for the new account so
-    // tokens from inactive accounts don't show with 0 balance.
+    log(`Switching token list to account: ${newActiveAccount}`);
+    // Token storage is global (not per-account like NFTs), so we wipe
+    // on switch to prevent account A's tokens leaking into account B.
     await StorageUtil.clearTokenList();
     runInAction(() => {
       this.tokenList = [];
@@ -148,13 +155,9 @@ class TokenStore {
       await this.addToken(token);
     }
 
-    this.discoverAndAddTokens(newActiveAccount)
-      .then(() => {
-        void this.refreshTokenBalances();
-      })
-      .catch((error) => {
-        log(`Unexpected error during token discovery: ${error}`);
-      });
+    // Refresh balances on whatever is in the list now (KNOWN_TOKEN_LIST
+    // entries, or nothing). No explorer call.
+    void this.refreshTokenBalances();
   }
 
   async setCreatingToken(name: string, creating: boolean, error?: string) {
