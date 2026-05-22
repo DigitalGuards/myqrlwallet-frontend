@@ -97,15 +97,16 @@ class TokenStore {
 
   // Discovered tokens minus the ones the user has already added.
   // The "Add token" picker renders this filtered list so previously-added
-  // entries don't reappear as suggestions. Lowercased comparison because
-  // the explorer normalises to Q-prefix lowercase and a user's manual
-  // entries might be mixed case.
+  // entries don't reappear as suggestions, but hidden ones do — a hidden
+  // token should be re-discoverable so the user can pick it again to
+  // unhide. Lowercased comparison because the explorer normalises to
+  // Q-prefix lowercase and a user's manual entries might be mixed case.
   get pendingDiscoveredTokens(): TokenInterface[] {
-    const owned = new Set(
-      this.tokenList.map((t) => t.address.toLowerCase()),
+    const visible = new Set(
+      this.visibleTokenList.map((t) => t.address.toLowerCase()),
     );
     return this.discoveredTokens.filter(
-      (t) => !owned.has(t.address.toLowerCase()),
+      (t) => !visible.has(t.address.toLowerCase()),
     );
   }
 
@@ -520,18 +521,23 @@ class TokenStore {
 
   async refreshTokenBalances() {
     try {
-      const activeAccountAddress = this.qrlStore.activeAccount.accountAddress;
-      if (!activeAccountAddress) return;
+      const startAccount = this.qrlStore.activeAccount.accountAddress;
+      if (!startAccount) return;
 
+      // Freeze the list at entry and iterate the snapshot, not the
+      // observable. If the user switches accounts mid-fetch, the
+      // observable list will be wiped under us; the snapshot still
+      // reflects what we set out to refresh.
+      const snapshot = [...this.tokenList];
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const updatedTokenList = [...this.tokenList];
+      const updatedTokenList = [...snapshot];
 
-      for (let i = 0; i < this.tokenList.length; i++) {
-        const token = this.tokenList[i];
+      for (let i = 0; i < snapshot.length; i++) {
+        const token = snapshot[i];
         try {
           const balance = await fetchBalance(
             token.address,
-            activeAccountAddress,
+            startAccount,
             QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url,
           );
           const balanceStr = formatUnits(balance, token.decimals);
@@ -546,6 +552,16 @@ class TokenStore {
           );
           updatedTokenList[i] = { ...token, amount: "Error" };
         }
+      }
+
+      // Stale-write guard: if the active account changed under us,
+      // abandon the result. Writing it back would clobber the new
+      // account's list (token storage is global, not per-account).
+      if (this.qrlStore.activeAccount.accountAddress !== startAccount) {
+        log(
+          "refreshTokenBalances: active account changed mid-refresh, abandoning stale results",
+        );
+        return;
       }
 
       await this.setTokenList(updatedTokenList);
@@ -626,19 +642,56 @@ class TokenStore {
   }
 
   // Explicit opt-in: merge the user-selected subset of discoveredTokens
-  // into the persistent tokenList. Address-dedupes (lowercase) so a
-  // pick that's already in the list is a no-op rather than a duplicate.
+  // into the persistent tokenList. For picks already in the list-but-
+  // hidden, this unhides them; for picks not in the list, this appends
+  // them. Picks already visible are a no-op.
   async addDiscoveredTokens(picks: TokenInterface[]) {
     if (picks.length === 0) return;
+    const startAccount = this.qrlStore.activeAccount.accountAddress;
     const owned = new Set(
       this.tokenList.map((t) => t.address.toLowerCase()),
     );
-    const additions = picks.filter(
-      (t) => !owned.has(t.address.toLowerCase()),
+    const hidden = new Set(this.hiddenTokens.map((a) => a.toLowerCase()));
+    const additions: TokenInterface[] = [];
+    const unhides: string[] = [];
+    for (const pick of picks) {
+      const lower = pick.address.toLowerCase();
+      if (!owned.has(lower)) {
+        additions.push(pick);
+      } else if (hidden.has(lower)) {
+        unhides.push(pick.address);
+      }
+      // else: already visible — skip
+    }
+    if (additions.length === 0 && unhides.length === 0) return;
+    // Stale-write guard: token storage is global, so a write here after
+    // an account switch would land in the new account's view.
+    if (this.qrlStore.activeAccount.accountAddress !== startAccount) {
+      log(
+        "addDiscoveredTokens: active account changed before write, abandoning picks",
+      );
+      return;
+    }
+    if (additions.length > 0) {
+      await this.setTokenList([...this.tokenList, ...additions]);
+    }
+    if (unhides.length > 0) {
+      // Persist each unhide (StorageUtil.unhideToken is small) and
+      // collapse the observable update into a single runInAction so the
+      // UI re-renders once instead of N times.
+      for (const addr of unhides) {
+        await StorageUtil.unhideToken(addr);
+      }
+      const drop = new Set(unhides.map((a) => a.toLowerCase()));
+      runInAction(() => {
+        this.hiddenTokens = this.hiddenTokens.filter(
+          (addr) => !drop.has(addr.toLowerCase()),
+        );
+      });
+    }
+    log(
+      `addDiscoveredTokens: added ${additions.length}, unhid ${unhides.length}`,
     );
-    if (additions.length === 0) return;
-    await this.setTokenList([...this.tokenList, ...additions]);
-    log(`Added ${additions.length} discovered tokens to user list`);
   }
 
   clearDiscoveredTokens() {

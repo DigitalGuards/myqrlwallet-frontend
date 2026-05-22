@@ -19,7 +19,8 @@ import { NftCard } from "./NftCard";
 import { AddNftModal } from "./AddNftModal";
 
 const NftGallery = observer(() => {
-  const { nftStore } = useStore();
+  const { qrlStore, nftStore } = useStore();
+  const { accountAddress: activeAccountAddress } = qrlStore.activeAccount;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -28,6 +29,14 @@ const NftGallery = observer(() => {
   useEffect(() => {
     void nftStore.refreshNftBalances();
   }, [nftStore]);
+
+  // Populate the discovery cache so the empty-state can say "Explorer
+  // found N NFTs" and the AddNftModal can offer a picker. Does NOT
+  // auto-merge into nftList — the user has to explicitly pick.
+  useEffect(() => {
+    if (!activeAccountAddress) return;
+    void nftStore.discoverNftsForReview(activeAccountAddress);
+  }, [activeAccountAddress, nftStore]);
 
   const onRefresh = async () => {
     setIsRefreshing(true);
@@ -79,7 +88,10 @@ const NftGallery = observer(() => {
       </CardHeader>
       <CardContent>
         {nfts.length === 0 ? (
-          <EmptyState onAdd={() => setIsAddOpen(true)} />
+          <EmptyState
+            onAdd={() => setIsAddOpen(true)}
+            discoveredCount={nftStore.pendingDiscoveredNfts.length}
+          />
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
             {nfts.map((nft) => (
@@ -96,19 +108,31 @@ const NftGallery = observer(() => {
   );
 });
 
-function EmptyState({ onAdd }: { onAdd: () => void }) {
+function EmptyState({
+  onAdd,
+  discoveredCount,
+}: {
+  onAdd: () => void;
+  discoveredCount: number;
+}) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
       <Sparkles className="h-10 w-10 text-muted-foreground/50" />
       <div>
-        <p className="text-sm font-medium">No collectibles yet</p>
+        <p className="text-sm font-medium">
+          {discoveredCount > 0
+            ? `Explorer found this address to own ${discoveredCount} NFT${discoveredCount === 1 ? "" : "s"}.`
+            : "No collectibles yet"}
+        </p>
         <p className="text-xs text-muted-foreground">
-          Paste an ERC-721 or ERC-1155 contract address to add one.
+          {discoveredCount > 0
+            ? "Pick the ones to add to your gallery, or paste a contract address."
+            : "Paste an ERC-721 or ERC-1155 contract address to add one."}
         </p>
       </div>
       <Button variant="outline" size="sm" onClick={onAdd}>
         <Plus className="mr-2 h-4 w-4" />
-        Add NFT
+        {discoveredCount > 0 ? "Review and add" : "Add NFT"}
       </Button>
     </div>
   );
