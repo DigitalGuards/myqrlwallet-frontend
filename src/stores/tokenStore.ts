@@ -139,6 +139,9 @@ class TokenStore {
     await StorageUtil.clearTokenList();
     runInAction(() => {
       this.tokenList = [];
+      // Discovered list is per-address; drop it so a picker opened
+      // after the switch can't leak the prior account's results.
+      this.discoveredTokens = [];
     });
 
     for (const token of KNOWN_TOKEN_LIST) {
@@ -594,6 +597,12 @@ class TokenStore {
       log("Cannot discover tokens: no blockchain selected");
       return [];
     }
+    // Synchronously reset before the await so any picker that observes
+    // pendingDiscoveredTokens while the fetch is in flight sees an
+    // empty list, not a stale one from a prior account or connection.
+    runInAction(() => {
+      this.discoveredTokens = [];
+    });
     try {
       const discovered = await discoverTokens(address, blockchain);
       runInAction(() => {

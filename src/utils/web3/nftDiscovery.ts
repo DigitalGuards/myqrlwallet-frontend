@@ -3,9 +3,9 @@ import { NFTInterface } from "@/constants";
 import { log } from "@/utils";
 
 // One row of the zondscan /api/address/:addr/nfts response. Shape mirrors
-// backendAPI/models/token_balance.go:NFTBalance. Mostly optional because
-// the per-token tokenMetadata fetcher may not have resolved yet for a
-// freshly-minted NFT.
+// backendAPI/models/token_balance.go:NFTBalance, restricted to the
+// fields the wallet actually consumes. NFTInterface has no slot for
+// externalURL / attributes today, so they're dropped on the wire.
 interface ExplorerNFT {
   contractAddress: string;
   holderAddress: string;
@@ -19,8 +19,6 @@ interface ExplorerNFT {
   name?: string;
   description?: string;
   image?: string;
-  externalURL?: string;
-  attributes?: Array<{ trait_type: string; value: string; display_type?: string }>;
 }
 
 interface ExplorerNFTResponse {
@@ -79,7 +77,9 @@ export async function discoverNFTs(
       out.push({
         contractAddress: n.contractAddress.startsWith("Q")
           ? n.contractAddress
-          : `Q${n.contractAddress.replace(/^0x/i, "")}`,
+          : n.contractAddress.startsWith("q")
+            ? `Q${n.contractAddress.slice(1)}`
+            : `Q${n.contractAddress.replace(/^0x/i, "")}`,
         standard: std,
         tokenId: n.tokenID,
         collectionName: n.collectionName || undefined,

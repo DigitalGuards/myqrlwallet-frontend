@@ -121,6 +121,9 @@ class NftStore {
     runInAction(() => {
       this.nftList = persisted;
       this.hiddenNfts = hidden;
+      // Discovered list is per-address; drop it so a picker opened
+      // after the switch can't leak the prior account's results.
+      this.discoveredNfts = [];
     });
   }
 
@@ -400,6 +403,12 @@ class NftStore {
       log("Cannot discover NFTs: no blockchain selected");
       return [];
     }
+    // Synchronously reset before the await so any picker that observes
+    // pendingDiscoveredNfts while the fetch is in flight sees an empty
+    // list, not a stale one from a prior account or connection.
+    runInAction(() => {
+      this.discoveredNfts = [];
+    });
     try {
       const discovered = await discoverNFTs(address, blockchain);
       runInAction(() => {
@@ -419,22 +428,21 @@ class NftStore {
 
   /**
    * Explicit opt-in: merge the user-selected subset of discoveredNfts
-   * into the persistent gallery. addNft is per-row idempotent so picks
-   * that are already present become no-ops.
+   * into the persistent gallery. Dedupes against the existing list by
+   * (contract, tokenID) so a pick already in the gallery is a no-op,
+   * and writes the merged list in a single setNftList call.
    */
   async addDiscoveredNfts(picks: NFTInterface[]) {
     if (picks.length === 0) return;
-    let added = 0;
-    for (const n of picks) {
-      const beforeLen = this.nftList.length;
-      await this.addNft(n);
-      if (this.nftList.length > beforeLen) {
-        added++;
-      }
-    }
-    if (added > 0) {
-      log(`Added ${added} discovered NFTs to gallery`);
-    }
+    const owned = new Set(
+      this.nftList.map((n) => nftKey(n.contractAddress, n.tokenId)),
+    );
+    const additions = picks.filter(
+      (n) => !owned.has(nftKey(n.contractAddress, n.tokenId)),
+    );
+    if (additions.length === 0) return;
+    await this.setNftList([...this.nftList, ...additions]);
+    log(`Added ${additions.length} discovered NFTs to gallery`);
   }
 
   clearDiscoveredNfts() {
