@@ -8,15 +8,9 @@ import NativeAppBridge from "@/components/NativeAppBridge";
 import DAppApprovalModal from "./Body/DAppConnect/DAppApprovalModal";
 import DAppConnectionBanner from "./Body/DAppConnect/DAppConnectionBanner";
 
-// const Header = withSuspense(
-//   lazy(() => import("./Header/Header"))
-// );
 const Body = withSuspense(
   lazy(() => import("./Body/Body"))
 );
-// const Footer = withSuspense(
-//   lazy(() => import("./Footer/Footer"))
-// );
 const Layout = withSuspense(
   lazy(() => import("./Layout/Layout"))
 );
