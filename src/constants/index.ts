@@ -4,3 +4,5 @@ export {
   QRL_WEB3_WALLET_PROVIDER_INFO,
   type TokenInterface,
 } from './tokens';
+
+export { type NFTInterface } from './nft';

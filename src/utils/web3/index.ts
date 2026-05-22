@@ -13,3 +13,7 @@ export {
   discoverTokens,
   mergeTokenLists,
 } from './tokenDiscovery';
+
+export {
+  discoverNFTs,
+} from './nftDiscovery';

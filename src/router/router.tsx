@@ -11,7 +11,6 @@ const ImportAccount = lazy(() => import("../components/Core/Body/ImportAccount/I
 const AddAccount = lazy(() => import("../components/Core/Body/AddAccount/AddAccount.tsx"))
 const AccountList = lazy(() => import("../components/Core/Body/AccountList/AccountList.tsx"));
 const CreateToken = lazy(() => import("../components/Core/Body/CreateToken/CreateToken.tsx"));
-// const Tokens = lazy(() => import("../components/Core/Body/Tokens/Tokens.tsx"))
 const Settings = lazy(() => import("../components/Core/Body/Settings/Settings.tsx"));
 const QRView = lazy(() => import("../components/Core/Body/QRView/QRView.tsx"));
 const Terms = lazy(() => import("../components/Core/Body/Terms/Terms.tsx"));
@@ -20,6 +19,7 @@ const TokenStatus = lazy(() => import("../components/Core/Body/CreateToken/Token
 const TransactionHistory = lazy(() => import("../components/Core/Body/TransactionHistory/TransactionHistory.tsx"));
 const Transfer = lazy(() => import("../components/Core/Body/Transfer/Transfer.tsx"));
 const DAppSessionsList = lazy(() => import("../components/Core/Body/DAppConnect/DAppSessionsList.tsx"));
+const NftDetail = lazy(() => import("../components/Core/Body/Nfts/NftDetail.tsx"));
 
 const ROUTES = {
   HOME: "/",
@@ -37,6 +37,7 @@ const ROUTES = {
   TOKEN_STATUS: "/token-status",
   TRANSACTION_HISTORY: "/tx-history",
   DAPP_SESSIONS: "/dapp-sessions",
+  NFT_DETAIL: "/nft/:contractAddress/:tokenId",
 } as const;
 
 const router = createBrowserRouter([
@@ -157,6 +158,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Loading />}>
             <DAppSessionsList />
+          </Suspense>
+        )
+      },
+      {
+        path: ROUTES.NFT_DETAIL,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <NftDetail />
           </Suspense>
         )
       },

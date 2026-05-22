@@ -1,5 +1,5 @@
 import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
-import { getHexSeedFromMnemonic } from "@/utils/crypto";
+import { deriveHexSeedAsync } from "@/utils/crypto";
 import { StorageUtil, AccountListItem, AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
 import Web3, {
@@ -8,12 +8,6 @@ import Web3, {
   utils,
 } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
-import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
-import { fetchTokenInfo, fetchBalance, discoverTokens, mergeTokenLists } from "@/utils/web3";
-import { TokenInterface, KNOWN_TOKEN_LIST } from "@/constants";
-import { customERC20ABI as CustomERC20ABI } from "@/abi/CustomERC20ABI";
-import { formatUnits } from "ethers";
-import { getOptimalTokenBalance } from "@/utils/formatting";
 
 type ActiveAccountType = {
   accountAddress: string;
@@ -31,24 +25,6 @@ type QrlAccountsType = {
   isLoading: boolean;
 };
 
-type CreatingTokenType = {
-  name: string;
-  creating: boolean;
-  error?: string;
-}
-
-type CreatedTokenType = {
-  name: string;
-  symbol: string;
-  decimals: number;
-  address: string;
-  tx: string;
-  blockNumber: number;
-  gasUsed: number;
-  effectiveGasPrice: number;
-  blockHash: string;
-}
-
 // Type for relevant pending transaction details from Explorer API
 type PendingTxInfo = {
   from: string;
@@ -61,13 +37,14 @@ type PendingTxInfo = {
   lastSeen: number; // Unix timestamp
 }
 
-// New type for transaction status
-type TransactionStatus = {
+// Transaction status type — exported so token/NFT stores can write into
+// the shared `transactionStatus` slot on this store.
+export type TransactionStatus = {
   state: 'idle' | 'pending' | 'confirmed' | 'failed';
   txHash: string | null;
   receipt: TransactionReceipt | null;
   error: string | null;
-  pendingDetails: PendingTxInfo | null; // Add field for pending details
+  pendingDetails: PendingTxInfo | null;
 }
 
 export type FeeLevel = 'low' | 'medium' | 'high';
@@ -78,7 +55,9 @@ const FEE_MULTIPLIERS: Record<FeeLevel, { maxFee: bigint; priorityFee: bigint }>
   high:   { maxFee: BigInt(200), priorityFee: BigInt(150) },  // 2x / 1.5x
 };
 
-function applyFeeLevel(baseGasPrice: bigint, level: FeeLevel) {
+// Exported so token/NFT stores can share the same fee-multiplier math
+// they used to call when this lived inside qrlStore directly.
+export function applyFeeLevel(baseGasPrice: bigint, level: FeeLevel) {
   const m = FEE_MULTIPLIERS[level];
   return {
     maxFeePerGas: (baseGasPrice * m.maxFee) / BigInt(100),
@@ -102,16 +81,27 @@ class QrlStore {
   };
   qrlAccounts: QrlAccountsType = { accounts: [], isLoading: false };
   activeAccount: ActiveAccountType = { accountAddress: "", lastSeen: 0 };
-  creatingToken: CreatingTokenType = { name: "", creating: false };
-  createdToken: CreatedTokenType = { name: "", symbol: "", decimals: 0, address: "", tx: "", blockNumber: 0, gasUsed: 0, effectiveGasPrice: 0, blockHash: "" };
-  tokenList: TokenInterface[] = [];
-  hiddenTokens: string[] = []; // List of hidden token addresses
   customRpcUrl: string = "";
   // Updated initial state
   transactionStatus: TransactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
   extensionProvider: ExtensionProvider | null = null; // NEW: Store the extension provider
   qrlPrice: number = 0; // USD price from Explorer
   qrlPriceChange24h: number = 0; // 24h price change percentage
+
+  // Handle for the pollForReceipt setInterval. Stored on the instance so any
+  // disposal path (resetTransactionStatus, store re-init) can clear it.
+  // Previously this lived in a function-local variable so a navigation or
+  // store re-create left the interval ticking, leaking RPC calls and
+  // potentially racing a stale receipt into the current transactionStatus.
+  // Excluded from mobx via `_receiptPollerIntervalId: false` in
+  // makeAutoObservable below — it's a non-observable runtime handle.
+  _receiptPollerIntervalId: ReturnType<typeof setInterval> | null = null;
+
+  // Callbacks wired by Store after construction so token/NFT init can run
+  // *after* QrlStore has a live qrlInstance and network selection — and
+  // without QrlStore taking a direct dependency on the other stores.
+  onBlockchainReady?: () => Promise<void>;
+  onActiveAccountChanged?: (newActiveAccount?: string) => Promise<void>;
 
   // NEW: Computed properties
   // 1) active account balance
@@ -142,59 +132,38 @@ class QrlStore {
     return balance * this.qrlPrice;
   }
 
-  // 4) Visible tokens (filtered by hidden list)
-  get visibleTokenList(): TokenInterface[] {
-    return this.tokenList.filter(
-      (token) => !this.hiddenTokens.some(
-        (hidden) => hidden.toLowerCase() === token.address.toLowerCase()
-      )
-    );
-  }
-
   constructor() {
     makeAutoObservable(this, {
       qrlInstance: observable.struct,
       qrlConnection: observable.struct,
       qrlAccounts: observable.struct,
       activeAccount: observable.struct,
-      creatingToken: observable.struct,
-      createdToken: observable.struct,
-      tokenList: observable.struct,
-      hiddenTokens: observable,
       customRpcUrl: observable.struct,
       transactionStatus: observable.struct,
       extensionProvider: observable.ref, // Use ref for complex objects like providers
       qrlPrice: observable,
       qrlPriceChange24h: observable,
+      // Runtime handles + their cleanup helper — not observable.
+      _receiptPollerIntervalId: false,
+      cancelReceiptPoller: false,
+      // Callback hooks injected by Store — not observable.
+      onBlockchainReady: false,
+      onActiveAccountChanged: false,
       activeAccountBalance: computed,
       activeAccountSource: computed,
       activeAccountBalanceUsd: computed,
-      visibleTokenList: computed,
       fetchQrlPrice: action.bound,
       setCustomRpcUrl: action.bound,
-      addToken: action.bound,
-      removeToken: action.bound,
-      updateToken: action.bound,
-      setTokenList: action.bound,
-      setCreatedToken: action.bound,
-      setCreatingToken: action.bound,
       selectBlockchain: action.bound,
       setActiveAccount: action.bound,
       fetchQrlConnection: action.bound,
       fetchAccounts: action.bound,
       getAccountBalance: action.bound,
       signAndSendTransaction: action.bound,
-      createToken: action.bound,
       resetTransactionStatus: action.bound,
-      sendToken: action.bound,
-      refreshTokenBalances: action.bound,
       fetchPendingTxDetails: action.bound,
       setExtensionProvider: action.bound,
       sendTransactionViaExtension: action.bound,
-      discoverAndAddTokens: action.bound,
-      hideToken: action.bound,
-      unhideToken: action.bound,
-      loadHiddenTokens: action.bound,
       estimateNativeTransferFee: action.bound,
     });
 
@@ -226,14 +195,32 @@ class QrlStore {
     }
   }
 
-  // Updated reset action
+  // Updated reset action. Method body runs inside an action automatically
+  // because makeAutoObservable annotates this as `action.bound` — no
+  // explicit runInAction needed for the synchronous state write.
   resetTransactionStatus() {
-    runInAction(() => {
-      this.transactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
-    });
+    // Always cancel any in-flight poller first so it can't race a stale
+    // receipt into the freshly-reset transactionStatus.
+    this.cancelReceiptPoller();
+    this.transactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
+  }
+
+  // Cancels the pollForReceipt setInterval (if any) and clears the handle.
+  // Safe to call when no poller is running. Exposed so any external
+  // teardown (page unmount, dapp disconnect, store re-init) can stop the
+  // up-to-5-minute RPC loop instead of leaking it.
+  cancelReceiptPoller() {
+    if (this._receiptPollerIntervalId !== null) {
+      clearInterval(this._receiptPollerIntervalId);
+      this._receiptPollerIntervalId = null;
+    }
   }
 
   async initializeBlockchain() {
+    // Re-initializing the blockchain (e.g. network switch) invalidates any
+    // in-flight receipt poller bound to the previous provider's RPC — cancel
+    // it before bringing up the new connection.
+    this.cancelReceiptPoller();
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { name, url: baseUrl } = QRL_PROVIDER[selectedBlockChain];
@@ -260,17 +247,15 @@ class QrlStore {
         this.qrlInstance = qrl;
       });
 
-      this.tokenList = await StorageUtil.getTokenList();
-      await this.loadHiddenTokens();
-
-      for (const token of KNOWN_TOKEN_LIST) {
-        await this.addToken(token);
-      }
-
       await this.fetchQrlConnection();
       await this.fetchAccounts();
       this.fetchQrlPrice(); // Fire-and-forget, non-blocking
       await this.validateActiveAccount();
+
+      // Hand off to TokenStore (and any other domain store wired by Store)
+      // for its post-connection bootstrap. Token state used to be loaded
+      // inline here; it's now owned by tokenStore.initialize().
+      await this.onBlockchainReady?.();
 
       // Log successful initialization
       log("Blockchain initialized successfully");
@@ -283,52 +268,6 @@ class QrlStore {
   async selectBlockchain(selectedBlockchain: string) {
     await StorageUtil.setBlockChain(selectedBlockchain);
     await this.initializeBlockchain();
-  }
-
-  async setCreatingToken(name: string, creating: boolean, error?: string) {
-    this.creatingToken = { name, creating, error };
-  }
-
-  async setCreatedToken(name: string, symbol: string, decimals: number, address: string, tx: string, blockNumber: number, gasUsed: number, effectiveGasPrice: number, blockHash: string) {
-    await StorageUtil.setCreatedToken(name, symbol, decimals, address, tx, blockNumber, gasUsed, effectiveGasPrice, blockHash);
-    this.createdToken = { name, symbol, decimals, address, tx, blockNumber, gasUsed, effectiveGasPrice, blockHash };
-  }
-
-  async addToken(token: TokenInterface) {
-    const existingToken = this.tokenList.find(t => t.address.toLowerCase() === token.address.toLowerCase());
-
-    if (!existingToken) {
-      // Token doesn't exist, add it
-      await StorageUtil.updateTokenList([...this.tokenList, token]);
-      this.tokenList = [...this.tokenList, token];
-      return token;
-    }
-
-    // Token exists - check if it's hidden
-    const isHidden = this.hiddenTokens.some(addr => addr.toLowerCase() === token.address.toLowerCase());
-    if (isHidden) {
-      // Unhide the token
-      await this.unhideToken(token.address);
-      return existingToken;
-    }
-
-    // Token exists and is already visible
-    return null;
-  }
-
-  async removeToken(token: TokenInterface) {
-    await StorageUtil.updateTokenList(this.tokenList.filter(t => t.address.toLowerCase() !== token.address.toLowerCase()));
-    this.tokenList = this.tokenList.filter(t => t.address !== token.address);
-  }
-
-  async updateToken(token: TokenInterface) {
-    await StorageUtil.updateTokenList(this.tokenList.map(t => t.address.toLocaleLowerCase() === token.address.toLocaleLowerCase() ? token : t));
-    this.tokenList = this.tokenList.map(t => t.address.toLocaleLowerCase() === token.address.toLocaleLowerCase() ? token : t);
-  }
-
-  async setTokenList(tokenList: TokenInterface[]) {
-    await StorageUtil.updateTokenList(tokenList);
-    this.tokenList = tokenList;
   }
 
   async setCustomRpcUrl(customRpcUrl: string) {
@@ -375,30 +314,9 @@ class QrlStore {
 
       // Explicitly trigger refreshes after setting active account
       await this.fetchAccounts(); // Refresh the full list and balances
-      if (newActiveAccount) {
-        log(`Fetching balances for newly active account: ${newActiveAccount}`);
-        // Clear token list before discovering tokens for the new account
-        // This prevents tokens from inactive accounts showing with 0 balance
-        await StorageUtil.clearTokenList();
-        runInAction(() => {
-          this.tokenList = [];
-        });
-        // Add known tokens back
-        for (const token of KNOWN_TOKEN_LIST) {
-          await this.addToken(token);
-        }
-        // Discover new tokens for this account (runs in background)
-        this.discoverAndAddTokens(newActiveAccount)
-          .then(() => {
-            // Refresh balances after discovery completes
-            void this.refreshTokenBalances();
-          })
-          .catch((error) => {
-            log(`Unexpected error during token discovery: ${error}`);
-          });
-      } else {
-        log("Active account cleared, skipping token refresh.");
-      }
+      // Token-side bookkeeping (clear+re-seed, discover, refresh balances)
+      // is now owned by tokenStore.handleActiveAccountChanged.
+      await this.onActiveAccountChanged?.(newActiveAccount);
     }
   }
 
@@ -650,7 +568,10 @@ class QrlStore {
         maxPriorityFeePerGas: utils.toHex(maxPriorityFeePerGas),
         nonce: nonce,
       };
-      const privateKey = getHexSeedFromMnemonic(mnemonicPhrases);
+      // Run the MLDSA87 derivation in the crypto worker so the 50–300 ms
+      // expansion doesn't freeze the main thread mid-Send animation.
+      // Subsequent signTransaction call is comparatively cheap.
+      const privateKey = await deriveHexSeedAsync(mnemonicPhrases);
 
       // Sign the transaction first to ensure validity before proceeding
       const signedTransaction =
@@ -728,295 +649,6 @@ class QrlStore {
     }
   }
 
-  async sendToken(token: TokenInterface, amount: string, mnemonicPhrases: string, toAddress: string, feeLevel: FeeLevel = 'medium') {
-    try {
-      const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
-      const web3 = new Web3(new Web3.providers.HttpProvider(url));
-      const seed = getHexSeedFromMnemonic(mnemonicPhrases);
-      const acc = web3.qrl.accounts.seedToAccount(seed)
-      web3.qrl.wallet?.add(seed);
-      web3.qrl.transactionConfirmationBlocks = 1;
-      const baseGasPrice = (await web3.qrl.getGasPrice()) ?? BigInt(1000000000);
-      const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
-      const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
-      const tx = contract.methods.transfer(toAddress, amount).encodeABI();
-      const estimateGas = await contract.methods.transfer(toAddress, amount).estimateGas({ "from": acc.address })
-      const txObj = { type: '0x2', gas: estimateGas, from: acc.address, data: tx, to: token.address, maxFeePerGas, maxPriorityFeePerGas }
-
-      const promiEvent = web3.qrl.sendTransaction(txObj, undefined, {
-        checkRevertBeforeSending: true
-      });
-
-      promiEvent.on('transactionHash', (hash: string | Uint8Array) => {
-        runInAction(() => {
-          const txHash = typeof hash === 'string' ? hash : utils.bytesToHex(hash);
-          this.transactionStatus = {
-            state: 'pending',
-            txHash: txHash,
-            receipt: null,
-            error: null,
-            pendingDetails: null,
-          };
-          log(`Token transfer pending with hash: ${txHash}`);
-          this.fetchPendingTxDetails(txHash);
-        });
-      }).on('receipt', (receipt: TransactionReceipt) => {
-        runInAction(() => {
-          const txHashString = utils.bytesToHex(receipt.transactionHash);
-          this.transactionStatus = {
-            state: 'confirmed',
-            txHash: txHashString,
-            receipt: receipt,
-            error: null,
-            pendingDetails: null,
-          };
-          log(`Token transfer confirmed: ${txHashString}`);
-          this.refreshTokenBalances();
-          this.fetchAccounts();
-        });
-      }).on('error', (error: Error) => {
-        runInAction(() => {
-          const txHash = this.transactionStatus.txHash;
-          this.transactionStatus = {
-            state: 'failed',
-            txHash: txHash,
-            receipt: null,
-            error: error.message || "Token transfer failed",
-            pendingDetails: null,
-          };
-          log(`Token transfer failed: ${error.message}`);
-        });
-      });
-
-      return true;
-    } catch (error: any) {
-      runInAction(() => {
-        this.transactionStatus = {
-          state: 'failed',
-          txHash: null,
-          receipt: null,
-          error: `Token transfer failed: ${error.message || error}`,
-          pendingDetails: null,
-        };
-        log(`Token transfer preparation failed: ${error}`);
-      });
-      return false;
-    }
-  }
-
-  async createToken(
-    tokenName: string,
-    tokenSymbol: string,
-    initialSupply: string,
-    decimals: number,
-    maxSupply: string,
-    receipt: string,
-    maxWalletAmount: string,
-    maxTxLimit: string,
-    mnemonicPhrases: string
-  ) {
-    try {
-      this.setCreatingToken(tokenName, true);
-      const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
-      const seed = getHexSeedFromMnemonic(mnemonicPhrases);
-      const web3 = new Web3(new Web3.providers.HttpProvider(url));
-      const acc = web3.qrl.accounts.seedToAccount(seed)
-      web3.qrl.wallet?.add(seed);
-      web3.qrl.transactionConfirmationBlocks = 1;
-
-      const contractAddress = import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
-
-      // Verify factory contract address is configured
-      if (!contractAddress) {
-        throw new Error("Factory contract address not configured. Please set VITE_CUSTOMERC20FACTORY_ADDRESS.");
-      }
-
-      // Verify factory contract exists before attempting token creation
-      const factoryCode = await web3.qrl.getCode(contractAddress);
-      if (!factoryCode || factoryCode === '0x' || factoryCode === '0x0') {
-        throw new Error(`Factory contract not deployed at address: ${contractAddress}`);
-      }
-
-      const confirmationHandler = () => {
-        // Don't set creating to false here - confirmation can fire before tx is final
-        // Let receiptHandler and errorHandler manage the final state
-      }
-
-      const receiptHandler = async (data: TransactionReceipt) => {
-        const tokenCreatedEventSignature = web3.utils.keccak256("TokenCreated(address,address)");
-
-        // Try to find the TokenCreated event in receipt logs first
-        let tokenCreatedLog = data.logs.find(
-          (log) => log.topics?.[0] === tokenCreatedEventSignature &&
-                   log.address?.toLowerCase() === contractAddress.toLowerCase()
-        );
-
-        // If logs are empty in receipt, fetch them separately using getPastLogs
-        if (!tokenCreatedLog && data.blockNumber) {
-          try {
-            const logs = await web3.qrl.getPastLogs({
-              fromBlock: data.blockNumber,
-              toBlock: data.blockNumber,
-              address: contractAddress,
-              topics: [tokenCreatedEventSignature]
-            });
-            const txHash = data.transactionHash ? web3.utils.bytesToHex(data.transactionHash).toLowerCase() : null;
-            const matchingLog = logs.find(
-              (log) => typeof log !== 'string' && txHash != null && log.transactionHash?.toLowerCase() === txHash
-            );
-            if (matchingLog && typeof matchingLog !== 'string') {
-              tokenCreatedLog = matchingLog;
-            }
-          } catch (err) {
-            console.error("Failed to fetch logs via getPastLogs:", err);
-          }
-        }
-
-        if (!tokenCreatedLog?.topics?.[1]) {
-          console.error("Token address not found in transaction receipt or logs");
-          this.setCreatingToken("", false, "Token address not found in transaction receipt");
-          return;
-        }
-        const tokenTopic = tokenCreatedLog.topics[1];
-        const erc20TokenAddress = `Q${tokenTopic.toString().slice(-40)}`;
-        const tx = data.transactionHash;
-        const blockNumber = Number(data.blockNumber);
-        const gasUsed = Number(data.gasUsed);
-        const effectiveGasPrice = Number(data.effectiveGasPrice);
-        const blockHash = data.blockHash;
-        const { name, symbol, decimals } = await fetchTokenInfo(erc20TokenAddress, url);
-        this.setCreatedToken(name, symbol, parseInt(decimals.toString()), erc20TokenAddress, utils.bytesToHex(tx), blockNumber, gasUsed, effectiveGasPrice, utils.bytesToHex(blockHash));
-        this.setCreatingToken("", false);
-      }
-
-      const errorHandler = (error: Error) => {
-        console.error("Token creation error:", error);
-        this.setCreatingToken("", false, error.message || "Transaction failed");
-      }
-
-      const customERC20Factorycontract = new web3.qrl.Contract(customERC20FactoryABI, contractAddress);
-
-      const contractCreateToken = customERC20Factorycontract.methods.createToken(
-        tokenName,
-        tokenSymbol,
-        initialSupply,
-        decimals,
-        maxSupply,
-        receipt,
-        maxWalletAmount,
-        maxTxLimit
-      );
-
-      const estimatedGas = await contractCreateToken.estimateGas({ from: acc.address })
-      const gas = (estimatedGas * 12n) / 10n
-      const currentGasPrice = await web3.qrl.getGasPrice()
-      const gasPrice = (BigInt(currentGasPrice) * 11n) / 10n
-
-      const txObj = { gas, gasPrice, from: acc.address, data: contractCreateToken.encodeABI(), to: contractAddress }
-
-      await web3.qrl.sendTransaction(txObj, undefined, {
-        checkRevertBeforeSending: true
-      })
-        .on('confirmation', confirmationHandler)
-        .on('receipt', receiptHandler)
-        .on('error', errorHandler)
-    } catch (error) {
-      console.error("Failed to create token:", error);
-      const errorMessage = error instanceof Error ? error.message : "Token creation failed";
-      this.setCreatingToken("", false, errorMessage);
-      throw error;
-    }
-  }
-
-  async refreshTokenBalances() {
-    try {
-      if (!this.activeAccount.accountAddress) return;
-
-      const selectedBlockChain = await StorageUtil.getBlockChain();
-      const updatedTokenList = [...this.tokenList];
-
-      for (let i = 0; i < this.tokenList.length; i++) {
-        const token = this.tokenList[i];
-        try {
-          const balance = await fetchBalance(token.address, this.activeAccount.accountAddress, QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url);
-          const balanceStr = formatUnits(balance, token.decimals);
-          updatedTokenList[i] = { ...token, amount: getOptimalTokenBalance(balanceStr, token.symbol) };
-        } catch (err) {
-          console.error(`Error fetching balance for token ${token.symbol}:`, err);
-          updatedTokenList[i] = { ...token, amount: "Error" };
-        }
-      }
-
-      await this.setTokenList(updatedTokenList);
-    } catch (error) {
-      console.error("Error refreshing token balances:", error);
-    }
-  }
-
-  // Discover and add tokens for an address using Explorer API
-  async discoverAndAddTokens(address: string) {
-    try {
-      const blockchain = this.qrlConnection.blockchain;
-      if (!blockchain) {
-        log("Cannot discover tokens: no blockchain selected");
-        return;
-      }
-
-      log(`Starting token discovery for ${address}`);
-      const discoveredTokens = await discoverTokens(address, blockchain);
-
-      if (discoveredTokens.length === 0) {
-        log("No new tokens discovered");
-        return;
-      }
-
-      // Merge with existing tokens, avoiding duplicates
-      const mergedTokens = mergeTokenLists(this.tokenList, discoveredTokens);
-
-      if (mergedTokens.length > this.tokenList.length) {
-        const newCount = mergedTokens.length - this.tokenList.length;
-        log(`Adding ${newCount} newly discovered tokens`);
-        await this.setTokenList(mergedTokens);
-      }
-    } catch (error) {
-      console.error("Error discovering tokens:", error);
-      log(`Token discovery failed: ${error}`);
-    }
-  }
-
-  // Load hidden tokens from storage
-  async loadHiddenTokens() {
-    const hiddenTokens = await StorageUtil.getHiddenTokens();
-    runInAction(() => {
-      this.hiddenTokens = hiddenTokens;
-    });
-  }
-
-  // Hide a token (add to hidden list)
-  async hideToken(tokenAddress: string) {
-    await StorageUtil.hideToken(tokenAddress);
-    runInAction(() => {
-      const lowerCaseAddress = tokenAddress.toLowerCase();
-      if (!this.hiddenTokens.some(addr => addr.toLowerCase() === lowerCaseAddress)) {
-        this.hiddenTokens = [...this.hiddenTokens, lowerCaseAddress];
-      }
-    });
-    log(`Token hidden: ${tokenAddress}`);
-  }
-
-  // Unhide a token (remove from hidden list)
-  async unhideToken(tokenAddress: string) {
-    await StorageUtil.unhideToken(tokenAddress);
-    runInAction(() => {
-      this.hiddenTokens = this.hiddenTokens.filter(
-        (addr) => addr.toLowerCase() !== tokenAddress.toLowerCase()
-      );
-    });
-    log(`Token unhidden: ${tokenAddress}`);
-  }
-
   // NEW: Action to set or clear the extension provider
   setExtensionProvider(provider: ExtensionProvider | null) {
     runInAction(() => {
@@ -1044,11 +676,15 @@ class QrlStore {
 
     log(`Starting receipt polling for ${txHash}`);
 
-    const intervalId = setInterval(async () => {
+    // If a previous poll was somehow left running, kill it before starting
+    // a fresh one so we never have two intervals racing into transactionStatus.
+    this.cancelReceiptPoller();
+
+    this._receiptPollerIntervalId = setInterval(async () => {
       // Stop polling if state is no longer pending or hash changed
       if (this.transactionStatus.state !== 'pending' || this.transactionStatus.txHash !== txHash) {
         log(`Stopping receipt polling for ${txHash} (state changed)`);
-        clearInterval(intervalId);
+        this.cancelReceiptPoller();
         return;
       }
 
@@ -1060,7 +696,7 @@ class QrlStore {
 
         if (receipt) {
           log(`Receipt found for ${txHash}`);
-          clearInterval(intervalId); // Stop polling
+          this.cancelReceiptPoller(); // Stop polling
 
           runInAction(() => {
             // Double-check state again before updating
@@ -1082,7 +718,7 @@ class QrlStore {
         } else if (attempts >= maxAttempts) {
           // Max attempts reached, transaction likely failed or stuck
           log(`Max polling attempts reached for ${txHash}. Marking as failed.`);
-          clearInterval(intervalId);
+          this.cancelReceiptPoller();
           runInAction(() => {
             if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
               this.transactionStatus = {
@@ -1099,7 +735,7 @@ class QrlStore {
       } catch (error: any) {
         console.error(`Error polling for receipt ${txHash}:`, error);
         log(`Error polling for receipt ${txHash}: ${error.message || error}`);
-        clearInterval(intervalId);
+        this.cancelReceiptPoller();
         // Mark as failed on error
         runInAction(() => {
           if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
