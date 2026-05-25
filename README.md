@@ -11,7 +11,7 @@ A modern, secure web wallet for the Quantum Resistant Ledger's QRL 2.0 blockchai
 - **PIN Authentication** - Encrypted seed storage with PIN protection
 - **Token Support** - Create and manage ERC20/QRC20 tokens via factory contract
 - **Token Discovery** - Automatic detection of tokens held by your address
-- **Multi-Network** - Testnet, Mainnet, and custom RPC support
+- **Multi-Network** - Testnet and Mainnet support
 - **Mobile App Integration** - Native features when running in [MyQRLWallet App](https://github.com/DigitalGuards/myqrlwallet-app)
 - **dApp Connect** - Pair with web dApps by scanning a `qrlconnect://` QR code in the mobile app or tapping a deep link. Handshake and session management run through the [`@qrlwallet/connect`](https://github.com/DigitalGuards/myqrlwallet-connect) SDK with a post-quantum key exchange (ML-KEM-768) and an E2E-encrypted relay channel.
 - **Responsive Design** - Works on desktop and mobile browsers

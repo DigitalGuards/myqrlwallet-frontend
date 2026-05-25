@@ -4,7 +4,6 @@ import { isInNativeApp } from "@/utils/nativeApp";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
 const BLOCKCHAIN_SELECTION_IDENTIFIER = "BLOCKCHAIN_SELECTION";
-const CUSTOM_RPC_URL_IDENTIFIER = "CUSTOM_RPC_URL";
 const BLOCKCHAIN_CREATED_TOKEN = "CREATED_TOKEN";
 const ACTIVE_ACCOUNT_IDENTIFIER = "ACTIVE_ACCOUNT";
 const ACCOUNT_LIST_IDENTIFIER = "ACCOUNT_LIST";
@@ -138,14 +137,6 @@ class StorageUtil {
    */
   static async setBlockChain(selectedBlockchain: string) {
     this.setItem(BLOCKCHAIN_SELECTION_IDENTIFIER, selectedBlockchain);
-  }
-
-  static async setCustomRpcUrl(customRpcUrl: string) {
-    this.setItem(CUSTOM_RPC_URL_IDENTIFIER, customRpcUrl);
-  }
-
-  static async getCustomRpcUrl() {
-    return this.getItem<string>(CUSTOM_RPC_URL_IDENTIFIER) ?? "";
   }
 
   static async setCreatedToken(name: string, symbol: string, decimals: number, address: string, tx: string, blockNumber: number, gasUsed: number, effectiveGasPrice: number, blockHash: string) {
