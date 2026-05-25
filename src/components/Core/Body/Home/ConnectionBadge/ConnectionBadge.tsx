@@ -17,9 +17,8 @@ import {
 import { QRL_PROVIDER } from "@/config";
 import { useStore } from "../../../../../stores/store";
 import { cva } from "class-variance-authority";
-import { Check, ChevronDown, Globe, Network, Workflow, ExternalLink } from "lucide-react";
+import { Check, ChevronDown, Globe, Network, Workflow } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { CustomRpcModal } from "./CustomRpcModal";
 import { useState } from "react";
 
 // Helper to convert hex to rgba
@@ -92,12 +91,10 @@ const ConnectionBadge = observer(() => {
   const { qrlConnection, selectBlockchain } = qrlStore;
   const { isConnected, qrlNetworkName, isLoading } = qrlConnection;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isCustomRpcModalOpen, setIsCustomRpcModalOpen] = useState(false);
-  const { TEST_NET, MAIN_NET, CUSTOM_RPC } = QRL_PROVIDER;
-  const [isTestNetwork, isMainNetwork, isCustomRpcNetwork] = [
+  const { TEST_NET, MAIN_NET } = QRL_PROVIDER;
+  const [isTestNetwork, isMainNetwork] = [
     TEST_NET.name === qrlNetworkName,
     MAIN_NET.name === qrlNetworkName,
-    CUSTOM_RPC.name === qrlNetworkName,
   ];
 
   return (
@@ -159,22 +156,8 @@ const ConnectionBadge = observer(() => {
               </DropdownMenuShortcut>
             )}
           </DropdownMenuItem>
-          <DropdownMenuItem
-            className={blockchainSelectionClasses({
-              isSelected: isCustomRpcNetwork,
-            })}
-            onClick={() => { setIsCustomRpcModalOpen(true); setIsDropdownOpen(false) }}
-            disabled={isLoading}
-          >
-            <Network className="mr-2 h-4 w-4" />
-            <span>Custom RPC</span>
-            <DropdownMenuShortcut>
-              <ExternalLink className="h-4 w-4" />
-            </DropdownMenuShortcut>
-          </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
-      <CustomRpcModal isOpen={isCustomRpcModalOpen} onClose={() => setIsCustomRpcModalOpen(false)} />
     </DropdownMenu>
   );
 });
