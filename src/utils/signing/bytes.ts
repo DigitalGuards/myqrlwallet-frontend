@@ -25,6 +25,16 @@ export function bytesToHex(bytes: Uint8Array): string {
 }
 
 export function concatBytes(...parts: Uint8Array[]): Uint8Array {
+  return concatBytesArr(parts);
+}
+
+/**
+ * Array-form concat for callers that build a dynamically-sized list of
+ * chunks (e.g. typed-data array encoders, hashStruct). Avoids passing
+ * thousands of arguments through `...spread`, which can blow the JS
+ * engine's max-arguments limit and crash on adversarial inputs.
+ */
+export function concatBytesArr(parts: Uint8Array[]): Uint8Array {
   let total = 0;
   for (const p of parts) total += p.length;
   const out = new Uint8Array(total);

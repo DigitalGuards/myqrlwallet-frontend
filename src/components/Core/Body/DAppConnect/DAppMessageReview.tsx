@@ -8,6 +8,7 @@
  */
 
 import { useState } from 'react';
+import { hexToBytes } from '@/utils/signing';
 
 interface DAppMessageReviewProps {
   messageHex: string;
@@ -15,12 +16,12 @@ interface DAppMessageReviewProps {
 }
 
 function tryDecodeUtf8(hex: string): { ok: true; text: string } | { ok: false; reason: 'not-hex' | 'non-utf8' | 'control-chars' } {
-  if (!hex.startsWith('0x') || hex.length % 2 !== 0 || !/^0x[0-9a-fA-F]*$/.test(hex)) {
+  let bytes: Uint8Array;
+  try {
+    bytes = hexToBytes(hex);
+  } catch {
     return { ok: false, reason: 'not-hex' };
   }
-  const n = (hex.length - 2) / 2;
-  const bytes = new Uint8Array(n);
-  for (let i = 0; i < n; i++) bytes[i] = parseInt(hex.slice(2 + i * 2, 4 + i * 2), 16);
   try {
     const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
     for (let i = 0; i < text.length; i++) {
