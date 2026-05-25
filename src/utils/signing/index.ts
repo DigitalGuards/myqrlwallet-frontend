@@ -49,4 +49,4 @@ export {
   type SignTypedDataParams,
 } from './types';
 
-export { bytesToHex, hexToBytes, concatBytes } from './bytes';
+export { bytesToHex, hexToBytes, concatBytes, concatBytesArr } from './bytes';

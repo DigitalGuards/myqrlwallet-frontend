@@ -15,7 +15,8 @@
 
 import { shake256 } from '@noble/hashes/sha3.js';
 import { SCHEME_TAG_TYPED, DIGEST_LEN } from './ctx';
-import { hexToBytes, concatBytes } from './bytes';
+import { hexToBytes, concatBytes, concatBytesArr } from './bytes';
+import { isValidQrlAddress } from '@/utils/web3/address';
 
 const SLOT = 32;
 
@@ -154,7 +155,7 @@ export function typeHash(primary: string, types: TypeMap): Uint8Array {
 }
 
 function parseQAddress(addr: string): Uint8Array {
-  if (typeof addr !== 'string' || !/^Q[0-9a-fA-F]{40}$/.test(addr)) {
+  if (!isValidQrlAddress(addr)) {
     throw new Error(`invalid Q-address: ${String(addr)}`);
   }
   return hexToBytes('0x' + addr.slice(1).toLowerCase());
@@ -200,7 +201,7 @@ function bigIntToSlot(value: bigint, width: number, signed: boolean): Uint8Array
 function parseIntValue(v: unknown, typeLabel: string): bigint {
   if (typeof v === 'bigint') return v;
   if (typeof v === 'string') {
-    if (/^-?0x[0-9a-fA-F]+$/.test(v) || /^-?0X[0-9a-fA-F]+$/.test(v)) {
+    if (/^-?0x[0-9a-fA-F]+$/i.test(v)) {
       return BigInt(v);
     }
     if (!/^-?(0|[1-9]\d*)$/.test(v)) {
@@ -276,7 +277,7 @@ export function encodeField(type: FieldType, value: unknown, types: TypeMap): Ui
         throw new Error(`fixed array ${type} requires length ${parsed.size}, got ${value.length}`);
       }
       const chunks = value.map((v) => encodeField(parsed.inner, v, types));
-      return shake256(concatBytes(...chunks), { dkLen: DIGEST_LEN });
+      return shake256(concatBytesArr(chunks), { dkLen: DIGEST_LEN });
     }
   }
 }
@@ -293,7 +294,7 @@ export function hashStruct(primary: string, data: Message, types: TypeMap): Uint
     if (!(f.name in data)) throw new Error(`missing field ${primary}.${f.name}`);
     parts.push(encodeField(f.type, data[f.name], types));
   }
-  return shake256(concatBytes(...parts), { dkLen: DIGEST_LEN });
+  return shake256(concatBytesArr(parts), { dkLen: DIGEST_LEN });
 }
 
 /**

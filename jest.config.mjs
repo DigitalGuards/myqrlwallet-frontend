@@ -17,4 +17,7 @@ export default {
   },
   transformIgnorePatterns: ['/node_modules/(?!(@noble|@theqrl)/)'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'mjs', 'cjs', 'json'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
 };
