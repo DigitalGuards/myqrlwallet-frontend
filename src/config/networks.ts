@@ -22,12 +22,6 @@ export const QRL_PROVIDER = {
     url: `${RPC_API_BASE}/mainnet`,
     name: "QRL 2.0 Mainnet",
     explorer: EXPLORER_BASE
-  },
-  CUSTOM_RPC: {
-    id: "CUSTOM_RPC",
-    url: `${RPC_API_BASE}/custom`,
-    name: "Custom RPC",
-    explorer: EXPLORER_BASE
   }
 };
 

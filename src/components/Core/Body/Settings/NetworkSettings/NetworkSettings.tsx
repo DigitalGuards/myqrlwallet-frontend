@@ -2,17 +2,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useStore } from "../../../../../stores/store";
 import { observer } from "mobx-react-lite";
 import { QRL_PROVIDER } from "@/config";
-import { CustomRpcModal } from "../../Home/ConnectionBadge/CustomRpcModal";
 import { Button } from "@/components/UI/Button";
-import { Network, Settings2 } from "lucide-react";
-import { useState } from "react";
+import { Settings2 } from "lucide-react";
 
 export const NetworkSettings = observer(() => {
     const { qrlStore } = useStore();
     const { qrlConnection, selectBlockchain } = qrlStore;
     const { blockchain, isLoading } = qrlConnection;
-    const [isCustomRpcModalOpen, setIsCustomRpcModalOpen] = useState(false);
-    const { TEST_NET, MAIN_NET, CUSTOM_RPC } = QRL_PROVIDER;
+    const { TEST_NET, MAIN_NET } = QRL_PROVIDER;
 
     return (
         <Card className="border-l-4 border-l-blue-accent">
@@ -43,23 +40,8 @@ export const NetworkSettings = observer(() => {
                         <Settings2 className="mr-2 h-4 w-4" />
                         Testnet
                     </Button>
-
-                    <Button
-                        variant={blockchain === CUSTOM_RPC.id ? "secondary" : "outline"}
-                        className="w-full justify-start"
-                        onClick={() => setIsCustomRpcModalOpen(true)}
-                        disabled={isLoading}
-                    >
-                        <Network className="mr-2 h-4 w-4" />
-                        Custom RPC
-                    </Button>
                 </div>
             </CardContent>
-
-            <CustomRpcModal
-                isOpen={isCustomRpcModalOpen}
-                onClose={() => setIsCustomRpcModalOpen(false)}
-            />
         </Card>
     );
-}); 
+});

@@ -81,7 +81,6 @@ class QrlStore {
   };
   qrlAccounts: QrlAccountsType = { accounts: [], isLoading: false };
   activeAccount: ActiveAccountType = { accountAddress: "", lastSeen: 0 };
-  customRpcUrl: string = "";
   // Updated initial state
   transactionStatus: TransactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
   extensionProvider: ExtensionProvider | null = null; // NEW: Store the extension provider
@@ -138,7 +137,6 @@ class QrlStore {
       qrlConnection: observable.struct,
       qrlAccounts: observable.struct,
       activeAccount: observable.struct,
-      customRpcUrl: observable.struct,
       transactionStatus: observable.struct,
       extensionProvider: observable.ref, // Use ref for complex objects like providers
       qrlPrice: observable,
@@ -153,7 +151,6 @@ class QrlStore {
       activeAccountSource: computed,
       activeAccountBalanceUsd: computed,
       fetchQrlPrice: action.bound,
-      setCustomRpcUrl: action.bound,
       selectBlockchain: action.bound,
       setActiveAccount: action.bound,
       fetchQrlConnection: action.bound,
@@ -223,13 +220,7 @@ class QrlStore {
     this.cancelReceiptPoller();
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { name, url: baseUrl } = QRL_PROVIDER[selectedBlockChain];
-      let url = baseUrl;
-
-      if (selectedBlockChain === "CUSTOM_RPC") {
-        const customRpcUrl = await StorageUtil.getCustomRpcUrl();
-        url = `${baseUrl}?customRpcUrl=${customRpcUrl}`
-      }
+      const { name, url } = QRL_PROVIDER[selectedBlockChain];
 
       runInAction(() => {
         this.qrlConnection = {
@@ -268,11 +259,6 @@ class QrlStore {
   async selectBlockchain(selectedBlockchain: string) {
     await StorageUtil.setBlockChain(selectedBlockchain);
     await this.initializeBlockchain();
-  }
-
-  async setCustomRpcUrl(customRpcUrl: string) {
-    await StorageUtil.setCustomRpcUrl(customRpcUrl);
-    this.customRpcUrl = customRpcUrl;
   }
 
   async setActiveAccount(newActiveAccount?: string, source: AccountSource = 'seed') {
