@@ -4,7 +4,6 @@ import { isInNativeApp } from "@/utils/nativeApp";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
 const BLOCKCHAIN_SELECTION_IDENTIFIER = "BLOCKCHAIN_SELECTION";
-const CUSTOM_RPC_URL_IDENTIFIER = "CUSTOM_RPC_URL";
 const BLOCKCHAIN_CREATED_TOKEN = "CREATED_TOKEN";
 const ACTIVE_ACCOUNT_IDENTIFIER = "ACTIVE_ACCOUNT";
 const ACCOUNT_LIST_IDENTIFIER = "ACCOUNT_LIST";
@@ -140,14 +139,6 @@ class StorageUtil {
     this.setItem(BLOCKCHAIN_SELECTION_IDENTIFIER, selectedBlockchain);
   }
 
-  static async setCustomRpcUrl(customRpcUrl: string) {
-    this.setItem(CUSTOM_RPC_URL_IDENTIFIER, customRpcUrl);
-  }
-
-  static async getCustomRpcUrl() {
-    return this.getItem<string>(CUSTOM_RPC_URL_IDENTIFIER) ?? "";
-  }
-
   static async setCreatedToken(name: string, symbol: string, decimals: number, address: string, tx: string, blockNumber: number, gasUsed: number, effectiveGasPrice: number, blockHash: string) {
     this.setItem(BLOCKCHAIN_CREATED_TOKEN, { name, symbol, decimals, address, tx, blockNumber, gasUsed, effectiveGasPrice, blockHash });
   }
@@ -165,9 +156,14 @@ class StorageUtil {
   }
 
   static async getBlockChain() {
-    const DEFAULT_BLOCKCHAIN = QRL_PROVIDER.TEST_NET.id;
+    const DEFAULT_BLOCKCHAIN = QRL_PROVIDER.MAIN_NET.id;
     const storedBlockchain = this.getItem<string>(BLOCKCHAIN_SELECTION_IDENTIFIER);
-    return (storedBlockchain ?? DEFAULT_BLOCKCHAIN) as BlockchainType;
+    // Guard against stale keys (e.g. "CUSTOM_RPC") that no longer exist in
+    // QRL_PROVIDER — silently migrate those users to MAIN_NET.
+    const isValid =
+      storedBlockchain != null &&
+      Object.prototype.hasOwnProperty.call(QRL_PROVIDER, storedBlockchain);
+    return (isValid ? storedBlockchain : DEFAULT_BLOCKCHAIN) as BlockchainType;
   }
 
   /**
