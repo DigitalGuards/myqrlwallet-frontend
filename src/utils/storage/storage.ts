@@ -156,10 +156,11 @@ class StorageUtil {
   }
 
   static async getBlockChain() {
-    const DEFAULT_BLOCKCHAIN = QRL_PROVIDER.MAIN_NET.id;
+    const DEFAULT_BLOCKCHAIN = QRL_PROVIDER.TEST_NET.id;
     const storedBlockchain = this.getItem<string>(BLOCKCHAIN_SELECTION_IDENTIFIER);
     // Guard against stale keys (e.g. "CUSTOM_RPC") that no longer exist in
-    // QRL_PROVIDER — silently migrate those users to MAIN_NET.
+    // QRL_PROVIDER — silently migrate those users to TEST_NET (default until
+    // mainnet launch).
     const isValid =
       storedBlockchain != null &&
       Object.prototype.hasOwnProperty.call(QRL_PROVIDER, storedBlockchain);
