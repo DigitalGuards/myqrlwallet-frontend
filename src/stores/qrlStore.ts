@@ -362,7 +362,8 @@ class QrlStore {
           storedAccountsList.map(async ({ address, source }) => {
             const accountBalance =
               (await this.qrlInstance?.getBalance(address)) ?? BigInt(0);
-            const convertedAccountBalance = this._utils!.fromPlanck(accountBalance, "quanta");
+            const utils = this._utils ?? (await getQrlWeb3()).utils;
+            const convertedAccountBalance = utils.fromPlanck(accountBalance, "quanta");
             return {
               accountAddress: address,
               accountBalance: convertedAccountBalance,

@@ -28,11 +28,21 @@ export class SocketClient {
     this.handlers = handlers;
   }
 
-  async connect(): Promise<void> {
-    if (this.socket?.connected) return;
+  private _connecting = false;
 
-    const { io } = await import('socket.io-client');
-    this.socket = io(this.relayUrl, {
+  async connect(): Promise<void> {
+    if (this.socket?.connected || this._connecting) return;
+    this._connecting = true;
+    let ioFn: typeof import('socket.io-client')['io'];
+    try {
+      ioFn = (await import('socket.io-client')).io;
+    } catch (e) {
+      this._connecting = false;
+      throw e;
+    }
+    // Another call may have raced past the guard while we awaited the import
+    if (this.socket?.connected) { this._connecting = false; return; }
+    this.socket = ioFn(this.relayUrl, {
       path: RELAY_PATH,
       // Polling-first so Cloudflare can negotiate any challenge/cookie
       // handshake at the HTTP layer before auto-upgrading to WS.
@@ -43,6 +53,8 @@ export class SocketClient {
       reconnectionAttempts: Infinity,
       timeout: 20000,
     });
+
+    this._connecting = false;
 
     this.socket.on('connect', () => {
       this.handlers.onConnected();

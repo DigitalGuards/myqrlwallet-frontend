@@ -10,12 +10,15 @@ import { fetchTokenInfo, fetchBalance, discoverTokens, mergeTokenLists } from "@
 import { TokenInterface, KNOWN_TOKEN_LIST } from "@/constants";
 import { customERC20ABI as CustomERC20ABI } from "@/abi/CustomERC20ABI";
 const formatUnits = (value: bigint | string | unknown, decimals: number): string => {
-  const v = BigInt(value as string | bigint);
+  let v = BigInt(value as string | bigint);
+  const isNegative = v < 0n;
+  if (isNegative) v = -v;
   const divisor = BigInt(10) ** BigInt(decimals);
   const intPart = v / divisor;
   const fracPart = v % divisor;
-  if (fracPart === 0n) return intPart.toString();
-  return `${intPart}.${fracPart.toString().padStart(decimals, '0').replace(/0+$/, '')}`;
+  const prefix = isNegative ? '-' : '';
+  if (fracPart === 0n) return `${prefix}${intPart}`;
+  return `${prefix}${intPart}.${fracPart.toString().padStart(decimals, '0').replace(/0+$/, '')}`;
 };
 import { getOptimalTokenBalance } from "@/utils/formatting";
 import type QrlStore from "./qrlStore";
