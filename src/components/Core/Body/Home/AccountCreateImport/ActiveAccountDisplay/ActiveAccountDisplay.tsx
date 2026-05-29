@@ -56,7 +56,7 @@ export const ActiveAccountDisplay = observer(() => {
           )}
         </div>
         <button
-          className="ml-2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center"
+          className="ml-2 p-1 rounded-full hover:bg-gray-700 flex items-center justify-center"
           onClick={refreshBalance}
           disabled={isRefreshing || refreshSuccess}
         >

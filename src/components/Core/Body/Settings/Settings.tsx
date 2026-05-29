@@ -268,7 +268,7 @@ const Settings = observer(() => {
                                                 </div>
                                             )}
                                             {!pinLockout.isLocked && hasFailedAttempts() && attemptsLeft > 0 && (
-                                                <div className="rounded-md bg-yellow-500/15 p-3 text-sm text-yellow-600 dark:text-yellow-400">
+                                                <div className="rounded-md bg-yellow-500/15 p-3 text-sm text-yellow-400">
                                                     {attemptsLeft} attempt{attemptsLeft === 1 ? '' : 's'} remaining before lockout.
                                                 </div>
                                             )}
@@ -278,7 +278,7 @@ const Settings = observer(() => {
                                                 </div>
                                             )}
                                             {changePinSuccess && (
-                                                <div className="rounded-md bg-green-500/15 p-3 text-sm text-green-600 dark:text-green-400">
+                                                <div className="rounded-md bg-green-500/15 p-3 text-sm text-green-400">
                                                     PIN changed successfully! Your wallet PIN has been updated.
                                                 </div>
                                             )}
@@ -373,7 +373,7 @@ const Settings = observer(() => {
                                 <form onSubmit={form.handleSubmit(onSubmit)}>
                                     <CardContent className="space-y-8">
                                         {settingsSaveSuccess && (
-                                            <div role="status" className="rounded-md bg-green-500/15 p-3 text-sm text-green-600 dark:text-green-400">
+                                            <div role="status" className="rounded-md bg-green-500/15 p-3 text-sm text-green-400">
                                                 Settings saved successfully! Your wallet settings have been updated.
                                             </div>
                                         )}
