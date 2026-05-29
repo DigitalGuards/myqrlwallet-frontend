@@ -497,8 +497,8 @@ export const TokenCreationForm = observer(
                             )}
 
                             {isUsingExtension ? (
-                                <div className="flex flex-col p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                                <div className="flex flex-col p-4 bg-yellow-900/20 rounded-lg">
+                                    <p className="text-sm text-yellow-200">
                                         Token creation is currently only supported for imported seed accounts.
                                         Please import an account with a seed phrase to create tokens.
                                     </p>

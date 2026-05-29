@@ -104,13 +104,13 @@ const ConnectionBadge = observer(() => {
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
               <button
-                className="group flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-2.5 py-1.5 text-neutral-700 transition-all duration-200 hover:border-neutral-400 dark:border-neutral-700/80 dark:bg-card dark:text-zinc-300 dark:hover:border-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-accent focus-visible:ring-offset-2"
+                className="group flex items-center gap-1.5 rounded-full border border-neutral-700/80 bg-card px-2.5 py-1.5 text-zinc-300 transition-all duration-200 hover:border-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-accent focus-visible:ring-offset-2"
                 aria-label={`Network: ${qrlNetworkName}`}
               >
                 <PulsingDot isConnected={isConnected} />
-                <Globe className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                <Globe className="h-3.5 w-3.5 text-neutral-400" />
                 <ChevronDown
-                  className={`h-3 w-3 text-neutral-400 transition-transform duration-200 dark:text-neutral-500 ${
+                  className={`h-3 w-3 text-neutral-500 transition-transform duration-200 ${
                     isDropdownOpen ? "rotate-180" : ""
                   }`}
                 />
