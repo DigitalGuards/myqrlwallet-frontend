@@ -9,7 +9,14 @@ import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
 import { fetchTokenInfo, fetchBalance, discoverTokens, mergeTokenLists } from "@/utils/web3";
 import { TokenInterface, KNOWN_TOKEN_LIST } from "@/constants";
 import { customERC20ABI as CustomERC20ABI } from "@/abi/CustomERC20ABI";
-import { formatUnits } from "ethers";
+const formatUnits = (value: bigint | string | unknown, decimals: number): string => {
+  const v = BigInt(value as string | bigint);
+  const divisor = BigInt(10) ** BigInt(decimals);
+  const intPart = v / divisor;
+  const fracPart = v % divisor;
+  if (fracPart === 0n) return intPart.toString();
+  return `${intPart}.${fracPart.toString().padStart(decimals, '0').replace(/0+$/, '')}`;
+};
 import { getOptimalTokenBalance } from "@/utils/formatting";
 import type QrlStore from "./qrlStore";
 import type { FeeLevel } from "./qrlStore";

@@ -2,7 +2,7 @@
  * Socket.IO client for the wallet side of the relay.
  */
 
-import { io, Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import type { RelayMessage } from './types';
 import { logToNative } from '@/utils/nativeApp';
 
@@ -28,9 +28,10 @@ export class SocketClient {
     this.handlers = handlers;
   }
 
-  connect(): void {
+  async connect(): Promise<void> {
     if (this.socket?.connected) return;
 
+    const { io } = await import('socket.io-client');
     this.socket = io(this.relayUrl, {
       path: RELAY_PATH,
       // Polling-first so Cloudflare can negotiate any challenge/cookie
