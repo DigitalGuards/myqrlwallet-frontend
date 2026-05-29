@@ -2,11 +2,8 @@ import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { StorageUtil, AccountListItem, AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
-import Web3, {
-  TransactionReceipt,
-  Web3QRLInterface,
-  utils,
-} from "@theqrl/web3";
+import { getQrlWeb3 } from "@/utils/web3";
+import type { TransactionReceipt, Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 
 type ActiveAccountType = {
@@ -87,6 +84,11 @@ class QrlStore {
   qrlPrice: number = 0; // USD price from Explorer
   qrlPriceChange24h: number = 0; // 24h price change percentage
 
+  // Cached reference to @theqrl/web3 utils, set during initializeBlockchain.
+  // Stored on the instance so we don't re-import on every action call.
+  _utils: Awaited<ReturnType<typeof getQrlWeb3>>["utils"] | undefined = undefined;
+  _Web3: Awaited<ReturnType<typeof getQrlWeb3>>["default"] | undefined = undefined;
+
   // Handle for the pollForReceipt setInterval. Stored on the instance so any
   // disposal path (resetTransactionStatus, store re-init) can clear it.
   // Previously this lived in a function-local variable so a navigation or
@@ -142,6 +144,8 @@ class QrlStore {
       qrlPrice: observable,
       qrlPriceChange24h: observable,
       // Runtime handles + their cleanup helper — not observable.
+      _utils: false,
+      _Web3: false,
       _receiptPollerIntervalId: false,
       cancelReceiptPoller: false,
       // Callback hooks injected by Store — not observable.
@@ -230,6 +234,12 @@ class QrlStore {
         };
       });
 
+      if (!this._Web3) {
+        const mod = await getQrlWeb3();
+        this._Web3 = mod.default;
+        this._utils = mod.utils;
+      }
+      const Web3 = this._Web3;
       const httpProvider = new Web3.providers.HttpProvider(url);
       const { qrl } = new Web3({ provider: httpProvider });
 
@@ -352,7 +362,7 @@ class QrlStore {
           storedAccountsList.map(async ({ address, source }) => {
             const accountBalance =
               (await this.qrlInstance?.getBalance(address)) ?? BigInt(0);
-            const convertedAccountBalance = utils.fromPlanck(accountBalance, "quanta");
+            const convertedAccountBalance = this._utils!.fromPlanck(accountBalance, "quanta");
             return {
               accountAddress: address,
               accountBalance: convertedAccountBalance,
@@ -522,7 +532,7 @@ class QrlStore {
     const baseGasPrice = await this.qrlInstance?.getGasPrice();
     if (!baseGasPrice) return "0";
     const { maxFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
-    return utils.fromPlanck(BigInt(gasLimit) * maxFeePerGas, "quanta");
+    return this._utils!.fromPlanck(BigInt(gasLimit) * maxFeePerGas, "quanta");
   }
 
   // Refactored signAndSendTransaction
@@ -547,11 +557,11 @@ class QrlStore {
       const transactionObject = {
         from,
         to,
-        value: utils.toPlanck(value, "quanta"),
+        value: this._utils!.toPlanck(value, "quanta"),
         gas: 21000, // Standard gas limit for native transfer
         type: '0x2',
-        maxFeePerGas: utils.toHex(maxFeePerGas),
-        maxPriorityFeePerGas: utils.toHex(maxPriorityFeePerGas),
+        maxFeePerGas: this._utils!.toHex(maxFeePerGas),
+        maxPriorityFeePerGas: this._utils!.toHex(maxPriorityFeePerGas),
         nonce: nonce,
       };
       // Run the MLDSA87 derivation in the crypto worker so the 50–300 ms
@@ -590,7 +600,7 @@ class QrlStore {
         });
       }).on('receipt', (receipt: TransactionReceipt) => {
         runInAction(() => {
-          const txHashString = utils.bytesToHex(receipt.transactionHash);
+          const txHashString = this._utils!.bytesToHex(receipt.transactionHash);
           this.transactionStatus = {
             state: 'confirmed',
             txHash: txHashString,
@@ -687,7 +697,7 @@ class QrlStore {
           runInAction(() => {
             // Double-check state again before updating
             if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-              const txHashString = utils.bytesToHex(receipt.transactionHash);
+              const txHashString = this._utils!.bytesToHex(receipt.transactionHash);
               this.transactionStatus = {
                 state: 'confirmed',
                 txHash: txHashString,
@@ -768,7 +778,7 @@ class QrlStore {
       // --- Use 18 decimals via "quanta" unit ---
       let valueBaseUnit: string | bigint; // toPlanck returns string or bigint
       try {
-        valueBaseUnit = utils.toPlanck(valueEther, "quanta"); // Use "quanta" for 18 decimals
+        valueBaseUnit = this._utils!.toPlanck(valueEther, "quanta"); // Use "quanta" for 18 decimals
       } catch (calcError) {
         console.error("Error calculating base unit value with toPlanck:", calcError);
         throw new Error("Could not calculate transaction value.");

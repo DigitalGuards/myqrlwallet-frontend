@@ -5,8 +5,9 @@ import {
   observable,
   runInAction,
 } from "mobx";
-import Web3, { TransactionReceipt, utils } from "@theqrl/web3";
+import type { TransactionReceipt } from "@theqrl/web3";
 import { log } from "@/utils";
+import { getQrlWeb3 } from "@/utils/web3";
 import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 import { deriveHexSeedAsync } from "@/utils/crypto";
@@ -261,6 +262,7 @@ class NftStore {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } =
         QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
+      const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       const seed = await deriveHexSeedAsync(mnemonicPhrases);
       const acc = web3.qrl.accounts.seedToAccount(seed);

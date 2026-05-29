@@ -17,3 +17,5 @@ export {
 export {
   discoverNFTs,
 } from './nftDiscovery';
+
+export { getQrlWeb3 } from './web3Lazy';

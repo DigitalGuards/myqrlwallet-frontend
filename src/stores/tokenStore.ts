@@ -2,7 +2,8 @@ import { QRL_PROVIDER } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
-import Web3, { TransactionReceipt, utils } from "@theqrl/web3";
+import type { TransactionReceipt } from "@theqrl/web3";
+import { getQrlWeb3 } from "@/utils/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
 import { fetchTokenInfo, fetchBalance, discoverTokens, mergeTokenLists } from "@/utils/web3";
@@ -286,6 +287,7 @@ class TokenStore {
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
+      const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       const seed = await deriveHexSeedAsync(mnemonicPhrases);
       const acc = web3.qrl.accounts.seedToAccount(seed);
@@ -393,6 +395,7 @@ class TokenStore {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
       const seed = await deriveHexSeedAsync(mnemonicPhrases);
+      const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       const acc = web3.qrl.accounts.seedToAccount(seed);
       web3.qrl.wallet?.add(seed);
