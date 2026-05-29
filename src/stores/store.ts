@@ -1,5 +1,4 @@
 import { createContext, useContext } from "react";
-import SettingsStore from "./settingsStore";
 import QrlStore from "./qrlStore";
 import TokenStore from "./tokenStore";
 import NftStore from "./nftStore";
@@ -13,14 +12,12 @@ configure({
 });
 
 class Store {
-  settingsStore;
   qrlStore;
   tokenStore;
   nftStore;
   dappConnectStore;
 
   constructor() {
-    this.settingsStore = new SettingsStore();
     this.qrlStore = new QrlStore();
     this.tokenStore = new TokenStore(this.qrlStore);
     this.nftStore = new NftStore(this.qrlStore, this.tokenStore);

@@ -275,7 +275,7 @@ const NftDetail = observer(() => {
             {txStatus.state === "confirmed" && txStatus.txHash && (
               <div
                 role="status"
-                className="rounded-md bg-green-500/15 p-3 text-sm text-green-600 dark:text-green-400"
+                className="rounded-md bg-green-500/15 p-3 text-sm text-green-400"
               >
                 Transfer confirmed.{" "}
                 <a
