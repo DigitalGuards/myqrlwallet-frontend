@@ -122,6 +122,10 @@ const Transfer = observer(() => {
   const [scanSuccess, setScanSuccess] = useState(false);
   const [scannedAddressPreview, setScannedAddressPreview] = useState<string | null>(null);
 
+  // Preserved across resetForm so the success screen can show the amount sent.
+  const [submittedAmount, setSubmittedAmount] = useState<string>("");
+  const [submittedAssetSymbol, setSubmittedAssetSymbol] = useState<string>("");
+
   const form = useForm({
     resolver: zodResolver(FormSchema),
     mode: "onChange",
@@ -322,6 +326,8 @@ const Transfer = observer(() => {
   };
 
   async function onSubmit(formData: z.infer<typeof FormSchema>) {
+    setSubmittedAmount(formData.amount.toString());
+    setSubmittedAssetSymbol(isNativeTransfer ? "QRL" : (selectedToken?.symbol || ""));
     if (isNativeTransfer) {
       await handleNativeTransfer(formData);
     } else {
@@ -458,6 +464,8 @@ const Transfer = observer(() => {
     return (
       <TransactionSuccessful
         transactionReceipt={transactionStatus.receipt}
+        amount={submittedAmount}
+        assetSymbol={submittedAssetSymbol}
         onDone={() => {
           resetTransactionStatus();
           navigate(ROUTES.HOME);

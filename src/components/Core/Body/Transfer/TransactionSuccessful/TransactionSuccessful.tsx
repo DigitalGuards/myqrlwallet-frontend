@@ -7,20 +7,24 @@ import {
   CardTitle,
 } from "@/components/UI/Card";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { StringUtil } from "@/utils/formatting";
+import { StringUtil, getOptimalTokenBalance } from "@/utils/formatting";
 import { TransactionReceipt, utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
-import { Check, Copy, ExternalLink } from "lucide-react";
+import { Check, CheckCircle2, Copy, ExternalLink } from "lucide-react";
 import { QRL_PROVIDER } from "@/config";
 import { useStore } from "@/stores/store";
 
 type TransactionSuccessfulProps = {
   transactionReceipt: TransactionReceipt;
+  amount?: string;
+  assetSymbol?: string;
   onDone: () => void;
 };
 
 export const TransactionSuccessful = ({
   transactionReceipt,
+  amount,
+  assetSymbol,
   onDone,
 }: TransactionSuccessfulProps) => {
   const { qrlStore } = useStore();
@@ -46,6 +50,8 @@ export const TransactionSuccessful = ({
     .toString()
     .replace(/\.?0+$/, "");
 
+  const formattedAmount = amount ? getOptimalTokenBalance(amount, assetSymbol) : null;
+
   return (
     <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
       <div className="relative w-full max-w-2xl px-2 md:px-4">
@@ -54,14 +60,22 @@ export const TransactionSuccessful = ({
           src="/tree.svg"
           alt="Background Tree"
         />
-        <h1 className="text-3xl font-bold text-foreground mb-6">
-          Transaction Completed
-        </h1>
-        <Card className="w-full border-l-4 border-l-blue-accent">
-          <CardHeader>
-            <CardTitle>Transaction Details</CardTitle>
+        <Card className="w-full border-l-4 border-l-green-500">
+          <CardHeader className="bg-gradient-to-r from-green-500/10 to-transparent">
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              Transaction Completed
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-8">
+          <CardContent className="space-y-8 pt-6">
+            {formattedAmount && (
+              <div className="flex flex-col gap-2">
+                <div>Amount</div>
+                <div className="font-bold text-secondary break-all">
+                  {formattedAmount}
+                </div>
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               <div>Transaction Hash</div>
               <div className="flex items-center gap-2">
