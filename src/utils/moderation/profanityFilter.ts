@@ -14,10 +14,11 @@
  *    is what catches the variations.
  *  - Severe, low-collision terms are matched as a *substring* so they are
  *    caught even when embedded (e.g. "motherfucker"). An allow-list of safe
- *    words (Scunthorpe, shiitake, niggardly, …) is neutralised first to
- *    avoid the classic false positives.
- *  - Short / false-positive-prone terms (ass, sex, cock, …) are matched only
- *    as *whole words*, so "class", "Dickinson" or "cockpit" stay allowed.
+ *    words (niggardly, snigger, …) is neutralised first to avoid the classic
+ *    false positives.
+ *  - Short / false-positive-prone terms (ass, shit, cunt, bitch, …) are
+ *    matched only as *whole words*, so "class", "wish it", "public until",
+ *    "Dickinson" or "cockpit" stay allowed while "s.h.i.t" is still caught.
  *
  * This is a client-side UX guard, not a security boundary: anyone can call
  * the token factory contract directly. Its job is to stop the wallet UI from
@@ -65,9 +66,11 @@ const SUBSTRING_TERMS = [
     "faggot",
     // sexual exploitation
     "pedophile", "paedophile", "childporn",
-    // strong profanity (caught even when embedded)
-    "fuck", "motherfucker", "shit", "bullshit", "cunt", "bitch",
-    "asshole", "dickhead", "cocksucker", "dumbass", "jackass",
+    // strong profanity (caught even when embedded). Short words like
+    // "shit"/"cunt"/"bitch"/"asshole" live in WORD_TERMS instead, to avoid
+    // matching across word boundaries (e.g. "wish it", "public until").
+    "fuck", "motherfucker", "bullshit",
+    "dickhead", "cocksucker", "dumbass", "jackass",
 ];
 
 /**
@@ -77,8 +80,6 @@ const SUBSTRING_TERMS = [
  */
 const SUBSTRING_ALLOWLIST = [
     "sniggering", "sniggered", "snigger", "niggardly", "niggard", // "nigg…"
-    "scunthorpe", // "cunt"
-    "shiitake", "shitake", // "shit"
 ].sort((a, b) => b.length - a.length);
 
 /**
@@ -86,10 +87,10 @@ const SUBSTRING_ALLOWLIST = [
  * "class", "bass", "cockpit", "Dickinson", "Sussex", "raccoon" stay allowed.
  */
 const WORD_TERMS = [
-    "arse", "arsehole", "ass", "asshat", "beaner", "bollocks", "chink",
-    "cock", "coon", "cum", "dick", "dildo", "dyke", "fag", "gook", "heil",
-    "hoe", "jizz", "kike", "kkk", "nazi", "negro", "porn", "prick", "pussy",
-    "raghead", "rape", "rapist", "retard", "sex", "skank", "slut", "smegma",
+    "arse", "arsehole", "ass", "asshat", "asshole", "beaner", "bitch", "bollocks",
+    "chink", "cock", "coon", "cum", "cunt", "dick", "dildo", "dyke", "fag", "gook",
+    "heil", "hoe", "jizz", "kike", "kkk", "nazi", "negro", "porn", "prick", "pussy",
+    "raghead", "rape", "rapist", "retard", "sex", "shit", "skank", "slut", "smegma",
     "spic", "tits", "titties", "towelhead", "tranny", "twat", "wank",
     "wanker", "wetback", "whore",
 ];
@@ -156,10 +157,12 @@ export function findProfaneMatches(text: string): string[] {
     const hits = new Set<string>();
 
     // 1) Substring stage. Neutralise allow-listed safe words first so they
-    //    can't trigger a match (e.g. "Scunthorpe" -> no "cunt").
+    //    can't trigger a match (e.g. "niggardly" -> no "nigga"). Remove them
+    //    entirely (not replace with a space) so the surrounding letters stay
+    //    contiguous and a safe word can't be nested inside a slur to split it.
     let squashed = squash(folded);
     for (const safe of SUBSTRING_ALLOWLIST) {
-        if (squashed.includes(safe)) squashed = squashed.split(safe).join(" ");
+        if (squashed.includes(safe)) squashed = squashed.split(safe).join("");
     }
     for (const { term, re } of SUBSTRING_REGEXES) {
         if (re.test(squashed)) hits.add(term);

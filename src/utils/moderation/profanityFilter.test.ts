@@ -27,6 +27,12 @@ describe("containsProfanity", () => {
             "Sussex",
             "Raccoon",
             "Therapy",
+            // multi-word phrases that squash into a banned substring
+            "wish it",
+            "push it",
+            "public until",
+            "web itch",
+            "glass hole",
         ];
 
         it.each(clean)("%s", (name) => {
