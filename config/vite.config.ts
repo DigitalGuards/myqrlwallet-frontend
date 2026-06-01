@@ -8,7 +8,21 @@ import tailwindcss from '@tailwindcss/postcss'
 const require = createRequire(import.meta.url)
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Remove vendor-qrl-crypto from <link rel="modulepreload"> — it's a
+    // lazy dynamic import so preloading it competes with critical-path
+    // resources (react-dom, main index) without helping first paint.
+    {
+      name: 'strip-crypto-preload',
+      transformIndexHtml(html: string) {
+        return html.replace(
+          /<link rel="modulepreload"[^>]*vendor-qrl-crypto[^>]*>\n?/g,
+          ''
+        );
+      },
+    },
+  ],
   css: {
     postcss: {
       plugins: [tailwindcss()],

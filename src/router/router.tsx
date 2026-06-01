@@ -3,9 +3,13 @@ import { lazy, Suspense } from "react";
 import { Loading } from "@/components/UI/Loading";
 import { Navigate } from "react-router-dom";
 
-// Lazy load components
-const MyQRLWallet = lazy(() => import("../components/Core/MyQRLWallet.tsx"));
-const Home = lazy(() => import("../components/Core/Body/Home/Home.tsx"));
+// Kick off the two chunks needed on every page-load immediately so they
+// download in parallel with the main bundle instead of sequentially.
+const _myQrlWalletChunk = import("../components/Core/MyQRLWallet.tsx");
+const _homeChunk = import("../components/Core/Body/Home/Home.tsx");
+
+const MyQRLWallet = lazy(() => _myQrlWalletChunk);
+const Home = lazy(() => _homeChunk);
 const CreateAccount = lazy(() => import("../components/Core/Body/CreateAccount/CreateAccount.tsx"));
 const ImportAccount = lazy(() => import("../components/Core/Body/ImportAccount/ImportAccount.tsx"));
 const AddAccount = lazy(() => import("../components/Core/Body/AddAccount/AddAccount.tsx"))

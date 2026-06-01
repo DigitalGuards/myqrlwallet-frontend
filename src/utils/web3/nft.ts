@@ -1,4 +1,5 @@
-import Web3 from "@theqrl/web3";
+import type { default as Web3Type } from "@theqrl/web3";
+import { getQrlWeb3 } from "./web3Lazy";
 import { erc165ABI, ERC165_INTERFACE_IDS } from "@/abi/ERC165ABI";
 import { erc721ABI } from "@/abi/ERC721ABI";
 import { erc1155ABI } from "@/abi/ERC1155ABI";
@@ -38,7 +39,7 @@ const METADATA_FETCH_TIMEOUT_MS = 8000;
 // Try ERC-165 supportsInterface(0x...). Returns false on any RPC revert
 // (very common — pre-ERC-165 contracts revert instead of returning false).
 async function safeSupportsInterface(
-  web3: Web3,
+  web3: Web3Type,
   contractAddress: string,
   interfaceId: string,
 ): Promise<boolean> {
@@ -59,6 +60,7 @@ export async function detectTokenStandard(
   contractAddress: string,
   rpcUrl: string,
 ): Promise<NftStandard | null> {
+  const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
 
   // No code at address → not a contract.
@@ -81,6 +83,7 @@ export async function fetchNftCollectionInfo(
   rpcUrl: string,
   standard: NftStandard,
 ): Promise<NftCollectionInfo> {
+  const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
 
   if (standard === "ERC721") {
@@ -120,6 +123,7 @@ export async function fetchOwned721Ids(
   ownerAddress: string,
   rpcUrl: string,
 ): Promise<string[] | null> {
+  const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
   const supportsEnumerable = await safeSupportsInterface(
     web3,
@@ -157,6 +161,7 @@ export async function isErc721Owner(
   tokenId: string,
   rpcUrl: string,
 ): Promise<boolean> {
+  const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
   try {
     const contract = new web3.qrl.Contract(erc721ABI as any, contractAddress);
@@ -174,6 +179,7 @@ export async function fetchErc1155Balance(
   tokenId: string,
   rpcUrl: string,
 ): Promise<bigint> {
+  const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
   const contract = new web3.qrl.Contract(erc1155ABI as any, contractAddress);
   const checksum = web3.utils.toChecksumAddress(ownerAddress);
@@ -192,6 +198,7 @@ export async function fetchTokenUri(
   rpcUrl: string,
   standard: NftStandard,
 ): Promise<string | null> {
+  const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
   try {
     if (standard === "ERC721") {
