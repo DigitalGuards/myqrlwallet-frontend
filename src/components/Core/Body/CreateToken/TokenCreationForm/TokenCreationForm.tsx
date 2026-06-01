@@ -33,11 +33,18 @@ import { StorageUtil } from "@/utils/storage";
 import { getAddressFromMnemonicAsync } from "@/utils/crypto";
 import { Label } from "@/components/UI/Label";
 import { isValidQrlAddress } from "@/utils/web3";
+import { containsProfanity, PROFANITY_REJECTION_MESSAGE } from "@/utils/moderation";
 
 const FormSchema = z
     .object({
-        tokenName: z.string().min(1, { message: "Token name is required" }),
-        tokenSymbol: z.string().min(1, { message: "Token symbol is required" }),
+        tokenName: z
+            .string()
+            .min(1, { message: "Token name is required" })
+            .refine((value) => !containsProfanity(value), { message: PROFANITY_REJECTION_MESSAGE }),
+        tokenSymbol: z
+            .string()
+            .min(1, { message: "Token symbol is required" })
+            .refine((value) => !containsProfanity(value), { message: PROFANITY_REJECTION_MESSAGE }),
         initialSupply: z.string(),
         decimals: z.number().min(1, { message: "Decimals is required" }),
         mintable: z.boolean(),

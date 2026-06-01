@@ -18,5 +18,8 @@ export * from './formatting';
 // Extension utilities
 export * from './extension';
 
+// Moderation utilities
+export * from './moderation';
+
 // React utilities
 export * from './react';
