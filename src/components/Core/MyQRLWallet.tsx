@@ -5,15 +5,14 @@ import { lazy, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { setupActivityTracking, startAutoLockTimer, clearAutoLockTimer } from "@/utils/storage";
 import NativeAppBridge from "@/components/NativeAppBridge";
-import DAppApprovalModal from "./Body/DAppConnect/DAppApprovalModal";
-import DAppConnectionBanner from "./Body/DAppConnect/DAppConnectionBanner";
+import Layout from "./Layout/Layout";
+import Body from "./Body/Body";
 
-const Body = withSuspense(
-  lazy(() => import("./Body/Body"))
-);
-const Layout = withSuspense(
-  lazy(() => import("./Layout/Layout"))
-);
+// DApp modals are only shown when an active dApp session sends a request —
+// lazy-load them so their @theqrl/web3 dependency doesn't block the
+// MyQRLWallet chunk from rendering on normal page loads.
+const DAppApprovalModal = withSuspense(lazy(() => import("./Body/DAppConnect/DAppApprovalModal")));
+const DAppConnectionBanner = withSuspense(lazy(() => import("./Body/DAppConnect/DAppConnectionBanner")));
 
 const MyQRLWallet = observer(() => {
   const navigate = useNavigate();

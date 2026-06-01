@@ -20,9 +20,7 @@ import { StorageUtil, STORAGE_EVENT_WALLET_SETTINGS } from "@/utils/storage";
 const AccountCreateImport = withSuspense(
   lazy(() => import("./AccountCreateImport/AccountCreateImport"))
 );
-const BackgroundVideo = withSuspense(
-  lazy(() => import("./BackgroundVideo/BackgroundVideo"))
-);
+import BackgroundVideo from "./BackgroundVideo/BackgroundVideo";
 
 const TokenForm = withSuspense(
   lazy(() => import("../Tokens/TokenForm/TokenForm"))

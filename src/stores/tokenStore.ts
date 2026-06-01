@@ -2,13 +2,24 @@ import { QRL_PROVIDER } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
-import Web3, { TransactionReceipt, utils } from "@theqrl/web3";
+import type { TransactionReceipt } from "@theqrl/web3";
+import { getQrlWeb3 } from "@/utils/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
 import { fetchTokenInfo, fetchBalance, discoverTokens, mergeTokenLists } from "@/utils/web3";
 import { TokenInterface, KNOWN_TOKEN_LIST } from "@/constants";
 import { customERC20ABI as CustomERC20ABI } from "@/abi/CustomERC20ABI";
-import { formatUnits } from "ethers";
+const formatUnits = (value: bigint | string | unknown, decimals: number): string => {
+  let v = BigInt(value as string | bigint);
+  const isNegative = v < 0n;
+  if (isNegative) v = -v;
+  const divisor = BigInt(10) ** BigInt(decimals);
+  const intPart = v / divisor;
+  const fracPart = v % divisor;
+  const prefix = isNegative ? '-' : '';
+  if (fracPart === 0n) return `${prefix}${intPart}`;
+  return `${prefix}${intPart}.${fracPart.toString().padStart(decimals, '0').replace(/0+$/, '')}`;
+};
 import { getOptimalTokenBalance } from "@/utils/formatting";
 import type QrlStore from "./qrlStore";
 import type { FeeLevel } from "./qrlStore";
@@ -286,6 +297,7 @@ class TokenStore {
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
+      const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       const seed = await deriveHexSeedAsync(mnemonicPhrases);
       const acc = web3.qrl.accounts.seedToAccount(seed);
@@ -393,6 +405,7 @@ class TokenStore {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
       const seed = await deriveHexSeedAsync(mnemonicPhrases);
+      const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       const acc = web3.qrl.accounts.seedToAccount(seed);
       web3.qrl.wallet?.add(seed);

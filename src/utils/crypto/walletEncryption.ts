@@ -1,5 +1,5 @@
 import CryptoJS from 'crypto-js';
-import { Web3BaseWalletAccount } from '@theqrl/web3';
+import type { Web3BaseWalletAccount } from '@theqrl/web3';
 import { isInNativeApp, shareContent } from '@/utils/nativeApp';
 
 export interface WalletData {

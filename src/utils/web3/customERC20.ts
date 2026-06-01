@@ -1,7 +1,8 @@
-import Web3 from "@theqrl/web3";
+import { getQrlWeb3 } from "./web3Lazy";
 import { customERC20ABI as CustomERC20ABI } from "@/abi/CustomERC20ABI";
 
 const fetchBalance = async (contractAddress: string, accountAddress: string, rpc_url: string) => {
+    const { default: Web3 } = await getQrlWeb3();
     const web3 = new Web3(new Web3.providers.HttpProvider(rpc_url));
     const contract = new web3.qrl.Contract(CustomERC20ABI, contractAddress);
     const balance = await contract.methods.balanceOf(web3.utils.toChecksumAddress(accountAddress)).call()
@@ -9,6 +10,7 @@ const fetchBalance = async (contractAddress: string, accountAddress: string, rpc
 }
 
 const fetchTokenInfo = async (contractAddress: string, rpc_url: string) => {
+    const { default: Web3 } = await getQrlWeb3();
     const web3 = new Web3(new Web3.providers.HttpProvider(rpc_url));
     const contract = new web3.qrl.Contract(CustomERC20ABI, contractAddress);
     const name = await contract.methods.name().call();
