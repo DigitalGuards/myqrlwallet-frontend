@@ -68,11 +68,11 @@ export const TransactionSuccessful = ({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-8 pt-6">
-            {formattedAmount && assetSymbol && (
+            {formattedAmount && (
               <div className="flex flex-col gap-2">
                 <div>Amount</div>
                 <div className="font-bold text-secondary break-all">
-                  {formattedAmount} {assetSymbol}
+                  {formattedAmount}
                 </div>
               </div>
             )}
