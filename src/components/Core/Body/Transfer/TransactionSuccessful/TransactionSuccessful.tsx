@@ -50,7 +50,7 @@ export const TransactionSuccessful = ({
     .toString()
     .replace(/\.?0+$/, "");
 
-  const formattedAmount = amount ? getOptimalTokenBalance(amount) : null;
+  const formattedAmount = amount ? getOptimalTokenBalance(amount, assetSymbol) : null;
 
   return (
     <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
