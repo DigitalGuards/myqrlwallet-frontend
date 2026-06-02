@@ -57,7 +57,10 @@ export class RequestHandler {
    * Validate that a method is known/supported.
    */
   static isKnownMethod(method: string): boolean {
-    // Accept all qrl_*, net_*, web3_*, personal_*, wallet_* methods
-    return /^(qrl|net|web3|personal|wallet)_/.test(method);
+    // Accept qrl_*, net_*, web3_*, wallet_* methods. personal_* was the
+    // Ethereum-flavored signing namespace removed in v3.0.0; such methods now
+    // fall through to a clean -32601 "method not found" instead of being
+    // forwarded to the RPC node.
+    return /^(qrl|net|web3|wallet)_/.test(method);
   }
 }
