@@ -183,6 +183,10 @@ export class DAppConnectService {
       onParticipantsChanged: (data) => {
         this.handleParticipantsChanged(channelId, data);
       },
+      onTerminated: () => {
+        // Auto-rejoin saw the channel tombstoned (dApp closed it). Tear down.
+        void this.disconnectSession(channelId, false);
+      },
     });
 
     const connection: ActiveConnection = {
@@ -499,16 +503,18 @@ export class DAppConnectService {
 
   approveRequest(sessionId: string, requestId: string | number, result: unknown): void {
     // Send the response FIRST, and only bounce back to the dApp once it has
-    // left the relay. maybeReturnToDApp backgrounds the wallet (the OS may
-    // then suspend it); if we redirected before the response was transmitted,
-    // the dApp would never receive the approval.
+    // actually been transmitted. maybeReturnToDApp backgrounds the wallet (the
+    // OS may then suspend it); redirecting before/without a successful send
+    // would strand the dApp on a request it never received. Hence .then (on
+    // success) rather than .finally (which also fires on send failure).
     this.sendJsonRpcResponse(sessionId, {
       jsonrpc: '2.0',
       id: requestId,
       result,
-    })
-      .catch((err) => console.error('[DAppConnect] Failed to send approve response:', err))
-      .finally(() => this.maybeReturnToDApp(sessionId));
+    }).then(
+      () => this.maybeReturnToDApp(sessionId),
+      (err) => console.error('[DAppConnect] Failed to send approve response:', err)
+    );
     if (isInNativeApp()) triggerHaptic('success');
   }
 
@@ -521,9 +527,10 @@ export class DAppConnectService {
       jsonrpc: '2.0',
       id: requestId,
       error: { code: 4001, message },
-    })
-      .catch((err) => console.error('[DAppConnect] Failed to send reject response:', err))
-      .finally(() => this.maybeReturnToDApp(sessionId));
+    }).then(
+      () => this.maybeReturnToDApp(sessionId),
+      (err) => console.error('[DAppConnect] Failed to send reject response:', err)
+    );
     if (isInNativeApp()) triggerHaptic('error');
   }
 
@@ -661,6 +668,11 @@ export class DAppConnectService {
             onParticipantsChanged: (data) => {
               this.handleParticipantsChanged(session.id, data);
             },
+            onTerminated: () => {
+              // The dApp closed the channel while we were transiently away
+              // (auto-rejoin saw the tombstone). Drop the dead session.
+              void this.disconnectSession(session.id, false);
+            },
           }
         );
 
@@ -679,7 +691,19 @@ export class DAppConnectService {
         });
 
         socketClient.connect();
-        const { bufferedMessages } = await socketClient.joinChannel(session.id);
+        const { bufferedMessages, terminated } = await socketClient.joinChannel(session.id);
+
+        if (terminated) {
+          // The dApp explicitly closed this channel while the wallet was
+          // offline. Drop the dead session instead of resurrecting a ghost
+          // that shows active but can never reach the gone dApp.
+          dlog(`Stored session ${session.id} was terminated by the dApp; dropping`);
+          socketClient.disconnect();
+          this.connections.delete(session.id);
+          SessionStore.remove(session.id);
+          this.handlers?.onSessionDisconnected(session.id);
+          continue;
+        }
 
         for (const msg of bufferedMessages) {
           this.enqueueRelayMessage(session.id, msg as RelayMessage);
@@ -715,6 +739,18 @@ export class DAppConnectService {
     data: { event: string; clientType?: string }
   ): void {
     dlog(`Participants changed: ${data.event} (${data.clientType || 'unknown'})`);
+
+    // The dApp (or relay) explicitly terminated the channel via close_channel.
+    // This is durable, not a transient backgrounding leave, so tear down now
+    // instead of arming the rejoin grace, otherwise the session lingers as a
+    // ghost (shown active) until the socket drops or the channel TTL expires.
+    // explicit=false makes teardown emit leave_channel rather than
+    // close_channel, so we do not bounce a redundant close back to the relay.
+    if (data.event === 'close') {
+      this.clearDappLeaveTimeout(channelId);
+      void this.disconnectSession(channelId, false);
+      return;
+    }
 
     if (data.event === 'join' && data.clientType === 'dapp') {
       this.clearDappLeaveTimeout(channelId);
