@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { toJS } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '@/stores/store';
 import {
@@ -35,8 +36,11 @@ import type { TxProgressState } from '@/stores/dappConnectStore';
 import type { ZodError } from 'zod';
 
 function formatZodIssues(error: ZodError): string {
+  // path segments can be symbols (e.g. a MobX admin key surfaced by zod's
+  // record key check); String() coerces them safely whereas Array.join would
+  // throw "Cannot convert a Symbol value to a string" and crash the render.
   return error.issues
-    .map((i) => `${i.path.length ? i.path.join('.') : '(root)'}: ${i.message}`)
+    .map((i) => `${i.path.length ? i.path.map(String).join('.') : '(root)'}: ${i.message}`)
     .join('; ') || 'malformed params';
 }
 
@@ -125,7 +129,13 @@ const DAppApprovalModal = observer(() => {
     setLoading(true);
 
     try {
-      const { method, params } = currentApproval;
+      const { method } = currentApproval;
+      // currentApproval is a deep MobX observable, so its nested params objects
+      // carry a Symbol(mobx administration) key. zod's z.record key check walks
+      // own symbols and rejects that key (and the signing encoders must hash a
+      // plain object anyway), so de-proxy to plain JS before validating/signing.
+      // toJS is digest-neutral: the encoder reads fields by name in type order.
+      const params = toJS(currentApproval.params);
 
       if (method === 'qrl_requestAccounts') {
         const activeAddress = qrlStore.activeAccount?.accountAddress;
@@ -248,6 +258,9 @@ const DAppApprovalModal = observer(() => {
             })
             .on('error', (txErr: Error) => {
               const txErrMsg = txErr.message || String(txErr);
+              // toUserFacingError collapses anything it does not recognize into
+              // a generic string, so log the raw node/broadcast reason first.
+              console.error('[dapp-connect] tx broadcast error:', txErrMsg, txErr);
               const userError = toUserFacingError(txErrMsg);
               dappConnectStore.setTxProgress('failed', undefined, userError);
               // Send rejection to dApp but keep modal open to show failed state
@@ -337,6 +350,8 @@ const DAppApprovalModal = observer(() => {
       setPin('');
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
+      // Log the raw cause before toUserFacingError flattens it (see above).
+      console.error('[dapp-connect] approval error:', errMsg, err);
       const userError = toUserFacingError(errMsg);
       setError(userError);
       if (currentApproval) {
@@ -378,7 +393,11 @@ const DAppApprovalModal = observer(() => {
    */
   const signingPreview = useMemo(() => {
     if (!currentApproval) return null;
-    const { method, params } = currentApproval;
+    const { method } = currentApproval;
+    // De-proxy the observable params (see handleApprove): zod's record key
+    // check would otherwise trip over MobX's Symbol(mobx administration) key
+    // and formatZodIssues would throw while rendering.
+    const params = toJS(currentApproval.params);
     if (method === 'qrl_signMessage') {
       const parsed = SignMessageParamsSchema.safeParse(params);
       if (!parsed.success) {
