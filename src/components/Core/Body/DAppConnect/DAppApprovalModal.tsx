@@ -218,6 +218,9 @@ const DAppApprovalModal = observer(() => {
           type: '0x2',
         };
 
+        // TEMP DIAGNOSTIC: bridges to Metro as a [WebView] log line.
+        console.log('[dapp-connect] txObject:', JSON.stringify(txObject));
+
         // Stage: broadcasting
         dappConnectStore.setTxProgress('broadcasting');
 
@@ -258,13 +261,13 @@ const DAppApprovalModal = observer(() => {
             })
             .on('error', (txErr: Error) => {
               const txErrMsg = txErr.message || String(txErr);
-              // toUserFacingError collapses anything it does not recognize into
-              // a generic string, so log the raw node/broadcast reason first.
-              console.error('[dapp-connect] tx broadcast error:', txErrMsg, txErr);
-              const userError = toUserFacingError(txErrMsg);
-              dappConnectStore.setTxProgress('failed', undefined, userError);
-              // Send rejection to dApp but keep modal open to show failed state
-              dappConnectStore.sendRejectionResult(`Transaction failed: ${userError}`);
+              // TEMP DIAGNOSTIC: the native bridge only forwards console.log,
+              // so log the raw reason and show it on the phone's failed state
+              // (txError) while the dApp still gets the sanitized message.
+              // Revert the on-screen string to toUserFacingError before merge.
+              console.log('[dapp-connect] tx broadcast error:', txErrMsg);
+              dappConnectStore.setTxProgress('failed', undefined, txErrMsg);
+              dappConnectStore.sendRejectionResult(`Transaction failed: ${toUserFacingError(txErrMsg)}`);
               setPin('');
               setLoading(false);
               resolve();
@@ -350,19 +353,20 @@ const DAppApprovalModal = observer(() => {
       setPin('');
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      // Log the raw cause before toUserFacingError flattens it (see above).
-      console.error('[dapp-connect] approval error:', errMsg, err);
-      const userError = toUserFacingError(errMsg);
-      setError(userError);
+      // TEMP DIAGNOSTIC (see tx 'error' handler above): log + show the raw
+      // reason on-screen since the native bridge only forwards console.log.
+      // Revert the on-screen strings to toUserFacingError before merge.
+      console.log('[dapp-connect] approval error:', errMsg);
+      setError(errMsg);
       if (currentApproval) {
         const isTxMethod = currentApproval.method === 'qrl_sendTransaction' ||
           currentApproval.method === 'qrl_signTransaction';
         if (isTxMethod && dappConnectStore.txProgress !== 'idle') {
           // Keep modal open to show failed state
-          dappConnectStore.setTxProgress('failed', undefined, userError);
-          dappConnectStore.sendRejectionResult(userError);
+          dappConnectStore.setTxProgress('failed', undefined, errMsg);
+          dappConnectStore.sendRejectionResult(toUserFacingError(errMsg));
         } else {
-          dappConnectStore.rejectCurrentRequest(userError);
+          dappConnectStore.rejectCurrentRequest(toUserFacingError(errMsg));
         }
       }
     } finally {
