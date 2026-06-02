@@ -148,7 +148,9 @@ const NativeAppBridge: React.FC = () => {
           // Check if this is a qrlconnect:// URI (dApp connection)
           if (DAppConnectService.isConnectionURI(address)) {
             logToNative(`DApp connection URI detected, routing to DAppConnectService`);
-            dappConnectService.handleConnectionURI(address);
+            // QR scan => the dApp is on another device; no same-device
+            // return-to-dApp redirect after approval.
+            dappConnectService.handleConnectionURI(address, 'qr');
             return;
           }
 
@@ -197,7 +199,8 @@ const NativeAppBridge: React.FC = () => {
             return;
           }
           logToNative(`DApp URI received via deep link: ${uri}`);
-          dappConnectService.handleConnectionURI(uri);
+          // Deep link => same-device flow; enable the return-to-dApp redirect.
+          dappConnectService.handleConnectionURI(uri, 'deeplink');
           break;
         }
 

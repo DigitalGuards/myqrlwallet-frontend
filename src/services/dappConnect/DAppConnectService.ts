@@ -62,6 +62,11 @@ interface ActiveConnection {
   // short-circuited as "already connected". Not persisted — rehydrated
   // sessions skip the fp check since the AEAD key is already established.
   dappPublicKey?: Uint8Array;
+  // True only when the connection was opened from a same-device deep link
+  // (qrlconnect:// tapped in the phone browser), not a QR scan. Gates the
+  // return-to-dApp peer redirect: bouncing to the dApp URL only makes sense
+  // on the same device. A QR scan means the dApp is on another device.
+  originatedViaDeepLink: boolean;
 }
 
 type ServiceEventHandler = {
@@ -97,7 +102,10 @@ export class DAppConnectService {
    * For v2: the URI carries the dApp's ML-KEM public key; the wallet runs
    * Encaps → emits SYNACK → awaits ACK.
    */
-  async handleConnectionURI(uri: string): Promise<{ success: boolean; error?: string }> {
+  async handleConnectionURI(
+    uri: string,
+    origin: 'qr' | 'deeplink' = 'qr'
+  ): Promise<{ success: boolean; error?: string }> {
     let parsed;
     try {
       parsed = await parseConnectionURI(uri);
@@ -185,6 +193,7 @@ export class DAppConnectService {
       originatorInfoReceived: false,
       messageQueue: Promise.resolve(),
       relayUrl,
+      originatedViaDeepLink: origin === 'deeplink',
     };
     this.connections.set(channelId, connection);
     this.handlers?.onSessionsChanged();
@@ -527,7 +536,12 @@ export class DAppConnectService {
    */
   private maybeReturnToDApp(channelId: string): void {
     if (!isInNativeApp()) return;
-    const redirectUrl = this.connections.get(channelId)?.dappInfo.redirectUrl;
+    const conn = this.connections.get(channelId);
+    // Only bounce back for a same-device deep-link session. A QR-scanned
+    // session means the dApp is on another device, so opening its URL on the
+    // phone is wrong (e.g. a desktop dApp's http://localhost:5174).
+    if (!conn?.originatedViaDeepLink) return;
+    const redirectUrl = conn.dappInfo.redirectUrl;
     if (redirectUrl) {
       sendToNative('DAPP_RETURN', { channelId, redirectUrl });
     }
@@ -658,6 +672,10 @@ export class DAppConnectService {
           originatorInfoReceived: true,
           messageQueue: Promise.resolve(),
           relayUrl: reconnectRelayUrl,
+          // The connect origin isn't persisted, so a rehydrated session does
+          // not auto-redirect. Safe default: a wrong-device redirect never
+          // fires; a fresh same-device deep-link approval still does.
+          originatedViaDeepLink: false,
         });
 
         socketClient.connect();
