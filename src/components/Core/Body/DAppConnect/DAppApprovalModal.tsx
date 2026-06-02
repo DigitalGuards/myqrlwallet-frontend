@@ -360,22 +360,18 @@ const DAppApprovalModal = observer(() => {
     setError('');
   }, [dappConnectStore]);
 
-  if (!currentApproval) return null;
-
-  const { method, params, dappInfo } = currentApproval;
-  const label = METHOD_LABELS[method] || method;
-  const needsPin = method !== 'qrl_requestAccounts' &&
-    method !== 'wallet_addQrlChain' &&
-    method !== 'wallet_switchQrlChain';
-  const hasNativePin = !!getNativeInjectedPin();
-  const isTransaction = method === 'qrl_sendTransaction' || method === 'qrl_signTransaction';
-
   /**
    * Preview state for the two signing methods. Recomputed when the pending
    * request changes; we pre-validate so the user sees a clear "this request
    * is malformed" reason rather than only learning at Approve time.
+   *
+   * Must live above the early-return guard below: hook count has to stay
+   * stable across renders or React throws #310 ("Rendered more hooks than
+   * during the previous render") the first time an approval arrives.
    */
   const signingPreview = useMemo(() => {
+    if (!currentApproval) return null;
+    const { method, params } = currentApproval;
     if (method === 'qrl_signMessage') {
       const parsed = SignMessageParamsSchema.safeParse(params);
       if (!parsed.success) {
@@ -403,7 +399,17 @@ const DAppApprovalModal = observer(() => {
       }
     }
     return null;
-  }, [method, params]);
+  }, [currentApproval]);
+
+  if (!currentApproval) return null;
+
+  const { method, params, dappInfo } = currentApproval;
+  const label = METHOD_LABELS[method] || method;
+  const needsPin = method !== 'qrl_requestAccounts' &&
+    method !== 'wallet_addQrlChain' &&
+    method !== 'wallet_switchQrlChain';
+  const hasNativePin = !!getNativeInjectedPin();
+  const isTransaction = method === 'qrl_sendTransaction' || method === 'qrl_signTransaction';
 
   const isTxInProgress = txProgress !== 'idle';
   const isTxTerminal = txProgress === 'confirmed' || txProgress === 'failed';
