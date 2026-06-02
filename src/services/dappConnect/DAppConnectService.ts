@@ -91,6 +91,11 @@ function getRequestProvider(web3: unknown): RpcRequestProvider | null {
 export class DAppConnectService {
   private connections = new Map<string, ActiveConnection>();
   private dappLeaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  // Channels with an in-flight teardown, so concurrent disconnectSession()
+  // calls for the same channel collapse to one run (the per-call guard alone
+  // does not dedup across invocations). Value carries the effective `explicit`
+  // so a racing user "forget" can upgrade a non-explicit teardown.
+  private finalizing = new Map<string, { explicit: boolean }>();
   private handlers: ServiceEventHandler | null = null;
 
   setHandlers(handlers: ServiceEventHandler): void {
@@ -461,8 +466,11 @@ export class DAppConnectService {
         // Await the teardown: the message queue is per-channel, so
         // halting it while we finalize this same channel is the correct
         // behaviour — any further buffered messages for a channel that's
-        // being torn down are meaningless.
-        await this.disconnectSession(channelId).catch((err) =>
+        // being torn down are meaningless. explicit=false: a dApp-initiated
+        // TERMINATE is a remote close (the dApp already left on its side), so
+        // it should emit leave_channel and record a non-explicit disconnect,
+        // matching the relay 'close' path — not a redundant durable tombstone.
+        await this.disconnectSession(channelId, false).catch((err) =>
           console.error('[DAppConnect] disconnect-on-terminate failed:', err)
         );
         break;
@@ -502,19 +510,20 @@ export class DAppConnectService {
   }
 
   approveRequest(sessionId: string, requestId: string | number, result: unknown): void {
-    // Send the response FIRST, and only bounce back to the dApp once it has
-    // actually been transmitted. maybeReturnToDApp backgrounds the wallet (the
-    // OS may then suspend it); redirecting before/without a successful send
-    // would strand the dApp on a request it never received. Hence .then (on
-    // success) rather than .finally (which also fires on send failure).
-    this.sendJsonRpcResponse(sessionId, {
+    // Send the response FIRST, and only bounce back to the dApp once it was
+    // actually transmitted. maybeReturnToDApp backgrounds the wallet (the OS
+    // may then suspend it); redirecting before/without a successful send would
+    // strand the dApp on a request it never received. sendJsonRpcResponse
+    // resolves true only on a real send (sendEncrypted no longer swallows the
+    // failure into an always-resolved void), so gate the redirect on it.
+    void this.sendJsonRpcResponse(sessionId, {
       jsonrpc: '2.0',
       id: requestId,
       result,
-    }).then(
-      () => this.maybeReturnToDApp(sessionId),
-      (err) => console.error('[DAppConnect] Failed to send approve response:', err)
-    );
+    }).then((sent) => {
+      if (sent) this.maybeReturnToDApp(sessionId);
+      else console.error('[DAppConnect] approve response not sent; skipping return-to-dApp');
+    });
     if (isInNativeApp()) triggerHaptic('success');
   }
 
@@ -523,14 +532,14 @@ export class DAppConnectService {
     requestId: string | number,
     message = 'User rejected the request'
   ): void {
-    this.sendJsonRpcResponse(sessionId, {
+    void this.sendJsonRpcResponse(sessionId, {
       jsonrpc: '2.0',
       id: requestId,
       error: { code: 4001, message },
-    }).then(
-      () => this.maybeReturnToDApp(sessionId),
-      (err) => console.error('[DAppConnect] Failed to send reject response:', err)
-    );
+    }).then((sent) => {
+      if (sent) this.maybeReturnToDApp(sessionId);
+      else console.error('[DAppConnect] reject response not sent; skipping return-to-dApp');
+    });
     if (isInNativeApp()) triggerHaptic('error');
   }
 
@@ -565,21 +574,34 @@ export class DAppConnectService {
   async disconnectSession(channelId: string, explicit = true): Promise<void> {
     dlog(`disconnectSession called for ${channelId}`);
     this.clearDappLeaveTimeout(channelId);
+
+    // Collapse concurrent teardowns of the same channel to a single run. A
+    // per-call flag cannot do this (each invocation has its own), so a user
+    // tap racing an inbound TERMINATE / relay 'close' / grace timeout would
+    // otherwise each reach finalize and fire DAPP_DISCONNECTED +
+    // onSessionDisconnected twice (CLAUDE.md 4.6), with a conflicting
+    // `explicit` that corrupts the persisted flag. First caller wins; a later
+    // explicit=true upgrades the shared decision so a user "forget" still
+    // produces the durable tombstone rather than a transient leave.
+    const inflight = this.finalizing.get(channelId);
+    if (inflight) {
+      if (explicit) inflight.explicit = true;
+      return;
+    }
+    const teardown = { explicit };
+    this.finalizing.set(channelId, teardown);
+
     const conn = this.connections.get(channelId);
 
-    // Idempotence guard: concurrent callers (e.g. the user tapping
-    // Disconnect at the same moment an inbound TERMINATE arrives from the
-    // dApp) must not each run the full teardown and fire a second
-    // DAPP_DISCONNECTED bridge message / onSessionDisconnected callback.
     let finalized = false;
     const finalize = async () => {
       if (finalized) return;
       finalized = true;
 
+      const useExplicit = teardown.explicit;
       const activeConn = this.connections.get(channelId);
       if (activeConn) {
-        // Drop the map entry synchronously so a concurrent disconnectSession
-        // for the same channel no-ops the socket teardown below.
+        // Drop the map entry synchronously so nothing else can re-enter.
         this.connections.delete(channelId);
         // An explicit disconnect ("forget" / user-initiated) marks a durable
         // relay tombstone so an absent dApp learns the session is dead on its
@@ -587,7 +609,7 @@ export class DAppConnectService {
         // flush before disconnect() so the close/leave packet actually reaches
         // the relay instead of being dropped with the torn-down socket.
         try {
-          if (explicit) {
+          if (useExplicit) {
             await activeConn.socketClient.closeChannel();
           } else {
             await activeConn.socketClient.leaveChannel();
@@ -602,16 +624,12 @@ export class DAppConnectService {
       this.handlers?.onSessionsChanged();
 
       if (isInNativeApp()) {
-        sendToNative('DAPP_DISCONNECTED' as never, { channelId, explicit });
+        sendToNative('DAPP_DISCONNECTED' as never, { channelId, explicit: useExplicit });
       }
     };
 
-    if (!conn || !conn.keyExchange.areKeysExchanged()) {
-      await finalize();
-      return;
-    }
-
     const sendTerminate = async () => {
+      if (!conn) return;
       try {
         const encrypted = await conn.keyExchange.encryptMessage(
           JSON.stringify({ type: MessageType.TERMINATE })
@@ -627,12 +645,17 @@ export class DAppConnectService {
     };
 
     try {
-      await Promise.race([
-        sendTerminate(),
-        new Promise((resolve) => setTimeout(resolve, TERMINATE_SEND_TIMEOUT_MS)),
-      ]);
+      // Only attempt the encrypted TERMINATE when there's a live, keyed
+      // session; otherwise go straight to teardown.
+      if (conn && conn.keyExchange.areKeysExchanged()) {
+        await Promise.race([
+          sendTerminate(),
+          new Promise((resolve) => setTimeout(resolve, TERMINATE_SEND_TIMEOUT_MS)),
+        ]);
+      }
     } finally {
       await finalize();
+      this.finalizing.delete(channelId);
     }
   }
 
@@ -811,9 +834,15 @@ export class DAppConnectService {
     }
   }
 
-  private async sendEncrypted(channelId: string, message: object): Promise<void> {
+  /**
+   * Encrypt + send a message to the dApp. Resolves true if it was actually
+   * transmitted, false if there was no connection or the send failed. The
+   * boolean lets callers (approve/reject) gate the return-to-dApp redirect on
+   * a real successful send rather than assuming success.
+   */
+  private async sendEncrypted(channelId: string, message: object): Promise<boolean> {
     const conn = this.connections.get(channelId);
-    if (!conn) return;
+    if (!conn) return false;
     try {
       const encrypted = await conn.keyExchange.encryptMessage(
         JSON.stringify(message)
@@ -823,15 +852,17 @@ export class DAppConnectService {
         clientType: 'wallet',
         message: encrypted,
       });
+      return true;
     } catch (err) {
       console.error('[DAppConnect] Failed to send encrypted:', err);
+      return false;
     }
   }
 
   private sendJsonRpcResponse(
     channelId: string,
     response: JsonRpcResponse
-  ): Promise<void> {
+  ): Promise<boolean> {
     return this.sendEncrypted(channelId, {
       type: MessageType.JSONRPC,
       ...response,
