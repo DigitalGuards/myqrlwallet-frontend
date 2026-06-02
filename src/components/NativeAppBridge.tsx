@@ -149,8 +149,17 @@ const NativeAppBridge: React.FC = () => {
           if (DAppConnectService.isConnectionURI(address)) {
             logToNative(`DApp connection URI detected, routing to DAppConnectService`);
             // QR scan => the dApp is on another device; no same-device
-            // return-to-dApp redirect after approval.
-            dappConnectService.handleConnectionURI(address, 'qr');
+            // return-to-dApp redirect after approval. handleConnectionURI
+            // resolves with {success:false} rather than throwing, so log the
+            // reason instead of letting a failed connect die silently.
+            void dappConnectService
+              .handleConnectionURI(address, 'qr')
+              .then((r) => {
+                if (!r.success) logToNative(`DApp connect failed: ${r.error ?? 'unknown'}`);
+              })
+              .catch((err) =>
+                logToNative(`DApp connect error: ${err instanceof Error ? err.message : String(err)}`)
+              );
             return;
           }
 
@@ -200,7 +209,14 @@ const NativeAppBridge: React.FC = () => {
           }
           logToNative(`DApp URI received via deep link: ${uri}`);
           // Deep link => same-device flow; enable the return-to-dApp redirect.
-          dappConnectService.handleConnectionURI(uri, 'deeplink');
+          void dappConnectService
+            .handleConnectionURI(uri, 'deeplink')
+            .then((r) => {
+              if (!r.success) logToNative(`DApp connect failed: ${r.error ?? 'unknown'}`);
+            })
+            .catch((err) =>
+              logToNative(`DApp connect error: ${err instanceof Error ? err.message : String(err)}`)
+            );
           break;
         }
 
