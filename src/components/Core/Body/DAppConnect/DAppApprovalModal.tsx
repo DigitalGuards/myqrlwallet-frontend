@@ -32,6 +32,13 @@ import {
 } from '@/utils/signing';
 import { Loader, Check, X, ExternalLink, Shield, Globe } from 'lucide-react';
 import type { TxProgressState } from '@/stores/dappConnectStore';
+import type { ZodError } from 'zod';
+
+function formatZodIssues(error: ZodError): string {
+  return error.issues
+    .map((i) => `${i.path.length ? i.path.join('.') : '(root)'}: ${i.message}`)
+    .join('; ') || 'malformed params';
+}
 
 const METHOD_LABELS: Record<string, string> = {
   qrl_requestAccounts: 'Connect Account',
@@ -256,7 +263,7 @@ const DAppApprovalModal = observer(() => {
       if (method === 'qrl_signMessage') {
         const parsed = SignMessageParamsSchema.safeParse(params);
         if (!parsed.success) {
-          setError(`Invalid qrl_signMessage params: ${parsed.error.issues[0]?.message ?? 'unknown'}`);
+          setError(`Invalid qrl_signMessage params: ${formatZodIssues(parsed.error)}`);
           setLoading(false);
           return;
         }
@@ -289,7 +296,7 @@ const DAppApprovalModal = observer(() => {
       if (method === 'qrl_signTypedData') {
         const parsed = SignTypedDataParamsSchema.safeParse(params);
         if (!parsed.success) {
-          setError(`Invalid qrl_signTypedData params: ${parsed.error.issues[0]?.message ?? 'unknown'}`);
+          setError(`Invalid qrl_signTypedData params: ${formatZodIssues(parsed.error)}`);
           setLoading(false);
           return;
         }
@@ -375,7 +382,7 @@ const DAppApprovalModal = observer(() => {
     if (method === 'qrl_signMessage') {
       const parsed = SignMessageParamsSchema.safeParse(params);
       if (!parsed.success) {
-        return { kind: 'invalid' as const, reason: parsed.error.issues[0]?.message ?? 'malformed params' };
+        return { kind: 'invalid' as const, reason: formatZodIssues(parsed.error) };
       }
       try {
         const [, messageHex] = parsed.data;
@@ -388,7 +395,7 @@ const DAppApprovalModal = observer(() => {
     if (method === 'qrl_signTypedData') {
       const parsed = SignTypedDataParamsSchema.safeParse(params);
       if (!parsed.success) {
-        return { kind: 'invalid' as const, reason: parsed.error.issues[0]?.message ?? 'malformed params' };
+        return { kind: 'invalid' as const, reason: formatZodIssues(parsed.error) };
       }
       try {
         const payload = parsed.data[1];
