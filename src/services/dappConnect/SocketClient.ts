@@ -7,6 +7,10 @@ import type { RelayMessage } from './types';
 import { logToNative } from '@/utils/nativeApp';
 
 const RELAY_PATH = '/relay';
+// Give an outbound leave/close packet a bounded window to reach the relay
+// (resolving on its ack) before the socket is torn down, so disconnect() can't
+// drop the unflushed packet and lose the tombstone / leave notification.
+const SEND_FLUSH_TIMEOUT_MS = 600;
 
 type SocketEventHandler = {
   onMessage: (data: RelayMessage) => void;
@@ -178,24 +182,50 @@ export class SocketClient {
     });
   }
 
-  leaveChannel(): void {
-    if (this.socket?.connected && this.channelId) {
-      this.socket.emit('leave_channel', { channelId: this.channelId });
-    }
+  /**
+   * Emit an event and resolve once the relay acks it, or after a bounded
+   * flush window. Lets a caller await transmission before tearing the socket
+   * down (socket.io buffers emits, and disconnect() drops anything unflushed).
+   */
+  private flushEmit(event: string, payload: object): Promise<void> {
+    return new Promise((resolve) => {
+      if (!this.socket?.connected) {
+        resolve();
+        return;
+      }
+      let settled = false;
+      const done = (): void => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      const timer = setTimeout(done, SEND_FLUSH_TIMEOUT_MS);
+      this.socket.emit(event, payload, () => {
+        clearTimeout(timer);
+        done();
+      });
+    });
+  }
+
+  leaveChannel(): Promise<void> {
+    const channelId = this.channelId;
     this.channelId = null;
+    if (!this.socket?.connected || !channelId) return Promise.resolve();
+    return this.flushEmit('leave_channel', { channelId });
   }
 
   /**
    * Explicitly terminate the channel on the relay (intentional disconnect /
    * "forget"), as opposed to a transient leave. The relay marks a durable
    * tombstone so the dApp learns the session is dead even if it is not
-   * currently joined and only re-joins later.
+   * currently joined and only re-joins later. Resolves once the close is
+   * flushed (or times out) so the caller can safely disconnect afterwards.
    */
-  closeChannel(): void {
-    if (this.socket?.connected && this.channelId) {
-      this.socket.emit('close_channel', { channelId: this.channelId });
-    }
+  closeChannel(): Promise<void> {
+    const channelId = this.channelId;
     this.channelId = null;
+    if (!this.socket?.connected || !channelId) return Promise.resolve();
+    return this.flushEmit('close_channel', { channelId });
   }
 
   disconnect(): void {

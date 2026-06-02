@@ -260,7 +260,7 @@ export class DAppConnectService {
       // joined to the relay channel and keeps firing onMessage handlers
       // for a channel whose ActiveConnection we've already dropped.
       try {
-        socketClient.leaveChannel();
+        await socketClient.leaveChannel();
       } catch {
         // ignore — we're already in the error path
       }
@@ -549,9 +549,17 @@ export class DAppConnectService {
     // phone is wrong (e.g. a desktop dApp's http://localhost:5174).
     if (!conn?.originatedViaDeepLink) return;
     const redirectUrl = conn.dappInfo.redirectUrl;
-    if (redirectUrl) {
-      sendToNative('DAPP_RETURN', { channelId, redirectUrl });
+    if (!redirectUrl) return;
+    // The redirectUrl comes from the dApp's ORIGINATOR_INFO (attacker
+    // controllable). Validate the scheme before crossing the bridge. The
+    // native side also allowlists, but stopping it here keeps a dangerous
+    // scheme (javascript:, tel:, etc.) from ever reaching native.
+    const scheme = /^([a-z][a-z0-9.+-]*):/i.exec(redirectUrl)?.[1]?.toLowerCase();
+    if (!scheme || !['https', 'http', 'qrlconnect'].includes(scheme)) {
+      dlog(`Ignoring dApp redirectUrl with unsupported scheme: ${redirectUrl}`);
+      return;
     }
+    sendToNative('DAPP_RETURN', { channelId, redirectUrl });
   }
 
   async disconnectSession(channelId: string, explicit = true): Promise<void> {
@@ -564,22 +572,29 @@ export class DAppConnectService {
     // dApp) must not each run the full teardown and fire a second
     // DAPP_DISCONNECTED bridge message / onSessionDisconnected callback.
     let finalized = false;
-    const finalize = () => {
+    const finalize = async () => {
       if (finalized) return;
       finalized = true;
 
       const activeConn = this.connections.get(channelId);
       if (activeConn) {
+        // Drop the map entry synchronously so a concurrent disconnectSession
+        // for the same channel no-ops the socket teardown below.
+        this.connections.delete(channelId);
         // An explicit disconnect ("forget" / user-initiated) marks a durable
         // relay tombstone so an absent dApp learns the session is dead on its
-        // next join; a grace-timeout leave is transient and must not.
-        if (explicit) {
-          activeConn.socketClient.closeChannel();
-        } else {
-          activeConn.socketClient.leaveChannel();
+        // next join; a grace-timeout leave is transient and must not. Await the
+        // flush before disconnect() so the close/leave packet actually reaches
+        // the relay instead of being dropped with the torn-down socket.
+        try {
+          if (explicit) {
+            await activeConn.socketClient.closeChannel();
+          } else {
+            await activeConn.socketClient.leaveChannel();
+          }
+        } finally {
+          activeConn.socketClient.disconnect();
         }
-        activeConn.socketClient.disconnect();
-        this.connections.delete(channelId);
       }
 
       SessionStore.remove(channelId);
@@ -592,7 +607,7 @@ export class DAppConnectService {
     };
 
     if (!conn || !conn.keyExchange.areKeysExchanged()) {
-      finalize();
+      await finalize();
       return;
     }
 
@@ -617,7 +632,7 @@ export class DAppConnectService {
         new Promise((resolve) => setTimeout(resolve, TERMINATE_SEND_TIMEOUT_MS)),
       ]);
     } finally {
-      finalize();
+      await finalize();
     }
   }
 
@@ -714,6 +729,15 @@ export class DAppConnectService {
         }
       } catch (err) {
         console.error('[DAppConnect] Failed to reconnect session:', session.id, err);
+        // The connection was added to this.connections before the join; if the
+        // join failed (e.g. transient network), tear it down so a later
+        // reconnectAll can retry. Left in place it would be skipped on every
+        // retry (has() is true) and never auto-rejoin (hasJoinedOnce is false).
+        const failed = this.connections.get(session.id);
+        if (failed) {
+          failed.socketClient.disconnect();
+          this.connections.delete(session.id);
+        }
         SessionStore.updateStatus(session.id, SessionStatus.DISCONNECTED);
       }
     }
