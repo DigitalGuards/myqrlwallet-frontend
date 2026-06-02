@@ -14,6 +14,8 @@ type SocketEventHandler = {
   onDisconnected: (reason: string) => void;
   onReconnected: () => void;
   onParticipantsChanged: (data: { event: string; clientType?: string }) => void;
+  /** The relay reported a terminated (tombstoned) channel on (re)join. */
+  onTerminated?: () => void;
 };
 
 export class SocketClient {
@@ -51,7 +53,14 @@ export class SocketClient {
       // with it here and emit join_channel twice on the first connect.
       if (this.channelId && this.hasJoinedOnce) {
         this.emitJoinChannel(this.channelId)
-          .then(({ bufferedMessages }) => {
+          .then(({ bufferedMessages, terminated }) => {
+            if (terminated) {
+              // The dApp explicitly closed the channel while we were away.
+              // Don't deliver stale buffered messages or flip back to
+              // CONNECTED; surface the termination so the session is dropped.
+              this.handlers.onTerminated?.();
+              return;
+            }
             for (const msg of bufferedMessages) {
               this.handlers.onMessage(msg as RelayMessage);
             }
@@ -83,7 +92,7 @@ export class SocketClient {
 
   async joinChannel(
     channelId: string
-  ): Promise<{ bufferedMessages: unknown[]; channelPublicKey: string | null }> {
+  ): Promise<{ bufferedMessages: unknown[]; channelPublicKey: string | null; terminated: boolean }> {
     this.channelId = channelId;
     if (!this.socket) {
       throw new Error('Socket not initialised; call connect() before joinChannel()');
@@ -126,7 +135,7 @@ export class SocketClient {
 
   private emitJoinChannel(
     channelId: string
-  ): Promise<{ bufferedMessages: unknown[]; channelPublicKey: string | null }> {
+  ): Promise<{ bufferedMessages: unknown[]; channelPublicKey: string | null; terminated: boolean }> {
     return new Promise((resolve, reject) => {
       this.socket!.emit(
         'join_channel',
@@ -136,11 +145,13 @@ export class SocketClient {
           error?: string;
           bufferedMessages?: unknown[];
           channelPublicKey?: string | null;
+          terminated?: boolean;
         }) => {
           if (response?.success) {
             resolve({
               bufferedMessages: response.bufferedMessages || [],
               channelPublicKey: response.channelPublicKey ?? null,
+              terminated: response.terminated === true,
             });
           } else {
             reject(new Error(response?.error || 'Failed to join channel'));
