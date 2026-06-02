@@ -3,7 +3,8 @@
  * Single source of truth for all dApp request approvals.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { toJS } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '@/stores/store';
 import {
@@ -12,24 +13,43 @@ import {
 } from '@/components/UI/Dialog';
 import { Button } from '@/components/UI/Button';
 import DAppTransactionReview from './DAppTransactionReview';
+import DAppMessageReview from './DAppMessageReview';
+import DAppTypedDataReview from './DAppTypedDataReview';
 import { utils } from '@theqrl/web3';
 import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
 import { getNativeInjectedPin } from '@/utils/nativeApp';
 import StorageUtil from '@/utils/storage/storage';
 import { getExplorerTxUrl } from '@/config';
 import { formatAddressShort } from '@/utils/formatting';
+import {
+  bytesToHex,
+  computeMessageDigest,
+  computeTypedDataDigest,
+  hexToBytes,
+  signMessage,
+  signTypedData,
+  SignMessageParamsSchema,
+  SignTypedDataParamsSchema,
+} from '@/utils/signing';
 import { Loader, Check, X, ExternalLink, Shield, Globe } from 'lucide-react';
 import type { TxProgressState } from '@/stores/dappConnectStore';
+import type { ZodError } from 'zod';
+
+function formatZodIssues(error: ZodError): string {
+  // path segments can be symbols (e.g. a MobX admin key surfaced by zod's
+  // record key check); String() coerces them safely whereas Array.join would
+  // throw "Cannot convert a Symbol value to a string" and crash the render.
+  return error.issues
+    .map((i) => `${i.path.length ? i.path.map(String).join('.') : '(root)'}: ${i.message}`)
+    .join('; ') || 'malformed params';
+}
 
 const METHOD_LABELS: Record<string, string> = {
   qrl_requestAccounts: 'Connect Account',
   qrl_sendTransaction: 'Send Transaction',
   qrl_signTransaction: 'Sign Transaction',
-  qrl_sign: 'Sign Message',
-  personal_sign: 'Sign Message',
+  qrl_signMessage: 'Sign Message',
   qrl_signTypedData: 'Sign Typed Data',
-  qrl_signTypedData_v3: 'Sign Typed Data',
-  qrl_signTypedData_v4: 'Sign Typed Data',
   wallet_addQrlChain: 'Add Network',
   wallet_switchQrlChain: 'Switch Network',
 };
@@ -44,66 +64,6 @@ function parseRpcNumber(value: unknown, fallback: number): number {
     if (Number.isFinite(parsed)) return parsed;
   }
   return fallback;
-}
-
-/**
- * EIP-191 `personal_sign` requires `params[0]` to be hex-encoded data — that's
- * what the QRL Web3 Wallet extension and conforming dApps send. For the
- * approval preview, decode hex back to human-readable text so the user sees
- * what they're actually signing, not a wall of bytes. Falls back to the
- * original string if it isn't well-formed hex or decodes to non-printable
- * bytes.
- */
-function decodeHexForPreview(value: string): string {
-  if (!value || typeof value !== 'string' || !value.startsWith('0x')) return value;
-  const hex = value.slice(2);
-  if (hex.length === 0 || hex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(hex)) {
-    return value;
-  }
-  try {
-    const bytes = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < bytes.length; i++) {
-      bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-    }
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-    // Refuse to "decode" if the result contains control chars — that means
-    // it's binary data and the hex form is the honest representation.
-    // Control range covers C0 (0x00–0x08, 0x0e–0x1f) and DEL (0x7f); we keep
-    // tab/LF/CR/FF (0x09–0x0d) so multi-line or formatted messages survive.
-    for (let i = 0; i < text.length; i++) {
-      const c = text.charCodeAt(i);
-      if ((c <= 0x08) || (c >= 0x0e && c <= 0x1f) || c === 0x7f) {
-        return value;
-      }
-    }
-    return text;
-  } catch {
-    return value;
-  }
-}
-
-function getMessageToSign(
-  method: string,
-  params: unknown[] | undefined,
-  activeAddress: string
-): string {
-  const first = typeof params?.[0] === 'string' ? params[0] : '';
-  const second = typeof params?.[1] === 'string' ? params[1] : '';
-  const active = activeAddress.toLowerCase();
-
-  if (method === 'personal_sign') {
-    // EIP-191: personal_sign(data, address)
-    if (second.toLowerCase() === active) return first;
-    return '';
-  }
-
-  if (method === 'qrl_sign') {
-    // eth_sign/qrl_sign: (address, data)
-    if (first.toLowerCase() === active && second) return second;
-    return '';
-  }
-
-  return '';
 }
 
 function toUserFacingError(error: string): string {
@@ -121,6 +81,27 @@ function toUserFacingError(error: string): string {
     return 'Request was rejected.';
   }
   return 'Transaction failed. Please verify details and try again.';
+}
+
+/**
+ * Shared PIN-unlock: pulls the encrypted seed for `activeAddress` and
+ * decrypts it. Callers handle their own UX side effects (progress states,
+ * error display); this helper just produces a hexSeed or a reason string.
+ */
+async function unlockHexSeed(
+  pinToUse: string,
+  activeAddress: string,
+): Promise<{ hexSeed: string } | { error: string }> {
+  if (!pinToUse) return { error: 'Please enter your PIN' };
+  const blockchainVal = await StorageUtil.getBlockChain();
+  const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchainVal, activeAddress);
+  if (!encryptedSeed) return { error: 'No encrypted seed found' };
+  try {
+    const decrypted = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pinToUse);
+    return { hexSeed: decrypted.hexSeed };
+  } catch {
+    return { error: 'Incorrect PIN' };
+  }
 }
 
 function getBorderColor(progress: TxProgressState): string {
@@ -148,7 +129,13 @@ const DAppApprovalModal = observer(() => {
     setLoading(true);
 
     try {
-      const { method, params } = currentApproval;
+      const { method } = currentApproval;
+      // currentApproval is a deep MobX observable, so its nested params objects
+      // carry a Symbol(mobx administration) key. zod's z.record key check walks
+      // own symbols and rejects that key (and the signing encoders must hash a
+      // plain object anyway), so de-proxy to plain JS before validating/signing.
+      // toJS is digest-neutral: the encoder reads fields by name in type order.
+      const params = toJS(currentApproval.params);
 
       if (method === 'qrl_requestAccounts') {
         const activeAddress = qrlStore.activeAccount?.accountAddress;
@@ -165,15 +152,19 @@ const DAppApprovalModal = observer(() => {
 
       if (method === 'qrl_sendTransaction' || method === 'qrl_signTransaction') {
         const pinToUse = getNativeInjectedPin() || pin;
-        if (!pinToUse) {
-          setError('Please enter your PIN');
-          setLoading(false);
-          return;
-        }
-
         const activeAddress = qrlStore.activeAccount?.accountAddress;
         if (!activeAddress) {
           setError('No active account');
+          setLoading(false);
+          return;
+        }
+        // Guard empty PIN *before* entering the 'signing' progress state.
+        // Once txProgress leaves 'idle' the modal switches to its terminal
+        // view (PIN input unmounts, only a Close button remains), so an empty
+        // PIN reaching the unlock below would strand the user with no retry
+        // and leave the dApp request unanswered.
+        if (!pinToUse) {
+          setError('Please enter your PIN');
           setLoading(false);
           return;
         }
@@ -181,32 +172,30 @@ const DAppApprovalModal = observer(() => {
         // Stage: signing
         dappConnectStore.setTxProgress('signing');
 
-        const blockchainVal = await StorageUtil.getBlockChain();
-        const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchainVal, activeAddress);
-        if (!encryptedSeed) {
-          setError('No encrypted seed found');
-          dappConnectStore.setTxProgress('failed', undefined, 'No encrypted seed found');
+        const unlocked = await unlockHexSeed(pinToUse, activeAddress);
+        if ('error' in unlocked) {
+          setError(unlocked.error);
+          if (unlocked.error === 'Incorrect PIN') {
+            // Recoverable: reset to the editable state so the user can retry.
+            setPin('');
+            dappConnectStore.resetTxProgress();
+          } else {
+            // Non-recoverable (e.g. no stored seed). Answer the dApp so its
+            // request does not hang, then show the terminal failed state.
+            dappConnectStore.setTxProgress('failed', undefined, unlocked.error);
+            dappConnectStore.sendRejectionResult(unlocked.error);
+          }
           setLoading(false);
           return;
         }
-
-        let hexSeed: string;
-        try {
-          const decrypted = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pinToUse);
-          hexSeed = decrypted.hexSeed;
-        } catch {
-          setPin('');
-          setError('Incorrect PIN');
-          dappConnectStore.resetTxProgress();
-          setLoading(false);
-          return;
-        }
+        const hexSeed = unlocked.hexSeed;
 
         const txParams = (params?.[0] || {}) as Record<string, unknown>;
         const web3 = qrlStore.qrlInstance;
         if (!web3) {
           setError('Web3 not initialized');
           dappConnectStore.setTxProgress('failed', undefined, 'Web3 not initialized');
+          dappConnectStore.sendRejectionResult('Web3 not initialized');
           setLoading(false);
           return;
         }
@@ -251,6 +240,7 @@ const DAppApprovalModal = observer(() => {
 
         if (!signedTx.rawTransaction) {
           dappConnectStore.setTxProgress('failed', undefined, 'Failed to sign transaction');
+          dappConnectStore.sendRejectionResult('Failed to sign transaction');
           setLoading(false);
           return;
         }
@@ -284,9 +274,12 @@ const DAppApprovalModal = observer(() => {
             })
             .on('error', (txErr: Error) => {
               const txErrMsg = txErr.message || String(txErr);
+              // Log the raw node/broadcast reason (bridges to Metro as a
+              // [WebView] line; console.error does not bridge) since
+              // toUserFacingError intentionally hides it from the UI.
+              console.log('[DAppConnect] tx broadcast error:', txErrMsg);
               const userError = toUserFacingError(txErrMsg);
               dappConnectStore.setTxProgress('failed', undefined, userError);
-              // Send rejection to dApp but keep modal open to show failed state
               dappConnectStore.sendRejectionResult(`Transaction failed: ${userError}`);
               setPin('');
               setLoading(false);
@@ -296,60 +289,89 @@ const DAppApprovalModal = observer(() => {
         return;
       }
 
-      if (method.startsWith('qrl_signTypedData')) {
-        dappConnectStore.rejectCurrentRequest('Typed data signing is not supported yet');
-        return;
-      }
-
-      if (method === 'personal_sign' || method === 'qrl_sign') {
-        const pinToUse = getNativeInjectedPin() || pin;
-        if (!pinToUse) {
-          setError('Please enter your PIN');
+      if (method === 'qrl_signMessage') {
+        const parsed = SignMessageParamsSchema.safeParse(params);
+        if (!parsed.success) {
+          setError(`Invalid qrl_signMessage params: ${formatZodIssues(parsed.error)}`);
           setLoading(false);
           return;
         }
-
+        const [signerParam, messageHex] = parsed.data;
         const activeAddress = qrlStore.activeAccount?.accountAddress;
         if (!activeAddress) {
           setError('No active account');
           setLoading(false);
           return;
         }
-
-        const blockchainVal = await StorageUtil.getBlockChain();
-        const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchainVal, activeAddress);
-        if (!encryptedSeed) {
-          setError('No encrypted seed found');
+        if (signerParam.toLowerCase() !== activeAddress.toLowerCase()) {
+          setError('Signer mismatch: request is for a different account');
           setLoading(false);
           return;
         }
-
-        let hexSeed: string;
+        const pinToUse = getNativeInjectedPin() || pin;
+        const unlocked = await unlockHexSeed(pinToUse, activeAddress);
+        if ('error' in unlocked) {
+          if (unlocked.error === 'Incorrect PIN') setPin('');
+          setError(unlocked.error);
+          setLoading(false);
+          return;
+        }
         try {
-          const decrypted = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pinToUse);
-          hexSeed = decrypted.hexSeed;
-        } catch {
-          setPin('');
-          setError('Incorrect PIN');
+          const result = signMessage(messageHex, unlocked.hexSeed);
+          dappConnectStore.approveCurrentRequest(result);
+        } catch (e) {
+          // Reject the dApp on a signing failure instead of relying on the
+          // outer catch, so the error message is specific and the request is
+          // always answered (never left hanging).
+          const errMsg = e instanceof Error ? e.message : String(e);
+          setError(`Message signing failed: ${errMsg}`);
+          dappConnectStore.rejectCurrentRequest(`Message signing failed: ${errMsg}`);
           setLoading(false);
           return;
         }
+        setPin('');
+        return;
+      }
 
-        const web3 = qrlStore.qrlInstance;
-        if (!web3) {
-          setError('Web3 not initialized');
+      if (method === 'qrl_signTypedData') {
+        const parsed = SignTypedDataParamsSchema.safeParse(params);
+        if (!parsed.success) {
+          setError(`Invalid qrl_signTypedData params: ${formatZodIssues(parsed.error)}`);
           setLoading(false);
           return;
         }
-
-        const message = getMessageToSign(method, params, activeAddress);
-        if (!message) {
-          setError('Missing message to sign');
+        const [signerParam, payload] = parsed.data;
+        const activeAddress = qrlStore.activeAccount?.accountAddress;
+        if (!activeAddress) {
+          setError('No active account');
           setLoading(false);
           return;
         }
-        const signed = web3.accounts.sign(message, hexSeed);
-        dappConnectStore.approveCurrentRequest(signed.signature);
+        if (signerParam.toLowerCase() !== activeAddress.toLowerCase()) {
+          setError('Signer mismatch: request is for a different account');
+          setLoading(false);
+          return;
+        }
+        const pinToUse = getNativeInjectedPin() || pin;
+        const unlocked = await unlockHexSeed(pinToUse, activeAddress);
+        if ('error' in unlocked) {
+          if (unlocked.error === 'Incorrect PIN') setPin('');
+          setError(unlocked.error);
+          setLoading(false);
+          return;
+        }
+        try {
+          const result = signTypedData(payload, unlocked.hexSeed);
+          dappConnectStore.approveCurrentRequest(result);
+        } catch (e) {
+          // Reject the dApp on encode/sign failure so its request is answered
+          // rather than left hanging until its own timeout.
+          const errMsg = e instanceof Error ? e.message : String(e);
+          setError(`Typed data signing failed: ${errMsg}`);
+          dappConnectStore.rejectCurrentRequest(`Typed data signing failed: ${errMsg}`);
+          setLoading(false);
+          return;
+        }
         setPin('');
         return;
       }
@@ -359,6 +381,9 @@ const DAppApprovalModal = observer(() => {
       setPin('');
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
+      // Log the raw cause (bridges to Metro) before toUserFacingError flattens
+      // it for display.
+      console.log('[DAppConnect] approval error:', errMsg);
       const userError = toUserFacingError(errMsg);
       setError(userError);
       if (currentApproval) {
@@ -389,6 +414,51 @@ const DAppApprovalModal = observer(() => {
     setError('');
   }, [dappConnectStore]);
 
+  /**
+   * Preview state for the two signing methods. Recomputed when the pending
+   * request changes; we pre-validate so the user sees a clear "this request
+   * is malformed" reason rather than only learning at Approve time.
+   *
+   * Must live above the early-return guard below: hook count has to stay
+   * stable across renders or React throws #310 ("Rendered more hooks than
+   * during the previous render") the first time an approval arrives.
+   */
+  const signingPreview = useMemo(() => {
+    if (!currentApproval) return null;
+    const { method } = currentApproval;
+    // De-proxy the observable params (see handleApprove): zod's record key
+    // check would otherwise trip over MobX's Symbol(mobx administration) key
+    // and formatZodIssues would throw while rendering.
+    const params = toJS(currentApproval.params);
+    if (method === 'qrl_signMessage') {
+      const parsed = SignMessageParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return { kind: 'invalid' as const, reason: formatZodIssues(parsed.error) };
+      }
+      try {
+        const [, messageHex] = parsed.data;
+        const digestHex = bytesToHex(computeMessageDigest(hexToBytes(messageHex)));
+        return { kind: 'message' as const, messageHex, digestHex };
+      } catch (e) {
+        return { kind: 'invalid' as const, reason: e instanceof Error ? e.message : String(e) };
+      }
+    }
+    if (method === 'qrl_signTypedData') {
+      const parsed = SignTypedDataParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return { kind: 'invalid' as const, reason: formatZodIssues(parsed.error) };
+      }
+      try {
+        const payload = parsed.data[1];
+        const digestHex = bytesToHex(computeTypedDataDigest(payload));
+        return { kind: 'typed' as const, payload, digestHex };
+      } catch (e) {
+        return { kind: 'invalid' as const, reason: e instanceof Error ? e.message : String(e) };
+      }
+    }
+    return null;
+  }, [currentApproval]);
+
   if (!currentApproval) return null;
 
   const { method, params, dappInfo } = currentApproval;
@@ -398,9 +468,6 @@ const DAppApprovalModal = observer(() => {
     method !== 'wallet_switchQrlChain';
   const hasNativePin = !!getNativeInjectedPin();
   const isTransaction = method === 'qrl_sendTransaction' || method === 'qrl_signTransaction';
-  const messagePreview = (method === 'personal_sign' || method === 'qrl_sign')
-    ? decodeHexForPreview(getMessageToSign(method, params, qrlStore.activeAccount?.accountAddress || ''))
-    : '';
 
   const isTxInProgress = txProgress !== 'idle';
   const isTxTerminal = txProgress === 'confirmed' || txProgress === 'failed';
@@ -517,12 +584,24 @@ const DAppApprovalModal = observer(() => {
                 <DAppTransactionReview params={params[0] as Record<string, unknown>} />
               )}
 
-              {(method === 'personal_sign' || method === 'qrl_sign') && messagePreview && (
-                <div className="rounded-md border border-border bg-muted/30 p-4">
-                  <p className="mb-2 text-xs text-muted-foreground">Message to sign:</p>
-                  <p className="max-h-32 overflow-auto break-all font-mono text-sm">
-                    {messagePreview}
-                  </p>
+              {signingPreview?.kind === 'message' && (
+                <DAppMessageReview
+                  messageHex={signingPreview.messageHex}
+                  digestHex={signingPreview.digestHex}
+                />
+              )}
+
+              {signingPreview?.kind === 'typed' && (
+                <DAppTypedDataReview
+                  payload={signingPreview.payload}
+                  digestHex={signingPreview.digestHex}
+                />
+              )}
+
+              {signingPreview?.kind === 'invalid' && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
+                  <p className="mb-1 font-medium text-destructive">Cannot decode this request</p>
+                  <p className="text-xs text-muted-foreground break-all">{signingPreview.reason}</p>
                 </div>
               )}
 
