@@ -6,6 +6,12 @@ export interface DAppInfo {
   url: string;
   icon?: string;
   chainId: string;
+  /**
+   * Optional return-to-dApp target sent by the dApp in ORIGINATOR_INFO.
+   * After the wallet resolves a restricted request, the native app opens
+   * this so a same-device deep-link user is bounced back to the dApp.
+   */
+  redirectUrl?: string;
 }
 
 /**
