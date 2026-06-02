@@ -34,7 +34,14 @@ function dlog(msg: string): void {
 }
 
 const DEFAULT_RELAY_URL = 'https://qrlwallet.com';
-const DAPP_REJOIN_GRACE_MS = 30000;
+// Grace period before a dApp that left the relay channel is torn down. On a
+// same-device deep-link round trip the dApp's browser tab is suspended while
+// the wallet is foregrounded, so its relay socket drops; the relay buffer
+// (5 min) and channel (30 min) easily outlive that, and the SDK re-joins the
+// same channel on resume. 30s was shorter than a real browser-to-wallet-and-
+// back round trip and tore down recoverable sessions; 90s comfortably covers
+// it without leaving a genuinely-gone dApp "active" for long.
+const DAPP_REJOIN_GRACE_MS = 90000;
 const TERMINATE_SEND_TIMEOUT_MS = 800;
 
 interface ActiveConnection {
@@ -55,6 +62,11 @@ interface ActiveConnection {
   // short-circuited as "already connected". Not persisted — rehydrated
   // sessions skip the fp check since the AEAD key is already established.
   dappPublicKey?: Uint8Array;
+  // True only when the connection was opened from a same-device deep link
+  // (qrlconnect:// tapped in the phone browser), not a QR scan. Gates the
+  // return-to-dApp peer redirect: bouncing to the dApp URL only makes sense
+  // on the same device. A QR scan means the dApp is on another device.
+  originatedViaDeepLink: boolean;
 }
 
 type ServiceEventHandler = {
@@ -79,6 +91,11 @@ function getRequestProvider(web3: unknown): RpcRequestProvider | null {
 export class DAppConnectService {
   private connections = new Map<string, ActiveConnection>();
   private dappLeaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  // Channels with an in-flight teardown, so concurrent disconnectSession()
+  // calls for the same channel collapse to one run (the per-call guard alone
+  // does not dedup across invocations). Value carries the effective `explicit`
+  // so a racing user "forget" can upgrade a non-explicit teardown.
+  private finalizing = new Map<string, { explicit: boolean }>();
   private handlers: ServiceEventHandler | null = null;
 
   setHandlers(handlers: ServiceEventHandler): void {
@@ -90,7 +107,10 @@ export class DAppConnectService {
    * For v2: the URI carries the dApp's ML-KEM public key; the wallet runs
    * Encaps → emits SYNACK → awaits ACK.
    */
-  async handleConnectionURI(uri: string): Promise<{ success: boolean; error?: string }> {
+  async handleConnectionURI(
+    uri: string,
+    origin: 'qr' | 'deeplink' = 'qr'
+  ): Promise<{ success: boolean; error?: string }> {
     let parsed;
     try {
       parsed = await parseConnectionURI(uri);
@@ -168,6 +188,10 @@ export class DAppConnectService {
       onParticipantsChanged: (data) => {
         this.handleParticipantsChanged(channelId, data);
       },
+      onTerminated: () => {
+        // Auto-rejoin saw the channel tombstoned (dApp closed it). Tear down.
+        void this.disconnectSession(channelId, false);
+      },
     });
 
     const connection: ActiveConnection = {
@@ -178,6 +202,7 @@ export class DAppConnectService {
       originatorInfoReceived: false,
       messageQueue: Promise.resolve(),
       relayUrl,
+      originatedViaDeepLink: origin === 'deeplink',
     };
     this.connections.set(channelId, connection);
     this.handlers?.onSessionsChanged();
@@ -240,7 +265,7 @@ export class DAppConnectService {
       // joined to the relay channel and keeps firing onMessage handlers
       // for a channel whose ActiveConnection we've already dropped.
       try {
-        socketClient.leaveChannel();
+        await socketClient.leaveChannel();
       } catch {
         // ignore — we're already in the error path
       }
@@ -379,6 +404,7 @@ export class DAppConnectService {
             url: info.url || conn.dappInfo.url,
             icon: info.icon || conn.dappInfo.icon,
             chainId: info.chainId || conn.dappInfo.chainId,
+            redirectUrl: info.redirectUrl || conn.dappInfo.redirectUrl,
           };
           const firstTime = !conn.originatorInfoReceived;
           conn.originatorInfoReceived = true;
@@ -440,8 +466,11 @@ export class DAppConnectService {
         // Await the teardown: the message queue is per-channel, so
         // halting it while we finalize this same channel is the correct
         // behaviour — any further buffered messages for a channel that's
-        // being torn down are meaningless.
-        await this.disconnectSession(channelId).catch((err) =>
+        // being torn down are meaningless. explicit=false: a dApp-initiated
+        // TERMINATE is a remote close (the dApp already left on its side), so
+        // it should emit leave_channel and record a non-explicit disconnect,
+        // matching the relay 'close' path — not a redundant durable tombstone.
+        await this.disconnectSession(channelId, false).catch((err) =>
           console.error('[DAppConnect] disconnect-on-terminate failed:', err)
         );
         break;
@@ -481,10 +510,19 @@ export class DAppConnectService {
   }
 
   approveRequest(sessionId: string, requestId: string | number, result: unknown): void {
+    // Send the response FIRST, and only bounce back to the dApp once it was
+    // actually transmitted. maybeReturnToDApp backgrounds the wallet (the OS
+    // may then suspend it); redirecting before/without a successful send would
+    // strand the dApp on a request it never received. sendJsonRpcResponse
+    // resolves true only on a real send (sendEncrypted no longer swallows the
+    // failure into an always-resolved void), so gate the redirect on it.
     void this.sendJsonRpcResponse(sessionId, {
       jsonrpc: '2.0',
       id: requestId,
       result,
+    }).then((sent) => {
+      if (sent) this.maybeReturnToDApp(sessionId);
+      else console.error('[DAppConnect] approve response not sent; skipping return-to-dApp');
     });
     if (isInNativeApp()) triggerHaptic('success');
   }
@@ -498,29 +536,87 @@ export class DAppConnectService {
       jsonrpc: '2.0',
       id: requestId,
       error: { code: 4001, message },
+    }).then((sent) => {
+      if (sent) this.maybeReturnToDApp(sessionId);
+      else console.error('[DAppConnect] reject response not sent; skipping return-to-dApp');
     });
     if (isInNativeApp()) triggerHaptic('error');
+  }
+
+  /**
+   * After resolving a restricted request, bounce the user back to the dApp
+   * (WalletConnect-style peer redirect) if it advertised a return URL in
+   * ORIGINATOR_INFO. Native opens the URL; on a same-device deep-link flow
+   * this returns focus to the browser/dApp instead of stranding the user in
+   * the wallet. No-op outside the native app or when no redirect was given.
+   */
+  private maybeReturnToDApp(channelId: string): void {
+    if (!isInNativeApp()) return;
+    const conn = this.connections.get(channelId);
+    // Only bounce back for a same-device deep-link session. A QR-scanned
+    // session means the dApp is on another device, so opening its URL on the
+    // phone is wrong (e.g. a desktop dApp's http://localhost:5174).
+    if (!conn?.originatedViaDeepLink) return;
+    const redirectUrl = conn.dappInfo.redirectUrl;
+    if (!redirectUrl) return;
+    // The redirectUrl comes from the dApp's ORIGINATOR_INFO (attacker
+    // controllable). Validate the scheme before crossing the bridge. The
+    // native side also allowlists, but stopping it here keeps a dangerous
+    // scheme (javascript:, tel:, etc.) from ever reaching native.
+    const scheme = /^([a-z][a-z0-9.+-]*):/i.exec(redirectUrl)?.[1]?.toLowerCase();
+    if (!scheme || !['https', 'http', 'qrlconnect'].includes(scheme)) {
+      dlog(`Ignoring dApp redirectUrl with unsupported scheme: ${redirectUrl}`);
+      return;
+    }
+    sendToNative('DAPP_RETURN', { channelId, redirectUrl });
   }
 
   async disconnectSession(channelId: string, explicit = true): Promise<void> {
     dlog(`disconnectSession called for ${channelId}`);
     this.clearDappLeaveTimeout(channelId);
+
+    // Collapse concurrent teardowns of the same channel to a single run. A
+    // per-call flag cannot do this (each invocation has its own), so a user
+    // tap racing an inbound TERMINATE / relay 'close' / grace timeout would
+    // otherwise each reach finalize and fire DAPP_DISCONNECTED +
+    // onSessionDisconnected twice (CLAUDE.md 4.6), with a conflicting
+    // `explicit` that corrupts the persisted flag. First caller wins; a later
+    // explicit=true upgrades the shared decision so a user "forget" still
+    // produces the durable tombstone rather than a transient leave.
+    const inflight = this.finalizing.get(channelId);
+    if (inflight) {
+      if (explicit) inflight.explicit = true;
+      return;
+    }
+    const teardown = { explicit };
+    this.finalizing.set(channelId, teardown);
+
     const conn = this.connections.get(channelId);
 
-    // Idempotence guard: concurrent callers (e.g. the user tapping
-    // Disconnect at the same moment an inbound TERMINATE arrives from the
-    // dApp) must not each run the full teardown and fire a second
-    // DAPP_DISCONNECTED bridge message / onSessionDisconnected callback.
     let finalized = false;
-    const finalize = () => {
+    const finalize = async () => {
       if (finalized) return;
       finalized = true;
 
+      const useExplicit = teardown.explicit;
       const activeConn = this.connections.get(channelId);
       if (activeConn) {
-        activeConn.socketClient.leaveChannel();
-        activeConn.socketClient.disconnect();
+        // Drop the map entry synchronously so nothing else can re-enter.
         this.connections.delete(channelId);
+        // An explicit disconnect ("forget" / user-initiated) marks a durable
+        // relay tombstone so an absent dApp learns the session is dead on its
+        // next join; a grace-timeout leave is transient and must not. Await the
+        // flush before disconnect() so the close/leave packet actually reaches
+        // the relay instead of being dropped with the torn-down socket.
+        try {
+          if (useExplicit) {
+            await activeConn.socketClient.closeChannel();
+          } else {
+            await activeConn.socketClient.leaveChannel();
+          }
+        } finally {
+          activeConn.socketClient.disconnect();
+        }
       }
 
       SessionStore.remove(channelId);
@@ -528,16 +624,12 @@ export class DAppConnectService {
       this.handlers?.onSessionsChanged();
 
       if (isInNativeApp()) {
-        sendToNative('DAPP_DISCONNECTED' as never, { channelId, explicit });
+        sendToNative('DAPP_DISCONNECTED' as never, { channelId, explicit: useExplicit });
       }
     };
 
-    if (!conn || !conn.keyExchange.areKeysExchanged()) {
-      finalize();
-      return;
-    }
-
     const sendTerminate = async () => {
+      if (!conn) return;
       try {
         const encrypted = await conn.keyExchange.encryptMessage(
           JSON.stringify({ type: MessageType.TERMINATE })
@@ -553,12 +645,17 @@ export class DAppConnectService {
     };
 
     try {
-      await Promise.race([
-        sendTerminate(),
-        new Promise((resolve) => setTimeout(resolve, TERMINATE_SEND_TIMEOUT_MS)),
-      ]);
+      // Only attempt the encrypted TERMINATE when there's a live, keyed
+      // session; otherwise go straight to teardown.
+      if (conn && conn.keyExchange.areKeysExchanged()) {
+        await Promise.race([
+          sendTerminate(),
+          new Promise((resolve) => setTimeout(resolve, TERMINATE_SEND_TIMEOUT_MS)),
+        ]);
+      }
     } finally {
-      finalize();
+      await finalize();
+      this.finalizing.delete(channelId);
     }
   }
 
@@ -609,6 +706,11 @@ export class DAppConnectService {
             onParticipantsChanged: (data) => {
               this.handleParticipantsChanged(session.id, data);
             },
+            onTerminated: () => {
+              // The dApp closed the channel while we were transiently away
+              // (auto-rejoin saw the tombstone). Drop the dead session.
+              void this.disconnectSession(session.id, false);
+            },
           }
         );
 
@@ -620,10 +722,26 @@ export class DAppConnectService {
           originatorInfoReceived: true,
           messageQueue: Promise.resolve(),
           relayUrl: reconnectRelayUrl,
+          // The connect origin isn't persisted, so a rehydrated session does
+          // not auto-redirect. Safe default: a wrong-device redirect never
+          // fires; a fresh same-device deep-link approval still does.
+          originatedViaDeepLink: false,
         });
 
         socketClient.connect();
-        const { bufferedMessages } = await socketClient.joinChannel(session.id);
+        const { bufferedMessages, terminated } = await socketClient.joinChannel(session.id);
+
+        if (terminated) {
+          // The dApp explicitly closed this channel while the wallet was
+          // offline. Drop the dead session instead of resurrecting a ghost
+          // that shows active but can never reach the gone dApp.
+          dlog(`Stored session ${session.id} was terminated by the dApp; dropping`);
+          socketClient.disconnect();
+          this.connections.delete(session.id);
+          SessionStore.remove(session.id);
+          this.handlers?.onSessionDisconnected(session.id);
+          continue;
+        }
 
         for (const msg of bufferedMessages) {
           this.enqueueRelayMessage(session.id, msg as RelayMessage);
@@ -634,6 +752,15 @@ export class DAppConnectService {
         }
       } catch (err) {
         console.error('[DAppConnect] Failed to reconnect session:', session.id, err);
+        // The connection was added to this.connections before the join; if the
+        // join failed (e.g. transient network), tear it down so a later
+        // reconnectAll can retry. Left in place it would be skipped on every
+        // retry (has() is true) and never auto-rejoin (hasJoinedOnce is false).
+        const failed = this.connections.get(session.id);
+        if (failed) {
+          failed.socketClient.disconnect();
+          this.connections.delete(session.id);
+        }
         SessionStore.updateStatus(session.id, SessionStatus.DISCONNECTED);
       }
     }
@@ -659,6 +786,18 @@ export class DAppConnectService {
     data: { event: string; clientType?: string }
   ): void {
     dlog(`Participants changed: ${data.event} (${data.clientType || 'unknown'})`);
+
+    // The dApp (or relay) explicitly terminated the channel via close_channel.
+    // This is durable, not a transient backgrounding leave, so tear down now
+    // instead of arming the rejoin grace, otherwise the session lingers as a
+    // ghost (shown active) until the socket drops or the channel TTL expires.
+    // explicit=false makes teardown emit leave_channel rather than
+    // close_channel, so we do not bounce a redundant close back to the relay.
+    if (data.event === 'close') {
+      this.clearDappLeaveTimeout(channelId);
+      void this.disconnectSession(channelId, false);
+      return;
+    }
 
     if (data.event === 'join' && data.clientType === 'dapp') {
       this.clearDappLeaveTimeout(channelId);
@@ -695,9 +834,15 @@ export class DAppConnectService {
     }
   }
 
-  private async sendEncrypted(channelId: string, message: object): Promise<void> {
+  /**
+   * Encrypt + send a message to the dApp. Resolves true if it was actually
+   * transmitted, false if there was no connection or the send failed. The
+   * boolean lets callers (approve/reject) gate the return-to-dApp redirect on
+   * a real successful send rather than assuming success.
+   */
+  private async sendEncrypted(channelId: string, message: object): Promise<boolean> {
     const conn = this.connections.get(channelId);
-    if (!conn) return;
+    if (!conn) return false;
     try {
       const encrypted = await conn.keyExchange.encryptMessage(
         JSON.stringify(message)
@@ -707,15 +852,17 @@ export class DAppConnectService {
         clientType: 'wallet',
         message: encrypted,
       });
+      return true;
     } catch (err) {
       console.error('[DAppConnect] Failed to send encrypted:', err);
+      return false;
     }
   }
 
   private sendJsonRpcResponse(
     channelId: string,
     response: JsonRpcResponse
-  ): Promise<void> {
+  ): Promise<boolean> {
     return this.sendEncrypted(channelId, {
       type: MessageType.JSONRPC,
       ...response,

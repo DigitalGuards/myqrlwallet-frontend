@@ -29,7 +29,8 @@ export type WebToNativeMessageType =
   | 'DAPP_SHOW_WEBVIEW'     // Request native to show/focus WebView (for approval modal)
   | 'DAPP_CONNECTED'        // Notify native that a dApp connected
   | 'DAPP_DISCONNECTED'     // Notify native that a dApp disconnected
-  | 'DAPP_HAPTIC';          // Trigger haptic for dApp approve/reject
+  | 'DAPP_HAPTIC'           // Trigger haptic for dApp approve/reject
+  | 'DAPP_RETURN';          // Bounce back to the dApp after approval (peer redirect)
 
 /**
  * Message types that can be received from the native app
