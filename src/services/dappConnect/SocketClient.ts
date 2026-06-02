@@ -174,6 +174,19 @@ export class SocketClient {
     this.channelId = null;
   }
 
+  /**
+   * Explicitly terminate the channel on the relay (intentional disconnect /
+   * "forget"), as opposed to a transient leave. The relay marks a durable
+   * tombstone so the dApp learns the session is dead even if it is not
+   * currently joined and only re-joins later.
+   */
+  closeChannel(): void {
+    if (this.socket?.connected && this.channelId) {
+      this.socket.emit('close_channel', { channelId: this.channelId });
+    }
+    this.channelId = null;
+  }
+
   disconnect(): void {
     this.channelId = null;
     if (this.socket) {
