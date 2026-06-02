@@ -19,6 +19,9 @@ export function hexToBytes(hex: string): Uint8Array {
 }
 
 export function bytesToHex(bytes: Uint8Array): string {
+  if (!(bytes instanceof Uint8Array)) {
+    throw new Error('bytes must be a Uint8Array');
+  }
   let s = '0x';
   for (const v of bytes) s += v.toString(16).padStart(2, '0');
   return s;

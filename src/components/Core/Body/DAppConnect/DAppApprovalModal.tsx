@@ -316,8 +316,19 @@ const DAppApprovalModal = observer(() => {
           setLoading(false);
           return;
         }
-        const result = signMessage(messageHex, unlocked.hexSeed);
-        dappConnectStore.approveCurrentRequest(result);
+        try {
+          const result = signMessage(messageHex, unlocked.hexSeed);
+          dappConnectStore.approveCurrentRequest(result);
+        } catch (e) {
+          // Reject the dApp on a signing failure instead of relying on the
+          // outer catch, so the error message is specific and the request is
+          // always answered (never left hanging).
+          const errMsg = e instanceof Error ? e.message : String(e);
+          setError(`Message signing failed: ${errMsg}`);
+          dappConnectStore.rejectCurrentRequest(`Message signing failed: ${errMsg}`);
+          setLoading(false);
+          return;
+        }
         setPin('');
         return;
       }
@@ -353,7 +364,11 @@ const DAppApprovalModal = observer(() => {
           const result = signTypedData(payload, unlocked.hexSeed);
           dappConnectStore.approveCurrentRequest(result);
         } catch (e) {
-          setError(`Typed data signing failed: ${e instanceof Error ? e.message : String(e)}`);
+          // Reject the dApp on encode/sign failure so its request is answered
+          // rather than left hanging until its own timeout.
+          const errMsg = e instanceof Error ? e.message : String(e);
+          setError(`Typed data signing failed: ${errMsg}`);
+          dappConnectStore.rejectCurrentRequest(`Typed data signing failed: ${errMsg}`);
           setLoading(false);
           return;
         }
