@@ -158,18 +158,32 @@ const DAppApprovalModal = observer(() => {
           setLoading(false);
           return;
         }
+        // Guard empty PIN *before* entering the 'signing' progress state.
+        // Once txProgress leaves 'idle' the modal switches to its terminal
+        // view (PIN input unmounts, only a Close button remains), so an empty
+        // PIN reaching the unlock below would strand the user with no retry
+        // and leave the dApp request unanswered.
+        if (!pinToUse) {
+          setError('Please enter your PIN');
+          setLoading(false);
+          return;
+        }
 
         // Stage: signing
         dappConnectStore.setTxProgress('signing');
 
         const unlocked = await unlockHexSeed(pinToUse, activeAddress);
         if ('error' in unlocked) {
-          if (unlocked.error === 'Incorrect PIN') setPin('');
           setError(unlocked.error);
           if (unlocked.error === 'Incorrect PIN') {
+            // Recoverable: reset to the editable state so the user can retry.
+            setPin('');
             dappConnectStore.resetTxProgress();
           } else {
+            // Non-recoverable (e.g. no stored seed). Answer the dApp so its
+            // request does not hang, then show the terminal failed state.
             dappConnectStore.setTxProgress('failed', undefined, unlocked.error);
+            dappConnectStore.sendRejectionResult(unlocked.error);
           }
           setLoading(false);
           return;
@@ -181,6 +195,7 @@ const DAppApprovalModal = observer(() => {
         if (!web3) {
           setError('Web3 not initialized');
           dappConnectStore.setTxProgress('failed', undefined, 'Web3 not initialized');
+          dappConnectStore.sendRejectionResult('Web3 not initialized');
           setLoading(false);
           return;
         }
@@ -225,6 +240,7 @@ const DAppApprovalModal = observer(() => {
 
         if (!signedTx.rawTransaction) {
           dappConnectStore.setTxProgress('failed', undefined, 'Failed to sign transaction');
+          dappConnectStore.sendRejectionResult('Failed to sign transaction');
           setLoading(false);
           return;
         }
