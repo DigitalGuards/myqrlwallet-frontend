@@ -100,9 +100,10 @@ function collectDependencies(primary: string, types: TypeMap): Set<string> {
       const base = baseTypeName(f.type);
       if (Object.prototype.hasOwnProperty.call(types, base)) {
         visit(base, [...path, name]);
-      } else {
-        parseFieldType(f.type, types);
       }
+      // Always validate the full field type (including struct-array dimensions
+      // like Party[0]) here, not only at encode time.
+      parseFieldType(f.type, types);
     }
   };
   visit(primary, []);
@@ -202,7 +203,10 @@ function parseIntValue(v: unknown, typeLabel: string): bigint {
   if (typeof v === 'bigint') return v;
   if (typeof v === 'string') {
     if (/^-?0x[0-9a-fA-F]+$/i.test(v)) {
-      return BigInt(v);
+      // BigInt() throws on a "-0x.." literal, so split the sign off first.
+      const isNegative = v.startsWith('-');
+      const abs = BigInt(isNegative ? v.slice(1) : v);
+      return isNegative ? -abs : abs;
     }
     if (!/^-?(0|[1-9]\d*)$/.test(v)) {
       throw new Error(`invalid ${typeLabel} string: ${v}`);
@@ -355,6 +359,9 @@ function validatePayloadReachability(primary: string, types: TypeMap): void {
  *   digest      = SHAKE256("QRL-SIGN-TYPED-v1" || domainHash || messageHash, 64)
  */
 export function computeTypedDataDigest(payload: TypedDataPayload): Uint8Array {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('invalid typed data payload');
+  }
   validateTypeMap(payload.types);
   validateDomainTypes(payload.types);
   validatePayloadReachability(payload.primaryType, payload.types);

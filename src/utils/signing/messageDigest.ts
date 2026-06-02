@@ -12,5 +12,8 @@ import { concatBytes } from './bytes';
  * (or vice versa) even if the `ctx` parameter were ever stripped.
  */
 export function computeMessageDigest(messageBytes: Uint8Array): Uint8Array {
+  if (!(messageBytes instanceof Uint8Array)) {
+    throw new Error('messageBytes must be a Uint8Array');
+  }
   return shake256(concatBytes(SCHEME_TAG_MSG, messageBytes), { dkLen: DIGEST_LEN });
 }
