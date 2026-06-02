@@ -34,7 +34,14 @@ function dlog(msg: string): void {
 }
 
 const DEFAULT_RELAY_URL = 'https://qrlwallet.com';
-const DAPP_REJOIN_GRACE_MS = 30000;
+// Grace period before a dApp that left the relay channel is torn down. On a
+// same-device deep-link round trip the dApp's browser tab is suspended while
+// the wallet is foregrounded, so its relay socket drops; the relay buffer
+// (5 min) and channel (30 min) easily outlive that, and the SDK re-joins the
+// same channel on resume. 30s was shorter than a real browser-to-wallet-and-
+// back round trip and tore down recoverable sessions; 90s comfortably covers
+// it without leaving a genuinely-gone dApp "active" for long.
+const DAPP_REJOIN_GRACE_MS = 90000;
 const TERMINATE_SEND_TIMEOUT_MS = 800;
 
 interface ActiveConnection {
@@ -379,6 +386,7 @@ export class DAppConnectService {
             url: info.url || conn.dappInfo.url,
             icon: info.icon || conn.dappInfo.icon,
             chainId: info.chainId || conn.dappInfo.chainId,
+            redirectUrl: info.redirectUrl || conn.dappInfo.redirectUrl,
           };
           const firstTime = !conn.originatorInfoReceived;
           conn.originatorInfoReceived = true;
@@ -487,6 +495,7 @@ export class DAppConnectService {
       result,
     });
     if (isInNativeApp()) triggerHaptic('success');
+    this.maybeReturnToDApp(sessionId);
   }
 
   rejectRequest(
@@ -500,6 +509,22 @@ export class DAppConnectService {
       error: { code: 4001, message },
     });
     if (isInNativeApp()) triggerHaptic('error');
+    this.maybeReturnToDApp(sessionId);
+  }
+
+  /**
+   * After resolving a restricted request, bounce the user back to the dApp
+   * (WalletConnect-style peer redirect) if it advertised a return URL in
+   * ORIGINATOR_INFO. Native opens the URL; on a same-device deep-link flow
+   * this returns focus to the browser/dApp instead of stranding the user in
+   * the wallet. No-op outside the native app or when no redirect was given.
+   */
+  private maybeReturnToDApp(channelId: string): void {
+    if (!isInNativeApp()) return;
+    const redirectUrl = this.connections.get(channelId)?.dappInfo.redirectUrl;
+    if (redirectUrl) {
+      sendToNative('DAPP_RETURN' as never, { channelId, redirectUrl });
+    }
   }
 
   async disconnectSession(channelId: string, explicit = true): Promise<void> {
@@ -518,7 +543,14 @@ export class DAppConnectService {
 
       const activeConn = this.connections.get(channelId);
       if (activeConn) {
-        activeConn.socketClient.leaveChannel();
+        // An explicit disconnect ("forget" / user-initiated) marks a durable
+        // relay tombstone so an absent dApp learns the session is dead on its
+        // next join; a grace-timeout leave is transient and must not.
+        if (explicit) {
+          activeConn.socketClient.closeChannel();
+        } else {
+          activeConn.socketClient.leaveChannel();
+        }
         activeConn.socketClient.disconnect();
         this.connections.delete(channelId);
       }
