@@ -489,13 +489,18 @@ export class DAppConnectService {
   }
 
   approveRequest(sessionId: string, requestId: string | number, result: unknown): void {
-    void this.sendJsonRpcResponse(sessionId, {
+    // Send the response FIRST, and only bounce back to the dApp once it has
+    // left the relay. maybeReturnToDApp backgrounds the wallet (the OS may
+    // then suspend it); if we redirected before the response was transmitted,
+    // the dApp would never receive the approval.
+    this.sendJsonRpcResponse(sessionId, {
       jsonrpc: '2.0',
       id: requestId,
       result,
-    });
+    })
+      .catch((err) => console.error('[DAppConnect] Failed to send approve response:', err))
+      .finally(() => this.maybeReturnToDApp(sessionId));
     if (isInNativeApp()) triggerHaptic('success');
-    this.maybeReturnToDApp(sessionId);
   }
 
   rejectRequest(
@@ -503,13 +508,14 @@ export class DAppConnectService {
     requestId: string | number,
     message = 'User rejected the request'
   ): void {
-    void this.sendJsonRpcResponse(sessionId, {
+    this.sendJsonRpcResponse(sessionId, {
       jsonrpc: '2.0',
       id: requestId,
       error: { code: 4001, message },
-    });
+    })
+      .catch((err) => console.error('[DAppConnect] Failed to send reject response:', err))
+      .finally(() => this.maybeReturnToDApp(sessionId));
     if (isInNativeApp()) triggerHaptic('error');
-    this.maybeReturnToDApp(sessionId);
   }
 
   /**
@@ -523,7 +529,7 @@ export class DAppConnectService {
     if (!isInNativeApp()) return;
     const redirectUrl = this.connections.get(channelId)?.dappInfo.redirectUrl;
     if (redirectUrl) {
-      sendToNative('DAPP_RETURN' as never, { channelId, redirectUrl });
+      sendToNative('DAPP_RETURN', { channelId, redirectUrl });
     }
   }
 
