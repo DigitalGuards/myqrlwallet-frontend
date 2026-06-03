@@ -20,7 +20,7 @@ import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
 import { getNativeInjectedPin } from '@/utils/nativeApp';
 import StorageUtil from '@/utils/storage/storage';
 import { getExplorerTxUrl } from '@/config';
-import { formatAddressShort } from '@/utils/formatting';
+import { formatAddressShort, formatQuantaValue } from '@/utils/formatting';
 import {
   bytesToHex,
   computeMessageDigest,
@@ -474,9 +474,7 @@ const DAppApprovalModal = observer(() => {
 
   // Transaction details for display during progress
   const txParams = isTransaction ? (params?.[0] as Record<string, unknown> | undefined) : undefined;
-  const txDisplayValue = txParams?.value
-    ? `${utils.fromPlanck(BigInt(txParams.value as string).toString(), 'quanta')} QRL`
-    : '0 QRL';
+  const txDisplayValue = formatQuantaValue(txParams?.value);
 
   return (
     <Dialog open={approvalModalOpen} onOpenChange={(open) => {

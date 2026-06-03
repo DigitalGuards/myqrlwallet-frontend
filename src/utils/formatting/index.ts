@@ -4,6 +4,7 @@ export {
   getOptimalGasFee,
   getOptimalTokenBalance,
   formatBalance,
+  formatQuantaValue,
 } from './balance';
 
 export {
