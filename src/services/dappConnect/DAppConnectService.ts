@@ -654,8 +654,15 @@ export class DAppConnectService {
         ]);
       }
     } finally {
-      await finalize();
-      this.finalizing.delete(channelId);
+      // Always release the in-flight guard, even if finalize() throws (e.g. a
+      // handler raises): otherwise a stuck `finalizing` entry would make every
+      // later disconnectSession(channelId) early-return and permanently block
+      // that channel's teardown for the page lifetime.
+      try {
+        await finalize();
+      } finally {
+        this.finalizing.delete(channelId);
+      }
     }
   }
 

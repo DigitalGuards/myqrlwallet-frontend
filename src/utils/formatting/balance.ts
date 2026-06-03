@@ -1,5 +1,25 @@
 import { NATIVE_TOKEN } from "@/constants";
+import { utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
+
+/**
+ * Safely format a raw planck transaction `value` into a "X QRL" string.
+ * The value originates from a dApp (qrl_sendTransaction / qrl_signTransaction)
+ * and is NOT schema-validated, so it may be non-numeric, negative, or a
+ * fractional number. A bare `BigInt(value)` would throw during render and
+ * crash the approval modal, leaving the user unable to even reject the
+ * request. Falls back to a safe label instead of throwing.
+ */
+export const formatQuantaValue = (value: unknown): string => {
+    if (value === undefined || value === null || value === "") return "0 QRL";
+    try {
+        const planck = BigInt(value as string);
+        if (planck < 0n) return "invalid value";
+        return `${utils.fromPlanck(planck.toString(), "quanta")} QRL`;
+    } catch {
+        return "invalid value";
+    }
+};
 
 BigNumber.config({
     DECIMAL_PLACES: 18,

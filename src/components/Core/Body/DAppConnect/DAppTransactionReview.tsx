@@ -2,7 +2,7 @@
  * Transaction Review - Displays transaction details for dApp approval.
  */
 
-import { utils } from '@theqrl/web3';
+import { formatQuantaValue } from '@/utils/formatting';
 
 interface TransactionReviewProps {
   params: Record<string, unknown>;
@@ -31,9 +31,7 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({ params }) => 
   const data = params.data as string | undefined;
   const gas = params.gas;
 
-  const displayValue = value
-    ? `${utils.fromPlanck(BigInt(value).toString(), 'quanta')} QRL`
-    : '0 QRL';
+  const displayValue = formatQuantaValue(value);
 
   return (
     <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm">
