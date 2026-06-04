@@ -222,12 +222,15 @@ export class WalletEncryptionUtil {
       const salt = CryptoJS.enc.Hex.parse(parsed.salt);
       const iv = CryptoJS.enc.Hex.parse(parsed.iv);
 
-      // Support v1 (5k) and v3 (600k) iterations for backward compatibility
-      const iterations = parsed.version === 'pin_v3' ? 600000 : 5000;
-
+      // All wallets use pin_v3 (600k PBKDF2 iterations). Legacy v1/v2 support
+      // was retired in ce0b802 ("all users have migrated"); this drops the
+      // leftover 5000-iteration fallback so the sync path matches the async
+      // worker (cryptoWorker.ts), which already always uses 600k regardless
+      // of the stored version label. A pre-v3 blob fails to decrypt here just
+      // as it already does on the async unlock path, and must be re-imported.
       const key = CryptoJS.PBKDF2(pin, salt, {
         keySize: 256/32,
-        iterations
+        iterations: 600000
       });
 
       const decrypted = CryptoJS.AES.decrypt(
