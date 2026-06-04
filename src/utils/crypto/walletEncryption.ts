@@ -191,10 +191,11 @@ export class WalletEncryptionUtil {
     const salt = CryptoJS.lib.WordArray.random(128/8);
     const iv = CryptoJS.lib.WordArray.random(128/8);
 
-    // Use PBKDF2 to derive key from PIN
+    // Use PBKDF2 to derive key from PIN. 600k iterations (PBKDF2_ITERATIONS)
+    // is the OWASP 2023 recommended minimum for brute-force resistance.
     const key = CryptoJS.PBKDF2(pin, salt, {
       keySize: 256/32,
-      iterations: 600000 // OWASP 2023 recommended minimum for brute force resistance
+      iterations: PBKDF2_ITERATIONS
     });
 
     const encrypted = CryptoJS.AES.encrypt(
@@ -230,7 +231,7 @@ export class WalletEncryptionUtil {
       // as it already does on the async unlock path, and must be re-imported.
       const key = CryptoJS.PBKDF2(pin, salt, {
         keySize: 256/32,
-        iterations: 600000
+        iterations: PBKDF2_ITERATIONS
       });
 
       const decrypted = CryptoJS.AES.decrypt(

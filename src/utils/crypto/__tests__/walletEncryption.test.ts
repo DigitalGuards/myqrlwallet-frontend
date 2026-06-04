@@ -68,13 +68,11 @@ describe('WalletEncryptionUtil PIN seed encryption', () => {
           timestamp: 0,
         });
 
-        // Decrypt fails (the mocked key yields garbage), which is fine: the
-        // assertion below is what matters, not the throw.
-        try {
-          WalletEncryptionUtil.decryptSeedWithPin(blob, PIN);
-        } catch (e) {
-          expect(e).toBeInstanceOf(PinDecryptionError);
-        }
+        // Decrypt throws (the mocked key yields garbage), which is expected;
+        // the iteration-count assertion below is the actual regression guard.
+        expect(() => WalletEncryptionUtil.decryptSeedWithPin(blob, PIN)).toThrow(
+          PinDecryptionError,
+        );
 
         expect(spy).toHaveBeenCalledWith(
           PIN,
