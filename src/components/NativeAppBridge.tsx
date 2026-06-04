@@ -301,7 +301,11 @@ const NativeAppBridge: React.FC = () => {
             StorageUtil.clearAccountList(blockchain);
             StorageUtil.clearTransactionValues(blockchain);
           }
-          StorageUtil.clearTokenList();
+          // Full wipe: remove every account-scoped token + NFT list
+          // (and any legacy global keys). Unlike logout, CLEAR_WALLET is
+          // an explicit "erase everything" request from native settings.
+          StorageUtil.clearAllTokenData();
+          StorageUtil.clearAllNftData();
 
           // Confirm to native that web cleared its data
           confirmWalletCleared();
