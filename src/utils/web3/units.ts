@@ -43,7 +43,14 @@ export function formatUnits(value: bigint | string | number, decimals: number = 
  * digits than `decimals` allows.
  */
 export function parseUnits(value: string, decimals: number = 18): bigint {
-  const v = new BN(value);
+  // Strict decimal-string validation. ethers v6 rejects non-decimal formats,
+  // but bignumber.js silently parses hex/binary/octal prefixes (e.g. "0x11" ->
+  // 17). For a transaction-amount parser that would be a dangerous mismatch, so
+  // reject anything that is not an optionally-signed base-10 decimal here.
+  if (typeof value !== 'string' || !/^-?(\d+(\.\d+)?|\.\d+)$/.test(value.trim())) {
+    throw new Error(`parseUnits: invalid decimal value "${value}"`);
+  }
+  const v = new BN(value.trim());
   if (v.isNaN()) {
     throw new Error(`parseUnits: invalid decimal value "${value}"`);
   }
