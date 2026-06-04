@@ -12,9 +12,15 @@
  * `receipt` event (first inclusion), which is unaffected by
  * `transactionConfirmationBlocks` — that only controls how long web3 keeps
  * watching for additional confirmations afterward.
+ *
+ * NOTE on units: in web3.js 4.x BOTH `transactionPollingInterval` and
+ * `transactionPollingTimeout` are MILLISECONDS (the default timeout is
+ * `750 * 1000`, and web3 divides it by 1000 only to render the seconds in its
+ * timeout error). This differs from web3.js 1.x where the timeout was seconds —
+ * do not "convert" the timeout to seconds.
  */
 export const QRL_TX_POLLING_CONFIG = {
-  transactionPollingInterval: 7000,
+  transactionPollingInterval: 7000, // ms
   transactionConfirmationBlocks: 1,
-  transactionPollingTimeout: 7 * 60 * 1000, // ~7 blocks before giving up
+  transactionPollingTimeout: 7 * 60 * 1000, // ms (7 min, ~7 blocks) — NOT seconds
 };
