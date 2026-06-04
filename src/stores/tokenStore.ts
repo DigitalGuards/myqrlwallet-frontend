@@ -327,8 +327,16 @@ class TokenStore {
 
   async setTokenList(tokenList: TokenInterface[]) {
     const { blockchain, account } = this.scope;
+    if (!blockchain || !account) return;
     await StorageUtil.updateTokenList(blockchain, account, tokenList);
-    this.tokenList = tokenList;
+    // The active account/blockchain can change during the await; only apply the
+    // result if we're still on the same scope, and wrap the observable write in
+    // runInAction (MobX strict mode forbids mutating after an await otherwise).
+    if (this.scope.blockchain === blockchain && this.scope.account === account) {
+      runInAction(() => {
+        this.tokenList = tokenList;
+      });
+    }
   }
 
   async sendToken(
