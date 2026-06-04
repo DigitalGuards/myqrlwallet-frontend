@@ -39,8 +39,12 @@ export const handleLogout = async (navigate: (path: string) => void) => {
             clearAttemptTracker();
         }
 
-        // Clear token list
-        await StorageUtil.clearTokenList();
+        // NOTE: token and NFT lists are intentionally NOT cleared here.
+        // They are public contract addresses (not secrets) keyed per
+        // account, so preserving them means re-importing the same account
+        // restores its curated token/NFT lists instead of forcing the
+        // user to re-add every contract. A full wipe (CLEAR_WALLET) does
+        // clear them.
 
         // Navigate to homepage
         navigate(ROUTES.HOME);
