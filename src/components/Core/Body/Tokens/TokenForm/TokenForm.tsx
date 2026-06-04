@@ -14,7 +14,7 @@ import { useStore } from "@/stores/store";
 import { Button } from "@/components/UI/Button";
 import { Check, Plus, RefreshCw, Import, Coins, Sparkles } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
-import { formatUnits } from "ethers";
+import { formatUnits } from "@/utils/web3/units";
 import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 
@@ -166,27 +166,11 @@ const TokenForm = observer(() => {
                     data={tokenList}
                     isLoading={isLoading}
                     emptyMessage={
-                        pendingDiscoveredTokens.length > 0 ? (
-                            <div className="flex flex-col items-center gap-2 py-2">
-                                <div className="flex items-center gap-2 text-sm">
-                                    <Sparkles className="h-4 w-4 text-muted-foreground/70" />
-                                    Explorer found this address to own{" "}
-                                    <span className="font-medium">
-                                        {pendingDiscoveredTokens.length}
-                                    </span>{" "}
-                                    token
-                                    {pendingDiscoveredTokens.length === 1 ? "" : "s"}.
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setIsAddTokenModalOpen(true)}
-                                >
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Review and add
-                                </Button>
-                            </div>
-                        ) : undefined
+                        <TokensEmptyState
+                            discoveredCount={pendingDiscoveredTokens.length}
+                            onAddExisting={() => setIsAddTokenModalOpen(true)}
+                            onCreateNew={() => navigate(ROUTES.CREATE_TOKEN)}
+                        />
                     }
                 />
             </CardContent>
@@ -194,5 +178,66 @@ const TokenForm = observer(() => {
         </Card>
     );
 });
+
+// Mirrors the NFT gallery's empty-state (NftGallery.tsx) so the two
+// dashboard cards stay visually consistent: a heading, a one-line hint,
+// and a clear call-to-action button instead of a bare sentence. Tokens
+// have two add paths (import existing / create new), so the CTA is a
+// dropdown matching the card header's "+" menu.
+function TokensEmptyState({
+    discoveredCount,
+    onAddExisting,
+    onCreateNew,
+}: {
+    discoveredCount: number;
+    onAddExisting: () => void;
+    onCreateNew: () => void;
+}) {
+    return (
+        <div className="flex flex-col items-center gap-2 py-4 text-center">
+            {discoveredCount > 0 ? (
+                <>
+                    <div className="flex items-center gap-2 text-sm">
+                        <Sparkles className="h-4 w-4 text-muted-foreground/70" />
+                        Explorer found this address to own{" "}
+                        <span className="font-medium">{discoveredCount}</span> token
+                        {discoveredCount === 1 ? "" : "s"}.
+                    </div>
+                    <Button variant="outline" size="sm" onClick={onAddExisting}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Review and add
+                    </Button>
+                </>
+            ) : (
+                <>
+                    <div>
+                        <p className="text-sm font-medium">No tokens yet</p>
+                        <p className="text-xs text-muted-foreground">
+                            Add an existing token or create a new one.
+                        </p>
+                    </div>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Token
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="center">
+                            <DropdownMenuItem onClick={onAddExisting}>
+                                <Import className="mr-2 h-4 w-4" />
+                                Add Existing Token
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={onCreateNew}>
+                                <Coins className="mr-2 h-4 w-4" />
+                                Create New Token
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </>
+            )}
+        </div>
+    );
+}
 
 export default TokenForm;

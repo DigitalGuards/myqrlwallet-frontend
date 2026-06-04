@@ -127,12 +127,25 @@ class TokenStore {
     );
   }
 
+  // Token storage is now keyed by `${blockchain}_${account}` (see
+  // StorageUtil), mirroring the NFT list. Reads from the wrong scope are
+  // impossible, but we still need the scope to write. Pulls live values
+  // from qrlStore at the call site.
+  private get scope(): { blockchain: string; account: string } {
+    return {
+      blockchain: this.qrlStore.qrlConnection.blockchain,
+      account: this.qrlStore.activeAccount.accountAddress,
+    };
+  }
+
   // Called by Store after QrlStore.initializeBlockchain finishes (via the
   // qrlStore.onBlockchainReady hook). Restores the persisted token list and
   // hidden-token list, then seeds known tokens.
   async initialize() {
     await this.migrateLegacyAutoAddedTokens();
-    const persistedList = await StorageUtil.getTokenList();
+    await this.migrateGlobalTokenListToAccount();
+    const { blockchain, account } = this.scope;
+    const persistedList = await StorageUtil.getTokenList(blockchain, account);
     runInAction(() => {
       this.tokenList = persistedList;
     });
@@ -147,15 +160,50 @@ class TokenStore {
   // every token the explorer attributed to the active account into
   // tokenList, and persisted that to localStorage. After the gate, those
   // legacy entries can't be distinguished from user-curated picks — so we
-  // wipe TOKEN_LIST once on first load post-migration. The discovery
-  // picker (PR #143) repopulates legitimate holdings on the user's
-  // explicit say-so.
+  // wipe the legacy global TOKEN_LIST once on first load post-migration.
+  // The discovery picker (PR #143) repopulates legitimate holdings on the
+  // user's explicit say-so.
   private async migrateLegacyAutoAddedTokens() {
     const FLAG = "TOKEN_LIST_GATE_MIGRATED_V1";
     if (localStorage.getItem(FLAG)) return;
-    await StorageUtil.clearTokenList();
+    StorageUtil.clearLegacyGlobalTokenData();
     localStorage.setItem(FLAG, "1");
     log("Migration: wiped pre-gate tokenList; flag set");
+  }
+
+  // One-shot migration: the token list used to live under a single global
+  // key shared across every account/chain. It is now scoped per
+  // `${blockchain}_${account}` like the NFT list. Move whatever the user
+  // currently has under the global key into the active account's scope,
+  // then drop the global key. Deferred (flag not set) until an account is
+  // active so we never discard the legacy list before we can re-home it.
+  private async migrateGlobalTokenListToAccount() {
+    const FLAG = "TOKEN_LIST_PER_ACCOUNT_MIGRATED_V1";
+    if (localStorage.getItem(FLAG)) return;
+    const { blockchain, account } = this.scope;
+    if (!blockchain || !account) return;
+
+    const legacyTokens = StorageUtil.getLegacyGlobalTokenList();
+    if (legacyTokens.length > 0) {
+      const existing = await StorageUtil.getTokenList(blockchain, account);
+      const seen = new Set(existing.map((t) => t.address.toLowerCase()));
+      const merged = [
+        ...existing,
+        ...legacyTokens.filter((t) => !seen.has(t.address.toLowerCase())),
+      ];
+      await StorageUtil.updateTokenList(blockchain, account, merged);
+    }
+
+    const legacyHidden = StorageUtil.getLegacyGlobalHiddenTokens();
+    for (const addr of legacyHidden) {
+      await StorageUtil.hideToken(blockchain, account, addr);
+    }
+
+    StorageUtil.clearLegacyGlobalTokenData();
+    localStorage.setItem(FLAG, "1");
+    log(
+      `Migration: moved ${legacyTokens.length} global tokens to ${blockchain}_${account}; flag set`,
+    );
   }
 
   // Called by Store after QrlStore.setActiveAccount finishes (via the
@@ -175,11 +223,16 @@ class TokenStore {
     }
 
     log(`Switching token list to account: ${newActiveAccount}`);
-    // Token storage is global (not per-account like NFTs), so we wipe
-    // on switch to prevent account A's tokens leaking into account B.
-    await StorageUtil.clearTokenList();
+    // Token storage is per-account-scoped, so an account switch just
+    // means reloading from the new scope's key. No cross-account
+    // clearing needed — the old account's list stays under its own key
+    // for when the user switches back.
+    const blockchain = this.qrlStore.qrlConnection.blockchain;
+    const persisted = await StorageUtil.getTokenList(blockchain, newActiveAccount);
+    const hidden = await StorageUtil.getHiddenTokens(blockchain, newActiveAccount);
     runInAction(() => {
-      this.tokenList = [];
+      this.tokenList = persisted;
+      this.hiddenTokens = hidden;
       // Discovered list is per-address; drop it so a picker opened
       // after the switch can't leak the prior account's results.
       this.discoveredTokens = [];
@@ -189,8 +242,8 @@ class TokenStore {
       await this.addToken(token);
     }
 
-    // Refresh balances on whatever is in the list now (KNOWN_TOKEN_LIST
-    // entries, or nothing). No explorer call.
+    // Refresh balances on whatever is in the list now (persisted picks +
+    // KNOWN_TOKEN_LIST entries). No explorer call.
     void this.refreshTokenBalances();
   }
 
@@ -239,8 +292,7 @@ class TokenStore {
     );
 
     if (!existingToken) {
-      await StorageUtil.updateTokenList([...this.tokenList, token]);
-      this.tokenList = [...this.tokenList, token];
+      await this.setTokenList([...this.tokenList, token]);
       return token;
     }
 
@@ -256,34 +308,35 @@ class TokenStore {
   }
 
   async removeToken(token: TokenInterface) {
-    await StorageUtil.updateTokenList(
+    await this.setTokenList(
       this.tokenList.filter(
         (t) => t.address.toLowerCase() !== token.address.toLowerCase(),
       ),
     );
-    this.tokenList = this.tokenList.filter(
-      (t) => t.address !== token.address,
-    );
   }
 
   async updateToken(token: TokenInterface) {
-    await StorageUtil.updateTokenList(
+    await this.setTokenList(
       this.tokenList.map((t) =>
         t.address.toLocaleLowerCase() === token.address.toLocaleLowerCase()
           ? token
           : t,
       ),
     );
-    this.tokenList = this.tokenList.map((t) =>
-      t.address.toLocaleLowerCase() === token.address.toLocaleLowerCase()
-        ? token
-        : t,
-    );
   }
 
   async setTokenList(tokenList: TokenInterface[]) {
-    await StorageUtil.updateTokenList(tokenList);
-    this.tokenList = tokenList;
+    const { blockchain, account } = this.scope;
+    if (!blockchain || !account) return;
+    await StorageUtil.updateTokenList(blockchain, account, tokenList);
+    // The active account/blockchain can change during the await; only apply the
+    // result if we're still on the same scope, and wrap the observable write in
+    // runInAction (MobX strict mode forbids mutating after an await otherwise).
+    if (this.scope.blockchain === blockchain && this.scope.account === account) {
+      runInAction(() => {
+        this.tokenList = tokenList;
+      });
+    }
   }
 
   async sendToken(
@@ -594,8 +647,9 @@ class TokenStore {
       }
 
       // Stale-write guard: if the active account changed under us,
-      // abandon the result. Writing it back would clobber the new
-      // account's list (token storage is global, not per-account).
+      // abandon the result. setTokenList writes to the current scope, so
+      // a stale write would land balances computed for the old account
+      // under the new account's key.
       if (this.qrlStore.activeAccount.accountAddress !== startAccount) {
         log(
           "refreshTokenBalances: active account changed mid-refresh, abandoning stale results",
@@ -711,14 +765,17 @@ class TokenStore {
       // else: already visible — skip
     }
     if (additions.length === 0 && unhides.length === 0) return;
-    // Stale-write guard: token storage is global, so a write here after
-    // an account switch would land in the new account's view.
+    // Stale-write guard: token storage is per-account-scoped, so a write
+    // lands in the right key even after a switch, but the in-memory
+    // append would still mix the prior account's picks into the new
+    // account's tokenList.
     if (this.qrlStore.activeAccount.accountAddress !== startAccount) {
       log(
         "addDiscoveredTokens: active account changed before write, abandoning picks",
       );
       return;
     }
+    const { blockchain, account } = this.scope;
     if (additions.length > 0) {
       await this.setTokenList([...this.tokenList, ...additions]);
     }
@@ -727,7 +784,7 @@ class TokenStore {
       // collapse the observable update into a single runInAction so the
       // UI re-renders once instead of N times.
       for (const addr of unhides) {
-        await StorageUtil.unhideToken(addr);
+        await StorageUtil.unhideToken(blockchain, account, addr);
       }
       const drop = new Set(unhides.map((a) => a.toLowerCase()));
       runInAction(() => {
@@ -748,14 +805,16 @@ class TokenStore {
   }
 
   async loadHiddenTokens() {
-    const hiddenTokens = await StorageUtil.getHiddenTokens();
+    const { blockchain, account } = this.scope;
+    const hiddenTokens = await StorageUtil.getHiddenTokens(blockchain, account);
     runInAction(() => {
       this.hiddenTokens = hiddenTokens;
     });
   }
 
   async hideToken(tokenAddress: string) {
-    await StorageUtil.hideToken(tokenAddress);
+    const { blockchain, account } = this.scope;
+    await StorageUtil.hideToken(blockchain, account, tokenAddress);
     runInAction(() => {
       const lowerCaseAddress = tokenAddress.toLowerCase();
       if (
@@ -770,7 +829,8 @@ class TokenStore {
   }
 
   async unhideToken(tokenAddress: string) {
-    await StorageUtil.unhideToken(tokenAddress);
+    const { blockchain, account } = this.scope;
+    await StorageUtil.unhideToken(blockchain, account, tokenAddress);
     runInAction(() => {
       this.hiddenTokens = this.hiddenTokens.filter(
         (addr) => addr.toLowerCase() !== tokenAddress.toLowerCase(),
