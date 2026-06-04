@@ -48,7 +48,7 @@ import { FeeLevel } from "@/stores/qrlStore";
 import { SEO } from "@/components/SEO/SEO";
 import { getOptimalTokenBalance, formatAddressShort } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
-import { formatUnits, parseUnits } from "ethers";
+import { formatUnits, parseUnits } from "@/utils/web3/units";
 import { BigNumber } from "bignumber.js";
 
 const Transfer = observer(() => {

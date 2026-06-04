@@ -14,7 +14,7 @@ import { useStore } from "@/stores/store";
 import { Button } from "@/components/UI/Button";
 import { Check, Plus, RefreshCw, Import, Coins, Sparkles } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
-import { formatUnits } from "ethers";
+import { formatUnits } from "@/utils/web3/units";
 import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 
