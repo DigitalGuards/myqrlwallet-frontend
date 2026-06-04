@@ -191,10 +191,11 @@ export class WalletEncryptionUtil {
     const salt = CryptoJS.lib.WordArray.random(128/8);
     const iv = CryptoJS.lib.WordArray.random(128/8);
 
-    // Use PBKDF2 to derive key from PIN
+    // Use PBKDF2 to derive key from PIN. 600k iterations (PBKDF2_ITERATIONS)
+    // is the OWASP 2023 recommended minimum for brute-force resistance.
     const key = CryptoJS.PBKDF2(pin, salt, {
       keySize: 256/32,
-      iterations: 600000 // OWASP 2023 recommended minimum for brute force resistance
+      iterations: PBKDF2_ITERATIONS
     });
 
     const encrypted = CryptoJS.AES.encrypt(
@@ -222,12 +223,15 @@ export class WalletEncryptionUtil {
       const salt = CryptoJS.enc.Hex.parse(parsed.salt);
       const iv = CryptoJS.enc.Hex.parse(parsed.iv);
 
-      // Support v1 (5k) and v3 (600k) iterations for backward compatibility
-      const iterations = parsed.version === 'pin_v3' ? 600000 : 5000;
-
+      // All wallets use pin_v3 (600k PBKDF2 iterations). Legacy v1/v2 support
+      // was retired in ce0b802 ("all users have migrated"); this drops the
+      // leftover 5000-iteration fallback so the sync path matches the async
+      // worker (cryptoWorker.ts), which already always uses 600k regardless
+      // of the stored version label. A pre-v3 blob fails to decrypt here just
+      // as it already does on the async unlock path, and must be re-imported.
       const key = CryptoJS.PBKDF2(pin, salt, {
         keySize: 256/32,
-        iterations
+        iterations: PBKDF2_ITERATIONS
       });
 
       const decrypted = CryptoJS.AES.decrypt(
