@@ -1,0 +1,35 @@
+name: Sync main -> dev
+
+# Keeps dev current with main (incl. auto-merged Dependabot patches) by opening a
+# back-merge PR when main has commits dev doesn't, so dev->main promotions stay
+# conflict-free. Runs daily and on demand.
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Open main -> dev sync PR if main is ahead
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git fetch origin main dev
+          if git merge-base --is-ancestor origin/main origin/dev; then
+            echo "dev already contains main; nothing to sync."; exit 0
+          fi
+          if [ -n "$(gh pr list --base dev --head main --state open --json number --jq '.[].number')" ]; then
+            echo "sync PR already open."; exit 0
+          fi
+          gh pr create --base dev --head main \
+            --title "chore: sync main -> dev" \
+            --body "Automated back-merge of main (incl. auto-merged Dependabot updates) into dev."
