@@ -24,7 +24,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useEffect, useState } from "react";
 import { useStore } from "@/stores/store";
-import { ethers } from "ethers";
+import { formatUnits, parseUnits } from "@/utils/web3/units";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
@@ -105,7 +105,7 @@ export const TokenCreationForm = observer(
 
         const formatRealValue = (supply: string, decimals: number) => {
             try {
-                return ethers.formatUnits(supply, decimals);
+                return formatUnits(supply, decimals);
             } catch {
                 return "Invalid value";
             }
@@ -170,12 +170,12 @@ export const TokenCreationForm = observer(
 
                 const tokenName = formData.tokenName;
                 const tokenSymbol = formData.tokenSymbol;
-                const initialSupply = ethers.parseUnits(formData.initialSupply, formData.decimals).toString();
+                const initialSupply = parseUnits(formData.initialSupply, formData.decimals).toString();
                 const decimals = formData.decimals;
-                const maxSupply = formData.maxSupply ? ethers.parseUnits(formData.maxSupply, decimals).toString() : undefined;
+                const maxSupply = formData.maxSupply ? parseUnits(formData.maxSupply, decimals).toString() : undefined;
                 const recipientAddress = formData.recipientAddress;
-                const maxWalletAmount = formData.maxWalletAmount ? ethers.parseUnits(formData.maxWalletAmount, decimals).toString() : undefined;
-                const maxTransactionLimit = formData.maxTransactionLimit ? ethers.parseUnits(formData.maxTransactionLimit, decimals).toString() : undefined;
+                const maxWalletAmount = formData.maxWalletAmount ? parseUnits(formData.maxWalletAmount, decimals).toString() : undefined;
+                const maxTransactionLimit = formData.maxTransactionLimit ? parseUnits(formData.maxTransactionLimit, decimals).toString() : undefined;
 
                 // Navigate immediately to show loading state, then start creation
                 tokenStore.setCreatingToken(tokenName, true);
