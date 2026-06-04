@@ -97,7 +97,7 @@ async function unlockHexSeed(
   const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchainVal, activeAddress);
   if (!encryptedSeed) return { error: 'No encrypted seed found' };
   try {
-    const decrypted = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pinToUse);
+    const decrypted = await WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pinToUse);
     return { hexSeed: decrypted.hexSeed };
   } catch {
     return { error: 'Incorrect PIN' };
