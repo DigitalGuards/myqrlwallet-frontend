@@ -143,16 +143,88 @@ class StorageUtil {
     this.setItem(BLOCKCHAIN_CREATED_TOKEN, { name, symbol, decimals, address, tx, blockNumber, gasUsed, effectiveGasPrice, blockHash });
   }
 
-  static async updateTokenList(tokenList: TokenInterface[]) {
-    this.setItem(TOKEN_LIST_IDENTIFIER, tokenList);
+  /**
+   * Token list — keyed by `${blockchain}_${account}` (mirrors the NFT
+   * list) so manually-added tokens from one wallet/chain never bleed
+   * into another and survive logout/re-import of the same account.
+   * Returns `[]` when either scope component is empty (caller bootstrap
+   * typically races init). Replaces the older global key which leaked
+   * across accounts on switch and across networks on chain switch.
+   */
+  private static tokenListKey(blockchain: string, account: string) {
+    return `${blockchain}_${account.toLowerCase()}_${TOKEN_LIST_IDENTIFIER}`;
   }
 
-  static async getTokenList() {
+  private static hiddenTokensKey(blockchain: string, account: string) {
+    return `${blockchain}_${account.toLowerCase()}_${HIDDEN_TOKENS_IDENTIFIER}`;
+  }
+
+  static async updateTokenList(blockchain: string, account: string, tokenList: TokenInterface[]) {
+    if (!blockchain || !account) return;
+    this.setItem(this.tokenListKey(blockchain, account), tokenList);
+  }
+
+  static async getTokenList(blockchain: string, account: string) {
+    if (!blockchain || !account) return [];
+    return this.getItem<TokenInterface[]>(this.tokenListKey(blockchain, account)) ?? [];
+  }
+
+  static async clearTokenList(blockchain: string, account: string) {
+    if (!blockchain || !account) return;
+    localStorage.removeItem(this.tokenListKey(blockchain, account));
+  }
+
+  /**
+   * Reads the pre-per-account global token list (legacy key). Used once
+   * by the migration that moves it under the active account's scope.
+   */
+  static getLegacyGlobalTokenList(): TokenInterface[] {
     return this.getItem<TokenInterface[]>(TOKEN_LIST_IDENTIFIER) ?? [];
   }
 
-  static async clearTokenList() {
+  /**
+   * Reads the pre-per-account global hidden-tokens list (legacy key).
+   */
+  static getLegacyGlobalHiddenTokens(): string[] {
+    return this.getItem<string[]>(HIDDEN_TOKENS_IDENTIFIER) ?? [];
+  }
+
+  /**
+   * Removes the legacy global token + hidden-token keys after migration.
+   */
+  static clearLegacyGlobalTokenData(): void {
     localStorage.removeItem(TOKEN_LIST_IDENTIFIER);
+    localStorage.removeItem(HIDDEN_TOKENS_IDENTIFIER);
+  }
+
+  /**
+   * Full-wipe helper: removes every account-scoped token + hidden-token
+   * key (plus any legacy global keys). Used by the explicit "clear
+   * wallet" flow, NOT by logout (logout intentionally preserves these so
+   * re-importing the same account restores its curated token list).
+   */
+  static clearAllTokenData(): void {
+    this.removeKeysEndingWith(`_${TOKEN_LIST_IDENTIFIER}`);
+    this.removeKeysEndingWith(`_${HIDDEN_TOKENS_IDENTIFIER}`);
+    this.clearLegacyGlobalTokenData();
+  }
+
+  /**
+   * Full-wipe helper: removes every account-scoped NFT + hidden-NFT key.
+   * Used by the explicit "clear wallet" flow.
+   */
+  static clearAllNftData(): void {
+    this.removeKeysEndingWith(`_${NFT_LIST_IDENTIFIER}`);
+    this.removeKeysEndingWith(`_${HIDDEN_NFTS_IDENTIFIER}`);
+  }
+
+  private static removeKeysEndingWith(suffix: string): void {
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.endsWith(suffix)) toRemove.push(key);
+    }
+    toRemove.forEach((k) => localStorage.removeItem(k));
   }
 
   static async getBlockChain() {
@@ -440,30 +512,33 @@ class StorageUtil {
   }
 
   /**
-   * Get list of hidden token addresses
+   * Get list of hidden token addresses for an account scope.
    */
-  static async getHiddenTokens(): Promise<string[]> {
-    return this.getItem<string[]>(HIDDEN_TOKENS_IDENTIFIER) ?? [];
+  static async getHiddenTokens(blockchain: string, account: string): Promise<string[]> {
+    if (!blockchain || !account) return [];
+    return this.getItem<string[]>(this.hiddenTokensKey(blockchain, account)) ?? [];
   }
 
   /**
    * Add a token address to the hidden list
    */
-  static async hideToken(tokenAddress: string) {
-    const hiddenTokens = await this.getHiddenTokens();
+  static async hideToken(blockchain: string, account: string, tokenAddress: string) {
+    if (!blockchain || !account) return;
+    const hiddenTokens = await this.getHiddenTokens(blockchain, account);
     if (!hiddenTokens.some(addr => addr.toLowerCase() === tokenAddress.toLowerCase())) {
       hiddenTokens.push(tokenAddress.toLowerCase());
-      this.setItem(HIDDEN_TOKENS_IDENTIFIER, hiddenTokens);
+      this.setItem(this.hiddenTokensKey(blockchain, account), hiddenTokens);
     }
   }
 
   /**
    * Remove a token address from the hidden list
    */
-  static async unhideToken(tokenAddress: string) {
-    let hiddenTokens = await this.getHiddenTokens();
+  static async unhideToken(blockchain: string, account: string, tokenAddress: string) {
+    if (!blockchain || !account) return;
+    let hiddenTokens = await this.getHiddenTokens(blockchain, account);
     hiddenTokens = hiddenTokens.filter(addr => addr.toLowerCase() !== tokenAddress.toLowerCase());
-    this.setItem(HIDDEN_TOKENS_IDENTIFIER, hiddenTokens);
+    this.setItem(this.hiddenTokensKey(blockchain, account), hiddenTokens);
   }
 
   static async setBalanceCache(blockchain: string, balances: Record<string, string>) {
@@ -477,10 +552,11 @@ class StorageUtil {
   }
 
   /**
-   * Clear all hidden tokens (used when refreshing to re-show all)
+   * Clear all hidden tokens for an account scope (re-show all).
    */
-  static async clearHiddenTokens() {
-    localStorage.removeItem(HIDDEN_TOKENS_IDENTIFIER);
+  static async clearHiddenTokens(blockchain: string, account: string) {
+    if (!blockchain || !account) return;
+    localStorage.removeItem(this.hiddenTokensKey(blockchain, account));
   }
 
   /**
