@@ -58,4 +58,15 @@ describe("parseUnits (ethers v6 parity)", () => {
   it("throws on a non-numeric value", () => {
     expect(() => parseUnits("abc", 6)).toThrow(/invalid decimal value/);
   });
+
+  it("rejects non-decimal formats that bignumber.js would otherwise accept (ethers parity)", () => {
+    // bignumber.js silently parses these; ethers v6 (and now we) reject them.
+    expect(() => parseUnits("0x11", 6)).toThrow(/invalid decimal value/);
+    expect(() => parseUnits("0b101", 6)).toThrow(/invalid decimal value/);
+    expect(() => parseUnits("0o17", 6)).toThrow(/invalid decimal value/);
+    expect(() => parseUnits("1e3", 6)).toThrow(/invalid decimal value/);
+    expect(() => parseUnits("", 6)).toThrow(/invalid decimal value/);
+    expect(() => parseUnits("1.2.3", 6)).toThrow(/invalid decimal value/);
+    expect(() => parseUnits("  ", 6)).toThrow(/invalid decimal value/);
+  });
 });
