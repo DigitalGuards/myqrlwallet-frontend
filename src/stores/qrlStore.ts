@@ -3,6 +3,7 @@ import { deriveHexSeedAsync } from "@/utils/crypto";
 import { StorageUtil, AccountListItem, AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
 import { getQrlWeb3 } from "@/utils/web3";
+import { QRL_TX_POLLING_CONFIG } from "@/utils/web3/txPolling";
 import type { TransactionReceipt, Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 
@@ -241,7 +242,9 @@ class QrlStore {
       }
       const Web3 = this._Web3;
       const httpProvider = new Web3.providers.HttpProvider(url);
-      const { qrl } = new Web3({ provider: httpProvider });
+      // QRL blocks are ~60s; web3's default 1s receipt polling + 24-confirmation
+      // watch fires ~100 RPC calls per tx. QRL_TX_POLLING_CONFIG slows it to ~10.
+      const { qrl } = new Web3({ provider: httpProvider, config: QRL_TX_POLLING_CONFIG });
 
 
       runInAction(() => {
