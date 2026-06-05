@@ -152,7 +152,7 @@ const NftDetail = observer(() => {
       }
       let mnemonic: string;
       try {
-        const decrypted = WalletEncryptionUtil.decryptSeedWithPin(
+        const decrypted = await WalletEncryptionUtil.decryptSeedWithPin(
           encryptedSeed,
           pin,
         );
