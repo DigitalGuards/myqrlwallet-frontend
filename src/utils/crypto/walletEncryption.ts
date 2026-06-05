@@ -291,11 +291,18 @@ export class WalletEncryptionUtil {
       throw new PinDecryptionError('Invalid encrypted seed format.');
     }
 
+    // Valid JSON but not an object (e.g. "123" or "null") is corrupt data, not
+    // an old format: report it as such rather than prompting a pointless
+    // re-import.
+    if (!parsed || typeof parsed !== 'object') {
+      throw new PinDecryptionError('Invalid encrypted seed format.');
+    }
+
     // No legacy migration. Only pin_v4 (WebCrypto AES-GCM) is supported; a blob
     // written by the old crypto-js format (pin_v3 and earlier) cannot be
     // decrypted and the user must re-import. Surface that distinctly so the UI
     // shows a re-import prompt rather than a misleading "incorrect PIN".
-    if (parsed?.version !== PIN_VERSION) {
+    if (parsed.version !== PIN_VERSION) {
       throw new OutdatedWalletFormatError();
     }
 

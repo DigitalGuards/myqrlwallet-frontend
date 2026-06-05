@@ -90,6 +90,17 @@ describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
       WalletEncryptionUtil.decryptSeedWithPin('not-json', PIN),
     ).rejects.toBeInstanceOf(PinDecryptionError);
   });
+
+  it('treats valid-JSON-but-not-an-object as corrupt (PinDecryptionError), not outdated', async () => {
+    // "123" / "null" parse fine but have no .version; they are corrupt data, not
+    // an old wallet format, so they must not surface as OutdatedWalletFormatError.
+    await expect(
+      WalletEncryptionUtil.decryptSeedWithPin('123', PIN),
+    ).rejects.toBeInstanceOf(PinDecryptionError);
+    await expect(
+      WalletEncryptionUtil.decryptSeedWithPin('null', PIN),
+    ).rejects.toBeInstanceOf(PinDecryptionError);
+  });
 });
 
 describe('WalletEncryptionUtil password wallet file (WebCrypto AES-GCM)', () => {
