@@ -146,14 +146,26 @@ class TokenStore {
     await this.migrateGlobalTokenListToAccount();
     const { blockchain, account } = this.scope;
     const persistedList = await StorageUtil.getTokenList(blockchain, account);
-    runInAction(() => {
-      this.tokenList = persistedList;
-    });
-    await this.loadHiddenTokens();
-
+    
+    // Seed KNOWN_TOKEN_LIST into the persisted list if not already present.
+    // Use a local copy to avoid multiple re-renders and potential races
+    // during the loop.
+    const initialList = [...persistedList];
+    const seen = new Set(initialList.map((t) => t.address.toLowerCase()));
     for (const token of KNOWN_TOKEN_LIST) {
-      await this.addToken(token);
+      if (!seen.has(token.address.toLowerCase())) {
+        initialList.push(token);
+        seen.add(token.address.toLowerCase());
+      }
     }
+
+    runInAction(() => {
+      this.tokenList = initialList;
+    });
+
+    // Also persist the merged list so KNOWN_TOKEN_LIST entries land in storage
+    await StorageUtil.updateTokenList(blockchain, account, initialList);
+    await this.loadHiddenTokens();
   }
 
   // One-shot migration: pre-gate (before PR #142), the wallet auto-merged
@@ -230,17 +242,27 @@ class TokenStore {
     const blockchain = this.qrlStore.qrlConnection.blockchain;
     const persisted = await StorageUtil.getTokenList(blockchain, newActiveAccount);
     const hidden = await StorageUtil.getHiddenTokens(blockchain, newActiveAccount);
+
+    // Sync KNOWN_TOKEN_LIST into the persisted list for the new account.
+    const initialList = [...persisted];
+    const seen = new Set(initialList.map((t) => t.address.toLowerCase()));
+    for (const token of KNOWN_TOKEN_LIST) {
+      if (!seen.has(token.address.toLowerCase())) {
+        initialList.push(token);
+        seen.add(token.address.toLowerCase());
+      }
+    }
+
     runInAction(() => {
-      this.tokenList = persisted;
+      this.tokenList = initialList;
       this.hiddenTokens = hidden;
       // Discovered list is per-address; drop it so a picker opened
       // after the switch can't leak the prior account's results.
       this.discoveredTokens = [];
     });
 
-    for (const token of KNOWN_TOKEN_LIST) {
-      await this.addToken(token);
-    }
+    // Persist the merged list for the new account scope
+    await StorageUtil.updateTokenList(blockchain, newActiveAccount, initialList);
 
     // Refresh balances on whatever is in the list now (persisted picks +
     // KNOWN_TOKEN_LIST entries). No explorer call.
@@ -328,15 +350,15 @@ class TokenStore {
   async setTokenList(tokenList: TokenInterface[]) {
     const { blockchain, account } = this.scope;
     if (!blockchain || !account) return;
+
+    // Update the observable immediately so concurrent calls see the new state.
+    // Wrap in runInAction because we are in an async method.
+    runInAction(() => {
+      this.tokenList = tokenList;
+    });
+
+    // Persist to storage.
     await StorageUtil.updateTokenList(blockchain, account, tokenList);
-    // The active account/blockchain can change during the await; only apply the
-    // result if we're still on the same scope, and wrap the observable write in
-    // runInAction (MobX strict mode forbids mutating after an await otherwise).
-    if (this.scope.blockchain === blockchain && this.scope.account === account) {
-      runInAction(() => {
-        this.tokenList = tokenList;
-      });
-    }
   }
 
   async sendToken(
@@ -749,43 +771,48 @@ class TokenStore {
   async addDiscoveredTokens(picks: TokenInterface[]) {
     if (picks.length === 0) return;
     const startAccount = this.qrlStore.activeAccount.accountAddress;
-    const owned = new Set(
-      this.tokenList.map((t) => t.address.toLowerCase()),
-    );
-    const hidden = new Set(this.hiddenTokens.map((a) => a.toLowerCase()));
+    
+    // Capture state once to ensure consistency during the loop
+    const currentTokenList = [...this.tokenList];
+    const currentHiddenTokens = [...this.hiddenTokens];
+    
+    const owned = new Set(currentTokenList.map((t) => t.address.toLowerCase()));
+    const hidden = new Set(currentHiddenTokens.map((a) => a.toLowerCase()));
+    
     const additions: TokenInterface[] = [];
     const unhides: string[] = [];
+    
     for (const pick of picks) {
       const lower = pick.address.toLowerCase();
       if (!owned.has(lower)) {
         additions.push(pick);
+        owned.add(lower); // Prevent duplicate additions within the same batch
       } else if (hidden.has(lower)) {
         unhides.push(pick.address);
       }
-      // else: already visible — skip
     }
+    
     if (additions.length === 0 && unhides.length === 0) return;
-    // Stale-write guard: token storage is per-account-scoped, so a write
-    // lands in the right key even after a switch, but the in-memory
-    // append would still mix the prior account's picks into the new
-    // account's tokenList.
+    
     if (this.qrlStore.activeAccount.accountAddress !== startAccount) {
-      log(
-        "addDiscoveredTokens: active account changed before write, abandoning picks",
-      );
+      log("addDiscoveredTokens: active account changed before write, abandoning picks");
       return;
     }
+    
     const { blockchain, account } = this.scope;
+    
+    // 1. Handle additions (new tokens)
     if (additions.length > 0) {
       await this.setTokenList([...this.tokenList, ...additions]);
     }
+    
+    // 2. Handle unhides (existing but hidden tokens)
     if (unhides.length > 0) {
-      // Persist each unhide (StorageUtil.unhideToken is small) and
-      // collapse the observable update into a single runInAction so the
-      // UI re-renders once instead of N times.
+      // Persist unhides in storage
       for (const addr of unhides) {
         await StorageUtil.unhideToken(blockchain, account, addr);
       }
+      
       const drop = new Set(unhides.map((a) => a.toLowerCase()));
       runInAction(() => {
         this.hiddenTokens = this.hiddenTokens.filter(
@@ -793,9 +820,8 @@ class TokenStore {
         );
       });
     }
-    log(
-      `addDiscoveredTokens: added ${additions.length}, unhid ${unhides.length}`,
-    );
+    
+    log(`addDiscoveredTokens: added ${additions.length}, unhid ${unhides.length}`);
   }
 
   clearDiscoveredTokens() {
