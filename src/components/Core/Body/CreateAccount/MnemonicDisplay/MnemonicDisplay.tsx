@@ -90,25 +90,33 @@ const MnemonicDisplay = ({
     }
   };
 
-  const onDownloadEncrypted = () => {
+  const onDownloadEncrypted = async () => {
     if (account && mnemonic && accountHexSeed) {
       const extendedAccount = {
         ...account,
         mnemonic,
         hexSeed: accountHexSeed
       };
-      WalletEncryptionUtil.downloadWallet(extendedAccount, userPassword);
+      try {
+        await WalletEncryptionUtil.downloadWallet(extendedAccount, userPassword);
+      } catch (error) {
+        console.error("Failed to download encrypted wallet:", error);
+      }
     }
   };
 
-  const onDownloadUnencrypted = () => {
+  const onDownloadUnencrypted = async () => {
     if (account && mnemonic && accountHexSeed) {
       const extendedAccount = {
         ...account,
         mnemonic,
         hexSeed: accountHexSeed
       };
-      WalletEncryptionUtil.downloadWallet(extendedAccount);
+      try {
+        await WalletEncryptionUtil.downloadWallet(extendedAccount);
+      } catch (error) {
+        console.error("Failed to download wallet:", error);
+      }
     }
   };
 

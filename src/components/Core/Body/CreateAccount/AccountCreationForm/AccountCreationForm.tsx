@@ -23,7 +23,7 @@ import { Loader, Plus } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { encryptSeedAsync, decryptSeedAsync, getMnemonicFromHexSeed } from "@/utils/crypto";
+import { encryptSeedAsync, decryptSeedAsync, getMnemonicFromHexSeed, CryptoOperationError, CryptoErrorCode } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
@@ -132,10 +132,12 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds,
       if (hasExistingSeeds && existingSeeds.length > 0) {
         try {
           await decryptSeedAsync(existingSeeds[0].encryptedSeed, userPin);
-        } catch {
-          setError("pin", {
-            message: "Incorrect PIN. Please enter your existing wallet PIN.",
-          });
+        } catch (err) {
+          const message =
+            err instanceof CryptoOperationError && err.code === CryptoErrorCode.OUTDATED_FORMAT
+              ? "This wallet was saved in an older format and must be re-imported."
+              : "Incorrect PIN. Please enter your existing wallet PIN.";
+          setError("pin", { message });
           return;
         }
       }
