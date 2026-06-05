@@ -66,7 +66,7 @@ const Transfer = observer(() => {
     resetTransactionStatus,
     estimateNativeTransferFee,
   } = qrlStore;
-  const { tokenList, sendToken: sendTokenToStore } = tokenStore;
+  const { visibleTokenList, sendToken: sendTokenToStore } = tokenStore;
   const { blockchain } = qrlConnection;
   const { accountAddress } = activeAccount;
 
@@ -153,7 +153,7 @@ const Transfer = observer(() => {
 
   // Get selected token info
   const selectedToken = !isNativeTransfer
-    ? tokenList.find(t => t.address === selectedAsset)
+    ? visibleTokenList.find(t => t.address === selectedAsset)
     : null;
 
   // Get balance based on selected asset
@@ -172,7 +172,7 @@ const Transfer = observer(() => {
             accountAddress,
             QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url
           );
-          const token = tokenList.find(t => t.address === selectedAsset);
+          const token = visibleTokenList.find(t => t.address === selectedAsset);
           setTokenBalance(formatUnits(balance, token?.decimals || 18));
         } catch (error) {
           console.error("Error fetching token balance:", error);
@@ -181,7 +181,7 @@ const Transfer = observer(() => {
       }
     };
     fetchTokenBalance();
-  }, [selectedAsset, accountAddress, isNativeTransfer, tokenList]);
+  }, [selectedAsset, accountAddress, isNativeTransfer, visibleTokenList]);
 
   // Reset amount when asset changes
   useEffect(() => {
@@ -619,7 +619,7 @@ const Transfer = observer(() => {
                                 <span>QRL (Native)</span>
                               </div>
                             </SelectItem>
-                            {tokenList.map((token) => (
+                            {visibleTokenList.map((token) => (
                               <SelectItem key={token.address} value={token.address}>
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium">{token.symbol}</span>
