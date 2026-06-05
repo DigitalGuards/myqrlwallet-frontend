@@ -306,6 +306,16 @@ export class WalletEncryptionUtil {
       throw new OutdatedWalletFormatError();
     }
 
+    // A pin_v4 blob missing its envelope fields is corrupt, not a wrong PIN:
+    // report it as a format error rather than letting it surface as "Invalid PIN".
+    if (
+      typeof parsed.salt !== 'string' ||
+      typeof parsed.iv !== 'string' ||
+      typeof parsed.encryptedData !== 'string'
+    ) {
+      throw new PinDecryptionError('Invalid encrypted seed format.');
+    }
+
     try {
       const json = await aesGcmDecrypt(
         { salt: parsed.salt, iv: parsed.iv, encryptedData: parsed.encryptedData },
