@@ -357,7 +357,7 @@ const Transfer = observer(() => {
 
         let mnemonicPhrases;
         try {
-          const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.pin!);
+          const decryptedSeed = await WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.pin!);
           mnemonicPhrases = decryptedSeed.mnemonic;
         } catch {
           control.setError("pin", { message: "Invalid PIN. Please try again." });
@@ -394,7 +394,7 @@ const Transfer = observer(() => {
 
       let mnemonic;
       try {
-        const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.pin || "");
+        const decryptedSeed = await WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.pin || "");
         mnemonic = decryptedSeed.mnemonic;
       } catch {
         control.setError("pin", { message: "Invalid PIN. Please try again." });

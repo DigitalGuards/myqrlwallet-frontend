@@ -1,13 +1,22 @@
 /**
- * Client interface for the crypto Web Worker.
- * Provides async functions that run PBKDF2 off the main thread.
+ * Async crypto API for the wallet.
  *
- * Uses a worker pool to enable true parallel execution when multiple
- * crypto operations are requested concurrently (e.g., PIN change for multiple seeds).
+ * - Seed encrypt/decrypt/reEncrypt run on the MAIN THREAD via WebCrypto
+ *   (walletEncryption.ts). WebCrypto's PBKDF2/AES-GCM is async and runs off the
+ *   JS thread inside the browser, so it does not block the UI and needs no
+ *   worker. These wrappers map the WebCrypto error types onto the
+ *   CryptoOperationError contract existing callers rely on.
+ * - deriveHexSeed (MLDSA87 mnemonic expansion) is pure JS and DOES block, so it
+ *   still runs in the Web Worker via a small worker pool.
  */
 
 import type { CryptoWorkerMessage, CryptoWorkerResponse, CryptoErrorCode } from './cryptoWorker';
 import { CryptoErrorCode as CryptoErrorCodes } from './cryptoWorker';
+import {
+  WalletEncryptionUtil,
+  PinDecryptionError,
+  OutdatedWalletFormatError,
+} from './walletEncryption';
 
 // Vite worker import syntax
 import CryptoWorker from './cryptoWorker?worker';
@@ -25,7 +34,67 @@ export class CryptoOperationError extends Error {
   }
 }
 
-// === Worker Pool Configuration ===
+/**
+ * Map the main-thread WebCrypto error types onto CryptoOperationError so the
+ * async API keeps its existing contract (callers such as the native bridge's
+ * CHANGE_PIN check `code === INCORRECT_PIN`).
+ */
+function toCryptoOperationError(error: unknown): CryptoOperationError {
+  if (error instanceof OutdatedWalletFormatError) {
+    return new CryptoOperationError(CryptoErrorCodes.OUTDATED_FORMAT, error.message);
+  }
+  if (error instanceof PinDecryptionError) {
+    return new CryptoOperationError(CryptoErrorCodes.INCORRECT_PIN, 'Incorrect PIN');
+  }
+  const message = error instanceof Error ? error.message : 'Unknown crypto error';
+  return new CryptoOperationError(CryptoErrorCodes.UNKNOWN, message);
+}
+
+/**
+ * Encrypt a seed with PIN (WebCrypto AES-256-GCM, main thread, non-blocking).
+ */
+export async function encryptSeedAsync(
+  mnemonic: string,
+  hexSeed: string,
+  pin: string
+): Promise<string> {
+  try {
+    return await WalletEncryptionUtil.encryptSeedWithPin(mnemonic, hexSeed, pin);
+  } catch (error) {
+    throw toCryptoOperationError(error);
+  }
+}
+
+/**
+ * Decrypt a seed with PIN (WebCrypto AES-256-GCM, main thread, non-blocking).
+ */
+export async function decryptSeedAsync(
+  encryptedData: string,
+  pin: string
+): Promise<{ mnemonic: string; hexSeed: string }> {
+  try {
+    return await WalletEncryptionUtil.decryptSeedWithPin(encryptedData, pin);
+  } catch (error) {
+    throw toCryptoOperationError(error);
+  }
+}
+
+/**
+ * Re-encrypt a seed with a new PIN (WebCrypto, main thread, non-blocking).
+ */
+export async function reEncryptSeedAsync(
+  encryptedSeed: string,
+  oldPin: string,
+  newPin: string
+): Promise<string> {
+  try {
+    return await WalletEncryptionUtil.reEncryptSeed(encryptedSeed, oldPin, newPin);
+  } catch (error) {
+    throw toCryptoOperationError(error);
+  }
+}
+
+// === Worker Pool (deriveHexSeed only) ===
 const MAX_WORKERS = Math.min(navigator.hardwareConcurrency || 2, 4);
 const WORKER_IDLE_TIMEOUT_MS = 30000; // 30 seconds
 
@@ -135,57 +204,8 @@ function postToWorker<T extends CryptoWorkerResponse['type']>(
 }
 
 /**
- * Encrypt a seed with PIN using Web Worker (non-blocking).
- */
-export async function encryptSeedAsync(
-  mnemonic: string,
-  hexSeed: string,
-  pin: string
-): Promise<string> {
-  const result = await postToWorker<'encrypt'>({
-    type: 'encrypt',
-    mnemonic,
-    hexSeed,
-    pin,
-  });
-  return result.encryptedSeed;
-}
-
-/**
- * Decrypt a seed with PIN using Web Worker (non-blocking).
- */
-export async function decryptSeedAsync(
-  encryptedData: string,
-  pin: string
-): Promise<{ mnemonic: string; hexSeed: string }> {
-  const result = await postToWorker<'decrypt'>({
-    type: 'decrypt',
-    encryptedData,
-    pin,
-  });
-  return { mnemonic: result.mnemonic, hexSeed: result.hexSeed };
-}
-
-/**
- * Re-encrypt a seed with a new PIN using Web Worker (non-blocking).
- */
-export async function reEncryptSeedAsync(
-  encryptedSeed: string,
-  oldPin: string,
-  newPin: string
-): Promise<string> {
-  const result = await postToWorker<'reEncrypt'>({
-    type: 'reEncrypt',
-    encryptedSeed,
-    oldPin,
-    newPin,
-  });
-  return result.encryptedSeed;
-}
-
-/**
  * Derive the hex-encoded extended seed from a BIP39 mnemonic using the
- * Web Worker so the 50–300 ms MLDSA87 expansion runs off the main
+ * Web Worker so the 50-300 ms MLDSA87 expansion runs off the main
  * thread. Equivalent output to the synchronous getHexSeedFromMnemonic
  * but doesn't block animations / signing UI during the derivation.
  *
