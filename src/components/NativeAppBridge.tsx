@@ -237,13 +237,15 @@ const NativeAppBridge: React.FC = () => {
           // Home listens for, so the cards update without a reload.
           (async () => {
             try {
+              const { showTokensCard, showNftsCard } = (payload || {}) as Record<string, unknown>;
               const current = await StorageUtil.getWalletSettings();
               const next = { ...current };
-              if (typeof payload?.showTokensCard === 'boolean') {
-                next.showTokensCard = payload.showTokensCard;
+
+              if (typeof showTokensCard === 'boolean') {
+                next.showTokensCard = showTokensCard;
               }
-              if (typeof payload?.showNftsCard === 'boolean') {
-                next.showNftsCard = payload.showNftsCard;
+              if (typeof showNftsCard === 'boolean') {
+                next.showNftsCard = showNftsCard;
               }
               await StorageUtil.setWalletSettings(next);
             } catch (error) {
