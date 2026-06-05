@@ -367,16 +367,12 @@ class StorageUtil {
   }
 
   static async getWalletSettings(): Promise<WalletSettings> {
-    const defaults: WalletSettings = {
-      autoLockTimeout: AUTO_LOCK_TIMEOUT,
-      showTokensCard: true,
-      showNftsCard: true,
+    const stored = this.getItem<Partial<WalletSettings>>(WALLET_SETTINGS_IDENTIFIER) ?? {};
+    return {
+      autoLockTimeout: stored.autoLockTimeout ?? AUTO_LOCK_TIMEOUT,
+      showTokensCard: stored.showTokensCard ?? true,
+      showNftsCard: stored.showNftsCard ?? true,
     };
-    // Merge defaults so returning users with a stored settings object
-    // that pre-dates the new keys still get the right defaults instead
-    // of `undefined`.
-    const stored = this.getItem<Partial<WalletSettings>>(WALLET_SETTINGS_IDENTIFIER);
-    return { ...defaults, ...(stored ?? {}) };
   }
 
   /**
