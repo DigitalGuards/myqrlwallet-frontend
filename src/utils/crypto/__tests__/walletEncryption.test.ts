@@ -101,6 +101,15 @@ describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
       WalletEncryptionUtil.decryptSeedWithPin('null', PIN),
     ).rejects.toBeInstanceOf(PinDecryptionError);
   });
+
+  it('rejects a pin_v4 blob missing envelope fields as a format error', async () => {
+    // Correctly versioned but corrupt (no salt/iv/encryptedData): must be a
+    // clear format error, not a misleading "Invalid PIN".
+    const malformed = JSON.stringify({ version: 'pin_v4', timestamp: 0 });
+    await expect(
+      WalletEncryptionUtil.decryptSeedWithPin(malformed, PIN),
+    ).rejects.toThrow(/Invalid encrypted seed format/);
+  });
 });
 
 describe('WalletEncryptionUtil password wallet file (WebCrypto AES-GCM)', () => {
