@@ -141,7 +141,7 @@ export const columns: ColumnDef<TokenInterface>[] = [
     },
     {
         accessorKey: 'amount',
-        header: 'Amount',
+        header: 'Balance',
         cell: ({ row }) => {
             const amount: string = row.getValue('amount')
             return <BalanceCell amount={amount} />;

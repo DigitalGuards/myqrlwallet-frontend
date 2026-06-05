@@ -90,7 +90,7 @@ const TokenForm = observer(() => {
                     try {
                         const balance = await fetchBalance(token.address, activeAccountAddress, QRL_PROVIDER[selectedBlockChain].url);
                         const balanceStr = formatUnits(balance, token.decimals);
-                        return { ...token, amount: getOptimalTokenBalance(balanceStr, token.symbol) };
+                        return { ...token, amount: getOptimalTokenBalance(balanceStr, token.symbol, false) };
                     } catch (err) {
                         console.error(`Failed to fetch balance for token ${token.symbol}:`, err);
                         return { ...token, amount: "Error" };
