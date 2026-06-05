@@ -42,9 +42,6 @@ import {
 
 const SettingsFormSchema = z.object({
     autoLockTimeout: z.number().min(1).max(60),
-    showTestNetworks: z.boolean(),
-    hideSmallBalances: z.boolean(),
-    hideUnknownTokens: z.boolean(),
     showTokensCard: z.boolean(),
     showNftsCard: z.boolean(),
 });
@@ -115,9 +112,6 @@ const Settings = observer(() => {
             const settings = await StorageUtil.getWalletSettings();
             return {
                 autoLockTimeout: settings.autoLockTimeout ? Math.floor(settings.autoLockTimeout / (60 * 1000)) : 15,
-                showTestNetworks: settings.showTestNetworks || false,
-                hideSmallBalances: settings.hideSmallBalances || false,
-                hideUnknownTokens: settings.hideUnknownTokens || true,
                 showTokensCard: settings.showTokensCard ?? true,
                 showNftsCard: settings.showNftsCard ?? true,
             };
@@ -407,69 +401,6 @@ const Settings = observer(() => {
                                         />
 
                                         <Separator />
-
-                                        <FormField
-                                            control={form.control}
-                                            name="showTestNetworks"
-                                            render={({ field }) => (
-                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                                    <div className="space-y-0.5">
-                                                        <FormLabel>Show Test Networks</FormLabel>
-                                                        <FormDescription>
-                                                            Display test networks in the network selection
-                                                        </FormDescription>
-                                                    </div>
-                                                    <FormControl>
-                                                        <Switch
-                                                            checked={field.value ?? false}
-                                                            onCheckedChange={field.onChange}
-                                                        />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-
-                                        <FormField
-                                            control={form.control}
-                                            name="hideSmallBalances"
-                                            render={({ field }) => (
-                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                                    <div className="space-y-0.5">
-                                                        <FormLabel>Hide Small Balances</FormLabel>
-                                                        <FormDescription>
-                                                            Hide tokens with very small balances
-                                                        </FormDescription>
-                                                    </div>
-                                                    <FormControl>
-                                                        <Switch
-                                                            checked={field.value ?? false}
-                                                            onCheckedChange={field.onChange}
-                                                        />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-
-                                        <FormField
-                                            control={form.control}
-                                            name="hideUnknownTokens"
-                                            render={({ field }) => (
-                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                                    <div className="space-y-0.5">
-                                                        <FormLabel>Hide Unknown Tokens</FormLabel>
-                                                        <FormDescription>
-                                                            Hide tokens that haven't been verified or added manually
-                                                        </FormDescription>
-                                                    </div>
-                                                    <FormControl>
-                                                        <Switch
-                                                            checked={field.value ?? true}
-                                                            onCheckedChange={field.onChange}
-                                                        />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
 
                                         <FormField
                                             control={form.control}
