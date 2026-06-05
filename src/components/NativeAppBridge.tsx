@@ -367,7 +367,7 @@ const NativeAppBridge: React.FC = () => {
             // Inner try/catch specifically for PIN decryption
             try {
               // decryptSeedWithPin throws if PIN is incorrect
-              WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pin);
+              await WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pin);
               logToNative('PIN verified successfully');
               sendPinVerified(true);
             } catch (decryptError) {

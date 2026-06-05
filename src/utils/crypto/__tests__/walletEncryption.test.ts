@@ -1,19 +1,18 @@
 /**
- * Coverage for the PIN-based seed encryption in walletEncryption.ts, focused on
- * the removal of the legacy pre-v3 PBKDF2 iteration fallback.
+ * Coverage for the WebCrypto (AES-256-GCM + PBKDF2-SHA256) seed/wallet
+ * encryption in walletEncryption.ts, after the crypto-js -> WebCrypto migration.
  *
- * Context: ce0b802 ("remove legacy PIN encryption versions (v1, v2)") retired
- * legacy support on the basis that "all users have migrated", but it only
- * dropped the explicit pin_v2 branch and left a `: 5000` else-fallback in the
- * sync decryptSeedWithPin. That made the sync path inconsistent with
- * cryptoWorker.ts, which already ignores the stored version label and always
- * derives at 600k iterations. This suite pins (a) the real v3 round-trip still
- * works end-to-end and (b) decrypt now derives at 600k for ANY stored version,
- * so a pre-v3 blob can no longer be unlocked (matching the async unlock path).
+ * What it pins:
+ * - pin_v4 seed blob round-trips with the correct PIN.
+ * - Wrong PIN is rejected (GCM tag mismatch) with PinDecryptionError.
+ * - Tampering the ciphertext is DETECTED (the property the old unauthenticated
+ *   AES-CBC lacked): a one-nibble flip makes decrypt throw.
+ * - An old (pre-WebCrypto) pin_v3 blob is rejected with OutdatedWalletFormatError
+ *   so the UI can prompt a re-import rather than a misleading "wrong PIN".
+ * - The password-based wallet file round-trips and rejects the wrong password.
  *
- * The version-fallback cases spy on PBKDF2 instead of running the real 600k
- * derivation, so they assert the iteration count in milliseconds rather than
- * the ~10s a real pure-JS 600k PBKDF2 costs per call in the node test env.
+ * Runs natively on WebCrypto (jest's node env exposes globalThis.crypto.subtle),
+ * so it is fast and needs no crypto-js.
  *
  * nativeApp is mocked: walletEncryption imports it for download/share helpers
  * (unused by the functions under test) and it touches window/navigator, which
@@ -25,61 +24,105 @@ jest.mock('@/utils/nativeApp', () => ({
   shareContent: jest.fn(),
 }));
 
-import CryptoJS from 'crypto-js';
-import { WalletEncryptionUtil, PinDecryptionError } from '../walletEncryption';
+import {
+  WalletEncryptionUtil,
+  PinDecryptionError,
+  OutdatedWalletFormatError,
+  type EncryptedWallet,
+  type WalletData,
+} from '../walletEncryption';
 
 const MNEMONIC =
   'absorb absurd abuse access accident account accuse achieve acid acoustic acquire across';
 const HEX_SEED = '0x' + 'ab'.repeat(48);
 const PIN = '123456';
+const PASSWORD = 'Str0ng!Passw0rd';
 
-describe('WalletEncryptionUtil PIN seed encryption', () => {
-  it('writes pin_v3 and round-trips with the correct PIN (real 600k path)', () => {
-    const blob = WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN);
-    expect(JSON.parse(blob).version).toBe('pin_v3');
+describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
+  it('writes pin_v4 and round-trips with the correct PIN', async () => {
+    const blob = await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN);
+    expect(JSON.parse(blob).version).toBe('pin_v4');
 
-    const out = WalletEncryptionUtil.decryptSeedWithPin(blob, PIN);
+    const out = await WalletEncryptionUtil.decryptSeedWithPin(blob, PIN);
     expect(out).toEqual({ mnemonic: MNEMONIC, hexSeed: HEX_SEED });
   });
 
-  describe('decrypt always derives at 600k iterations, regardless of stored version', () => {
-    // Regression guard for the removed legacy fallback. Spied so the assertion
-    // is on the iteration count, not the (mocked, therefore failing) decrypt
-    // result, which keeps it fast.
-    let spy: ReturnType<typeof jest.spyOn>;
+  it('produces a fresh random salt + iv per encryption', async () => {
+    const a = JSON.parse(await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN));
+    const b = JSON.parse(await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN));
+    expect(a.salt).not.toEqual(b.salt);
+    expect(a.iv).not.toEqual(b.iv);
+    expect(a.encryptedData).not.toEqual(b.encryptedData);
+  });
 
-    beforeEach(() => {
-      spy = jest
-        .spyOn(CryptoJS, 'PBKDF2')
-        .mockReturnValue(CryptoJS.lib.WordArray.random(256 / 8));
+  it('throws PinDecryptionError on the wrong PIN', async () => {
+    const blob = await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN);
+    await expect(WalletEncryptionUtil.decryptSeedWithPin(blob, '654321')).rejects.toBeInstanceOf(
+      PinDecryptionError,
+    );
+  });
+
+  it('detects ciphertext tampering (AES-GCM authentication)', async () => {
+    const parsed = JSON.parse(await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN));
+    // Flip the first nibble of the ciphertext; GCM must reject on the tag check.
+    parsed.encryptedData =
+      (parsed.encryptedData[0] === '0' ? '1' : '0') + parsed.encryptedData.slice(1);
+    await expect(
+      WalletEncryptionUtil.decryptSeedWithPin(JSON.stringify(parsed), PIN),
+    ).rejects.toBeInstanceOf(PinDecryptionError);
+  });
+
+  it('rejects an outdated pre-WebCrypto (pin_v3) blob with a distinct error', async () => {
+    const legacy = JSON.stringify({
+      version: 'pin_v3',
+      salt: 'aa'.repeat(16),
+      iv: 'bb'.repeat(16),
+      encryptedData: 'deadbeefdeadbeef',
+      timestamp: 0,
     });
-    afterEach(() => {
-      spy.mockRestore();
-    });
+    await expect(WalletEncryptionUtil.decryptSeedWithPin(legacy, PIN)).rejects.toBeInstanceOf(
+      OutdatedWalletFormatError,
+    );
+  });
 
-    it.each(['pin_v1', 'pin_v2', 'pin_v3', 'unlabeled'])(
-      'uses 600000 iterations for a %s blob',
-      (label) => {
-        const blob = JSON.stringify({
-          encryptedData: 'deadbeefdeadbeef',
-          salt: 'aa'.repeat(16),
-          iv: 'bb'.repeat(16),
-          version: label === 'unlabeled' ? undefined : label,
-          timestamp: 0,
-        });
+  it('rejects a malformed (non-JSON) blob with PinDecryptionError', async () => {
+    await expect(
+      WalletEncryptionUtil.decryptSeedWithPin('not-json', PIN),
+    ).rejects.toBeInstanceOf(PinDecryptionError);
+  });
 
-        // Decrypt throws (the mocked key yields garbage), which is expected;
-        // the iteration-count assertion below is the actual regression guard.
-        expect(() => WalletEncryptionUtil.decryptSeedWithPin(blob, PIN)).toThrow(
-          PinDecryptionError,
-        );
+  it('treats valid-JSON-but-not-an-object as corrupt (PinDecryptionError), not outdated', async () => {
+    // "123" / "null" parse fine but have no .version; they are corrupt data, not
+    // an old wallet format, so they must not surface as OutdatedWalletFormatError.
+    await expect(
+      WalletEncryptionUtil.decryptSeedWithPin('123', PIN),
+    ).rejects.toBeInstanceOf(PinDecryptionError);
+    await expect(
+      WalletEncryptionUtil.decryptSeedWithPin('null', PIN),
+    ).rejects.toBeInstanceOf(PinDecryptionError);
+  });
+});
 
-        expect(spy).toHaveBeenCalledWith(
-          PIN,
-          expect.anything(),
-          expect.objectContaining({ iterations: 600000 }),
-        );
-      },
+describe('WalletEncryptionUtil password wallet file (WebCrypto AES-GCM)', () => {
+  const walletData: WalletData = {
+    address: 'Q6153d37Fa4DA7193E6219DCBd2bBe62Fa12905b1',
+    mnemonic: MNEMONIC,
+    hexSeed: HEX_SEED,
+  };
+
+  it('writes version v2 and round-trips with the correct password', async () => {
+    const encrypted: EncryptedWallet = await WalletEncryptionUtil.encryptWallet(walletData, PASSWORD);
+    expect(encrypted.version).toBe('v2');
+    expect(encrypted.address).toBe(walletData.address);
+
+    const decrypted = await WalletEncryptionUtil.decryptWallet(encrypted, PASSWORD);
+    expect(decrypted).toEqual(walletData);
+  });
+
+  it('rejects the wrong password', async () => {
+    const encrypted = await WalletEncryptionUtil.encryptWallet(walletData, PASSWORD);
+    await expect(WalletEncryptionUtil.decryptWallet(encrypted, 'Wr0ng!Passw0rd')).rejects.toThrow(
+      /Failed to decrypt wallet/,
     );
   });
 });

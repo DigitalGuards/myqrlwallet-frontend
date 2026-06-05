@@ -18,8 +18,8 @@
  * This is not a regression from v1, but it is a known limitation. The
  * follow-up path (tracked separately) is to wrap the session key with an
  * AES-KW key derived from the user's PIN (already present for seed
- * encryption via `crypto-js`), so a pilfered localStorage dump is useless
- * without the PIN. Out of scope for this PR.
+ * encryption via WebCrypto AES-256-GCM), so a pilfered localStorage dump is
+ * useless without the PIN. Out of scope for this PR.
  *
  * Mitigations in place today: 7-day session TTL, explicit disconnect
  * clears the record, `qrlconnect:sessions` records without `version: 2`

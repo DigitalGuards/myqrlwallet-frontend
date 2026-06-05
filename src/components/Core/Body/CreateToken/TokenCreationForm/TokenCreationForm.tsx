@@ -149,7 +149,7 @@ export const TokenCreationForm = observer(
                     // crypto worker is not a wrong-PIN error and shouldn't
                     // be misreported as one.
                     try {
-                        const decryptedSeed = WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pin);
+                        const decryptedSeed = await WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pin);
                         mnemonicPhrase = decryptedSeed.mnemonic;
                     } catch (_error) {
                         setPinError("Invalid PIN. Please try again.");

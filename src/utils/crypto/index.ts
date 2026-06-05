@@ -1,5 +1,7 @@
 export {
   WalletEncryptionUtil,
+  PinDecryptionError,
+  OutdatedWalletFormatError,
   type WalletData,
   type EncryptedWallet,
   type ExtendedWalletAccount,

@@ -72,7 +72,7 @@ export const ImportEncryptedWallet = ({
         return;
       }
 
-      const decryptedWallet = WalletEncryptionUtil.decryptWallet(
+      const decryptedWallet = await WalletEncryptionUtil.decryptWallet(
         encryptedWallet,
         formData.password
       );
