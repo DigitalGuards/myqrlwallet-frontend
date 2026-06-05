@@ -65,11 +65,14 @@ export const getOptimalGasFee = (gas: string, tokenSymbol?: string) => {
 export const getOptimalTokenBalance = (
     balance: string,
     tokenSymbol?: string,
+    includeSymbol: boolean = true,
 ) => {
     const symbol = tokenSymbol ?? NATIVE_TOKEN.symbol;
     try {
         const bigNumber = new BigNumber(balance);
-        if (bigNumber.isNaN() || bigNumber.isZero()) return `0.0 ${symbol}`;
+        if (bigNumber.isNaN() || bigNumber.isZero()) {
+            return includeSymbol ? `0.0 ${symbol}` : "0.0";
+        }
 
         let formatted = bigNumber
             .toFormat(4, BigNumber.ROUND_DOWN)
@@ -79,9 +82,9 @@ export const getOptimalTokenBalance = (
             formatted += ".0";
         }
 
-        return `${formatted} ${symbol}`;
+        return includeSymbol ? `${formatted} ${symbol}` : formatted;
     } catch {
-        return `0.0 ${symbol}`;
+        return includeSymbol ? `0.0 ${symbol}` : "0.0";
     }
 };
 
