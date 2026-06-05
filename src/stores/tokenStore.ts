@@ -813,6 +813,13 @@ class TokenStore {
         await StorageUtil.unhideToken(blockchain, account, addr);
       }
       
+      // Stale-write guard: if the account changed while we were awaiting
+      // storage writes, don't prune the current account's hiddenTokens.
+      if (this.qrlStore.activeAccount.accountAddress !== startAccount) {
+        log("addDiscoveredTokens: active account changed before unhide write, abandoning memory prune");
+        return;
+      }
+
       const drop = new Set(unhides.map((a) => a.toLowerCase()));
       runInAction(() => {
         this.hiddenTokens = this.hiddenTokens.filter(
