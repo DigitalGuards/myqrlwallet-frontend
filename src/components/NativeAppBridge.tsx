@@ -230,6 +230,33 @@ const NativeAppBridge: React.FC = () => {
           break;
         }
 
+        case 'SET_DISPLAY_PREFS' as NativeToWebMessageType: {
+          // The native app's own Settings tab drives the Home Tokens/NFTs card
+          // toggles. Merge the provided booleans into wallet settings;
+          // setWalletSettings dispatches STORAGE_EVENT_WALLET_SETTINGS, which
+          // Home listens for, so the cards update without a reload.
+          (async () => {
+            try {
+              const { showTokensCard, showNftsCard } = (payload || {}) as Record<string, unknown>;
+              const current = await StorageUtil.getWalletSettings();
+              const next = { ...current };
+
+              if (typeof showTokensCard === 'boolean') {
+                next.showTokensCard = showTokensCard;
+              }
+              if (typeof showNftsCard === 'boolean') {
+                next.showNftsCard = showNftsCard;
+              }
+              await StorageUtil.setWalletSettings(next);
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              console.error('[Bridge] Error applying SET_DISPLAY_PREFS:', error);
+              logToNative(`Error applying display prefs: ${errorMsg}`);
+            }
+          })();
+          break;
+        }
+
         case 'CLIPBOARD_SUCCESS':
           // Could show a toast notification
           console.log('[Bridge] Clipboard success');
