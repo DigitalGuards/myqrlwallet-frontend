@@ -657,7 +657,7 @@ class TokenStore {
           const balanceStr = formatUnits(balance, token.decimals);
           updatedTokenList[i] = {
             ...token,
-            amount: getOptimalTokenBalance(balanceStr, token.symbol),
+            amount: getOptimalTokenBalance(balanceStr, token.symbol, false),
           };
         } catch (err) {
           console.error(
