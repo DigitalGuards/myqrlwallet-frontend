@@ -48,9 +48,6 @@ interface StorageItem<T> {
 
 interface WalletSettings {
   autoLockTimeout: number;
-  showTestNetworks: boolean;
-  hideSmallBalances: boolean;
-  hideUnknownTokens: boolean;
   showTokensCard: boolean;
   showNftsCard: boolean;
 }
@@ -372,9 +369,6 @@ class StorageUtil {
   static async getWalletSettings(): Promise<WalletSettings> {
     const defaults: WalletSettings = {
       autoLockTimeout: AUTO_LOCK_TIMEOUT,
-      showTestNetworks: false,
-      hideSmallBalances: false,
-      hideUnknownTokens: true,
       showTokensCard: true,
       showNftsCard: true,
     };
