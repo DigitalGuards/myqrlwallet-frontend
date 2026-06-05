@@ -644,29 +644,23 @@ class TokenStore {
       // reflects what we set out to refresh.
       const snapshot = [...this.tokenList];
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const updatedTokenList = [...snapshot];
+      const rpcUrl = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url;
 
-      for (let i = 0; i < snapshot.length; i++) {
-        const token = snapshot[i];
-        try {
-          const balance = await fetchBalance(
-            token.address,
-            startAccount,
-            QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url,
-          );
-          const balanceStr = formatUnits(balance, token.decimals);
-          updatedTokenList[i] = {
-            ...token,
-            amount: getOptimalTokenBalance(balanceStr, token.symbol, false),
-          };
-        } catch (err) {
-          console.error(
-            `Error fetching balance for token ${token.symbol}:`,
-            err,
-          );
-          updatedTokenList[i] = { ...token, amount: "Error" };
-        }
-      }
+      const updatedTokenList = await Promise.all(
+        snapshot.map(async (token) => {
+          try {
+            const balance = await fetchBalance(token.address, startAccount, rpcUrl);
+            const balanceStr = formatUnits(balance, token.decimals);
+            return {
+              ...token,
+              amount: getOptimalTokenBalance(balanceStr, token.symbol, false),
+            };
+          } catch (err) {
+            console.error(`Error fetching balance for token ${token.symbol}:`, err);
+            return { ...token, amount: "Error" };
+          }
+        })
+      );
 
       // Stale-write guard: if the active account changed under us,
       // abandon the result. setTokenList writes to the current scope, so

@@ -1,4 +1,3 @@
-import { TokenInterface } from "@/constants";
 import {
     Card,
     CardContent,
@@ -9,14 +8,10 @@ import { observer } from "mobx-react-lite";
 import { columns } from "./columns"
 import { DataTable } from "./data-table"
 import { useEffect, useState } from "react";
-import { fetchBalance } from "@/utils/web3";
 import { useStore } from "@/stores/store";
 import { Button } from "@/components/UI/Button";
 import { Check, Plus, RefreshCw, Import, Coins, Sparkles } from "lucide-react";
 import { AddTokenModal } from "../AddTokenModal/AddTokenModal";
-import { formatUnits } from "@/utils/web3/units";
-import { QRL_PROVIDER } from "@/config";
-import { StorageUtil } from "@/utils/storage";
 
 import {
     DropdownMenu,
@@ -32,7 +27,6 @@ import {
 } from "@/components/UI/Tooltip";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
-import { getOptimalTokenBalance } from "@/utils/formatting";
 
 const TokenForm = observer(() => {
     const { qrlStore, tokenStore } = useStore();
@@ -40,9 +34,7 @@ const TokenForm = observer(() => {
     const { accountAddress: activeAccountAddress } = qrlStore.activeAccount;
     const { visibleTokenList, pendingDiscoveredTokens } = tokenStore;
 
-    const [tokenList, setTokenList] = useState<TokenInterface[]>(visibleTokenList);
     const [isAddTokenModalOpen, setIsAddTokenModalOpen] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [refreshSuccess, setRefreshSuccess] = useState(false);
 
@@ -80,38 +72,6 @@ const TokenForm = observer(() => {
         if (!activeAccountAddress) return;
         void tokenStore.discoverTokensForReview(activeAccountAddress);
     }, [activeAccountAddress, tokenStore]);
-
-    useEffect(() => {
-        const init = async () => {
-            setIsLoading(true);
-            try {
-                const selectedBlockChain = await StorageUtil.getBlockChain();
-                const promises = visibleTokenList.map(async (token) => {
-                    try {
-                        const balance = await fetchBalance(token.address, activeAccountAddress, QRL_PROVIDER[selectedBlockChain].url);
-                        const balanceStr = formatUnits(balance, token.decimals);
-                        return { ...token, amount: getOptimalTokenBalance(balanceStr, token.symbol, false) };
-                    } catch (err) {
-                        console.error(`Failed to fetch balance for token ${token.symbol}:`, err);
-                        return { ...token, amount: "Error" };
-                    }
-                });
-                const updatedTokenList = await Promise.all(promises);
-                setTokenList(updatedTokenList);
-            } catch (err) {
-                console.error("Failed to initialize token list:", err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        init();
-    }, [activeAccountAddress, visibleTokenList]);
-
-    // Update local state when store changes
-    useEffect(() => {
-        setTokenList(visibleTokenList);
-    }, [visibleTokenList]);
 
     return (
         <Card className="border-l-4 border-l-secondary">
@@ -163,8 +123,7 @@ const TokenForm = observer(() => {
             <CardContent>
                 <DataTable
                     columns={columns}
-                    data={tokenList}
-                    isLoading={isLoading}
+                    data={visibleTokenList}
                     emptyMessage={
                         <TokensEmptyState
                             discoveredCount={pendingDiscoveredTokens.length}
