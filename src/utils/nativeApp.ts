@@ -52,7 +52,9 @@ export type NativeToWebMessageType =
   | 'CHANGE_PIN'            // Native requests web to re-encrypt seeds with new PIN
   // DApp Connect messages
   | 'DAPP_URI'              // Deep link URI received by native, forwarded to WebView
-  | 'DAPP_DISCONNECT';      // Native requests web to disconnect a specific dApp session
+  | 'DAPP_DISCONNECT'       // Native requests web to disconnect a specific dApp session
+  // Display preferences (native settings drives the Home card toggles)
+  | 'SET_DISPLAY_PREFS';    // Native sets showTokensCard / showNftsCard in wallet settings
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
