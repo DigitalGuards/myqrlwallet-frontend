@@ -1,11 +1,13 @@
 import { ActiveAccount } from "./ActiveAccount/ActiveAccount";
-import { NewAccount } from "./NewAccount/NewAccount";
 import { OtherAccounts } from "./OtherAccounts/OtherAccounts";
 import { SEO } from "../../../SEO/SEO";
 import { useStore } from "@/stores/store";
 import { observer } from "mobx-react-lite";
 import { lazy } from "react";
 import { withSuspense } from "@/utils/react";
+import { useWalletLimit } from "@/hooks/useWalletLimit";
+import { Button } from "@/components/UI/Button";
+import { Plus } from "lucide-react";
 
 const AccountCreateImport = withSuspense(
   lazy(() => import("../Home/AccountCreateImport/AccountCreateImport"))
@@ -13,7 +15,10 @@ const AccountCreateImport = withSuspense(
 
 const AccountList = observer(() => {
   const { qrlStore } = useStore();
-  const { activeAccount } = qrlStore;
+  const { activeAccount, qrlConnection } = qrlStore;
+  const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(
+    qrlConnection.blockchain
+  );
 
   // Check if there is an active account
   const noActiveAccount = !activeAccount.accountAddress;
@@ -37,11 +42,22 @@ const AccountList = observer(() => {
               <AccountCreateImport />
             ) : (
               <>
-                <NewAccount />
                 <div className="flex flex-col gap-4">
                   <ActiveAccount />
                   <OtherAccounts />
                 </div>
+                {isWalletLimitReached ? (
+                  <div className="flex flex-col gap-2">
+                    <Button className="flex w-full gap-2" disabled>
+                      <Plus size={18} /> Wallet limit reached ({walletCount}/{maxWallets})
+                    </Button>
+                    <p className="text-center text-xs text-muted-foreground">
+                      Remove an existing wallet to add a new one
+                    </p>
+                  </div>
+                ) : (
+                  <AccountCreateImport />
+                )}
               </>
             )}
           </div>
