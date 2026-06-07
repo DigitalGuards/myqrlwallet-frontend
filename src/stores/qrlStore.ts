@@ -1,8 +1,10 @@
 import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
-import { StorageUtil, AccountListItem, AccountSource } from "@/utils/storage";
+import type { AccountListItem, AccountSource } from "@/utils/storage";
+import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
 import { getQrlWeb3 } from "@/utils/web3";
+import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
 import { QRL_TX_POLLING_CONFIG } from "@/utils/web3/txPolling";
 import type { TransactionReceipt, Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
@@ -63,9 +65,13 @@ export function applyFeeLevel(baseGasPrice: bigint, level: FeeLevel) {
   };
 }
 
-// Interface for the extension provider (adjust based on actual provider methods)
-interface ExtensionProvider {
-  request: (args: { method: string; params?: any[] | object }) => Promise<any>;
+// EIP-1193 provider surface the wallet relies on. Exported so the extension
+// connection layer shares one honest type instead of re-declaring `any`.
+export interface ExtensionProvider {
+  request: <T = unknown>(args: {
+    method: string;
+    params?: unknown[] | object;
+  }) => Promise<T>;
   // Add other methods if needed, e.g., for event handling
 }
 
@@ -479,7 +485,8 @@ class QrlStore {
         }
 
         const pendingTx = data.transactions.find(
-          (tx: any) => tx.hash && tx.hash.toLowerCase() === txHash.toLowerCase()
+          (tx: { hash?: string }) =>
+            tx.hash && tx.hash.toLowerCase() === txHash.toLowerCase()
         );
 
         if (pendingTx) {
@@ -536,7 +543,8 @@ class QrlStore {
     const baseGasPrice = await this.qrlInstance?.getGasPrice();
     if (!baseGasPrice) return "0";
     const { maxFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
-    return this._utils!.fromPlanck(BigInt(gasLimit) * maxFeePerGas, "quanta");
+    const utils = this._utils ?? (await getQrlWeb3()).utils;
+    return utils.fromPlanck(BigInt(gasLimit) * maxFeePerGas, "quanta");
   }
 
   // Refactored signAndSendTransaction
@@ -557,15 +565,16 @@ class QrlStore {
       // Fetch current gas price and apply fee level multiplier
       const baseGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(1000000000);
       const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
+      const utils = this._utils ?? (await getQrlWeb3()).utils;
 
       const transactionObject = {
         from,
         to,
-        value: this._utils!.toPlanck(value, "quanta"),
+        value: utils.toPlanck(value, "quanta"),
         gas: 21000, // Standard gas limit for native transfer
         type: '0x2',
-        maxFeePerGas: this._utils!.toHex(maxFeePerGas),
-        maxPriorityFeePerGas: this._utils!.toHex(maxPriorityFeePerGas),
+        maxFeePerGas: utils.toHex(maxFeePerGas),
+        maxPriorityFeePerGas: utils.toHex(maxPriorityFeePerGas),
         nonce: nonce,
       };
       // Run the MLDSA87 derivation in the crypto worker so the 50–300 ms
@@ -604,7 +613,7 @@ class QrlStore {
         });
       }).on('receipt', (receipt: TransactionReceipt) => {
         runInAction(() => {
-          const txHashString = this._utils!.bytesToHex(receipt.transactionHash);
+          const txHashString = utils.bytesToHex(receipt.transactionHash);
           this.transactionStatus = {
             state: 'confirmed',
             txHash: txHashString,
@@ -634,17 +643,18 @@ class QrlStore {
       // but for this pattern, we primarily manage state within the store.
       // return promiEvent;
 
-    } catch (error: any) {
+    } catch (error) {
       // Catch signing errors or other issues before sending
+      const message = getErrorMessage(error);
       runInAction(() => {
         this.transactionStatus = {
           state: 'failed',
           txHash: null,
           receipt: null,
-          error: `Transaction preparation failed: ${error.message || error}`,
+          error: `Transaction preparation failed: ${message}`,
           pendingDetails: null,
         };
-        log(`Transaction preparation failed: ${error}`);
+        log(`Transaction preparation failed: ${message}`);
       });
     }
   }
@@ -676,6 +686,8 @@ class QrlStore {
 
     log(`Starting receipt polling for ${txHash}`);
 
+    const utils = this._utils ?? (await getQrlWeb3()).utils;
+
     // If a previous poll was somehow left running, kill it before starting
     // a fresh one so we never have two intervals racing into transactionStatus.
     this.cancelReceiptPoller();
@@ -701,7 +713,7 @@ class QrlStore {
           runInAction(() => {
             // Double-check state again before updating
             if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-              const txHashString = this._utils!.bytesToHex(receipt.transactionHash);
+              const txHashString = utils.bytesToHex(receipt.transactionHash);
               this.transactionStatus = {
                 state: 'confirmed',
                 txHash: txHashString,
@@ -732,9 +744,10 @@ class QrlStore {
           });
         }
         // If receipt is null and attempts < maxAttempts, continue polling
-      } catch (error: any) {
+      } catch (error) {
+        const message = getErrorMessage(error);
         console.error(`Error polling for receipt ${txHash}:`, error);
-        log(`Error polling for receipt ${txHash}: ${error.message || error}`);
+        log(`Error polling for receipt ${txHash}: ${message}`);
         this.cancelReceiptPoller();
         // Mark as failed on error
         runInAction(() => {
@@ -743,7 +756,7 @@ class QrlStore {
               state: 'failed',
               txHash: txHash,
               receipt: null,
-              error: `Error checking transaction status: ${error.message || error}`,
+              error: `Error checking transaction status: ${message}`,
               pendingDetails: null,
             };
           }
@@ -780,9 +793,10 @@ class QrlStore {
       });
 
       // --- Use 18 decimals via "quanta" unit ---
+      const utils = this._utils ?? (await getQrlWeb3()).utils;
       let valueBaseUnit: string | bigint; // toPlanck returns string or bigint
       try {
-        valueBaseUnit = this._utils!.toPlanck(valueEther, "quanta"); // Use "quanta" for 18 decimals
+        valueBaseUnit = utils.toPlanck(valueEther, "quanta"); // Use "quanta" for 18 decimals
       } catch (calcError) {
         console.error("Error calculating base unit value with toPlanck:", calcError);
         throw new Error("Could not calculate transaction value.");
@@ -831,21 +845,22 @@ class QrlStore {
         throw new Error("Extension did not return a valid transaction hash.");
       }
 
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error sending transaction via extension:", error);
-      log(`Error sending via extension: ${error.message || error}`);
+      const message = getErrorMessage(error);
+      log(`Error sending via extension: ${message}`);
       runInAction(() => {
         // Check for user rejection code specifically if the provider follows EIP-1193 errors
-        const userRejected = error.code === 4001;
-        const isCalcError = error.message === "Could not calculate transaction value." || error.message === "Invalid amount input";
+        const userRejected = isProviderRpcError(error) && error.code === 4001;
+        const isCalcError = message === "Could not calculate transaction value." || message === "Invalid amount input";
         this.transactionStatus = {
           ...this.transactionStatus,
           state: 'failed',
           error: userRejected
             ? 'Transaction rejected in extension.'
             : isCalcError
-              ? error.message // Show calculation error
-              : (error.message || 'Transaction failed in extension.')
+              ? message // Show calculation error
+              : (message || 'Transaction failed in extension.')
         };
       });
     }

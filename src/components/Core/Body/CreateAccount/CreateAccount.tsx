@@ -2,7 +2,7 @@ import { lazy, useState } from "react";
 import { withSuspense } from "@/utils/react";
 import { SEO } from "../../../SEO/SEO";
 import { useStore } from "../../../../stores/store";
-import { Web3BaseWalletAccount } from "@theqrl/web3";
+import type { Web3BaseWalletAccount } from "@theqrl/web3";
 import { observer } from "mobx-react-lite";
 import { AccountCreationForm } from "./AccountCreationForm/AccountCreationForm";
 import { useWalletLimit } from "@/hooks/useWalletLimit";

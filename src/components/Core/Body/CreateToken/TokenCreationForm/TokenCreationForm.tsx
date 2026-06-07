@@ -161,7 +161,12 @@ export const TokenCreationForm = observer(
                     // failure here propagates to the outer onSubmit handler
                     // and surfaces as a worker / system error rather than
                     // "invalid PIN".
-                    const address = await getAddressFromMnemonicAsync(mnemonicPhrase, qrlStore.qrlInstance!);
+                    const qrlInstance = qrlStore.qrlInstance;
+                    if (!qrlInstance) {
+                        setPinError("Wallet not connected. Please try again.");
+                        return;
+                    }
+                    const address = await getAddressFromMnemonicAsync(mnemonicPhrase, qrlInstance);
                     if (address.toLowerCase() !== activeAccount.accountAddress.toLowerCase()) {
                         setPinError("PIN decrypted an invalid seed. Please import your account again.");
                         return;

@@ -137,7 +137,7 @@ const NativeAppBridge: React.FC = () => {
 
       switch (type) {
         case 'QR_RESULT': {
-          const address = payload?.address;
+          const address = payload?.['address'];
           if (typeof address !== 'string' || !address) {
             console.warn('[Bridge] QR result missing or invalid address');
             return;
@@ -176,7 +176,7 @@ const NativeAppBridge: React.FC = () => {
         }
 
         case 'BIOMETRIC_SUCCESS': {
-          const authenticated = payload?.authenticated;
+          const authenticated = payload?.['authenticated'];
           if (typeof authenticated !== 'boolean') {
             console.warn('[Bridge] BIOMETRIC_SUCCESS missing or invalid authenticated flag');
             return;
@@ -187,7 +187,7 @@ const NativeAppBridge: React.FC = () => {
         }
 
         case 'APP_STATE': {
-          const state = payload?.state;
+          const state = payload?.['state'];
           if (state !== 'active' && state !== 'background' && state !== 'inactive') {
             console.warn('[Bridge] APP_STATE missing or invalid state');
             return;
@@ -202,7 +202,7 @@ const NativeAppBridge: React.FC = () => {
 
         // Deep link URI from native app (qrlconnect:// scheme)
         case 'DAPP_URI' as NativeToWebMessageType: {
-          const uri = payload?.uri;
+          const uri = payload?.['uri'];
           if (typeof uri !== 'string' || !uri) {
             console.warn('[Bridge] DAPP_URI missing or invalid uri');
             return;
@@ -222,7 +222,7 @@ const NativeAppBridge: React.FC = () => {
 
         // Native requests disconnect of a specific dApp session
         case 'DAPP_DISCONNECT' as NativeToWebMessageType: {
-          const channelId = payload?.channelId;
+          const channelId = payload?.['channelId'];
           if (typeof channelId === 'string' && channelId) {
             logToNative(`Disconnecting dApp session: ${channelId}`);
             dappConnectService.disconnectSession(channelId);
@@ -268,12 +268,12 @@ const NativeAppBridge: React.FC = () => {
           break;
 
         case 'ERROR':
-          console.error('[Bridge] Native error:', payload?.message);
+          console.error('[Bridge] Native error:', payload?.['message']);
           break;
 
         // Seed persistence messages
         case 'UNLOCK_WITH_PIN': {
-          const pin = payload?.pin;
+          const pin = payload?.['pin'];
           if (typeof pin !== 'string' || !pin) {
             console.warn('[Bridge] UNLOCK_WITH_PIN missing or invalid pin');
             return;
@@ -286,9 +286,9 @@ const NativeAppBridge: React.FC = () => {
 
         case 'RESTORE_SEED': {
           // Native app sends backup seed if localStorage is empty
-          const address = payload?.address;
-          const encryptedSeed = payload?.encryptedSeed;
-          const blockchain = payload?.blockchain;
+          const address = payload?.['address'];
+          const encryptedSeed = payload?.['encryptedSeed'];
+          const blockchain = payload?.['blockchain'];
 
           if (
             typeof address !== 'string' || !address ||
@@ -353,7 +353,7 @@ const NativeAppBridge: React.FC = () => {
 
         case 'VERIFY_PIN': {
           // Native asks web to verify PIN can decrypt the stored seed
-          const pin = payload?.pin;
+          const pin = payload?.['pin'];
           if (typeof pin !== 'string' || !pin) {
             console.warn('[Bridge] VERIFY_PIN missing or invalid pin');
             sendPinVerified(false, PIN_VERIFY_ERRORS.INVALID_FORMAT);
@@ -408,8 +408,8 @@ const NativeAppBridge: React.FC = () => {
 
         case 'CHANGE_PIN': {
           // Native app requests web to re-encrypt all seeds with a new PIN
-          const oldPin = payload?.oldPin;
-          const newPin = payload?.newPin;
+          const oldPin = payload?.['oldPin'];
+          const newPin = payload?.['newPin'];
 
           if (typeof oldPin !== 'string' || !WalletEncryptionUtil.validatePin(oldPin)) {
             console.warn('[Bridge] CHANGE_PIN missing or invalid oldPin');

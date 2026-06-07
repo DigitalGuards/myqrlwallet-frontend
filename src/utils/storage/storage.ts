@@ -1,5 +1,5 @@
 import { QRL_PROVIDER } from "@/config";
-import { TokenInterface, NFTInterface } from "@/constants";
+import type { TokenInterface, NFTInterface } from "@/constants";
 import { isInNativeApp } from "@/utils/nativeApp";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
@@ -283,7 +283,7 @@ class StorageUtil {
    */
   static async getAccountList(blockchain: string): Promise<AccountListItem[]> {
     const blockChainAccountListIdentifier = `${blockchain}_${ACCOUNT_LIST_IDENTIFIER}`;
-    const data = this.getItem<any>(blockChainAccountListIdentifier);
+    const data = this.getItem<unknown>(blockChainAccountListIdentifier);
 
     if (!data) {
       return [];

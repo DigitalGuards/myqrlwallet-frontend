@@ -20,27 +20,32 @@ const DECODE: Int8Array = (() => {
  */
 function decodeChar(charCode: number): number {
   if (charCode < 0 || charCode >= 128) return -1;
-  return DECODE[charCode];
+  // charCode is guaranteed in-bounds by the guard above; `?? -1` only
+  // satisfies the index-access checker and never actually fires.
+  return DECODE[charCode] ?? -1;
 }
 
 export function base45Encode(bytes: Uint8Array): string {
   const n = bytes.length;
   let out = '';
   let i = 0;
+  // `i`/`i+1` are kept in-bounds by the loop condition, so the `?? 0`
+  // fallbacks never fire; charAt() returns '' for any out-of-range index
+  // (also impossible here since c0..c2 are mod-45 bounded).
   while (i + 2 <= n) {
-    const v = (bytes[i] << 8) | bytes[i + 1];
+    const v = ((bytes[i] ?? 0) << 8) | (bytes[i + 1] ?? 0);
     const c2 = Math.floor(v / 2025);
     const r = v - c2 * 2025;
     const c1 = Math.floor(r / 45);
     const c0 = r - c1 * 45;
-    out += ALPHABET[c0] + ALPHABET[c1] + ALPHABET[c2];
+    out += ALPHABET.charAt(c0) + ALPHABET.charAt(c1) + ALPHABET.charAt(c2);
     i += 2;
   }
   if (i < n) {
-    const v = bytes[i];
+    const v = bytes[i] ?? 0;
     const c1 = Math.floor(v / 45);
     const c0 = v - c1 * 45;
-    out += ALPHABET[c0] + ALPHABET[c1];
+    out += ALPHABET.charAt(c0) + ALPHABET.charAt(c1);
   }
   return out;
 }

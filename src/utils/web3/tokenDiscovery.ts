@@ -1,5 +1,5 @@
 import { getTokenDiscoveryApiUrl } from "@/config";
-import { TokenInterface } from "@/constants";
+import type { TokenInterface } from "@/constants";
 import { log } from "@/utils";
 
 // Token info from Explorer API

@@ -15,7 +15,7 @@ import { observer } from "mobx-react-lite";
 import { Loader2, Sparkles } from "lucide-react";
 import { useStore } from "@/stores/store";
 import { fetchTokenInfo, fetchBalance } from "@/utils/web3";
-import { TokenInterface } from "@/constants";
+import type { TokenInterface } from "@/constants";
 import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 

@@ -20,7 +20,7 @@ import {
 import { getMnemonicFromHexSeed } from "@/utils/crypto";
 import { copyToClipboard } from "@/utils/nativeApp";
 import { withSuspense } from "@/utils/react";
-import { Web3BaseWalletAccount } from "@theqrl/web3";
+import type { Web3BaseWalletAccount } from "@theqrl/web3";
 import { Check, Copy, HardDriveDownload, QrCode, Undo } from "lucide-react";
 import { lazy, useState } from "react";
 import { useNavigate } from "react-router-dom";
