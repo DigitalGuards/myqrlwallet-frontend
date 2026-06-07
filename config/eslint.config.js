@@ -72,7 +72,7 @@ export default tseslint.config(
         {
           selector: 'TSAsExpression > TSAsExpression',
           message:
-            'Double type assertion (`x as unknown as T`) is banned: it bypasses the type checker. Narrow honestly or assert once from `unknown`.',
+            'Double type assertion (e.g. `x as unknown as T`) is banned: it bypasses the type checker. Narrow honestly or assert once from `unknown`.',
         },
       ],
       // -------------------------------------------------------------------
@@ -88,19 +88,21 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          paths: [
+          // Use `patterns`/`group` (not `paths`) for every entry so deep
+          // subpath imports are covered too (e.g. `@theqrl/wallet.js/dist/...`),
+          // not just the bare specifier. This keeps the boundary enforced by
+          // the rule itself rather than relying on each package's exports map.
+          patterns: [
             {
-              name: '@theqrl/mldsa87',
+              group: ['@theqrl/mldsa87', '@theqrl/mldsa87/*'],
               message:
                 'ML-DSA-87 primitives are encapsulated in src/utils/signing. Import the signing wrappers (signMessage/signTypedData/verify) instead.',
             },
             {
-              name: '@theqrl/wallet.js',
+              group: ['@theqrl/wallet.js', '@theqrl/wallet.js/*'],
               message:
                 'ML-DSA-87 key/seed derivation is encapsulated in src/utils/crypto and src/utils/signing. Import getHexSeedFromMnemonic/deriveHexSeedAsync/etc instead.',
             },
-          ],
-          patterns: [
             {
               group: ['@noble/hashes', '@noble/hashes/*'],
               message:
@@ -132,7 +134,9 @@ export default tseslint.config(
   },
   {
     // The crypto boundary itself: these modules ARE the encapsulation layer,
-    // so they are the only place allowed to import the raw primitives.
+    // so they are the only place allowed to import the raw primitives. This
+    // intentionally lifts only `no-restricted-imports` (the primitive ban);
+    // the `no-restricted-syntax` double-assertion ban stays in force here.
     files: [
       'src/utils/crypto/**/*.{ts,tsx}',
       'src/utils/signing/**/*.{ts,tsx}',
