@@ -1,5 +1,5 @@
-import { TokenInterface } from "@/constants"
-import { ColumnDef } from "@tanstack/react-table"
+import type { TokenInterface } from "@/constants"
+import type { ColumnDef } from "@tanstack/react-table"
 import { Copy, Check, Send, EyeOff } from "lucide-react"
 import { useState } from "react"
 import { observer } from "mobx-react-lite"

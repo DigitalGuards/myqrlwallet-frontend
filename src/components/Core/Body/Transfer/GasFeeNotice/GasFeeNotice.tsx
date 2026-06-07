@@ -1,5 +1,5 @@
 import { useStore } from "@/stores/store";
-import { FeeLevel } from "@/stores/qrlStore";
+import type { FeeLevel } from "@/stores/qrlStore";
 import { utils } from "@theqrl/web3";
 import { cva } from "class-variance-authority";
 import { Loader, Fuel } from "lucide-react";

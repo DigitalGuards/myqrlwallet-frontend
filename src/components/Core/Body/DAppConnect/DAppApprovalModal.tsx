@@ -203,16 +203,16 @@ const DAppApprovalModal = observer(() => {
         const nonce = await web3.getTransactionCount(activeAddress, 'pending');
         const gasPrice = await web3.getGasPrice();
         const gasPriceHex = utils.toHex(gasPrice);
-        const txData = (txParams.data as string) || '0x';
-        const txValue = txParams.value ? BigInt(txParams.value as string).toString() : '0';
+        const txData = (txParams['data'] as string) || '0x';
+        const txValue = txParams['value'] ? BigInt(txParams['value'] as string).toString() : '0';
 
         let gas: number;
-        if (txParams.gas) {
-          gas = parseRpcNumber(txParams.gas, 21000);
+        if (txParams['gas']) {
+          gas = parseRpcNumber(txParams['gas'], 21000);
         } else if (txData && txData !== '0x') {
           const estimated = await web3.estimateGas({
             from: activeAddress,
-            to: txParams.to as string,
+            to: txParams['to'] as string,
             value: txValue,
             data: txData,
           });
@@ -223,7 +223,7 @@ const DAppApprovalModal = observer(() => {
 
         const txObject = {
           from: activeAddress,
-          to: txParams.to as string,
+          to: txParams['to'] as string,
           value: txValue,
           gas,
           maxFeePerGas: gasPriceHex,
@@ -474,7 +474,7 @@ const DAppApprovalModal = observer(() => {
 
   // Transaction details for display during progress
   const txParams = isTransaction ? (params?.[0] as Record<string, unknown> | undefined) : undefined;
-  const txDisplayValue = formatQuantaValue(txParams?.value);
+  const txDisplayValue = formatQuantaValue(txParams?.['value']);
 
   return (
     <Dialog open={approvalModalOpen} onOpenChange={(open) => {
@@ -555,7 +555,7 @@ const DAppApprovalModal = observer(() => {
                 <div className="rounded border bg-muted p-4 text-sm space-y-2">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">To</span>
-                    <span className="font-mono text-xs">{formatAddressShort(txParams.to as string || '')}</span>
+                    <span className="font-mono text-xs">{formatAddressShort(txParams['to'] as string || '')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Value</span>

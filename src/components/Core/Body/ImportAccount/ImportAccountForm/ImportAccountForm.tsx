@@ -22,7 +22,7 @@ import { Download, Loader } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { deriveHexSeedAsync } from "@/utils/crypto";
-import { ExtendedWalletAccount } from "@/utils/crypto";
+import type { ExtendedWalletAccount } from "@/utils/crypto";
 
 const FormSchema = z.object({
   mnemonicPhrases: z.string().min(1, "Mnemonic phrases are required"),

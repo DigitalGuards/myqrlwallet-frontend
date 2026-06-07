@@ -1,5 +1,7 @@
 import { QRL_WEB3_WALLET_PROVIDER_INFO } from "@/constants";
 import type { AccountSource } from "@/utils/storage";
+import type { ExtensionProvider } from "@/stores/qrlStore";
+import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
 
 // EIP-6963 types (simplified)
 interface EIP6963ProviderInfo {
@@ -11,7 +13,7 @@ interface EIP6963ProviderInfo {
 
 interface EIP6963ProviderDetail {
   info: EIP6963ProviderInfo;
-  provider: any; // Adjust the type according to the actual provider interface
+  provider: ExtensionProvider;
 }
 
 interface EIP6963AnnounceProviderEvent extends CustomEvent {
@@ -57,7 +59,7 @@ function findQrlProvider(): Promise<EIP6963ProviderDetail | null> {
 // Modify the function signature to accept setActiveAccount and setExtensionProvider
 async function connectToExtension(
   setActiveAccount: (address: string, source?: AccountSource) => Promise<void>,
-  setExtensionProvider: (provider: any | null) => void // Add the new setter
+  setExtensionProvider: (provider: ExtensionProvider | null) => void // Add the new setter
 ): Promise<string[] | null> {
   // Attempt to find the provider via EIP-6963
   const foundProviderDetail = await findQrlProvider();
@@ -74,10 +76,11 @@ async function connectToExtension(
   try {
     // Request account access using the QRL-specific method
     console.log("Attempting to connect using qrl_requestAccounts...");
-    const accounts = await provider.request({ method: 'qrl_requestAccounts' });
+    const accounts = await provider.request<string[]>({ method: 'qrl_requestAccounts' });
 
     if (accounts && accounts.length > 0) {
       const firstAccount = accounts[0];
+      if (!firstAccount) return null; // length > 0 guarantees this; satisfies the index checker
       console.log("Connected to extension with accounts:", accounts);
 
       // Call the passed-in setActiveAccount function
@@ -94,21 +97,20 @@ async function connectToExtension(
       setExtensionProvider(null); // Clear provider if no accounts approved
       return null;
     }
-  } catch (error: any) {
+  } catch (error) {
     setExtensionProvider(null); // Clear provider on error
     // Handle errors, such as user rejection
-    if (error.code === 4001) { // EIP-1193 user rejection error
+    const code = isProviderRpcError(error) ? error.code : undefined;
+    if (code === 4001) { // EIP-1193 user rejection error
       console.log('User rejected connection request.');
       alert('Connection request rejected.');
+    } else if (code === -32601) {
+      // Method not found, although we expect qrl_requestAccounts to exist now
+      console.error("RPC Error: Method not found", error);
+      alert(`RPC Error: ${getErrorMessage(error)}`);
     } else {
-      // Check for the specific method not found error, although we expect qrl_requestAccounts to exist now
-      if (error.code === -32601) {
-         console.error("RPC Error: Method not found", error);
-         alert(`RPC Error: ${error.message}`);
-      } else {
-        console.error("Error connecting to extension:", error);
-        alert(`Error connecting to extension: ${error.message || error}`);
-      }
+      console.error("Error connecting to extension:", error);
+      alert(`Error connecting to extension: ${getErrorMessage(error)}`);
     }
     return null;
   }

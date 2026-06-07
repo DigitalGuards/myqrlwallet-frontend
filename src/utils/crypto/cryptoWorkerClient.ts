@@ -140,8 +140,12 @@ function acquireWorker(): PooledWorker {
 
   // Pool is full and all busy - shouldn't happen with proper await usage
   // Fall back to first worker (will queue behind current operation)
-  workerPool[0].busy = true;
-  return workerPool[0];
+  const fallback = workerPool[0];
+  if (!fallback) {
+    throw new Error('cryptoWorkerClient: worker pool unexpectedly empty');
+  }
+  fallback.busy = true;
+  return fallback;
 }
 
 /**

@@ -44,7 +44,7 @@ import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonicAsync } from "@/utils/crypto";
 import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
-import { FeeLevel } from "@/stores/qrlStore";
+import type { FeeLevel } from "@/stores/qrlStore";
 import { SEO } from "@/components/SEO/SEO";
 import { getOptimalTokenBalance, formatAddressShort } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
@@ -241,7 +241,7 @@ const Transfer = observer(() => {
 
     const unsubscribe = subscribeToNativeMessages((message) => {
       if (message.type === 'QR_RESULT' && message.payload) {
-        const scannedAddress = (message.payload.address as string) || '';
+        const scannedAddress = (message.payload['address'] as string) || '';
         setIsScanning(false);
 
         // Validate the scanned address
@@ -357,7 +357,7 @@ const Transfer = observer(() => {
 
         let mnemonicPhrases;
         try {
-          const decryptedSeed = await WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.pin!);
+          const decryptedSeed = await WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.pin || "");
           mnemonicPhrases = decryptedSeed.mnemonic;
         } catch {
           control.setError("pin", { message: "Invalid PIN. Please try again." });
@@ -367,7 +367,12 @@ const Transfer = observer(() => {
         // Verify decrypted mnemonic matches the expected account address.
         // MLDSA87 derivation runs in the crypto worker — keeps the
         // Transfer modal animating smoothly during the 50–300 ms check.
-        const senderAddress = await getAddressFromMnemonicAsync(mnemonicPhrases, qrlStore.qrlInstance!);
+        const qrlInstance = qrlStore.qrlInstance;
+        if (!qrlInstance) {
+          control.setError("pin", { message: "Wallet not connected. Please try again." });
+          return;
+        }
+        const senderAddress = await getAddressFromMnemonicAsync(mnemonicPhrases, qrlInstance);
         if (senderAddress.toLowerCase() !== accountAddress.toLowerCase()) {
           control.setError("pin", { message: "Security error: seed mismatch detected. Please re-import this account." });
           return;
@@ -401,7 +406,12 @@ const Transfer = observer(() => {
         return;
       }
 
-      const senderAddress = await getAddressFromMnemonicAsync(mnemonic, qrlStore.qrlInstance!);
+      const qrlInstance = qrlStore.qrlInstance;
+      if (!qrlInstance) {
+        control.setError("pin", { message: "Wallet not connected. Please try again." });
+        return;
+      }
+      const senderAddress = await getAddressFromMnemonicAsync(mnemonic, qrlInstance);
       if (senderAddress.toLowerCase() !== accountAddress.toLowerCase()) {
         control.setError("pin", { message: "PIN decrypted an invalid seed." });
         return;
@@ -450,7 +460,7 @@ const Transfer = observer(() => {
   };
 
   const handleSliderChange = (value: number[]) => {
-    applyPercentage(value[0]);
+    applyPercentage(value[0] ?? 0);
   };
 
   const setPercentage = (percentage: number) => () => {

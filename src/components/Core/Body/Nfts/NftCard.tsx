@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { EyeOff } from "lucide-react";
-import { NFTInterface } from "@/constants";
+import type { NFTInterface } from "@/constants";
 import { Card } from "@/components/UI/Card";
 import { Button } from "@/components/UI/Button";
 import { useStore } from "@/stores/store";
