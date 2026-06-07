@@ -7,7 +7,7 @@
  */
 
 import type { DAppSession } from './types';
-import { SessionStatus } from './types';
+import type { SessionStatus } from './types';
 
 const STORAGE_KEY = 'qrlconnect:sessions';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;

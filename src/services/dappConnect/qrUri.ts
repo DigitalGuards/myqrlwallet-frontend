@@ -22,10 +22,6 @@ export const CID_LEN = 16;
 export const FP_LEN = 32;
 export const BLOB_LEN = 4 + CID_LEN + FP_LEN; // 52
 
-function bs(u: Uint8Array): BufferSource {
-  return u as unknown as BufferSource;
-}
-
 /**
  * Compute fp = SHA-256("pq-fp/v2" || cid || pk). Used by the wallet to
  * verify the PK the relay served matches the commitment in the QR.
@@ -41,11 +37,13 @@ export async function computeFingerprint(
   if (!c || !c.subtle) {
     throw new Error('qrUri: WebCrypto SubtleCrypto is not available');
   }
+  // Freshly allocated, so already ArrayBuffer-backed (Uint8Array<ArrayBuffer>),
+  // which satisfies WebCrypto's BufferSource without any cast.
   const buf = new Uint8Array(FP_LABEL.length + cid.length + pk.length);
   buf.set(FP_LABEL, 0);
   buf.set(cid, FP_LABEL.length);
   buf.set(pk, FP_LABEL.length + cid.length);
-  const digest = await c.subtle.digest('SHA-256', bs(buf));
+  const digest = await c.subtle.digest('SHA-256', buf);
   return new Uint8Array(digest);
 }
 
@@ -53,7 +51,11 @@ export async function computeFingerprint(
 export function fingerprintEquals(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  // Equal lengths + bounded i mean both reads are always defined. Use a
+  // compile-time `as number` (fully erased at runtime to `a[i] ^ b[i]`)
+  // rather than `?? 0`, which would emit a conditional and break the
+  // constant-time guarantee.
+  for (let i = 0; i < a.length; i++) diff |= (a[i] as number) ^ (b[i] as number);
   return diff === 0;
 }
 
@@ -137,7 +139,7 @@ export function cidToString(cid: Uint8Array): string {
   }
   let hex = '';
   for (let i = 0; i < CID_LEN; i++) {
-    hex += cid[i].toString(16).padStart(2, '0');
+    hex += (cid[i] ?? 0).toString(16).padStart(2, '0');
   }
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }

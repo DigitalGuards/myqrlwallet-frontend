@@ -62,7 +62,7 @@ const textDecoder = new TextDecoder();
 function bytesToHex(bytes: Uint8Array): string {
   let hex = '';
   for (let i = 0; i < bytes.length; i++) {
-    hex += bytes[i].toString(16).padStart(2, '0');
+    hex += (bytes[i] ?? 0).toString(16).padStart(2, '0');
   }
   return hex;
 }

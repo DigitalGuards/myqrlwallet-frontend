@@ -110,7 +110,7 @@ describe('signMessage / verifyMessage round-trip', () => {
     const result = signMessage('0xdeadbeef', seed, { randomized: false });
 
     const sigBytes = hexToBytes(result.signature);
-    sigBytes[0] ^= 0x01;
+    sigBytes[0] = (sigBytes[0] ?? 0) ^ 0x01;
     const ok = verifyMessage({
       signature: sigBytes,
       publicKey: result.publicKey,
@@ -278,7 +278,7 @@ describe('signTypedData / verifyTypedData round-trip', () => {
     const result = signTypedData(payload, seed, { randomized: false });
 
     const tampered = TYPED_PAYLOAD(signer);
-    tampered.message.issuedAt = '1747699201';
+    tampered.message['issuedAt'] = '1747699201';
 
     expect(verifyTypedData({
       signature: result.signature,

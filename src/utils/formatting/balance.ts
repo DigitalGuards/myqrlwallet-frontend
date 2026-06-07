@@ -117,7 +117,7 @@ export const formatBalance = (
 
     if (useThousandSeparator) {
         const parts = formatted.split('.');
-        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        parts[0] = (parts[0] ?? '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         formatted = parts.join('.');
     }
 

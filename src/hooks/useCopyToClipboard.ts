@@ -19,6 +19,7 @@ export function useCopyToClipboard<T extends string>(timeout = 1500) {
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [copiedItem, timeout]);
 
   return { copiedItem, copyToClipboard };

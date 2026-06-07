@@ -96,7 +96,9 @@ function collectDependencies(primary: string, types: TypeMap): Set<string> {
     }
     if (visited.has(name)) return;
     visited.add(name);
-    for (const f of types[name]) {
+    const fields = types[name];
+    if (!fields) return; // visit() is only reached for types known to exist
+    for (const f of fields) {
       const base = baseTypeName(f.type);
       if (Object.prototype.hasOwnProperty.call(types, base)) {
         visit(base, [...path, name]);
@@ -145,6 +147,12 @@ export function encodeType(primary: string, types: TypeMap): string {
   return [primary, ...others]
     .map((name) => {
       const fields = types[name];
+      if (!fields) {
+        // Every dependency is collected from `types`, so this is unreachable;
+        // throw rather than silently emit a wrong encodeType (which would
+        // change the type hash and thus the signature).
+        throw new Error(`encodeType: missing type definition for ${name}`);
+      }
       const inner = fields.map((f) => `${f.type} ${f.name}`).join(',');
       return `${name}(${inner})`;
     })
@@ -322,7 +330,7 @@ const RESERVED_DOMAIN_FIELDS: Record<string, string> = {
 };
 
 function validateDomainTypes(types: TypeMap): void {
-  const def = types.QRLDomain;
+  const def = types['QRLDomain'];
   if (!def) throw new Error('QRLDomain type is required');
   let hasName = false;
   for (const f of def) {

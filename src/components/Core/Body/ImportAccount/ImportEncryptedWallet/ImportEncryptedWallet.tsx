@@ -9,7 +9,8 @@ import {
 } from "@/components/UI/Card";
 import { Input } from "@/components/UI/Input";
 import { Label } from "@/components/UI/Label";
-import { WalletEncryptionUtil, ExtendedWalletAccount } from "@/utils/crypto";
+import type { ExtendedWalletAccount } from "@/utils/crypto";
+import { WalletEncryptionUtil } from "@/utils/crypto";
 import { useStore } from "@/stores/store";
 import { Upload } from "lucide-react";
 import { useForm } from "react-hook-form";

@@ -2,7 +2,7 @@
  * Navigation utilities with native app awareness
  */
 
-import { NavigateFunction } from "react-router-dom";
+import type { NavigateFunction } from "react-router-dom";
 import { isInNativeApp, openNativeSettings } from "@/utils/nativeApp";
 import { ROUTES } from "@/router/router";
 

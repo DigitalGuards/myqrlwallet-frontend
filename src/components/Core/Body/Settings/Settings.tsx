@@ -25,7 +25,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useState, useEffect } from "react";
 import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
-import { StorageUtil, EncryptedSeedData } from "@/utils/storage";
+import type { EncryptedSeedData } from "@/utils/storage";
+import { StorageUtil } from "@/utils/storage";
 import { Save, Shield } from "lucide-react";
 import { SEO } from "@/components/SEO/SEO";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
@@ -171,7 +172,7 @@ const Settings = observer(() => {
             // Verify current PIN by attempting to decrypt the first seed
             // Uses Web Worker to avoid blocking UI during PBKDF2
             try {
-                await decryptSeedAsync(allSeeds[0].encryptedSeed, data.currentPin);
+                await decryptSeedAsync(allSeeds[0]?.encryptedSeed ?? '', data.currentPin);
             } catch {
                 // Record failed attempt
                 const result = recordFailedAttempt();
