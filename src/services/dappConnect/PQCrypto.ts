@@ -201,8 +201,10 @@ export function fromBase64(b64: string): Uint8Array {
 export function constantTimeEquals(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   let d = 0;
-  // Equal lengths + bounded i mean both reads are always defined; `?? 0`
-  // only satisfies the index checker and preserves the branchless compare.
-  for (let i = 0; i < a.length; i++) d |= (a[i] ?? 0) ^ (b[i] ?? 0);
+  // Equal lengths + bounded i mean both reads are always defined. Use a
+  // compile-time `as number` (fully erased at runtime to `a[i] ^ b[i]`)
+  // rather than `?? 0`, which would emit a conditional and break the
+  // constant-time guarantee.
+  for (let i = 0; i < a.length; i++) d |= (a[i] as number) ^ (b[i] as number);
   return d === 0;
 }

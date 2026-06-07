@@ -51,9 +51,11 @@ export async function computeFingerprint(
 export function fingerprintEquals(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
-  // Lengths are equal and i is bounded by a.length, so both reads are always
-  // defined; `?? 0` only satisfies the index checker and keeps this branchless.
-  for (let i = 0; i < a.length; i++) diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
+  // Equal lengths + bounded i mean both reads are always defined. Use a
+  // compile-time `as number` (fully erased at runtime to `a[i] ^ b[i]`)
+  // rather than `?? 0`, which would emit a conditional and break the
+  // constant-time guarantee.
+  for (let i = 0; i < a.length; i++) diff |= (a[i] as number) ^ (b[i] as number);
   return diff === 0;
 }
 
