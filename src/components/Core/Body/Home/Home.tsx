@@ -9,8 +9,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/UI/Button";
 import { ROUTES } from "@/router/router";
 import { ActiveAccountDisplay } from "./AccountCreateImport/ActiveAccountDisplay/ActiveAccountDisplay";
-import { cva } from "class-variance-authority";
-import { useLocation, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { TransactionHistoryPopup } from "../AccountList/ActiveAccount/TransactionHistoryPopup";
 import { ReceivePopup } from "./ReceivePopup";
 import { isInNativeApp, requestQRScan } from "@/utils/nativeApp";
@@ -31,11 +30,9 @@ const NftGallery = withSuspense(
 );
 
 const Home = observer(() => {
-  const { state } = useLocation();
   const { qrlStore, tokenStore } = useStore();
   const { qrlConnection, activeAccount } = qrlStore;
   const { isLoading, isConnected, blockchain } = qrlConnection;
-  const hasAccountCreationPreference = !!state?.hasAccountCreationPreference;
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const activeAccountVideoRef = useRef<HTMLVideoElement | null>(null);
   const [txHistoryOpen, setTxHistoryOpen] = useState(false);
@@ -120,18 +117,6 @@ const Home = observer(() => {
     };
   }, [activeAccount.accountAddress, qrlStore, tokenStore]);
 
-  const accountCreateImportClasses = cva("flex gap-4 md:gap-8", {
-    variants: {
-      hasAccountCreationPreference: {
-        true: ["flex-col-reverse"],
-        false: ["flex-col"],
-      },
-    },
-    defaultVariants: {
-      hasAccountCreationPreference: false,
-    },
-  });
-
   return (
     <>
       <SEO
@@ -161,9 +146,7 @@ const Home = observer(() => {
         ) : (
           <>
 
-            <div
-              className={accountCreateImportClasses({ hasAccountCreationPreference })}
-            >
+            <div className="flex flex-col gap-4 md:gap-8">
               {activeAccount.accountAddress && (
                 <Card className="w-full relative overflow-hidden border-l-4 border-l-blue-accent">
                   <div className="absolute inset-0 overflow-hidden">
@@ -227,7 +210,11 @@ const Home = observer(() => {
                   <NftGallery />
                 </div>
               )}
-              {isConnected ? <AccountCreateImport /> : <ConnectionFailed />}
+              {!isConnected ? (
+                <ConnectionFailed />
+              ) : (
+                !activeAccount.accountAddress && <AccountCreateImport />
+              )}
             </div>
           </>
         )}
