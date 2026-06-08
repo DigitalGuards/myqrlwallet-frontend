@@ -1,5 +1,6 @@
+import type {
+    ColumnDef} from "@tanstack/react-table";
 import {
-    ColumnDef,
     flexRender,
     getCoreRowModel,
     useReactTable,
@@ -14,7 +15,7 @@ import {
     TableRow,
 } from "@/components/UI/table"
 import { useEffect, type ReactNode } from "react";
-import { TokenInterface } from "@/constants";
+import type { TokenInterface } from "@/constants";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
@@ -42,8 +43,9 @@ export function DataTable<TData, TValue>({
     // Watch for row selection changes - navigate to Transfer page
     useEffect(() => {
         const selectedRows = table.getSelectedRowModel().rows;
-        if (selectedRows.length > 0) {
-            const token = selectedRows[0].original as TokenInterface;
+        const firstRow = selectedRows[0];
+        if (firstRow) {
+            const token = firstRow.original as TokenInterface;
             // Reset selection before navigating
             table.resetRowSelection();
             // Navigate to Transfer page with token address as query param

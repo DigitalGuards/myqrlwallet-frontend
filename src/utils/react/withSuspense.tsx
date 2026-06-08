@@ -1,4 +1,5 @@
-import { ComponentType, Suspense } from "react";
+import type { ComponentType} from "react";
+import { Suspense } from "react";
 import { Loading } from "@/components/UI/Loading";
 
 const withSuspense = <P extends object>(

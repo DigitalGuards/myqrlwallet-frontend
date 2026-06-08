@@ -8,7 +8,8 @@ import {
 } from "@/components/UI/Card";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { StringUtil, getOptimalTokenBalance } from "@/utils/formatting";
-import { TransactionReceipt, utils } from "@theqrl/web3";
+import type { TransactionReceipt} from "@theqrl/web3";
+import { utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
 import { Check, CheckCircle2, Copy, ExternalLink } from "lucide-react";
 import { QRL_PROVIDER } from "@/config";

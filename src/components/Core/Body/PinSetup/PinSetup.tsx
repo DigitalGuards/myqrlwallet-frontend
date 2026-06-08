@@ -107,7 +107,9 @@ export const PinSetup = ({
       // Uses Web Worker to avoid blocking UI during PBKDF2
       if (hasExistingSeeds && existingSeeds.length > 0) {
         try {
-          await decryptSeedAsync(existingSeeds[0].encryptedSeed, userPin);
+          // length > 0 is checked above; `?? ''` only satisfies the index
+          // checker and would route an (impossible) miss to the catch below.
+          await decryptSeedAsync(existingSeeds[0]?.encryptedSeed ?? '', userPin);
         } catch (err) {
           const message =
             err instanceof CryptoOperationError && err.code === CryptoErrorCode.OUTDATED_FORMAT

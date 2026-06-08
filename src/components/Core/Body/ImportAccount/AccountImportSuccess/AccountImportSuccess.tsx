@@ -10,7 +10,7 @@ import { ROUTES } from "../../../../../router/router";
 import { getExplorerAddressUrl } from "@/config";
 import { copyToClipboard, openExternalUrl } from "@/utils/nativeApp";
 import { useStore } from "../../../../../stores/store";
-import { Web3BaseWalletAccount } from "@theqrl/web3";
+import type { Web3BaseWalletAccount } from "@theqrl/web3";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";

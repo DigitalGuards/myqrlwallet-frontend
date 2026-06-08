@@ -25,9 +25,9 @@ import { useState } from "react";
 function hexToRgba(hexColor: string, alpha: number): string {
   const hex = hexColor.replace("#", "");
   if (hex.length === 3) {
-    const r = parseInt(hex[0] + hex[0], 16);
-    const g = parseInt(hex[1] + hex[1], 16);
-    const b = parseInt(hex[2] + hex[2], 16);
+    const r = parseInt(hex.charAt(0) + hex.charAt(0), 16);
+    const g = parseInt(hex.charAt(1) + hex.charAt(1), 16);
+    const b = parseInt(hex.charAt(2) + hex.charAt(2), 16);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
   if (hex.length === 6) {

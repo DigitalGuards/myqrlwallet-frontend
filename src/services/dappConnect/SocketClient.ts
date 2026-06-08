@@ -68,8 +68,9 @@ export class SocketClient {
       // Auto-rejoin only after the initial join has succeeded. The initial
       // join is driven by the caller via joinChannel(); otherwise we'd race
       // with it here and emit join_channel twice on the first connect.
-      if (this.channelId && this.hasJoinedOnce) {
-        this.emitJoinChannel(this.channelId)
+      const socket = this.socket;
+      if (this.channelId && this.hasJoinedOnce && socket) {
+        this.emitJoinChannel(socket, this.channelId)
           .then(({ bufferedMessages, terminated }) => {
             if (terminated) {
               // The dApp explicitly closed the channel while we were away.
@@ -111,22 +112,22 @@ export class SocketClient {
     channelId: string
   ): Promise<{ bufferedMessages: unknown[]; channelPublicKey: string | null; terminated: boolean }> {
     this.channelId = channelId;
-    if (!this.socket) {
+    const socket = this.socket;
+    if (!socket) {
       throw new Error('Socket not initialised; call connect() before joinChannel()');
     }
-    if (!this.socket.connected) {
+    if (!socket.connected) {
       // Match the socket.io `timeout` above; a shorter wait here would
       // reject joinChannel while the underlying socket is still legitimately
       // trying to connect, corrupting our session state.
-      await this.waitForConnect(20000);
+      await this.waitForConnect(socket, 20000);
     }
-    const result = await this.emitJoinChannel(channelId);
+    const result = await this.emitJoinChannel(socket, channelId);
     this.hasJoinedOnce = true;
     return result;
   }
 
-  private waitForConnect(timeoutMs: number): Promise<void> {
-    const socket = this.socket!;
+  private waitForConnect(socket: Socket, timeoutMs: number): Promise<void> {
     return new Promise((resolve, reject) => {
       const cleanup = () => {
         clearTimeout(timer);
@@ -151,10 +152,11 @@ export class SocketClient {
   }
 
   private emitJoinChannel(
+    socket: Socket,
     channelId: string
   ): Promise<{ bufferedMessages: unknown[]; channelPublicKey: string | null; terminated: boolean }> {
     return new Promise((resolve, reject) => {
-      this.socket!.emit(
+      socket.emit(
         'join_channel',
         { channelId, clientType: 'wallet' },
         (response: {

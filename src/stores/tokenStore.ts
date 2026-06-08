@@ -2,12 +2,14 @@ import { QRL_PROVIDER } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
+import { getErrorMessage } from "@/utils/errors";
 import type { TransactionReceipt } from "@theqrl/web3";
 import { getQrlWeb3 } from "@/utils/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { customERC20FactoryABI } from "@/abi/CustomERC20FactoryABI";
 import { fetchTokenInfo, fetchBalance, discoverTokens, mergeTokenLists } from "@/utils/web3";
-import { TokenInterface, KNOWN_TOKEN_LIST } from "@/constants";
+import type { TokenInterface} from "@/constants";
+import { KNOWN_TOKEN_LIST } from "@/constants";
 import { customERC20ABI as CustomERC20ABI } from "@/abi/CustomERC20ABI";
 const formatUnits = (value: bigint | string | unknown, decimals: number): string => {
   let v = BigInt(value as string | bigint);
@@ -448,16 +450,17 @@ class TokenStore {
         });
 
       return true;
-    } catch (error: any) {
+    } catch (error) {
+      const message = getErrorMessage(error);
       runInAction(() => {
         this.qrlStore.transactionStatus = {
           state: "failed",
           txHash: null,
           receipt: null,
-          error: `Token transfer failed: ${error.message || error}`,
+          error: `Token transfer failed: ${message}`,
           pendingDetails: null,
         };
-        log(`Token transfer preparation failed: ${error}`);
+        log(`Token transfer preparation failed: ${message}`);
       });
       return false;
     }
@@ -486,7 +489,7 @@ class TokenStore {
       web3.qrl.wallet?.add(seed);
       web3.qrl.transactionConfirmationBlocks = 1;
 
-      const contractAddress = import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
+      const contractAddress = import.meta.env['VITE_CUSTOMERC20FACTORY_ADDRESS'] || "";
 
       if (!contractAddress) {
         throw new Error(

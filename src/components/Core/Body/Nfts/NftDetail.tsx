@@ -162,10 +162,13 @@ const NftDetail = observer(() => {
         setIsSending(false);
         return;
       }
-      const sender = await getAddressFromMnemonicAsync(
-        mnemonic,
-        qrlStore.qrlInstance!,
-      );
+      const qrlInstance = qrlStore.qrlInstance;
+      if (!qrlInstance) {
+        setPinError("Wallet not connected. Please try again.");
+        setIsSending(false);
+        return;
+      }
+      const sender = await getAddressFromMnemonicAsync(mnemonic, qrlInstance);
       if (sender.toLowerCase() !== accountAddress.toLowerCase()) {
         setPinError("PIN decrypted an invalid seed. Re-import this account.");
         setIsSending(false);

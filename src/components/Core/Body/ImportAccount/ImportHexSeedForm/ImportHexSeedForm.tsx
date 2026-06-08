@@ -1,5 +1,5 @@
 import { useStore } from "@/stores/store";
-import { ExtendedWalletAccount } from "@/utils/crypto";
+import type { ExtendedWalletAccount } from "@/utils/crypto";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/UI/Card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormMessage } from "@/components/UI/Form";
 import { Input } from "@/components/UI/Input";

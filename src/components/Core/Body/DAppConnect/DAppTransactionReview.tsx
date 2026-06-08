@@ -26,10 +26,10 @@ function formatGasLimit(gas: unknown): string {
 }
 
 const DAppTransactionReview: React.FC<TransactionReviewProps> = ({ params }) => {
-  const to = (params.to as string) || 'Unknown';
-  const value = params.value as string | undefined;
-  const data = params.data as string | undefined;
-  const gas = params.gas;
+  const to = (params['to'] as string) || 'Unknown';
+  const value = params['value'] as string | undefined;
+  const data = params['data'] as string | undefined;
+  const gas = params['gas'];
 
   const displayValue = formatQuantaValue(value);
 

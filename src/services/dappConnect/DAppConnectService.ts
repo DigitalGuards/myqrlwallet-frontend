@@ -393,11 +393,11 @@ export class DAppConnectService {
     const conn = this.connections.get(channelId);
     if (!conn) return;
 
-    const type = msg.type as string;
+    const type = msg['type'] as string;
 
     switch (type) {
       case MessageType.ORIGINATOR_INFO: {
-        const info = msg.originatorInfo as DAppInfo | undefined;
+        const info = msg['originatorInfo'] as DAppInfo | undefined;
         if (info) {
           conn.dappInfo = {
             name: info.name || conn.dappInfo.name,
@@ -426,9 +426,9 @@ export class DAppConnectService {
       }
 
       case MessageType.JSONRPC: {
-        const method = msg.method as string;
-        const id = msg.id as string | number;
-        const params = msg.params as unknown[] | undefined;
+        const method = msg['method'] as string;
+        const id = msg['id'] as string | number;
+        const params = msg['params'] as unknown[] | undefined;
 
         if (!method) return;
 

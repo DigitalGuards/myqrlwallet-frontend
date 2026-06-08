@@ -42,8 +42,12 @@ export const ShinyButton = React.forwardRef<HTMLButtonElement, ShinyButtonProps>
           }
 
           .shiny-btn {
-            --shiny-cta-highlight: #4aafff;
-            --shiny-cta-highlight-subtle: #3a9fee;
+            /* Solid design-primary blue fill; the sheen is a light glint on
+               top of it so the button reads as a clean primary CTA rather
+               than the old dark-fill/chasing-edge look. */
+            --shiny-cta-bg: #4aafff;
+            --shiny-cta-highlight: #ffffff;
+            --shiny-cta-highlight-subtle: #d6ecff;
             --animation: gradient-angle linear infinite;
             --shadow-size: 2px;
           }
@@ -68,7 +72,7 @@ export const ShinyButton = React.forwardRef<HTMLButtonElement, ShinyButtonProps>
             outline-offset: 4px;
             border: 1px solid transparent;
             background:
-              linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
+              linear-gradient(var(--shiny-cta-bg), var(--shiny-cta-bg)) padding-box,
               conic-gradient(
                   from calc(var(--gradient-angle) - var(--gradient-angle-offset)),
                   transparent,
@@ -78,7 +82,7 @@ export const ShinyButton = React.forwardRef<HTMLButtonElement, ShinyButtonProps>
                   transparent calc(var(--gradient-percent) * 4)
                 )
                 border-box;
-            box-shadow: inset 0 0 0 1px hsl(var(--border));
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
             transition: var(--transition);
             transition-property:
               --gradient-angle-offset, --gradient-percent, --gradient-shine;
@@ -133,7 +137,7 @@ export const ShinyButton = React.forwardRef<HTMLButtonElement, ShinyButtonProps>
               black
             );
             border-radius: 0.5rem;
-            opacity: 0.4;
+            opacity: 0.18;
             z-index: -1;
           }
 
@@ -149,7 +153,7 @@ export const ShinyButton = React.forwardRef<HTMLButtonElement, ShinyButtonProps>
               transparent
             );
             mask-image: radial-gradient(circle at bottom, transparent 40%, black);
-            opacity: 0.6;
+            opacity: 0.35;
           }
 
           .shiny-btn .shiny-btn__content {
@@ -226,7 +230,9 @@ export const ShinyButton = React.forwardRef<HTMLButtonElement, ShinyButtonProps>
           ref={ref}
           className={cn(
             "shiny-btn inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2",
-            "text-foreground",
+            // Constant dark text: the fill is a fixed light blue, so a
+            // theme-dependent token would be unreadable in light mode.
+            "text-zinc-950",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             processing && "shiny-btn--processing",
             className

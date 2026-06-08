@@ -1,5 +1,11 @@
 import type { default as Web3Type } from "@theqrl/web3";
 import { getQrlWeb3 } from "./web3Lazy";
+import {
+  contractMethods,
+  type Erc165Methods,
+  type Erc721Methods,
+  type Erc1155Methods,
+} from "./contractFactory";
 import { erc165ABI, ERC165_INTERFACE_IDS } from "@/abi/ERC165ABI";
 import { erc721ABI } from "@/abi/ERC721ABI";
 import { erc1155ABI } from "@/abi/ERC1155ABI";
@@ -44,8 +50,8 @@ async function safeSupportsInterface(
   interfaceId: string,
 ): Promise<boolean> {
   try {
-    const contract = new web3.qrl.Contract(erc165ABI as any, contractAddress);
-    const result = await (contract.methods as any).supportsInterface(interfaceId).call();
+    const methods = contractMethods<Erc165Methods>(web3, erc165ABI, contractAddress);
+    const result = await methods.supportsInterface(interfaceId).call();
     return Boolean(result);
   } catch {
     return false;
@@ -87,17 +93,16 @@ export async function fetchNftCollectionInfo(
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
 
   if (standard === "ERC721") {
-    const contract = new web3.qrl.Contract(erc721ABI as any, contractAddress);
-    const methods = contract.methods as any;
+    const methods = contractMethods<Erc721Methods>(web3, erc721ABI, contractAddress);
     let name: string | undefined;
     let symbol: string | undefined;
     try {
-      name = (await methods.name().call()) as string;
+      name = await methods.name().call();
     } catch {
       // Optional in ERC-721 — some implementations omit it.
     }
     try {
-      symbol = (await methods.symbol().call()) as string;
+      symbol = await methods.symbol().call();
     } catch {
       // Optional in ERC-721 — some implementations omit it.
     }
@@ -132,19 +137,16 @@ export async function fetchOwned721Ids(
   );
   if (!supportsEnumerable) return null;
 
-  const contract = new web3.qrl.Contract(erc721ABI as any, contractAddress);
-  const methods = contract.methods as any;
+  const methods = contractMethods<Erc721Methods>(web3, erc721ABI, contractAddress);
   const checksum = web3.utils.toChecksumAddress(ownerAddress);
-  const balanceRaw = (await methods.balanceOf(checksum).call()) as bigint | string;
+  const balanceRaw = await methods.balanceOf(checksum).call();
   const balance = BigInt(balanceRaw);
   if (balance === 0n) return [];
 
   const ids: string[] = [];
   for (let i = 0n; i < balance; i++) {
     try {
-      const id = (await methods
-        .tokenOfOwnerByIndex(checksum, i)
-        .call()) as bigint | string;
+      const id = await methods.tokenOfOwnerByIndex(checksum, i).call();
       ids.push(BigInt(id).toString());
     } catch (err) {
       console.error(`tokenOfOwnerByIndex(${i}) failed:`, err);
@@ -164,8 +166,8 @@ export async function isErc721Owner(
   const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
   try {
-    const contract = new web3.qrl.Contract(erc721ABI as any, contractAddress);
-    const actual = (await (contract.methods as any).ownerOf(tokenId).call()) as string;
+    const methods = contractMethods<Erc721Methods>(web3, erc721ABI, contractAddress);
+    const actual = await methods.ownerOf(tokenId).call();
     return actual.toLowerCase() === web3.utils.toChecksumAddress(ownerAddress).toLowerCase();
   } catch {
     return false;
@@ -181,9 +183,9 @@ export async function fetchErc1155Balance(
 ): Promise<bigint> {
   const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
-  const contract = new web3.qrl.Contract(erc1155ABI as any, contractAddress);
+  const methods = contractMethods<Erc1155Methods>(web3, erc1155ABI, contractAddress);
   const checksum = web3.utils.toChecksumAddress(ownerAddress);
-  const raw = (await (contract.methods as any).balanceOf(checksum, tokenId).call()) as bigint | string;
+  const raw = await methods.balanceOf(checksum, tokenId).call();
   return BigInt(raw);
 }
 
@@ -202,12 +204,12 @@ export async function fetchTokenUri(
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
   try {
     if (standard === "ERC721") {
-      const contract = new web3.qrl.Contract(erc721ABI as any, contractAddress);
-      const uri = (await (contract.methods as any).tokenURI(tokenId).call()) as string;
+      const methods = contractMethods<Erc721Methods>(web3, erc721ABI, contractAddress);
+      const uri = await methods.tokenURI(tokenId).call();
       return uri || null;
     }
-    const contract = new web3.qrl.Contract(erc1155ABI as any, contractAddress);
-    let uri = (await (contract.methods as any).uri(tokenId).call()) as string;
+    const methods = contractMethods<Erc1155Methods>(web3, erc1155ABI, contractAddress);
+    let uri = await methods.uri(tokenId).call();
     if (uri && uri.includes("{id}")) {
       const hexId = BigInt(tokenId).toString(16).padStart(64, "0");
       uri = uri.replace(/\{id\}/g, hexId);

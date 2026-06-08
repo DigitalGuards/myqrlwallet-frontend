@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/UI/Input";
 import { useStore } from "@/stores/store";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Web3BaseWalletAccount } from "@theqrl/web3";
+import type { Web3BaseWalletAccount } from "@theqrl/web3";
 import { Loader, Plus } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
@@ -131,7 +131,9 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds,
       // If existing seeds exist, verify PIN by attempting to decrypt one
       if (hasExistingSeeds && existingSeeds.length > 0) {
         try {
-          await decryptSeedAsync(existingSeeds[0].encryptedSeed, userPin);
+          // length > 0 is checked above; `?? ''` only satisfies the index
+          // checker and would route an (impossible) miss to the catch below.
+          await decryptSeedAsync(existingSeeds[0]?.encryptedSeed ?? '', userPin);
         } catch (err) {
           const message =
             err instanceof CryptoOperationError && err.code === CryptoErrorCode.OUTDATED_FORMAT

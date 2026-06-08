@@ -29,7 +29,7 @@ import {
   type NftStandard,
 } from "@/utils/web3/nft";
 import { isValidQrlAddress } from "@/utils/web3";
-import { NFTInterface } from "@/constants";
+import type { NFTInterface } from "@/constants";
 
 interface AddNftModalProps {
   isOpen: boolean;

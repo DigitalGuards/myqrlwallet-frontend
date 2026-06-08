@@ -139,7 +139,7 @@ class DAppConnectStore {
     );
 
     if (this.pendingRequests.length > 0) {
-      this.currentApproval = this.pendingRequests[0];
+      this.currentApproval = this.pendingRequests[0] ?? null;
     } else {
       this.currentApproval = null;
       this.approvalModalOpen = false;
