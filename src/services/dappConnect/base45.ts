@@ -13,15 +13,14 @@ const DECODE: Int8Array = (() => {
 })();
 
 /**
- * Char codes ≥128 are always invalid — looking them up on the 128-slot
- * Int8Array returns `undefined`, and `undefined < 0` is false, which
- * would let hostile input silently decode to zero bytes and bypass the
- * "invalid character" throw below.
+ * Decode a single character to its Base45 alphabet value, or -1 if invalid.
+ * Char codes <0 or >=128 are rejected up front by the explicit guard, so the
+ * 128-slot table is only ever indexed in-bounds; the `?? -1` below merely
+ * satisfies the index-access checker and never actually fires. Invalid
+ * characters still surface as the "invalid character" throw in the caller.
  */
 function decodeChar(charCode: number): number {
   if (charCode < 0 || charCode >= 128) return -1;
-  // charCode is guaranteed in-bounds by the guard above; `?? -1` only
-  // satisfies the index-access checker and never actually fires.
   return DECODE[charCode] ?? -1;
 }
 
