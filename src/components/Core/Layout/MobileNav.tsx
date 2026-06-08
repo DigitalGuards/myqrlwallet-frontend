@@ -1,4 +1,4 @@
-import { Wallet, SendHorizontal, Settings as SettingsIcon, Plus, LogOut } from "lucide-react"
+import { Wallet, ArrowRight, Settings as SettingsIcon, Plus, LogOut } from "lucide-react"
 import { useNavigate, useLocation } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import { handleLogout } from "@/utils/logout";
@@ -8,7 +8,7 @@ import { cn } from "@/utils/cn";
 
 const navItems = [
     {
-        icon: SendHorizontal,
+        icon: ArrowRight,
         label: "Send",
         path: ROUTES.TRANSFER,
     },
