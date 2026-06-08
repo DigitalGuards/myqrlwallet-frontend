@@ -115,13 +115,13 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
                     const selectedBlockChain = await StorageUtil.getBlockChain();
                     const { name, symbol, decimals } = await fetchTokenInfo(tokenAddress, QRL_PROVIDER[selectedBlockChain].url);
                     const balance = await fetchBalance(tokenAddress, activeAccountAddress, QRL_PROVIDER[selectedBlockChain].url);
-                    const parsedDecimals = parseInt(decimals.toString());
+                    const parsedDecimals = parseInt(decimals?.toString() ?? "18");
                     // Store the display-formatted balance (decimals applied) so the
                     // token list doesn't flash the raw base-unit integer until the
                     // next refreshTokenBalances cycle reformats it.
                     let amount = "0.0";
                     try {
-                        amount = getOptimalTokenBalance(formatUnits(balance.toString(), parsedDecimals), symbol, false);
+                        amount = getOptimalTokenBalance(formatUnits(balance?.toString() ?? "0", parsedDecimals), symbol, false);
                     } catch {
                         amount = "0.0";
                     }

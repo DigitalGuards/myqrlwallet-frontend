@@ -59,7 +59,9 @@ export async function discoverTokens(
       .filter((token) => token.contractAddress)
       .map((token) => {
         const symbol = token.symbol || "UNK";
-        const decimals = token.decimals || 18;
+        // Nullish coalescing, not ||: 0 is a valid decimals value and must
+        // not fall through to 18.
+        const decimals = token.decimals ?? 18;
         // Explorer returns the raw base-unit balance. Pre-format it to the
         // same display string refreshTokenBalances would produce, so the
         // picker (and the token list once added) never flashes the raw
