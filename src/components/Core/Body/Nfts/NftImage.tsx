@@ -7,9 +7,14 @@ interface NftImageProps {
   src?: string;
   alt: string;
   className?: string;
+  /**
+   * Soft-blur the artwork (used for gallery thumbnails). The full-resolution
+   * sharp render is reserved for the detail view the user opens on click.
+   */
+  blur?: boolean;
 }
 
-export function NftImage({ src, alt, className }: NftImageProps) {
+export function NftImage({ src, alt, className, blur = false }: NftImageProps) {
   // Compute the resolved URL from props; derived, not stored. When `src`
   // changes the outer component re-renders with a new memoized value and
   // the inner <Inner> remounts via its key, resetting load/error state.
@@ -21,17 +26,19 @@ export function NftImage({ src, alt, className }: NftImageProps) {
   if (!imageSrc) {
     return <Fallback wrapper={wrapper} alt={alt} />;
   }
-  return <Inner key={imageSrc} wrapper={wrapper} src={imageSrc} alt={alt} />;
+  return <Inner key={imageSrc} wrapper={wrapper} src={imageSrc} alt={alt} blur={blur} />;
 }
 
 function Inner({
   wrapper,
   src,
   alt,
+  blur,
 }: {
   wrapper: string;
   src: string;
   alt: string;
+  blur: boolean;
 }) {
   // Component is keyed by src, so this state always resets on src change.
   // setState only fires from <img> event callbacks — never inside an effect.
@@ -54,7 +61,7 @@ function Inner({
         onError={() => setStatus("error")}
         className={`h-full w-full object-cover transition-opacity ${
           status === "loaded" ? "opacity-100" : "opacity-0"
-        }`}
+        } ${blur ? "scale-110 blur-[3px]" : ""}`}
       />
     </div>
   );

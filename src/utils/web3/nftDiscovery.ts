@@ -1,5 +1,5 @@
 import { getNFTDiscoveryApiUrl } from "@/config";
-import { NFTInterface } from "@/constants";
+import type { NFTInterface } from "@/constants";
 import { log } from "@/utils";
 
 // One row of the zondscan /api/address/:addr/nfts response. Shape mirrors

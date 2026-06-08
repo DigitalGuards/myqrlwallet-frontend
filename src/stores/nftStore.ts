@@ -7,11 +7,12 @@ import {
 } from "mobx";
 import type { TransactionReceipt } from "@theqrl/web3";
 import { log } from "@/utils";
+import { getErrorMessage } from "@/utils/errors";
 import { getQrlWeb3 } from "@/utils/web3";
 import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 import { deriveHexSeedAsync } from "@/utils/crypto";
-import { NFTInterface } from "@/constants";
+import type { NFTInterface } from "@/constants";
 import { erc721ABI } from "@/abi/ERC721ABI";
 import { erc1155ABI } from "@/abi/ERC1155ABI";
 import {
@@ -19,6 +20,11 @@ import {
   isErc721Owner,
   nftKey,
 } from "@/utils/web3/nft";
+import {
+  contractMethods,
+  type Erc721Methods,
+  type Erc1155Methods,
+} from "@/utils/web3/contractFactory";
 import { discoverNFTs } from "@/utils/web3";
 import type QrlStore from "./qrlStore";
 import type TokenStore from "./tokenStore";
@@ -278,19 +284,21 @@ class NftStore {
 
       let data: string;
       if (nft.standard === "ERC721") {
-        const contract = new web3.qrl.Contract(
-          erc721ABI as any,
+        const methods = contractMethods<Erc721Methods>(
+          web3,
+          erc721ABI,
           nft.contractAddress,
         );
-        data = (contract.methods as any)
+        data = methods
           .safeTransferFrom(acc.address, toAddress, nft.tokenId)
           .encodeABI();
       } else {
-        const contract = new web3.qrl.Contract(
-          erc1155ABI as any,
+        const methods = contractMethods<Erc1155Methods>(
+          web3,
+          erc1155ABI,
           nft.contractAddress,
         );
-        data = (contract.methods as any)
+        data = methods
           .safeTransferFrom(
             acc.address,
             toAddress,
@@ -379,16 +387,17 @@ class NftStore {
         });
 
       return true;
-    } catch (error: any) {
+    } catch (error) {
+      const message = getErrorMessage(error);
       runInAction(() => {
         this.qrlStore.transactionStatus = {
           state: "failed",
           txHash: null,
           receipt: null,
-          error: `NFT transfer failed: ${error.message || error}`,
+          error: `NFT transfer failed: ${message}`,
           pendingDetails: null,
         };
-        log(`NFT transfer preparation failed: ${error}`);
+        log(`NFT transfer preparation failed: ${message}`);
       });
       return false;
     }

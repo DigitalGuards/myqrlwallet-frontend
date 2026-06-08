@@ -60,12 +60,12 @@ function renderValue(value: unknown, depth: number): React.ReactNode {
 const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({ payload, digestHex }) => {
   const [showDigest, setShowDigest] = useState(false);
   const { domain, primaryType, message } = payload;
-  const name = typeof domain.name === 'string' ? domain.name : '(unnamed)';
-  const chainId = typeof domain.chainId === 'string' || typeof domain.chainId === 'number'
-    ? String(domain.chainId)
+  const name = typeof domain['name'] === 'string' ? domain['name'] : '(unnamed)';
+  const chainId = typeof domain['chainId'] === 'string' || typeof domain['chainId'] === 'number'
+    ? String(domain['chainId'])
     : undefined;
-  const verifyingContract = typeof domain.verifyingContract === 'string'
-    ? domain.verifyingContract
+  const verifyingContract = typeof domain['verifyingContract'] === 'string'
+    ? domain['verifyingContract']
     : undefined;
 
   return (

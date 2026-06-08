@@ -1,14 +1,14 @@
-const RPC_API_BASE = import.meta.env.VITE_NODE_ENV === 'production'
-  ? import.meta.env.VITE_RPC_URL_PRODUCTION
-  : import.meta.env.VITE_RPC_URL_DEVELOPMENT;  // Using Vite's default port
+const RPC_API_BASE = import.meta.env['VITE_NODE_ENV'] === 'production'
+  ? import.meta.env['VITE_RPC_URL_PRODUCTION']
+  : import.meta.env['VITE_RPC_URL_DEVELOPMENT'];  // Using Vite's default port
 
-export const SERVER_URL = import.meta.env.VITE_NODE_ENV === 'production'
-  ? import.meta.env.VITE_SERVER_URL_PRODUCTION
-  : import.meta.env.VITE_SERVER_URL_DEVELOPMENT;
+export const SERVER_URL = import.meta.env['VITE_NODE_ENV'] === 'production'
+  ? import.meta.env['VITE_SERVER_URL_PRODUCTION']
+  : import.meta.env['VITE_SERVER_URL_DEVELOPMENT'];
 
-export const EXPLORER_BASE = (import.meta.env.VITE_NODE_ENV === 'production'
-  ? import.meta.env.VITE_EXPLORER_URL_PRODUCTION
-  : import.meta.env.VITE_EXPLORER_URL_DEVELOPMENT) || 'https://zondscan.com';
+export const EXPLORER_BASE = (import.meta.env['VITE_NODE_ENV'] === 'production'
+  ? import.meta.env['VITE_EXPLORER_URL_PRODUCTION']
+  : import.meta.env['VITE_EXPLORER_URL_DEVELOPMENT']) || 'https://zondscan.com';
 
 export const QRL_PROVIDER = {
   TEST_NET: {

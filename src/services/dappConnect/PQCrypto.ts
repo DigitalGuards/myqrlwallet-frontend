@@ -41,8 +41,17 @@ function subtle(): SubtleCrypto {
   return c.subtle;
 }
 
-function bs(u: Uint8Array): BufferSource {
-  return u as unknown as BufferSource;
+/**
+ * Narrow a Uint8Array to an ArrayBuffer-backed view for WebCrypto. The
+ * generic `Uint8Array` type defaults to ArrayBufferLike (which includes
+ * SharedArrayBuffer), and WebCrypto's `BufferSource` excludes SharedArrayBuffer
+ * since TS 5.7. We verify the backing buffer at runtime and only copy in the
+ * rare SharedArrayBuffer case, so this is an honest narrowing, not a blind cast.
+ */
+function bs(u: Uint8Array): Uint8Array<ArrayBuffer> {
+  return u.buffer instanceof ArrayBuffer
+    ? (u as Uint8Array<ArrayBuffer>)
+    : new Uint8Array(u);
 }
 
 export function kemKeygen(): Keypair {
@@ -175,7 +184,9 @@ export function toBase64(bytes: Uint8Array): string {
   let bin = '';
   for (let i = 0; i < bytes.length; i += CHUNK) {
     const slice = bytes.subarray(i, i + CHUNK);
-    bin += String.fromCharCode.apply(null, slice as unknown as number[]);
+    // slice is capped at CHUNK (0x8000) elements, well under the argument-count
+    // limit, so the spread is safe and needs no array-like cast.
+    bin += String.fromCharCode(...slice);
   }
   return btoa(bin);
 }
@@ -190,6 +201,10 @@ export function fromBase64(b64: string): Uint8Array {
 export function constantTimeEquals(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   let d = 0;
-  for (let i = 0; i < a.length; i++) d |= a[i] ^ b[i];
+  // Equal lengths + bounded i mean both reads are always defined. Use a
+  // compile-time `as number` (fully erased at runtime to `a[i] ^ b[i]`)
+  // rather than `?? 0`, which would emit a conditional and break the
+  // constant-time guarantee.
+  for (let i = 0; i < a.length; i++) d |= (a[i] as number) ^ (b[i] as number);
   return d === 0;
 }

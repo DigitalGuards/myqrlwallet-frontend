@@ -15,7 +15,9 @@ import { observer } from "mobx-react-lite";
 import { Loader2, Sparkles } from "lucide-react";
 import { useStore } from "@/stores/store";
 import { fetchTokenInfo, fetchBalance } from "@/utils/web3";
-import { TokenInterface } from "@/constants";
+import { formatUnits } from "@/utils/web3/units";
+import { getOptimalTokenBalance } from "@/utils/formatting";
+import type { TokenInterface } from "@/constants";
 import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 
@@ -113,7 +115,17 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
                     const selectedBlockChain = await StorageUtil.getBlockChain();
                     const { name, symbol, decimals } = await fetchTokenInfo(tokenAddress, QRL_PROVIDER[selectedBlockChain].url);
                     const balance = await fetchBalance(tokenAddress, activeAccountAddress, QRL_PROVIDER[selectedBlockChain].url);
-                    setTokenInfo({ name, symbol, decimals: parseInt(decimals.toString()), address: tokenAddress, amount: balance.toString() });
+                    const parsedDecimals = parseInt(decimals?.toString() ?? "18");
+                    // Store the display-formatted balance (decimals applied) so the
+                    // token list doesn't flash the raw base-unit integer until the
+                    // next refreshTokenBalances cycle reformats it.
+                    let amount = "0.0";
+                    try {
+                        amount = getOptimalTokenBalance(formatUnits(balance?.toString() ?? "0", parsedDecimals), symbol, false);
+                    } catch {
+                        amount = "0.0";
+                    }
+                    setTokenInfo({ name, symbol, decimals: parsedDecimals, address: tokenAddress, amount });
                 } catch (err) {
                     console.error("Error fetching token info", err);
                     setTokenInfo(null);
