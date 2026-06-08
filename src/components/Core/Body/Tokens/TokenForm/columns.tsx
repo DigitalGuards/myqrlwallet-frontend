@@ -38,7 +38,7 @@ const CopyableAddress = ({ address }: { address: string }) => {
     );
 };
 
-const CopyableText = ({ text }: { text: string }) => {
+const CopyableText = ({ text, className }: { text: string; className?: string }) => {
     const [isCopied, setIsCopied] = useState(false);
 
     const handleCopy = async (textToCopy: string) => {
@@ -53,7 +53,7 @@ const CopyableText = ({ text }: { text: string }) => {
 
     return (
         <div className="flex items-center gap-2 group">
-            <span>{text}</span>
+            <span className={className}>{text}</span>
             {isCopied ? (
                 <Check className="w-4 h-4 text-green-500" />
             ) : (
@@ -120,7 +120,7 @@ export const columns: ColumnDef<TokenInterface>[] = [
         header: "Name",
         cell: ({ row }) => {
             const name: string = row.getValue('name')
-            return <div className="hidden md:block"><CopyableText text={name} /></div>;
+            return <div className="hidden md:block"><CopyableText text={name} className="font-semibold text-foreground" /></div>;
         },
     },
     {
@@ -128,7 +128,7 @@ export const columns: ColumnDef<TokenInterface>[] = [
         header: "Symbol",
         cell: ({ row }) => {
             const symbol: string = row.getValue('symbol')
-            return <CopyableText text={symbol} />;
+            return <CopyableText text={symbol} className="text-muted-foreground" />;
         },
     },
     {
