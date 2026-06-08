@@ -2,15 +2,15 @@ import { useStore } from "@/stores/store";
 import type { FeeLevel } from "@/stores/qrlStore";
 import { utils } from "@theqrl/web3";
 import { cva } from "class-variance-authority";
-import { Loader, Fuel } from "lucide-react";
+import { Loader } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { getOptimalGasFee } from "@/utils/formatting";
-import { Button } from "@/components/UI/Button";
+import { cn } from "@/utils/cn";
 
 const FEE_DISPLAY: Record<FeeLevel, { label: string; multiplier: number }> = {
-  low:    { label: "Low",    multiplier: 1 },
+  low:    { label: "Slow",   multiplier: 1 },
   medium: { label: "Medium", multiplier: 1.5 },
-  high:   { label: "High",   multiplier: 2 },
+  high:   { label: "Fast",   multiplier: 2 },
 };
 
 type GasFeeNoticeProps = {
@@ -23,12 +23,12 @@ type GasFeeNoticeProps = {
 };
 
 const gasFeeNoticeClasses = cva(
-  "m-1 flex flex-col gap-3 rounded-lg border border-white px-4 py-3",
+  "mt-4 flex flex-col gap-3 rounded-md border border-border bg-muted/30 px-4 py-3.5",
   {
     variants: {
       isSubmitting: {
-        true: ["opacity-30"],
-        false: ["opacity-80"],
+        true: ["opacity-50"],
+        false: ["opacity-100"],
       },
     },
     defaultVariants: {
@@ -104,35 +104,40 @@ export const GasFeeNotice = ({
   return (
     hasValuesForGasCalculation && (
       <div className={gasFeeNoticeClasses({ isSubmitting })}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Fuel className="h-4 w-4" />
-            {gasFee.isLoading ? (
-              <div className="flex gap-2">
-                <Loader className="h-4 w-4 animate-spin" />
-                Estimating fee...
-              </div>
-            ) : gasFee.error ? (
-              <span className="text-sm">{gasFee.error}</span>
-            ) : (
-              <span className="text-sm">~{gasFee.estimatedGas}</span>
-            )}
-          </div>
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span className="font-medium">Network fee</span>
+          {gasFee.isLoading ? (
+            <span className="flex items-center gap-2">
+              <Loader className="h-4 w-4 animate-spin" />
+              Estimating fee...
+            </span>
+          ) : gasFee.error ? (
+            <span className="text-destructive">{gasFee.error}</span>
+          ) : (
+            <span className="font-mono text-foreground">≈ {gasFee.estimatedGas}</span>
+          )}
         </div>
-        <div className="flex gap-2">
-          {(["low", "medium", "high"] as FeeLevel[]).map((level) => (
-            <Button
-              key={level}
-              type="button"
-              variant={feeLevel === level ? "default" : "outline"}
-              size="sm"
-              onClick={() => onFeeLevelChange(level)}
-              disabled={isSubmitting}
-              className="flex-1"
-            >
-              {FEE_DISPLAY[level].label}
-            </Button>
-          ))}
+        <div className="grid grid-cols-3 gap-2">
+          {(["low", "medium", "high"] as FeeLevel[]).map((level) => {
+            const active = feeLevel === level;
+            return (
+              <button
+                key={level}
+                type="button"
+                onClick={() => onFeeLevelChange(level)}
+                disabled={isSubmitting}
+                aria-pressed={active}
+                className={cn(
+                  "rounded-sm border py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                  active
+                    ? "border-secondary bg-secondary/10 text-secondary"
+                    : "border-input bg-background text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {FEE_DISPLAY[level].label}
+              </button>
+            );
+          })}
         </div>
       </div>
     )
