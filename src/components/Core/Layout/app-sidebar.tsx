@@ -71,26 +71,21 @@ export function AppSidebar() {
                                 return (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton
-                                        asChild
                                         onClick={() => navigateTo(item.url, navigate)}
-                                        // Override shadcn's rounded-md + focus ring so the active
-                                        // accent reads as a flat full-bleed block with a straight
-                                        // orange edge (rounded right-border renders as a curve).
+                                        // Semantic <button> (no asChild) for native keyboard support.
+                                        // Override shadcn's rounded-md so the active accent reads as a
+                                        // flat full-bleed block with a straight orange edge; keep a
+                                        // keyboard-only inset focus ring (mouse clicks don't show it).
                                         className={cn(
-                                            "py-2 h-auto rounded-none border-r-2 border-r-transparent transition-colors",
-                                            "hover:bg-transparent focus-visible:ring-0",
-                                            active && "bg-secondary/10 border-r-secondary",
+                                            "flex flex-col justify-evenly items-center gap-1 py-2 h-auto rounded-none border-r-2 border-r-transparent transition-colors [&>svg]:!size-8",
+                                            "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-secondary",
+                                            active
+                                                ? "bg-secondary/10 border-r-secondary text-foreground"
+                                                : "text-muted-foreground hover:text-foreground",
                                         )}
                                     >
-                                        <div
-                                            className={cn(
-                                                "flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8",
-                                                active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-                                            )}
-                                        >
-                                            <item.icon className="size-8" />
-                                            <span className="block text-xs font-medium">{item.label}</span>
-                                        </div>
+                                        <item.icon className="size-8" />
+                                        <span className="block text-xs font-medium">{item.label}</span>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                                 );

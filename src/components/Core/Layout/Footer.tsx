@@ -1,6 +1,6 @@
 import { EXPLORER_BASE } from "@/config";
 import { ROUTES } from "@/router/router";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { cn } from "@/utils/cn";
 
 /**
@@ -10,21 +10,20 @@ import { cn } from "@/utils/cn";
  *   hidden so it does not collide with the bottom tab bar).
  */
 export function FooterLinks({ className }: { className?: string }) {
-    const navigate = useNavigate();
     const linkClass =
         "text-xs md:text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors";
 
     return (
         <div className={cn("flex items-center justify-center gap-6 md:gap-12", className)}>
-            <a className={linkClass} onClick={() => navigate(ROUTES.HOME)}>
+            <Link className={linkClass} to={ROUTES.HOME}>
                 Home
-            </a>
-            <a className={linkClass} onClick={() => navigate(ROUTES.PRIVACY)}>
+            </Link>
+            <Link className={linkClass} to={ROUTES.PRIVACY}>
                 Privacy
-            </a>
-            <a className={linkClass} onClick={() => navigate(ROUTES.TERMS)}>
+            </Link>
+            <Link className={linkClass} to={ROUTES.TERMS}>
                 Terms
-            </a>
+            </Link>
             <a
                 href={EXPLORER_BASE}
                 target="_blank"

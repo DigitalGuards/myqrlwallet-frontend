@@ -32,7 +32,18 @@ export function NftCard({ nft }: NftCardProps) {
     : `${truncateAddress(nft.contractAddress)} • #${truncateId(nft.tokenId)}`;
 
   return (
-    <div className="group flex cursor-pointer flex-col gap-2" onClick={onOpen}>
+    <div
+      role="button"
+      tabIndex={0}
+      className="group flex cursor-pointer flex-col gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+    >
       <div className="relative overflow-hidden rounded-md border border-border transition-colors group-hover:border-secondary/60">
         <NftImage
           src={nft.image}
