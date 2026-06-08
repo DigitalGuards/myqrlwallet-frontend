@@ -1,6 +1,8 @@
 import { getTokenDiscoveryApiUrl } from "@/config";
 import type { TokenInterface } from "@/constants";
 import { log } from "@/utils";
+import { formatUnits } from "@/utils/web3/units";
+import { getOptimalTokenBalance } from "@/utils/formatting";
 
 // Token info from Explorer API
 interface ExplorerToken {
@@ -55,17 +57,37 @@ export async function discoverTokens(
 
     const tokens: TokenInterface[] = data.tokens
       .filter((token) => token.contractAddress)
-      .map((token) => ({
-        name: token.name || "Unknown Token",
-        symbol: token.symbol || "UNK",
-        address: token.contractAddress.startsWith("Q")
-          ? token.contractAddress
-          : token.contractAddress.startsWith("q")
-            ? `Q${token.contractAddress.slice(1)}`
-            : `Q${token.contractAddress.replace(/^0x/i, "")}`,
-        amount: token.balance || "0",
-        decimals: token.decimals || 18,
-      }));
+      .map((token) => {
+        const symbol = token.symbol || "UNK";
+        // Nullish coalescing, not ||: 0 is a valid decimals value and must
+        // not fall through to 18.
+        const decimals = token.decimals ?? 18;
+        // Explorer returns the raw base-unit balance. Pre-format it to the
+        // same display string refreshTokenBalances would produce, so the
+        // picker (and the token list once added) never flashes the raw
+        // integer before the next 30s refresh cycle reformats it.
+        let amount = "0.0";
+        try {
+          amount = getOptimalTokenBalance(
+            formatUnits(token.balance || "0", decimals),
+            symbol,
+            false,
+          );
+        } catch {
+          amount = "0.0";
+        }
+        return {
+          name: token.name || "Unknown Token",
+          symbol,
+          address: token.contractAddress.startsWith("Q")
+            ? token.contractAddress
+            : token.contractAddress.startsWith("q")
+              ? `Q${token.contractAddress.slice(1)}`
+              : `Q${token.contractAddress.replace(/^0x/i, "")}`,
+          amount,
+          decimals,
+        };
+      });
 
     log(`Discovered ${tokens.length} tokens for ${address}`);
     return tokens;
