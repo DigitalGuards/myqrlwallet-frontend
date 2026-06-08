@@ -46,7 +46,10 @@ export const PinInput = ({
 
   const handleChange =
     (i: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      const ch = e.target.value.replace(/\D/g, "").slice(-1);
+      const ch = e.target.value.slice(-1);
+      // Ignore non-digits outright so focus doesn't advance and the
+      // current cell isn't cleared.
+      if (ch && !/\d/.test(ch)) return;
       if (!ch && !chars[i]) return;
       setAt(i, ch);
       if (ch && i < length - 1) refs.current[i + 1]?.focus();
@@ -58,7 +61,10 @@ export const PinInput = ({
         e.preventDefault();
         return;
       }
+      // Backspace on an empty cell deletes the previous digit (not just
+      // moves focus), so one press removes one digit.
       if (e.key === "Backspace" && !chars[i] && i > 0) {
+        onChange(value.slice(0, -1));
         refs.current[i - 1]?.focus();
       }
       if (e.key === "ArrowLeft" && i > 0) refs.current[i - 1]?.focus();
@@ -97,6 +103,11 @@ export const PinInput = ({
             onChange={handleChange(i)}
             onKeyDown={handleKeyDown(i)}
             onPaste={handlePaste(i)}
+            onFocus={() => {
+              // Keep entry sequential: focusing a cell past the first
+              // empty one redirects to that empty cell.
+              if (i > value.length) refs.current[value.length]?.focus();
+            }}
             aria-label={`PIN digit ${i + 1}`}
             className={cn(
               "h-12 w-11 rounded-md border bg-background text-center font-mono text-xl text-foreground outline-none transition-colors",

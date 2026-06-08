@@ -146,7 +146,7 @@ const Home = observer(() => {
         ) : (
           <>
 
-            <div className="flex flex-col gap-4 md:gap-8">
+            <div className="flex w-full flex-col gap-4 md:gap-8">
               {activeAccount.accountAddress && (
                 <Card className="w-full relative overflow-hidden border-l-4 border-l-blue-accent">
                   <div className="absolute inset-0 overflow-hidden">
