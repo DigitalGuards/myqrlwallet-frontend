@@ -57,9 +57,12 @@ export function AppSidebar() {
         location.pathname === url || location.pathname.startsWith(`${url}/`);
 
     return (
-        <Sidebar className="h-[calc(100vh-2.5rem)] border-r-secondary">
+        <Sidebar className="h-[calc(100vh-2.5rem)] border-r-secondary !border-r">
             <SidebarContent>
-                <SidebarGroup>
+                {/* px-0 so the active item is full-bleed: its orange right
+                    edge sits flush with the rail border instead of floating
+                    inset as a second parallel line. */}
+                <SidebarGroup className="px-0">
                     {/* <SidebarGroupLabel>Application</SidebarGroupLabel> */}
                     <SidebarGroupContent className="mt-5">
                         <SidebarMenu>
