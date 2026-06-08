@@ -81,7 +81,9 @@ export const PinInput = ({
         focusCell(i - 1);
       }
       if (e.key === "ArrowLeft" && i > 0) focusCell(i - 1);
-      if (e.key === "ArrowRight" && i < length - 1) focusCell(i + 1);
+      // Only arrow into the first empty cell, never past it, so typed
+      // digits never land out of order.
+      if (e.key === "ArrowRight" && i < value.length) focusCell(i + 1);
     };
 
   const handlePaste =
