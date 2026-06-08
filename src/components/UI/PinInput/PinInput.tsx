@@ -32,10 +32,23 @@ export const PinInput = ({
   autoFocus = false,
 }: PinInputProps) => {
   const refs = useRef<Array<HTMLInputElement | null>>([]);
+  // Marks a focus move as programmatic (auto-advance / backspace / arrows /
+  // paste) so the cell's onFocus does not bounce it back. focus() fires the
+  // focus event synchronously, before React re-renders with the new value, so
+  // onFocus would otherwise read a stale (shorter) value and redirect.
+  const advancingRef = useRef(false);
   const chars = value.split("").slice(0, length);
 
+  const focusCell = (idx: number) => {
+    advancingRef.current = true;
+    refs.current[idx]?.focus();
+  };
+
   useEffect(() => {
-    if (autoFocus) refs.current[0]?.focus();
+    if (autoFocus) {
+      advancingRef.current = true;
+      refs.current[0]?.focus();
+    }
   }, [autoFocus]);
 
   const setAt = (i: number, ch: string) => {
@@ -52,7 +65,7 @@ export const PinInput = ({
       if (ch && !/\d/.test(ch)) return;
       if (!ch && !chars[i]) return;
       setAt(i, ch);
-      if (ch && i < length - 1) refs.current[i + 1]?.focus();
+      if (ch && i < length - 1) focusCell(i + 1);
     };
 
   const handleKeyDown =
@@ -65,10 +78,10 @@ export const PinInput = ({
       // moves focus), so one press removes one digit.
       if (e.key === "Backspace" && !chars[i] && i > 0) {
         onChange(value.slice(0, -1));
-        refs.current[i - 1]?.focus();
+        focusCell(i - 1);
       }
-      if (e.key === "ArrowLeft" && i > 0) refs.current[i - 1]?.focus();
-      if (e.key === "ArrowRight" && i < length - 1) refs.current[i + 1]?.focus();
+      if (e.key === "ArrowLeft" && i > 0) focusCell(i - 1);
+      if (e.key === "ArrowRight" && i < length - 1) focusCell(i + 1);
     };
 
   const handlePaste =
@@ -82,7 +95,7 @@ export const PinInput = ({
       }
       const joined = next.join("").replace(/\D/g, "").slice(0, length);
       onChange(joined);
-      refs.current[Math.min(i + digits.length, length - 1)]?.focus();
+      focusCell(Math.min(i + digits.length, length - 1));
     };
 
   return (
@@ -104,7 +117,13 @@ export const PinInput = ({
             onKeyDown={handleKeyDown(i)}
             onPaste={handlePaste(i)}
             onFocus={() => {
-              // Keep entry sequential: focusing a cell past the first
+              // Skip the redirect when we moved focus ourselves (the value
+              // here is stale until the next render).
+              if (advancingRef.current) {
+                advancingRef.current = false;
+                return;
+              }
+              // Keep manual entry sequential: clicking a cell past the first
               // empty one redirects to that empty cell.
               if (i > value.length) refs.current[value.length]?.focus();
             }}
