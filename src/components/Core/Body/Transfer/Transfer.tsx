@@ -726,7 +726,7 @@ const Transfer = observer(() => {
                           </div>
                         )}
                         {!isScanning && !scanSuccess && (
-                          <FormDescription>
+                          <FormDescription className="text-xs text-muted-foreground/70">
                             Enter the receiver's account address{isInNativeApp() ? ' or scan QR' : ''}
                           </FormDescription>
                         )}
@@ -820,7 +820,7 @@ const Transfer = observer(() => {
                               disabled={isSubmitting}
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs text-muted-foreground/70">
                             Enter the PIN used to encrypt your wallet seed
                           </FormDescription>
                           <FormMessage />
