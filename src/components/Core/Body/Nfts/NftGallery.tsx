@@ -52,7 +52,14 @@ const NftGallery = observer(() => {
   return (
     <Card className="border-l-4 border-l-secondary">
       <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-secondary/5 to-transparent">
-        <CardTitle className="text-2xl font-bold">NFTs</CardTitle>
+        <div className="flex items-center gap-3">
+          <CardTitle className="text-2xl font-bold">NFTs</CardTitle>
+          {nfts.length > 0 && (
+            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+              {nfts.length} item{nfts.length === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <TooltipProvider>
             <Tooltip>
