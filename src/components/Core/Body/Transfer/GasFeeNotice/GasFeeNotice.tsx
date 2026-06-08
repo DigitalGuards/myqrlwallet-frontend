@@ -102,11 +102,14 @@ export const GasFeeNotice = ({
   }, [from, to, value, feeLevel, hasValuesForGasCalculation]);
 
   return (
-    hasValuesForGasCalculation && (
-      <div className={gasFeeNoticeClasses({ isSubmitting })}>
+    <div className={gasFeeNoticeClasses({ isSubmitting })}>
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span className="font-medium">Network fee</span>
-          {gasFee.isLoading ? (
+          {!hasValuesForGasCalculation ? (
+            <span className="text-xs text-muted-foreground/70">
+              Enter recipient and amount to estimate
+            </span>
+          ) : gasFee.isLoading ? (
             <span className="flex items-center gap-2">
               <Loader className="h-4 w-4 animate-spin" />
               Estimating fee...
@@ -139,7 +142,6 @@ export const GasFeeNotice = ({
             );
           })}
         </div>
-      </div>
-    )
+    </div>
   );
 };

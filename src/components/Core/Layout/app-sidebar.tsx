@@ -1,4 +1,4 @@
-import { LogOut, Wallet, SendHorizontal, Settings as SettingsIcon, Plus } from "lucide-react"
+import { LogOut, Wallet, ArrowRight, Settings as SettingsIcon, Plus } from "lucide-react"
 
 import {
     Sidebar,
@@ -31,7 +31,7 @@ const sidebarItems = [
         title: "Send",
         url: ROUTES.TRANSFER,
         label: "Send",
-        icon: SendHorizontal,
+        icon: ArrowRight,
     },
     {
         title: "Create Token",
