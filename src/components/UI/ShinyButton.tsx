@@ -230,7 +230,7 @@ export const ShinyButton = React.forwardRef<HTMLButtonElement, ShinyButtonProps>
           ref={ref}
           className={cn(
             "shiny-btn inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2",
-            "text-foreground",
+            "text-primary-foreground",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             processing && "shiny-btn--processing",
             className
