@@ -1,5 +1,4 @@
 import { Button } from "@/components/UI/Button";
-import { ShinyButton } from "@/components/UI/ShinyButton";
 import {
   Card,
   CardContent,
@@ -33,6 +32,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { utils } from "@theqrl/web3";
 import { Loader, Send, X, Copy, Coins, ExternalLink, ScanLine, Check } from "lucide-react";
 import { observer } from "mobx-react-lite";
+import { ShinyButton } from "@/components/UI/ShinyButton";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -851,7 +851,11 @@ const Transfer = observer(() => {
                     processing={isSubmitting}
                     type="submit"
                   >
-                    <Send className="mr-2 h-4 w-4" />
+                    {isSubmitting ? (
+                      <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
                     {isSubmitting ? `Sending ${assetSymbol}...` : `Send ${assetSymbol}`}
                   </ShinyButton>
                 </CardFooter>
