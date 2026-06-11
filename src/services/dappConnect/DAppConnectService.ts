@@ -8,6 +8,7 @@
 
 import {
   KeyExchange,
+  type SynAckMessage,
   type AckMessage,
 } from './KeyExchange';
 import { parseConnectionURI, cidToString, computeFingerprint, fingerprintEquals } from './qrUri';
@@ -67,6 +68,13 @@ interface ActiveConnection {
   // return-to-dApp peer redirect: bouncing to the dApp URL only makes sense
   // on the same device. A QR scan means the dApp is on another device.
   originatedViaDeepLink: boolean;
+  // The SYNACK wire message for a handshake that has not completed yet.
+  // Kept so a socket flap between our SYNACK and the dApp's ACK does not
+  // strand the pairing: on rejoin we re-send the identical SYNACK (the
+  // AEAD nonce is deterministic, so the bytes are stable) and the dApp
+  // either consumes it or re-sends its cached ACK. Cleared once keys are
+  // exchanged.
+  pendingSynAck?: SynAckMessage;
 }
 
 type ServiceEventHandler = {
@@ -183,6 +191,11 @@ export class DAppConnectService {
         if (conn?.keyExchange.areKeysExchanged()) {
           SessionStore.updateStatus(channelId, SessionStatus.CONNECTED);
           this.handlers?.onSessionsChanged();
+        } else {
+          // Mid-handshake flap: our SYNACK may have died with the old
+          // transport, or the dApp's ACK may have been delivered to the
+          // dead socket. Re-send the cached SYNACK so both sides converge.
+          this.resendPendingSynAck(channelId);
         }
       },
       onParticipantsChanged: (data) => {
@@ -247,6 +260,7 @@ export class DAppConnectService {
       connection.dappPublicKey = pk;
 
       const synack = await keyExchange.receiveQR(parsed.cid, pk);
+      connection.pendingSynAck = synack;
 
       // Send SYNACK — this kicks off the visible portion of the handshake.
       await socketClient.sendMessage({
@@ -290,6 +304,7 @@ export class DAppConnectService {
 
     const conn = this.connections.get(channelId);
     if (!conn) return;
+    conn.pendingSynAck = undefined;
 
     SessionStore.updateStatus(channelId, SessionStatus.CONNECTED);
     await this.persistSession(channelId);
@@ -814,6 +829,9 @@ export class DAppConnectService {
 
     if (data.event === 'join' && data.clientType === 'dapp') {
       this.clearDappLeaveTimeout(channelId);
+      // If the handshake is still open, the (re)joining dApp may have
+      // missed our SYNACK; re-send it (idempotent on the dApp side).
+      this.resendPendingSynAck(channelId);
       return;
     }
 
@@ -821,8 +839,40 @@ export class DAppConnectService {
       (data.event === 'disconnect' || data.event === 'leave') &&
       (data.clientType === 'dapp' || !data.clientType)
     ) {
+      const conn = this.connections.get(channelId);
+      if (conn && !conn.keyExchange.areKeysExchanged()) {
+        // The dApp left before the handshake ever completed. There is no
+        // established session to grace-hold: a later relay-buffered ACK
+        // would otherwise complete the handshake into a ghost CONNECTED
+        // session whose peer is long gone, and an encrypted TERMINATE from
+        // the dApp is undecryptable pre-handshake. Fail closed now.
+        dlog(`dApp left before handshake completed; tearing down ${channelId}`);
+        void this.disconnectSession(channelId, false);
+        return;
+      }
       this.scheduleDappLeaveTimeout(channelId);
     }
+  }
+
+  /**
+   * Re-send the cached SYNACK for a handshake that has not completed.
+   * Safe to call repeatedly: the bytes are deterministic, the dApp ignores
+   * duplicates after completing (or answers with its cached ACK), and we
+   * stop once keys are exchanged.
+   */
+  private resendPendingSynAck(channelId: string): void {
+    const conn = this.connections.get(channelId);
+    if (!conn || conn.keyExchange.areKeysExchanged() || !conn.pendingSynAck) return;
+    dlog(`Re-sending SYNACK for incomplete handshake on ${channelId}`);
+    void conn.socketClient
+      .sendMessage({
+        id: channelId,
+        clientType: 'wallet',
+        message: conn.pendingSynAck,
+      })
+      .catch((err: unknown) => {
+        dlog(`SYNACK re-send failed: ${err instanceof Error ? err.message : String(err)}`);
+      });
   }
 
   private scheduleDappLeaveTimeout(channelId: string): void {
