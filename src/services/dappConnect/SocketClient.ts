@@ -35,20 +35,24 @@ export class SocketClient {
     this.handlers = handlers;
   }
 
-  private _connecting = false;
+  // In-flight connect, memoized so concurrent callers all await the SAME
+  // attempt instead of returning early while this.socket is still null
+  // (a boolean guard let a second caller race past and hit joinChannel on
+  // an uninitialized socket).
+  private connectPromise: Promise<void> | null = null;
 
-  async connect(): Promise<void> {
-    if (this.socket?.connected || this._connecting) return;
-    this._connecting = true;
-    let ioFn: typeof import('socket.io-client')['io'];
-    try {
-      ioFn = (await import('socket.io-client')).io;
-    } catch (e) {
-      this._connecting = false;
-      throw e;
-    }
-    // Another call may have raced past the guard while we awaited the import
-    if (this.socket?.connected) { this._connecting = false; return; }
+  connect(): Promise<void> {
+    if (this.socket?.connected) return Promise.resolve();
+    this.connectPromise ??= this.doConnect().finally(() => {
+      this.connectPromise = null;
+    });
+    return this.connectPromise;
+  }
+
+  private async doConnect(): Promise<void> {
+    const ioFn = (await import('socket.io-client')).io;
+    // A prior attempt may have finished while we awaited the import
+    if (this.socket?.connected) return;
     this.socket = ioFn(this.relayUrl, {
       path: RELAY_PATH,
       // Websocket-first, matching the dApp SDK. Long-poll XHRs are killed
@@ -66,8 +70,6 @@ export class SocketClient {
       reconnectionAttempts: Infinity,
       timeout: 20000,
     });
-
-    this._connecting = false;
 
     this.socket.on('connect', () => {
       this.connectedAt = Date.now();
@@ -104,6 +106,7 @@ export class SocketClient {
       // died, how long it lived, what the engine said, and whether the
       // WebView was visible at that instant.
       const aliveMs = this.connectedAt ? Date.now() - this.connectedAt : -1;
+      this.connectedAt = null;
       let detail = '';
       if (description instanceof Error) {
         detail = description.message;
