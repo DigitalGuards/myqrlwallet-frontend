@@ -50,9 +50,15 @@ export class SocketClient {
     if (this.socket?.connected) { this._connecting = false; return; }
     this.socket = ioFn(this.relayUrl, {
       path: RELAY_PATH,
-      // Polling-first so Cloudflare can negotiate any challenge/cookie
-      // handshake at the HTTP layer before auto-upgrading to WS.
-      transports: ['polling', 'websocket'],
+      // Websocket-first, matching the dApp SDK. Long-poll XHRs are killed
+      // when native UI transitions interrupt the WebView (tab switch on
+      // DAPP_SHOW_WEBVIEW, haptics, backgrounding), surfacing as periodic
+      // "transport error" flaps on device; a single WS survives those
+      // pauses. Cloudflare clearance is already established by the page
+      // load itself, so the old polling-first challenge rationale no
+      // longer applies; socket.io still falls back to polling if WSS is
+      // blocked.
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 30000,
