@@ -24,6 +24,7 @@ type SocketEventHandler = {
 
 export class SocketClient {
   private socket: Socket | null = null;
+  private connectedAt: number | null = null;
   private relayUrl: string;
   private channelId: string | null = null;
   private handlers: SocketEventHandler;
@@ -69,6 +70,8 @@ export class SocketClient {
     this._connecting = false;
 
     this.socket.on('connect', () => {
+      this.connectedAt = Date.now();
+      logToNative(`[SocketClient] connected via ${this.transportName()}`);
       this.handlers.onConnected();
 
       // Auto-rejoin only after the initial join has succeeded. The initial
@@ -96,7 +99,27 @@ export class SocketClient {
       }
     });
 
-    this.socket.on('disconnect', (reason) => {
+    this.socket.on('disconnect', (reason, description) => {
+      // Diagnostic context for on-device transport flaps: which transport
+      // died, how long it lived, what the engine said, and whether the
+      // WebView was visible at that instant.
+      const aliveMs = this.connectedAt ? Date.now() - this.connectedAt : -1;
+      let detail = '';
+      if (description instanceof Error) {
+        detail = description.message;
+      } else if (description && typeof description === 'object') {
+        const rec: Record<string, unknown> = { ...description };
+        if (typeof rec['description'] === 'string') detail = rec['description'];
+        else if (typeof rec['type'] === 'string') detail = rec['type'];
+      }
+      const visible =
+        typeof document !== 'undefined' ? document.visibilityState : 'n/a';
+      const online = typeof navigator !== 'undefined' ? String(navigator.onLine) : 'n/a';
+      logToNative(
+        `[SocketClient] disconnect: ${reason}; detail=${detail || 'none'}; ` +
+          `transport=${this.transportName()}; aliveMs=${aliveMs}; ` +
+          `visible=${visible}; online=${online}`
+      );
       this.handlers.onDisconnected(reason);
     });
 
@@ -256,6 +279,10 @@ export class SocketClient {
       this.socket.disconnect();
       this.socket = null;
     }
+  }
+
+  private transportName(): string {
+    return this.socket?.io.engine?.transport?.name ?? 'unknown';
   }
 
   isConnected(): boolean {
