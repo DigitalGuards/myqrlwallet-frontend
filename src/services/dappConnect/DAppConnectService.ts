@@ -188,7 +188,8 @@ export class DAppConnectService {
       onReconnected: () => {
         dlog(`Socket reconnected for channel ${channelId}`);
         const conn = this.connections.get(channelId);
-        if (conn?.keyExchange.areKeysExchanged()) {
+        if (!conn) return;
+        if (conn.keyExchange.areKeysExchanged()) {
           SessionStore.updateStatus(channelId, SessionStatus.CONNECTED);
           this.handlers?.onSessionsChanged();
         } else {
@@ -840,16 +841,22 @@ export class DAppConnectService {
       (data.clientType === 'dapp' || !data.clientType)
     ) {
       const conn = this.connections.get(channelId);
-      if (conn && !conn.keyExchange.areKeysExchanged()) {
-        // The dApp left before the handshake ever completed. There is no
-        // established session to grace-hold: a later relay-buffered ACK
-        // would otherwise complete the handshake into a ghost CONNECTED
-        // session whose peer is long gone, and an encrypted TERMINATE from
-        // the dApp is undecryptable pre-handshake. Fail closed now.
+      if (!conn) return;
+      if (!conn.keyExchange.areKeysExchanged() && data.event === 'leave') {
+        // The dApp DELIBERATELY left (leave_channel) before the handshake
+        // completed. There is no established session to grace-hold, and an
+        // encrypted TERMINATE from the dApp is undecryptable pre-handshake,
+        // so this is the only disconnect signal we will ever get. Fail
+        // closed now; it also stops a later relay-buffered ACK completing
+        // the handshake into a ghost CONNECTED session.
         dlog(`dApp left before handshake completed; tearing down ${channelId}`);
         void this.disconnectSession(channelId, false);
         return;
       }
+      // Transient pre-handshake socket drop ('disconnect') gets the normal
+      // grace: the dApp's auto-reconnect re-joins, we retransmit the cached
+      // SYNACK, and the handshake converges. The grace timer still bounds a
+      // late-buffered-ACK ghost if the dApp never returns.
       this.scheduleDappLeaveTimeout(channelId);
     }
   }
