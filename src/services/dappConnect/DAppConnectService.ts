@@ -214,7 +214,10 @@ export class DAppConnectService {
     let channelPublicKey: string | null;
     try {
       dlog(`Connecting to relay ${relayUrl} as wallet participant`);
-      socketClient.connect();
+      // connect() is async since the lazy socket.io-client import (perf
+      // #153): it assigns this.socket only after the import resolves, so it
+      // MUST be awaited or joinChannel races it and throws on a null socket.
+      await socketClient.connect();
       const joinResult = await socketClient.joinChannel(channelId);
       channelPublicKey = joinResult.channelPublicKey;
       dlog(
@@ -735,7 +738,10 @@ export class DAppConnectService {
           originatedViaDeepLink: false,
         });
 
-        socketClient.connect();
+        // Same as the fresh-scan path: connect() resolves only after the
+        // lazy socket.io-client import assigns this.socket; await it before
+        // joinChannel.
+        await socketClient.connect();
         const { bufferedMessages, terminated } = await socketClient.joinChannel(session.id);
 
         if (terminated) {
