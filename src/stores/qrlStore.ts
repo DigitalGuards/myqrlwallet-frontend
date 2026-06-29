@@ -1,5 +1,6 @@
 import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
+import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import type { AccountListItem, AccountSource } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
@@ -557,6 +558,48 @@ class QrlStore {
   ) {
     // Reset status before starting a new transaction
     this.resetTransactionStatus();
+
+    // Desktop: build calldata-free native transfer in main, confirm + sign in
+    // the signer, and broadcast, all without any seed material in the renderer.
+    // `mnemonicPhrases` is intentionally unused here (the renderer never holds
+    // it on desktop). The bridge wants the value in smallest units.
+    if (isDesktop) {
+      try {
+        const utils = this._utils ?? (await getQrlWeb3()).utils;
+        const valuePlanck = BigInt(utils.toPlanck(value, "quanta")).toString();
+        const { transactionHash } = await desktopSigner.signAndSendTransaction({
+          from,
+          to,
+          value: valuePlanck,
+          feeLevel,
+        });
+        runInAction(() => {
+          this.transactionStatus = {
+            state: 'pending',
+            txHash: transactionHash,
+            receipt: null,
+            error: null,
+            pendingDetails: null,
+          };
+        });
+        log(`Desktop transaction broadcast with hash: ${transactionHash}`);
+        this.fetchPendingTxDetails(transactionHash);
+        this.pollForReceipt(transactionHash);
+      } catch (error) {
+        const message = getErrorMessage(error);
+        runInAction(() => {
+          this.transactionStatus = {
+            state: 'failed',
+            txHash: null,
+            receipt: null,
+            error: `Transaction failed: ${message}`,
+            pendingDetails: null,
+          };
+        });
+        log(`Desktop transaction failed: ${message}`);
+      }
+      return;
+    }
 
     try {
       // Fetch the next available nonce, including pending transactions

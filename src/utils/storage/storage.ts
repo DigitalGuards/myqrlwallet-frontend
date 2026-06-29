@@ -1,6 +1,7 @@
 import { QRL_PROVIDER } from "@/config";
 import type { TokenInterface, NFTInterface } from "@/constants";
 import { isInNativeApp } from "@/utils/nativeApp";
+import { isDesktop } from "@/desktop/bridge";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
 const BLOCKCHAIN_SELECTION_IDENTIFIER = "BLOCKCHAIN_SELECTION";
@@ -382,6 +383,12 @@ class StorageUtil {
    * @param encryptedSeed The encrypted seed data from WalletEncryptionUtil.encryptSeedWithPin
    */
   static async storeEncryptedSeed(blockchain: string, address: string, encryptedSeed: string) {
+    // Defense-in-depth: on desktop the seed lives only in the isolated signer
+    // and must NEVER be written to renderer localStorage. Throw loudly so any
+    // missed reroute fails rather than silently persisting key material.
+    if (isDesktop) {
+      throw new Error('desktop: encrypted seeds must never be stored in the renderer');
+    }
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
     const encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
 

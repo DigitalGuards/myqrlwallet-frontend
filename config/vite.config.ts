@@ -8,6 +8,10 @@ import tailwindcss from '@tailwindcss/postcss'
 const require = createRequire(import.meta.url)
 
 export default defineConfig(({ mode }) => ({
+  // Desktop (Electron) loads the bundle from disk via loadFile (file://), so
+  // assets must be referenced relatively. Set VITE_DESKTOP=1 for that build
+  // (see myqrlwallet-desktop/scripts/build-renderer.sh). Web builds keep '/'.
+  base: process.env.VITE_DESKTOP === '1' ? './' : '/',
   plugins: [
     react(),
     // Remove vendor-qrl-crypto from <link rel="modulepreload"> — it's a

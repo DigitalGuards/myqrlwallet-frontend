@@ -22,19 +22,27 @@ const CreateAccount = observer(() => {
   const [account, setAccount] = useState<Web3BaseWalletAccount>();
   const [hasAccountCreated, setHasAccountCreated] = useState(false);
   const [userPassword, setUserPassword] = useState<string>("");
+  // Desktop only: the signer-returned address + mnemonic for the backup screen.
+  // The hex seed is never returned to the renderer.
+  const [desktopBackup, setDesktopBackup] = useState<{ address: string; mnemonic: string }>();
 
   const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(qrlConnection.blockchain);
 
-  // Called after account is created AND seed is encrypted/stored
+  // Called after account is created AND seed is encrypted/stored (web/native),
+  // or after the signer provisioned the wallet (desktop: backup carries the
+  // address + one-time mnemonic, account is undefined).
   const onAccountCreated = async (
-    newAccount: Web3BaseWalletAccount,
+    newAccount: Web3BaseWalletAccount | undefined,
     password: string,
+    backup?: { address: string; mnemonic: string },
   ) => {
-    if (newAccount?.address) {
+    const address = newAccount?.address ?? backup?.address;
+    if (address) {
       window.scrollTo(0, 0);
       setAccount(newAccount);
+      setDesktopBackup(backup);
       setUserPassword(password);
-      await setActiveAccount(newAccount.address);
+      await setActiveAccount(address);
       setHasAccountCreated(true);
     }
   };
@@ -79,6 +87,7 @@ const CreateAccount = observer(() => {
               <MnemonicDisplay
                 account={account}
                 userPassword={userPassword}
+                desktopBackup={desktopBackup}
               />
             ) : (
               <AccountCreationForm onAccountCreated={onAccountCreated} />

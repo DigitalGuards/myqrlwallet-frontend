@@ -23,6 +23,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import type { ExtendedWalletAccount } from "@/utils/crypto";
+import { isDesktop } from "@/desktop/bridge";
 
 const FormSchema = z.object({
   mnemonicPhrases: z.string().min(1, "Mnemonic phrases are required"),
@@ -51,9 +52,21 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
 
   async function onSubmit(formData: z.output<typeof FormSchema>) {
     try {
+      // Desktop: do NOT derive the hex seed or build a local account (no
+      // deriveHexSeedAsync / seedToAccount). The signer owns key derivation.
+      // Forward only the mnemonic; PinSetup collects the password and calls
+      // importWallet, and the signer returns the address. We carry the
+      // mnemonic on a placeholder account (address filled in by PinSetup) so
+      // the existing import-flow plumbing is unchanged.
+      if (isDesktop) {
+        const account = { address: "", mnemonic: formData.mnemonicPhrases } as ExtendedWalletAccount;
+        onAccountImported(account);
+        return;
+      }
+
       const hexSeed = await deriveHexSeedAsync(formData.mnemonicPhrases);
       const account = qrlInstance?.accounts.seedToAccount(hexSeed) as ExtendedWalletAccount;
-      
+
       if (!account) {
         throw new Error("Failed to create account from mnemonic");
       }
