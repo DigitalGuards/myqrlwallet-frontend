@@ -33,6 +33,7 @@ import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { decryptSeedAsync, reEncryptSeedAsync } from "@/utils/crypto";
 import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
 import { isDesktop } from "@/desktop/bridge";
+import { DesktopSettings } from "./DesktopSettings/DesktopSettings";
 import {
     checkLockout,
     recordFailedAttempt,
@@ -462,6 +463,11 @@ const Settings = observer(() => {
                                 </form>
                             </Form>
                         </Card>
+
+                        {/* Desktop-only settings (wallet removal now, lock
+                            options later) live in their own component instead of
+                            crowding this one. */}
+                        {isDesktop && <DesktopSettings />}
                     </div>
                 </div>
             </div>
