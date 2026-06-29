@@ -1,67 +1,67 @@
 /**
- * Address validation utilities for QRL blockchain addresses
+ * Address validation utilities for QRL blockchain addresses.
  *
- * QRL addresses follow the format: Q + 40 hexadecimal characters (total 41 chars)
- * Example: Q20b4fb2929cfBe8b002b8A0c572551F755e54aEF
+ * The address format (length / hex regex) is NOT hardcoded here — it comes from
+ * the per-network `AddressFormat` spec in `config/addressFormat.ts`, so the same
+ * validators work for both the current 20-byte ("Q" + 40 hex) and the future
+ * 64-byte ("Q" + 128 hex) networks. Callers that know the active network should
+ * pass its format (via `getAddressFormat(blockchain)` in `config/networks.ts`);
+ * otherwise validation uses the default (legacy 20-byte) format.
  */
 
+import { DEFAULT_ADDRESS_FORMAT, type AddressFormat } from '@/config/addressFormat';
+
 /**
- * Validates if a string is a properly formatted QRL address
+ * Validates if a string is a properly formatted QRL address for the given format.
  * @param address - The address string to validate
+ * @param format - Address format to validate against (default: legacy 20-byte)
  * @returns boolean - True if address is valid, false otherwise
  */
-export const isValidQrlAddress = (address: string): boolean => {
+export const isValidQrlAddress = (
+  address: string,
+  format: AddressFormat = DEFAULT_ADDRESS_FORMAT,
+): boolean => {
   if (!address || typeof address !== 'string') {
     return false;
   }
 
-  // Trim any whitespace
   const trimmedAddress = address.trim();
 
-  // Check basic format: must start with 'Q' and be 41 characters total
-  // (Q + 40 hex chars)
   if (!trimmedAddress.startsWith('Q')) {
     return false;
   }
 
-  if (trimmedAddress.length !== 41) {
+  if (trimmedAddress.length !== format.totalLen) {
     return false;
   }
 
-  // Check that characters after 'Q' are valid hexadecimal
-  const hexPart = trimmedAddress.slice(1);
-  const hexRegex = /^[0-9a-fA-F]{40}$/;
-
-  if (!hexRegex.test(hexPart)) {
-    return false;
-  }
-
-  return true;
+  return format.hexRegex.test(trimmedAddress.slice(1));
 };
 
 /**
- * Validates and normalizes a QRL address
- * @param address - The address string to validate and normalize
+ * Validates and normalizes a QRL address (lowercased hex).
  * @returns string | null - Normalized address or null if invalid
  */
-export const normalizeQrlAddress = (address: string): string | null => {
-  if (!isValidQrlAddress(address)) {
+export const normalizeQrlAddress = (
+  address: string,
+  format: AddressFormat = DEFAULT_ADDRESS_FORMAT,
+): string | null => {
+  if (!isValidQrlAddress(address, format)) {
     return null;
   }
-
-  // Return the address with 'Q' and lowercase hex
   const trimmedAddress = address.trim();
   return 'Q' + trimmedAddress.slice(1).toLowerCase();
 };
 
 /**
- * Gets a user-friendly error message for invalid addresses
- * @param address - The address that failed validation
- * @returns string - Error message explaining the issue
+ * Gets a user-friendly error message for invalid addresses.
  */
-export const getAddressValidationError = (address: string): string => {
+export const getAddressValidationError = (
+  address: string,
+  format: AddressFormat = DEFAULT_ADDRESS_FORMAT,
+): string => {
   if (!address || address.trim().length === 0) {
-    return "Address is required";
+    return 'Address is required';
   }
 
   const trimmedAddress = address.trim();
@@ -70,12 +70,12 @@ export const getAddressValidationError = (address: string): string => {
     return "Address must start with 'Q'";
   }
 
-  if (trimmedAddress.length < 41) {
-    return `Address is too short (${trimmedAddress.length}/41 characters)`;
+  if (trimmedAddress.length < format.totalLen) {
+    return `Address is too short (${trimmedAddress.length}/${format.totalLen} characters)`;
   }
 
-  if (trimmedAddress.length > 41) {
-    return `Address is too long (${trimmedAddress.length}/41 characters)`;
+  if (trimmedAddress.length > format.totalLen) {
+    return `Address is too long (${trimmedAddress.length}/${format.totalLen} characters)`;
   }
 
   const hexPart = trimmedAddress.slice(1);
@@ -83,5 +83,5 @@ export const getAddressValidationError = (address: string): string => {
     return "Address contains invalid characters (only 0-9, a-f, A-F allowed after 'Q')";
   }
 
-  return "Invalid address format";
+  return 'Invalid address format';
 };

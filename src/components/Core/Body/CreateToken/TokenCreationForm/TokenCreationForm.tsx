@@ -34,6 +34,7 @@ import { getAddressFromMnemonicAsync } from "@/utils/crypto";
 import { isDesktop } from "@/desktop/bridge";
 import { Label } from "@/components/UI/Label";
 import { isValidQrlAddress } from "@/utils/web3";
+import { DEFAULT_ADDRESS_FORMAT } from "@/config/addressFormat";
 import { containsProfanity, PROFANITY_REJECTION_MESSAGE } from "@/utils/moderation";
 
 const FormSchema = z
@@ -64,7 +65,7 @@ const FormSchema = z
         }
         return true;
     }, {
-        message: "Invalid recipient address. Must be 41 characters starting with 'Q' followed by 40 hex characters",
+        message: `Invalid recipient address. Must be "Q" followed by ${DEFAULT_ADDRESS_FORMAT.hexLen} hex characters (${DEFAULT_ADDRESS_FORMAT.totalLen} total)`,
         path: ["recipientAddress"]
     });
 

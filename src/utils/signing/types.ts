@@ -9,10 +9,11 @@
  */
 
 import { z } from 'zod';
+import { DEFAULT_ADDRESS_FORMAT } from '@/config/addressFormat';
 
-const QAddressSchema = z
-  .string()
-  .regex(/^Q[0-9a-fA-F]{40}$/, { message: 'must be Q-prefixed 20-byte hex address' });
+const QAddressSchema = z.string().regex(DEFAULT_ADDRESS_FORMAT.fullRegex, {
+  message: `must be a Q-prefixed ${DEFAULT_ADDRESS_FORMAT.byteLen}-byte hex address`,
+});
 
 const HexBytesSchema = z
   .string()

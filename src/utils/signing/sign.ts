@@ -17,6 +17,7 @@ import {
 import { computeMessageDigest } from './messageDigest';
 import { computeTypedDataDigest, type TypedDataPayload } from './typedData';
 import { bytesToHex, hexToBytes } from './bytes';
+import { DEFAULT_ADDRESS_FORMAT } from '@/config/addressFormat';
 import { isDesktop } from '@/desktop/bridge';
 
 export interface SignWithSchemeParams {
@@ -88,10 +89,15 @@ export function signWithScheme({
     mldsa.cryptoSignSignature(sigBuf, digest, wallet.sk, randomized, ctx);
     // wallet.js v3 getAddressStr() returns the 97-char full identity
     // (descriptor + ML-DSA-87 pubkey hash); the on-chain Q-address is the
-    // first 20 of those bytes with EIP-55 checksum casing. seedToAccount
+    // leading slice of those bytes with EIP-55 checksum casing. seedToAccount
     // exposes the same value but via the nested wallet.js v2.0.2 dep, so we
-    // derive it directly here to avoid the version skew.
-    const signer = web3Utils.toChecksumAddress(`Q${wallet.getAddressStr().slice(1, 41)}`);
+    // derive it directly here to avoid the version skew. The slice bounds +
+    // checksum scheme come from the address-format spec (Phase 1 replaces this
+    // shim with a typed wallet.js API for the 64-byte format).
+    const [sliceStart, sliceEnd] = DEFAULT_ADDRESS_FORMAT.identitySlice;
+    const signer = web3Utils.toChecksumAddress(
+      `Q${wallet.getAddressStr().slice(sliceStart, sliceEnd)}`,
+    );
     return {
       signature: sigBuf,
       publicKey: new Uint8Array(wallet.pk),

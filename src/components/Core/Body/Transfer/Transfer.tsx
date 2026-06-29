@@ -39,7 +39,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { GasFeeNotice } from "./GasFeeNotice/GasFeeNotice";
 import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSuccessful";
-import { getExplorerAddressUrl, getExplorerTxUrl, QRL_PROVIDER } from "@/config";
+import { getExplorerAddressUrl, getExplorerTxUrl, QRL_PROVIDER, getAddressFormat } from "@/config";
+import { isValidQrlAddress } from "@/utils/web3/address";
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonicAsync } from "@/utils/crypto";
@@ -85,9 +86,7 @@ const Transfer = observer(() => {
       // Validate address format
       if (fields.receiverAddress.trim()) {
         const address = fields.receiverAddress.trim();
-        const isValidQrlAddress = address.startsWith('Q') &&
-          address.length === 41;
-        if (!isValidQrlAddress) {
+        if (!isValidQrlAddress(address, getAddressFormat(blockchain))) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Invalid QRL address format",
@@ -108,7 +107,7 @@ const Transfer = observer(() => {
           });
         }
       }
-    }), [isUsingExtension]);
+    }), [isUsingExtension, blockchain]);
 
   // Get initial asset from URL params (for token transfers from home page)
   const initialAsset = searchParams.get('asset') || 'native';
@@ -223,11 +222,10 @@ const Transfer = observer(() => {
     return sendable.isPositive() ? sendable.toString() : "0";
   }, [accountBalance, nativeGasReserve, isNativeTransfer]);
 
-  // Validate QRL address format
+  // Validate QRL address format (per the active network's address format)
   const isValidQRLAddress = useCallback((address: string): boolean => {
-    const trimmed = address.trim();
-    return trimmed.startsWith('Q') && trimmed.length === 41;
-  }, []);
+    return isValidQrlAddress(address, getAddressFormat(blockchain));
+  }, [blockchain]);
 
   // Handle QR scan request
   const handleScanQR = useCallback(() => {
