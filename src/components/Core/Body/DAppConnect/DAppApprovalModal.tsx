@@ -34,6 +34,7 @@ import {
 import { Loader, Check, X, ExternalLink, Shield, Globe } from 'lucide-react';
 import type { TxProgressState } from '@/stores/dappConnectStore';
 import type { ZodError } from 'zod';
+import { isDesktop, desktopSigner } from '@/desktop/bridge';
 
 function formatZodIssues(error: ZodError): string {
   // path segments can be symbols (e.g. a MobX admin key surfaced by zod's
@@ -151,13 +152,59 @@ const DAppApprovalModal = observer(() => {
       }
 
       if (method === 'qrl_sendTransaction' || method === 'qrl_signTransaction') {
-        const pinToUse = getNativeInjectedPin() || pin;
         const activeAddress = qrlStore.activeAccount?.accountAddress;
         if (!activeAddress) {
           setError('No active account');
           setLoading(false);
           return;
         }
+
+        // Desktop: build + confirm + sign in the isolated signer (its own
+        // trusted modal), then broadcast for send / return raw for sign. No
+        // PIN, no seed in the renderer.
+        if (isDesktop) {
+          const txParamsD = (params?.[0] || {}) as Record<string, unknown>;
+          const toD = txParamsD['to'] as string;
+          const dataD = (txParamsD['data'] as string) || undefined;
+          const valueD = txParamsD['value']
+            ? BigInt(txParamsD['value'] as string).toString()
+            : '0';
+          try {
+            dappConnectStore.setTxProgress('signing');
+            if (method === 'qrl_signTransaction') {
+              const rawTx = await desktopSigner.signTransactionOnly({
+                from: activeAddress,
+                to: toD,
+                value: valueD,
+                data: dataD,
+              });
+              dappConnectStore.approveCurrentRequest(rawTx);
+              dappConnectStore.resetTxProgress();
+              setLoading(false);
+              return;
+            }
+            dappConnectStore.setTxProgress('broadcasting');
+            const { transactionHash } = await desktopSigner.signAndSendTransaction({
+              from: activeAddress,
+              to: toD,
+              value: valueD,
+              data: dataD,
+            });
+            dappConnectStore.setTxProgress('confirmed', transactionHash);
+            dappConnectStore.sendApprovalResult(transactionHash);
+            setLoading(false);
+          } catch (e) {
+            const errMsg = e instanceof Error ? e.message : String(e);
+            console.log('[DAppConnect] desktop tx error:', errMsg);
+            const userError = toUserFacingError(errMsg);
+            dappConnectStore.setTxProgress('failed', undefined, userError);
+            dappConnectStore.sendRejectionResult(`Transaction failed: ${userError}`);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const pinToUse = getNativeInjectedPin() || pin;
         // Guard empty PIN *before* entering the 'signing' progress state.
         // Once txProgress leaves 'idle' the modal switches to its terminal
         // view (PIN input unmounts, only a Close button remains), so an empty
@@ -308,6 +355,20 @@ const DAppApprovalModal = observer(() => {
           setLoading(false);
           return;
         }
+        // Desktop: sign in the isolated signer (its own trusted modal); no PIN,
+        // no seed in the renderer.
+        if (isDesktop) {
+          try {
+            const result = await desktopSigner.signMessage(messageHex);
+            dappConnectStore.approveCurrentRequest(result);
+          } catch (e) {
+            const errMsg = e instanceof Error ? e.message : String(e);
+            setError(`Message signing failed: ${errMsg}`);
+            dappConnectStore.rejectCurrentRequest(`Message signing failed: ${errMsg}`);
+          }
+          setLoading(false);
+          return;
+        }
         const pinToUse = getNativeInjectedPin() || pin;
         const unlocked = await unlockHexSeed(pinToUse, activeAddress);
         if ('error' in unlocked) {
@@ -349,6 +410,23 @@ const DAppApprovalModal = observer(() => {
         }
         if (signerParam.toLowerCase() !== activeAddress.toLowerCase()) {
           setError('Signer mismatch: request is for a different account');
+          setLoading(false);
+          return;
+        }
+        // Desktop: typed-data signing is not yet supported in the signer (the
+        // hasher has not been ported). Surface a clear error instead of any
+        // in-renderer fallback.
+        if (isDesktop) {
+          try {
+            const result = await desktopSigner.signTypedData(payload);
+            dappConnectStore.approveCurrentRequest(result);
+          } catch (e) {
+            const errMsg = e instanceof Error ? e.message : String(e);
+            setError('Typed-data signing not yet supported on desktop');
+            dappConnectStore.rejectCurrentRequest(
+              `Typed-data signing not yet supported on desktop: ${errMsg}`,
+            );
+          }
           setLoading(false);
           return;
         }
@@ -603,7 +681,9 @@ const DAppApprovalModal = observer(() => {
                 </div>
               )}
 
-              {needsPin && !hasNativePin && (
+              {/* PIN entry is web/native only. On desktop the signer session is
+                  already unlocked and signing does not re-prompt. */}
+              {needsPin && !hasNativePin && !isDesktop && (
                 <div>
                   <label className="mb-1 block text-sm font-medium">Enter PIN to sign</label>
                   <input
