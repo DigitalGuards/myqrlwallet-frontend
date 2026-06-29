@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, createHashRouter, RouterProvider } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { Loading } from "@/components/UI/Loading";
 import { Navigate } from "react-router-dom";
@@ -44,7 +44,16 @@ const ROUTES = {
   NFT_DETAIL: "/nft/:contractAddress/:tokenId",
 } as const;
 
-const router = createBrowserRouter([
+// Under the MyQRLWallet desktop shell the app is loaded from disk via
+// loadFile (file:// origin), where the HTML5 history API does not work and
+// deep links / reloads break. The desktop preload exposes `window.qrlWallet`,
+// so we detect it at runtime and use hash routing there. Web builds are
+// unchanged (no qrlWallet -> createBrowserRouter).
+const isDesktopShell =
+  typeof window !== "undefined" && Boolean((window as { qrlWallet?: unknown }).qrlWallet);
+const createAppRouter = isDesktopShell ? createHashRouter : createBrowserRouter;
+
+const router = createAppRouter([
   {
     path: ROUTES.HOME,
     element: (

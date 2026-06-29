@@ -1,5 +1,6 @@
 import { QRL_PROVIDER } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
+import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
 import { getErrorMessage } from "@/utils/errors";
@@ -371,6 +372,58 @@ class TokenStore {
     feeLevel: FeeLevel = "medium",
   ) {
     this.qrlStore.resetTransactionStatus();
+
+    // Desktop: build the transfer() calldata purely (no seed), then route the
+    // build/sign/broadcast through the isolated signer. `mnemonicPhrases` is
+    // intentionally unused (the renderer never holds it on desktop).
+    if (isDesktop) {
+      try {
+        const selectedBlockChain = await StorageUtil.getBlockChain();
+        const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
+        const { default: Web3 } = await getQrlWeb3();
+        const web3 = new Web3(new Web3.providers.HttpProvider(url));
+        const from = this.qrlStore.activeAccount.accountAddress;
+        const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
+        const data = contract.methods.transfer(toAddress, amount).encodeABI();
+        const { transactionHash } = await desktopSigner.signAndSendTransaction({
+          from,
+          to: token.address,
+          value: "0",
+          data,
+          feeLevel,
+        });
+        runInAction(() => {
+          this.qrlStore.transactionStatus = {
+            state: "pending",
+            txHash: transactionHash,
+            receipt: null,
+            error: null,
+            pendingDetails: null,
+          };
+        });
+        log(`Desktop token transfer broadcast with hash: ${transactionHash}`);
+        this.qrlStore.fetchPendingTxDetails(transactionHash);
+        this.qrlStore.pollForReceipt(transactionHash);
+        // The receipt poller calls fetchAccounts on confirm; refresh token
+        // balances proactively too so the UI updates without a manual reload.
+        this.refreshTokenBalances();
+        return true;
+      } catch (error) {
+        const message = getErrorMessage(error);
+        runInAction(() => {
+          this.qrlStore.transactionStatus = {
+            state: "failed",
+            txHash: null,
+            receipt: null,
+            error: `Token transfer failed: ${message}`,
+            pendingDetails: null,
+          };
+        });
+        log(`Desktop token transfer failed: ${message}`);
+        return false;
+      }
+    }
+
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
@@ -482,12 +535,8 @@ class TokenStore {
       this.setCreatingToken(tokenName, true);
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
-      const seed = await deriveHexSeedAsync(mnemonicPhrases);
       const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
-      const acc = web3.qrl.accounts.seedToAccount(seed);
-      web3.qrl.wallet?.add(seed);
-      web3.qrl.transactionConfirmationBlocks = 1;
 
       const contractAddress = import.meta.env['VITE_CUSTOMERC20FACTORY_ADDRESS'] || "";
 
@@ -502,6 +551,20 @@ class TokenStore {
         throw new Error(
           `Factory contract not deployed at address: ${contractAddress}`,
         );
+      }
+
+      // From address: on desktop the active account; on web/native the seed
+      // is derived to obtain the address. The createToken() calldata itself is
+      // pure (no key) either way.
+      let fromAddress: string;
+      if (isDesktop) {
+        fromAddress = this.qrlStore.activeAccount.accountAddress;
+      } else {
+        const seed = await deriveHexSeedAsync(mnemonicPhrases);
+        const acc = web3.qrl.accounts.seedToAccount(seed);
+        web3.qrl.wallet?.add(seed);
+        web3.qrl.transactionConfirmationBlocks = 1;
+        fromAddress = acc.address;
       }
 
       const confirmationHandler = () => {
@@ -601,8 +664,39 @@ class TokenStore {
           maxTxLimit,
         );
 
+      const data = contractCreateToken.encodeABI();
+
+      // Desktop: build/sign/broadcast through the signer, then poll for the
+      // receipt and run the same receiptHandler to extract the token address.
+      if (isDesktop) {
+        const { transactionHash } = await desktopSigner.signAndSendTransaction({
+          from: fromAddress,
+          to: contractAddress,
+          value: "0",
+          data,
+        });
+        log(`Desktop token creation broadcast with hash: ${transactionHash}`);
+        // Poll for the receipt (the signer/main already broadcast it).
+        const maxAttempts = 60;
+        const pollInterval = 5000;
+        let receiptFound = false;
+        for (let attempt = 0; attempt < maxAttempts && !receiptFound; attempt++) {
+          const rcpt = await web3.qrl.getTransactionReceipt(transactionHash).catch(() => null);
+          if (rcpt) {
+            receiptFound = true;
+            await receiptHandler(rcpt as TransactionReceipt);
+          } else {
+            await new Promise((resolve) => setTimeout(resolve, pollInterval));
+          }
+        }
+        if (!receiptFound) {
+          errorHandler(new Error("Token creation confirmation timed out."));
+        }
+        return;
+      }
+
       const estimatedGas = await contractCreateToken.estimateGas({
-        from: acc.address,
+        from: fromAddress,
       });
       const gas = (estimatedGas * 12n) / 10n;
       const currentGasPrice = await web3.qrl.getGasPrice();
@@ -611,8 +705,8 @@ class TokenStore {
       const txObj = {
         gas,
         gasPrice,
-        from: acc.address,
-        data: contractCreateToken.encodeABI(),
+        from: fromAddress,
+        data,
         to: contractAddress,
       };
 

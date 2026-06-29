@@ -17,6 +17,16 @@ import {
   PinDecryptionError,
   OutdatedWalletFormatError,
 } from './walletEncryption';
+import { isDesktop } from '@/desktop/bridge';
+
+/**
+ * Defense-in-depth: on desktop the seed never leaves the isolated signer, so
+ * deriving a hex seed or encrypting/decrypting seed material in the renderer
+ * is a bug. These wrappers throw loudly so any un-rerouted caller fails rather
+ * than leaking. The web build (isDesktop === false) is unaffected.
+ */
+const DESKTOP_SEED_GUARD_MESSAGE =
+  'desktop: key material lives in the signer, not the renderer';
 
 // Vite worker import syntax
 import CryptoWorker from './cryptoWorker?worker';
@@ -58,6 +68,9 @@ export async function encryptSeedAsync(
   hexSeed: string,
   pin: string
 ): Promise<string> {
+  if (isDesktop) {
+    throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
+  }
   try {
     return await WalletEncryptionUtil.encryptSeedWithPin(mnemonic, hexSeed, pin);
   } catch (error) {
@@ -72,6 +85,9 @@ export async function decryptSeedAsync(
   encryptedData: string,
   pin: string
 ): Promise<{ mnemonic: string; hexSeed: string }> {
+  if (isDesktop) {
+    throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
+  }
   try {
     return await WalletEncryptionUtil.decryptSeedWithPin(encryptedData, pin);
   } catch (error) {
@@ -87,6 +103,9 @@ export async function reEncryptSeedAsync(
   oldPin: string,
   newPin: string
 ): Promise<string> {
+  if (isDesktop) {
+    throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
+  }
   try {
     return await WalletEncryptionUtil.reEncryptSeed(encryptedSeed, oldPin, newPin);
   } catch (error) {
@@ -217,6 +236,9 @@ function postToWorker<T extends CryptoWorkerResponse['type']>(
  * undefined / empty / whitespace-only input without acquiring a worker.
  */
 export async function deriveHexSeedAsync(mnemonic: string): Promise<string> {
+  if (isDesktop) {
+    throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
+  }
   if (!mnemonic || !mnemonic.trim()) {
     return "";
   }

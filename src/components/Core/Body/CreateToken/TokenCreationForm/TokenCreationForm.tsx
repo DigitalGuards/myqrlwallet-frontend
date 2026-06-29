@@ -31,6 +31,7 @@ import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 import { getAddressFromMnemonicAsync } from "@/utils/crypto";
+import { isDesktop } from "@/desktop/bridge";
 import { Label } from "@/components/UI/Label";
 import { isValidQrlAddress } from "@/utils/web3";
 import { containsProfanity, PROFANITY_REJECTION_MESSAGE } from "@/utils/moderation";
@@ -128,9 +129,12 @@ export const TokenCreationForm = observer(
                     return;
                 }
 
-                // Get encrypted seed and validate PIN (only for seed accounts)
+                // Get encrypted seed and validate PIN (only for web/native
+                // seed accounts). On desktop there is no PIN and no seed in the
+                // renderer: the store builds the calldata and routes through
+                // the signer, so we pass an empty mnemonic placeholder.
                 let mnemonicPhrase = "";
-                if (!isUsingExtension) {
+                if (!isUsingExtension && !isDesktop) {
                     if (!pin) {
                         setPinError("PIN is required");
                         return;
@@ -515,7 +519,9 @@ export const TokenCreationForm = observer(
                                         Please import an account with a seed phrase to create tokens.
                                     </p>
                                 </div>
-                            ) : (
+                            ) : !isDesktop ? (
+                                // PIN entry is web/native only. On desktop the signer
+                                // session authorizes the transaction (no PIN).
                                 <div className="flex flex-col">
                                     <Label htmlFor="pin" className="mb-2">
                                         Transaction PIN
@@ -530,12 +536,12 @@ export const TokenCreationForm = observer(
                                         error={pinError}
                                     />
                                 </div>
-                            )}
+                            ) : null}
 
                         </CardContent>
                         <CardFooter>
                             <ShinyButton
-                                disabled={!isValid || (!isUsingExtension && pin.length === 0) || isUsingExtension}
+                                disabled={!isValid || (!isUsingExtension && !isDesktop && pin.length === 0) || isUsingExtension}
                                 processing={isSubmitting}
                                 className="w-full"
                                 type="submit"

@@ -14,6 +14,7 @@ import { AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import { Button } from "@/components/UI/Button";
+import { isDesktop } from "@/desktop/bridge";
 
 const ImportAccount = observer(() => {
   const { qrlStore } = useStore();
@@ -28,11 +29,20 @@ const ImportAccount = observer(() => {
   const onAccountImported = async (importedAccount: ExtendedWalletAccount) => {
     window.scrollTo(0, 0);
     setAccount(importedAccount);
-    await setActiveAccount(importedAccount.address);
+    // On desktop the address is not known until the signer imports the wallet
+    // (in PinSetup). Defer setActiveAccount to onPinSetupComplete.
+    if (!isDesktop) {
+      await setActiveAccount(importedAccount.address);
+    }
     setHasAccountImported(true);
   };
 
-  const onPinSetupComplete = () => {
+  // On desktop, PinSetup provisions via the signer and returns the address.
+  const onPinSetupComplete = async (provisionedAddress?: string) => {
+    if (isDesktop && provisionedAddress) {
+      setAccount((prev) => (prev ? { ...prev, address: provisionedAddress } : prev));
+      await setActiveAccount(provisionedAddress);
+    }
     setIsPinSetupComplete(true);
   };
 
@@ -76,11 +86,13 @@ const ImportAccount = observer(() => {
               isPinSetupComplete ? (
                 <AccountImportSuccess account={account} />
               ) : (
-                account && account.mnemonic && account.hexSeed ? (
+                // Desktop only needs the mnemonic (the signer derives the rest
+                // and never returns the hex seed). Web/native also need hexSeed.
+                account && account.mnemonic && (isDesktop || account.hexSeed) ? (
                   <PinSetup
                     accountAddress={account.address}
                     mnemonic={account.mnemonic}
-                    hexSeed={account.hexSeed}
+                    hexSeed={account.hexSeed ?? ""}
                     onPinSetupComplete={onPinSetupComplete}
                   />
                 ) : (
@@ -96,18 +108,26 @@ const ImportAccount = observer(() => {
                   >
                     Import with Mnemonic
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="encrypted"
-                    className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
-                  >
-                    Import Encrypted Wallet
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="hexseed"
-                    className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
-                  >
-                    Import with Hex Seed
-                  </TabsTrigger>
+                  {/* Encrypted-wallet-file restore and raw hex-seed import are
+                      web/native only: neither has a signer intake on desktop
+                      (the signer would never accept raw hex / decrypt a file in
+                      the renderer), so the tabs are hidden there. */}
+                  {!isDesktop && (
+                    <>
+                      <TabsTrigger
+                        value="encrypted"
+                        className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
+                      >
+                        Import Encrypted Wallet
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="hexseed"
+                        className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
+                      >
+                        Import with Hex Seed
+                      </TabsTrigger>
+                    </>
+                  )}
                 </TabsList>
                 <TabsContent
                   value="mnemonic"
@@ -115,18 +135,22 @@ const ImportAccount = observer(() => {
                 >
                   <ImportAccountForm onAccountImported={onAccountImported} />
                 </TabsContent>
-                <TabsContent
-                  value="encrypted"
-                  className="mt-6 w-full border-none outline-none focus-visible:ring-0"
-                >
-                  <ImportEncryptedWallet onWalletImported={onAccountImported} />
-                </TabsContent>
-                <TabsContent
-                  value="hexseed"
-                  className="mt-6 w-full border-none outline-none focus-visible:ring-0"
-                >
-                  <ImportHexSeedForm onAccountImported={onAccountImported} />
-                </TabsContent>
+                {!isDesktop && (
+                  <>
+                    <TabsContent
+                      value="encrypted"
+                      className="mt-6 w-full border-none outline-none focus-visible:ring-0"
+                    >
+                      <ImportEncryptedWallet onWalletImported={onAccountImported} />
+                    </TabsContent>
+                    <TabsContent
+                      value="hexseed"
+                      className="mt-6 w-full border-none outline-none focus-visible:ring-0"
+                    >
+                      <ImportHexSeedForm onAccountImported={onAccountImported} />
+                    </TabsContent>
+                  </>
+                )}
               </Tabs>
             )}
           </div>

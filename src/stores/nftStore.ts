@@ -12,6 +12,7 @@ import { getQrlWeb3 } from "@/utils/web3";
 import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 import { deriveHexSeedAsync } from "@/utils/crypto";
+import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import type { NFTInterface } from "@/constants";
 import { erc721ABI } from "@/abi/ERC721ABI";
 import { erc1155ABI } from "@/abi/ERC1155ABI";
@@ -264,6 +265,83 @@ class NftStore {
     feeLevel: FeeLevel = "medium",
   ): Promise<boolean> {
     this.qrlStore.resetTransactionStatus();
+
+    // Desktop: build the safeTransferFrom calldata purely (no seed), then
+    // route build/sign/broadcast through the signer. `mnemonicPhrases` is
+    // intentionally unused (the renderer never holds it on desktop).
+    if (isDesktop) {
+      try {
+        const selectedBlockChain = await StorageUtil.getBlockChain();
+        const { url } =
+          QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
+        const { default: Web3 } = await getQrlWeb3();
+        const web3 = new Web3(new Web3.providers.HttpProvider(url));
+        const from = this.qrlStore.activeAccount.accountAddress;
+
+        let data: string;
+        if (nft.standard === "ERC721") {
+          const methods = contractMethods<Erc721Methods>(
+            web3,
+            erc721ABI,
+            nft.contractAddress,
+          );
+          data = methods
+            .safeTransferFrom(from, toAddress, nft.tokenId)
+            .encodeABI();
+        } else {
+          const methods = contractMethods<Erc1155Methods>(
+            web3,
+            erc1155ABI,
+            nft.contractAddress,
+          );
+          data = methods
+            .safeTransferFrom(
+              from,
+              toAddress,
+              nft.tokenId,
+              amount.toString(),
+              "0x",
+            )
+            .encodeABI();
+        }
+
+        const { transactionHash } = await desktopSigner.signAndSendTransaction({
+          from,
+          to: nft.contractAddress,
+          value: "0",
+          data,
+          feeLevel,
+        });
+        runInAction(() => {
+          this.qrlStore.transactionStatus = {
+            state: "pending",
+            txHash: transactionHash,
+            receipt: null,
+            error: null,
+            pendingDetails: null,
+          };
+        });
+        log(`Desktop NFT transfer broadcast: ${transactionHash}`);
+        this.qrlStore.fetchPendingTxDetails(transactionHash);
+        this.qrlStore.pollForReceipt(transactionHash);
+        this.refreshNftBalances();
+        return true;
+      } catch (error) {
+        const message = getErrorMessage(error);
+        runInAction(() => {
+          this.qrlStore.transactionStatus = {
+            state: "failed",
+            txHash: null,
+            receipt: null,
+            error: `NFT transfer failed: ${message}`,
+            pendingDetails: null,
+          };
+        });
+        log(`Desktop NFT transfer preparation failed: ${message}`);
+        return false;
+      }
+    }
+
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } =

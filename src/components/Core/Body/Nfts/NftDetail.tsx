@@ -23,6 +23,7 @@ import {
 } from "@/utils/web3";
 import { WalletEncryptionUtil } from "@/utils/crypto";
 import { getAddressFromMnemonicAsync } from "@/utils/crypto";
+import { isDesktop } from "@/desktop/bridge";
 import { NftImage } from "./NftImage";
 import { ROUTES } from "@/router/router";
 
@@ -128,6 +129,18 @@ const NftDetail = observer(() => {
         setSendError(
           "Extension-signed NFT transfers are coming soon. Switch to an imported account to transfer for now.",
         );
+        setIsSending(false);
+        return;
+      }
+
+      if (isDesktop) {
+        // Desktop: no PIN, no seed in the renderer. The store builds the
+        // safeTransferFrom calldata and routes through the signer; the
+        // mnemonic arg is unused.
+        const ok = await nftStore.transferNft(nft, toAddress, "", amountBig);
+        if (!ok) {
+          setSendError(qrlStore.transactionStatus.error ?? "Transfer failed.");
+        }
         setIsSending(false);
         return;
       }
@@ -335,7 +348,9 @@ const NftDetail = observer(() => {
               </div>
             )}
 
-            {!isExtension && (
+            {/* PIN entry is web/native only. On desktop the signer session
+                authorizes the transfer (no PIN). */}
+            {!isExtension && !isDesktop && (
               <div>
                 <Label>Wallet PIN</Label>
                 <PinInput
