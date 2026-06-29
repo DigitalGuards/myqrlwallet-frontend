@@ -32,6 +32,7 @@ import { SEO } from "@/components/SEO/SEO";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { decryptSeedAsync, reEncryptSeedAsync } from "@/utils/crypto";
 import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
+import { isDesktop } from "@/desktop/bridge";
 import {
     checkLockout,
     recordFailedAttempt,
@@ -241,8 +242,10 @@ const Settings = observer(() => {
                         <source src="/tree.mp4" type="video/mp4" />
                     </video> */ }
                     <div className="relative z-10 space-y-4 md:space-y-8">
-                        {/* PIN Management Card - only visible when user has encrypted seeds */}
-                        {hasEncryptedSeeds && (
+                        {/* PIN Management Card - web/native only. On desktop there
+                            is no PIN (the signer uses a password / Argon2id) and
+                            no in-renderer re-encrypt, so the card is hidden. */}
+                        {hasEncryptedSeeds && !isDesktop && (
                             <Card className="border-l-4 border-l-orange-500">
                                 <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
                                     <div className="flex items-center gap-2">

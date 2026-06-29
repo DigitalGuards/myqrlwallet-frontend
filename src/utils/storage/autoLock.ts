@@ -4,6 +4,7 @@ import StorageUtil, {
   STORAGE_EVENT_WALLET_SETTINGS,
 } from './storage';
 import { isInNativeApp } from '../nativeApp';
+import { isDesktop, desktopSigner } from '@/desktop/bridge';
 
 let autoLockTimer: NodeJS.Timeout | null = null;
 let lastActivityTime: number = Date.now();
@@ -108,10 +109,17 @@ export const startAutoLockTimer = async (navigate: (path: string) => void) => {
       console.log(`⏱️ Auto-lock: ${(remainingTime / 1000).toFixed(0)} seconds until lock`);
     }
 
-    // If user has been inactive for longer than the timeout, log them out
+    // If user has been inactive for longer than the timeout, lock the wallet.
     if (inactiveTime >= timeoutMs) {
       console.log(`🔐 Auto-lock: TRIGGERED - No activity detected for ${minutes.toFixed(1)} minutes`);
-      if (navigateFunction) {
+      if (isDesktop) {
+        // Desktop: drop the signer session but KEEP the seed (it lives in the
+        // signer). A seed-wipe logout would force a re-import; here the user
+        // just re-enters their password to unlock.
+        desktopSigner.lock().catch((err) => {
+          console.error('Auto-lock: signer lock failed', err);
+        });
+      } else if (navigateFunction) {
         handleLogout(navigateFunction);
       }
       clearAutoLockTimer();

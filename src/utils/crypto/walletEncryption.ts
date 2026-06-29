@@ -1,5 +1,15 @@
 import type { Web3BaseWalletAccount } from '@theqrl/web3';
 import { isInNativeApp, shareContent } from '@/utils/nativeApp';
+import { isDesktop } from '@/desktop/bridge';
+
+/**
+ * Defense-in-depth: on desktop the seed lives only in the isolated signer, so
+ * any renderer code path that tries to materialise or re-encrypt seed material
+ * is a bug. These primitives throw loudly instead of leaking. The web build
+ * (isDesktop === false) is unaffected.
+ */
+const DESKTOP_SEED_GUARD_MESSAGE =
+  'desktop: key material lives in the signer, not the renderer';
 
 export interface WalletData {
   address: string;
@@ -156,6 +166,9 @@ export class WalletEncryptionUtil {
     encryptedWallet: EncryptedWallet,
     password: string,
   ): Promise<WalletData> {
+    if (isDesktop) {
+      throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
+    }
     try {
       const json = await aesGcmDecrypt(
         {
@@ -264,6 +277,9 @@ export class WalletEncryptionUtil {
 
   // PIN-based encryption for localStorage (WebCrypto AES-256-GCM + PBKDF2-SHA256)
   static async encryptSeedWithPin(mnemonic: string, hexSeed: string, pin: string): Promise<string> {
+    if (isDesktop) {
+      throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
+    }
     if (!this.validatePin(pin)) {
       throw new Error('Invalid PIN format');
     }
@@ -284,6 +300,9 @@ export class WalletEncryptionUtil {
     encryptedData: string,
     pin: string,
   ): Promise<{ mnemonic: string; hexSeed: string }> {
+    if (isDesktop) {
+      throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
+    }
     let parsed;
     try {
       parsed = JSON.parse(encryptedData);
@@ -334,6 +353,9 @@ export class WalletEncryptionUtil {
 
   // Re-encrypt a seed with a new PIN (for Change PIN feature)
   static async reEncryptSeed(encryptedSeed: string, oldPin: string, newPin: string): Promise<string> {
+    if (isDesktop) {
+      throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
+    }
     // Decrypt with old PIN (throws if oldPin is incorrect)
     const decrypted = await this.decryptSeedWithPin(encryptedSeed, oldPin);
 

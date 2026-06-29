@@ -1,4 +1,5 @@
 import { Button } from "@/components/UI/Button";
+import { ShinyButton } from "@/components/UI/ShinyButton";
 import {
   Card,
   CardContent,
@@ -32,7 +33,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { utils } from "@theqrl/web3";
 import { Loader, Send, X, Copy, Coins, ExternalLink, ScanLine, Check } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { ShinyButton } from "@/components/UI/ShinyButton";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -43,6 +43,7 @@ import { getExplorerAddressUrl, getExplorerTxUrl, QRL_PROVIDER } from "@/config"
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { WalletEncryptionUtil, getAddressFromMnemonicAsync } from "@/utils/crypto";
+import { isDesktop } from "@/desktop/bridge";
 import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
 import type { FeeLevel } from "@/stores/qrlStore";
 import { SEO } from "@/components/SEO/SEO";
@@ -95,8 +96,10 @@ const Transfer = observer(() => {
         }
       }
 
-      // Validate PIN for non-extension accounts
-      if (!isUsingExtension) {
+      // Validate PIN for non-extension seed accounts. On desktop there is no
+      // PIN: the signer session is already unlocked, so the PIN field is
+      // hidden and not required.
+      if (!isUsingExtension && !isDesktop) {
         if (!fields.pin || fields.pin.length < 4 || fields.pin.length > 6) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -343,7 +346,17 @@ const Transfer = observer(() => {
   async function handleNativeTransfer(formData: z.infer<typeof FormSchema>) {
     const valueEther = formData.amount.toString();
 
-    if (isUsingExtension) {
+    if (isDesktop) {
+      // Desktop: no PIN, no seed in the renderer. The store routes through the
+      // signer (build + confirm + sign + broadcast); the mnemonic arg is unused.
+      try {
+        await signAndSendTransaction(accountAddress, formData.receiverAddress, valueEther, "", feeLevel);
+        resetForm();
+        window.scrollTo(0, 0);
+      } catch (error) {
+        control.setError("receiverAddress", { message: `Transaction failed: ${error instanceof Error ? error.message : String(error)}` });
+      }
+    } else if (isUsingExtension) {
       await sendTransactionViaExtension(formData.receiverAddress, valueEther, feeLevel);
       resetForm();
       window.scrollTo(0, 0);
@@ -389,6 +402,20 @@ const Transfer = observer(() => {
 
   async function handleTokenTransfer(formData: z.infer<typeof FormSchema>) {
     if (!selectedToken) return;
+
+    if (isDesktop) {
+      // Desktop: no PIN, no seed in the renderer. The store builds the transfer
+      // calldata and routes through the signer; the mnemonic arg is unused.
+      try {
+        const rawAmount = parseUnits(formData.amount.toString(), selectedToken.decimals).toString();
+        await sendTokenToStore(selectedToken, rawAmount, "", formData.receiverAddress);
+        resetForm();
+        window.scrollTo(0, 0);
+      } catch (error) {
+        control.setError("receiverAddress", { message: `Transfer failed: ${error instanceof Error ? error.message : String(error)}` });
+      }
+      return;
+    }
 
     try {
       const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchain, accountAddress);
@@ -726,7 +753,7 @@ const Transfer = observer(() => {
                           </div>
                         )}
                         {!isScanning && !scanSuccess && (
-                          <FormDescription className="text-xs text-muted-foreground/70">
+                          <FormDescription>
                             Enter the receiver's account address{isInNativeApp() ? ' or scan QR' : ''}
                           </FormDescription>
                         )}
@@ -804,8 +831,9 @@ const Transfer = observer(() => {
                     )}
                   />
 
-                  {/* PIN Input */}
-                  {!isUsingExtension && (
+                  {/* PIN Input. Hidden on desktop: the signer session is
+                      already unlocked and signing does not re-prompt. */}
+                  {!isUsingExtension && !isDesktop && (
                     <FormField
                       control={control}
                       name="pin"
@@ -820,7 +848,7 @@ const Transfer = observer(() => {
                               disabled={isSubmitting}
                             />
                           </FormControl>
-                          <FormDescription className="text-xs text-muted-foreground/70">
+                          <FormDescription>
                             Enter the PIN used to encrypt your wallet seed
                           </FormDescription>
                           <FormMessage />
@@ -851,11 +879,7 @@ const Transfer = observer(() => {
                     processing={isSubmitting}
                     type="submit"
                   >
-                    {isSubmitting ? (
-                      <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="mr-2 h-4 w-4" />
-                    )}
+                    <Send className="mr-2 h-4 w-4" />
                     {isSubmitting ? `Sending ${assetSymbol}...` : `Send ${assetSymbol}`}
                   </ShinyButton>
                 </CardFooter>
