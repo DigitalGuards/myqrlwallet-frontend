@@ -1,4 +1,4 @@
-import { LogOut, Wallet, ArrowRight, Settings as SettingsIcon, Plus } from "lucide-react"
+import { LogOut, Lock, Wallet, ArrowRight, Settings as SettingsIcon, Plus } from "lucide-react"
 
 import {
     Sidebar,
@@ -16,6 +16,7 @@ import { ROUTES } from "@/router/router";
 import MyQRLWalletLogo from "../Header/MyQRLWalletLogo/MyQRLWalletLogo";
 import { handleLogout } from "@/utils/logout";
 import { isInNativeApp } from "@/utils/nativeApp";
+import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { navigateTo } from "@/utils/navigation";
 import { cn } from "@/utils/cn";
 
@@ -52,6 +53,13 @@ export function AppSidebar() {
     const location = useLocation();
     const onLogoutClick = () => {
         handleLogout(navigate);
+    };
+    // Desktop: there is no "logout" (the seed lives in the signer, not here).
+    // The footer button locks the signer session instead; main then shows the
+    // native unlock window. Removing the wallet entirely is a separate,
+    // confirmed action under Settings.
+    const onLockClick = () => {
+        void desktopSigner.lock();
     };
     const isActive = (url: string) =>
         location.pathname === url || location.pathname.startsWith(`${url}/`);
@@ -97,15 +105,23 @@ export function AppSidebar() {
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
-            {/* Hide logout button when running in native app - wallet removal is handled in native settings */}
+            {/* Native app hides this entirely (wallet removal lives in native
+                settings). Desktop shows Lock (not Logout): the seed stays in the
+                signer and locking surfaces the native unlock window. Web keeps
+                the seed-wiping Logout. */}
             {!isInNativeApp() && (
                 <SidebarFooter>
                     <SidebarMenu>
                         <SidebarMenuItem className="py-2">
-                            <SidebarMenuButton asChild className="py-2 h-auto" onClick={onLogoutClick} tooltip={{ side: "right", children: "Log out of wallet" }}>
+                            <SidebarMenuButton
+                                asChild
+                                className="py-2 h-auto"
+                                onClick={isDesktop ? onLockClick : onLogoutClick}
+                                tooltip={{ side: "right", children: isDesktop ? "Lock wallet" : "Log out of wallet" }}
+                            >
                                 <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground">
-                                    <LogOut />
-                                    <span className="block text-xs font-medium">Logout</span>
+                                    {isDesktop ? <Lock /> : <LogOut />}
+                                    <span className="block text-xs font-medium">{isDesktop ? "Lock" : "Logout"}</span>
                                 </div>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
