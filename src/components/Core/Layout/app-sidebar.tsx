@@ -1,4 +1,4 @@
-import { LogOut, Lock, Wallet, ArrowRight, Settings as SettingsIcon, Plus } from "lucide-react"
+import { LogOut, Lock, Wallet, ArrowRight, Settings as SettingsIcon } from "lucide-react"
 
 import {
     Sidebar,
@@ -33,12 +33,6 @@ const sidebarItems = [
         url: ROUTES.TRANSFER,
         label: "Send",
         icon: ArrowRight,
-    },
-    {
-        title: "Create Token",
-        url: ROUTES.CREATE_TOKEN,
-        label: "QRC20",
-        icon: Plus,
     },
     {
         title: "Settings",
