@@ -86,6 +86,9 @@ export interface QrlWalletBridge {
   /** Omit password to attempt an OS keychain unlock (macOS). */
   unlock(args?: { password?: string }): Promise<WalletStatus>;
   lock(): Promise<WalletStatus>;
+  /** Destructively remove the wallet from this device (delete the seed + clear
+   * the keychain). Requires re-import. Returns the post-wipe status. */
+  removeWallet(): Promise<WalletStatus>;
   getStatus(): Promise<WalletStatus>;
   hasWallet(): Promise<boolean>;
   getBalance(args: { address: string }): Promise<{ address: string; balance: string }>;
@@ -166,6 +169,12 @@ export const desktopSigner = {
   /** Lock the signer session (keeps the seed, drops the in-memory session). */
   async lock(): Promise<WalletStatus> {
     return qrlWallet().lock();
+  },
+
+  /** Destructively remove the wallet from this device (delete the seed + clear
+   * the keychain). The caller still clears the renderer's local account state. */
+  async removeWallet(): Promise<WalletStatus> {
+    return qrlWallet().removeWallet();
   },
 
   async getStatus(): Promise<WalletStatus> {
