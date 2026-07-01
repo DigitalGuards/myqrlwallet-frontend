@@ -283,6 +283,24 @@ class QrlStore {
 
   async setActiveAccount(newActiveAccount?: string, source: AccountSource = 'seed') {
     const currentBlockchain = this.qrlConnection.blockchain;
+
+    // Desktop: keep the signer's active wallet in step with the UI selection.
+    // Best-effort: a watch-only address is not a desktop wallet ("no such
+    // wallet on this device"), and switching to a NON-session wallet makes the
+    // desktop lock and raise its native unlock window, which is the intended
+    // per-account password UX. Never block the renderer-side switch on it.
+    if (isDesktop && newActiveAccount) {
+      try {
+        const list = await desktopSigner.listWallets();
+        const wallets = Array.isArray(list?.wallets) ? list.wallets : [];
+        if (wallets.some((w) => w.address.toLowerCase() === newActiveAccount.toLowerCase())) {
+          await desktopSigner.setActiveWallet(newActiveAccount);
+        }
+      } catch (error) {
+        console.error('Desktop setActiveWallet failed (continuing with UI switch):', error);
+      }
+    }
+
     await StorageUtil.setActiveAccount(
       currentBlockchain,
       newActiveAccount,

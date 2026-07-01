@@ -17,6 +17,7 @@ import { useForm } from "react-hook-form";
 import { useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { isDesktop } from "@/desktop/bridge";
 
 const FormSchema = z.object({
   password: z.string().min(1, "Password is required"),
@@ -77,6 +78,21 @@ export const ImportEncryptedWallet = ({
         encryptedWallet,
         formData.password
       );
+
+      // Desktop: decrypting the file in-page is unavoidable (same exposure as
+      // typing a mnemonic), but skip the in-renderer account derivation.
+      // Forward the recovered secret on a placeholder account; PinSetup hands
+      // it to the signer, which derives the address (mnemonic preferred,
+      // hexSeed fallback when the file lacks one).
+      if (isDesktop) {
+        const account = {
+          address: "",
+          hexSeed: decryptedWallet.hexSeed,
+          mnemonic: decryptedWallet.mnemonic,
+        } as ExtendedWalletAccount;
+        onWalletImported(account);
+        return;
+      }
 
       const account = qrlInstance?.accounts.seedToAccount(decryptedWallet.hexSeed) as ExtendedWalletAccount;
       if (!account) {

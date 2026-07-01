@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { getMnemonicFromHexSeed } from "@/utils/crypto";
+import { isDesktop } from "@/desktop/bridge";
 
 const FormSchema = z.object({
   hexSeed: z
@@ -40,8 +41,18 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
 
   async function onSubmit(formData: z.output<typeof FormSchema>) {
     try {
+      // Desktop: no in-renderer derivation (no seedToAccount, no mnemonic
+      // reconstruction). Forward only the hex seed on a placeholder account;
+      // PinSetup collects the password, the signer derives address + canonical
+      // mnemonic and returns the address (same pattern as the mnemonic form).
+      if (isDesktop) {
+        const account = { address: "", hexSeed: formData.hexSeed } as ExtendedWalletAccount;
+        onAccountImported(account);
+        return;
+      }
+
       const account = qrlInstance?.accounts.seedToAccount(formData.hexSeed) as ExtendedWalletAccount;
-      
+
       if (!account) {
         throw new Error("Failed to create account from hex seed");
       }
