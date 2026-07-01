@@ -19,6 +19,13 @@
 // Bridge contract (mirror of window.qrlWallet). All methods async unless noted.
 // ---------------------------------------------------------------------------
 
+/** One provisioned desktop wallet (public data only). */
+export interface DesktopWalletInfo {
+  address: string;
+  /** True when this wallet's KEK is held by the OS keychain (macOS). */
+  keychainBacked: boolean;
+}
+
 /** Signer wallet status snapshot returned by status/unlock/lock/create/import. */
 export interface WalletStatus {
   hasWallet: boolean;
@@ -28,6 +35,10 @@ export interface WalletStatus {
   unlockExpiresAt?: number;
   /** True when the seed is held by the OS keychain (macOS). */
   keychainBacked?: boolean;
+  /** Every wallet on this device (multi-wallet desktops; absent on older mains). */
+  wallets?: DesktopWalletInfo[];
+  /** The active wallet's address (multi-wallet desktops; absent on older mains). */
+  activeAddress?: string | null;
 }
 
 /** Unsigned transaction shape produced by the signer (nonce/gas/chainId filled in main). */
@@ -78,18 +89,26 @@ export interface CreateWalletResult {
  */
 export interface QrlWalletBridge {
   createWallet(args: { password: string; useKeychain?: boolean }): Promise<CreateWalletResult>;
+  /** Import from a mnemonic OR a 51-byte hex extended seed (exactly one). */
   importWallet(args: {
-    mnemonic: string;
+    mnemonic?: string;
+    hexSeed?: string;
     password: string;
     useKeychain?: boolean;
   }): Promise<WalletStatus>;
-  /** Omit password to attempt an OS keychain unlock (macOS). */
-  unlock(args?: { password?: string }): Promise<WalletStatus>;
+  /** Omit password to attempt an OS keychain unlock (macOS); omit address to
+   * unlock the active wallet. */
+  unlock(args?: { password?: string; address?: string }): Promise<WalletStatus>;
   lock(): Promise<WalletStatus>;
-  /** Destructively remove the wallet from this device (delete the seed + clear
-   * the keychain). Requires re-import. Returns the post-wipe status. */
-  removeWallet(): Promise<WalletStatus>;
+  /** Destructively remove ONE wallet from this device (the active one when
+   * argless): delete its seed + clear its keychain entry. Requires re-import. */
+  removeWallet(args?: { address?: string }): Promise<WalletStatus>;
   getStatus(): Promise<WalletStatus>;
+  /** Every wallet on this device + the active one. */
+  listWallets(): Promise<{ wallets: DesktopWalletInfo[]; active: string | null }>;
+  /** Switch the active wallet. When the session belongs to a different account
+   * the desktop locks and raises its native unlock window. */
+  setActiveWallet(args: { address: string }): Promise<WalletStatus>;
   hasWallet(): Promise<boolean>;
   getBalance(args: { address: string }): Promise<{ address: string; balance: string }>;
   buildTransaction(args: {
@@ -152,13 +171,15 @@ export const desktopSigner = {
     return qrlWallet().createWallet({ password, useKeychain });
   },
 
-  /** Import an existing wallet from its mnemonic. */
+  /** Import an existing wallet from its mnemonic OR its hex extended seed
+   * (exactly one). The signer regenerates the canonical mnemonic from a hex
+   * seed, so both routes store an identical encrypted envelope. */
   async importWallet(
-    mnemonic: string,
+    source: { mnemonic?: string; hexSeed?: string },
     password: string,
     useKeychain?: boolean,
   ): Promise<WalletStatus> {
-    return qrlWallet().importWallet({ mnemonic, password, useKeychain });
+    return qrlWallet().importWallet({ ...source, password, useKeychain });
   },
 
   /** Unlock the signer session. Omit password for an OS keychain unlock. */
@@ -171,10 +192,23 @@ export const desktopSigner = {
     return qrlWallet().lock();
   },
 
-  /** Destructively remove the wallet from this device (delete the seed + clear
-   * the keychain). The caller still clears the renderer's local account state. */
-  async removeWallet(): Promise<WalletStatus> {
-    return qrlWallet().removeWallet();
+  /** Destructively remove ONE wallet from this device (the active one when no
+   * address is given). The caller still clears the renderer's local account
+   * state for that account. */
+  async removeWallet(address?: string): Promise<WalletStatus> {
+    return qrlWallet().removeWallet(address === undefined ? undefined : { address });
+  },
+
+  /** Every wallet on this device + the active one. */
+  async listWallets(): Promise<{ wallets: DesktopWalletInfo[]; active: string | null }> {
+    return qrlWallet().listWallets();
+  },
+
+  /** Switch the active desktop wallet. When the signer session belongs to a
+   * different account the desktop locks and raises its native unlock window
+   * (each wallet unlocks with its own password). */
+  async setActiveWallet(address: string): Promise<WalletStatus> {
+    return qrlWallet().setActiveWallet({ address });
   },
 
   async getStatus(): Promise<WalletStatus> {

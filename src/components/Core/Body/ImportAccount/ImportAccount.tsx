@@ -86,12 +86,15 @@ const ImportAccount = observer(() => {
               isPinSetupComplete ? (
                 <AccountImportSuccess account={account} />
               ) : (
-                // Desktop only needs the mnemonic (the signer derives the rest
-                // and never returns the hex seed). Web/native also need hexSeed.
-                account && account.mnemonic && (isDesktop || account.hexSeed) ? (
+                // Desktop needs the mnemonic OR the hex seed (the signer accepts
+                // either and derives the rest). Web/native need both.
+                account &&
+                (isDesktop
+                  ? account.mnemonic || account.hexSeed
+                  : account.mnemonic && account.hexSeed) ? (
                   <PinSetup
                     accountAddress={account.address}
-                    mnemonic={account.mnemonic}
+                    mnemonic={account.mnemonic ?? ""}
                     hexSeed={account.hexSeed ?? ""}
                     onPinSetupComplete={onPinSetupComplete}
                   />
@@ -108,26 +111,22 @@ const ImportAccount = observer(() => {
                   >
                     Import with Mnemonic
                   </TabsTrigger>
-                  {/* Encrypted-wallet-file restore and raw hex-seed import are
-                      web/native only: neither has a signer intake on desktop
-                      (the signer would never accept raw hex / decrypt a file in
-                      the renderer), so the tabs are hidden there. */}
-                  {!isDesktop && (
-                    <>
-                      <TabsTrigger
-                        value="encrypted"
-                        className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
-                      >
-                        Import Encrypted Wallet
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="hexseed"
-                        className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
-                      >
-                        Import with Hex Seed
-                      </TabsTrigger>
-                    </>
-                  )}
+                  {/* Encrypted-wallet-file restore and raw hex-seed import work
+                      on desktop too: both forms recover the secret in-page
+                      (exactly like typing a mnemonic) and hand it to the signer
+                      via importWallet, which accepts mnemonic OR hexSeed. */}
+                  <TabsTrigger
+                    value="encrypted"
+                    className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
+                  >
+                    Import Encrypted Wallet
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="hexseed"
+                    className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
+                  >
+                    Import with Hex Seed
+                  </TabsTrigger>
                 </TabsList>
                 <TabsContent
                   value="mnemonic"
@@ -135,22 +134,18 @@ const ImportAccount = observer(() => {
                 >
                   <ImportAccountForm onAccountImported={onAccountImported} />
                 </TabsContent>
-                {!isDesktop && (
-                  <>
-                    <TabsContent
-                      value="encrypted"
-                      className="mt-6 w-full border-none outline-none focus-visible:ring-0"
-                    >
-                      <ImportEncryptedWallet onWalletImported={onAccountImported} />
-                    </TabsContent>
-                    <TabsContent
-                      value="hexseed"
-                      className="mt-6 w-full border-none outline-none focus-visible:ring-0"
-                    >
-                      <ImportHexSeedForm onAccountImported={onAccountImported} />
-                    </TabsContent>
-                  </>
-                )}
+                <TabsContent
+                  value="encrypted"
+                  className="mt-6 w-full border-none outline-none focus-visible:ring-0"
+                >
+                  <ImportEncryptedWallet onWalletImported={onAccountImported} />
+                </TabsContent>
+                <TabsContent
+                  value="hexseed"
+                  className="mt-6 w-full border-none outline-none focus-visible:ring-0"
+                >
+                  <ImportHexSeedForm onAccountImported={onAccountImported} />
+                </TabsContent>
               </Tabs>
             )}
           </div>
