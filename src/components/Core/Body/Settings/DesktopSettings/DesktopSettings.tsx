@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Trash2, AlertTriangle } from "lucide-react";
 import {
@@ -27,6 +27,24 @@ export const DesktopSettings = () => {
     const navigate = useNavigate();
     const [isRemoving, setIsRemoving] = useState(false);
     const [removeError, setRemoveError] = useState<string | null>(null);
+    const [activeAddress, setActiveAddress] = useState<string | null>(null);
+
+    // Show WHICH account the destructive button targets: with multiple wallets
+    // on the device, "the active account" alone is ambiguous.
+    useEffect(() => {
+        let cancelled = false;
+        desktopSigner
+            .getStatus()
+            .then((status) => {
+                if (!cancelled) setActiveAddress(status.activeAddress ?? status.address ?? null);
+            })
+            .catch(() => {
+                /* best-effort: the card still works without the address chip */
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     async function onRemoveWallet() {
         if (isRemoving) return;
@@ -99,13 +117,18 @@ export const DesktopSettings = () => {
             <CardHeader className="bg-gradient-to-r from-destructive/5 to-transparent">
                 <div className="flex items-center gap-2">
                     <AlertTriangle className="h-6 w-6 text-destructive" />
-                    <CardTitle className="text-2xl font-bold">Remove Wallet</CardTitle>
+                    <CardTitle className="text-2xl font-bold">Remove Account</CardTitle>
                 </div>
                 <CardDescription>
                     Permanently remove the active account from this device. Its encrypted
                     seed is deleted and you will need the recovery phrase (or hex seed) to
                     restore it. Other accounts on this device are not affected.
                 </CardDescription>
+                {activeAddress && (
+                    <p className="font-mono text-xs text-muted-foreground break-all">
+                        Active account: {activeAddress}
+                    </p>
+                )}
             </CardHeader>
             <CardContent className="space-y-4">
                 {removeError && (
