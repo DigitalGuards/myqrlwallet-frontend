@@ -56,17 +56,23 @@ export const DesktopSettings = () => {
             const blockchains = Object.keys(QRL_PROVIDER);
             if (statusAfter?.hasWallet && removedAddress) {
                 // Other wallets remain: scope the cleanup to the removed
-                // account (drop it from the local list, clear the active
-                // pointer); the desktop raises its native unlock window for
-                // the next account.
+                // account (drop it from the local list) and adopt the new
+                // active account the desktop self-healed to, instead of
+                // clearing it, so reload lands on that wallet (post-unlock)
+                // rather than an empty active-account state.
                 const removed = removedAddress.toLowerCase();
+                const nextActive = statusAfter.activeAddress ?? null;
                 for (const blockchain of blockchains) {
                     const list = await StorageUtil.getAccountList(blockchain);
                     await StorageUtil.setAccountList(
                         blockchain,
                         list.filter((item) => item.address.toLowerCase() !== removed),
                     );
-                    await StorageUtil.clearActiveAccount(blockchain);
+                    if (nextActive) {
+                        await StorageUtil.setActiveAccount(blockchain, nextActive);
+                    } else {
+                        await StorageUtil.clearActiveAccount(blockchain);
+                    }
                     await StorageUtil.clearTransactionValues(blockchain);
                 }
             } else {
