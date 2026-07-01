@@ -291,7 +291,8 @@ class QrlStore {
     // per-account password UX. Never block the renderer-side switch on it.
     if (isDesktop && newActiveAccount) {
       try {
-        const { wallets } = await desktopSigner.listWallets();
+        const list = await desktopSigner.listWallets();
+        const wallets = Array.isArray(list?.wallets) ? list.wallets : [];
         if (wallets.some((w) => w.address.toLowerCase() === newActiveAccount.toLowerCase())) {
           await desktopSigner.setActiveWallet(newActiveAccount);
         }
