@@ -85,6 +85,7 @@ export const PinSetup = ({
     return (
       <DesktopPasswordSetup
         mnemonic={mnemonic}
+        hexSeed={hexSeed}
         onPinSetupComplete={onPinSetupComplete}
       />
     );
@@ -114,9 +115,11 @@ const DesktopPasswordSchema = z.object({
 
 const DesktopPasswordSetup = ({
   mnemonic,
+  hexSeed,
   onPinSetupComplete,
 }: {
   mnemonic: string;
+  hexSeed?: string;
   onPinSetupComplete: (provisionedAddress?: string) => void;
 }) => {
   const [isProvisioning, setIsProvisioning] = useState(false);
@@ -136,7 +139,11 @@ const DesktopPasswordSetup = ({
   async function onSubmit(data: DesktopPasswordValues) {
     setIsProvisioning(true);
     try {
-      const status = await desktopSigner.importWallet(mnemonic, data.password);
+      // Mnemonic and hex seed are two encodings of the same bytes; the signer
+      // accepts either. Prefer the mnemonic when the form produced one, else
+      // fall back to the hex seed (e.g. a wallet file missing its mnemonic).
+      const source = mnemonic ? { mnemonic } : { hexSeed };
+      const status = await desktopSigner.importWallet(source, data.password);
       setIsProvisioning(false);
       onPinSetupComplete(status.address);
     } catch (error) {
