@@ -70,11 +70,26 @@ export interface SignatureResult {
   rawTransaction?: string;
 }
 
+/**
+ * dApp-connect provenance attached to a signature request that originated
+ * from a connected dApp session. Rendered by the desktop's trusted confirm
+ * modal under an explicit "unverified, dApp-supplied" label. The desktop
+ * schema is strict (bounded lengths, no control chars, http(s)-or-empty
+ * url), so build values with {@link buildDappOrigin} rather than passing
+ * raw ORIGINATOR_INFO through.
+ */
+export interface DAppOriginMeta {
+  via: 'dapp';
+  name: string;
+  url: string;
+  channelId: string;
+}
+
 /** Discriminated union of signature requests sent to the signer. */
 export type SignatureRequest =
-  | { kind: 'transaction'; tx: UnsignedTransaction }
-  | { kind: 'message'; messageHex: string }
-  | { kind: 'typedData'; payload: unknown };
+  | { kind: 'transaction'; tx: UnsignedTransaction; origin?: DAppOriginMeta }
+  | { kind: 'message'; messageHex: string; origin?: DAppOriginMeta }
+  | { kind: 'typedData'; payload: unknown; origin?: DAppOriginMeta };
 
 export interface CreateWalletResult {
   status: WalletStatus;
@@ -121,7 +136,15 @@ export interface QrlWalletBridge {
   }): Promise<UnsignedTransaction>;
   requestSignature(request: SignatureRequest): Promise<SignatureResult>;
   sendRawTransaction(args: { rawTx: string }): Promise<{ transactionHash: string }>;
+  /** Surface the wallet window (taskbar flash / dock bounce, no focus steal)
+   * because a dApp request needs the user. Rate-limited by main. Optional:
+   * absent on desktop shells that predate dApp-connect. */
+  dappRequestAttention?(): Promise<void>;
   onLockStateChanged(cb: (locked: boolean) => void): () => void;
+  /** Subscribe to qrlconnect:// URIs arriving via the OS protocol handler.
+   * Returns an unsubscribe. Optional: absent on desktop shells that predate
+   * dApp-connect. */
+  onDAppConnectUri?(cb: (uri: string) => void): () => void;
 }
 
 declare global {
@@ -154,6 +177,47 @@ export function qrlWallet(): QrlWalletBridge {
     throw new Error('desktop: window.qrlWallet bridge is not available');
   }
   return bridge;
+}
+
+// ---------------------------------------------------------------------------
+// dApp origin sanitiser
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a desktop-schema-safe origin block from dApp-supplied session info.
+ * The desktop main process zod-rejects oversized / control-char / non-http(s)
+ * values outright, and a rejected signature request would strand the dApp, so
+ * sanitise here: clamp lengths, strip control chars, and map an unusable URL
+ * to '' (the confirm modal shows "(not provided)"). Returns undefined only
+ * when the channelId itself is unusable, in which case the request proceeds
+ * without provenance rather than failing.
+ */
+export function buildDappOrigin(
+  name: string | undefined,
+  url: string | undefined,
+  channelId: string,
+): DAppOriginMeta | undefined {
+  if (!/^[0-9a-fA-F-]{1,64}$/.test(channelId)) return undefined;
+  const cleanName =
+    (name ?? '')
+      // eslint-disable-next-line no-control-regex -- stripping control chars is the point
+      .replace(/[\u0000-\u001f\u007f]/g, '')
+      .trim()
+      .slice(0, 64) || 'Unknown dApp';
+  let cleanUrl = '';
+  // Validate the WHOLE url, then accept it only if it is a well-formed http(s)
+  // URL within the schema's 256-char cap. Slicing before parsing would truncate
+  // a long-but-valid URL into junk (dropped to '' or, worse, a valid-but-wrong
+  // prefix), so an over-cap URL maps cleanly to '' instead.
+  if (url && url.length <= 256) {
+    try {
+      const proto = new URL(url).protocol;
+      if (proto === 'https:' || proto === 'http:') cleanUrl = url;
+    } catch {
+      /* unusable URL: leave '' */
+    }
+  }
+  return { via: 'dapp', name: cleanName, url: cleanUrl, channelId };
 }
 
 // ---------------------------------------------------------------------------
@@ -230,14 +294,17 @@ export const desktopSigner = {
    * transaction. `value`/`data` are pure renderer-side inputs; nonce, gas and
    * chainId are filled by main. Returns the broadcast transaction hash.
    */
-  async signAndSendTransaction(args: {
-    from: string;
-    to: string;
-    /** Smallest-unit decimal string. */
-    value: string;
-    data?: string;
-    feeLevel?: FeeLevelHint;
-  }): Promise<{ transactionHash: string }> {
+  async signAndSendTransaction(
+    args: {
+      from: string;
+      to: string;
+      /** Smallest-unit decimal string. */
+      value: string;
+      data?: string;
+      feeLevel?: FeeLevelHint;
+    },
+    origin?: DAppOriginMeta,
+  ): Promise<{ transactionHash: string }> {
     const bridge = qrlWallet();
     const tx = await bridge.buildTransaction({
       from: args.from,
@@ -246,7 +313,7 @@ export const desktopSigner = {
       data: args.data,
       feeLevel: args.feeLevel,
     });
-    const signed = await bridge.requestSignature({ kind: 'transaction', tx });
+    const signed = await bridge.requestSignature({ kind: 'transaction', tx, origin });
     if (!signed.rawTransaction) {
       throw new Error('desktop: signer returned no raw transaction');
     }
@@ -257,14 +324,17 @@ export const desktopSigner = {
    * Build + confirm + sign a transaction WITHOUT broadcasting. Used by the
    * dApp `qrl_signTransaction` path which returns the raw tx to the dApp.
    */
-  async signTransactionOnly(args: {
-    from: string;
-    to: string;
-    /** Smallest-unit decimal string. */
-    value: string;
-    data?: string;
-    feeLevel?: FeeLevelHint;
-  }): Promise<string> {
+  async signTransactionOnly(
+    args: {
+      from: string;
+      to: string;
+      /** Smallest-unit decimal string. */
+      value: string;
+      data?: string;
+      feeLevel?: FeeLevelHint;
+    },
+    origin?: DAppOriginMeta,
+  ): Promise<string> {
     const bridge = qrlWallet();
     const tx = await bridge.buildTransaction({
       from: args.from,
@@ -273,7 +343,7 @@ export const desktopSigner = {
       data: args.data,
       feeLevel: args.feeLevel,
     });
-    const signed = await bridge.requestSignature({ kind: 'transaction', tx });
+    const signed = await bridge.requestSignature({ kind: 'transaction', tx, origin });
     if (!signed.rawTransaction) {
       throw new Error('desktop: signer returned no raw transaction');
     }
@@ -281,8 +351,8 @@ export const desktopSigner = {
   },
 
   /** Sign a hex-encoded message via the signer's trusted modal. */
-  async signMessage(messageHex: string): Promise<SignatureResult> {
-    return qrlWallet().requestSignature({ kind: 'message', messageHex });
+  async signMessage(messageHex: string, origin?: DAppOriginMeta): Promise<SignatureResult> {
+    return qrlWallet().requestSignature({ kind: 'message', messageHex, origin });
   },
 
   /**
@@ -290,8 +360,27 @@ export const desktopSigner = {
    * callers should surface a clear "not yet supported on desktop" error rather
    * than falling back to an in-renderer signer.
    */
-  async signTypedData(payload: unknown): Promise<SignatureResult> {
-    return qrlWallet().requestSignature({ kind: 'typedData', payload });
+  async signTypedData(payload: unknown, origin?: DAppOriginMeta): Promise<SignatureResult> {
+    return qrlWallet().requestSignature({ kind: 'typedData', payload, origin });
+  },
+
+  /**
+   * Ask main to surface the wallet window because a dApp request is waiting
+   * (taskbar flash / dock bounce; rate-limited in main). Optional-called so a
+   * renderer paired with an older desktop shell degrades to a no-op.
+   */
+  async dappRequestAttention(): Promise<void> {
+    await qrlWallet().dappRequestAttention?.();
+  },
+
+  /**
+   * Subscribe to qrlconnect:// URIs from the OS protocol handler. Returns an
+   * unsubscribe; a no-op unsubscribe when the shell predates the feature.
+   */
+  onDAppConnectUri(cb: (uri: string) => void): () => void {
+    const bridge = qrlWallet();
+    if (typeof bridge.onDAppConnectUri !== 'function') return () => undefined;
+    return bridge.onDAppConnectUri(cb);
   },
 
   /** Broadcast an already-signed raw transaction. */
