@@ -34,7 +34,7 @@ import {
 import { Loader, Check, X, ExternalLink, Shield, Globe } from 'lucide-react';
 import type { TxProgressState } from '@/stores/dappConnectStore';
 import type { ZodError } from 'zod';
-import { isDesktop, desktopSigner } from '@/desktop/bridge';
+import { isDesktop, desktopSigner, buildDappOrigin } from '@/desktop/bridge';
 
 function formatZodIssues(error: ZodError): string {
   // path segments can be symbols (e.g. a MobX admin key surfaced by zod's
@@ -138,6 +138,16 @@ const DAppApprovalModal = observer(() => {
       // toJS is digest-neutral: the encoder reads fields by name in type order.
       const params = toJS(currentApproval.params);
 
+      // Desktop: dApp provenance for the trusted confirm modal (sanitised to
+      // the desktop schema; the modal labels it unverified/dApp-supplied).
+      const dappOrigin = isDesktop
+        ? buildDappOrigin(
+            currentApproval.dappInfo.name,
+            currentApproval.dappInfo.url,
+            currentApproval.sessionId,
+          )
+        : undefined;
+
       if (method === 'qrl_requestAccounts') {
         const activeAddress = qrlStore.activeAccount?.accountAddress;
         dappConnectStore.approveCurrentRequest(activeAddress ? [activeAddress] : []);
@@ -146,6 +156,20 @@ const DAppApprovalModal = observer(() => {
       }
 
       if (method === 'wallet_addQrlChain' || method === 'wallet_switchQrlChain') {
+        // Desktop is single-network: main builds/signs/broadcasts against its
+        // configured RPC + chain id, so honouring a renderer-side switch would
+        // silently sign for a different chain than the dApp expects. Reject
+        // with 4902 (EIP-3326 unrecognized/unavailable chain) instead of
+        // flipping renderer state; 4901 would falsely signal a transient
+        // provider disconnect and invite reconnect loops.
+        if (isDesktop) {
+          dappConnectStore.rejectCurrentRequest(
+            'The desktop wallet is pinned to its configured chain',
+            4902,
+          );
+          setPin('');
+          return;
+        }
         dappConnectStore.approveCurrentRequest(null);
         setPin('');
         return;
@@ -172,24 +196,30 @@ const DAppApprovalModal = observer(() => {
           try {
             dappConnectStore.setTxProgress('signing');
             if (method === 'qrl_signTransaction') {
-              const rawTx = await desktopSigner.signTransactionOnly({
-                from: activeAddress,
-                to: toD,
-                value: valueD,
-                data: dataD,
-              });
+              const rawTx = await desktopSigner.signTransactionOnly(
+                {
+                  from: activeAddress,
+                  to: toD,
+                  value: valueD,
+                  data: dataD,
+                },
+                dappOrigin,
+              );
               dappConnectStore.approveCurrentRequest(rawTx);
               dappConnectStore.resetTxProgress();
               setLoading(false);
               return;
             }
             dappConnectStore.setTxProgress('broadcasting');
-            const { transactionHash } = await desktopSigner.signAndSendTransaction({
-              from: activeAddress,
-              to: toD,
-              value: valueD,
-              data: dataD,
-            });
+            const { transactionHash } = await desktopSigner.signAndSendTransaction(
+              {
+                from: activeAddress,
+                to: toD,
+                value: valueD,
+                data: dataD,
+              },
+              dappOrigin,
+            );
             dappConnectStore.setTxProgress('confirmed', transactionHash);
             dappConnectStore.sendApprovalResult(transactionHash);
             setLoading(false);
@@ -359,7 +389,7 @@ const DAppApprovalModal = observer(() => {
         // no seed in the renderer.
         if (isDesktop) {
           try {
-            const result = await desktopSigner.signMessage(messageHex);
+            const result = await desktopSigner.signMessage(messageHex, dappOrigin);
             dappConnectStore.approveCurrentRequest(result);
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
@@ -418,7 +448,7 @@ const DAppApprovalModal = observer(() => {
         // in-renderer fallback.
         if (isDesktop) {
           try {
-            const result = await desktopSigner.signTypedData(payload);
+            const result = await desktopSigner.signTypedData(payload, dappOrigin);
             dappConnectStore.approveCurrentRequest(result);
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
