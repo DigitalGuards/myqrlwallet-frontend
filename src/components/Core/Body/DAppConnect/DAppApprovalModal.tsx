@@ -159,11 +159,13 @@ const DAppApprovalModal = observer(() => {
         // Desktop is single-network: main builds/signs/broadcasts against its
         // configured RPC + chain id, so honouring a renderer-side switch would
         // silently sign for a different chain than the dApp expects. Reject
-        // with 4901 (chain not available) instead of flipping renderer state.
+        // with 4902 (EIP-3326 unrecognized/unavailable chain) instead of
+        // flipping renderer state; 4901 would falsely signal a transient
+        // provider disconnect and invite reconnect loops.
         if (isDesktop) {
           dappConnectStore.rejectCurrentRequest(
             'The desktop wallet is pinned to its configured chain',
-            4901,
+            4902,
           );
           setPin('');
           return;

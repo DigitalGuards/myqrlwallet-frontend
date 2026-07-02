@@ -34,7 +34,7 @@ function dlog(msg: string): void {
   logToNative(`[DAppConnect] ${msg}`);
 }
 
-const DEFAULT_RELAY_URL = 'https://qrlwallet.com';
+export const DEFAULT_RELAY_URL = 'https://qrlwallet.com';
 // Grace period before a dApp that left the relay channel is torn down. On a
 // same-device deep-link round trip the dApp's browser tab is suspended while
 // the wallet is foregrounded, so its relay socket drops; the relay buffer
@@ -550,8 +550,9 @@ export class DAppConnectService {
     sessionId: string,
     requestId: string | number,
     message = 'User rejected the request',
-    // 4001 = user rejected (EIP-1193). Desktop passes 4901 for chain-switch
-    // requests it cannot honour (single configured chain).
+    // 4001 = user rejected (EIP-1193). Desktop passes 4902 (EIP-3326
+    // unrecognized chain) for chain-switch requests it cannot honour
+    // (single configured chain).
     code = 4001
   ): void {
     void this.sendJsonRpcResponse(sessionId, {

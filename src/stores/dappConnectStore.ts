@@ -102,7 +102,12 @@ class DAppConnectStore {
    * single gate before any relay contact.
    */
   requestDesktopConnect(uri: string, source: DesktopConnectSource = 'deeplink'): void {
-    if (!DAppConnectService.isConnectionURI(uri)) return;
+    if (!DAppConnectService.isConnectionURI(uri)) {
+      // Surface the drop: an invalid URI arriving via the OS protocol handler
+      // is otherwise indistinguishable from a mis-registered handler.
+      console.warn('[DAppConnect] ignoring non-qrlconnect desktop connect URI');
+      return;
+    }
     this.desktopConnectUri = uri;
     this.desktopConnectSource = source;
   }
@@ -124,7 +129,10 @@ class DAppConnectStore {
     const origin = this.desktopConnectSource === 'deeplink' ? 'deeplink' : 'qr';
     const result = await dappConnectService.handleConnectionURI(uri, origin);
     runInAction(() => {
-      if (result.success) this.desktopConnectUri = null;
+      // Only clear if a newer URI wasn't staged during the awaited handshake;
+      // otherwise the latest-wins staging would silently drop that pending URI
+      // and its consent modal would never appear.
+      if (result.success && this.desktopConnectUri === uri) this.desktopConnectUri = null;
     });
     return result;
   }
