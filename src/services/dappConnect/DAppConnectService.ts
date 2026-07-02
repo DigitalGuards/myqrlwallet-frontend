@@ -549,12 +549,15 @@ export class DAppConnectService {
   rejectRequest(
     sessionId: string,
     requestId: string | number,
-    message = 'User rejected the request'
+    message = 'User rejected the request',
+    // 4001 = user rejected (EIP-1193). Desktop passes 4901 for chain-switch
+    // requests it cannot honour (single configured chain).
+    code = 4001
   ): void {
     void this.sendJsonRpcResponse(sessionId, {
       jsonrpc: '2.0',
       id: requestId,
-      error: { code: 4001, message },
+      error: { code, message },
     }).then((sent) => {
       if (sent) this.maybeReturnToDApp(sessionId);
       else console.error('[DAppConnect] reject response not sent; skipping return-to-dApp');
