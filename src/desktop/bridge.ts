@@ -186,11 +186,14 @@ export function buildDappOrigin(
       .trim()
       .slice(0, 64) || 'Unknown dApp';
   let cleanUrl = '';
-  if (url) {
-    const candidate = url.slice(0, 256);
+  // Validate the WHOLE url, then accept it only if it is a well-formed http(s)
+  // URL within the schema's 256-char cap. Slicing before parsing would truncate
+  // a long-but-valid URL into junk (dropped to '' or, worse, a valid-but-wrong
+  // prefix), so an over-cap URL maps cleanly to '' instead.
+  if (url && url.length <= 256) {
     try {
-      const proto = new URL(candidate).protocol;
-      if (proto === 'https:' || proto === 'http:') cleanUrl = candidate;
+      const proto = new URL(url).protocol;
+      if (proto === 'https:' || proto === 'http:') cleanUrl = url;
     } catch {
       /* unusable URL: leave '' */
     }

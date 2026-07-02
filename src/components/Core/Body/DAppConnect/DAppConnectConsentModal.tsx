@@ -13,7 +13,7 @@
  * anchors consent to the user's own action ("did you just click Connect?").
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/stores/store';
@@ -27,27 +27,41 @@ import {
 } from '@/components/UI/Dialog';
 import { Button } from '@/components/UI/Button';
 import { Loader, Plug } from 'lucide-react';
+import { parseConnectionURI } from '@/services/dappConnect/qrUri';
+import { DEFAULT_RELAY_URL } from '@/services/dappConnect/DAppConnectService';
 
-/** Relay the wallet will contact if the user consents (r= param, else prod). */
-function relayOriginFromUri(uri: string): string {
-  try {
-    const query = uri.split('?')[1] ?? '';
-    const r = new URLSearchParams(query).get('r');
-    if (r) return new URL(r).origin;
-  } catch {
-    /* fall through to the default */
-  }
-  return 'https://qrlwallet.com';
-}
+/** Origin the wallet dials when a URI carries no r= param. */
+const DEFAULT_RELAY_ORIGIN = new URL(DEFAULT_RELAY_URL).origin;
 
 const DAppConnectConsentModal = observer(() => {
   const { dappConnectStore } = useStore();
   const navigate = useNavigate();
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState('');
+  // Relay origin the wallet will actually dial. Resolved via the SAME audited
+  // parser the connect path uses (parseConnectionURI) so the displayed relay
+  // cannot diverge from the one handleConnectionURI contacts; defaults until
+  // the async parse resolves and on any parse failure.
+  const [relayOrigin, setRelayOrigin] = useState(DEFAULT_RELAY_ORIGIN);
 
   const uri = dappConnectStore.desktopConnectUri;
   const source = dappConnectStore.desktopConnectSource;
+
+  useEffect(() => {
+    if (!uri) return;
+    let cancelled = false;
+    void parseConnectionURI(uri)
+      .then((parsed) => {
+        if (cancelled) return;
+        setRelayOrigin(parsed.relayUrl ? new URL(parsed.relayUrl).origin : DEFAULT_RELAY_ORIGIN);
+      })
+      .catch(() => {
+        if (!cancelled) setRelayOrigin(DEFAULT_RELAY_ORIGIN);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [uri]);
 
   const handleCancel = useCallback(() => {
     if (connecting) return;
@@ -71,8 +85,6 @@ const DAppConnectConsentModal = observer(() => {
   }, [dappConnectStore, navigate]);
 
   if (!uri) return null;
-
-  const relayOrigin = relayOriginFromUri(uri);
 
   return (
     <Dialog
