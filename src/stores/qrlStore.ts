@@ -1,6 +1,7 @@
 import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
+import { mergeSignerWalletsIntoList, pickActiveWallet } from "@/desktop/walletHydration";
 import type { AccountListItem, AccountSource } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
@@ -106,6 +107,10 @@ class QrlStore {
   // makeAutoObservable below — it's a non-observable runtime handle.
   _receiptPollerIntervalId: ReturnType<typeof setInterval> | null = null;
 
+  // Desktop only: guards one-time registration of the signer lock-state
+  // listener that re-hydrates the wallet list on unlock. Non-observable.
+  _desktopUnlockListenerBound = false;
+
   // Callbacks wired by Store after construction so token/NFT init can run
   // *after* QrlStore has a live qrlInstance and network selection — and
   // without QrlStore taking a direct dependency on the other stores.
@@ -155,7 +160,9 @@ class QrlStore {
       _utils: false,
       _Web3: false,
       _receiptPollerIntervalId: false,
+      _desktopUnlockListenerBound: false,
       cancelReceiptPoller: false,
+      hydrateDesktopWalletsFromSigner: false,
       // Callback hooks injected by Store — not observable.
       onBlockchainReady: false,
       onActiveAccountChanged: false,
@@ -259,6 +266,10 @@ class QrlStore {
       });
 
       await this.fetchQrlConnection();
+      // Desktop: reconcile the account list against the signer (source of
+      // truth for which wallets exist) BEFORE fetchAccounts reads the list,
+      // so a wallet the signer can unlock is never shown as "0 wallets".
+      if (isDesktop) await this.hydrateDesktopWalletsFromSigner();
       await this.fetchAccounts();
       this.fetchQrlPrice(); // Fire-and-forget, non-blocking
       await this.validateActiveAccount();
@@ -373,6 +384,67 @@ class QrlStore {
       runInAction(() => {
         this.qrlConnection = { ...this.qrlConnection, isLoading: false };
       });
+    }
+  }
+
+  /**
+   * Desktop: reconcile the renderer's account list with the signer's wallets.
+   *
+   * The signer (encrypted seed files on disk) is the source of truth for which
+   * wallets exist; the renderer's localStorage list is only written during the
+   * in-renderer import/create flow, so the two can diverge (localStorage
+   * cleared, a wallet provisioned in another session, a per-network list
+   * mismatch), which would strand a real wallet behind the empty "Let's start"
+   * screen even though the native unlock window can open it.
+   *
+   * listWallets returns addresses only (no decryption), so this works even
+   * while the signer is locked at startup. Also registers, once, a lock-state
+   * listener that re-runs on unlock (covering wallets added/removed in-session
+   * and any main that gates listWallets behind an open session). Best-effort:
+   * any bridge failure leaves the localStorage list untouched.
+   */
+  async hydrateDesktopWalletsFromSigner(): Promise<void> {
+    if (!isDesktop) return;
+
+    if (!this._desktopUnlockListenerBound) {
+      this._desktopUnlockListenerBound = true;
+      desktopSigner.onLockStateChanged((locked) => {
+        if (locked) return;
+        void this.hydrateDesktopWalletsFromSigner().then(() => this.fetchAccounts());
+      });
+    }
+
+    let signerAddresses: string[] = [];
+    let signerActive: string | null = null;
+    try {
+      const { wallets, active } = await desktopSigner.listWallets();
+      signerAddresses = (wallets ?? []).map((w) => w.address);
+      signerActive = active;
+    } catch {
+      // Older mains may not implement listWallets: fall back to the single
+      // active address from getStatus.
+      try {
+        const status = await desktopSigner.getStatus();
+        if (status.address) signerAddresses = [status.address];
+        signerActive = status.activeAddress ?? status.address ?? null;
+      } catch (error) {
+        console.error('Desktop wallet hydration failed:', error);
+        return;
+      }
+    }
+    if (signerAddresses.length === 0) return;
+
+    const blockchain = this.qrlConnection.blockchain;
+    const stored = await StorageUtil.getAccountList(blockchain);
+    const { list, added } = mergeSignerWalletsIntoList(stored, signerAddresses);
+    if (added) await StorageUtil.setAccountList(blockchain, list);
+
+    // Adopt an active wallet only when the renderer has none, so we never
+    // override a selection the user already made.
+    const storedActive = await StorageUtil.getActiveAccount(blockchain);
+    if (!storedActive) {
+      const adopt = pickActiveWallet(signerAddresses, signerActive);
+      if (adopt) await StorageUtil.setActiveAccount(blockchain, adopt);
     }
   }
 
