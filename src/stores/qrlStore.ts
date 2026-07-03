@@ -408,18 +408,37 @@ class QrlStore {
 
     if (!this._desktopUnlockListenerBound) {
       this._desktopUnlockListenerBound = true;
-      desktopSigner.onLockStateChanged((locked) => {
-        if (locked) return;
-        // Re-run the FULL init sequence for the list: hydrate, refetch, then
-        // validateActiveAccount, which is the only thing that copies the
-        // stored active account into the activeAccount observable the Home
-        // screen gates on. Without it, a first hydration that found nothing
-        // (signer mid-restart at boot) would populate the list on unlock but
-        // still show the "Let's start" onboarding card until an app restart.
-        void this.hydrateDesktopWalletsFromSigner()
-          .then(() => this.fetchAccounts())
-          .then(() => this.validateActiveAccount());
-      });
+      try {
+        desktopSigner.onLockStateChanged((locked) => {
+          if (locked) return;
+          // Re-run the FULL init sequence for the list: hydrate, refetch, then
+          // validateActiveAccount, which is the only thing that copies the
+          // stored active account into the activeAccount observable the Home
+          // screen gates on. Without it, a first hydration that found nothing
+          // (signer mid-restart at boot) would populate the list on unlock but
+          // still show the "Let's start" onboarding card until an app restart.
+          void this.hydrateDesktopWalletsFromSigner()
+            .then(() => this.fetchAccounts())
+            .then(async () => {
+              const before = this.activeAccount.accountAddress;
+              await this.validateActiveAccount();
+              const after = this.activeAccount.accountAddress;
+              // Adoption on this path changes the active account outside
+              // setActiveAccount, and TokenStore/NftStore are purely
+              // hook-driven: fire the same hook so token/NFT state re-scopes
+              // to the adopted account instead of staying on the boot-time
+              // (possibly empty) scope.
+              if (after && after !== before) await this.onActiveAccountChanged?.(after);
+            })
+            .catch((error: unknown) => {
+              console.error('Desktop unlock re-hydration failed:', error);
+            });
+        });
+      } catch (error) {
+        // A shell predating onLockStateChanged must not abort blockchain init;
+        // the one-shot hydration below still runs.
+        console.error('Desktop lock-state listener unavailable:', error);
+      }
     }
 
     let signerAddresses: string[] = [];
@@ -463,8 +482,13 @@ class QrlStore {
           // Store the address exactly as it appears in the merged list, so the
           // strict-equality check in validateActiveAccount matches it (a
           // pre-existing entry may hold a different casing than the signer's).
+          // Same malformed-entry tolerance as mergeSignerWalletsIntoList: a
+          // stored entry without a string address must not throw here, or the
+          // adoption is silently lost on every run.
           const canonical =
-            list.find((a) => a.address.toLowerCase() === adopt.toLowerCase())?.address ?? adopt;
+            list.find(
+              (a) => typeof a?.address === 'string' && a.address.toLowerCase() === adopt.toLowerCase(),
+            )?.address ?? adopt;
           await StorageUtil.setActiveAccount(blockchain, canonical);
         }
       }
