@@ -605,10 +605,30 @@ const DAppApprovalModal = observer(() => {
 
   return (
     <Dialog open={approvalModalOpen} onOpenChange={(open) => {
-      if (!open && !isTxInProgress) handleReject();
-      if (!open && isTxTerminal) handleDone();
+      if (open) return;
+      // Ignore any close while a signing/broadcast is in flight: the request
+      // must resolve first. Answering the dApp with a rejection here would
+      // race the desktop's trusted confirm, which can still approve and
+      // produce a signature for an already-rejected request.
+      if (loading) return;
+      if (isTxTerminal) {
+        handleDone();
+        return;
+      }
+      if (isTxInProgress) return;
+      // An explicit close (the X button) IS an answer: reject, so the dApp is
+      // never left hanging on a dismissed card.
+      handleReject();
     }}>
-      <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
+      {/* A pending approval demands an explicit answer (Approve / Reject / X).
+          Stray clicks elsewhere in the wallet and Escape must not dismiss the
+          card: silently swallowing the decision is how requests get answered
+          by accident or left dangling. */}
+      <DialogContent
+        className="max-w-md p-0 gap-0 overflow-hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         {/* dApp Identity Header */}
         <div className="bg-gradient-to-r from-secondary/5 to-transparent p-4">
           <div className="flex items-center gap-3">
