@@ -410,7 +410,15 @@ class QrlStore {
       this._desktopUnlockListenerBound = true;
       desktopSigner.onLockStateChanged((locked) => {
         if (locked) return;
-        void this.hydrateDesktopWalletsFromSigner().then(() => this.fetchAccounts());
+        // Re-run the FULL init sequence for the list: hydrate, refetch, then
+        // validateActiveAccount, which is the only thing that copies the
+        // stored active account into the activeAccount observable the Home
+        // screen gates on. Without it, a first hydration that found nothing
+        // (signer mid-restart at boot) would populate the list on unlock but
+        // still show the "Let's start" onboarding card until an app restart.
+        void this.hydrateDesktopWalletsFromSigner()
+          .then(() => this.fetchAccounts())
+          .then(() => this.validateActiveAccount());
       });
     }
 
@@ -434,17 +442,34 @@ class QrlStore {
     }
     if (signerAddresses.length === 0) return;
 
-    const blockchain = this.qrlConnection.blockchain;
-    const stored = await StorageUtil.getAccountList(blockchain);
-    const { list, added } = mergeSignerWalletsIntoList(stored, signerAddresses);
-    if (added) await StorageUtil.setAccountList(blockchain, list);
+    // Storage reconcile is best-effort and MUST NOT throw: this method runs
+    // inside initializeBlockchain's try, so an uncaught throw here (e.g. a
+    // corrupt stored account list entry, or a localStorage quota error) would
+    // skip fetchAccounts, validateActiveAccount, and token/NFT init. Contain
+    // it so a hydration failure only loses the reconcile, never the rest of
+    // blockchain init.
+    try {
+      const blockchain = this.qrlConnection.blockchain;
+      const stored = await StorageUtil.getAccountList(blockchain);
+      const { list, added } = mergeSignerWalletsIntoList(stored, signerAddresses);
+      if (added) await StorageUtil.setAccountList(blockchain, list);
 
-    // Adopt an active wallet only when the renderer has none, so we never
-    // override a selection the user already made.
-    const storedActive = await StorageUtil.getActiveAccount(blockchain);
-    if (!storedActive) {
-      const adopt = pickActiveWallet(signerAddresses, signerActive);
-      if (adopt) await StorageUtil.setActiveAccount(blockchain, adopt);
+      // Adopt an active wallet only when the renderer has none, so we never
+      // override a selection the user already made.
+      const storedActive = await StorageUtil.getActiveAccount(blockchain);
+      if (!storedActive) {
+        const adopt = pickActiveWallet(signerAddresses, signerActive);
+        if (adopt) {
+          // Store the address exactly as it appears in the merged list, so the
+          // strict-equality check in validateActiveAccount matches it (a
+          // pre-existing entry may hold a different casing than the signer's).
+          const canonical =
+            list.find((a) => a.address.toLowerCase() === adopt.toLowerCase())?.address ?? adopt;
+          await StorageUtil.setActiveAccount(blockchain, canonical);
+        }
+      }
+    } catch (error) {
+      console.error('Desktop wallet hydration: storage reconcile failed:', error);
     }
   }
 

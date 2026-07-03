@@ -61,6 +61,18 @@ describe('mergeSignerWalletsIntoList', () => {
     mergeSignerWalletsIntoList(stored, [B]);
     expect(stored).toEqual([{ address: A, source: 'seed' }]);
   });
+
+  it('tolerates a malformed stored entry (no throw) and still merges', () => {
+    // localStorage is unvalidated: an entry missing address must not blow up
+    // the whole reconcile. It is preserved verbatim; the new wallet is added.
+    // Built via JSON.parse so the malformed shape is a genuine runtime value
+    // (not a compile-time cast the hardened lint bans).
+    const stored = JSON.parse(`[{"source":"seed"},{"address":"${A}","source":"seed"}]`) as AccountListItem[];
+    const { list, added } = mergeSignerWalletsIntoList(stored, [B]);
+    expect(added).toBe(true);
+    expect(list).toHaveLength(3);
+    expect(list[2]).toEqual({ address: B, source: 'seed' });
+  });
 });
 
 describe('pickActiveWallet', () => {
