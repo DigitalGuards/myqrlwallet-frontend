@@ -26,6 +26,8 @@ import {
   computeMessageDigest,
   computeTypedDataDigest,
   hexToBytes,
+  SCHEME_VERSION_MSG,
+  SCHEME_VERSION_TYPED,
   signMessage,
   signTypedData,
   SignMessageParamsSchema,
@@ -386,11 +388,20 @@ const DAppApprovalModal = observer(() => {
           return;
         }
         // Desktop: sign in the isolated signer (its own trusted modal); no PIN,
-        // no seed in the renderer.
+        // no seed in the renderer. The active address rides along so the
+        // signer can reject if its session diverged from renderer state, and
+        // the response is reshaped to the same rich object the web path
+        // returns (the dApp must not see the bridge-internal `kind`).
         if (isDesktop) {
           try {
-            const result = await desktopSigner.signMessage(messageHex, dappOrigin);
-            dappConnectStore.approveCurrentRequest(result);
+            const result = await desktopSigner.signMessage(messageHex, activeAddress, dappOrigin);
+            dappConnectStore.approveCurrentRequest({
+              signature: result.signature,
+              publicKey: result.publicKey,
+              signer: result.signer,
+              digest: result.digest,
+              schemeVersion: result.schemeVersion ?? SCHEME_VERSION_MSG,
+            });
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
             setError(`Message signing failed: ${errMsg}`);
@@ -445,11 +456,19 @@ const DAppApprovalModal = observer(() => {
         }
         // Desktop: typed-data signing is not yet supported in the signer (the
         // hasher has not been ported). Surface a clear error instead of any
-        // in-renderer fallback.
+        // in-renderer fallback. Same signer binding + response reshaping as
+        // the message arm, so this is already correct when the hasher lands.
         if (isDesktop) {
           try {
-            const result = await desktopSigner.signTypedData(payload, dappOrigin);
-            dappConnectStore.approveCurrentRequest(result);
+            const result = await desktopSigner.signTypedData(payload, activeAddress, dappOrigin);
+            dappConnectStore.approveCurrentRequest({
+              signature: result.signature,
+              publicKey: result.publicKey,
+              signer: result.signer,
+              digest: result.digest,
+              schemeVersion: result.schemeVersion ?? SCHEME_VERSION_TYPED,
+              domain: payload.domain,
+            });
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
             setError('Typed-data signing not yet supported on desktop');
