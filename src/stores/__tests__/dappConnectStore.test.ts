@@ -243,18 +243,44 @@ describe('approval queue passthrough', () => {
     expect(mockService.rejectRequest).toHaveBeenCalledWith('session-1', 1, 'User rejected', undefined);
   });
 
-  it('sendApprovalResult keeps the modal open (progress UI)', () => {
+  it('sendApprovalResultById keeps the modal open (progress UI)', () => {
     const store = new DAppConnectStore();
     const req = makeRequest();
     store.pendingRequests = [req];
     store.currentApproval = req;
     store.approvalModalOpen = true;
 
-    store.sendApprovalResult('0xhash');
+    store.sendApprovalResultById(req.sessionId, req.id, '0xhash');
 
     expect(mockService.approveRequest).toHaveBeenCalledWith('session-1', 1, '0xhash');
     expect(store.currentApproval?.id).toBe(req.id);
     expect(store.approvalModalOpen).toBe(true);
+  });
+
+  it('approveRequestById answers the captured request, not the promoted one', () => {
+    // The wrong-request race: request A is approved, its async signing is in
+    // flight, A's session disconnects and request B becomes current. The
+    // resolution must answer A (already gone) and leave B untouched.
+    const store = new DAppConnectStore();
+    const reqA = makeRequest();
+    const reqB = { ...makeRequest(), id: 2, sessionId: 'session-2' };
+    store.pendingRequests = [reqA, reqB];
+    store.currentApproval = reqA;
+    store.approvalModalOpen = true;
+
+    // Captured before the await (what the modal does).
+    const { sessionId, id } = reqA;
+
+    // Session A dies mid-flight; B is promoted.
+    store.pendingRequests = [reqB];
+    store.currentApproval = reqB;
+
+    store.approveRequestById(sessionId, id, '0xsig');
+
+    expect(mockService.approveRequest).toHaveBeenCalledWith('session-1', 1, '0xsig');
+    expect(store.currentApproval?.id).toBe(reqB.id);
+    expect(store.approvalModalOpen).toBe(true);
+    expect(store.pendingRequests).toEqual([reqB]);
   });
 
   it('is a no-op with no current approval', () => {
