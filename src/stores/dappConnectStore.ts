@@ -140,66 +140,62 @@ class DAppConnectStore {
   /** Approve the current request with a result */
   approveCurrentRequest(result: unknown): void {
     if (!this.currentApproval) return;
-
-    dappConnectService.approveRequest(
-      this.currentApproval.sessionId,
-      this.currentApproval.id,
-      result
-    );
-
-    this.removeCurrentApproval();
+    this.approveRequestById(this.currentApproval.sessionId, this.currentApproval.id, result);
   }
 
   /** Reject the current request */
   rejectCurrentRequest(message?: string, code?: number): void {
     if (!this.currentApproval) return;
+    this.rejectRequestById(this.currentApproval.sessionId, this.currentApproval.id, message, code);
+  }
 
-    dappConnectService.rejectRequest(
-      this.currentApproval.sessionId,
-      this.currentApproval.id,
-      message,
-      code
-    );
+  /**
+   * Answer a SPECIFIC request. Async approval flows resolve after awaits (PIN
+   * unlock, desktop trusted confirm, broadcast) during which currentApproval
+   * can change (a session disconnect promotes the next pending request), so
+   * answering "the current request" at resolution time can route a result to
+   * a different dApp request than the one the user approved. Callers that
+   * await MUST capture {sessionId, id} before the first await and answer
+   * through these.
+   */
+  approveRequestById(sessionId: string, id: string | number, result: unknown): void {
+    dappConnectService.approveRequest(sessionId, id, result);
+    this.removeApproval(sessionId, id);
+  }
 
-    this.removeCurrentApproval();
+  /** Reject a SPECIFIC request; see {@link approveRequestById}. */
+  rejectRequestById(sessionId: string, id: string | number, message?: string, code?: number): void {
+    dappConnectService.rejectRequest(sessionId, id, message, code);
+    this.removeApproval(sessionId, id);
   }
 
   /** Send approval result to dApp without closing the modal (for progress UI) */
-  sendApprovalResult(result: unknown): void {
-    if (!this.currentApproval) return;
-    dappConnectService.approveRequest(
-      this.currentApproval.sessionId,
-      this.currentApproval.id,
-      result
-    );
+  sendApprovalResultById(sessionId: string, id: string | number, result: unknown): void {
+    dappConnectService.approveRequest(sessionId, id, result);
   }
 
   /** Send rejection to dApp without closing the modal (for progress UI) */
-  sendRejectionResult(message?: string): void {
-    if (!this.currentApproval) return;
-    dappConnectService.rejectRequest(
-      this.currentApproval.sessionId,
-      this.currentApproval.id,
-      message
-    );
+  sendRejectionResultById(sessionId: string, id: string | number, message?: string): void {
+    dappConnectService.rejectRequest(sessionId, id, message);
   }
 
   /** Dismiss the current approval after tx progress is done (called from "Done"/"Close" button) */
   dismissCurrentApproval(): void {
-    this.removeCurrentApproval();
+    if (!this.currentApproval) return;
+    this.removeApproval(this.currentApproval.sessionId, this.currentApproval.id);
   }
 
-  /** Remove the current approval and show the next one if any */
-  private removeCurrentApproval(): void {
-    if (!this.currentApproval) return;
-
-    this.resetTxProgress();
-
-    const { id: currentId, sessionId: currentSessionId } = this.currentApproval;
+  /** Drop one request from the queue; promote the next when it was current. */
+  private removeApproval(sessionId: string, id: string | number): void {
     this.pendingRequests = this.pendingRequests.filter(
-      (r) => !(r.id === currentId && r.sessionId === currentSessionId)
+      (r) => !(r.id === id && r.sessionId === sessionId)
     );
 
+    const wasCurrent =
+      this.currentApproval?.id === id && this.currentApproval.sessionId === sessionId;
+    if (!wasCurrent) return;
+
+    this.resetTxProgress();
     if (this.pendingRequests.length > 0) {
       this.currentApproval = this.pendingRequests[0] ?? null;
     } else {
@@ -220,11 +216,6 @@ class DAppConnectStore {
     this.txProgress = 'idle';
     this.txHash = null;
     this.txError = null;
-  }
-
-  /** Close the approval modal without approving/rejecting */
-  closeApprovalModal(): void {
-    this.approvalModalOpen = false;
   }
 
   /** Disconnect a specific dApp session */

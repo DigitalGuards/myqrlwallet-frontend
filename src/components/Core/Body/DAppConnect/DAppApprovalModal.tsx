@@ -3,7 +3,7 @@
  * Single source of truth for all dApp request approvals.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { toJS } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '@/stores/store';
@@ -26,6 +26,8 @@ import {
   computeMessageDigest,
   computeTypedDataDigest,
   hexToBytes,
+  SCHEME_VERSION_MSG,
+  SCHEME_VERSION_TYPED,
   signMessage,
   signTypedData,
   SignMessageParamsSchema,
@@ -121,6 +123,15 @@ const DAppApprovalModal = observer(() => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // When the current approval changes (a queued request gets promoted after
+  // the previous one is answered), briefly ignore dismissals: a double-click
+  // on the X must not reject a request the user never saw rendered.
+  const approvalShownAtRef = useRef(0);
+  const approvalKey = currentApproval ? `${currentApproval.sessionId}:${currentApproval.id}` : '';
+  useEffect(() => {
+    approvalShownAtRef.current = Date.now();
+  }, [approvalKey]);
+
   const blockchain = qrlStore.qrlConnection.blockchain;
 
   const handleApprove = useCallback(async () => {
@@ -128,6 +139,12 @@ const DAppApprovalModal = observer(() => {
 
     setError('');
     setLoading(true);
+
+    // Answer THIS request, never "whatever is current when an await resolves":
+    // a session disconnect promotes the next queued request while PIN unlock,
+    // the desktop trusted confirm, or a broadcast is in flight, and answering
+    // the live currentApproval would route this result to that other request.
+    const { sessionId: approvalSessionId, id: approvalId } = currentApproval;
 
     try {
       const { method } = currentApproval;
@@ -150,7 +167,7 @@ const DAppApprovalModal = observer(() => {
 
       if (method === 'qrl_requestAccounts') {
         const activeAddress = qrlStore.activeAccount?.accountAddress;
-        dappConnectStore.approveCurrentRequest(activeAddress ? [activeAddress] : []);
+        dappConnectStore.approveRequestById(approvalSessionId, approvalId, activeAddress ? [activeAddress] : []);
         setPin('');
         return;
       }
@@ -163,14 +180,14 @@ const DAppApprovalModal = observer(() => {
         // flipping renderer state; 4901 would falsely signal a transient
         // provider disconnect and invite reconnect loops.
         if (isDesktop) {
-          dappConnectStore.rejectCurrentRequest(
+          dappConnectStore.rejectRequestById(approvalSessionId, approvalId, 
             'The desktop wallet is pinned to its configured chain',
             4902,
           );
           setPin('');
           return;
         }
-        dappConnectStore.approveCurrentRequest(null);
+        dappConnectStore.approveRequestById(approvalSessionId, approvalId, null);
         setPin('');
         return;
       }
@@ -205,7 +222,7 @@ const DAppApprovalModal = observer(() => {
                 },
                 dappOrigin,
               );
-              dappConnectStore.approveCurrentRequest(rawTx);
+              dappConnectStore.approveRequestById(approvalSessionId, approvalId, rawTx);
               dappConnectStore.resetTxProgress();
               setLoading(false);
               return;
@@ -221,14 +238,14 @@ const DAppApprovalModal = observer(() => {
               dappOrigin,
             );
             dappConnectStore.setTxProgress('confirmed', transactionHash);
-            dappConnectStore.sendApprovalResult(transactionHash);
+            dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, transactionHash);
             setLoading(false);
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
             console.log('[DAppConnect] desktop tx error:', errMsg);
             const userError = toUserFacingError(errMsg);
             dappConnectStore.setTxProgress('failed', undefined, userError);
-            dappConnectStore.sendRejectionResult(`Transaction failed: ${userError}`);
+            dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, `Transaction failed: ${userError}`);
             setLoading(false);
           }
           return;
@@ -260,7 +277,7 @@ const DAppApprovalModal = observer(() => {
             // Non-recoverable (e.g. no stored seed). Answer the dApp so its
             // request does not hang, then show the terminal failed state.
             dappConnectStore.setTxProgress('failed', undefined, unlocked.error);
-            dappConnectStore.sendRejectionResult(unlocked.error);
+            dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, unlocked.error);
           }
           setLoading(false);
           return;
@@ -272,7 +289,7 @@ const DAppApprovalModal = observer(() => {
         if (!web3) {
           setError('Web3 not initialized');
           dappConnectStore.setTxProgress('failed', undefined, 'Web3 not initialized');
-          dappConnectStore.sendRejectionResult('Web3 not initialized');
+          dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, 'Web3 not initialized');
           setLoading(false);
           return;
         }
@@ -317,13 +334,13 @@ const DAppApprovalModal = observer(() => {
 
         if (!signedTx.rawTransaction) {
           dappConnectStore.setTxProgress('failed', undefined, 'Failed to sign transaction');
-          dappConnectStore.sendRejectionResult('Failed to sign transaction');
+          dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, 'Failed to sign transaction');
           setLoading(false);
           return;
         }
 
         if (method === 'qrl_signTransaction') {
-          dappConnectStore.approveCurrentRequest(signedTx.rawTransaction);
+          dappConnectStore.approveRequestById(approvalSessionId, approvalId, signedTx.rawTransaction);
           setPin('');
           setLoading(false);
           return;
@@ -344,7 +361,7 @@ const DAppApprovalModal = observer(() => {
                 : String(receipt.transactionHash);
               dappConnectStore.setTxProgress('confirmed', hash);
               // Send result to dApp but keep modal open to show confirmed state
-              dappConnectStore.sendApprovalResult(hash);
+              dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, hash);
               setPin('');
               setLoading(false);
               resolve();
@@ -357,7 +374,7 @@ const DAppApprovalModal = observer(() => {
               console.log('[DAppConnect] tx broadcast error:', txErrMsg);
               const userError = toUserFacingError(txErrMsg);
               dappConnectStore.setTxProgress('failed', undefined, userError);
-              dappConnectStore.sendRejectionResult(`Transaction failed: ${userError}`);
+              dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, `Transaction failed: ${userError}`);
               setPin('');
               setLoading(false);
               resolve();
@@ -386,15 +403,24 @@ const DAppApprovalModal = observer(() => {
           return;
         }
         // Desktop: sign in the isolated signer (its own trusted modal); no PIN,
-        // no seed in the renderer.
+        // no seed in the renderer. The active address rides along so the
+        // signer can reject if its session diverged from renderer state, and
+        // the response is reshaped to the same rich object the web path
+        // returns (the dApp must not see the bridge-internal `kind`).
         if (isDesktop) {
           try {
-            const result = await desktopSigner.signMessage(messageHex, dappOrigin);
-            dappConnectStore.approveCurrentRequest(result);
+            const result = await desktopSigner.signMessage(messageHex, activeAddress, dappOrigin);
+            dappConnectStore.approveRequestById(approvalSessionId, approvalId, {
+              signature: result.signature,
+              publicKey: result.publicKey,
+              signer: result.signer,
+              digest: result.digest,
+              schemeVersion: result.schemeVersion ?? SCHEME_VERSION_MSG,
+            });
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
             setError(`Message signing failed: ${errMsg}`);
-            dappConnectStore.rejectCurrentRequest(`Message signing failed: ${errMsg}`);
+            dappConnectStore.rejectRequestById(approvalSessionId, approvalId, `Message signing failed: ${errMsg}`);
           }
           setLoading(false);
           return;
@@ -409,14 +435,14 @@ const DAppApprovalModal = observer(() => {
         }
         try {
           const result = signMessage(messageHex, unlocked.hexSeed);
-          dappConnectStore.approveCurrentRequest(result);
+          dappConnectStore.approveRequestById(approvalSessionId, approvalId, result);
         } catch (e) {
           // Reject the dApp on a signing failure instead of relying on the
           // outer catch, so the error message is specific and the request is
           // always answered (never left hanging).
           const errMsg = e instanceof Error ? e.message : String(e);
           setError(`Message signing failed: ${errMsg}`);
-          dappConnectStore.rejectCurrentRequest(`Message signing failed: ${errMsg}`);
+          dappConnectStore.rejectRequestById(approvalSessionId, approvalId, `Message signing failed: ${errMsg}`);
           setLoading(false);
           return;
         }
@@ -445,15 +471,23 @@ const DAppApprovalModal = observer(() => {
         }
         // Desktop: typed-data signing is not yet supported in the signer (the
         // hasher has not been ported). Surface a clear error instead of any
-        // in-renderer fallback.
+        // in-renderer fallback. Same signer binding + response reshaping as
+        // the message arm, so this is already correct when the hasher lands.
         if (isDesktop) {
           try {
-            const result = await desktopSigner.signTypedData(payload, dappOrigin);
-            dappConnectStore.approveCurrentRequest(result);
+            const result = await desktopSigner.signTypedData(payload, activeAddress, dappOrigin);
+            dappConnectStore.approveRequestById(approvalSessionId, approvalId, {
+              signature: result.signature,
+              publicKey: result.publicKey,
+              signer: result.signer,
+              digest: result.digest,
+              schemeVersion: result.schemeVersion ?? SCHEME_VERSION_TYPED,
+              domain: payload.domain,
+            });
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
             setError('Typed-data signing not yet supported on desktop');
-            dappConnectStore.rejectCurrentRequest(
+            dappConnectStore.rejectRequestById(approvalSessionId, approvalId, 
               `Typed-data signing not yet supported on desktop: ${errMsg}`,
             );
           }
@@ -470,13 +504,13 @@ const DAppApprovalModal = observer(() => {
         }
         try {
           const result = signTypedData(payload, unlocked.hexSeed);
-          dappConnectStore.approveCurrentRequest(result);
+          dappConnectStore.approveRequestById(approvalSessionId, approvalId, result);
         } catch (e) {
           // Reject the dApp on encode/sign failure so its request is answered
           // rather than left hanging until its own timeout.
           const errMsg = e instanceof Error ? e.message : String(e);
           setError(`Typed data signing failed: ${errMsg}`);
-          dappConnectStore.rejectCurrentRequest(`Typed data signing failed: ${errMsg}`);
+          dappConnectStore.rejectRequestById(approvalSessionId, approvalId, `Typed data signing failed: ${errMsg}`);
           setLoading(false);
           return;
         }
@@ -485,7 +519,7 @@ const DAppApprovalModal = observer(() => {
       }
 
       // Default: approve with null
-      dappConnectStore.approveCurrentRequest(null);
+      dappConnectStore.approveRequestById(approvalSessionId, approvalId, null);
       setPin('');
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -500,9 +534,9 @@ const DAppApprovalModal = observer(() => {
         if (isTxMethod && dappConnectStore.txProgress !== 'idle') {
           // Keep modal open to show failed state
           dappConnectStore.setTxProgress('failed', undefined, userError);
-          dappConnectStore.sendRejectionResult(userError);
+          dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, userError);
         } else {
-          dappConnectStore.rejectCurrentRequest(userError);
+          dappConnectStore.rejectRequestById(approvalSessionId, approvalId, userError);
         }
       }
     } finally {
@@ -586,10 +620,31 @@ const DAppApprovalModal = observer(() => {
 
   return (
     <Dialog open={approvalModalOpen} onOpenChange={(open) => {
-      if (!open && !isTxInProgress) handleReject();
-      if (!open && isTxTerminal) handleDone();
+      if (open) return;
+      // Ignore any close while a signing/broadcast is in flight: the request
+      // must resolve first. Answering the dApp with a rejection here would
+      // race the desktop's trusted confirm, which can still approve and
+      // produce a signature for an already-rejected request.
+      if (loading) return;
+      if (isTxTerminal) {
+        handleDone();
+        return;
+      }
+      if (isTxInProgress) return;
+      if (Date.now() - approvalShownAtRef.current < 350) return;
+      // An explicit close (the X button) IS an answer: reject, so the dApp is
+      // never left hanging on a dismissed card.
+      handleReject();
     }}>
-      <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
+      {/* A pending approval demands an explicit answer (Approve / Reject / X).
+          Stray clicks elsewhere in the wallet and Escape must not dismiss the
+          card: silently swallowing the decision is how requests get answered
+          by accident or left dangling. */}
+      <DialogContent
+        className="max-w-md p-0 gap-0 overflow-hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         {/* dApp Identity Header */}
         <div className="bg-gradient-to-r from-secondary/5 to-transparent p-4">
           <div className="flex items-center gap-3">

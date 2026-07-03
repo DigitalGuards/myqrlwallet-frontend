@@ -66,6 +66,8 @@ export interface SignatureResult {
   publicKey?: string;
   signer: string;
   digest?: string;
+  /** Scheme identifier for message/typedData (e.g. "QRL-SIGN-MSG-v1"). */
+  schemeVersion?: string;
   /** Present for `kind: 'transaction'`: the broadcast-ready signed payload. */
   rawTransaction?: string;
 }
@@ -85,11 +87,16 @@ export interface DAppOriginMeta {
   channelId: string;
 }
 
-/** Discriminated union of signature requests sent to the signer. */
+/**
+ * Discriminated union of signature requests sent to the signer. `signer` on
+ * the message/typedData arms names the account the caller intends to sign
+ * with; the desktop signer rejects the request when it differs from the
+ * unlocked session (transactions carry the same binding via tx.from).
+ */
 export type SignatureRequest =
   | { kind: 'transaction'; tx: UnsignedTransaction; origin?: DAppOriginMeta }
-  | { kind: 'message'; messageHex: string; origin?: DAppOriginMeta }
-  | { kind: 'typedData'; payload: unknown; origin?: DAppOriginMeta };
+  | { kind: 'message'; messageHex: string; signer: string; origin?: DAppOriginMeta }
+  | { kind: 'typedData'; payload: unknown; signer: string; origin?: DAppOriginMeta };
 
 export interface CreateWalletResult {
   status: WalletStatus;
@@ -350,18 +357,32 @@ export const desktopSigner = {
     return signed.rawTransaction;
   },
 
-  /** Sign a hex-encoded message via the signer's trusted modal. */
-  async signMessage(messageHex: string, origin?: DAppOriginMeta): Promise<SignatureResult> {
-    return qrlWallet().requestSignature({ kind: 'message', messageHex, origin });
+  /**
+   * Sign a hex-encoded message via the signer's trusted modal. `signer` is the
+   * account the caller intends to sign with; the desktop signer rejects the
+   * request when it differs from the unlocked session, so a renderer/signer
+   * account divergence can never yield a signature from the wrong key.
+   */
+  async signMessage(
+    messageHex: string,
+    signer: string,
+    origin?: DAppOriginMeta,
+  ): Promise<SignatureResult> {
+    return qrlWallet().requestSignature({ kind: 'message', messageHex, signer, origin });
   },
 
   /**
    * Sign typed data. The signer currently THROWS (hasher not yet ported), so
    * callers should surface a clear "not yet supported on desktop" error rather
-   * than falling back to an in-renderer signer.
+   * than falling back to an in-renderer signer. Carries the same signer
+   * binding as signMessage.
    */
-  async signTypedData(payload: unknown, origin?: DAppOriginMeta): Promise<SignatureResult> {
-    return qrlWallet().requestSignature({ kind: 'typedData', payload, origin });
+  async signTypedData(
+    payload: unknown,
+    signer: string,
+    origin?: DAppOriginMeta,
+  ): Promise<SignatureResult> {
+    return qrlWallet().requestSignature({ kind: 'typedData', payload, signer, origin });
   },
 
   /**
