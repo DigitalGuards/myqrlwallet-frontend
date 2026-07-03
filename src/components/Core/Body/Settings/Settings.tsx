@@ -33,7 +33,6 @@ import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { decryptSeedAsync, reEncryptSeedAsync } from "@/utils/crypto";
 import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
 import { isDesktop } from "@/desktop/bridge";
-import { DesktopSettings } from "./DesktopSettings/DesktopSettings";
 import { withSuspense } from "@/utils/react";
 
 // Lazy: pulls the dApp-connect service; only worth loading once the settings
@@ -473,15 +472,12 @@ const Settings = observer(() => {
 
                         {/* dApp session management lives here (the list keeps
                             its own header + actions); the /dapp-sessions route
-                            mounts the same component for deep links. */}
+                            mounts the same component for deep links. Desktop
+                            never reaches this page: its Settings entry opens
+                            the native settings window (see utils/navigation). */}
                         <Card className="border-l-4 border-l-blue-accent">
                             <DAppSessionsList />
                         </Card>
-
-                        {/* Desktop-only settings (wallet removal now, lock
-                            options later) live in their own component instead of
-                            crowding this one. */}
-                        {isDesktop && <DesktopSettings />}
                     </div>
                 </div>
             </div>

@@ -399,16 +399,11 @@ export const desktopSigner = {
     await qrlWallet().dappRequestAttention?.();
   },
 
-  /** True when this desktop shell can draw the native settings window. */
-  hasDesktopSettings(): boolean {
-    return (
-      typeof window !== 'undefined' && typeof window.qrlWallet?.openDesktopSettings === 'function'
-    );
-  },
-
   /**
-   * Show/focus the native desktop settings window. No-op on desktop shells
-   * that predate it (call sites gate on hasDesktopSettings for the UI).
+   * Show/focus the native desktop settings window (the desktop's ONE settings
+   * surface: auto-lock, biometric unlock, protocol handler, remove account).
+   * Mirrors the mobile app's OPEN_NATIVE_SETTINGS. Optional-called so a
+   * renderer paired with an older desktop shell degrades to a no-op.
    */
   async openDesktopSettings(): Promise<void> {
     await qrlWallet().openDesktopSettings?.();

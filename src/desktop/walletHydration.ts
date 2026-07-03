@@ -3,55 +3,83 @@
  *
  * On desktop the SIGNER (its encrypted seed files on disk) is the source of
  * truth for which wallets exist, not the renderer's localStorage account list.
- * The list is only written during the in-renderer import/create flow, so any
- * divergence (localStorage cleared, a wallet provisioned in another session,
- * a per-network list mismatch) leaves the renderer showing "0 wallets" even
- * though the signer can unlock one. qrlStore reconciles by merging the
- * signer's wallet addresses into the account list on startup and on unlock.
+ * The renderer never holds seeds, and every import/create flow routes through
+ * the signer, so any divergence (localStorage cleared, a wallet provisioned in
+ * another session, a wallet REMOVED from the native settings window) is
+ * resolved by reconciling the account list against the signer on startup and
+ * on unlock:
  *
- * This module holds only the pure merge so it is trivially unit-testable; the
- * bridge calls and storage writes live in qrlStore.
+ *   - signer wallets missing from the list are appended (as 'seed' accounts)
+ *   - 'seed' entries whose wallet no longer exists in the signer are dropped
+ *     (this is how a native-window removal reaches the renderer: main reloads
+ *     it and this reconcile erases the ghost account)
+ *   - 'extension' entries and malformed entries are preserved verbatim:
+ *     they are not the signer's to own
+ *
+ * This module holds only the pure reconcile so it is trivially unit-testable;
+ * the bridge calls and storage writes live in qrlStore.
  */
 
 import type { AccountListItem } from '@/utils/storage';
 
 /**
- * Merge the signer's wallet addresses into the renderer's stored account list,
- * preserving existing entries (and their source) and appending any signer
- * wallet the list does not yet know, as a 'seed' account. Address comparison
- * is case-insensitive. Returns the new list and whether anything was added, so
- * the caller can skip the storage write when nothing changed.
+ * Reconcile the renderer's stored account list against the signer's wallet
+ * addresses (see module doc for the rules). Address comparison is
+ * case-insensitive. Returns the new list and whether it differs from the
+ * stored one, so the caller can skip the storage write when nothing changed.
  */
-export function mergeSignerWalletsIntoList(
+export function reconcileSignerWallets(
   stored: AccountListItem[],
   signerAddresses: string[],
-): { list: AccountListItem[]; added: boolean } {
-  // stored comes from localStorage unvalidated; tolerate a malformed entry
-  // (missing/non-string address) rather than throwing out the whole reconcile.
-  // Such entries are preserved verbatim in the list, just not matched against.
+): { list: AccountListItem[]; changed: boolean } {
+  const signerKeys = new Set(
+    signerAddresses.filter((a) => Boolean(a)).map((a) => a.toLowerCase()),
+  );
+
+  // Drop 'seed' entries the signer no longer knows. stored comes from
+  // localStorage unvalidated; tolerate a malformed entry (missing/non-string
+  // address) rather than throwing out the whole reconcile. Such entries are
+  // preserved verbatim, just not matched against.
+  const list = stored.filter((entry) => {
+    if (typeof entry?.address !== 'string') return true;
+    if (entry.source !== 'seed') return true;
+    return signerKeys.has(entry.address.toLowerCase());
+  });
+  let changed = list.length !== stored.length;
+
+  // Append signer wallets the list does not yet know.
   const known = new Set(
-    stored
+    list
       .map((a) => (typeof a?.address === 'string' ? a.address.toLowerCase() : null))
       .filter((k): k is string => k !== null),
   );
-  const list = [...stored];
-  let added = false;
   for (const address of signerAddresses) {
     if (!address) continue;
     const key = address.toLowerCase();
     if (!known.has(key)) {
       list.push({ address, source: 'seed' });
       known.add(key);
-      added = true;
+      changed = true;
     }
   }
-  return { list, added };
+  return { list, changed };
 }
 
 /**
- * Pick which wallet to adopt as active when the renderer has none stored:
- * prefer the signer's own active pointer when it is a real wallet, else the
- * first signer wallet. Returns undefined when there is nothing to adopt.
+ * True when `address` appears in the reconciled list (case-insensitive,
+ * malformed-entry tolerant). Used to detect a stored active account whose
+ * wallet was removed.
+ */
+export function isAddressListed(list: AccountListItem[], address: string): boolean {
+  const key = address.toLowerCase();
+  return list.some((a) => typeof a?.address === 'string' && a.address.toLowerCase() === key);
+}
+
+/**
+ * Pick which wallet to adopt as active when the renderer has none stored (or
+ * its stored one was removed): prefer the signer's own active pointer when it
+ * is a real wallet, else the first signer wallet. Returns undefined when there
+ * is nothing to adopt.
  */
 export function pickActiveWallet(
   signerAddresses: string[],
