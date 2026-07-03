@@ -26,7 +26,14 @@ export function mergeSignerWalletsIntoList(
   stored: AccountListItem[],
   signerAddresses: string[],
 ): { list: AccountListItem[]; added: boolean } {
-  const known = new Set(stored.map((a) => a.address.toLowerCase()));
+  // stored comes from localStorage unvalidated; tolerate a malformed entry
+  // (missing/non-string address) rather than throwing out the whole reconcile.
+  // Such entries are preserved verbatim in the list, just not matched against.
+  const known = new Set(
+    stored
+      .map((a) => (typeof a?.address === 'string' ? a.address.toLowerCase() : null))
+      .filter((k): k is string => k !== null),
+  );
   const list = [...stored];
   let added = false;
   for (const address of signerAddresses) {
