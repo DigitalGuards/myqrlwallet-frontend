@@ -1,4 +1,6 @@
-import { LogOut, Lock, Wallet, ArrowRight, Settings as SettingsIcon } from "lucide-react"
+import { LogOut, Lock, Wallet, ArrowRight, Settings as SettingsIcon, Plug } from "lucide-react"
+import { observer } from "mobx-react-lite"
+import { useStore } from "@/stores/store"
 
 import {
     Sidebar,
@@ -42,9 +44,10 @@ const sidebarItems = [
     },
 ]
 
-export function AppSidebar() {
+export const AppSidebar = observer(function AppSidebar() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { dappConnectStore } = useStore();
     const onLogoutClick = () => {
         handleLogout(navigate);
     };
@@ -95,6 +98,40 @@ export function AppSidebar() {
                                 </SidebarMenuItem>
                                 );
                             })}
+                            {/* Desktop replaces the floating connection banner
+                                with this rail item: connected-dApp count at a
+                                glance, click through to manage sessions. */}
+                            {isDesktop && (() => {
+                                const active = isActive(ROUTES.DAPP_SESSIONS);
+                                const count = dappConnectStore.sessionCount;
+                                return (
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                            onClick={() => navigateTo(ROUTES.DAPP_SESSIONS, navigate)}
+                                            className={cn(
+                                                "flex flex-col justify-evenly items-center gap-1 py-2 h-auto rounded-none border-r-2 border-r-transparent transition-colors",
+                                                "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-secondary",
+                                                active
+                                                    ? "bg-secondary/10 border-r-secondary text-foreground"
+                                                    : "text-muted-foreground hover:text-foreground",
+                                            )}
+                                        >
+                                            <span className="relative">
+                                                <Plug className="!size-8" />
+                                                {count > 0 && (
+                                                    <span
+                                                        aria-label={`${count} connected dApp${count === 1 ? "" : "s"}`}
+                                                        className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-secondary px-1 text-[10px] font-bold leading-none text-secondary-foreground"
+                                                    >
+                                                        {count}
+                                                    </span>
+                                                )}
+                                            </span>
+                                            <span className="block text-xs font-medium">dApps</span>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                );
+                            })()}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
@@ -124,4 +161,4 @@ export function AppSidebar() {
             )}
         </Sidebar>
     )
-}
+})

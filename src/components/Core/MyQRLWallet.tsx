@@ -39,7 +39,10 @@ const MyQRLWallet = observer(() => {
       <RouteMonitor />
       <NativeAppBridge />
       {isDesktop && <DesktopDAppBridge />}
-      <DAppConnectionBanner />
+      {/* Desktop surfaces connections via the sidebar dApps item + Settings
+          instead of a strip floating over the wallet; web/mobile keep the
+          banner as their always-visible affordance. */}
+      {!isDesktop && <DAppConnectionBanner />}
       <DAppApprovalModal />
       {/* <Header /> */}
       <Body />

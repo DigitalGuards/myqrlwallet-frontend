@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Trash2, AlertTriangle } from "lucide-react";
+import { Trash2, AlertTriangle, SlidersHorizontal } from "lucide-react";
 import {
     Card,
     CardContent,
@@ -113,7 +113,38 @@ export const DesktopSettings = () => {
     }
 
     return (
-        <Card className="border-l-4 border-l-destructive">
+        <>
+            {/* Security-relevant desktop options (auto-lock, biometric unlock,
+                protocol handler) are drawn by the main process in a native
+                window the page cannot draw over; this button only asks main to
+                show it. Hidden on desktop shells that predate the window. */}
+            {desktopSigner.hasDesktopSettings() && (
+                <Card className="border-l-4 border-l-blue-accent">
+                    <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
+                        <div className="flex items-center gap-2">
+                            <SlidersHorizontal className="h-6 w-6 text-blue-accent" />
+                            <CardTitle className="text-2xl font-bold">Desktop App Settings</CardTitle>
+                        </div>
+                        <CardDescription>
+                            Auto-lock timeout, biometric unlock, and other desktop-only options
+                            open in a secure native window.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => void desktopSigner.openDesktopSettings()}
+                        >
+                            <SlidersHorizontal className="mr-2 h-4 w-4" />
+                            Open Desktop Settings
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
+
+            <Card className="border-l-4 border-l-destructive">
             <CardHeader className="bg-gradient-to-r from-destructive/5 to-transparent">
                 <div className="flex items-center gap-2">
                     <AlertTriangle className="h-6 w-6 text-destructive" />
@@ -151,6 +182,7 @@ export const DesktopSettings = () => {
                 </p>
             </CardContent>
         </Card>
+        </>
     );
 };
 
