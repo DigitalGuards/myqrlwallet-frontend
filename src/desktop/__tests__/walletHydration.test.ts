@@ -8,7 +8,12 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { isAddressListed, pickActiveWallet, reconcileSignerWallets } from '../walletHydration';
+import {
+  decideActiveAccount,
+  isAddressListed,
+  pickActiveWallet,
+  reconcileSignerWallets,
+} from '../walletHydration';
 import type { AccountListItem } from '@/utils/storage';
 
 const A = 'Q1111111111111111111111111111111111111111';
@@ -129,6 +134,117 @@ describe('isAddressListed', () => {
     const list = JSON.parse(`[{"source":"seed"},{"address":"${A}","source":"seed"}]`) as AccountListItem[];
     expect(isAddressListed(list, B)).toBe(false);
     expect(isAddressListed(list, A)).toBe(true);
+  });
+});
+
+describe('decideActiveAccount', () => {
+  const list: AccountListItem[] = [
+    { address: A, source: 'seed' },
+    { address: B, source: 'seed' },
+  ];
+
+  it('adopts the signer active pointer when the renderer active is a different listed wallet (the send-mismatch bug)', () => {
+    // Signer unlocked B; renderer still points at A. Sending would build
+    // from=A against session=B and the signer rejects it. Adopt B.
+    const d = decideActiveAccount({
+      list,
+      storedActive: A,
+      signerActive: B,
+      signerAddresses: [A, B],
+      authoritative: true,
+    });
+    expect(d).toEqual({ action: 'set', address: B });
+  });
+
+  it('leaves the active account alone when it already matches the signer', () => {
+    const d = decideActiveAccount({
+      list,
+      storedActive: B,
+      signerActive: B,
+      signerAddresses: [A, B],
+      authoritative: true,
+    });
+    expect(d).toEqual({ action: 'none' });
+  });
+
+  it('matches the signer pointer case-insensitively and adopts canonical casing', () => {
+    const d = decideActiveAccount({
+      list,
+      storedActive: B.toLowerCase(),
+      signerActive: B.toLowerCase(),
+      signerAddresses: [A, B],
+      authoritative: true,
+    });
+    // storedActive lower-cases to the same key as the canonical B: no change.
+    expect(d).toEqual({ action: 'none' });
+  });
+
+  it('adopts canonical-cased signer active even when stored differs only by case', () => {
+    const d = decideActiveAccount({
+      list,
+      storedActive: A,
+      signerActive: B.toLowerCase(),
+      signerAddresses: [A, B],
+      authoritative: true,
+    });
+    expect(d).toEqual({ action: 'set', address: B });
+  });
+
+  it('adopts when the renderer has no active account', () => {
+    const d = decideActiveAccount({
+      list,
+      storedActive: null,
+      signerActive: A,
+      signerAddresses: [A, B],
+      authoritative: true,
+    });
+    expect(d).toEqual({ action: 'set', address: A });
+  });
+
+  it('does not adopt a signer pointer that is not a listed wallet (non-authoritative fallback keeps a valid active)', () => {
+    // getStatus fallback: signerActive is some address not in the list; the
+    // renderer active is valid and listed, so leave it.
+    const d = decideActiveAccount({
+      list,
+      storedActive: A,
+      signerActive: C,
+      signerAddresses: [C],
+      authoritative: false,
+    });
+    expect(d).toEqual({ action: 'none' });
+  });
+
+  it('heals a stored active that was removed (authoritative), falling back to a remaining wallet', () => {
+    const d = decideActiveAccount({
+      list: [{ address: A, source: 'seed' }],
+      storedActive: B, // B was removed; not in list
+      signerActive: null,
+      signerAddresses: [A],
+      authoritative: true,
+    });
+    expect(d).toEqual({ action: 'set', address: A });
+  });
+
+  it('clears the active when the last wallet was removed', () => {
+    const d = decideActiveAccount({
+      list: [],
+      storedActive: A,
+      signerActive: null,
+      signerAddresses: [],
+      authoritative: true,
+    });
+    expect(d).toEqual({ action: 'clear' });
+  });
+
+  it('does not drop a stored active on the non-authoritative fallback when signer reports nothing usable', () => {
+    const d = decideActiveAccount({
+      list,
+      storedActive: A,
+      signerActive: null,
+      signerAddresses: [],
+      authoritative: false,
+    });
+    expect(d).toEqual({ action: 'none' });
   });
 });
 
