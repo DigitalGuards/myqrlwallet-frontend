@@ -150,7 +150,7 @@ const DAppSessionsList = observer(() => {
       {activeSessions.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {isDesktop
-            ? 'No dApps connected. Click "Open in QRL Wallet" in a dApp, or paste its connection code above.'
+            ? 'No dApps connected. Click "Open in MyQRLWallet" in a dApp, or paste its connection code above.'
             : 'No dApps connected. Scan a QR code from a dApp to connect.'}
         </p>
       ) : (
