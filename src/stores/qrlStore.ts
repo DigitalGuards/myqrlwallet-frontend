@@ -1,7 +1,7 @@
 import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
-import { isAddressListed, pickActiveWallet, reconcileSignerWallets } from "@/desktop/walletHydration";
+import { decideActiveAccount, reconcileSignerWallets } from "@/desktop/walletHydration";
 import type { AccountListItem, AccountSource } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
@@ -482,31 +482,23 @@ class QrlStore {
       const { list, changed } = reconcileSignerWallets(stored, signerAddresses, authoritative);
       if (changed) await StorageUtil.setAccountList(blockchain, list);
 
-      // Adopt an active wallet when the renderer has none, or heal it when the
-      // stored one no longer exists (its wallet was removed from the native
-      // settings window; authoritative-only, same reasoning as the drop side).
-      // Never override a live selection the user made.
+      // Decide the renderer's active account. On desktop it MUST mirror the
+      // signer's unlocked/selected account (see decideActiveAccount): a send
+      // builds `from` from the renderer active, so a stale one that differs
+      // from the unlocked session is rejected by the signer ("signing account
+      // mismatch"). The decision is a pure, unit-tested helper.
       const storedActive = await StorageUtil.getActiveAccount(blockchain);
-      if (!storedActive || (authoritative && !isAddressListed(list, storedActive))) {
-        const adopt = pickActiveWallet(signerAddresses, signerActive);
-        if (adopt) {
-          // Store the address exactly as it appears in the reconciled list, so
-          // the strict-equality check in validateActiveAccount matches it (a
-          // pre-existing entry may hold a different casing than the signer's).
-          // Same malformed-entry tolerance as reconcileSignerWallets: a stored
-          // entry without a string address must not throw here, or the
-          // adoption is silently lost on every run.
-          const canonical =
-            list.find(
-              (a) => typeof a?.address === 'string' && a.address.toLowerCase() === adopt.toLowerCase(),
-            )?.address ?? adopt;
-          await StorageUtil.setActiveAccount(blockchain, canonical);
-        } else if (storedActive) {
-          // The active wallet is gone and nothing remains to adopt (last
-          // wallet removed): clear the pointer so the UI lands on onboarding
-          // instead of a ghost account.
-          await StorageUtil.clearActiveAccount(blockchain);
-        }
+      const decision = decideActiveAccount({
+        list,
+        storedActive,
+        signerActive,
+        signerAddresses,
+        authoritative,
+      });
+      if (decision.action === 'set') {
+        await StorageUtil.setActiveAccount(blockchain, decision.address);
+      } else if (decision.action === 'clear') {
+        await StorageUtil.clearActiveAccount(blockchain);
       }
     } catch (error) {
       console.error('Desktop wallet hydration: storage reconcile failed:', error);
