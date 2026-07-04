@@ -100,3 +100,62 @@ export function pickActiveWallet(
   }
   return signerAddresses[0];
 }
+
+/** Canonical-case an address as it appears in the reconciled list (so a strict
+ * equality lookup elsewhere matches); returns the input if not listed.
+ * Malformed-entry tolerant. */
+function canonicalOf(list: AccountListItem[], addr: string): string {
+  const key = addr.toLowerCase();
+  return (
+    list.find((a) => typeof a?.address === 'string' && a.address.toLowerCase() === key)?.address ??
+    addr
+  );
+}
+
+/** What the renderer should do with its active-account pointer after a
+ * reconcile. `set` adopts `address`; `clear` wipes it; `none` leaves it. */
+export type ActiveAccountDecision =
+  | { action: 'set'; address: string }
+  | { action: 'clear' }
+  | { action: 'none' };
+
+/**
+ * Decide the renderer's active account after hydrating against the signer.
+ *
+ * On desktop the signer's active pointer IS the account that is unlocked
+ * (every unlock and setActiveWallet calls setActiveAddress) and the ONLY
+ * account that can sign. The renderer active account MUST mirror it, or a send
+ * builds `from` from a stale renderer active that differs from the unlocked
+ * session and the signer rejects it ("signing account mismatch"). So:
+ *
+ *  1. If the signer's active pointer names a real listed wallet and the
+ *     renderer differs, adopt it (the load-bearing sync).
+ *  2. Else, when the renderer has no active or its stored one is no longer
+ *     listed (authoritative removals only), adopt any wallet, or clear if the
+ *     last wallet is gone.
+ *  3. Else leave the renderer active as-is.
+ */
+export function decideActiveAccount(params: {
+  list: AccountListItem[];
+  storedActive: string | null | undefined;
+  signerActive: string | null | undefined;
+  signerAddresses: string[];
+  /** True only when signerAddresses came from an authoritative listWallets. */
+  authoritative: boolean;
+}): ActiveAccountDecision {
+  const { list, storedActive, signerActive, signerAddresses, authoritative } = params;
+  const storedKey = (storedActive ?? '').toLowerCase();
+
+  if (signerActive && isAddressListed(list, signerActive)) {
+    const canonical = canonicalOf(list, signerActive);
+    if (canonical.toLowerCase() !== storedKey) return { action: 'set', address: canonical };
+    return { action: 'none' };
+  }
+
+  if (!storedActive || (authoritative && !isAddressListed(list, storedActive))) {
+    const adopt = pickActiveWallet(signerAddresses, signerActive);
+    if (adopt) return { action: 'set', address: canonicalOf(list, adopt) };
+    if (storedActive) return { action: 'clear' };
+  }
+  return { action: 'none' };
+}
