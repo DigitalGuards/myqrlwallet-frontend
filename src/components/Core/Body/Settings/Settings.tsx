@@ -23,7 +23,7 @@ import { observer } from "mobx-react-lite";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy } from "react";
 import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
 import type { EncryptedSeedData } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
@@ -33,7 +33,7 @@ import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { decryptSeedAsync, reEncryptSeedAsync } from "@/utils/crypto";
 import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
 import { isDesktop } from "@/desktop/bridge";
-import { DesktopSettings } from "./DesktopSettings/DesktopSettings";
+import { withSuspense } from "@/utils/react";
 import {
     checkLockout,
     recordFailedAttempt,
@@ -42,6 +42,12 @@ import {
     getRemainingAttempts,
     hasFailedAttempts,
 } from "@/utils/crypto/pinAttemptTracker";
+
+// Lazy: pulls the dApp-connect service; only worth loading once the settings
+// page itself renders (mirrors the router's lazy mount of the same list).
+const DAppSessionsList = withSuspense(
+    lazy(() => import("../DAppConnect/DAppSessionsList")),
+);
 
 const SettingsFormSchema = z.object({
     autoLockTimeout: z.number().min(1).max(60),
@@ -464,10 +470,14 @@ const Settings = observer(() => {
                             </Form>
                         </Card>
 
-                        {/* Desktop-only settings (wallet removal now, lock
-                            options later) live in their own component instead of
-                            crowding this one. */}
-                        {isDesktop && <DesktopSettings />}
+                        {/* dApp session management lives here (the list keeps
+                            its own header + actions); the /dapp-sessions route
+                            mounts the same component for deep links. Desktop
+                            never reaches this page: its Settings entry opens
+                            the native settings window (see utils/navigation). */}
+                        <Card className="border-l-4 border-l-blue-accent">
+                            <DAppSessionsList />
+                        </Card>
                     </div>
                 </div>
             </div>

@@ -147,6 +147,11 @@ export interface QrlWalletBridge {
    * because a dApp request needs the user. Rate-limited by main. Optional:
    * absent on desktop shells that predate dApp-connect. */
   dappRequestAttention?(): Promise<void>;
+  /** Ask main to show/focus the native desktop settings window (auto-lock,
+   * biometric unlock, protocol handler). No data crosses; main refuses while
+   * locked. Optional: absent on desktop shells that predate the settings
+   * window. */
+  openDesktopSettings?(): Promise<void>;
   onLockStateChanged(cb: (locked: boolean) => void): () => void;
   /** Subscribe to qrlconnect:// URIs arriving via the OS protocol handler.
    * Returns an unsubscribe. Optional: absent on desktop shells that predate
@@ -392,6 +397,23 @@ export const desktopSigner = {
    */
   async dappRequestAttention(): Promise<void> {
     await qrlWallet().dappRequestAttention?.();
+  },
+
+  /**
+   * Show/focus the native desktop settings window (the desktop's ONE settings
+   * surface: auto-lock, biometric unlock, protocol handler, remove account).
+   * Mirrors the mobile app's OPEN_NATIVE_SETTINGS. Optional-called so a
+   * renderer paired with an older desktop shell degrades to a no-op.
+   */
+  async openDesktopSettings(): Promise<void> {
+    const bridge = qrlWallet();
+    if (typeof bridge.openDesktopSettings !== 'function') {
+      // Dev-only skew (bundled renderers ship with their shell): make the
+      // silent degrade visible instead of a dead Settings button.
+      console.warn('desktop: this shell has no settings window (openDesktopSettings missing)');
+      return;
+    }
+    await bridge.openDesktopSettings();
   },
 
   /**

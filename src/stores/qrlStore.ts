@@ -1,7 +1,7 @@
 import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
-import { mergeSignerWalletsIntoList, pickActiveWallet } from "@/desktop/walletHydration";
+import { isAddressListed, pickActiveWallet, reconcileSignerWallets } from "@/desktop/walletHydration";
 import type { AccountListItem, AccountSource } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
@@ -443,10 +443,16 @@ class QrlStore {
 
     let signerAddresses: string[] = [];
     let signerActive: string | null = null;
+    // listWallets reads the seed files on disk, so its answer is authoritative
+    // even when empty (every wallet removed). The getStatus fallback is not:
+    // an empty result there may just be a locked/mid-restart signer, so it
+    // must never trigger the removal side of the reconcile.
+    let authoritative = false;
     try {
       const { wallets, active } = await desktopSigner.listWallets();
       signerAddresses = (wallets ?? []).map((w) => w.address);
       signerActive = active;
+      authoritative = true;
     } catch {
       // Older mains may not implement listWallets: fall back to the single
       // active address from getStatus.
@@ -459,7 +465,7 @@ class QrlStore {
         return;
       }
     }
-    if (signerAddresses.length === 0) return;
+    if (signerAddresses.length === 0 && !authoritative) return;
 
     // Storage reconcile is best-effort and MUST NOT throw: this method runs
     // inside initializeBlockchain's try, so an uncaught throw here (e.g. a
@@ -470,26 +476,36 @@ class QrlStore {
     try {
       const blockchain = this.qrlConnection.blockchain;
       const stored = await StorageUtil.getAccountList(blockchain);
-      const { list, added } = mergeSignerWalletsIntoList(stored, signerAddresses);
-      if (added) await StorageUtil.setAccountList(blockchain, list);
+      // The drop side of the reconcile runs ONLY off an authoritative list;
+      // the getStatus fallback reports at most one address and must never
+      // erase the others.
+      const { list, changed } = reconcileSignerWallets(stored, signerAddresses, authoritative);
+      if (changed) await StorageUtil.setAccountList(blockchain, list);
 
-      // Adopt an active wallet only when the renderer has none, so we never
-      // override a selection the user already made.
+      // Adopt an active wallet when the renderer has none, or heal it when the
+      // stored one no longer exists (its wallet was removed from the native
+      // settings window; authoritative-only, same reasoning as the drop side).
+      // Never override a live selection the user made.
       const storedActive = await StorageUtil.getActiveAccount(blockchain);
-      if (!storedActive) {
+      if (!storedActive || (authoritative && !isAddressListed(list, storedActive))) {
         const adopt = pickActiveWallet(signerAddresses, signerActive);
         if (adopt) {
-          // Store the address exactly as it appears in the merged list, so the
-          // strict-equality check in validateActiveAccount matches it (a
+          // Store the address exactly as it appears in the reconciled list, so
+          // the strict-equality check in validateActiveAccount matches it (a
           // pre-existing entry may hold a different casing than the signer's).
-          // Same malformed-entry tolerance as mergeSignerWalletsIntoList: a
-          // stored entry without a string address must not throw here, or the
+          // Same malformed-entry tolerance as reconcileSignerWallets: a stored
+          // entry without a string address must not throw here, or the
           // adoption is silently lost on every run.
           const canonical =
             list.find(
               (a) => typeof a?.address === 'string' && a.address.toLowerCase() === adopt.toLowerCase(),
             )?.address ?? adopt;
           await StorageUtil.setActiveAccount(blockchain, canonical);
+        } else if (storedActive) {
+          // The active wallet is gone and nothing remains to adopt (last
+          // wallet removed): clear the pointer so the UI lands on onboarding
+          // instead of a ghost account.
+          await StorageUtil.clearActiveAccount(blockchain);
         }
       }
     } catch (error) {
