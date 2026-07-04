@@ -17,16 +17,32 @@ const C = 'Q3333333333333333333333333333333333333333';
 
 describe('reconcileSignerWallets', () => {
   it('adds a signer wallet missing from an empty list (the reported bug)', () => {
-    const { list, changed } = reconcileSignerWallets([], [A]);
+    const { list, changed } = reconcileSignerWallets([], [A], true);
     expect(changed).toBe(true);
     expect(list).toEqual([{ address: A, source: 'seed' }]);
   });
 
   it('reports no change when the list already mirrors the signer', () => {
     const stored: AccountListItem[] = [{ address: A, source: 'seed' }];
-    const { list, changed } = reconcileSignerWallets(stored, [A]);
+    const { list, changed } = reconcileSignerWallets(stored, [A], true);
     expect(changed).toBe(false);
     expect(list).toEqual(stored);
+  });
+
+
+  it('with removeMissing=false (non-authoritative source) it is add-only, never drops', () => {
+    const stored: AccountListItem[] = [
+      { address: A, source: 'seed' },
+      { address: B, source: 'seed' },
+    ];
+    // The getStatus fallback reports at most one address: nothing may be
+    // erased off that partial view.
+    const { list, changed } = reconcileSignerWallets(stored, [A], false);
+    expect(changed).toBe(false);
+    expect(list).toEqual(stored);
+    const added = reconcileSignerWallets(stored, [C], false);
+    expect(added.changed).toBe(true);
+    expect(added.list).toEqual([...stored, { address: C, source: 'seed' }]);
   });
 
   it('drops a seed entry whose wallet the signer no longer has (native removal)', () => {
@@ -34,21 +50,21 @@ describe('reconcileSignerWallets', () => {
       { address: A, source: 'seed' },
       { address: B, source: 'seed' },
     ];
-    const { list, changed } = reconcileSignerWallets(stored, [A]);
+    const { list, changed } = reconcileSignerWallets(stored, [A], true);
     expect(changed).toBe(true);
     expect(list).toEqual([{ address: A, source: 'seed' }]);
   });
 
   it('reconciles to empty when the signer has no wallets left (last wallet removed)', () => {
     const stored: AccountListItem[] = [{ address: A, source: 'seed' }];
-    const { list, changed } = reconcileSignerWallets(stored, []);
+    const { list, changed } = reconcileSignerWallets(stored, [], true);
     expect(changed).toBe(true);
     expect(list).toEqual([]);
   });
 
   it('preserves extension entries (not owned by the signer)', () => {
     const stored: AccountListItem[] = [{ address: A, source: 'extension' }];
-    const { list, changed } = reconcileSignerWallets(stored, [B]);
+    const { list, changed } = reconcileSignerWallets(stored, [B], true);
     expect(changed).toBe(true);
     expect(list).toEqual([
       { address: A, source: 'extension' },
@@ -58,33 +74,33 @@ describe('reconcileSignerWallets', () => {
 
   it('does not duplicate an extension entry whose address the signer also has', () => {
     const stored: AccountListItem[] = [{ address: A, source: 'extension' }];
-    const { list, changed } = reconcileSignerWallets(stored, [A]);
+    const { list, changed } = reconcileSignerWallets(stored, [A], true);
     expect(changed).toBe(false);
     expect(list).toEqual(stored);
   });
 
   it('matches known addresses case-insensitively (no duplicate, no drop)', () => {
     const stored: AccountListItem[] = [{ address: A, source: 'seed' }];
-    const { list, changed } = reconcileSignerWallets(stored, [A.toLowerCase()]);
+    const { list, changed } = reconcileSignerWallets(stored, [A.toLowerCase()], true);
     expect(changed).toBe(false);
     expect(list).toHaveLength(1);
   });
 
   it('dedupes repeats within the signer list', () => {
-    const { list, changed } = reconcileSignerWallets([], [B, B, C]);
+    const { list, changed } = reconcileSignerWallets([], [B, B, C], true);
     expect(changed).toBe(true);
     expect(list.map((a) => a.address)).toEqual([B, C]);
   });
 
   it('skips empty addresses', () => {
-    const { list, changed } = reconcileSignerWallets([], ['']);
+    const { list, changed } = reconcileSignerWallets([], [''], true);
     expect(changed).toBe(false);
     expect(list).toEqual([]);
   });
 
   it('does not mutate the input array', () => {
     const stored: AccountListItem[] = [{ address: A, source: 'seed' }];
-    reconcileSignerWallets(stored, [B]);
+    reconcileSignerWallets(stored, [B], true);
     expect(stored).toEqual([{ address: A, source: 'seed' }]);
   });
 
@@ -96,7 +112,7 @@ describe('reconcileSignerWallets', () => {
     const stored = JSON.parse(
       `[{"source":"seed"},{"address":"${A}","source":"seed"}]`,
     ) as AccountListItem[];
-    const { list, changed } = reconcileSignerWallets(stored, [A, B]);
+    const { list, changed } = reconcileSignerWallets(stored, [A, B], true);
     expect(changed).toBe(true);
     expect(list).toHaveLength(3);
     expect(list[2]).toEqual({ address: B, source: 'seed' });

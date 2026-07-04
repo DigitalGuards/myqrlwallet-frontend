@@ -406,7 +406,14 @@ export const desktopSigner = {
    * renderer paired with an older desktop shell degrades to a no-op.
    */
   async openDesktopSettings(): Promise<void> {
-    await qrlWallet().openDesktopSettings?.();
+    const bridge = qrlWallet();
+    if (typeof bridge.openDesktopSettings !== 'function') {
+      // Dev-only skew (bundled renderers ship with their shell): make the
+      // silent degrade visible instead of a dead Settings button.
+      console.warn('desktop: this shell has no settings window (openDesktopSettings missing)');
+      return;
+    }
+    await bridge.openDesktopSettings();
   },
 
   /**

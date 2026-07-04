@@ -34,12 +34,6 @@ import { decryptSeedAsync, reEncryptSeedAsync } from "@/utils/crypto";
 import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
 import { isDesktop } from "@/desktop/bridge";
 import { withSuspense } from "@/utils/react";
-
-// Lazy: pulls the dApp-connect service; only worth loading once the settings
-// page itself renders (mirrors the router's lazy mount of the same list).
-const DAppSessionsList = withSuspense(
-    lazy(() => import("../DAppConnect/DAppSessionsList")),
-);
 import {
     checkLockout,
     recordFailedAttempt,
@@ -48,6 +42,12 @@ import {
     getRemainingAttempts,
     hasFailedAttempts,
 } from "@/utils/crypto/pinAttemptTracker";
+
+// Lazy: pulls the dApp-connect service; only worth loading once the settings
+// page itself renders (mirrors the router's lazy mount of the same list).
+const DAppSessionsList = withSuspense(
+    lazy(() => import("../DAppConnect/DAppSessionsList")),
+);
 
 const SettingsFormSchema = z.object({
     autoLockTimeout: z.number().min(1).max(60),
