@@ -27,10 +27,16 @@ import type { AccountListItem } from '@/utils/storage';
  * addresses (see module doc for the rules). Address comparison is
  * case-insensitive. Returns the new list and whether it differs from the
  * stored one, so the caller can skip the storage write when nothing changed.
+ *
+ * `removeMissing` gates the destructive half: pass true ONLY when the signer
+ * address list is authoritative (a successful listWallets disk read). With
+ * false the reconcile is add-only, so a degraded source (the single-address
+ * getStatus fallback) can never drop wallets it simply did not report.
  */
 export function reconcileSignerWallets(
   stored: AccountListItem[],
   signerAddresses: string[],
+  removeMissing: boolean,
 ): { list: AccountListItem[]; changed: boolean } {
   const signerKeys = new Set(
     signerAddresses.filter((a) => Boolean(a)).map((a) => a.toLowerCase()),
@@ -41,6 +47,7 @@ export function reconcileSignerWallets(
   // address) rather than throwing out the whole reconcile. Such entries are
   // preserved verbatim, just not matched against.
   const list = stored.filter((entry) => {
+    if (!removeMissing) return true;
     if (typeof entry?.address !== 'string') return true;
     if (entry.source !== 'seed') return true;
     return signerKeys.has(entry.address.toLowerCase());

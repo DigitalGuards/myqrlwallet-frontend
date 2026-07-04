@@ -476,14 +476,18 @@ class QrlStore {
     try {
       const blockchain = this.qrlConnection.blockchain;
       const stored = await StorageUtil.getAccountList(blockchain);
-      const { list, changed } = reconcileSignerWallets(stored, signerAddresses);
+      // The drop side of the reconcile runs ONLY off an authoritative list;
+      // the getStatus fallback reports at most one address and must never
+      // erase the others.
+      const { list, changed } = reconcileSignerWallets(stored, signerAddresses, authoritative);
       if (changed) await StorageUtil.setAccountList(blockchain, list);
 
       // Adopt an active wallet when the renderer has none, or heal it when the
       // stored one no longer exists (its wallet was removed from the native
-      // settings window). Never override a live selection the user made.
+      // settings window; authoritative-only, same reasoning as the drop side).
+      // Never override a live selection the user made.
       const storedActive = await StorageUtil.getActiveAccount(blockchain);
-      if (!storedActive || !isAddressListed(list, storedActive)) {
+      if (!storedActive || (authoritative && !isAddressListed(list, storedActive))) {
         const adopt = pickActiveWallet(signerAddresses, signerActive);
         if (adopt) {
           // Store the address exactly as it appears in the reconciled list, so
