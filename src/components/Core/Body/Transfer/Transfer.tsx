@@ -578,6 +578,46 @@ const Transfer = observer(() => {
     );
   }
 
+  if (transactionStatus.state === 'timeout') {
+    return (
+      <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
+        <div className="relative w-full max-w-2xl px-2 md:px-4">
+          <Card className="w-full border-l-4 border-l-orange-500">
+            <CardHeader className="bg-gradient-to-r from-orange-500/10 to-transparent">
+              <CardTitle className="flex items-center gap-2">
+                <Loader className="h-5 w-5" />
+                Still Pending
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="py-8">
+              <div className="flex flex-col items-center gap-4 text-center">
+                <p className="text-muted-foreground">
+                  {transactionStatus.error ||
+                    "The transaction is taking longer than expected. It may still be mined; check the explorer."}
+                </p>
+                {transactionStatus.txHash && (
+                  <a
+                    href={getExplorerTxUrl(transactionStatus.txHash, blockchain)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
+                  >
+                    View on Explorer <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button variant="outline" onClick={resetTransactionStatus} className="w-full">
+                Done
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   if (transactionStatus.state === 'failed') {
     return (
       <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">

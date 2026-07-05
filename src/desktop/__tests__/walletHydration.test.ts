@@ -167,7 +167,9 @@ describe('decideActiveAccount', () => {
     expect(d).toEqual({ action: 'none' });
   });
 
-  it('matches the signer pointer case-insensitively and adopts canonical casing', () => {
+  it('rewrites a stored active that matches the signer wallet but differs only by case (canonical heal)', () => {
+    // Gemini HIGH: a case-only difference must still be rewritten to canonical,
+    // or validateActiveAccount's strict === find misses and clears the active.
     const d = decideActiveAccount({
       list,
       storedActive: B.toLowerCase(),
@@ -175,7 +177,17 @@ describe('decideActiveAccount', () => {
       signerAddresses: [A, B],
       authoritative: true,
     });
-    // storedActive lower-cases to the same key as the canonical B: no change.
+    expect(d).toEqual({ action: 'set', address: B });
+  });
+
+  it('is a true no-op only when the stored active is byte-identical to canonical', () => {
+    const d = decideActiveAccount({
+      list,
+      storedActive: B,
+      signerActive: B,
+      signerAddresses: [A, B],
+      authoritative: true,
+    });
     expect(d).toEqual({ action: 'none' });
   });
 
@@ -223,6 +235,21 @@ describe('decideActiveAccount', () => {
       authoritative: true,
     });
     expect(d).toEqual({ action: 'set', address: A });
+  });
+
+  it('does not force-flip a deliberately-selected extension/watch-only active account', () => {
+    const mixed: AccountListItem[] = [
+      { address: A, source: 'extension' },
+      { address: B, source: 'seed' },
+    ];
+    const d = decideActiveAccount({
+      list: mixed,
+      storedActive: A, // watch-only, deliberately selected
+      signerActive: B, // signer unlocked its own wallet
+      signerAddresses: [B],
+      authoritative: true,
+    });
+    expect(d).toEqual({ action: 'none' });
   });
 
   it('clears the active when the last wallet was removed', () => {
