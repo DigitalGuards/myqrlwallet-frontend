@@ -200,6 +200,21 @@ const DAppApprovalModal = observer(() => {
           return;
         }
 
+        // Bind the request to the account it names, exactly like the
+        // signMessage / signTypedData paths above. The tx `from` is substituted
+        // with the LIVE active account at approve-click, and that active account
+        // can now flip automatically (e.g. an autolock + unlock of a different
+        // wallet while this approval sits open), so without this check the dApp
+        // could get a signature/spend from an account it never asked for. A dApp
+        // that omits `from` accepts the active account.
+        const requestedFrom = ((params?.[0] as Record<string, unknown> | undefined)?.['from'] ??
+          '') as string;
+        if (requestedFrom && requestedFrom.toLowerCase() !== activeAddress.toLowerCase()) {
+          setError('Signer mismatch: request is for a different account');
+          setLoading(false);
+          return;
+        }
+
         // Desktop: build + confirm + sign in the isolated signer (its own
         // trusted modal), then broadcast for send / return raw for sign. No
         // PIN, no seed in the renderer.
