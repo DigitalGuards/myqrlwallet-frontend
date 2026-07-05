@@ -893,65 +893,64 @@ class QrlStore {
       attempts++;
       log(`Polling for receipt ${txHash}, attempt ${attempts}`);
 
-      try {
-        const receipt = await this.qrlInstance?.getTransactionReceipt(txHash);
-
-        if (receipt) {
-          log(`Receipt found for ${txHash}`);
-          this.cancelReceiptPoller(); // Stop polling
-
-          runInAction(() => {
-            // Double-check state again before updating
-            if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-              const txHashString = utils.bytesToHex(receipt.transactionHash);
-              this.transactionStatus = {
-                state: 'confirmed',
-                txHash: txHashString,
-                receipt: receipt,
-                error: null,
-                pendingDetails: null, // Clear pending details
-              };
-              log(`Transaction confirmed via polling: ${txHashString}`);
-              this.fetchAccounts(); // Refresh account balance
-            } else {
-              log(`Receipt found for ${txHash}, but state changed before update.`);
-            }
-          });
-        } else if (attempts >= maxAttempts) {
-          // Max attempts reached, transaction likely failed or stuck
-          log(`Max polling attempts reached for ${txHash}. Marking as failed.`);
-          this.cancelReceiptPoller();
-          runInAction(() => {
-            if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-              this.transactionStatus = {
-                state: 'failed',
-                txHash: txHash,
-                receipt: null,
-                error: 'Transaction confirmation timed out.',
-                pendingDetails: null,
-              };
-            }
-          });
+      // A tx that is broadcast but not yet mined has NO receipt. The v2 node
+      // reports that as a thrown "transaction not found" rather than a null
+      // return, so a thrown error here is the EXPECTED pending state, not a
+      // failure. Treat both a null receipt and any poll error as "not yet":
+      // keep the tx in `pending` and keep polling until a receipt arrives or
+      // the timeout below, so neither an unmined tx nor a transient RPC hiccup
+      // ever flips a successfully-broadcast tx to `failed`. const so the
+      // truthy-narrowing holds inside the runInAction closure.
+      const receipt = await (async () => {
+        try {
+          return (await this.qrlInstance?.getTransactionReceipt(txHash)) ?? null;
+        } catch (error) {
+          log(`Receipt not ready for ${txHash} (attempt ${attempts}): ${getErrorMessage(error)}`);
+          return null;
         }
-        // If receipt is null and attempts < maxAttempts, continue polling
-      } catch (error) {
-        const message = getErrorMessage(error);
-        console.error(`Error polling for receipt ${txHash}:`, error);
-        log(`Error polling for receipt ${txHash}: ${message}`);
+      })();
+
+      if (receipt) {
+        log(`Receipt found for ${txHash}`);
+        this.cancelReceiptPoller(); // Stop polling
+        runInAction(() => {
+          // Double-check state again before updating
+          if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
+            const txHashString = utils.bytesToHex(receipt.transactionHash);
+            this.transactionStatus = {
+              state: 'confirmed',
+              txHash: txHashString,
+              receipt: receipt,
+              error: null,
+              pendingDetails: null, // Clear pending details
+            };
+            log(`Transaction confirmed via polling: ${txHashString}`);
+            this.fetchAccounts(); // Refresh account balance
+          } else {
+            log(`Receipt found for ${txHash}, but state changed before update.`);
+          }
+        });
+      } else if (attempts >= maxAttempts) {
+        // Still no receipt after the full window. The tx may yet be mined
+        // (it is broadcast and sitting in the mempool), so this is a soft
+        // give-up on polling, not proof of failure: point the user at the
+        // explorer rather than claiming the tx failed.
+        log(`Max polling attempts reached for ${txHash}; stopping poll (tx may still confirm).`);
         this.cancelReceiptPoller();
-        // Mark as failed on error
         runInAction(() => {
           if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
             this.transactionStatus = {
+              ...this.transactionStatus,
               state: 'failed',
               txHash: txHash,
               receipt: null,
-              error: `Error checking transaction status: ${message}`,
-              pendingDetails: null,
+              error:
+                'Still pending after 5 minutes. The transaction may yet be mined; check the explorer.',
             };
           }
         });
       }
+      // receipt null and attempts < maxAttempts: stay pending, keep polling.
     }, pollInterval);
   }
   // --- END NEW Function ---
