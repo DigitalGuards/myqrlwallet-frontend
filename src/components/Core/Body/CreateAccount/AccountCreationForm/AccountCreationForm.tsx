@@ -28,6 +28,7 @@ import { StorageUtil } from "@/utils/storage";
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { Separator } from "@/components/UI/Separator";
+import { isDesktop, desktopSigner } from "@/desktop/bridge";
 
 // Password must match WalletEncryptionUtil.validatePassword() requirements
 const passwordValidation = z.string()
@@ -75,17 +76,35 @@ const ExistingUserSchema = z.object({
   path: ["reEnteredPassword"],
 });
 
+// Desktop schema - PIN is not used (the signer does Argon2id over a password);
+// only the password and its confirmation are validated. The PIN fields stay
+// present in the form values so the shared form typing is unchanged.
+const DesktopSchema = z.object({
+  password: passwordValidation,
+  reEnteredPassword: z.string().min(1, "Please re-enter your password"),
+  pin: z.string(),
+  reEnteredPin: z.string(),
+}).refine((data) => data.password === data.reEnteredPassword, {
+  message: "Passwords don't match",
+  path: ["reEnteredPassword"],
+});
+
 type AccountCreationFormProps = {
+  // On desktop, `account` is undefined and the signer-returned mnemonic +
+  // address are supplied so the backup screen can render without any seed
+  // material in the renderer.
   onAccountCreated: (
-    account: Web3BaseWalletAccount,
+    account: Web3BaseWalletAccount | undefined,
     password: string,
+    desktopBackup?: { address: string; mnemonic: string },
   ) => void;
 };
 
 type InnerFormProps = {
   onAccountCreated: (
-    account: Web3BaseWalletAccount,
+    account: Web3BaseWalletAccount | undefined,
     password: string,
+    desktopBackup?: { address: string; mnemonic: string },
   ) => void;
   hasExistingSeeds: boolean;
   existingSeeds: { address: string; encryptedSeed: string }[];
@@ -101,8 +120,13 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds,
   const { qrlInstance } = qrlStore;
   const [isEncrypting, setIsEncrypting] = useState(false);
 
-  // Select schema based on whether user has existing seeds
-  const schema = hasExistingSeeds ? ExistingUserSchema : NewUserSchema;
+  // Select schema based on whether user has existing seeds. On desktop the
+  // password is the only secret (no PIN) so a dedicated schema is used.
+  const schema = isDesktop
+    ? DesktopSchema
+    : hasExistingSeeds
+    ? ExistingUserSchema
+    : NewUserSchema;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -127,6 +151,28 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds,
     try {
       const userPassword = formData.password;
       const userPin = formData.pin;
+
+      // Desktop: the signer generates the seed and returns the mnemonic ONCE
+      // for backup. No seed material is materialised, encrypted, or stored in
+      // the renderer (no accounts.create / getMnemonicFromHexSeed /
+      // encryptSeedAsync / storeEncryptedSeed).
+      if (isDesktop) {
+        setIsEncrypting(true);
+        try {
+          const { status, mnemonic } = await desktopSigner.createWallet(userPassword);
+          setIsEncrypting(false);
+          onAccountCreated(undefined, userPassword, {
+            address: status.address,
+            mnemonic,
+          });
+        } catch (err) {
+          setIsEncrypting(false);
+          setError("root", {
+            message: `${err instanceof Error ? err.message : String(err)} There was an error while creating the account`,
+          });
+        }
+        return;
+      }
 
       // If existing seeds exist, verify PIN by attempting to decrypt one
       if (hasExistingSeeds && existingSeeds.length > 0) {
@@ -245,6 +291,10 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds,
               </div>
             </div>
 
+            {/* PIN section is web/native only. On desktop the signer uses the
+                password (Argon2id) and there is no per-transaction PIN. */}
+            {!isDesktop && (
+            <>
             <Separator />
 
             <div>
@@ -293,6 +343,8 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds,
                 )}
               </div>
             </div>
+            </>
+            )}
           </CardContent>
           <CardFooter className="flex-col gap-4">
             {errors.root && (

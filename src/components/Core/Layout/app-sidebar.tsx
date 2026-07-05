@@ -1,4 +1,6 @@
-import { LogOut, Wallet, ArrowRight, Settings as SettingsIcon, Plus } from "lucide-react"
+import { LogOut, Lock, Wallet, ArrowRight, Settings as SettingsIcon, Plug } from "lucide-react"
+import { observer } from "mobx-react-lite"
+import { useStore } from "@/stores/store"
 
 import {
     Sidebar,
@@ -16,6 +18,7 @@ import { ROUTES } from "@/router/router";
 import MyQRLWalletLogo from "../Header/MyQRLWalletLogo/MyQRLWalletLogo";
 import { handleLogout } from "@/utils/logout";
 import { isInNativeApp } from "@/utils/nativeApp";
+import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { navigateTo } from "@/utils/navigation";
 import { cn } from "@/utils/cn";
 
@@ -34,12 +37,6 @@ const sidebarItems = [
         icon: ArrowRight,
     },
     {
-        title: "Create Token",
-        url: ROUTES.CREATE_TOKEN,
-        label: "QRC20",
-        icon: Plus,
-    },
-    {
         title: "Settings",
         url: ROUTES.SETTINGS,
         label: "Settings",
@@ -47,11 +44,19 @@ const sidebarItems = [
     },
 ]
 
-export function AppSidebar() {
+export const AppSidebar = observer(function AppSidebar() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { dappConnectStore } = useStore();
     const onLogoutClick = () => {
         handleLogout(navigate);
+    };
+    // Desktop: there is no "logout" (the seed lives in the signer, not here).
+    // The footer button locks the signer session instead; main then shows the
+    // native unlock window. Removing the wallet entirely is a separate,
+    // confirmed action under Settings.
+    const onLockClick = () => {
+        void desktopSigner.lock();
     };
     const isActive = (url: string) =>
         location.pathname === url || location.pathname.startsWith(`${url}/`);
@@ -93,19 +98,57 @@ export function AppSidebar() {
                                 </SidebarMenuItem>
                                 );
                             })}
+                            {/* Desktop replaces the floating connection banner
+                                with this rail item: connected-dApp count at a
+                                glance, click through to manage sessions. */}
+                            {isDesktop && (
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton
+                                        onClick={() => navigateTo(ROUTES.DAPP_SESSIONS, navigate)}
+                                        className={cn(
+                                            "flex flex-col justify-evenly items-center gap-1 py-2 h-auto rounded-none border-r-2 border-r-transparent transition-colors",
+                                            "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-secondary",
+                                            isActive(ROUTES.DAPP_SESSIONS)
+                                                ? "bg-secondary/10 border-r-secondary text-foreground"
+                                                : "text-muted-foreground hover:text-foreground",
+                                        )}
+                                    >
+                                        <span className="relative">
+                                            <Plug className="!size-8" />
+                                            {dappConnectStore.sessionCount > 0 && (
+                                                <span
+                                                    aria-label={`${dappConnectStore.sessionCount} connected dApp${dappConnectStore.sessionCount === 1 ? "" : "s"}`}
+                                                    className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-secondary px-1 text-[10px] font-bold leading-none text-secondary-foreground"
+                                                >
+                                                    {dappConnectStore.sessionCount}
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span className="block text-xs font-medium">dApps</span>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            )}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
-            {/* Hide logout button when running in native app - wallet removal is handled in native settings */}
+            {/* Native app hides this entirely (wallet removal lives in native
+                settings). Desktop shows Lock (not Logout): the seed stays in the
+                signer and locking surfaces the native unlock window. Web keeps
+                the seed-wiping Logout. */}
             {!isInNativeApp() && (
                 <SidebarFooter>
                     <SidebarMenu>
                         <SidebarMenuItem className="py-2">
-                            <SidebarMenuButton asChild className="py-2 h-auto" onClick={onLogoutClick} tooltip={{ side: "right", children: "Log out of wallet" }}>
+                            <SidebarMenuButton
+                                asChild
+                                className="py-2 h-auto"
+                                onClick={isDesktop ? onLockClick : onLogoutClick}
+                                tooltip={{ side: "right", children: isDesktop ? "Lock wallet" : "Log out of wallet" }}
+                            >
                                 <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground">
-                                    <LogOut />
-                                    <span className="block text-xs font-medium">Logout</span>
+                                    {isDesktop ? <Lock /> : <LogOut />}
+                                    <span className="block text-xs font-medium">{isDesktop ? "Lock" : "Logout"}</span>
                                 </div>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -114,4 +157,4 @@ export function AppSidebar() {
             )}
         </Sidebar>
     )
-}
+})

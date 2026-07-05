@@ -23,7 +23,7 @@ import { observer } from "mobx-react-lite";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy } from "react";
 import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
 import type { EncryptedSeedData } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
@@ -32,6 +32,8 @@ import { SEO } from "@/components/SEO/SEO";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { decryptSeedAsync, reEncryptSeedAsync } from "@/utils/crypto";
 import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
+import { isDesktop } from "@/desktop/bridge";
+import { withSuspense } from "@/utils/react";
 import {
     checkLockout,
     recordFailedAttempt,
@@ -40,6 +42,12 @@ import {
     getRemainingAttempts,
     hasFailedAttempts,
 } from "@/utils/crypto/pinAttemptTracker";
+
+// Lazy: pulls the dApp-connect service; only worth loading once the settings
+// page itself renders (mirrors the router's lazy mount of the same list).
+const DAppSessionsList = withSuspense(
+    lazy(() => import("../DAppConnect/DAppSessionsList")),
+);
 
 const SettingsFormSchema = z.object({
     autoLockTimeout: z.number().min(1).max(60),
@@ -241,8 +249,10 @@ const Settings = observer(() => {
                         <source src="/tree.mp4" type="video/mp4" />
                     </video> */ }
                     <div className="relative z-10 space-y-4 md:space-y-8">
-                        {/* PIN Management Card - only visible when user has encrypted seeds */}
-                        {hasEncryptedSeeds && (
+                        {/* PIN Management Card - web/native only. On desktop there
+                            is no PIN (the signer uses a password / Argon2id) and
+                            no in-renderer re-encrypt, so the card is hidden. */}
+                        {hasEncryptedSeeds && !isDesktop && (
                             <Card className="border-l-4 border-l-orange-500">
                                 <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
                                     <div className="flex items-center gap-2">
@@ -458,6 +468,15 @@ const Settings = observer(() => {
                                     </CardFooter>
                                 </form>
                             </Form>
+                        </Card>
+
+                        {/* dApp session management lives here (the list keeps
+                            its own header + actions); the /dapp-sessions route
+                            mounts the same component for deep links. Desktop
+                            never reaches this page: its Settings entry opens
+                            the native settings window (see utils/navigation). */}
+                        <Card className="border-l-4 border-l-blue-accent">
+                            <DAppSessionsList />
                         </Card>
                     </div>
                 </div>

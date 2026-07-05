@@ -1,4 +1,4 @@
-import { Wallet, ArrowRight, Settings as SettingsIcon, Plus, LogOut } from "lucide-react"
+import { Wallet, ArrowRight, Settings as SettingsIcon, LogOut } from "lucide-react"
 import { useNavigate, useLocation } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import { handleLogout } from "@/utils/logout";
@@ -16,11 +16,6 @@ const navItems = [
         icon: Wallet,
         label: "Wallets",
         path: ROUTES.ACCOUNT_LIST,
-    },
-    {
-        icon: Plus,
-        label: "QRC20",
-        path: ROUTES.CREATE_TOKEN,
     },
     {
         icon: SettingsIcon,

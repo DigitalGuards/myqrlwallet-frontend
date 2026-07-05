@@ -4,10 +4,14 @@
  */
 
 import { makeAutoObservable, runInAction } from 'mobx';
-import { dappConnectService } from '@/services/dappConnect/DAppConnectService';
+import { dappConnectService, DAppConnectService } from '@/services/dappConnect/DAppConnectService';
 import type { DAppSession, PendingDAppRequest } from '@/services/dappConnect/types';
+import { isDesktop, desktopSigner } from '@/desktop/bridge';
 
 export type TxProgressState = 'idle' | 'signing' | 'broadcasting' | 'confirming' | 'confirmed' | 'failed';
+
+/** How a desktop connect URI reached the wallet (protocol handler vs paste). */
+export type DesktopConnectSource = 'deeplink' | 'paste';
 
 class DAppConnectStore {
   activeSessions: DAppSession[] = [];
@@ -22,6 +26,13 @@ class DAppConnectStore {
   txProgress: TxProgressState = 'idle';
   txHash: string | null = null;
   txError: string | null = null;
+  /**
+   * Desktop only: a qrlconnect:// URI awaiting the user's consent (from the
+   * OS protocol handler or the paste field). The consent modal observes this;
+   * NO relay contact happens until the user confirms. Latest request wins.
+   */
+  desktopConnectUri: string | null = null;
+  desktopConnectSource: DesktopConnectSource = 'deeplink';
 
   constructor() {
     makeAutoObservable(this);
@@ -42,6 +53,15 @@ class DAppConnectStore {
             this.approvalModalOpen = true;
           }
         });
+        // Desktop analogue of the mobile DAPP_SHOW_WEBVIEW contract: a
+        // restricted request arriving while the window is hidden/unfocused
+        // flashes the taskbar (main is rate-limited; never steals focus).
+        if (
+          isDesktop &&
+          (document.visibilityState === 'hidden' || !document.hasFocus())
+        ) {
+          void desktopSigner.dappRequestAttention().catch(() => undefined);
+        }
       },
       onSessionConnected: (sessionId) => {
         runInAction(() => {
@@ -76,68 +96,106 @@ class DAppConnectStore {
     return dappConnectService.handleConnectionURI(uri);
   }
 
+  /**
+   * Desktop: stage a qrlconnect:// URI behind the consent modal. Called by
+   * the protocol-handler bridge and the paste field; the consent modal is the
+   * single gate before any relay contact.
+   */
+  requestDesktopConnect(uri: string, source: DesktopConnectSource = 'deeplink'): void {
+    if (!DAppConnectService.isConnectionURI(uri)) {
+      // Surface the drop: an invalid URI arriving via the OS protocol handler
+      // is otherwise indistinguishable from a mis-registered handler.
+      console.warn('[DAppConnect] ignoring non-qrlconnect desktop connect URI');
+      return;
+    }
+    this.desktopConnectUri = uri;
+    this.desktopConnectSource = source;
+  }
+
+  /** Desktop: dismiss the staged connect request (consent declined/finished). */
+  clearDesktopConnect(): void {
+    this.desktopConnectUri = null;
+  }
+
+  /**
+   * Desktop: user consented in the modal. Runs the normal connect path; the
+   * 'deeplink' origin only ever gates the native return-to-dApp redirect,
+   * which is a no-op outside the mobile app, so paste + deeplink both map to
+   * their honest origin ('qr' for paste: the dApp may be on another device).
+   */
+  async confirmDesktopConnect(): Promise<{ success: boolean; error?: string }> {
+    const uri = this.desktopConnectUri;
+    if (!uri) return { success: false, error: 'No pending connection' };
+    const origin = this.desktopConnectSource === 'deeplink' ? 'deeplink' : 'qr';
+    const result = await dappConnectService.handleConnectionURI(uri, origin);
+    runInAction(() => {
+      // Only clear if a newer URI wasn't staged during the awaited handshake;
+      // otherwise the latest-wins staging would silently drop that pending URI
+      // and its consent modal would never appear.
+      if (result.success && this.desktopConnectUri === uri) this.desktopConnectUri = null;
+    });
+    return result;
+  }
+
   /** Approve the current request with a result */
   approveCurrentRequest(result: unknown): void {
     if (!this.currentApproval) return;
-
-    dappConnectService.approveRequest(
-      this.currentApproval.sessionId,
-      this.currentApproval.id,
-      result
-    );
-
-    this.removeCurrentApproval();
+    this.approveRequestById(this.currentApproval.sessionId, this.currentApproval.id, result);
   }
 
   /** Reject the current request */
-  rejectCurrentRequest(message?: string): void {
+  rejectCurrentRequest(message?: string, code?: number): void {
     if (!this.currentApproval) return;
+    this.rejectRequestById(this.currentApproval.sessionId, this.currentApproval.id, message, code);
+  }
 
-    dappConnectService.rejectRequest(
-      this.currentApproval.sessionId,
-      this.currentApproval.id,
-      message
-    );
+  /**
+   * Answer a SPECIFIC request. Async approval flows resolve after awaits (PIN
+   * unlock, desktop trusted confirm, broadcast) during which currentApproval
+   * can change (a session disconnect promotes the next pending request), so
+   * answering "the current request" at resolution time can route a result to
+   * a different dApp request than the one the user approved. Callers that
+   * await MUST capture {sessionId, id} before the first await and answer
+   * through these.
+   */
+  approveRequestById(sessionId: string, id: string | number, result: unknown): void {
+    dappConnectService.approveRequest(sessionId, id, result);
+    this.removeApproval(sessionId, id);
+  }
 
-    this.removeCurrentApproval();
+  /** Reject a SPECIFIC request; see {@link approveRequestById}. */
+  rejectRequestById(sessionId: string, id: string | number, message?: string, code?: number): void {
+    dappConnectService.rejectRequest(sessionId, id, message, code);
+    this.removeApproval(sessionId, id);
   }
 
   /** Send approval result to dApp without closing the modal (for progress UI) */
-  sendApprovalResult(result: unknown): void {
-    if (!this.currentApproval) return;
-    dappConnectService.approveRequest(
-      this.currentApproval.sessionId,
-      this.currentApproval.id,
-      result
-    );
+  sendApprovalResultById(sessionId: string, id: string | number, result: unknown): void {
+    dappConnectService.approveRequest(sessionId, id, result);
   }
 
   /** Send rejection to dApp without closing the modal (for progress UI) */
-  sendRejectionResult(message?: string): void {
-    if (!this.currentApproval) return;
-    dappConnectService.rejectRequest(
-      this.currentApproval.sessionId,
-      this.currentApproval.id,
-      message
-    );
+  sendRejectionResultById(sessionId: string, id: string | number, message?: string): void {
+    dappConnectService.rejectRequest(sessionId, id, message);
   }
 
   /** Dismiss the current approval after tx progress is done (called from "Done"/"Close" button) */
   dismissCurrentApproval(): void {
-    this.removeCurrentApproval();
+    if (!this.currentApproval) return;
+    this.removeApproval(this.currentApproval.sessionId, this.currentApproval.id);
   }
 
-  /** Remove the current approval and show the next one if any */
-  private removeCurrentApproval(): void {
-    if (!this.currentApproval) return;
-
-    this.resetTxProgress();
-
-    const { id: currentId, sessionId: currentSessionId } = this.currentApproval;
+  /** Drop one request from the queue; promote the next when it was current. */
+  private removeApproval(sessionId: string, id: string | number): void {
     this.pendingRequests = this.pendingRequests.filter(
-      (r) => !(r.id === currentId && r.sessionId === currentSessionId)
+      (r) => !(r.id === id && r.sessionId === sessionId)
     );
 
+    const wasCurrent =
+      this.currentApproval?.id === id && this.currentApproval.sessionId === sessionId;
+    if (!wasCurrent) return;
+
+    this.resetTxProgress();
     if (this.pendingRequests.length > 0) {
       this.currentApproval = this.pendingRequests[0] ?? null;
     } else {
@@ -158,11 +216,6 @@ class DAppConnectStore {
     this.txProgress = 'idle';
     this.txHash = null;
     this.txError = null;
-  }
-
-  /** Close the approval modal without approving/rejecting */
-  closeApprovalModal(): void {
-    this.approvalModalOpen = false;
   }
 
   /** Disconnect a specific dApp session */
