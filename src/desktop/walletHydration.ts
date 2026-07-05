@@ -144,11 +144,30 @@ export function decideActiveAccount(params: {
   authoritative: boolean;
 }): ActiveAccountDecision {
   const { list, storedActive, signerActive, signerAddresses, authoritative } = params;
-  const storedKey = (storedActive ?? '').toLowerCase();
 
-  if (signerActive && isAddressListed(list, signerActive)) {
+  // A deliberately-selected non-signer ('extension'/watch-only) active account
+  // is not the signer's to stomp: the signer can't sign for it anyway, and
+  // setActiveAccount supports selecting such addresses. Leave it as-is rather
+  // than force-flipping it to a signer wallet on every unlock.
+  const storedKey = (storedActive ?? '').toLowerCase();
+  const storedIsNonSigner =
+    storedKey.length > 0 &&
+    list.some(
+      (a) =>
+        typeof a?.address === 'string' &&
+        a.address.toLowerCase() === storedKey &&
+        a.source !== 'seed',
+    );
+
+  if (!storedIsNonSigner && signerActive && isAddressListed(list, signerActive)) {
     const canonical = canonicalOf(list, signerActive);
-    if (canonical.toLowerCase() !== storedKey) return { action: 'set', address: canonical };
+    // STRICT compare, not case-insensitive: when the stored active names the
+    // same wallet but in a different case than the list, it must still be
+    // rewritten to the canonical casing. Otherwise validateActiveAccount does
+    // a strict `===` find against the (canonical-cased) account list, fails to
+    // match, and CLEARS the active account (or shows a 0 balance). Only a
+    // byte-identical stored value is a true no-op.
+    if (canonical !== (storedActive ?? '')) return { action: 'set', address: canonical };
     return { action: 'none' };
   }
 

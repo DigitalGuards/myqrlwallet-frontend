@@ -42,7 +42,9 @@ type PendingTxInfo = {
 // Transaction status type — exported so token/NFT stores can write into
 // the shared `transactionStatus` slot on this store.
 export type TransactionStatus = {
-  state: 'idle' | 'pending' | 'confirmed' | 'failed';
+  // 'timeout' is distinct from 'failed': the tx was broadcast and may still be
+  // mined; the poller just stopped waiting. Never render it as a failure.
+  state: 'idle' | 'pending' | 'confirmed' | 'failed' | 'timeout';
   txHash: string | null;
   receipt: TransactionReceipt | null;
   error: string | null;
@@ -495,10 +497,21 @@ class QrlStore {
         signerAddresses,
         authoritative,
       });
-      if (decision.action === 'set') {
-        await StorageUtil.setActiveAccount(blockchain, decision.address);
-      } else if (decision.action === 'clear') {
-        await StorageUtil.clearActiveAccount(blockchain);
+      if (decision.action !== 'none') {
+        // Re-read immediately before applying: if a concurrent setActiveAccount
+        // (a user switch) landed during the awaits above, the stored pointer no
+        // longer equals what we based the decision on. The live user selection
+        // wins, so skip this write rather than clobbering it back to the
+        // (now stale) signer snapshot. The next lock/unlock re-hydration
+        // reconciles from a fresh snapshot.
+        const freshActive = await StorageUtil.getActiveAccount(blockchain);
+        if ((freshActive ?? '') !== (storedActive ?? '')) {
+          log('Desktop hydration: active account changed mid-reconcile; skipping adopt.');
+        } else if (decision.action === 'set') {
+          await StorageUtil.setActiveAccount(blockchain, decision.address);
+        } else {
+          await StorageUtil.clearActiveAccount(blockchain);
+        }
       }
     } catch (error) {
       console.error('Desktop wallet hydration: storage reconcile failed:', error);
@@ -939,9 +952,12 @@ class QrlStore {
         this.cancelReceiptPoller();
         runInAction(() => {
           if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
+            // 'timeout', NOT 'failed': the tx is broadcast and may still mine.
+            // The UI shows a neutral "still pending" card with the explorer
+            // link, never a red failure.
             this.transactionStatus = {
               ...this.transactionStatus,
-              state: 'failed',
+              state: 'timeout',
               txHash: txHash,
               receipt: null,
               error:
