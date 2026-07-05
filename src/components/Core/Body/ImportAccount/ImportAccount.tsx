@@ -14,6 +14,7 @@ import { AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import { Button } from "@/components/UI/Button";
+import { isDesktop } from "@/desktop/bridge";
 
 const ImportAccount = observer(() => {
   const { qrlStore } = useStore();
@@ -28,11 +29,20 @@ const ImportAccount = observer(() => {
   const onAccountImported = async (importedAccount: ExtendedWalletAccount) => {
     window.scrollTo(0, 0);
     setAccount(importedAccount);
-    await setActiveAccount(importedAccount.address);
+    // On desktop the address is not known until the signer imports the wallet
+    // (in PinSetup). Defer setActiveAccount to onPinSetupComplete.
+    if (!isDesktop) {
+      await setActiveAccount(importedAccount.address);
+    }
     setHasAccountImported(true);
   };
 
-  const onPinSetupComplete = () => {
+  // On desktop, PinSetup provisions via the signer and returns the address.
+  const onPinSetupComplete = async (provisionedAddress?: string) => {
+    if (isDesktop && provisionedAddress) {
+      setAccount((prev) => (prev ? { ...prev, address: provisionedAddress } : prev));
+      await setActiveAccount(provisionedAddress);
+    }
     setIsPinSetupComplete(true);
   };
 
@@ -76,11 +86,16 @@ const ImportAccount = observer(() => {
               isPinSetupComplete ? (
                 <AccountImportSuccess account={account} />
               ) : (
-                account && account.mnemonic && account.hexSeed ? (
+                // Desktop needs the mnemonic OR the hex seed (the signer accepts
+                // either and derives the rest). Web/native need both.
+                account &&
+                (isDesktop
+                  ? account.mnemonic || account.hexSeed
+                  : account.mnemonic && account.hexSeed) ? (
                   <PinSetup
                     accountAddress={account.address}
-                    mnemonic={account.mnemonic}
-                    hexSeed={account.hexSeed}
+                    mnemonic={account.mnemonic ?? ""}
+                    hexSeed={account.hexSeed ?? ""}
                     onPinSetupComplete={onPinSetupComplete}
                   />
                 ) : (
@@ -96,6 +111,10 @@ const ImportAccount = observer(() => {
                   >
                     Import with Mnemonic
                   </TabsTrigger>
+                  {/* Encrypted-wallet-file restore and raw hex-seed import work
+                      on desktop too: both forms recover the secret in-page
+                      (exactly like typing a mnemonic) and hand it to the signer
+                      via importWallet, which accepts mnemonic OR hexSeed. */}
                   <TabsTrigger
                     value="encrypted"
                     className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"

@@ -3,10 +3,14 @@
  * Accessible from Settings.
  */
 
+import { useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '@/stores/store';
 import { Button } from '@/components/UI/Button';
+import { Input } from '@/components/UI/Input';
 import { SessionStatus } from '@/services/dappConnect/types';
+import { DAppConnectService } from '@/services/dappConnect/DAppConnectService';
+import { isDesktop } from '@/desktop/bridge';
 
 const statusDotColors: Record<SessionStatus, string> = {
   [SessionStatus.CONNECTED]: '#3b82f6',     // blue-500
@@ -47,6 +51,73 @@ const DAppPulsingDot = ({ status }: { status: SessionStatus }) => {
   );
 };
 
+/**
+ * Desktop-only paste entry: the fallback ingress when the qrlconnect://
+ * protocol handler is unavailable (unregistered, blocked, or the dApp is on
+ * another machine so only its QR/URI text can travel). Feeds the exact same
+ * consent modal as the deep link; no relay contact happens here.
+ */
+const DesktopPasteConnect = observer(() => {
+  const { dappConnectStore } = useStore();
+  const [open, setOpen] = useState(false);
+  const [uri, setUri] = useState('');
+  const [error, setError] = useState('');
+
+  const submit = () => {
+    const trimmed = uri.trim();
+    if (!DAppConnectService.isConnectionURI(trimmed)) {
+      setError('Not a qrlconnect:// connection code');
+      return;
+    }
+    setError('');
+    setUri('');
+    setOpen(false);
+    dappConnectStore.requestDesktopConnect(trimmed, 'paste');
+  };
+
+  if (!open) {
+    return (
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        Connect a dApp
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex w-full max-w-xl items-start gap-2">
+      <div className="flex-1 space-y-1">
+        <Input
+          value={uri}
+          onChange={(e) => {
+            setUri(e.target.value);
+            if (error) setError('');
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit();
+          }}
+          placeholder="Paste a qrlconnect:// connection code"
+          autoFocus
+        />
+        {error && <p className="text-xs text-destructive">{error}</p>}
+      </div>
+      <Button size="sm" onClick={submit}>
+        Connect
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          setOpen(false);
+          setUri('');
+          setError('');
+        }}
+      >
+        Cancel
+      </Button>
+    </div>
+  );
+});
+
 const DAppSessionsList = observer(() => {
   const { dappConnectStore } = useStore();
   const { activeSessions } = dappConnectStore;
@@ -74,9 +145,13 @@ const DAppSessionsList = observer(() => {
         )}
       </div>
 
+      {isDesktop && <DesktopPasteConnect />}
+
       {activeSessions.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No dApps connected. Scan a QR code from a dApp to connect.
+          {isDesktop
+            ? 'No dApps connected. Click "Open in MyQRLWallet" in a dApp, or paste its connection code above.'
+            : 'No dApps connected. Scan a QR code from a dApp to connect.'}
         </p>
       ) : (
         <div className="space-y-3">

@@ -3,6 +3,7 @@ import StorageUtil from "./storage/storage";
 import { QRL_PROVIDER } from "@/config";
 import { isInNativeApp } from "./nativeApp";
 import { clearAttemptTracker } from "./crypto/pinAttemptTracker";
+import { isDesktop, desktopSigner } from "@/desktop/bridge";
 
 /**
  * A utility function to handle logout by clearing
@@ -18,6 +19,22 @@ import { clearAttemptTracker } from "./crypto/pinAttemptTracker";
  */
 export const handleLogout = async (navigate: (path: string) => void) => {
     try {
+        // Desktop: the seed lives in the isolated signer, NOT in localStorage,
+        // so logout LOCKS the signer session (drops the in-memory keys) instead
+        // of wiping. A wipe here would clear the UI's account list while the
+        // encrypted seed file persists in the signer, orphaning the wallet.
+        // Re-entry is a password unlock (the desktop unlock screen). Fully
+        // removing the wallet from the device is a separate, explicit action
+        // that deletes the signer's seed file, not this button.
+        if (isDesktop) {
+            await desktopSigner
+                .lock()
+                .catch((err) => console.error("Desktop logout: signer lock failed", err));
+            navigate(ROUTES.HOME);
+            window.location.reload();
+            return;
+        }
+
         // Get all blockchain types
         const blockchains = Object.keys(QRL_PROVIDER);
 

@@ -1,9 +1,11 @@
 /**
  * Single Jest config for the repo's pure unit tests: the post-quantum signing
- * module (`src/utils/signing/__tests__`) and the content-moderation helpers
- * (`src/utils/moderation`). React component coverage stays with Vite/Vitest.
+ * module (`src/utils/signing/__tests__`), the content-moderation helpers
+ * (`src/utils/moderation`), and the dApp-connect logic (qrUri parser, desktop
+ * bridge sanitiser, dappConnectStore with the service seam mocked). React
+ * component coverage stays with Vite/Vitest.
  *
- * Both suites run under the node environment (no DOM needed). `@noble/*` and
+ * All suites run under the node environment (no DOM needed). `@noble/*` and
  * `@theqrl/*` ship ESM with `.js`-extension imports, so they must be
  * transformed by babel-jest (the transformIgnorePatterns carve-out) rather
  * than left as raw ESM for jest's CommonJS runtime.

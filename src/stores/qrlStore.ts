@@ -1,5 +1,7 @@
 import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
+import { isDesktop, desktopSigner } from "@/desktop/bridge";
+import { decideActiveAccount, reconcileSignerWallets } from "@/desktop/walletHydration";
 import type { AccountListItem, AccountSource } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
@@ -40,7 +42,9 @@ type PendingTxInfo = {
 // Transaction status type — exported so token/NFT stores can write into
 // the shared `transactionStatus` slot on this store.
 export type TransactionStatus = {
-  state: 'idle' | 'pending' | 'confirmed' | 'failed';
+  // 'timeout' is distinct from 'failed': the tx was broadcast and may still be
+  // mined; the poller just stopped waiting. Never render it as a failure.
+  state: 'idle' | 'pending' | 'confirmed' | 'failed' | 'timeout';
   txHash: string | null;
   receipt: TransactionReceipt | null;
   error: string | null;
@@ -105,6 +109,10 @@ class QrlStore {
   // makeAutoObservable below — it's a non-observable runtime handle.
   _receiptPollerIntervalId: ReturnType<typeof setInterval> | null = null;
 
+  // Desktop only: guards one-time registration of the signer lock-state
+  // listener that re-hydrates the wallet list on unlock. Non-observable.
+  _desktopUnlockListenerBound = false;
+
   // Callbacks wired by Store after construction so token/NFT init can run
   // *after* QrlStore has a live qrlInstance and network selection — and
   // without QrlStore taking a direct dependency on the other stores.
@@ -154,7 +162,9 @@ class QrlStore {
       _utils: false,
       _Web3: false,
       _receiptPollerIntervalId: false,
+      _desktopUnlockListenerBound: false,
       cancelReceiptPoller: false,
+      hydrateDesktopWalletsFromSigner: false,
       // Callback hooks injected by Store — not observable.
       onBlockchainReady: false,
       onActiveAccountChanged: false,
@@ -258,6 +268,10 @@ class QrlStore {
       });
 
       await this.fetchQrlConnection();
+      // Desktop: reconcile the account list against the signer (source of
+      // truth for which wallets exist) BEFORE fetchAccounts reads the list,
+      // so a wallet the signer can unlock is never shown as "0 wallets".
+      if (isDesktop) await this.hydrateDesktopWalletsFromSigner();
       await this.fetchAccounts();
       this.fetchQrlPrice(); // Fire-and-forget, non-blocking
       await this.validateActiveAccount();
@@ -282,6 +296,24 @@ class QrlStore {
 
   async setActiveAccount(newActiveAccount?: string, source: AccountSource = 'seed') {
     const currentBlockchain = this.qrlConnection.blockchain;
+
+    // Desktop: keep the signer's active wallet in step with the UI selection.
+    // Best-effort: a watch-only address is not a desktop wallet ("no such
+    // wallet on this device"), and switching to a NON-session wallet makes the
+    // desktop lock and raise its native unlock window, which is the intended
+    // per-account password UX. Never block the renderer-side switch on it.
+    if (isDesktop && newActiveAccount) {
+      try {
+        const list = await desktopSigner.listWallets();
+        const wallets = Array.isArray(list?.wallets) ? list.wallets : [];
+        if (wallets.some((w) => w.address.toLowerCase() === newActiveAccount.toLowerCase())) {
+          await desktopSigner.setActiveWallet(newActiveAccount);
+        }
+      } catch (error) {
+        console.error('Desktop setActiveWallet failed (continuing with UI switch):', error);
+      }
+    }
+
     await StorageUtil.setActiveAccount(
       currentBlockchain,
       newActiveAccount,
@@ -354,6 +386,135 @@ class QrlStore {
       runInAction(() => {
         this.qrlConnection = { ...this.qrlConnection, isLoading: false };
       });
+    }
+  }
+
+  /**
+   * Desktop: reconcile the renderer's account list with the signer's wallets.
+   *
+   * The signer (encrypted seed files on disk) is the source of truth for which
+   * wallets exist; the renderer's localStorage list is only written during the
+   * in-renderer import/create flow, so the two can diverge (localStorage
+   * cleared, a wallet provisioned in another session, a per-network list
+   * mismatch), which would strand a real wallet behind the empty "Let's start"
+   * screen even though the native unlock window can open it.
+   *
+   * listWallets returns addresses only (no decryption), so this works even
+   * while the signer is locked at startup. Also registers, once, a lock-state
+   * listener that re-runs on unlock (covering wallets added/removed in-session
+   * and any main that gates listWallets behind an open session). Best-effort:
+   * any bridge failure leaves the localStorage list untouched.
+   */
+  async hydrateDesktopWalletsFromSigner(): Promise<void> {
+    if (!isDesktop) return;
+
+    if (!this._desktopUnlockListenerBound) {
+      this._desktopUnlockListenerBound = true;
+      try {
+        desktopSigner.onLockStateChanged((locked) => {
+          if (locked) return;
+          // Re-run the FULL init sequence for the list: hydrate, refetch, then
+          // validateActiveAccount, which is the only thing that copies the
+          // stored active account into the activeAccount observable the Home
+          // screen gates on. Without it, a first hydration that found nothing
+          // (signer mid-restart at boot) would populate the list on unlock but
+          // still show the "Let's start" onboarding card until an app restart.
+          void this.hydrateDesktopWalletsFromSigner()
+            .then(() => this.fetchAccounts())
+            .then(async () => {
+              const before = this.activeAccount.accountAddress;
+              await this.validateActiveAccount();
+              const after = this.activeAccount.accountAddress;
+              // Adoption on this path changes the active account outside
+              // setActiveAccount, and TokenStore/NftStore are purely
+              // hook-driven: fire the same hook so token/NFT state re-scopes
+              // to the adopted account instead of staying on the boot-time
+              // (possibly empty) scope.
+              if (after && after !== before) await this.onActiveAccountChanged?.(after);
+            })
+            .catch((error: unknown) => {
+              console.error('Desktop unlock re-hydration failed:', error);
+            });
+        });
+      } catch (error) {
+        // A shell predating onLockStateChanged must not abort blockchain init;
+        // the one-shot hydration below still runs.
+        console.error('Desktop lock-state listener unavailable:', error);
+      }
+    }
+
+    let signerAddresses: string[] = [];
+    let signerActive: string | null = null;
+    // listWallets reads the seed files on disk, so its answer is authoritative
+    // even when empty (every wallet removed). The getStatus fallback is not:
+    // an empty result there may just be a locked/mid-restart signer, so it
+    // must never trigger the removal side of the reconcile.
+    let authoritative = false;
+    try {
+      const { wallets, active } = await desktopSigner.listWallets();
+      signerAddresses = (wallets ?? []).map((w) => w.address);
+      signerActive = active;
+      authoritative = true;
+    } catch {
+      // Older mains may not implement listWallets: fall back to the single
+      // active address from getStatus.
+      try {
+        const status = await desktopSigner.getStatus();
+        if (status.address) signerAddresses = [status.address];
+        signerActive = status.activeAddress ?? status.address ?? null;
+      } catch (error) {
+        console.error('Desktop wallet hydration failed:', error);
+        return;
+      }
+    }
+    if (signerAddresses.length === 0 && !authoritative) return;
+
+    // Storage reconcile is best-effort and MUST NOT throw: this method runs
+    // inside initializeBlockchain's try, so an uncaught throw here (e.g. a
+    // corrupt stored account list entry, or a localStorage quota error) would
+    // skip fetchAccounts, validateActiveAccount, and token/NFT init. Contain
+    // it so a hydration failure only loses the reconcile, never the rest of
+    // blockchain init.
+    try {
+      const blockchain = this.qrlConnection.blockchain;
+      const stored = await StorageUtil.getAccountList(blockchain);
+      // The drop side of the reconcile runs ONLY off an authoritative list;
+      // the getStatus fallback reports at most one address and must never
+      // erase the others.
+      const { list, changed } = reconcileSignerWallets(stored, signerAddresses, authoritative);
+      if (changed) await StorageUtil.setAccountList(blockchain, list);
+
+      // Decide the renderer's active account. On desktop it MUST mirror the
+      // signer's unlocked/selected account (see decideActiveAccount): a send
+      // builds `from` from the renderer active, so a stale one that differs
+      // from the unlocked session is rejected by the signer ("signing account
+      // mismatch"). The decision is a pure, unit-tested helper.
+      const storedActive = await StorageUtil.getActiveAccount(blockchain);
+      const decision = decideActiveAccount({
+        list,
+        storedActive,
+        signerActive,
+        signerAddresses,
+        authoritative,
+      });
+      if (decision.action !== 'none') {
+        // Re-read immediately before applying: if a concurrent setActiveAccount
+        // (a user switch) landed during the awaits above, the stored pointer no
+        // longer equals what we based the decision on. The live user selection
+        // wins, so skip this write rather than clobbering it back to the
+        // (now stale) signer snapshot. The next lock/unlock re-hydration
+        // reconciles from a fresh snapshot.
+        const freshActive = await StorageUtil.getActiveAccount(blockchain);
+        if ((freshActive ?? '') !== (storedActive ?? '')) {
+          log('Desktop hydration: active account changed mid-reconcile; skipping adopt.');
+        } else if (decision.action === 'set') {
+          await StorageUtil.setActiveAccount(blockchain, decision.address);
+        } else {
+          await StorageUtil.clearActiveAccount(blockchain);
+        }
+      }
+    } catch (error) {
+      console.error('Desktop wallet hydration: storage reconcile failed:', error);
     }
   }
 
@@ -558,6 +719,48 @@ class QrlStore {
     // Reset status before starting a new transaction
     this.resetTransactionStatus();
 
+    // Desktop: build calldata-free native transfer in main, confirm + sign in
+    // the signer, and broadcast, all without any seed material in the renderer.
+    // `mnemonicPhrases` is intentionally unused here (the renderer never holds
+    // it on desktop). The bridge wants the value in smallest units.
+    if (isDesktop) {
+      try {
+        const utils = this._utils ?? (await getQrlWeb3()).utils;
+        const valuePlanck = BigInt(utils.toPlanck(value, "quanta")).toString();
+        const { transactionHash } = await desktopSigner.signAndSendTransaction({
+          from,
+          to,
+          value: valuePlanck,
+          feeLevel,
+        });
+        runInAction(() => {
+          this.transactionStatus = {
+            state: 'pending',
+            txHash: transactionHash,
+            receipt: null,
+            error: null,
+            pendingDetails: null,
+          };
+        });
+        log(`Desktop transaction broadcast with hash: ${transactionHash}`);
+        this.fetchPendingTxDetails(transactionHash);
+        this.pollForReceipt(transactionHash);
+      } catch (error) {
+        const message = getErrorMessage(error);
+        runInAction(() => {
+          this.transactionStatus = {
+            state: 'failed',
+            txHash: null,
+            receipt: null,
+            error: `Transaction failed: ${message}`,
+            pendingDetails: null,
+          };
+        });
+        log(`Desktop transaction failed: ${message}`);
+      }
+      return;
+    }
+
     try {
       // Fetch the next available nonce, including pending transactions
       const nonce = await this.qrlInstance?.getTransactionCount(from, "pending");
@@ -703,65 +906,67 @@ class QrlStore {
       attempts++;
       log(`Polling for receipt ${txHash}, attempt ${attempts}`);
 
-      try {
-        const receipt = await this.qrlInstance?.getTransactionReceipt(txHash);
-
-        if (receipt) {
-          log(`Receipt found for ${txHash}`);
-          this.cancelReceiptPoller(); // Stop polling
-
-          runInAction(() => {
-            // Double-check state again before updating
-            if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-              const txHashString = utils.bytesToHex(receipt.transactionHash);
-              this.transactionStatus = {
-                state: 'confirmed',
-                txHash: txHashString,
-                receipt: receipt,
-                error: null,
-                pendingDetails: null, // Clear pending details
-              };
-              log(`Transaction confirmed via polling: ${txHashString}`);
-              this.fetchAccounts(); // Refresh account balance
-            } else {
-              log(`Receipt found for ${txHash}, but state changed before update.`);
-            }
-          });
-        } else if (attempts >= maxAttempts) {
-          // Max attempts reached, transaction likely failed or stuck
-          log(`Max polling attempts reached for ${txHash}. Marking as failed.`);
-          this.cancelReceiptPoller();
-          runInAction(() => {
-            if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-              this.transactionStatus = {
-                state: 'failed',
-                txHash: txHash,
-                receipt: null,
-                error: 'Transaction confirmation timed out.',
-                pendingDetails: null,
-              };
-            }
-          });
+      // A tx that is broadcast but not yet mined has NO receipt. The v2 node
+      // reports that as a thrown "transaction not found" rather than a null
+      // return, so a thrown error here is the EXPECTED pending state, not a
+      // failure. Treat both a null receipt and any poll error as "not yet":
+      // keep the tx in `pending` and keep polling until a receipt arrives or
+      // the timeout below, so neither an unmined tx nor a transient RPC hiccup
+      // ever flips a successfully-broadcast tx to `failed`. const so the
+      // truthy-narrowing holds inside the runInAction closure.
+      const receipt = await (async () => {
+        try {
+          return (await this.qrlInstance?.getTransactionReceipt(txHash)) ?? null;
+        } catch (error) {
+          log(`Receipt not ready for ${txHash} (attempt ${attempts}): ${getErrorMessage(error)}`);
+          return null;
         }
-        // If receipt is null and attempts < maxAttempts, continue polling
-      } catch (error) {
-        const message = getErrorMessage(error);
-        console.error(`Error polling for receipt ${txHash}:`, error);
-        log(`Error polling for receipt ${txHash}: ${message}`);
+      })();
+
+      if (receipt) {
+        log(`Receipt found for ${txHash}`);
+        this.cancelReceiptPoller(); // Stop polling
+        runInAction(() => {
+          // Double-check state again before updating
+          if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
+            const txHashString = utils.bytesToHex(receipt.transactionHash);
+            this.transactionStatus = {
+              state: 'confirmed',
+              txHash: txHashString,
+              receipt: receipt,
+              error: null,
+              pendingDetails: null, // Clear pending details
+            };
+            log(`Transaction confirmed via polling: ${txHashString}`);
+            this.fetchAccounts(); // Refresh account balance
+          } else {
+            log(`Receipt found for ${txHash}, but state changed before update.`);
+          }
+        });
+      } else if (attempts >= maxAttempts) {
+        // Still no receipt after the full window. The tx may yet be mined
+        // (it is broadcast and sitting in the mempool), so this is a soft
+        // give-up on polling, not proof of failure: point the user at the
+        // explorer rather than claiming the tx failed.
+        log(`Max polling attempts reached for ${txHash}; stopping poll (tx may still confirm).`);
         this.cancelReceiptPoller();
-        // Mark as failed on error
         runInAction(() => {
           if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
+            // 'timeout', NOT 'failed': the tx is broadcast and may still mine.
+            // The UI shows a neutral "still pending" card with the explorer
+            // link, never a red failure.
             this.transactionStatus = {
-              state: 'failed',
+              ...this.transactionStatus,
+              state: 'timeout',
               txHash: txHash,
               receipt: null,
-              error: `Error checking transaction status: ${message}`,
-              pendingDetails: null,
+              error:
+                'Still pending after 5 minutes. The transaction may yet be mined; check the explorer.',
             };
           }
         });
       }
+      // receipt null and attempts < maxAttempts: stay pending, keep polling.
     }, pollInterval);
   }
   // --- END NEW Function ---

@@ -14,6 +14,7 @@ import { observer } from "mobx-react-lite";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { connectToExtension } from "@/utils/extension";
 import { isInNativeApp } from "@/utils/nativeApp";
+import { isDesktop } from "@/desktop/bridge";
 
 const accountCreateImportClasses = cva("flex gap-8", {
   variants: {
@@ -36,7 +37,9 @@ const AccountCreateImport = observer(() => {
 
   const hasActiveAccount = !!accountAddress;
   const hasAccountCreationPreference = !!state?.hasAccountCreationPreference;
-  const description = isInNativeApp()
+  // The browser-extension connect option is web-only (hidden in the native app
+  // and the desktop app), so its mention is dropped from the copy there too.
+  const description = (isInNativeApp() || isDesktop)
     ? "You are connected to the blockchain. Create a new account or import an existing account."
     : "You are connected to the blockchain. Create a new account, import an existing account, or connect using your browser extension.";
 
@@ -76,7 +79,9 @@ const AccountCreateImport = observer(() => {
               Import an existing account
             </Button>
           </Link>
-          {!isInNativeApp() && (
+          {/* Browser-extension connect is web-only. Hidden in the native app
+              and on desktop (the desktop signer is the wallet). */}
+          {!isInNativeApp() && !isDesktop && (
             <Button className="w-full" type="button" variant="outline" onClick={handleConnectExtension}>
               <Link2 className="mr-2 h-4 w-4" />
               Connect Browser Extension

@@ -2,14 +2,20 @@ import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "../../../UI/Card";
 import {
   Form,
+  FormControl,
+  FormDescription,
   FormField,
+  FormItem,
+  FormMessage,
 } from "../../../UI/Form";
+import { Input } from "../../../UI/Input";
 import { PinInput } from "../../../UI/PinInput/PinInput";
 import { ShinyButton } from "../../../UI/ShinyButton";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,6 +26,15 @@ import { encryptSeedAsync, decryptSeedAsync, CryptoOperationError, CryptoErrorCo
 import { StorageUtil } from "@/utils/storage";
 import { useStore } from "../../../../stores/store";
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
+import { isDesktop, desktopSigner } from "@/desktop/bridge";
+
+// Password must match the signer's policy; same regex the create form uses.
+const passwordValidation = z.string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/\d/, "Password must contain at least one number")
+  .regex(/[!@#$%^&*(),.?":{}|<>]/, "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)");
 
 // Base PIN validation
 const pinValidation = z.string()
@@ -52,10 +67,161 @@ type PinSetupProps = {
   accountAddress: string;
   mnemonic: string;
   hexSeed: string;
-  onPinSetupComplete: () => void;
+  // On desktop the signer provisions the wallet and returns the address, which
+  // is passed back so the caller can set it active.
+  onPinSetupComplete: (provisionedAddress?: string) => void;
 };
 
 export const PinSetup = ({
+  accountAddress,
+  mnemonic,
+  hexSeed,
+  onPinSetupComplete,
+}: PinSetupProps) => {
+  // Desktop provisioning chokepoint: collect a PASSWORD (not a PIN) and import
+  // the wallet via the signer. No seed material is encrypted or stored in the
+  // renderer (no encryptSeedAsync / storeEncryptedSeed).
+  if (isDesktop) {
+    return (
+      <DesktopPasswordSetup
+        mnemonic={mnemonic}
+        hexSeed={hexSeed}
+        onPinSetupComplete={onPinSetupComplete}
+      />
+    );
+  }
+  return (
+    <WebPinSetup
+      accountAddress={accountAddress}
+      mnemonic={mnemonic}
+      hexSeed={hexSeed}
+      onPinSetupComplete={onPinSetupComplete}
+    />
+  );
+};
+
+type DesktopPasswordValues = {
+  password: string;
+  reEnteredPassword: string;
+};
+
+const DesktopPasswordSchema = z.object({
+  password: passwordValidation,
+  reEnteredPassword: z.string().min(1, "Please re-enter your password"),
+}).refine((data) => data.password === data.reEnteredPassword, {
+  message: "Passwords don't match",
+  path: ["reEnteredPassword"],
+});
+
+const DesktopPasswordSetup = ({
+  mnemonic,
+  hexSeed,
+  onPinSetupComplete,
+}: {
+  mnemonic: string;
+  hexSeed?: string;
+  onPinSetupComplete: (provisionedAddress?: string) => void;
+}) => {
+  const [isProvisioning, setIsProvisioning] = useState(false);
+  const form = useForm<DesktopPasswordValues>({
+    resolver: zodResolver(DesktopPasswordSchema),
+    mode: "onChange",
+    reValidateMode: "onChange",
+    defaultValues: { password: "", reEnteredPassword: "" },
+  });
+  const {
+    handleSubmit,
+    control,
+    formState: { isSubmitting, isValid },
+    setError,
+  } = form;
+
+  async function onSubmit(data: DesktopPasswordValues) {
+    setIsProvisioning(true);
+    try {
+      // Mnemonic and hex seed are two encodings of the same bytes; the signer
+      // accepts either. Prefer the mnemonic when the form produced one, else
+      // fall back to the hex seed (e.g. a wallet file missing its mnemonic).
+      const source = mnemonic ? { mnemonic } : { hexSeed };
+      const status = await desktopSigner.importWallet(source, data.password);
+      setIsProvisioning(false);
+      onPinSetupComplete(status.address);
+    } catch (error) {
+      setIsProvisioning(false);
+      setError("password", {
+        message: `${error instanceof Error ? error.message : String(error)} There was an error importing your wallet`,
+      });
+    }
+  }
+
+  return (
+    <Form {...form}>
+      <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+        <Card className="border-l-4 border-l-orange-500">
+          <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
+            <CardTitle className="text-2xl font-bold">Set Wallet Password</CardTitle>
+            <CardDescription>
+              This password unlocks your wallet on this device. The signer
+              encrypts your seed with it; it never leaves your machine.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <FormField
+              control={control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      disabled={isSubmitting || isProvisioning}
+                      placeholder="Password"
+                      type="password"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Must include uppercase, lowercase, number, and special character
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="reEnteredPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      disabled={isSubmitting || isProvisioning}
+                      placeholder="Re-enter the password"
+                      type="password"
+                    />
+                  </FormControl>
+                  <FormDescription>Re-enter the password</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+          <CardFooter>
+            <ShinyButton
+              disabled={isSubmitting || !isValid || isProvisioning}
+              processing={isProvisioning}
+              className="w-full"
+              type="submit"
+            >
+              {isProvisioning ? "Importing..." : "Import Wallet"}
+            </ShinyButton>
+          </CardFooter>
+        </Card>
+      </form>
+    </Form>
+  );
+};
+
+const WebPinSetup = ({
   accountAddress,
   mnemonic,
   hexSeed,

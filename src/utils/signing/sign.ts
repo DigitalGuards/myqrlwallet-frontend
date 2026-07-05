@@ -17,6 +17,7 @@ import {
 import { computeMessageDigest } from './messageDigest';
 import { computeTypedDataDigest, type TypedDataPayload } from './typedData';
 import { bytesToHex, hexToBytes } from './bytes';
+import { isDesktop } from '@/desktop/bridge';
 
 export interface SignWithSchemeParams {
   /** SHAKE256 digest (64 bytes) produced by the per-scheme hasher. */
@@ -70,6 +71,12 @@ export function signWithScheme({
   hexSeed,
   randomized = true,
 }: SignWithSchemeParams): SignWithSchemeResult {
+  // Defense-in-depth: on desktop ML-DSA-87 signing happens only in the
+  // isolated signer. The renderer must never derive the secret key from a
+  // hex seed, so fail loudly if any path reaches here.
+  if (isDesktop) {
+    throw new Error('desktop: signing happens in the signer, not the renderer');
+  }
   ensureDigest(digest);
   if (!(ctx instanceof Uint8Array) || ctx.length > 255) {
     throw new Error('ctx must be a Uint8Array under 256 bytes');

@@ -5,6 +5,7 @@ import { lazy, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { setupActivityTracking, startAutoLockTimer, clearAutoLockTimer } from "@/utils/storage";
 import NativeAppBridge from "@/components/NativeAppBridge";
+import { isDesktop } from "@/desktop/bridge";
 import Layout from "./Layout/Layout";
 import Body from "./Body/Body";
 
@@ -13,6 +14,9 @@ import Body from "./Body/Body";
 // MyQRLWallet chunk from rendering on normal page loads.
 const DAppApprovalModal = withSuspense(lazy(() => import("./Body/DAppConnect/DAppApprovalModal")));
 const DAppConnectionBanner = withSuspense(lazy(() => import("./Body/DAppConnect/DAppConnectionBanner")));
+// Desktop-only: qrlconnect:// protocol-handler ingress + consent modal.
+// Lazy so the web build never loads it (isDesktop is false there).
+const DesktopDAppBridge = withSuspense(lazy(() => import("@/components/DesktopDAppBridge")));
 
 const MyQRLWallet = observer(() => {
   const navigate = useNavigate();
@@ -34,7 +38,11 @@ const MyQRLWallet = observer(() => {
     <Layout>
       <RouteMonitor />
       <NativeAppBridge />
-      <DAppConnectionBanner />
+      {isDesktop && <DesktopDAppBridge />}
+      {/* Desktop surfaces connections via the sidebar dApps item + Settings
+          instead of a strip floating over the wallet; web/mobile keep the
+          banner as their always-visible affordance. */}
+      {!isDesktop && <DAppConnectionBanner />}
       <DAppApprovalModal />
       {/* <Header /> */}
       <Body />
