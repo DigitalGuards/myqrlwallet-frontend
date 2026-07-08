@@ -22,6 +22,11 @@ import StorageUtil from '@/utils/storage/storage';
 import { getExplorerTxUrl } from '@/config';
 import { formatAddressShort, formatQuantaValue } from '@/utils/formatting';
 import {
+  isReceiptStatusSuccess,
+  QRL_TX_POLLING_CONFIG,
+  waitForTransactionReceipt,
+} from '@/utils/web3/txPolling';
+import {
   bytesToHex,
   computeMessageDigest,
   computeTypedDataDigest,
@@ -225,6 +230,12 @@ const DAppApprovalModal = observer(() => {
           const valueD = txParamsD['value']
             ? BigInt(txParamsD['value'] as string).toString()
             : '0';
+          // The receipt wait below can outlive this approval being current (a
+          // session disconnect promotes the queue mid-poll); always answer the
+          // CAPTURED request, but only paint progress while it is still shown.
+          const isStillCurrent = () =>
+            dappConnectStore.currentApproval?.sessionId === approvalSessionId &&
+            dappConnectStore.currentApproval?.id === approvalId;
           try {
             dappConnectStore.setTxProgress('signing');
             if (method === 'qrl_signTransaction') {
@@ -252,14 +263,56 @@ const DAppApprovalModal = observer(() => {
               },
               dappOrigin,
             );
-            dappConnectStore.setTxProgress('confirmed', transactionHash);
-            dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, transactionHash);
-            setLoading(false);
+            // Broadcast succeeded; now wait for the on-chain receipt (web
+            // parity: the web path answers the dApp only on the `receipt`
+            // event). The desktop bridge exposes no receipt API, so poll the
+            // renderer's own provider, the same instance the web path uses.
+            dappConnectStore.setTxProgress('confirming', transactionHash);
+
+            const web3ForReceipt = qrlStore.qrlInstance;
+            if (!web3ForReceipt) {
+              // The tx IS broadcast; with no provider to poll, degrade to the
+              // legacy answer-at-broadcast rather than fake a rejection.
+              console.log('[DAppConnect] no web3 instance for receipt polling; answering at broadcast');
+              dappConnectStore.setTxProgress('confirmed', transactionHash);
+              dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, transactionHash);
+              setLoading(false);
+              return;
+            }
+
+            const outcome = await waitForTransactionReceipt(
+              (hash) => web3ForReceipt.getTransactionReceipt(hash),
+              transactionHash,
+            );
+
+            if (outcome.status === 'receipt' && isReceiptStatusSuccess(outcome.receipt.status)) {
+              if (isStillCurrent()) {
+                dappConnectStore.setTxProgress('confirmed', transactionHash);
+              }
+              // Answer even after a promotion: sending into a gone session is
+              // a logged no-op inside the connect service.
+              dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, transactionHash);
+              setLoading(false);
+              return;
+            }
+
+            // Reverted or polling window closed: reuse web3's error message
+            // shapes so the shared catch below produces the same user-facing
+            // copy the web path gets from its PromiEvent errors. Unlike web
+            // (which emits `receipt` then `error` for reverted txs and so
+            // double-answers the dApp), this sends a single rejection.
+            throw new Error(
+              outcome.status === 'receipt'
+                ? 'Transaction has been reverted by the QRVM'
+                : `Transaction was not mined within ${QRL_TX_POLLING_CONFIG.transactionPollingTimeout / 1000} seconds`,
+            );
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
             console.log('[DAppConnect] desktop tx error:', errMsg);
             const userError = toUserFacingError(errMsg);
-            dappConnectStore.setTxProgress('failed', undefined, userError);
+            if (isStillCurrent()) {
+              dappConnectStore.setTxProgress('failed', undefined, userError);
+            }
             dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, `Transaction failed: ${userError}`);
             setLoading(false);
           }
