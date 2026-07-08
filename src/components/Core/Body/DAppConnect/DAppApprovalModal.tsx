@@ -276,7 +276,6 @@ const DAppApprovalModal = observer(() => {
               console.log('[DAppConnect] no web3 instance for receipt polling; answering at broadcast');
               dappConnectStore.setTxProgress('confirmed', transactionHash);
               dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, transactionHash);
-              setLoading(false);
               return;
             }
 
@@ -292,7 +291,6 @@ const DAppApprovalModal = observer(() => {
               // Answer even after a promotion: sending into a gone session is
               // a logged no-op inside the connect service.
               dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, transactionHash);
-              setLoading(false);
               return;
             }
 
@@ -314,7 +312,6 @@ const DAppApprovalModal = observer(() => {
               dappConnectStore.setTxProgress('failed', undefined, userError);
             }
             dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, `Transaction failed: ${userError}`);
-            setLoading(false);
           }
           return;
         }
