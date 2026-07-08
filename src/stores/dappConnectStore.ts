@@ -78,6 +78,10 @@ class DAppConnectStore {
           if (this.currentApproval?.sessionId === sessionId) {
             this.currentApproval = null;
             this.approvalModalOpen = false;
+            // A tx may be mid-flight for the dropped approval; without this,
+            // its progress ('confirming'/'failed') leaks onto the next
+            // promoted approval, which starts life in the terminal view.
+            this.resetTxProgress();
           }
         });
       },
