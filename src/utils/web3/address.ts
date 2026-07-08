@@ -55,6 +55,33 @@ export const normalizeQrlAddress = (address: string): string | null => {
 };
 
 /**
+ * Extracts a QRL address from an arbitrary scanned QR payload.
+ *
+ * Wallet receive QRs encode the bare address, but explorer QRs wrap it:
+ * zondscan encodes `https://zondscan.com/address/<addr>` with the whole
+ * address lowercased (including the `q`). Scan handling therefore extracts
+ * the first Q-prefixed 40-hex token, case-insensitively, instead of
+ * validating the raw payload. 0x-prefixed tokens are deliberately NOT
+ * accepted: a bare hex QR is most likely an address on another EVM chain.
+ *
+ * @param payload - Raw text decoded from the QR code
+ * @returns string | null - The address with a capital `Q`, or null
+ */
+export const extractQrlAddressFromQrPayload = (payload: string): string | null => {
+  if (!payload || typeof payload !== 'string') {
+    return null;
+  }
+
+  const trimmed = payload.trim();
+  if (isValidQrlAddress(trimmed)) {
+    return trimmed;
+  }
+
+  const match = /\b[Qq][0-9a-fA-F]{40}\b/.exec(trimmed);
+  return match ? `Q${match[0].slice(1)}` : null;
+};
+
+/**
  * Gets a user-friendly error message for invalid addresses
  * @param address - The address that failed validation
  * @returns string - Error message explaining the issue

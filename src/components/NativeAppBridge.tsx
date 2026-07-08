@@ -25,6 +25,7 @@ import { DAppConnectService, dappConnectService } from '@/services/dappConnect/D
 import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
 import { reEncryptSeedAsync, CryptoOperationError, CryptoErrorCode } from '@/utils/crypto';
 import { ROUTES } from '@/router/router';
+import { extractQrlAddressFromQrPayload } from '@/utils/web3/address';
 import StorageUtil from '@/utils/storage/storage';
 import { QRL_PROVIDER } from '@/config';
 import { store } from '@/stores/store';
@@ -168,9 +169,17 @@ const NativeAppBridge: React.FC = () => {
             return;
           }
 
-          // Otherwise, navigate to transfer page with the address
+          // Otherwise, navigate to transfer page with the scanned address.
+          // Explorer QRs wrap it in a URL (zondscan encodes
+          // https://zondscan.com/address/<addr>), so extract rather than
+          // prefill the raw payload.
+          const scanned = extractQrlAddressFromQrPayload(address);
+          if (!scanned) {
+            logToNative(`QR payload has no QRL address: ${address.slice(0, 64)}`);
+            return;
+          }
           const searchParams = new URLSearchParams(location.search);
-          searchParams.set('to', address);
+          searchParams.set('to', scanned);
           navigate(`${ROUTES.TRANSFER}?${searchParams.toString()}`);
           break;
         }

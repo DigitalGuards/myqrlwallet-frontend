@@ -49,6 +49,7 @@ import type { FeeLevel } from "@/stores/qrlStore";
 import { SEO } from "@/components/SEO/SEO";
 import { getOptimalTokenBalance, formatAddressShort } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
+import { extractQrlAddressFromQrPayload } from "@/utils/web3/address";
 import { formatUnits, parseUnits } from "@/utils/web3/units";
 import { BigNumber } from "bignumber.js";
 
@@ -223,12 +224,6 @@ const Transfer = observer(() => {
     return sendable.isPositive() ? sendable.toString() : "0";
   }, [accountBalance, nativeGasReserve, isNativeTransfer]);
 
-  // Validate QRL address format
-  const isValidQRLAddress = useCallback((address: string): boolean => {
-    const trimmed = address.trim();
-    return trimmed.startsWith('Q') && trimmed.length === 41;
-  }, []);
-
   // Handle QR scan request
   const handleScanQR = useCallback(() => {
     if (!isInNativeApp()) return;
@@ -244,11 +239,14 @@ const Transfer = observer(() => {
 
     const unsubscribe = subscribeToNativeMessages((message) => {
       if (message.type === 'QR_RESULT' && message.payload) {
-        const scannedAddress = (message.payload['address'] as string) || '';
+        const scannedPayload = (message.payload['address'] as string) || '';
         setIsScanning(false);
 
-        // Validate the scanned address
-        if (isValidQRLAddress(scannedAddress)) {
+        // Explorer QRs wrap the address in a URL (zondscan encodes
+        // https://zondscan.com/address/<addr>, lowercased), so extract the
+        // address from the payload instead of validating it raw.
+        const scannedAddress = extractQrlAddressFromQrPayload(scannedPayload);
+        if (scannedAddress) {
           // Success - trigger haptic, show success animation, set value
           triggerHaptic('success');
           setScanSuccess(true);
@@ -277,7 +275,7 @@ const Transfer = observer(() => {
     });
 
     return unsubscribe;
-  }, [isValidQRLAddress, setValue, control]);
+  }, [setValue, control]);
 
   if (!accountAddress) {
     return (
