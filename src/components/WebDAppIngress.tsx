@@ -26,15 +26,27 @@ const WebDAppIngress = () => {
 
   useEffect(() => {
     if (isDesktop || isInNativeApp()) return;
-    const hash = window.location.hash;
-    if (!fragmentHasPairingKey(hash)) return;
-    const uri = extractPairingUriFromFragment(hash);
-    window.history.replaceState(null, '', window.location.pathname + window.location.search);
-    if (uri !== null) {
-      dappConnectStore.requestDesktopConnect(uri, 'link');
-    } else {
-      console.warn('[DAppConnect] ignoring malformed qrlconnect fragment');
-    }
+
+    const consumeFragment = () => {
+      const hash = window.location.hash;
+      if (!fragmentHasPairingKey(hash)) return;
+      const uri = extractPairingUriFromFragment(hash);
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      if (uri !== null) {
+        dappConnectStore.requestDesktopConnect(uri, 'link');
+      } else {
+        console.warn('[DAppConnect] ignoring malformed qrlconnect fragment');
+      }
+    };
+
+    // On mount (fresh tab), and on hashchange: a link that navigates an
+    // ALREADY-open wallet tab to the same path with a new fragment does not
+    // reload the page, it only fires hashchange.
+    consumeFragment();
+    window.addEventListener('hashchange', consumeFragment);
+    return () => {
+      window.removeEventListener('hashchange', consumeFragment);
+    };
   }, [dappConnectStore]);
 
   return null;
