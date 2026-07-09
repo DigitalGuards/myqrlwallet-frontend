@@ -75,6 +75,25 @@ function startsWith(buf: Uint8Array, prefix: Uint8Array): boolean {
   return true;
 }
 
+/**
+ * Recognize a dApp "wake" link: `qrlconnect://?wake=<cid>`. The SDK deep-links
+ * it to foreground the wallet app when a request is waiting for a wallet whose
+ * socket is absent; it carries no pairing payload (sessions resume via
+ * reconnectAll on APP_STATE active). Returns the cid string, or null when the
+ * URI is not a wake link. A URI carrying `q` is always a pairing URI, never a
+ * wake link.
+ */
+export function parseWakeURI(uri: string): string | null {
+  if (typeof uri !== 'string' || !/^qrlconnect:/i.test(uri.trim())) return null;
+  try {
+    const swapped = new URL(uri.trim().replace(/^qrlconnect:\/?\/?/i, 'https://qrlconnect/'));
+    if (swapped.searchParams.get('q')) return null;
+    return swapped.searchParams.get('wake');
+  } catch {
+    return null;
+  }
+}
+
 export async function parseConnectionURI(uri: string): Promise<ParsedURI> {
   if (typeof uri !== 'string' || uri.length === 0) {
     throw new Error('qrUri: empty URI');

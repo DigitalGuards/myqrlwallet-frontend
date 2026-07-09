@@ -90,6 +90,10 @@ class DAppConnectStore {
           }
         });
       },
+      // Lets the service's stale-session grace keep a channel alive while
+      // its approval modal is still waiting on the user.
+      hasPendingApprovalsForChannel: (channelId) =>
+        this.pendingRequests.some((r) => r.sessionId === channelId),
     });
 
     // Load existing sessions and reconnect
