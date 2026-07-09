@@ -11,7 +11,13 @@ import {
   type SynAckMessage,
   type AckMessage,
 } from './KeyExchange';
-import { parseConnectionURI, cidToString, computeFingerprint, fingerprintEquals } from './qrUri';
+import {
+  parseConnectionURI,
+  parseWakeURI,
+  cidToString,
+  computeFingerprint,
+  fingerprintEquals,
+} from './qrUri';
 import { fromBase64 } from './PQCrypto';
 import { SocketClient } from './SocketClient';
 import { RequestHandler } from './RequestHandler';
@@ -43,6 +49,16 @@ export const DEFAULT_RELAY_URL = 'https://qrlwallet.com';
 // back round trip and tore down recoverable sessions; 90s comfortably covers
 // it without leaving a genuinely-gone dApp "active" for long.
 const DAPP_REJOIN_GRACE_MS = 90000;
+// While an approval for the channel is still waiting on the user, the grace
+// period re-arms instead of reaping the session (approving can easily take
+// longer than 90s with FaceID + reading the request). Bounded so a session
+// whose approval is simply abandoned still gets cleaned up.
+const DAPP_LEAVE_APPROVAL_CAP_MS = 10 * 60 * 1000;
+// AEAD nonces derive from the recv counter with no gap tolerance, so a relay
+// buffer drop (5-min TTL / 50-msg cap) desyncs the stream unrecoverably and
+// every later open fails. Two consecutive failures cannot happen on a healthy
+// stream; requiring the second guards against one-off injected junk.
+const MAX_DECRYPT_FAILURES = 2;
 const TERMINATE_SEND_TIMEOUT_MS = 800;
 
 interface ActiveConnection {
@@ -82,6 +98,12 @@ type ServiceEventHandler = {
   onPendingRequest: (request: PendingDAppRequest) => void;
   onSessionConnected: (sessionId: string) => void;
   onSessionDisconnected: (sessionId: string) => void;
+  /**
+   * Whether an approval for this channel is still waiting on the user.
+   * Optional so existing wirings/mocks stay valid; when absent the
+   * stale-session grace behaves as before (no approval-aware extension).
+   */
+  hasPendingApprovalsForChannel?: (channelId: string) => boolean;
 };
 
 interface RpcRequestProvider {
@@ -104,6 +126,8 @@ export class DAppConnectService {
   // does not dedup across invocations). Value carries the effective `explicit`
   // so a racing user "forget" can upgrade a non-explicit teardown.
   private finalizing = new Map<string, { explicit: boolean }>();
+  // Consecutive post-handshake AEAD open failures per channel (desync detector).
+  private decryptFailures = new Map<string, number>();
   private handlers: ServiceEventHandler | null = null;
 
   setHandlers(handlers: ServiceEventHandler): void {
@@ -119,6 +143,16 @@ export class DAppConnectService {
     uri: string,
     origin: 'qr' | 'deeplink' = 'qr'
   ): Promise<{ success: boolean; error?: string }> {
+    // A wake link is an intentional "foreground the wallet" signal from the
+    // dApp SDK, not a pairing attempt: the session itself resumes via
+    // reconnectAll (APP_STATE active fires before this URI is forwarded).
+    // Recognize it so it does not read as a malformed pairing URI.
+    const wakeCid = parseWakeURI(uri);
+    if (wakeCid !== null) {
+      dlog(`Wake link received (cid ${wakeCid}); sessions resume via reconnectAll`);
+      return { success: true };
+    }
+
     let parsed;
     try {
       parsed = await parseConnectionURI(uri);
@@ -395,12 +429,30 @@ export class DAppConnectService {
     }
 
     if (typeof message === 'string' && conn.keyExchange.areKeysExchanged()) {
+      // The failure counter is scoped STRICTLY to the AEAD open. JSON.parse
+      // or dispatch errors happen after recvSeq advanced and say nothing
+      // about stream health, so they must never count toward a teardown.
+      let decrypted: string;
       try {
-        const decrypted = await conn.keyExchange.decryptMessage(message);
+        decrypted = await conn.keyExchange.decryptMessage(message);
+      } catch (err) {
+        console.error('[DAppConnect] Failed to decrypt message:', err);
+        const failures = (this.decryptFailures.get(channelId) ?? 0) + 1;
+        this.decryptFailures.set(channelId, failures);
+        if (failures >= MAX_DECRYPT_FAILURES) {
+          dlog(`AEAD stream desynced on ${channelId}; terminating session`);
+          // explicit=true tombstones the channel (close_channel): an
+          // encrypted TERMINATE would be undecipherable to a desynced dApp.
+          await this.disconnectSession(channelId, true);
+        }
+        return;
+      }
+      this.decryptFailures.delete(channelId);
+      try {
         const parsed = JSON.parse(decrypted);
         await this.handleDecryptedMessage(channelId, parsed);
       } catch (err) {
-        console.error('[DAppConnect] Failed to decrypt message:', err);
+        console.error('[DAppConnect] Failed to handle decrypted message:', err);
       }
     }
   }
@@ -597,6 +649,7 @@ export class DAppConnectService {
   async disconnectSession(channelId: string, explicit = true): Promise<void> {
     dlog(`disconnectSession called for ${channelId}`);
     this.clearDappLeaveTimeout(channelId);
+    this.decryptFailures.delete(channelId);
 
     // Collapse concurrent teardowns of the same channel to a single run. A
     // per-call flag cannot do this (each invocation has its own), so a user
@@ -886,11 +939,23 @@ export class DAppConnectService {
       });
   }
 
-  private scheduleDappLeaveTimeout(channelId: string): void {
+  private scheduleDappLeaveTimeout(channelId: string, graceStartedAt = Date.now()): void {
     this.clearDappLeaveTimeout(channelId);
     const timeout = setTimeout(() => {
       this.dappLeaveTimers.delete(channelId);
       if (!this.connections.has(channelId)) return;
+      // Don't reap a session whose approval modal the user is still looking
+      // at: FaceID + reading a request routinely outlasts one grace period,
+      // and the eventual response is relay-buffered for the absent dApp
+      // either way. Re-arm instead, bounded by the cumulative cap.
+      if (
+        Date.now() - graceStartedAt < DAPP_LEAVE_APPROVAL_CAP_MS &&
+        this.handlers?.hasPendingApprovalsForChannel?.(channelId)
+      ) {
+        dlog(`dApp absent but approval pending for ${channelId}; extending grace`);
+        this.scheduleDappLeaveTimeout(channelId, graceStartedAt);
+        return;
+      }
       dlog(`dApp absent for ${DAPP_REJOIN_GRACE_MS}ms; disconnecting`);
       // Fire-and-forget: this is a setTimeout callback, nothing to await into.
       void this.disconnectSession(channelId, false);
