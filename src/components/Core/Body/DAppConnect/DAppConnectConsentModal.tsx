@@ -102,7 +102,9 @@ const DAppConnectConsentModal = observer(() => {
           <DialogDescription>
             {source === 'paste'
               ? 'You pasted a dApp connection code.'
-              : 'A dApp is requesting to connect to your wallet via QRL Connect.'}
+              : source === 'link'
+                ? 'You opened a dApp connection link. The dApp may be open in another tab or on another device.'
+                : 'A dApp is requesting to connect to your wallet via QRL Connect.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -113,8 +115,8 @@ const DAppConnectConsentModal = observer(() => {
           <p>
             Connecting shares your active account address with the dApp. Its
             name and site are only verified after the encrypted channel is
-            established. Only continue if you just clicked Connect in a dApp
-            or pasted its connection code yourself.
+            established. Only continue if you just clicked Connect in a dApp,
+            opened its connection link, or pasted its connection code yourself.
           </p>
           {error && <p className="text-destructive">{error}</p>}
         </div>
