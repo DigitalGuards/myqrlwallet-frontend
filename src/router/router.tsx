@@ -22,7 +22,7 @@ const Privacy = lazy(() => import("../components/Core/Body/Privacy/Privacy.tsx")
 const TokenStatus = lazy(() => import("../components/Core/Body/CreateToken/TokenStatus.tsx"));
 const TransactionHistory = lazy(() => import("../components/Core/Body/TransactionHistory/TransactionHistory.tsx"));
 const Transfer = lazy(() => import("../components/Core/Body/Transfer/Transfer.tsx"));
-const DAppSessionsList = lazy(() => import("../components/Core/Body/DAppConnect/DAppSessionsList.tsx"));
+const DAppSessionsPage = lazy(() => import("../components/Core/Body/DAppConnect/DAppSessionsPage.tsx"));
 const NftDetail = lazy(() => import("../components/Core/Body/Nfts/NftDetail.tsx"));
 
 const ROUTES = {
@@ -170,7 +170,7 @@ const router = createAppRouter([
         path: ROUTES.DAPP_SESSIONS,
         element: (
           <Suspense fallback={<Loading />}>
-            <DAppSessionsList />
+            <DAppSessionsPage />
           </Suspense>
         )
       },
