@@ -11,6 +11,7 @@ import { Input } from '@/components/UI/Input';
 import { SessionStatus } from '@/services/dappConnect/types';
 import { DAppConnectService } from '@/services/dappConnect/DAppConnectService';
 import { isDesktop } from '@/desktop/bridge';
+import { isInNativeApp } from '@/utils/nativeApp';
 
 const statusDotColors: Record<SessionStatus, string> = {
   [SessionStatus.CONNECTED]: '#3b82f6',     // blue-500
@@ -52,10 +53,11 @@ const DAppPulsingDot = ({ status }: { status: SessionStatus }) => {
 };
 
 /**
- * Desktop-only paste entry: the fallback ingress when the qrlconnect://
- * protocol handler is unavailable (unregistered, blocked, or the dApp is on
- * another machine so only its QR/URI text can travel). Feeds the exact same
- * consent modal as the deep link; no relay contact happens here.
+ * Paste entry (desktop + web): the fallback ingress when neither the
+ * qrlconnect:// protocol handler nor the web fragment link is available
+ * (unregistered, blocked, or the dApp is on another machine so only its
+ * QR/URI text can travel). Feeds the exact same consent modal as the other
+ * ingresses; no relay contact happens here.
  */
 const DesktopPasteConnect = observer(() => {
   const { dappConnectStore } = useStore();
@@ -145,13 +147,15 @@ const DAppSessionsList = observer(() => {
         )}
       </div>
 
-      {isDesktop && <DesktopPasteConnect />}
+      {(isDesktop || !isInNativeApp()) && <DesktopPasteConnect />}
 
       {activeSessions.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {isDesktop
             ? 'No dApps connected. Click "Open in MyQRLWallet" in a dApp, or paste its connection code above.'
-            : 'No dApps connected. Scan a QR code from a dApp to connect.'}
+            : isInNativeApp()
+              ? 'No dApps connected. Scan a QR code from a dApp to connect.'
+              : 'No dApps connected. Open a connection link from a dApp, or paste its connection code above.'}
         </p>
       ) : (
         <div className="space-y-3">
