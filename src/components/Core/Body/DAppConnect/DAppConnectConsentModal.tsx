@@ -34,7 +34,14 @@ import { DEFAULT_RELAY_URL } from '@/services/dappConnect/DAppConnectService';
 const DEFAULT_RELAY_ORIGIN = new URL(DEFAULT_RELAY_URL).origin;
 
 const DAppConnectConsentModal = observer(() => {
-  const { dappConnectStore } = useStore();
+  const { dappConnectStore, qrlStore } = useStore();
+  // Pairing without an account is a ghost session: there is nothing to
+  // share, and the dApp just sees "no account". Gate Connect on having one.
+  // activeAccount hydrates asynchronously on boot, so suppress the warning
+  // (not the gate) until the store settles: a fragment-link cold load can
+  // stage this modal before hydration finishes.
+  const hasAccount = Boolean(qrlStore.activeAccount.accountAddress);
+  const isInitializing = !qrlStore.qrlInstance || qrlStore.qrlAccounts.isLoading;
   const navigate = useNavigate();
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState('');
@@ -118,6 +125,13 @@ const DAppConnectConsentModal = observer(() => {
             established. Only continue if you just clicked Connect in a dApp,
             opened its connection link, or pasted its connection code yourself.
           </p>
+          {!hasAccount && !isInitializing && (
+            <p className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-2 text-yellow-500">
+              This wallet has no account yet, so there is nothing to share with
+              the dApp. Create or import an account first, then reconnect from
+              the dApp.
+            </p>
+          )}
           {error && <p className="text-destructive">{error}</p>}
         </div>
 
@@ -125,7 +139,7 @@ const DAppConnectConsentModal = observer(() => {
           <Button variant="outline" onClick={handleCancel} disabled={connecting}>
             Cancel
           </Button>
-          <Button onClick={() => void handleConnect()} disabled={connecting}>
+          <Button onClick={() => void handleConnect()} disabled={connecting || !hasAccount}>
             {connecting ? (
               <>
                 <Loader className="mr-2 h-4 w-4 animate-spin" />
