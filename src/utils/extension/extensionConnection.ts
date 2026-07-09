@@ -1,17 +1,17 @@
-import { QRL_WEB3_WALLET_PROVIDER_INFO } from "@/constants";
+import { QRL_EXTENSION_RDNS } from "@/constants";
 import type { AccountSource } from "@/utils/storage";
 import type { ExtensionProvider } from "@/stores/qrlStore";
 import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
 
 // EIP-6963 types (simplified)
-interface EIP6963ProviderInfo {
+export interface EIP6963ProviderInfo {
   uuid: string;
   name: string;
   icon: string;
   rdns: string;
 }
 
-interface EIP6963ProviderDetail {
+export interface EIP6963ProviderDetail {
   info: EIP6963ProviderInfo;
   provider: ExtensionProvider;
 }
@@ -20,62 +20,74 @@ interface EIP6963AnnounceProviderEvent extends CustomEvent {
   detail: EIP6963ProviderDetail;
 }
 
-let qrlProviderDetail: EIP6963ProviderDetail | null = null;
+/**
+ * Whether an EIP-6963 announcement is a QRL wallet extension we can drive
+ * over the qrl_* namespace. Both the upstream QRL Web3 Wallet and the
+ * MyQRLWallet Extension fork qualify; neither exposes a window global, so
+ * EIP-6963 is the only discovery channel.
+ */
+export const isQrlExtension = (info: Pick<EIP6963ProviderInfo, "rdns">): boolean =>
+  (QRL_EXTENSION_RDNS as readonly string[]).includes(info.rdns);
 
-// Function to find the QRL provider via EIP-6963
-function findQrlProvider(): Promise<EIP6963ProviderDetail | null> {
+/**
+ * Collapse duplicate announcements. Keyed by rdns: a provider may announce
+ * more than once (initial announce + the requestProvider re-announce), and
+ * two entries sharing an rdns would be indistinguishable in a picker anyway.
+ */
+export function dedupeProviders(details: EIP6963ProviderDetail[]): EIP6963ProviderDetail[] {
+  const seen = new Set<string>();
+  const result: EIP6963ProviderDetail[] = [];
+  for (const detail of details) {
+    if (seen.has(detail.info.rdns)) continue;
+    seen.add(detail.info.rdns);
+    result.push(detail);
+  }
+  return result;
+}
+
+/**
+ * Discover every installed QRL wallet extension via EIP-6963.
+ *
+ * Compliant providers re-announce synchronously while the requestProvider
+ * event dispatches, so anything installed is normally collected immediately;
+ * a short grace period then catches stragglers, and the long timeout only
+ * applies when nothing announced at all.
+ */
+export function discoverQrlProviders(): Promise<EIP6963ProviderDetail[]> {
   return new Promise((resolve) => {
-    let isResolved = false;
+    const found: EIP6963ProviderDetail[] = [];
     const handleAnnounceProvider = (event: Event) => {
       const announceEvent = event as EIP6963AnnounceProviderEvent;
-      // Check if the announced provider is the QRL Wallet (using RDNS)
-      if (announceEvent.detail.info.rdns === QRL_WEB3_WALLET_PROVIDER_INFO.RDNS) {
-        console.log("QRL Wallet Provider Found (EIP-6963):", announceEvent.detail);
-        qrlProviderDetail = announceEvent.detail;
-        if (!isResolved) {
-          isResolved = true;
-          window.removeEventListener("eip6963:announceProvider", handleAnnounceProvider);
-          resolve(qrlProviderDetail);
-        }
+      if (announceEvent.detail?.info && isQrlExtension(announceEvent.detail.info)) {
+        found.push(announceEvent.detail);
       }
     };
 
     window.addEventListener("eip6963:announceProvider", handleAnnounceProvider);
-
-    // Dispatch the request event to prompt providers to announce themselves again
     window.dispatchEvent(new Event("eip6963:requestProvider"));
 
-    // Set a timeout in case the provider is not found quickly
-    setTimeout(() => {
-      if (!isResolved) {
-        isResolved = true;
-        window.removeEventListener("eip6963:announceProvider", handleAnnounceProvider);
-        resolve(qrlProviderDetail); // Resolve with whatever was found (null if nothing)
-      }
-    }, 1000); // Wait 1 second
+    const settle = () => {
+      window.removeEventListener("eip6963:announceProvider", handleAnnounceProvider);
+      resolve(dedupeProviders(found));
+    };
+    setTimeout(settle, found.length > 0 ? 100 : 1000);
   });
 }
 
-// Modify the function signature to accept setActiveAccount and setExtensionProvider
-async function connectToExtension(
+/**
+ * Connect to a discovered extension: request account access (the extension
+ * shows its own approval popup), make the first account active with the
+ * 'extension' source, and store the provider for later request() calls.
+ */
+export async function connectWithProvider(
+  detail: EIP6963ProviderDetail,
   setActiveAccount: (address: string, source?: AccountSource) => Promise<void>,
-  setExtensionProvider: (provider: ExtensionProvider | null) => void // Add the new setter
+  setExtensionProvider: (provider: ExtensionProvider | null) => void
 ): Promise<string[] | null> {
-  // Attempt to find the provider via EIP-6963
-  const foundProviderDetail = await findQrlProvider();
-
-  if (!foundProviderDetail) {
-    console.error("QRL Wallet extension provider not found (EIP-6963).");
-    alert("QRL Wallet Extension not detected. Please ensure it is installed and enabled.");
-    setExtensionProvider(null); // Ensure provider is cleared if not found
-    return null;
-  }
-
-  const provider = foundProviderDetail.provider;
+  const provider = detail.provider;
 
   try {
-    // Request account access using the QRL-specific method
-    console.log("Attempting to connect using qrl_requestAccounts...");
+    console.log(`Attempting to connect to ${detail.info.name} using qrl_requestAccounts...`);
     const accounts = await provider.request<string[]>({ method: 'qrl_requestAccounts' });
 
     if (accounts && accounts.length > 0) {
@@ -83,11 +95,9 @@ async function connectToExtension(
       if (!firstAccount) return null; // length > 0 guarantees this; satisfies the index checker
       console.log("Connected to extension with accounts:", accounts);
 
-      // Call the passed-in setActiveAccount function
       console.log(`Setting active account to: ${firstAccount}`);
       await setActiveAccount(firstAccount, 'extension');
 
-      // Set the extension provider in the store
       console.log("Setting extension provider in store.");
       setExtensionProvider(provider);
 
@@ -105,7 +115,6 @@ async function connectToExtension(
       console.log('User rejected connection request.');
       alert('Connection request rejected.');
     } else if (code === -32601) {
-      // Method not found, although we expect qrl_requestAccounts to exist now
       console.error("RPC Error: Method not found", error);
       alert(`RPC Error: ${getErrorMessage(error)}`);
     } else {
@@ -115,5 +124,3 @@ async function connectToExtension(
     return null;
   }
 }
-
-export { connectToExtension };
