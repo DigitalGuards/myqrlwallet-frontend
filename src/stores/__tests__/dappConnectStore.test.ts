@@ -137,6 +137,21 @@ describe('requestDesktopConnect', () => {
     expect(store.desktopConnectUri).toBe(URI_B);
     expect(store.desktopConnectSource).toBe('paste');
   });
+
+  it('stages a web fragment-link URI with the link source', () => {
+    const store = new DAppConnectStore();
+    store.requestDesktopConnect(URI_A, 'link');
+    expect(store.desktopConnectUri).toBe(URI_A);
+    expect(store.desktopConnectSource).toBe('link');
+  });
+
+  it('latest request wins across web sources too (link then paste)', () => {
+    const store = new DAppConnectStore();
+    store.requestDesktopConnect(URI_A, 'link');
+    store.requestDesktopConnect(URI_B, 'paste');
+    expect(store.desktopConnectUri).toBe(URI_B);
+    expect(store.desktopConnectSource).toBe('paste');
+  });
 });
 
 describe('clearDesktopConnect', () => {
@@ -168,6 +183,13 @@ describe('confirmDesktopConnect', () => {
   it('maps a paste source to the qr origin (dApp may be on another device)', async () => {
     const store = new DAppConnectStore();
     store.requestDesktopConnect(URI_A, 'paste');
+    await store.confirmDesktopConnect();
+    expect(mockService.handleConnectionURI).toHaveBeenCalledWith(URI_A, 'qr');
+  });
+
+  it('maps a web link source to the qr origin (dApp may be in another tab)', async () => {
+    const store = new DAppConnectStore();
+    store.requestDesktopConnect(URI_A, 'link');
     await store.confirmDesktopConnect();
     expect(mockService.handleConnectionURI).toHaveBeenCalledWith(URI_A, 'qr');
   });
