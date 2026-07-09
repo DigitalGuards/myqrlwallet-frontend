@@ -1,6 +1,12 @@
 import { Buffer } from 'buffer';
 globalThis.Buffer = Buffer;
 
+// Must run before the router mounts: RouteMonitor's restore-navigation would
+// otherwise erase a #qrlconnect= pairing fragment (and leave the bearer URI
+// in history) before the lazy web ingress loads.
+import { captureQrlconnectFragment } from '@/services/dappConnect/fragmentCapture';
+captureQrlconnectFragment();
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HelmetProvider } from 'react-helmet-async'

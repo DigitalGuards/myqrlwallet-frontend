@@ -11,8 +11,14 @@ import { useStore } from "../../../../../stores/store";
 import { cva } from "class-variance-authority";
 import { Download, Plus, Link2 } from "lucide-react";
 import { observer } from "mobx-react-lite";
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { connectToExtension } from "@/utils/extension";
+import {
+  connectWithProvider,
+  discoverQrlProviders,
+  type EIP6963ProviderDetail,
+} from "@/utils/extension";
+import ExtensionPickerDialog from "./ExtensionPickerDialog";
 import { isInNativeApp } from "@/utils/nativeApp";
 import { isDesktop } from "@/desktop/bridge";
 
@@ -43,14 +49,36 @@ const AccountCreateImport = observer(() => {
     ? "You are connected to the blockchain. Create a new account or import an existing account."
     : "You are connected to the blockchain. Create a new account, import an existing account, or connect using your browser extension.";
 
-  const handleConnectExtension = async () => {
-    const accounts = await connectToExtension(setActiveAccount, setExtensionProvider);
+  const [pickerProviders, setPickerProviders] = useState<EIP6963ProviderDetail[] | null>(null);
+
+  const finishConnect = async (detail: EIP6963ProviderDetail) => {
+    setPickerProviders(null);
+    const accounts = await connectWithProvider(detail, setActiveAccount, setExtensionProvider);
     if (accounts && accounts.length > 0) {
       console.log("Successfully connected via extension, set active account, and stored provider.");
       navigate(ROUTES.HOME);
     } else {
       console.log("Failed to connect via extension or no accounts selected.");
     }
+  };
+
+  const handleConnectExtension = async () => {
+    // Any QRL wallet extension (MyQRLWallet Extension or the upstream QRL
+    // Web3 Wallet) may answer; one match connects directly, several open a
+    // picker.
+    const providers = await discoverQrlProviders();
+    const only = providers[0];
+    if (!only) {
+      console.error("QRL Wallet extension provider not found (EIP-6963).");
+      alert("QRL Wallet Extension not detected. Please ensure it is installed and enabled.");
+      setExtensionProvider(null);
+      return;
+    }
+    if (providers.length === 1) {
+      await finishConnect(only);
+      return;
+    }
+    setPickerProviders(providers);
   };
 
   return (
@@ -89,6 +117,14 @@ const AccountCreateImport = observer(() => {
           )}
         </CardFooter>
       </Card>
+
+      {pickerProviders ? (
+        <ExtensionPickerDialog
+          providers={pickerProviders}
+          onSelect={(detail) => void finishConnect(detail)}
+          onClose={() => setPickerProviders(null)}
+        />
+      ) : null}
     </div>
   );
 });

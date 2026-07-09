@@ -10,8 +10,12 @@ import { isDesktop, desktopSigner } from '@/desktop/bridge';
 
 export type TxProgressState = 'idle' | 'signing' | 'broadcasting' | 'confirming' | 'confirmed' | 'failed';
 
-/** How a desktop connect URI reached the wallet (protocol handler vs paste). */
-export type DesktopConnectSource = 'deeplink' | 'paste';
+/**
+ * How a staged connect URI reached the wallet: the desktop OS protocol
+ * handler ('deeplink'), the paste field ('paste', desktop + web), or a web
+ * fragment link ('link', a dApp's "Open web wallet" handoff).
+ */
+export type DesktopConnectSource = 'deeplink' | 'paste' | 'link';
 
 class DAppConnectStore {
   activeSessions: DAppSession[] = [];
@@ -27,9 +31,10 @@ class DAppConnectStore {
   txHash: string | null = null;
   txError: string | null = null;
   /**
-   * Desktop only: a qrlconnect:// URI awaiting the user's consent (from the
-   * OS protocol handler or the paste field). The consent modal observes this;
-   * NO relay contact happens until the user confirms. Latest request wins.
+   * Desktop + web: a qrlconnect:// URI awaiting the user's consent (from the
+   * OS protocol handler, the paste field, or a web fragment link). The
+   * consent modal observes this; NO relay contact happens until the user
+   * confirms. Latest request wins.
    */
   desktopConnectUri: string | null = null;
   desktopConnectSource: DesktopConnectSource = 'deeplink';
@@ -78,6 +83,10 @@ class DAppConnectStore {
           if (this.currentApproval?.sessionId === sessionId) {
             this.currentApproval = null;
             this.approvalModalOpen = false;
+            // A tx may be mid-flight for the dropped approval; without this,
+            // its progress ('confirming'/'failed') leaks onto the next
+            // promoted approval, which starts life in the terminal view.
+            this.resetTxProgress();
           }
         });
       },
@@ -97,9 +106,10 @@ class DAppConnectStore {
   }
 
   /**
-   * Desktop: stage a qrlconnect:// URI behind the consent modal. Called by
-   * the protocol-handler bridge and the paste field; the consent modal is the
-   * single gate before any relay contact.
+   * Stage a qrlconnect:// URI behind the consent modal. Called by the desktop
+   * protocol-handler bridge, the paste field (desktop + web), and the web
+   * fragment ingress; the consent modal is the single gate before any relay
+   * contact.
    */
   requestDesktopConnect(uri: string, source: DesktopConnectSource = 'deeplink'): void {
     if (!DAppConnectService.isConnectionURI(uri)) {
@@ -118,10 +128,11 @@ class DAppConnectStore {
   }
 
   /**
-   * Desktop: user consented in the modal. Runs the normal connect path; the
+   * User consented in the modal. Runs the normal connect path; the
    * 'deeplink' origin only ever gates the native return-to-dApp redirect,
-   * which is a no-op outside the mobile app, so paste + deeplink both map to
-   * their honest origin ('qr' for paste: the dApp may be on another device).
+   * which is a no-op outside the mobile app. Paste and web-link sources map
+   * to the honest 'qr' origin: the dApp may be in another tab or on another
+   * device.
    */
   async confirmDesktopConnect(): Promise<{ success: boolean; error?: string }> {
     const uri = this.desktopConnectUri;

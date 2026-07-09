@@ -6,17 +6,26 @@ import { useNavigate } from "react-router-dom";
 import { setupActivityTracking, startAutoLockTimer, clearAutoLockTimer } from "@/utils/storage";
 import NativeAppBridge from "@/components/NativeAppBridge";
 import { isDesktop } from "@/desktop/bridge";
+import { isInNativeApp } from "@/utils/nativeApp";
 import Layout from "./Layout/Layout";
 import Body from "./Body/Body";
 
-// DApp modals are only shown when an active dApp session sends a request —
+// DApp modals are only shown when an active dApp session sends a request;
 // lazy-load them so their @theqrl/web3 dependency doesn't block the
 // MyQRLWallet chunk from rendering on normal page loads.
 const DAppApprovalModal = withSuspense(lazy(() => import("./Body/DAppConnect/DAppApprovalModal")));
 const DAppConnectionBanner = withSuspense(lazy(() => import("./Body/DAppConnect/DAppConnectionBanner")));
-// Desktop-only: qrlconnect:// protocol-handler ingress + consent modal.
+// Desktop-only: qrlconnect:// protocol-handler ingress (subscription only).
 // Lazy so the web build never loads it (isDesktop is false there).
 const DesktopDAppBridge = withSuspense(lazy(() => import("@/components/DesktopDAppBridge")));
+// Web-only: #qrlconnect= fragment ingress ("Open web wallet" dApp handoff).
+const WebDAppIngress = withSuspense(lazy(() => import("@/components/WebDAppIngress")));
+// Consent gate for staged connect URIs (desktop deep link/paste, web
+// link/paste). Single global mount so the two ingresses can never
+// double-mount it; the native app consents via the physical QR scan instead.
+const DAppConnectConsentModal = withSuspense(
+  lazy(() => import("./Body/DAppConnect/DAppConnectConsentModal"))
+);
 
 const MyQRLWallet = observer(() => {
   const navigate = useNavigate();
@@ -39,6 +48,8 @@ const MyQRLWallet = observer(() => {
       <RouteMonitor />
       <NativeAppBridge />
       {isDesktop && <DesktopDAppBridge />}
+      {!isDesktop && !isInNativeApp() && <WebDAppIngress />}
+      {!isInNativeApp() && <DAppConnectConsentModal />}
       {/* Desktop surfaces connections via the sidebar dApps item + Settings
           instead of a strip floating over the wallet; web/mobile keep the
           banner as their always-visible affordance. */}
