@@ -86,14 +86,14 @@ export const ActiveAccountDisplay = observer(() => {
       )}
       <div className="flex justify-center">
         <div
-          className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-primary/25 bg-primary/[0.08] px-3 sm:px-4 py-1.5 text-[clamp(0.6rem,2.5vw,0.875rem)] group cursor-pointer backdrop-blur-sm transition-colors hover:border-primary/50"
+          className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-blue-accent/30 bg-blue-accent/[0.08] px-3 sm:px-4 py-1.5 text-[clamp(0.6rem,2.5vw,0.875rem)] group cursor-pointer backdrop-blur-sm transition-colors hover:border-blue-accent/60"
           onClick={() => handleCopy(accountAddress, 'address')}
         >
-          <span className="font-data text-primary">{formatAddress(accountAddress)}</span>
+          <span className="font-data text-blue-accent">{formatAddress(accountAddress)}</span>
           {copiedItem === 'address' ? (
             <Check className="w-3.5 h-3.5 text-success" />
           ) : (
-            <Copy className="w-3.5 h-3.5 text-primary/60" />
+            <Copy className="w-3.5 h-3.5 text-blue-accent/60" />
           )}
         </div>
       </div>

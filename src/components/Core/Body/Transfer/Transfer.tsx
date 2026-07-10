@@ -727,7 +727,7 @@ const Transfer = observer(() => {
                   {/* From Address */}
                   <div className="flex flex-col gap-2">
                     <Label>From</Label>
-                    <div className="font-bold text-secondary font-mono text-sm break-all">
+                    <div className="font-bold text-blue-accent font-mono text-sm break-all">
                       {accountAddress}
                     </div>
                     <div className="text-sm text-muted-foreground">
