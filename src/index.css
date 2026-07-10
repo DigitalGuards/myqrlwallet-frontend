@@ -263,17 +263,19 @@
   }
 
   /* Glass surface: the one card treatment used everywhere so pages stop
-     feeling stitched together. Solid-ish ink with a soft top sheen. */
+     feeling stitched together. Solid-ish ink with a soft top sheen.
+     Deliberately NO backdrop-filter: it would give every card its own
+     stacking context, trapping z-indexed hover popovers (QR previews)
+     beneath later-painted sibling cards. Cards only ever sit over the flat
+     body atmosphere, so translucency alone reads the same. */
   .surface-glass {
     background:
       linear-gradient(180deg, hsl(var(--foreground) / 0.045), transparent 42%),
-      hsl(var(--card) / 0.82);
+      hsl(var(--card) / 0.88);
     border: 1px solid hsl(var(--foreground) / 0.08);
     box-shadow:
       0 1px 0 hsl(var(--foreground) / 0.05) inset,
       0 18px 40px -24px hsl(235 30% 2% / 0.9);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
   }
 
   /* Ember edge treatment for "hero" cards (active account, approvals). */
