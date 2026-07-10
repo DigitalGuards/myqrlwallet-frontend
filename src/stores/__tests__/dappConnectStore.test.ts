@@ -321,6 +321,7 @@ describe('service handler callbacks', () => {
     return call[0] as {
       onPendingRequest: (r: PendingDAppRequest) => void;
       onSessionDisconnected: (sessionId: string) => void;
+      hasPendingApprovalsForChannel: (channelId: string) => boolean;
     };
   }
 
@@ -351,5 +352,19 @@ describe('service handler callbacks', () => {
     expect(store.pendingRequests.map((r) => r.id)).toEqual([other.id]);
     expect(store.currentApproval).toBeNull();
     expect(store.approvalModalOpen).toBe(false);
+  });
+
+  it('hasPendingApprovalsForChannel reflects per-channel pending state', () => {
+    const store = new DAppConnectStore();
+    const handlers = capturedHandlers();
+    expect(handlers.hasPendingApprovalsForChannel('session-1')).toBe(false);
+
+    handlers.onPendingRequest(makeRequest({ id: 1, sessionId: 'session-1' }));
+    expect(handlers.hasPendingApprovalsForChannel('session-1')).toBe(true);
+    expect(handlers.hasPendingApprovalsForChannel('session-2')).toBe(false);
+
+    handlers.onSessionDisconnected('session-1');
+    expect(handlers.hasPendingApprovalsForChannel('session-1')).toBe(false);
+    expect(store.pendingRequests).toHaveLength(0);
   });
 });
