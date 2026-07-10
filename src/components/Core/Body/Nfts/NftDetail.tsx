@@ -274,7 +274,7 @@ const NftDetail = observer(() => {
         </Card>
       </div>
 
-      <Card className="mt-6 border-l-4 border-l-blue-accent">
+      <Card className="mt-6">
         <CardHeader>
           <CardTitle className="text-lg">Transfer</CardTitle>
         </CardHeader>
@@ -291,7 +291,7 @@ const NftDetail = observer(() => {
             {txStatus.state === "confirmed" && txStatus.txHash && (
               <div
                 role="status"
-                className="rounded-md bg-green-500/15 p-3 text-sm text-green-400"
+                className="rounded-md bg-success/15 p-3 text-sm text-success"
               >
                 Transfer confirmed.{" "}
                 <a

@@ -83,8 +83,8 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="border-l-4 border-l-blue-accent">
-          <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
+        <Card >
+          <CardHeader>
             <CardTitle className="text-2xl font-bold">Import with Hex Seed</CardTitle>
             <CardDescription>
               Enter your hexadecimal seed to restore your wallet

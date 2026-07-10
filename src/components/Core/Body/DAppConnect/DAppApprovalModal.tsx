@@ -114,8 +114,8 @@ async function unlockHexSeed(
 
 function getBorderColor(progress: TxProgressState): string {
   switch (progress) {
-    case 'confirming': return 'border-l-orange-500';
-    case 'confirmed': return 'border-l-green-500';
+    case 'confirming': return 'border-l-primary';
+    case 'confirmed': return 'border-l-success';
     case 'failed': return 'border-l-destructive';
     default: return 'border-l-secondary';
   }
@@ -711,7 +711,7 @@ const DAppApprovalModal = observer(() => {
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         {/* dApp Identity Header */}
-        <div className="bg-gradient-to-r from-secondary/5 to-transparent p-4">
+        <div className="bg-gradient-to-r from-primary/10 to-transparent p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/10">
               <Globe className="h-5 w-5 text-secondary" />
@@ -748,14 +748,14 @@ const DAppApprovalModal = observer(() => {
                 )}
                 {txProgress === 'confirming' && (
                   <>
-                    <Loader className="h-5 w-5 animate-spin text-orange-500" />
+                    <Loader className="h-5 w-5 animate-spin text-primary" />
                     <span className="text-sm font-medium">Awaiting confirmation...</span>
                   </>
                 )}
                 {txProgress === 'confirmed' && (
                   <>
-                    <Check className="h-5 w-5 text-green-500" />
-                    <span className="text-sm font-medium text-green-500">Transaction Confirmed</span>
+                    <Check className="h-5 w-5 text-success" />
+                    <span className="text-sm font-medium text-success">Transaction Confirmed</span>
                   </>
                 )}
                 {txProgress === 'failed' && (

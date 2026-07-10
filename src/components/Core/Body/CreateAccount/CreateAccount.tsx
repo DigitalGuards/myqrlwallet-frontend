@@ -61,7 +61,7 @@ const CreateAccount = observer(() => {
             src="/tree.svg"
             alt="Background Tree"
           />
-          <div className="relative z-10">
+          <div className="page-enter relative z-10">
             {isWalletLimitReached ? (
               <div className="flex flex-col items-center gap-6 rounded-lg border border-destructive/50 bg-destructive/10 p-8 text-center">
                 <AlertCircle className="h-12 w-12 text-destructive" />

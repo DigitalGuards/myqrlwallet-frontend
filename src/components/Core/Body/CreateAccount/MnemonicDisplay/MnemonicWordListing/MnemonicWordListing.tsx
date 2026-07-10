@@ -11,14 +11,14 @@ const MnemonicWordListing = ({ mnemonic }: MnemonicWordListingProps) => {
     mnemonicWords.length > 0 &&
     mnemonicWords[0] !== "" && (
       <Card>
-        <CardContent className="grid grid-cols-3 gap-4 p-6 sm:grid-cols-4">
+        <CardContent className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-3 md:grid-cols-4">
           {mnemonicWords.map((word, index) => (
             <div
               key={`${word}-${index}`}
-              className="flex items-center gap-2 text-sm"
+              className="flex items-center gap-2 rounded-md border border-foreground/[0.07] bg-foreground/[0.04] px-2.5 py-1.5 text-sm font-data"
             >
-              <span className="text-muted-foreground">{index + 1}.</span>
-              <span>{word}</span>
+              <span className="min-w-5 text-right text-xs text-primary/70">{index + 1}</span>
+              <span className="text-foreground">{word}</span>
             </div>
           ))}
         </CardContent>

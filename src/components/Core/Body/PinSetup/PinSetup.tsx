@@ -157,8 +157,8 @@ const DesktopPasswordSetup = ({
   return (
     <Form {...form}>
       <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-        <Card className="border-l-4 border-l-orange-500">
-          <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
+        <Card className="border-l-4 border-l-primary">
+          <CardHeader>
             <CardTitle className="text-2xl font-bold">Set Wallet Password</CardTitle>
             <CardDescription>
               This password unlocks your wallet on this device. The signer
@@ -332,8 +332,8 @@ const WebPinSetup = ({
   return (
     <Form {...form}>
       <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-        <Card className="border-l-4 border-l-orange-500">
-          <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
+        <Card className="border-l-4 border-l-primary">
+          <CardHeader>
             <CardTitle className="text-2xl font-bold">
               {hasExistingSeeds ? "Enter Your Wallet PIN" : "Set Transaction PIN"}
             </CardTitle>

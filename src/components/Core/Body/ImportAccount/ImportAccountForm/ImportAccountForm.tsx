@@ -86,8 +86,8 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="border-l-4 border-l-blue-accent">
-          <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
+        <Card >
+          <CardHeader>
             <CardTitle className="text-2xl font-bold">Import with Mnemonic</CardTitle>
             <CardDescription>
               Enter your mnemonic phrase to restore your wallet

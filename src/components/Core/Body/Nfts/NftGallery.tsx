@@ -50,8 +50,8 @@ const NftGallery = observer(() => {
   const nfts = nftStore.visibleNftList;
 
   return (
-    <Card className="border-l-4 border-l-secondary">
-      <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-secondary/5 to-transparent">
+    <Card >
+      <CardHeader className="flex flex-row items-center justify-between">
         <div className="flex items-center gap-3">
           <CardTitle className="text-2xl font-bold">NFTs</CardTitle>
           {nfts.length > 0 && (
