@@ -11,7 +11,7 @@ import { cn } from "@/utils/cn";
  */
 export function FooterLinks({ className }: { className?: string }) {
     const linkClass =
-        "text-xs md:text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors";
+        "text-xs md:text-sm cursor-pointer text-blue-accent/70 hover:text-blue-accent transition-colors";
 
     return (
         <div className={cn("flex items-center justify-center gap-6 md:gap-12", className)}>

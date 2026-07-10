@@ -114,8 +114,9 @@
     --secondary: 25 95% 53%;
     --secondary-foreground: 24 90% 6%;
 
-    /* Quantum cyan: informational only (links, live status, sync) */
-    --blue-accent: 190 90% 58%;
+    /* QRL battery blue: the identity color (addresses, account markers)
+       and informational states. Orange acts, blue identifies. */
+    --blue-accent: 199 89% 64%;
     --blue-accent-foreground: 200 90% 8%;
 
     --success: 152 55% 48%;
