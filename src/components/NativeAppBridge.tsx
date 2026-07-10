@@ -26,6 +26,7 @@ import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
 import { reEncryptSeedAsync, CryptoOperationError, CryptoErrorCode } from '@/utils/crypto';
 import { ROUTES } from '@/router/router';
 import StorageUtil from '@/utils/storage/storage';
+import { clearAddressBook, mergeContacts } from '@/utils/addressBook';
 import { QRL_PROVIDER } from '@/config';
 import { store } from '@/stores/store';
 
@@ -257,6 +258,32 @@ const NativeAppBridge: React.FC = () => {
           break;
         }
 
+        case 'RESTORE_CONTACTS' as NativeToWebMessageType: {
+          // Native pushes its address-book backup on boot; merge it in
+          // (union by address, local wins) so contacts survive WebView
+          // data loss. mergeContacts syncs the union back to native.
+          try {
+            const { contacts } = (payload || {}) as Record<string, unknown>;
+            mergeContacts(contacts);
+          } catch (error) {
+            console.error('[Bridge] Error restoring contacts:', error);
+            logToNative(`Error restoring contacts: ${error instanceof Error ? error.message : String(error)}`);
+          }
+          break;
+        }
+
+        case 'NAVIGATE' as NativeToWebMessageType: {
+          // Native settings rows deep-link into web routes (e.g. the
+          // Address Book). Only plain in-app paths are accepted.
+          const { path } = (payload || {}) as Record<string, unknown>;
+          if (typeof path === 'string' && path.startsWith('/') && !path.startsWith('//')) {
+            navigate(path);
+          } else {
+            console.warn('[Bridge] Ignored NAVIGATE with invalid path:', path);
+          }
+          break;
+        }
+
         case 'CLIPBOARD_SUCCESS':
           // Could show a toast notification
           console.log('[Bridge] Clipboard success');
@@ -333,6 +360,7 @@ const NativeAppBridge: React.FC = () => {
           // an explicit "erase everything" request from native settings.
           StorageUtil.clearAllTokenData();
           StorageUtil.clearAllNftData();
+          clearAddressBook();
 
           // Confirm to native that web cleared its data
           confirmWalletCleared();

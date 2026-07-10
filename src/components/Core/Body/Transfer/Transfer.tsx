@@ -31,13 +31,14 @@ import { useStore } from "@/stores/store";
 import { StorageUtil } from "@/utils/storage";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { utils } from "@theqrl/web3";
-import { Loader, Send, X, Copy, Coins, ExternalLink, ScanLine, Check } from "lucide-react";
+import { Loader, Send, X, Copy, Coins, ExternalLink, ScanLine, Check, BookUser } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { GasFeeNotice } from "./GasFeeNotice/GasFeeNotice";
+import { AddressBookPicker } from "../AddressBook/AddressBookPicker";
 import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSuccessful";
 import { getExplorerAddressUrl, getExplorerTxUrl, QRL_PROVIDER } from "@/config";
 import { Slider } from "@/components/UI/Slider";
@@ -113,6 +114,13 @@ const Transfer = observer(() => {
   // Get initial asset from URL params (for token transfers from home page)
   const initialAsset = searchParams.get('asset') || 'native';
 
+  // Prefill from the address book page's Send action (navigation state).
+  const location = useLocation();
+  const prefilledReceiver =
+    typeof (location.state as { receiverAddress?: unknown } | null)?.receiverAddress === "string"
+      ? (location.state as { receiverAddress: string }).receiverAddress
+      : "";
+
   const [sliderValue, setSliderValue] = useState(0);
   const [feeLevel, setFeeLevel] = useState<FeeLevel>("medium");
   const [amountInputValue, setAmountInputValue] = useState("");
@@ -125,6 +133,9 @@ const Transfer = observer(() => {
   const [scanSuccess, setScanSuccess] = useState(false);
   const [scannedAddressPreview, setScannedAddressPreview] = useState<string | null>(null);
 
+  // Address book picker state
+  const [addressBookOpen, setAddressBookOpen] = useState(false);
+
   // Preserved across resetForm so the success screen can show the amount sent.
   const [submittedAmount, setSubmittedAmount] = useState<string>("");
   const [submittedAssetSymbol, setSubmittedAssetSymbol] = useState<string>("");
@@ -135,7 +146,7 @@ const Transfer = observer(() => {
     reValidateMode: "onChange",
     defaultValues: {
       asset: initialAsset,
-      receiverAddress: "",
+      receiverAddress: prefilledReceiver,
       amount: 0,
       pin: "",
     },
@@ -760,8 +771,17 @@ const Transfer = observer(() => {
                               value={field.value ?? ""}
                               disabled={isSubmitting || isScanning}
                               placeholder="Receiver address"
-                              className="pr-10"
+                              className={isInNativeApp() ? "pr-16" : "pr-10"}
                             />
+                            <button
+                              type="button"
+                              onClick={() => setAddressBookOpen(true)}
+                              disabled={isSubmitting || isScanning}
+                              className={`absolute ${isInNativeApp() ? "right-9" : "right-2"} top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-accent transition-colors disabled:opacity-50`}
+                              title="Address book"
+                            >
+                              <BookUser className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                            </button>
                             {isInNativeApp() && (
                               <button
                                 type="button"
@@ -794,12 +814,21 @@ const Transfer = observer(() => {
                         )}
                         {!isScanning && !scanSuccess && (
                           <FormDescription>
-                            Enter the receiver's account address{isInNativeApp() ? ' or scan QR' : ''}
+                            Enter the receiver's address, pick a contact{isInNativeApp() ? ', or scan QR' : ''}
                           </FormDescription>
                         )}
                         <FormMessage />
                       </FormItem>
                     )}
+                  />
+
+                  <AddressBookPicker
+                    open={addressBookOpen}
+                    onOpenChange={setAddressBookOpen}
+                    currentAddress={formValues.receiverAddress}
+                    onSelect={(address) =>
+                      setValue("receiverAddress", address, { shouldValidate: true })
+                    }
                   />
 
                   {/* Amount */}
