@@ -14,10 +14,10 @@ export interface AddressBookEntry {
 
 const STORAGE_KEY = "qrl:addressBook:v1";
 
-export const isValidQrlAddress = (address: string): boolean => {
-  const trimmed = address.trim();
-  return trimmed.startsWith("Q") && trimmed.length === 41;
-};
+// Shared validator (Q + 40 hex chars), re-exported for address-book UIs.
+export { isValidQrlAddress } from "./web3/address";
+import { isValidQrlAddress } from "./web3/address";
+import { isInNativeApp, notifyContactsUpdated } from "./nativeApp";
 
 const isEntry = (value: unknown): value is AddressBookEntry => {
   if (typeof value !== "object" || value === null) return false;
@@ -44,6 +44,12 @@ export function loadAddressBook(): AddressBookEntry[] {
 
 function persist(entries: AddressBookEntry[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  // In the app, native AsyncStorage is the durable copy: iOS may evict
+  // WebView website data under storage pressure. Native restores it on
+  // boot (RESTORE_CONTACTS) and deletes it on Remove All Wallets.
+  if (isInNativeApp()) {
+    notifyContactsUpdated(entries);
+  }
 }
 
 export function findByAddress(address: string): AddressBookEntry | undefined {
@@ -87,4 +93,30 @@ export function removeEntry(id: string): boolean {
   if (next.length === entries.length) return false;
   persist(next);
   return true;
+}
+
+/**
+ * Erase the whole address book. Part of the CLEAR_WALLET full wipe;
+ * deliberately NOT called on logout, which (like token/NFT lists)
+ * preserves public curated data so re-importing restores it. The native
+ * side deletes its own backup in the same wipe flow.
+ */
+export function clearAddressBook(): void {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+/**
+ * Merge the native backup into the local book (union by address; local
+ * entries win). Called from the RESTORE_CONTACTS bridge message; the
+ * resulting union syncs back to native via persist().
+ */
+export function mergeContacts(incoming: unknown): void {
+  if (!Array.isArray(incoming)) return;
+  const valid = incoming.filter(isEntry).filter((e) => isValidQrlAddress(e.address));
+  if (valid.length === 0) return;
+  const existing = loadAddressBook();
+  const known = new Set(existing.map((e) => e.address.toLowerCase()));
+  const additions = valid.filter((e) => !known.has(e.address.toLowerCase()));
+  if (additions.length === 0) return;
+  persist([...existing, ...additions]);
 }

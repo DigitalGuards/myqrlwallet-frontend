@@ -23,6 +23,7 @@ export type WebToNativeMessageType =
   | 'WEB_APP_READY'         // Web app is fully initialized and ready to receive data
   | 'PIN_VERIFIED'          // Web responds to PIN verification request
   | 'PIN_CHANGED'           // Web responds to PIN change request
+  | 'CONTACTS_UPDATED'      // Web address book changed, native should back it up
   // Navigation messages
   | 'OPEN_NATIVE_SETTINGS'  // Request native app to open its settings screen
   // DApp Connect messages
@@ -54,7 +55,9 @@ export type NativeToWebMessageType =
   | 'DAPP_URI'              // Deep link URI received by native, forwarded to WebView
   | 'DAPP_DISCONNECT'       // Native requests web to disconnect a specific dApp session
   // Display preferences (native settings drives the Home card toggles)
-  | 'SET_DISPLAY_PREFS';    // Native sets showTokensCard / showNftsCard in wallet settings
+  | 'SET_DISPLAY_PREFS'     // Native sets showTokensCard / showNftsCard in wallet settings
+  | 'RESTORE_CONTACTS'      // Native sends the backed-up address book on boot
+  | 'NAVIGATE';             // Native asks the web app to navigate to an in-app route
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
@@ -258,6 +261,14 @@ export const notifySeedStored = (options: {
   blockchain: string;
 }): boolean => {
   return sendToNative('SEED_STORED', options);
+};
+
+/**
+ * Mirror the address book to native storage so contacts survive WebView
+ * data loss; native persists them until an explicit Remove All Wallets.
+ */
+export const notifyContactsUpdated = (contacts: unknown[]): boolean => {
+  return sendToNative('CONTACTS_UPDATED', { contacts });
 };
 
 /**
