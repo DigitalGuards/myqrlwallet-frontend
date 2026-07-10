@@ -42,7 +42,7 @@ function hexToRgba(hexColor: string, alpha: number): string {
 const blockchainSelectionClasses = cva("cursor-pointer", {
   variants: {
     isSelected: {
-      true: ["text-green-500 focus:text-green-500"],
+      true: ["text-success focus:text-success"],
     },
   },
   defaultVariants: {
@@ -52,7 +52,7 @@ const blockchainSelectionClasses = cva("cursor-pointer", {
 
 // Animated pulsing dot component
 const PulsingDot = ({ isConnected }: { isConnected: boolean }) => {
-  const color = isConnected ? "#22c55e" : "#ef4444"; // green-500 / red-500
+  const color = isConnected ? "#37bd8a" : "#ef4444"; // success green / red-500
 
   return (
     <>
@@ -104,13 +104,13 @@ const ConnectionBadge = observer(() => {
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
               <button
-                className="group flex items-center gap-1.5 rounded-full border border-neutral-700/80 bg-card px-2.5 py-1.5 text-zinc-300 transition-all duration-200 hover:border-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-accent focus-visible:ring-offset-2"
+                className="group flex items-center gap-1.5 rounded-full border border-foreground/10 bg-foreground/[0.04] px-2.5 py-1.5 text-muted-foreground backdrop-blur-sm transition-all duration-200 hover:border-foreground/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label={`Network: ${qrlNetworkName}`}
               >
                 <PulsingDot isConnected={isConnected} />
-                <Globe className="h-3.5 w-3.5 text-neutral-400" />
+                <Globe className="h-3.5 w-3.5 text-muted-foreground" />
                 <ChevronDown
-                  className={`h-3 w-3 text-neutral-500 transition-transform duration-200 ${
+                  className={`h-3 w-3 text-muted-foreground transition-transform duration-200 ${
                     isDropdownOpen ? "rotate-180" : ""
                   }`}
                 />

@@ -131,13 +131,13 @@ export const PinInput = ({
             }}
             aria-label={`PIN digit ${i + 1}`}
             className={cn(
-              "h-12 w-11 rounded-md border bg-background text-center font-mono text-xl text-foreground outline-none transition-colors",
-              "focus-visible:border-[#4aafff] focus-visible:ring-1 focus-visible:ring-[#4aafff]",
+              "h-12 w-11 rounded-md border bg-foreground/[0.04] text-center font-data text-xl text-foreground outline-none transition-colors",
+              "focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary",
               "disabled:cursor-not-allowed disabled:opacity-50",
               error
                 ? "border-destructive"
                 : chars[i]
-                  ? "border-[#4aafff]"
+                  ? "border-primary/70"
                   : "border-input",
             )}
           />

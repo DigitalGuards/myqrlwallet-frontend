@@ -218,8 +218,8 @@ export const TokenCreationForm = observer(
         // Check if user has an active account
         if (!activeAccount.accountAddress) {
             return (
-                <Card className="border-l-4 border-l-secondary">
-                    <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
+                <Card >
+                    <CardHeader>
                         <CardTitle className="text-2xl font-bold">Create New Token</CardTitle>
                         <CardDescription>
                             Deploy your own QRC20 token on the QRL network
@@ -242,8 +242,8 @@ export const TokenCreationForm = observer(
         return (
             <Form {...form}>
                 <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-                    <Card className="border-l-4 border-l-secondary">
-                        <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
+                    <Card >
+                        <CardHeader>
                             <CardTitle className="text-2xl font-bold">Create New QRC20 Token</CardTitle>
                             <CardDescription>
                                 Deploy your own QRC20 token on the QRL network

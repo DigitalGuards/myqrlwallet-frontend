@@ -63,8 +63,8 @@ const TokenStatus = observer(() => {
 
                 {/* Creating State */}
                 {isCreating && (
-                    <Card className="w-full border-l-4 border-l-orange-500">
-                        <CardHeader className="bg-gradient-to-r from-orange-500/10 to-transparent">
+                    <Card className="w-full border-l-4 border-l-primary">
+                        <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Loader2 className="h-5 w-5 animate-spin" />
                                 Creating Token
@@ -73,9 +73,9 @@ const TokenStatus = observer(() => {
                         <CardContent className="py-12">
                             <div className="flex flex-col items-center gap-4 text-center">
                                 <div className="relative">
-                                    <div className="absolute inset-0 animate-ping rounded-full bg-orange-500/20" />
-                                    <div className="relative rounded-full bg-orange-500/10 p-6">
-                                        <Sparkles className="h-8 w-8 text-orange-500" />
+                                    <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+                                    <div className="relative rounded-full bg-primary/10 p-6">
+                                        <Sparkles className="h-8 w-8 text-primary" />
                                     </div>
                                 </div>
                                 <div className="space-y-1">
@@ -123,10 +123,10 @@ const TokenStatus = observer(() => {
 
                 {/* Success State */}
                 {isSuccess && (
-                    <Card className="w-full border-l-4 border-l-green-500">
-                        <CardHeader className="bg-gradient-to-r from-green-500/10 to-transparent">
+                    <Card className="w-full border-l-4 border-l-success">
+                        <CardHeader className="bg-gradient-to-r from-success/10 to-transparent">
                             <CardTitle className="flex items-center gap-2">
-                                <Check className="h-5 w-5 text-green-500" />
+                                <Check className="h-5 w-5 text-success" />
                                 Token Created
                             </CardTitle>
                         </CardHeader>
@@ -148,7 +148,7 @@ const TokenStatus = observer(() => {
                                         className="text-muted-foreground hover:text-foreground"
                                     >
                                         {copiedItem === "txHash" ? (
-                                            <Check className="h-4 w-4 text-green-500" />
+                                            <Check className="h-4 w-4 text-success" />
                                         ) : (
                                             <Copy className="h-4 w-4" />
                                         )}
@@ -167,7 +167,7 @@ const TokenStatus = observer(() => {
                                         className="text-muted-foreground hover:text-foreground"
                                     >
                                         {copiedItem === "tokenAddress" ? (
-                                            <Check className="h-4 w-4 text-green-500" />
+                                            <Check className="h-4 w-4 text-success" />
                                         ) : (
                                             <Copy className="h-4 w-4" />
                                         )}
@@ -201,7 +201,7 @@ const TokenStatus = observer(() => {
                                         className="text-muted-foreground hover:text-foreground"
                                     >
                                         {copiedItem === "blockHash" ? (
-                                            <Check className="h-4 w-4 text-green-500" />
+                                            <Check className="h-4 w-4 text-success" />
                                         ) : (
                                             <Copy className="h-4 w-4" />
                                         )}

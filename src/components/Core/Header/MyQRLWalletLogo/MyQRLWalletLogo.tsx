@@ -18,7 +18,7 @@ const MyQRLWalletLogo = ({ showText = true, size = 'md' }: MyQRLWalletLogoProps)
       <span className="flex items-center gap-2">
         <img className={logoSizes[size]} src="/icons/theqrlwallet/192.png" alt="QRL Logo" />
         {showText && (
-          <div className="flex flex-col text-xs font-bold text-secondary">
+          <div className="flex flex-col text-xs font-bold text-secondary font-display tracking-tight">
             <span className="text-lg">MyQRLwallet</span>
           </div>
         )}

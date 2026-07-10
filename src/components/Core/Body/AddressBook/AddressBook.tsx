@@ -78,9 +78,9 @@ export default function AddressBook() {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 pb-20 max-w-2xl mx-auto w-full">
-      <Card className="border-l-4 border-l-orange-500">
-        <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
+    <div className="page-enter flex flex-col gap-4 p-4 pb-20 max-w-2xl mx-auto w-full">
+      <Card className="border-l-4 border-l-primary">
+        <CardHeader>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3">
               <BookUser className="h-7 w-7 text-secondary" />
@@ -122,7 +122,7 @@ export default function AddressBook() {
                       onClick={() => handleCopy(entry)}
                     >
                       {copiedId === entry.id ? (
-                        <Check className="h-4 w-4 text-green-500" />
+                        <Check className="h-4 w-4 text-success" />
                       ) : (
                         <Copy className="h-4 w-4" />
                       )}

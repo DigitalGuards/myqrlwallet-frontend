@@ -133,12 +133,12 @@ const MnemonicDisplay = ({
     "You should only continue if you have downloaded the recovery information. If you haven't, go back, download, and then continue. There is no going back once you click the continue button.";
 
   return (
-    <Card className="w-full max-w-2xl border-l-4 border-l-orange-500">
+    <Card className="w-full max-w-2xl border-l-4 border-l-primary">
       <CardHeader>
         <CardTitle>Your Recovery Information</CardTitle>
         <CardDescription className="flex flex-col gap-2">
           <span>{cardDescription}</span>
-          <span className="text-orange-500 break-all">{accountAddress}</span>
+          <span className="text-primary break-all">{accountAddress}</span>
           <span className="flex gap-2">
             <Button
               type="button"

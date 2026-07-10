@@ -118,8 +118,8 @@ export const ImportEncryptedWallet = ({
   };
 
   return (
-    <Card className="border-l-4 border-l-blue-accent">
-      <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
+    <Card >
+      <CardHeader>
         <CardTitle className="text-2xl font-bold">Import Encrypted Wallet</CardTitle>
         <CardDescription className="text-muted-foreground">
           Select your encrypted wallet file and enter the password to decrypt it.

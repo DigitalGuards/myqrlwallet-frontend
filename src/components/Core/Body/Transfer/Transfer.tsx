@@ -295,14 +295,14 @@ const Transfer = observer(() => {
       <>
         <SEO title="Transfer" />
         <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-          <div className="relative w-full max-w-2xl px-2 md:px-4">
+          <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
             <img
               className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
               src="/tree.svg"
               alt="Background Tree"
             />
-            <Card className="w-full border-l-4 border-l-secondary">
-              <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
+            <Card className="w-full">
+              <CardHeader>
                 <CardTitle className="text-2xl font-bold">Transfer</CardTitle>
                 <CardDescription>
                   Send QRL or tokens to another wallet
@@ -525,9 +525,9 @@ const Transfer = observer(() => {
   if (transactionStatus.state === 'pending') {
     return (
       <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-        <div className="relative w-full max-w-2xl px-2 md:px-4">
-          <Card className="w-full border-l-4 border-l-orange-500">
-            <CardHeader className="bg-gradient-to-r from-orange-500/10 to-transparent">
+        <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
+          <Card className="w-full border-l-4 border-l-primary">
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Loader className="h-5 w-5 animate-spin" />
                 Transaction Pending
@@ -592,9 +592,9 @@ const Transfer = observer(() => {
   if (transactionStatus.state === 'timeout') {
     return (
       <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-        <div className="relative w-full max-w-2xl px-2 md:px-4">
-          <Card className="w-full border-l-4 border-l-orange-500">
-            <CardHeader className="bg-gradient-to-r from-orange-500/10 to-transparent">
+        <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
+          <Card className="w-full border-l-4 border-l-primary">
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Loader className="h-5 w-5" />
                 Still Pending
@@ -632,7 +632,7 @@ const Transfer = observer(() => {
   if (transactionStatus.state === 'failed') {
     return (
       <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-        <div className="relative w-full max-w-2xl px-2 md:px-4">
+        <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
           <Card className="w-full border-l-4 border-l-destructive">
             <CardHeader className="bg-gradient-to-r from-destructive/10 to-transparent">
               <CardTitle className="flex items-center gap-2 text-destructive">
@@ -671,7 +671,7 @@ const Transfer = observer(() => {
     <>
       <SEO title="Transfer" />
       <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-        <div className="relative w-full max-w-2xl px-2 md:px-4">
+        <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
           <img
             className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
             src="/tree.svg"
@@ -679,8 +679,8 @@ const Transfer = observer(() => {
           />
           <Form {...form}>
             <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-              <Card className="w-full border-l-4 border-l-secondary">
-                <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
+              <Card className="w-full">
+                <CardHeader>
                   <CardTitle className="text-2xl font-bold">Transfer</CardTitle>
                   <CardDescription>
                     Send QRL or tokens to another wallet
@@ -791,7 +791,7 @@ const Transfer = observer(() => {
                                 title="Scan QR code"
                               >
                                 {scanSuccess ? (
-                                  <Check className="h-5 w-5 text-green-500 animate-pulse" />
+                                  <Check className="h-5 w-5 text-success animate-pulse" />
                                 ) : isScanning ? (
                                   <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
                                 ) : (

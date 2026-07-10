@@ -12,8 +12,8 @@ export const NetworkSettings = observer(() => {
     const { TEST_NET, MAIN_NET } = QRL_PROVIDER;
 
     return (
-        <Card className="border-l-4 border-l-blue-accent">
-            <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
+        <Card >
+            <CardHeader>
                 <CardTitle className="text-2xl font-bold">Network Settings</CardTitle>
                 <CardDescription>
                     Configure your network connections and RPC endpoints
