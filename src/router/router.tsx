@@ -24,6 +24,7 @@ const TransactionHistory = lazy(() => import("../components/Core/Body/Transactio
 const Transfer = lazy(() => import("../components/Core/Body/Transfer/Transfer.tsx"));
 const DAppSessionsPage = lazy(() => import("../components/Core/Body/DAppConnect/DAppSessionsPage.tsx"));
 const NftDetail = lazy(() => import("../components/Core/Body/Nfts/NftDetail.tsx"));
+const AddressBook = lazy(() => import("../components/Core/Body/AddressBook/AddressBook.tsx"));
 
 const ROUTES = {
   HOME: "/",
@@ -41,6 +42,7 @@ const ROUTES = {
   TOKEN_STATUS: "/token-status",
   TRANSACTION_HISTORY: "/tx-history",
   DAPP_SESSIONS: "/dapp-sessions",
+  ADDRESS_BOOK: "/address-book",
   NFT_DETAIL: "/nft/:contractAddress/:tokenId",
 } as const;
 
@@ -171,6 +173,14 @@ const router = createAppRouter([
         element: (
           <Suspense fallback={<Loading />}>
             <DAppSessionsPage />
+          </Suspense>
+        )
+      },
+      {
+        path: ROUTES.ADDRESS_BOOK,
+        element: (
+          <Suspense fallback={<Loading />}>
+            <AddressBook />
           </Suspense>
         )
       },
