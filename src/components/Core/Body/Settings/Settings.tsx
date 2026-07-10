@@ -251,15 +251,15 @@ const Settings = observer(() => {
                     >
                         <source src="/tree.mp4" type="video/mp4" />
                     </video> */ }
-                    <div className="relative z-10 space-y-4 md:space-y-8">
+                    <div className="page-enter relative z-10 space-y-4 md:space-y-8">
                         {/* PIN Management Card - web/native only. On desktop there
                             is no PIN (the signer uses a password / Argon2id) and
                             no in-renderer re-encrypt, so the card is hidden. */}
                         {hasEncryptedSeeds && !isDesktop && (
-                            <Card className="border-l-4 border-l-orange-500">
-                                <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
+                            <Card className="border-l-4 border-l-primary">
+                                <CardHeader>
                                     <div className="flex items-center gap-2">
-                                        <Shield className="h-6 w-6 text-orange-500" />
+                                        <Shield className="h-6 w-6 text-primary" />
                                         <CardTitle className="text-2xl font-bold">PIN Management</CardTitle>
                                     </div>
                                     <CardDescription>
@@ -286,7 +286,7 @@ const Settings = observer(() => {
                                                 </div>
                                             )}
                                             {changePinSuccess && (
-                                                <div className="rounded-md bg-green-500/15 p-3 text-sm text-green-400">
+                                                <div className="rounded-md bg-success/15 p-3 text-sm text-success">
                                                     PIN changed successfully! Your wallet PIN has been updated.
                                                 </div>
                                             )}
@@ -369,13 +369,13 @@ const Settings = observer(() => {
 
                         <NetworkSettings />
 
-                        <Card className="border-l-4 border-l-orange-500">
+                        <Card className="border-l-4 border-l-primary">
                             <button
                                 type="button"
                                 className="w-full text-left cursor-pointer"
                                 onClick={() => navigate(ROUTES.ADDRESS_BOOK)}
                             >
-                                <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
+                                <CardHeader>
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-3">
                                             <BookUser className="h-6 w-6 text-secondary" />
@@ -392,8 +392,8 @@ const Settings = observer(() => {
                             </button>
                         </Card>
 
-                        <Card className="border-l-4 border-l-blue-accent">
-                            <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
+                        <Card >
+                            <CardHeader>
                                 <CardTitle className="text-2xl font-bold">Wallet Preferences</CardTitle>
                                 <CardDescription>
                                     Customize your wallet experience and security settings
@@ -404,7 +404,7 @@ const Settings = observer(() => {
                                 <form onSubmit={form.handleSubmit(onSubmit)}>
                                     <CardContent className="space-y-8">
                                         {settingsSaveSuccess && (
-                                            <div role="status" className="rounded-md bg-green-500/15 p-3 text-sm text-green-400">
+                                            <div role="status" className="rounded-md bg-success/15 p-3 text-sm text-success">
                                                 Settings saved successfully! Your wallet settings have been updated.
                                             </div>
                                         )}
@@ -501,7 +501,7 @@ const Settings = observer(() => {
                             mounts the same component for deep links. Desktop
                             never reaches this page: its Settings entry opens
                             the native settings window (see utils/navigation). */}
-                        <Card className="border-l-4 border-l-blue-accent">
+                        <Card >
                             <DAppSessionsList />
                         </Card>
                     </div>

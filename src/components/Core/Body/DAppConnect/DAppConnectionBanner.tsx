@@ -8,7 +8,7 @@ import { useStore } from '@/stores/store';
 import { SessionStatus } from '@/services/dappConnect/types';
 
 const statusDotColors: Record<SessionStatus, string> = {
-  [SessionStatus.CONNECTED]: '#3b82f6',     // blue-500
+  [SessionStatus.CONNECTED]: '#3fba82',     // success green
   [SessionStatus.RECONNECTING]: '#eab308',   // yellow-500
   [SessionStatus.CONNECTING]: '#eab308',     // yellow-500
   [SessionStatus.KEY_EXCHANGE]: '#eab308',   // yellow-500

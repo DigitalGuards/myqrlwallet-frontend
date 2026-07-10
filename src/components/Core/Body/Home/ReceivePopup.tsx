@@ -61,13 +61,13 @@ export const ReceivePopup = observer(({
                                     variant="outline" 
                                     size="icon" 
                                     onClick={copyAddress}
-                                    className={copied ? "text-green-500" : ""}
+                                    className={copied ? "text-success" : ""}
                                 >
                                     <Copy size={18} />
                                 </Button>
                             </div>
                             {copied && (
-                                <p className="text-green-500 text-xs mt-1">Address copied to clipboard!</p>
+                                <p className="text-success text-xs mt-1">Address copied to clipboard!</p>
                             )}
                         </div>
                         

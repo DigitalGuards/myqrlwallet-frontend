@@ -11,6 +11,12 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HelmetProvider } from 'react-helmet-async'
 import App from './App.tsx'
+// Self-hosted variable fonts (CSP-safe, bundled by Vite): Sora = display,
+// Instrument Sans = body, JetBrains Mono = data (addresses/amounts/seeds).
+// Imported here, not in index.css, so Vite rewrites the woff2 asset URLs.
+import '@fontsource-variable/sora/index.css'
+import '@fontsource-variable/instrument-sans/index.css'
+import '@fontsource-variable/jetbrains-mono/index.css'
 import './index.css'
 
 const rootElement = document.getElementById('root')

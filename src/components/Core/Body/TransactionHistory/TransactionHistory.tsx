@@ -120,7 +120,7 @@ const TransactionHistory = observer(() => {
     }
 
     return (
-        <div className="p-4 sm:p-6">
+        <div className="page-enter p-4 sm:p-6">
             <h1 className="text-xl sm:text-2xl font-bold mb-4">Transaction History</h1>
             <div className="mb-4 flex flex-col sm:flex-row justify-between items-center">
                 <input
@@ -204,7 +204,7 @@ const TransactionHistory = observer(() => {
                     <div className="mt-4 flex justify-center">
                         <button
                             onClick={handleLoadMore}
-                            className="px-4 py-2 bg-secondary hover:bg-muted rounded text-sm sm:text-base cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-4 py-2 rounded-md border border-foreground/10 bg-foreground/[0.06] text-sm sm:text-base cursor-pointer transition-colors hover:bg-foreground/10 disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled={loading || !hasMore}
                         >
                             {loading ? 'Loading...' : hasMore ? 'Load More' : 'No more transactions'}
@@ -270,7 +270,7 @@ const DetailsModal = ({ transaction }: DetailsModalProps) => {
                         </div>
                         <button
                             onClick={() => setIsOpen(false)}
-                            className="mt-4 px-3 py-1 bg-secondary hover:bg-muted rounded text-sm sm:text-base"
+                            className="mt-4 px-3 py-1 rounded-md border border-foreground/10 bg-foreground/[0.06] text-sm sm:text-base transition-colors hover:bg-foreground/10"
                         >
                             Close
                         </button>

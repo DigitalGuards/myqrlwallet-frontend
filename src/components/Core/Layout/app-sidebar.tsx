@@ -68,7 +68,7 @@ export const AppSidebar = observer(function AppSidebar() {
         location.pathname === url || location.pathname.startsWith(`${url}/`);
 
     return (
-        <Sidebar className="h-[calc(100vh-2.5rem)] border-r-secondary !border-r">
+        <Sidebar className="h-[calc(100vh-2.5rem)] !border-r border-r-sidebar-border bg-sidebar/80 backdrop-blur-md">
             <SidebarContent>
                 {/* px-0 so the active item is full-bleed: its orange right
                     edge sits flush with the rail border instead of floating
@@ -92,9 +92,9 @@ export const AppSidebar = observer(function AppSidebar() {
                                         // keyboard-only inset focus ring (mouse clicks don't show it).
                                         className={cn(
                                             "flex flex-col justify-evenly items-center gap-1 py-2 h-auto rounded-none border-r-2 border-r-transparent transition-colors [&>svg]:!size-8",
-                                            "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-secondary",
+                                            "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
                                             active
-                                                ? "bg-secondary/10 border-r-secondary text-foreground"
+                                                ? "bg-gradient-to-l from-primary/15 to-transparent border-r-primary text-foreground [&>svg]:text-primary [&>svg]:drop-shadow-[0_0_10px_hsl(24_96%_55%/0.5)]"
                                                 : "text-muted-foreground hover:text-foreground",
                                         )}
                                     >
@@ -113,9 +113,9 @@ export const AppSidebar = observer(function AppSidebar() {
                                         onClick={() => navigateTo(ROUTES.DAPP_SESSIONS, navigate)}
                                         className={cn(
                                             "flex flex-col justify-evenly items-center gap-1 py-2 h-auto rounded-none border-r-2 border-r-transparent transition-colors",
-                                            "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-secondary",
+                                            "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
                                             isActive(ROUTES.DAPP_SESSIONS)
-                                                ? "bg-secondary/10 border-r-secondary text-foreground"
+                                                ? "bg-gradient-to-l from-primary/15 to-transparent border-r-primary text-foreground [&_svg]:text-primary [&_svg]:drop-shadow-[0_0_10px_hsl(24_96%_55%/0.5)]"
                                                 : "text-muted-foreground hover:text-foreground",
                                         )}
                                     >
@@ -124,7 +124,7 @@ export const AppSidebar = observer(function AppSidebar() {
                                             {dappConnectStore.sessionCount > 0 && (
                                                 <span
                                                     aria-label={`${dappConnectStore.sessionCount} connected dApp${dappConnectStore.sessionCount === 1 ? "" : "s"}`}
-                                                    className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-secondary px-1 text-[10px] font-bold leading-none text-secondary-foreground"
+                                                    className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground shadow-[0_0_10px_hsl(24_96%_55%/0.6)]"
                                                 >
                                                     {dappConnectStore.sessionCount}
                                                 </span>

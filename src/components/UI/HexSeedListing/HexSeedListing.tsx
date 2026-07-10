@@ -6,7 +6,7 @@ type HexSeedListingProps = {
 };
 
 const hexSeedListingClasses = cva(
-    "rounded-lg border border-input bg-muted p-4 font-mono text-sm break-all",
+    "rounded-lg border border-primary/15 bg-foreground/[0.04] p-4 font-data text-sm break-all",
 );
 
 export const HexSeedListing = ({ hexSeed, className }: HexSeedListingProps) => {

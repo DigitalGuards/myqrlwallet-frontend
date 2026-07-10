@@ -61,10 +61,10 @@ export const TransactionSuccessful = ({
           src="/tree.svg"
           alt="Background Tree"
         />
-        <Card className="w-full border-l-4 border-l-green-500">
-          <CardHeader className="bg-gradient-to-r from-green-500/10 to-transparent">
+        <Card className="w-full border-l-4 border-l-success">
+          <CardHeader className="bg-gradient-to-r from-success/10 to-transparent">
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <CheckCircle2 className="h-5 w-5 text-success" />
               Transaction Completed
             </CardTitle>
           </CardHeader>
@@ -96,7 +96,7 @@ export const TransactionSuccessful = ({
                   className="text-secondary hover:text-secondary/80"
                 >
                   {copiedItem === "txHash" ? (
-                    <Check className="h-4 w-4 text-green-500" />
+                    <Check className="h-4 w-4 text-success" />
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
@@ -114,7 +114,7 @@ export const TransactionSuccessful = ({
                   className="text-secondary hover:text-secondary/80"
                 >
                   {copiedItem === "blockHash" ? (
-                    <Check className="h-4 w-4 text-green-500" />
+                    <Check className="h-4 w-4 text-success" />
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}

@@ -74,8 +74,8 @@ const TokenForm = observer(() => {
     }, [activeAccountAddress, tokenStore]);
 
     return (
-        <Card className="border-l-4 border-l-secondary">
-            <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-secondary/5 to-transparent">
+        <Card >
+            <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-2xl font-bold">Tokens</CardTitle>
                 <div className="flex gap-2">
                     <TooltipProvider>
@@ -88,7 +88,7 @@ const TokenForm = observer(() => {
                                     disabled={isRefreshing || refreshSuccess}
                                 >
                                     {refreshSuccess ? (
-                                        <Check className="h-4 w-4 text-green-500" />
+                                        <Check className="h-4 w-4 text-success" />
                                     ) : isRefreshing ? (
                                         <RefreshCw className="h-4 w-4 animate-spin" />
                                     ) : (

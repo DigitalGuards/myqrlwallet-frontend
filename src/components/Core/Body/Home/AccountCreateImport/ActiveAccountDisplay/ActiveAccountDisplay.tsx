@@ -45,37 +45,40 @@ export const ActiveAccountDisplay = observer(() => {
   return (
     <div className="flex flex-col">
       <div
-        className="flex justify-center items-center text-xl font-bold text-white group"
+        className="flex justify-center items-baseline text-2xl md:text-3xl font-semibold text-foreground group font-data"
       >
-        <div className="cursor-pointer flex items-center" onClick={() => handleCopy(activeAccountBalance, 'balance')}>
-          <span><SlotBalance value={formatBalance(activeAccountBalance)} spinning={isSlotSpinning} /> QRL</span>
+        <div className="cursor-pointer flex items-baseline" onClick={() => handleCopy(activeAccountBalance, 'balance')}>
+          <span>
+            <SlotBalance value={formatBalance(activeAccountBalance)} spinning={isSlotSpinning} />
+            <span className="ml-1.5 text-base font-medium text-muted-foreground">QRL</span>
+          </span>
           {copiedItem === 'balance' ? (
-            <Check className="w-4 h-4 ml-2 text-white" />
+            <Check className="w-4 h-4 ml-2 self-center text-success" />
           ) : (
-            <Copy className="w-4 h-4 ml-2 text-white" />
+            <Copy className="w-4 h-4 ml-2 self-center text-muted-foreground transition-colors group-hover:text-foreground" />
           )}
         </div>
         <button
-          className="ml-2 p-1 rounded-full hover:bg-gray-700 flex items-center justify-center"
+          className="ml-2 p-1 rounded-full self-center hover:bg-foreground/10 flex items-center justify-center transition-colors"
           onClick={refreshBalance}
           disabled={isRefreshing || refreshSuccess}
         >
           {refreshSuccess ? (
-            <Check className="w-4 h-4 text-white" />
+            <Check className="w-4 h-4 text-success" />
           ) : isRefreshing ? (
-            <RefreshCw className="w-4 h-4 text-white animate-spin" />
+            <RefreshCw className="w-4 h-4 text-foreground animate-spin" />
           ) : (
-            <RefreshCw className="w-4 h-4 text-white" />
+            <RefreshCw className="w-4 h-4 text-muted-foreground" />
           )}
         </button>
       </div>
       {qrlPrice > 0 && (
-        <div className="flex items-center justify-center gap-2 text-sm mt-2 mb-4">
-          <span className="text-slate-400">
+        <div className="flex items-center justify-center gap-2 text-sm mt-2 mb-4 font-data">
+          <span className="text-muted-foreground">
             ≈ ${activeAccountBalanceUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
           {qrlPriceChange24h !== 0 && (
-            <span className={qrlPriceChange24h > 0 ? "text-emerald-400" : "text-red-400"}>
+            <span className={qrlPriceChange24h > 0 ? "text-success" : "text-red-400"}>
               {qrlPriceChange24h > 0 ? "▲" : "▼"} {qrlPriceChange24h > 0 ? "+" : ""}{qrlPriceChange24h.toFixed(2)}%
             </span>
           )}
@@ -83,14 +86,14 @@ export const ActiveAccountDisplay = observer(() => {
       )}
       <div className="flex justify-center">
         <div
-          className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full bg-black/20 px-3 sm:px-4 py-1.5 text-[clamp(0.6rem,2.5vw,0.875rem)] group cursor-pointer backdrop-blur-sm"
+          className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-blue-accent/30 bg-blue-accent/[0.08] px-3 sm:px-4 py-1.5 text-[clamp(0.6rem,2.5vw,0.875rem)] group cursor-pointer backdrop-blur-sm transition-colors hover:border-blue-accent/60"
           onClick={() => handleCopy(accountAddress, 'address')}
         >
-          <span className="font-mono text-orange-400">{formatAddress(accountAddress)}</span>
+          <span className="font-data text-blue-accent">{formatAddress(accountAddress)}</span>
           {copiedItem === 'address' ? (
-            <Check className="w-3.5 h-3.5 text-orange-400" />
+            <Check className="w-3.5 h-3.5 text-success" />
           ) : (
-            <Copy className="w-3.5 h-3.5 text-orange-400/60" />
+            <Copy className="w-3.5 h-3.5 text-blue-accent/60" />
           )}
         </div>
       </div>

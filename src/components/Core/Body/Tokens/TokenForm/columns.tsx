@@ -27,10 +27,10 @@ const CopyableAddress = ({ address }: { address: string }) => {
         <div className="font-medium flex items-center gap-2 group">
             <span>{formattedAddress}</span>
             {isCopied ? (
-                <Check className="w-4 h-4 text-green-500" />
+                <Check className="w-4 h-4 text-success" />
             ) : (
                 <Copy
-                    className="w-4 h-4 opacity-0 group-hover:opacity-100 hover:text-gray-400 transition-opacity cursor-pointer"
+                    className="w-4 h-4 opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity cursor-pointer"
                     onClick={() => handleCopy(address)}
                 />
             )}
@@ -55,10 +55,10 @@ const CopyableText = ({ text, className }: { text: string; className?: string })
         <div className="flex items-center gap-2 group">
             <span className={className}>{text}</span>
             {isCopied ? (
-                <Check className="w-4 h-4 text-green-500" />
+                <Check className="w-4 h-4 text-success" />
             ) : (
                 <Copy
-                    className="w-4 h-4 opacity-0 group-hover:opacity-100 hover:text-gray-400 transition-opacity cursor-pointer"
+                    className="w-4 h-4 opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity cursor-pointer"
                     onClick={() => handleCopy(text)}
                 />
             )}
@@ -85,10 +85,10 @@ const BalanceCell = observer(({ amount }: { amount: string }) => {
         <div className="flex items-center gap-2 group">
             <SlotBalance value={amount} spinning={tokenStore.isRefreshingBalances} />
             {isCopied ? (
-                <Check className="w-4 h-4 text-green-500" />
+                <Check className="w-4 h-4 text-success" />
             ) : (
                 <Copy
-                    className="w-4 h-4 opacity-0 group-hover:opacity-100 hover:text-gray-400 transition-opacity cursor-pointer"
+                    className="w-4 h-4 opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity cursor-pointer"
                     onClick={() => handleCopy(amount)}
                 />
             )}

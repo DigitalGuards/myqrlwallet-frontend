@@ -11,7 +11,7 @@ import { cn } from "@/utils/cn";
  */
 export function FooterLinks({ className }: { className?: string }) {
     const linkClass =
-        "text-xs md:text-sm cursor-pointer text-muted-foreground hover:text-foreground transition-colors";
+        "text-xs md:text-sm cursor-pointer text-blue-accent/70 hover:text-blue-accent transition-colors";
 
     return (
         <div className={cn("flex items-center justify-center gap-6 md:gap-12", className)}>
@@ -40,7 +40,7 @@ export default function Footer() {
     return (
         // Hidden on mobile: the links move into the page flow (see Layout) so
         // they don't stack on top of the bottom tab bar.
-        <footer className="hidden md:block fixed bottom-0 bg-background w-full z-10 border-t border-border/50">
+        <footer className="hidden md:block fixed bottom-0 bg-background/80 backdrop-blur-md w-full z-10 border-t border-foreground/[0.06]">
             <FooterLinks className="h-10" />
         </footer>
     );
