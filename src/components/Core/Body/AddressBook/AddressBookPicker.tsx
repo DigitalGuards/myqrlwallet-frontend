@@ -13,12 +13,7 @@ import {
 } from "@/components/UI/Dialog";
 import { ROUTES } from "@/router/router";
 import { formatAddressShort } from "@/utils/formatting";
-import {
-  addEntry,
-  findByAddress,
-  isValidQrlAddress,
-  loadAddressBook,
-} from "@/utils/addressBook";
+import { addEntry, isValidQrlAddress, loadAddressBook } from "@/utils/addressBook";
 
 interface AddressBookPickerProps {
   open: boolean;
@@ -56,8 +51,12 @@ export function AddressBookPicker({
   };
 
   const trimmedCurrent = (currentAddress ?? "").trim();
+  // Gated on open and derived from the in-memory list so a closed picker
+  // costs the parent's renders nothing (PR #227 review feedback).
   const offerSave =
-    isValidQrlAddress(trimmedCurrent) && findByAddress(trimmedCurrent) === undefined;
+    open &&
+    isValidQrlAddress(trimmedCurrent) &&
+    !entries.some((e) => e.address.toLowerCase() === trimmedCurrent.toLowerCase());
 
   const handleSaveCurrent = () => {
     const result = addEntry(saveName, trimmedCurrent);
