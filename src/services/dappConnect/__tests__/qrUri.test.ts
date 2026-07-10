@@ -11,6 +11,7 @@
 import { describe, it, expect } from '@jest/globals';
 import {
   parseConnectionURI,
+  parseWakeURI,
   computeFingerprint,
   fingerprintEquals,
   cidToString,
@@ -189,5 +190,23 @@ describe('cidToString / cidFromString', () => {
 
   it('cidFromString rejects non-128-bit-hex input', () => {
     expect(() => cidFromString('zz')).toThrow('not a 128-bit hex string');
+  });
+});
+
+describe('parseWakeURI', () => {
+  it('returns the cid from a wake link', () => {
+    expect(parseWakeURI('qrlconnect://?wake=abc-123')).toBe('abc-123');
+  });
+
+  it('returns null for a pairing URI (q present beats wake)', () => {
+    expect(parseWakeURI('qrlconnect://?q=SOMEBLOB')).toBeNull();
+    expect(parseWakeURI('qrlconnect://?q=SOMEBLOB&wake=abc')).toBeNull();
+  });
+
+  it('returns null for non-qrlconnect schemes and garbage', () => {
+    expect(parseWakeURI('https://qrlwallet.com/?wake=abc')).toBeNull();
+    expect(parseWakeURI('javascript:alert(1)')).toBeNull();
+    expect(parseWakeURI('')).toBeNull();
+    expect(parseWakeURI('qrlconnect://')).toBeNull();
   });
 });
