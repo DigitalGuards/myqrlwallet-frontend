@@ -1,4 +1,4 @@
-import { LogOut, Lock, Wallet, ArrowRight, Settings as SettingsIcon, Plug } from "lucide-react"
+import { LogOut, Lock, Wallet, ArrowRight, Settings as SettingsIcon, Plug, BookUser } from "lucide-react"
 import { observer } from "mobx-react-lite"
 import { useStore } from "@/stores/store"
 
@@ -35,6 +35,12 @@ const sidebarItems = [
         url: ROUTES.TRANSFER,
         label: "Send",
         icon: ArrowRight,
+    },
+    {
+        title: "Address Book",
+        url: ROUTES.ADDRESS_BOOK,
+        label: "Contacts",
+        icon: BookUser,
     },
     {
         title: "Settings",
