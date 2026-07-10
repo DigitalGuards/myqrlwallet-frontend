@@ -146,9 +146,9 @@ const Home = observer(() => {
         ) : (
           <>
 
-            <div className="flex w-full flex-col gap-4 md:gap-8">
+            <div className="page-enter flex w-full flex-col gap-4 md:gap-8">
               {activeAccount.accountAddress && (
-                <Card className="w-full relative overflow-hidden border-l-4 border-l-blue-accent">
+                <Card className="w-full relative overflow-hidden surface-ember">
                   <div className="absolute inset-0 overflow-hidden">
                     <video
                       ref={activeAccountVideoRef}
@@ -166,7 +166,7 @@ const Home = observer(() => {
                     </video>
                   </div>
                   <div className="relative z-10">
-                    <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
+                    <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent">
                       <CardTitle className="text-2xl font-bold">Active account</CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -188,9 +188,10 @@ const Home = observer(() => {
                           <History className="mr-2 h-4 w-4" />
                           History
                         </Button>
-                        <Button 
-                          className="flex-1 bg-[#d66a03] hover:bg-[#f87c04] text-white" 
-                          type="button" 
+                        <Button
+                          className="flex-1"
+                          type="button"
+                          variant="secondary"
                           onClick={() => setReceiveOpen(true)}
                         >
                           <QrCode className="mr-2 h-4 w-4" />

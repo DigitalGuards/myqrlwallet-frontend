@@ -42,12 +42,12 @@ export const ShinyButton = React.forwardRef<HTMLButtonElement, ShinyButtonProps>
           }
 
           .shiny-btn {
-            /* Solid design-primary blue fill; the sheen is a light glint on
-               top of it so the button reads as a clean primary CTA rather
-               than the old dark-fill/chasing-edge look. */
-            --shiny-cta-bg: #4aafff;
-            --shiny-cta-highlight: #ffffff;
-            --shiny-cta-highlight-subtle: #d6ecff;
+            /* Solid ember fill (the design primary); the sheen is a warm
+               glint on top of it so the button reads as a clean primary CTA
+               rather than the old dark-fill/chasing-edge look. */
+            --shiny-cta-bg: hsl(24 96% 55%);
+            --shiny-cta-highlight: #fff7ed;
+            --shiny-cta-highlight-subtle: #ffd9ad;
             --animation: gradient-angle linear infinite;
             --shadow-size: 2px;
           }
@@ -230,7 +230,7 @@ export const ShinyButton = React.forwardRef<HTMLButtonElement, ShinyButtonProps>
           ref={ref}
           className={cn(
             "shiny-btn inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2",
-            // Constant dark text: the fill is a fixed light blue, so a
+            // Constant dark text: the fill is a fixed ember orange, so a
             // theme-dependent token would be unreadable in light mode.
             "text-zinc-950",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",

@@ -40,7 +40,7 @@ export default function Footer() {
     return (
         // Hidden on mobile: the links move into the page flow (see Layout) so
         // they don't stack on top of the bottom tab bar.
-        <footer className="hidden md:block fixed bottom-0 bg-background w-full z-10 border-t border-border/50">
+        <footer className="hidden md:block fixed bottom-0 bg-background/80 backdrop-blur-md w-full z-10 border-t border-foreground/[0.06]">
             <FooterLinks className="h-10" />
         </footer>
     );

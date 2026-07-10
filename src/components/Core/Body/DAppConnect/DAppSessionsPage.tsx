@@ -8,8 +8,8 @@ import { Card } from '@/components/UI/Card';
 import DAppSessionsList from './DAppSessionsList';
 
 const DAppSessionsPage = () => (
-  <div className="mx-auto w-full max-w-3xl px-4 py-8">
-    <Card className="border-l-4 border-l-blue-accent">
+  <div className="page-enter mx-auto w-full max-w-3xl px-4 py-8">
+    <Card >
       <DAppSessionsList />
     </Card>
   </div>

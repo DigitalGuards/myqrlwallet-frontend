@@ -23,7 +23,7 @@ import { isDesktop } from '@/desktop/bridge';
 import { isInNativeApp } from '@/utils/nativeApp';
 
 const statusDotColors: Record<SessionStatus, string> = {
-  [SessionStatus.CONNECTED]: '#3b82f6',     // blue-500
+  [SessionStatus.CONNECTED]: '#3fba82',     // success green
   [SessionStatus.RECONNECTING]: '#eab308',   // yellow-500
   [SessionStatus.CONNECTING]: '#eab308',     // yellow-500
   [SessionStatus.KEY_EXCHANGE]: '#eab308',   // yellow-500
@@ -39,7 +39,7 @@ const statusLabels: Record<SessionStatus, string> = {
 };
 
 const statusPillClasses: Record<SessionStatus, string> = {
-  [SessionStatus.CONNECTED]: 'bg-blue-500/10 text-blue-400',
+  [SessionStatus.CONNECTED]: 'bg-success/10 text-success',
   [SessionStatus.RECONNECTING]: 'bg-yellow-500/10 text-yellow-500',
   [SessionStatus.CONNECTING]: 'bg-yellow-500/10 text-yellow-500',
   [SessionStatus.KEY_EXCHANGE]: 'bg-yellow-500/10 text-yellow-500',
@@ -163,7 +163,7 @@ const DAppSessionsList = observer(() => {
           }
         }
       `}</style>
-      <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
+      <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
             <CardTitle className="text-xl font-bold">dApp connections</CardTitle>

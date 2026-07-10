@@ -60,7 +60,7 @@ const ImportAccount = observer(() => {
             src="/tree.svg"
             alt="Background Tree"
           />
-          <div className="relative z-10">
+          <div className="page-enter relative z-10">
             {isWalletLimitReached ? (
               <div className="flex flex-col items-center gap-6 rounded-lg border border-destructive/50 bg-destructive/10 p-8 text-center">
                 <AlertCircle className="h-12 w-12 text-destructive" />
@@ -107,7 +107,7 @@ const ImportAccount = observer(() => {
                 <TabsList className="flex w-full flex-col sm:flex-row gap-2 bg-transparent h-auto p-0">
                   <TabsTrigger
                     value="mnemonic"
-                    className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
+                    className="w-full text-sm py-3 px-4 rounded-lg border border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.08] data-[state=active]:border-primary/50 data-[state=active]:bg-primary/10 data-[state=active]:text-primary transition-colors"
                   >
                     Import with Mnemonic
                   </TabsTrigger>
@@ -117,13 +117,13 @@ const ImportAccount = observer(() => {
                       via importWallet, which accepts mnemonic OR hexSeed. */}
                   <TabsTrigger
                     value="encrypted"
-                    className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
+                    className="w-full text-sm py-3 px-4 rounded-lg border border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.08] data-[state=active]:border-primary/50 data-[state=active]:bg-primary/10 data-[state=active]:text-primary transition-colors"
                   >
                     Import Encrypted Wallet
                   </TabsTrigger>
                   <TabsTrigger
                     value="hexseed"
-                    className="w-full text-sm py-3 px-4 rounded-lg bg-card border border-border hover:bg-accent data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 transition-colors"
+                    className="w-full text-sm py-3 px-4 rounded-lg border border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.08] data-[state=active]:border-primary/50 data-[state=active]:bg-primary/10 data-[state=active]:text-primary transition-colors"
                   >
                     Import with Hex Seed
                   </TabsTrigger>

@@ -37,7 +37,7 @@ const AccountList = observer(() => {
             src="/tree.svg"
             alt="Background Tree"
           />
-          <div className="flex flex-col gap-4 md:gap-8">
+          <div className="page-enter flex flex-col gap-4 md:gap-8">
             {noActiveAccount ? (
               <AccountCreateImport />
             ) : (
