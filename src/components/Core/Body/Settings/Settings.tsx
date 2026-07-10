@@ -27,7 +27,9 @@ import { useState, useEffect, lazy } from "react";
 import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
 import type { EncryptedSeedData } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
-import { Save, Shield } from "lucide-react";
+import { BookUser, ChevronRight, Save, Shield } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "@/router/router";
 import { SEO } from "@/components/SEO/SEO";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { decryptSeedAsync, reEncryptSeedAsync } from "@/utils/crypto";
@@ -73,6 +75,7 @@ const ChangePinSchema = z.object({
 type ChangePinFormValues = z.infer<typeof ChangePinSchema>;
 
 const Settings = observer(() => {
+    const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hasEncryptedSeeds, setHasEncryptedSeeds] = useState(false);
     const [isChangingPin, setIsChangingPin] = useState(false);
@@ -365,6 +368,29 @@ const Settings = observer(() => {
                         )}
 
                         <NetworkSettings />
+
+                        <Card className="border-l-4 border-l-orange-500">
+                            <button
+                                type="button"
+                                className="w-full text-left cursor-pointer"
+                                onClick={() => navigate(ROUTES.ADDRESS_BOOK)}
+                            >
+                                <CardHeader className="bg-gradient-to-r from-orange-500/5 to-transparent">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-3">
+                                            <BookUser className="h-6 w-6 text-secondary" />
+                                            <div>
+                                                <CardTitle className="text-2xl font-bold">Address Book</CardTitle>
+                                                <CardDescription>
+                                                    Manage saved recipients for quick transfers
+                                                </CardDescription>
+                                            </div>
+                                        </div>
+                                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                    </div>
+                                </CardHeader>
+                            </button>
+                        </Card>
 
                         <Card className="border-l-4 border-l-blue-accent">
                             <CardHeader className="bg-gradient-to-r from-blue-accent/5 to-transparent">
