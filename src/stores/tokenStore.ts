@@ -3,7 +3,7 @@ import { deriveHexSeedAsync } from "@/utils/crypto";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
-import { getErrorMessage } from "@/utils/errors";
+import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
 import type { TransactionReceipt } from "@theqrl/web3";
 import { getQrlWeb3 } from "@/utils/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
@@ -420,6 +420,74 @@ class TokenStore {
           };
         });
         log(`Desktop token transfer failed: ${message}`);
+        return false;
+      }
+    }
+
+    // Mobile-app pairing: build the transfer() calldata locally (no seed),
+    // then route through the relay provider. Minimal shape: the phone
+    // estimates its own gas and shows its own confirmation, so no gas
+    // fields; no value either (a token transfer moves no native QRL).
+    // `mnemonicPhrases` and `feeLevel` are intentionally unused here.
+    if (this.qrlStore.activeAccountSource === "mobile") {
+      try {
+        const provider = this.qrlStore.remoteProvider;
+        if (!provider) throw new Error("Mobile app wallet not connected.");
+        const selectedBlockChain = await StorageUtil.getBlockChain();
+        const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
+        const { default: Web3 } = await getQrlWeb3();
+        const web3 = new Web3(new Web3.providers.HttpProvider(url));
+        const from = this.qrlStore.activeAccount.accountAddress;
+        const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
+        const data = contract.methods.transfer(toAddress, amount).encodeABI();
+        // Pending (no hash yet) while the phone shows its approval screen.
+        runInAction(() => {
+          this.qrlStore.transactionStatus = {
+            state: "pending",
+            txHash: null,
+            receipt: null,
+            error: null,
+            pendingDetails: null,
+          };
+        });
+        const txHash = await provider.request<string>({
+          method: "qrl_sendTransaction",
+          params: [{ from, to: token.address, data }],
+        });
+        if (!txHash || typeof txHash !== "string") {
+          throw new Error("The mobile app did not return a valid transaction hash.");
+        }
+        runInAction(() => {
+          this.qrlStore.transactionStatus = {
+            state: "pending",
+            txHash,
+            receipt: null,
+            error: null,
+            pendingDetails: null,
+          };
+        });
+        log(`Mobile token transfer broadcast with hash: ${txHash}`);
+        this.qrlStore.fetchPendingTxDetails(txHash);
+        this.qrlStore.pollForReceipt(txHash);
+        // The receipt poller calls fetchAccounts on confirm; refresh token
+        // balances proactively too, matching the desktop path.
+        this.refreshTokenBalances();
+        return true;
+      } catch (error) {
+        const userRejected = isProviderRpcError(error) && error.code === 4001;
+        const message = getErrorMessage(error);
+        runInAction(() => {
+          this.qrlStore.transactionStatus = {
+            state: "failed",
+            txHash: null,
+            receipt: null,
+            error: userRejected
+              ? "Transaction rejected in mobile app."
+              : `Token transfer failed: ${message}`,
+            pendingDetails: null,
+          };
+        });
+        log(`Mobile token transfer failed: ${message}`);
         return false;
       }
     }
