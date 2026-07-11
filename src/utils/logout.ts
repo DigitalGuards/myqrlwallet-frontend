@@ -4,6 +4,7 @@ import { QRL_PROVIDER } from "@/config";
 import { isInNativeApp } from "./nativeApp";
 import { clearAttemptTracker } from "./crypto/pinAttemptTracker";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
+import { disconnectMobile, hasMobileSession } from "./mobileConnect/mobileConnection";
 
 /**
  * A utility function to handle logout by clearing
@@ -33,6 +34,15 @@ export const handleLogout = async (navigate: (path: string) => void) => {
             navigate(ROUTES.HOME);
             window.location.reload();
             return;
+        }
+
+        // End any mobile-app pairing first (best-effort, notifies the phone
+        // when live) so the SDK session in localStorage cannot silently
+        // re-pair on the next load after the account list is wiped.
+        if (hasMobileSession()) {
+            await disconnectMobile().catch((err) =>
+                console.error("Logout: mobile pairing disconnect failed", err),
+            );
         }
 
         // Get all blockchain types
