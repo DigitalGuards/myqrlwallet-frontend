@@ -25,14 +25,20 @@ const NftGallery = observer(() => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Refresh ownership/balances on mount so a stale list gets corrected
-  // when the wallet has been used elsewhere since the last visit.
+  // when the wallet has been used elsewhere since the last visit, then
+  // re-resolve metadata for entries that never fetched or aged past the
+  // TTL, so on-chain tokenURI changes (and first-fetch IPFS failures)
+  // heal without a remove/re-add.
   useEffect(() => {
-    void nftStore.refreshNftBalances();
+    void (async () => {
+      await nftStore.refreshNftBalances();
+      await nftStore.refreshNftMetadata();
+    })();
   }, [nftStore]);
 
   // Populate the discovery cache so the empty-state can say "Explorer
   // found N NFTs" and the AddNftModal can offer a picker. Does NOT
-  // auto-merge into nftList — the user has to explicitly pick.
+  // auto-merge into nftList: the user has to explicitly pick.
   useEffect(() => {
     if (!activeAccountAddress) return;
     void nftStore.discoverNftsForReview(activeAccountAddress);
@@ -41,7 +47,10 @@ const NftGallery = observer(() => {
   const onRefresh = async () => {
     setIsRefreshing(true);
     try {
+      // Ownership first (may drop entries), then force-refresh metadata
+      // for whatever survived.
       await nftStore.refreshNftBalances();
+      await nftStore.refreshNftMetadata(true);
     } finally {
       setIsRefreshing(false);
     }
@@ -79,7 +88,7 @@ const NftGallery = observer(() => {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Refresh ownership and balances</p>
+                <p>Refresh ownership, balances, and metadata</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

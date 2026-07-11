@@ -13,11 +13,13 @@ import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
-import type { NFTInterface } from "@/constants";
+import { NFT_METADATA_TTL_MS, type NFTInterface } from "@/constants";
 import { erc721ABI } from "@/abi/ERC721ABI";
 import { erc1155ABI } from "@/abi/ERC1155ABI";
 import {
   fetchErc1155Balance,
+  fetchNftMetadata,
+  fetchTokenUri,
   isErc721Owner,
   nftKey,
 } from "@/utils/web3/nft";
@@ -63,6 +65,7 @@ class NftStore {
       loadHiddenNfts: action.bound,
       setNftList: action.bound,
       refreshNftBalances: action.bound,
+      refreshNftMetadata: action.bound,
       transferNft: action.bound,
       discoverNftsForReview: action.bound,
       addDiscoveredNfts: action.bound,
@@ -83,7 +86,7 @@ class NftStore {
   }
 
   // Discovered NFTs minus the ones already visible in the gallery.
-  // Hidden NFTs are still eligible — picking a hidden NFT in the picker
+  // Hidden NFTs are still eligible: picking a hidden NFT in the picker
   // unhides it. Previously-visible items stay filtered so they don't
   // reappear as suggestions.
   get pendingDiscoveredNfts(): NFTInterface[] {
@@ -99,7 +102,7 @@ class NftStore {
   }
 
   // Storage is now keyed by `${blockchain}_${account}` (see StorageUtil)
-  // so reads from the wrong scope are impossible — but we still need the
+  // so reads from the wrong scope are impossible, but we still need the
   // scope to write. Pulls live values from qrlStore at the call site.
   private get scope(): { blockchain: string; account: string } {
     return {
@@ -123,7 +126,7 @@ class NftStore {
     }
     // Storage is per-account-scoped, so an account switch just means
     // reloading from the new scope's key. No cross-account clearing
-    // needed — the old account's list stays under its own key for when
+    // needed; the old account's list stays under its own key for when
     // the user switches back.
     const blockchain = this.qrlStore.qrlConnection.blockchain;
     const persisted = await StorageUtil.getNftList(blockchain, newActiveAccount);
@@ -250,6 +253,81 @@ class NftStore {
       }
     }
     await this.setNftList(updated);
+  }
+
+  /**
+   * Re-resolve tokenURI + metadata JSON for gallery entries so the
+   * stored name/description/image track the chain instead of being
+   * frozen at add-time. By default only entries whose last successful
+   * fetch is missing or older than NFT_METADATA_TTL_MS are refreshed;
+   * `force` refreshes everything (wired to the gallery Refresh button).
+   *
+   * Preserve-last-good, mirroring the explorer backend: a failed URI
+   * read or metadata fetch leaves the stored fields untouched, and a
+   * successful fetch only overwrites fields the new document provides,
+   * so a temporarily broken tokenURI can't blank out a working card.
+   */
+  async refreshNftMetadata(force = false) {
+    const startAccount = this.qrlStore.activeAccount.accountAddress;
+    if (!startAccount || this.nftList.length === 0) return;
+    const selectedBlockChain = await StorageUtil.getBlockChain();
+    const rpcUrl =
+      QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url;
+
+    const now = Date.now();
+    const updates = new Map<string, NFTInterface>();
+    for (const nft of this.nftList) {
+      const stale =
+        !nft.fetchedAt || now - nft.fetchedAt > NFT_METADATA_TTL_MS;
+      if (!force && !stale) continue;
+      try {
+        const uri = await fetchTokenUri(
+          nft.contractAddress,
+          nft.tokenId,
+          rpcUrl,
+          nft.standard,
+        );
+        if (!uri) continue;
+        const meta = await fetchNftMetadata(uri);
+        if (!meta) continue;
+        updates.set(nftKey(nft.contractAddress, nft.tokenId), {
+          ...nft,
+          name: meta.name ?? nft.name,
+          description: meta.description ?? nft.description,
+          image: meta.image ?? nft.image,
+          fetchedAt: Date.now(),
+        });
+      } catch (err) {
+        console.error(
+          `refreshNftMetadata: ${nft.contractAddress}#${nft.tokenId}`,
+          err,
+        );
+      }
+    }
+    if (updates.size === 0) return;
+    // Stale-write guard, mirrors addDiscoveredNfts: if the account
+    // switched while we awaited RPC, this.nftList belongs to another
+    // scope now and these updates must be dropped.
+    if (this.qrlStore.activeAccount.accountAddress !== startAccount) {
+      log("refreshNftMetadata: active account changed mid-refresh, dropping");
+      return;
+    }
+    // Merge into the CURRENT list rather than the snapshot we iterated:
+    // refreshNftBalances may have dropped or re-balanced entries while
+    // the metadata fetches were in flight, and ownership state wins.
+    const merged = this.nftList.map((n) => {
+      const u = updates.get(nftKey(n.contractAddress, n.tokenId));
+      if (!u) return n;
+      return {
+        ...n,
+        name: u.name,
+        description: u.description,
+        image: u.image,
+        fetchedAt: u.fetchedAt,
+      };
+    });
+    await this.setNftList(merged);
+    log(`refreshNftMetadata: refreshed ${updates.size} entries`);
   }
 
   /**
@@ -542,7 +620,7 @@ class NftStore {
       } else if (hidden.has(key.toLowerCase())) {
         unhides.push(key.toLowerCase());
       }
-      // else: already visible — skip
+      // else: already visible, skip
     }
     if (additions.length === 0 && unhides.length === 0) return;
     // Stale-write guard: NFT storage is per-account-scoped, so the

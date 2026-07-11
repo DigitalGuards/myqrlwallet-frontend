@@ -200,7 +200,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
           setIsAdding(false);
           return;
         } else {
-          // Non-enumerable — fall back to user-supplied tokenId.
+          // Non-enumerable: fall back to user-supplied tokenId.
           if (!tokenId.trim()) {
             setError(
               "This contract doesn't expose ownership enumeration. Please enter a Token ID.",
@@ -249,6 +249,10 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
         let metaName: string | undefined;
         let metaImage: string | undefined;
         let metaDescription: string | undefined;
+        // Only stamped when the metadata JSON actually resolved. A failed
+        // fetch leaves it undefined so nftStore.refreshNftMetadata retries
+        // on the next gallery visit instead of waiting out the TTL.
+        let metaFetchedAt: number | undefined;
         try {
           const uri = await fetchTokenUri(
             contractAddress,
@@ -258,9 +262,12 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
           );
           if (uri) {
             const meta = await fetchNftMetadata(uri);
-            metaName = meta?.name;
-            metaImage = meta?.image;
-            metaDescription = meta?.description;
+            if (meta) {
+              metaName = meta.name;
+              metaImage = meta.image;
+              metaDescription = meta.description;
+              metaFetchedAt = Date.now();
+            }
           }
         } catch (err) {
           console.error(`fetchTokenUri/Metadata failed for ${id}:`, err);
@@ -287,7 +294,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
                   ))
                 ).toString()
               : undefined,
-          fetchedAt: Date.now(),
+          fetchedAt: metaFetchedAt,
         };
         await nftStore.addNft(nft);
       }
