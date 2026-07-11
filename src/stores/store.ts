@@ -3,6 +3,8 @@ import QrlStore from "./qrlStore";
 import TokenStore from "./tokenStore";
 import NftStore from "./nftStore";
 import DAppConnectStore from "./dappConnectStore";
+import { maybeRestoreMobileConnection } from "@/utils/mobileConnect/mobileConnection";
+import { StorageUtil } from "@/utils/storage";
 import { configure } from "mobx";
 
 // Configure MobX
@@ -29,6 +31,23 @@ class Store {
     this.qrlStore.onBlockchainReady = async () => {
       await this.tokenStore.initialize();
       await this.nftStore.initialize();
+
+      // Resume a mobile-app pairing (QRL Connect relay) if the SDK holds a
+      // stored session AND the account list still has a mobile-sourced
+      // account. Fire-and-forget: pairing restore must never block init.
+      try {
+        const list = await StorageUtil.getAccountList(
+          this.qrlStore.qrlConnection.blockchain,
+        );
+        const hasMobileAccount = list.some((item) => item.source === 'mobile');
+        void maybeRestoreMobileConnection(this.qrlStore, hasMobileAccount).catch(
+          (error: unknown) => {
+            console.error('Mobile pairing restore failed:', error);
+          },
+        );
+      } catch (error) {
+        console.error('Mobile pairing restore skipped:', error);
+      }
     };
     this.qrlStore.onActiveAccountChanged = async (newActiveAccount?: string) => {
       await this.tokenStore.handleActiveAccountChanged(newActiveAccount);

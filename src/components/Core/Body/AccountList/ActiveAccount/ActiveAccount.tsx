@@ -11,7 +11,7 @@ import { ROUTES } from "../../../../../router/router";
 import { useStore } from "../../../../../stores/store";
 import { getExplorerAddressUrl } from "@/config";
 import { openExternalUrl } from "@/utils/nativeApp";
-import { ExternalLink, SendHorizontal, History } from "lucide-react";
+import { ExternalLink, SendHorizontal, History, Unlink } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Link } from "react-router-dom";
 import { AccountId } from "../AccountId/AccountId";
@@ -20,7 +20,9 @@ import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { TransactionHistoryPopup } from "./TransactionHistoryPopup";
 import { ExtensionBadge } from "../ExtensionBadge/ExtensionBadge";
+import { MobileBadge } from "../MobileBadge/MobileBadge";
 import { CopyAddressButton } from "../CopyAddressButton/CopyAddressButton";
+import { disconnectMobile } from "@/utils/mobileConnect/mobileConnection";
 
 export const ActiveAccount = observer(() => {
   const { qrlStore } = useStore();
@@ -37,6 +39,14 @@ export const ActiveAccount = observer(() => {
     openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
   };
 
+  // Mobile-app pairings get an explicit Disconnect: it ends the relay session
+  // (notifying the phone) and removes the account from this wallet.
+  const disconnectMobileAccount = async () => {
+    await disconnectMobile();
+    qrlStore.setMobileProvider(null);
+    await qrlStore.removeMobileAccounts();
+  };
+
   return (
     !!accountAddress && (
       <>
@@ -47,6 +57,7 @@ export const ActiveAccount = observer(() => {
             <div className="flex flex-col gap-1">
               <AccountBalance className="m-auto md:m-0" accountAddress={accountAddress} />
               {activeAccountSource === 'extension' && <ExtensionBadge />}
+              {activeAccountSource === 'mobile' && <MobileBadge />}
             </div>
           </div>
           <div className="flex gap-4 items-center">
@@ -124,6 +135,27 @@ export const ActiveAccount = observer(() => {
                 </Tooltip>
               </TooltipProvider>
             </span>
+            {activeAccountSource === 'mobile' && (
+              <span>
+                <TooltipProvider>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="hover:text-destructive"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => void disconnectMobileAccount()}
+                      >
+                        <Unlink size={18} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <Label>Disconnect mobile app</Label>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </span>
+            )}
           </div>
         </Card>
         <TransactionHistoryPopup 
