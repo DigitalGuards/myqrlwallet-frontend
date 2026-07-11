@@ -79,9 +79,14 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
     const address = qrl.getAccounts()[0];
     if (!address) return;
     log(`Mobile connect: paired with ${address}`);
-    void store.adoptMobileAccount(address).then(() => {
-      store.setMobileProvider(asExtensionProvider(qrl));
-    });
+    void store
+      .adoptMobileAccount(address)
+      .then(() => {
+        store.setMobileProvider(asExtensionProvider(qrl));
+      })
+      .catch((error: unknown) => {
+        console.error("Mobile connect: failed to adopt paired account:", error);
+      });
   });
 
   qrl.on("accountsChanged", (accounts: string[]) => {
@@ -90,11 +95,15 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
       // Wallet revoked account access: same cleanup as a terminate.
       log("Mobile connect: accounts revoked");
       store.setMobileProvider(null);
-      void store.removeMobileAccounts();
+      void store.removeMobileAccounts().catch((error: unknown) => {
+        console.error("Mobile connect: failed to remove accounts:", error);
+      });
       return;
     }
     log(`Mobile connect: account changed to ${next}`);
-    void store.adoptMobileAccount(next);
+    void store.adoptMobileAccount(next).catch((error: unknown) => {
+      console.error("Mobile connect: failed to adopt changed account:", error);
+    });
   });
 
   qrl.on("disconnect", () => {
@@ -110,7 +119,9 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
     // startup reconnect gave up): drop the provider and the account.
     log("Mobile connect: session terminated");
     store.setMobileProvider(null);
-    void store.removeMobileAccounts();
+    void store.removeMobileAccounts().catch((error: unknown) => {
+      console.error("Mobile connect: failed to remove accounts:", error);
+    });
   });
 
   return qrl;

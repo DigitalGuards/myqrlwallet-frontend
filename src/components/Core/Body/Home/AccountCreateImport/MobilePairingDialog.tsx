@@ -45,6 +45,8 @@ const MobilePairingDialog = ({ uri, installHint, onClose, onNewCode }: Props) =>
     setIsRotating(true);
     try {
       await onNewCode();
+    } catch (error) {
+      console.error("Failed to rotate pairing code:", error);
     } finally {
       setIsRotating(false);
     }

@@ -42,9 +42,13 @@ export const ActiveAccount = observer(() => {
   // Mobile-app pairings get an explicit Disconnect: it ends the relay session
   // (notifying the phone) and removes the account from this wallet.
   const disconnectMobileAccount = async () => {
-    await disconnectMobile();
-    qrlStore.setMobileProvider(null);
-    await qrlStore.removeMobileAccounts();
+    try {
+      await disconnectMobile();
+      qrlStore.setMobileProvider(null);
+      await qrlStore.removeMobileAccounts();
+    } catch (error) {
+      console.error("Failed to disconnect mobile account:", error);
+    }
   };
 
   return (
