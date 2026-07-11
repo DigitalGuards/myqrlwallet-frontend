@@ -5,4 +5,4 @@ export {
   type TokenInterface,
 } from './tokens';
 
-export { type NFTInterface } from './nft';
+export { type NFTInterface, NFT_METADATA_TTL_MS } from './nft';
