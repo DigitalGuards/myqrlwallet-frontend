@@ -422,13 +422,14 @@ const Transfer = observer(() => {
     if (isUsingMobile) {
       // Mobile pairing: no PIN, no seed. The store builds the transfer
       // calldata and the phone signs after its own confirmation screen.
-      try {
-        const rawAmount = parseUnits(formData.amount.toString(), selectedToken.decimals).toString();
-        await sendTokenToStore(selectedToken, rawAmount, "", formData.receiverAddress);
+      // sendToken reports failure via its return value (the failed
+      // transactionStatus screen takes over), so only reset the form on
+      // success: Try Again then returns to the still-filled form.
+      const rawAmount = parseUnits(formData.amount.toString(), selectedToken.decimals).toString();
+      const sent = await sendTokenToStore(selectedToken, rawAmount, "", formData.receiverAddress);
+      if (sent) {
         resetForm();
         window.scrollTo(0, 0);
-      } catch (error) {
-        control.setError("receiverAddress", { message: `Transfer failed: ${error instanceof Error ? error.message : String(error)}` });
       }
       return;
     }
