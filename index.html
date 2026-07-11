@@ -16,25 +16,32 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     
     <!-- Primary Meta Tags -->
-    <title>MyQRLWallet</title>
-    <meta name="title" content="MyQRLWallet">
-    <meta name="description" content="Web wallet for QRL 2.0. Create accounts and manage transactions on the quantum-resistant ledger.">
-    <meta name="keywords" content="QRL, QRL 2.0, Quantum Resistant Ledger, Web3, Cryptocurrency Wallet, Blockchain">
+    <title>MyQRLWallet: Web Wallet for QRL, the Post-Quantum Blockchain</title>
+    <meta name="title" content="MyQRLWallet: Web Wallet for QRL, the Post-Quantum Blockchain">
+    <meta name="description" content="Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.">
+    <meta name="keywords" content="QRL, QRL 2.0, Quantum Resistant Ledger, post-quantum blockchain, QRL wallet, web wallet, cryptocurrency wallet">
     <meta name="author" content="DigitalGuards">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="MyQRLWallet">
+    <meta property="og:locale" content="en_US">
     <meta property="og:url" content="https://qrlwallet.com/">
-    <meta property="og:title" content="MyQRLWallet">
-    <meta property="og:description" content="Web wallet for QRL 2.0. Create accounts and manage transactions on the quantum-resistant ledger.">
+    <meta property="og:title" content="MyQRLWallet: Web Wallet for QRL, the Post-Quantum Blockchain">
+    <meta property="og:description" content="Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.">
     <meta property="og:image" content="https://qrlwallet.com/mqrlwallet.png">
+    <meta property="og:image:width" content="4096">
+    <meta property="og:image:height" content="1151">
+    <meta property="og:image:alt" content="MyQRLWallet logo">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@DigitalGuards">
     <meta name="twitter:url" content="https://qrlwallet.com/">
-    <meta name="twitter:title" content="MyQRLWallet">
-    <meta name="twitter:description" content="Web wallet for QRL 2.0. Create accounts and manage transactions on the quantum-resistant ledger.">
+    <meta name="twitter:title" content="MyQRLWallet: Web Wallet for QRL, the Post-Quantum Blockchain">
+    <meta name="twitter:description" content="Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.">
     <meta name="twitter:image" content="https://qrlwallet.com/mqrlwallet.png">
+    <meta name="twitter:image:alt" content="MyQRLWallet logo">
 
     <!-- Additional Meta Tags -->
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
@@ -42,12 +49,9 @@
     <!-- DNS Prefetch -->
     <link rel="dns-prefetch" href="//qrlwallet.com">
     <link rel="dns-prefetch" href="//myqrlwallet.com">
-    <link rel="dns-prefetch" href="//theqrlwallet.com">
 
-    <!-- Canonical URLs -->
+    <!-- Canonical URL -->
     <link rel="canonical" href="https://qrlwallet.com/">
-    <link rel="alternate" href="https://myqrlwallet.com/">
-    <link rel="alternate" href="https://theqrlwallet.com/">
 
     <!-- Preload Critical Resources -->
     <link rel="preload" href="/tree.svg" as="image" type="image/svg+xml">
@@ -57,14 +61,68 @@
     <!-- Social Links -->
     <link rel="me" href="https://x.com/DigitalGuards">
     <link rel="me" href="https://github.com/DigitalGuards/myqrlwallet-frontend/">
-    <link rel="me" href="https://digitalguards.nl/index.php/2024/12/05/introducing-zond-qrl-web-wallet-by-digitalguards/">
+    <link rel="me" href="https://digitalguards.nl/">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://digitalguards.nl/#organization",
+          "name": "DigitalGuards",
+          "url": "https://digitalguards.nl/",
+          "sameAs": [
+            "https://x.com/DigitalGuards",
+            "https://github.com/DigitalGuards"
+          ]
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://qrlwallet.com/#webapp",
+          "name": "MyQRLWallet",
+          "url": "https://qrlwallet.com/",
+          "description": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+          "applicationCategory": "FinanceApplication",
+          "operatingSystem": "Any",
+          "browserRequirements": "Requires JavaScript",
+          "image": "https://qrlwallet.com/mqrlwallet.png",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "publisher": { "@id": "https://digitalguards.nl/#organization" },
+          "sameAs": [
+            "https://myqrlwallet.com/",
+            "https://zondscan.com/",
+            "https://quantapool.com/",
+            "https://quantaswap.io/"
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <noscript>
       <div style="text-align: center; padding: 20px;">
-        Please enable JavaScript to use the QRL 2.0 Web Wallet.
+        <h1>MyQRLWallet: Web Wallet for QRL, the Post-Quantum Blockchain</h1>
+        <p>
+          MyQRLWallet is a free web wallet for QRL 2.0, the post-quantum blockchain.
+          Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.
+          JavaScript is required to use the wallet.
+        </p>
+        <p>
+          Explore the ecosystem:
+          <a href="https://myqrlwallet.com/">MyQRLWallet</a>,
+          <a href="https://zondscan.com/">ZondScan explorer</a>,
+          <a href="https://quantapool.com/">QuantaPool staking</a>,
+          <a href="https://quantaswap.io/">QuantaSwap atomic swaps</a>.
+        </p>
       </div>
     </noscript>
   </body>
