@@ -32,12 +32,18 @@ export interface MobileConnectStore {
 
 let instance: QRLConnect | null = null;
 let creating: Promise<QRLConnect> | null = null;
+// One adapter per instance so observable.ref comparisons in the store don't
+// churn on every event. Keyed by instance so a future re-create (not possible
+// today; the singleton is never torn down) can't serve a stale closure.
+const adapters = new WeakMap<QRLConnect, ExtensionProvider>();
 
 // The SDK's request() returns Promise<unknown>; the store's ExtensionProvider
 // surface is generic. Adapt with a single assertion from unknown at the
 // boundary rather than pretending QRLConnect IS an ExtensionProvider.
 function asExtensionProvider(qrl: QRLConnect): ExtensionProvider {
-  return {
+  const cached = adapters.get(qrl);
+  if (cached) return cached;
+  const adapter: ExtensionProvider = {
     request: <T = unknown>(args: { method: string; params?: unknown[] | object }) => {
       // The relay protocol takes positional (array) params only; wrap a bare
       // object param the way EIP-1193 callers sometimes pass one.
@@ -48,6 +54,8 @@ function asExtensionProvider(qrl: QRLConnect): ExtensionProvider {
       return qrl.request({ method: args.method, params }) as Promise<T>;
     },
   };
+  adapters.set(qrl, adapter);
+  return adapter;
 }
 
 /** True when the SDK has a stored (unexpired at last write) pairing session. */
@@ -75,18 +83,24 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
     announceProvider: false,
   });
 
+  // The SDK emits 'connect' (relay status CONNECTED) and 'accountsChanged'
+  // independently and in no guaranteed order: 'connect' can fire while
+  // getAccounts() is still empty, with the address arriving via a later
+  // 'accountsChanged'. So BOTH handlers publish the provider, and the
+  // provider is set eagerly, never gated on account adoption completing:
+  // otherwise a mobile account can be active with a null provider and every
+  // send fails with "Mobile app wallet not connected".
   qrl.on("connect", () => {
+    store.setMobileProvider(asExtensionProvider(qrl));
     const address = qrl.getAccounts()[0];
-    if (!address) return;
+    if (!address) {
+      log("Mobile connect: relay connected, awaiting accounts");
+      return;
+    }
     log(`Mobile connect: paired with ${address}`);
-    void store
-      .adoptMobileAccount(address)
-      .then(() => {
-        store.setMobileProvider(asExtensionProvider(qrl));
-      })
-      .catch((error: unknown) => {
-        console.error("Mobile connect: failed to adopt paired account:", error);
-      });
+    void store.adoptMobileAccount(address).catch((error: unknown) => {
+      console.error("Mobile connect: failed to adopt paired account:", error);
+    });
   });
 
   qrl.on("accountsChanged", (accounts: string[]) => {
@@ -101,6 +115,7 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
       return;
     }
     log(`Mobile connect: account changed to ${next}`);
+    store.setMobileProvider(asExtensionProvider(qrl));
     void store.adoptMobileAccount(next).catch((error: unknown) => {
       console.error("Mobile connect: failed to adopt changed account:", error);
     });
