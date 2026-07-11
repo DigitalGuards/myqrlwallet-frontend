@@ -14,7 +14,7 @@ const SITE_NAME = "MyQRLWallet";
 const DEFAULT_TITLE = "MyQRLWallet: Web Wallet for QRL, the Post-Quantum Blockchain";
 const DEFAULT_DESCRIPTION =
   "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.";
-const DEFAULT_IMAGE = "https://qrlwallet.com/mqrlwallet.png";
+const DEFAULT_IMAGE = "https://qrlwallet.com/og-image.png";
 
 export const SEO = ({
   title = DEFAULT_TITLE,
@@ -43,7 +43,7 @@ export const SEO = ({
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={image} />
-      <meta property="og:image:alt" content="MyQRLWallet logo" />
+      <meta property="og:image:alt" content="MyQRLWallet: web wallet for QRL 2.0, the post-quantum blockchain" />
       <meta property="og:site_name" content={SITE_NAME} />
       <meta property="og:locale" content="en_US" />
 
@@ -54,7 +54,7 @@ export const SEO = ({
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={image} />
-      <meta name="twitter:image:alt" content="MyQRLWallet logo" />
+      <meta name="twitter:image:alt" content="MyQRLWallet: web wallet for QRL 2.0, the post-quantum blockchain" />
     </Helmet>
   );
 };
