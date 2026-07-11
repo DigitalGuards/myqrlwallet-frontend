@@ -61,7 +61,7 @@ const Transfer = observer(() => {
     activeAccount,
     getAccountBalance,
     signAndSendTransaction,
-    sendTransactionViaExtension,
+    sendTransactionViaProvider,
     activeAccountSource,
     qrlConnection,
     transactionStatus,
@@ -73,8 +73,12 @@ const Transfer = observer(() => {
   const { accountAddress } = activeAccount;
 
   const isUsingExtension = activeAccountSource === 'extension';
+  const isUsingMobile = activeAccountSource === 'mobile';
+  // Remote signers (extension popup or paired mobile app) confirm in their
+  // own UI, so no local PIN is involved.
+  const isUsingRemoteSigner = isUsingExtension || isUsingMobile;
 
-  // Create FormSchema with PIN validation based on isUsingExtension
+  // Create FormSchema with PIN validation based on the signer type
   const FormSchema = useMemo(() => z
     .object({
       asset: z.string().min(1, "Please select an asset"),
@@ -97,10 +101,10 @@ const Transfer = observer(() => {
         }
       }
 
-      // Validate PIN for non-extension seed accounts. On desktop there is no
-      // PIN: the signer session is already unlocked, so the PIN field is
-      // hidden and not required.
-      if (!isUsingExtension && !isDesktop) {
+      // Validate PIN for seed accounts only. Remote signers confirm on their
+      // side, and on desktop there is no PIN: the signer session is already
+      // unlocked, so the PIN field is hidden and not required.
+      if (!isUsingRemoteSigner && !isDesktop) {
         if (!fields.pin || fields.pin.length < 4 || fields.pin.length > 6) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -109,7 +113,7 @@ const Transfer = observer(() => {
           });
         }
       }
-    }), [isUsingExtension]);
+    }), [isUsingRemoteSigner]);
 
   // Get initial asset from URL params (for token transfers from home page)
   const initialAsset = searchParams.get('asset') || 'native';
@@ -345,9 +349,13 @@ const Transfer = observer(() => {
     if (isNativeTransfer) {
       await handleNativeTransfer(formData);
     } else {
-      // Token transfers not supported for extension wallets
-      if (isUsingExtension) {
-        control.setError("asset", { message: "Token transfers are not yet supported with extension wallets." });
+      // Token transfers not supported for remote-signer wallets yet
+      if (isUsingRemoteSigner) {
+        control.setError("asset", {
+          message: isUsingMobile
+            ? "Token transfers are not yet supported with a connected mobile app wallet."
+            : "Token transfers are not yet supported with extension wallets.",
+        });
         return;
       }
       await handleTokenTransfer(formData);
@@ -367,8 +375,8 @@ const Transfer = observer(() => {
       } catch (error) {
         control.setError("receiverAddress", { message: `Transaction failed: ${error instanceof Error ? error.message : String(error)}` });
       }
-    } else if (isUsingExtension) {
-      await sendTransactionViaExtension(formData.receiverAddress, valueEther, feeLevel);
+    } else if (isUsingRemoteSigner) {
+      await sendTransactionViaProvider(formData.receiverAddress, valueEther, feeLevel);
       resetForm();
       window.scrollTo(0, 0);
     } else {
@@ -900,9 +908,10 @@ const Transfer = observer(() => {
                     )}
                   />
 
-                  {/* PIN Input. Hidden on desktop: the signer session is
+                  {/* PIN Input. Hidden for remote signers (they confirm in
+                      their own UI) and on desktop: the signer session is
                       already unlocked and signing does not re-prompt. */}
-                  {!isUsingExtension && !isDesktop && (
+                  {!isUsingRemoteSigner && !isDesktop && (
                     <FormField
                       control={control}
                       name="pin"
@@ -926,8 +935,15 @@ const Transfer = observer(() => {
                     />
                   )}
 
-                  {/* Gas Fee Notice (only for native transfers) */}
-                  {isNativeTransfer && (
+                  {/* Gas Fee Notice (only for native transfers). Hidden for
+                      mobile-app accounts: the phone estimates its own gas and
+                      presents the fee in its confirmation screen. */}
+                  {isNativeTransfer && isUsingMobile && (
+                    <p className="text-sm text-muted-foreground">
+                      The network fee is estimated and confirmed in the mobile app.
+                    </p>
+                  )}
+                  {isNativeTransfer && !isUsingMobile && (
                     <GasFeeNotice
                       from={accountAddress}
                       to={formValues.receiverAddress}

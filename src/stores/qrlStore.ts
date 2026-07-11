@@ -92,6 +92,10 @@ class QrlStore {
   // Updated initial state
   transactionStatus: TransactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
   extensionProvider: ExtensionProvider | null = null; // NEW: Store the extension provider
+  // Remote signer for accounts paired with the mobile app over the QRL
+  // Connect relay (source 'mobile'). Same request() surface as the extension
+  // provider; the live QRLConnect instance is owned by utils/mobileConnect.
+  mobileProvider: ExtensionProvider | null = null;
   qrlPrice: number = 0; // USD price from Explorer
   qrlPriceChange24h: number = 0; // 24h price change percentage
 
@@ -142,6 +146,16 @@ class QrlStore {
     );
   }
 
+  // Remote-signer provider for the ACTIVE account, or null for seed accounts.
+  // Extension and mobile accounts share one request() surface; only the
+  // transaction param shape differs (see sendTransactionViaProvider).
+  get remoteProvider(): ExtensionProvider | null {
+    const source = this.activeAccountSource;
+    if (source === 'extension') return this.extensionProvider;
+    if (source === 'mobile') return this.mobileProvider;
+    return null;
+  }
+
   // 3) Active account balance in USD
   get activeAccountBalanceUsd(): number {
     const balance = parseFloat(this.activeAccountBalance) || 0;
@@ -156,6 +170,7 @@ class QrlStore {
       activeAccount: observable.struct,
       transactionStatus: observable.struct,
       extensionProvider: observable.ref, // Use ref for complex objects like providers
+      mobileProvider: observable.ref,
       qrlPrice: observable,
       qrlPriceChange24h: observable,
       // Runtime handles + their cleanup helper — not observable.
@@ -170,6 +185,7 @@ class QrlStore {
       onActiveAccountChanged: false,
       activeAccountBalance: computed,
       activeAccountSource: computed,
+      remoteProvider: computed,
       activeAccountBalanceUsd: computed,
       fetchQrlPrice: action.bound,
       selectBlockchain: action.bound,
@@ -181,7 +197,10 @@ class QrlStore {
       resetTransactionStatus: action.bound,
       fetchPendingTxDetails: action.bound,
       setExtensionProvider: action.bound,
-      sendTransactionViaExtension: action.bound,
+      setMobileProvider: action.bound,
+      adoptMobileAccount: action.bound,
+      removeMobileAccounts: action.bound,
+      sendTransactionViaProvider: action.bound,
       estimateNativeTransferFee: action.bound,
     });
 
@@ -694,8 +713,10 @@ class QrlStore {
   }
 
   // Worst-case fee reserve for a native QRL transfer at the given fee level.
-  // gasLimit defaults to 21000 (matches signAndSendTransaction); callers using
-  // sendTransactionViaExtension must pass 53000 to match that path.
+  // gasLimit defaults to 21000 (matches signAndSendTransaction); extension
+  // sends via sendTransactionViaProvider use 53000, so callers on that path
+  // must pass it. Mobile-app sends estimate on the phone; 21000 is the
+  // native-transfer floor and serves as the reserve approximation there.
   // Returns the amount in QRL that must stay in the wallet to cover gas.
   async estimateNativeTransferFee(
     feeLevel: FeeLevel = 'medium',
@@ -879,6 +900,55 @@ class QrlStore {
     });
   }
 
+  // Set or clear the mobile-app relay provider (owned by utils/mobileConnect).
+  setMobileProvider(provider: ExtensionProvider | null) {
+    runInAction(() => {
+      this.mobileProvider = provider;
+      log(provider ? "Mobile provider set." : "Mobile provider cleared.");
+    });
+  }
+
+  // Make `address` the single mobile-sourced account: a pairing represents
+  // exactly one phone account, so an accountsChanged to a new address
+  // replaces the old entry rather than accumulating stale ones.
+  async adoptMobileAccount(address: string) {
+    const blockchain = this.qrlConnection.blockchain;
+    try {
+      const list = await StorageUtil.getAccountList(blockchain);
+      const filtered = list.filter(
+        (item) =>
+          item.source !== 'mobile' ||
+          item.address.toLowerCase() === address.toLowerCase(),
+      );
+      if (filtered.length !== list.length) {
+        await StorageUtil.setAccountList(blockchain, filtered);
+      }
+    } catch (error) {
+      console.error('Failed to prune stale mobile accounts:', error);
+    }
+    await this.setActiveAccount(address, 'mobile');
+  }
+
+  // Remove every mobile-sourced account (pairing ended, from either side).
+  async removeMobileAccounts() {
+    const blockchain = this.qrlConnection.blockchain;
+    const activeWasMobile = this.activeAccountSource === 'mobile';
+    try {
+      const list = await StorageUtil.getAccountList(blockchain);
+      const filtered = list.filter((item) => item.source !== 'mobile');
+      if (filtered.length !== list.length) {
+        await StorageUtil.setAccountList(blockchain, filtered);
+      }
+    } catch (error) {
+      console.error('Failed to remove mobile accounts:', error);
+    }
+    if (activeWasMobile) {
+      await this.setActiveAccount(undefined);
+    } else {
+      await this.fetchAccounts();
+    }
+  }
+
   // --- NEW: Function to poll for transaction receipt ---
   async pollForReceipt(txHash: string) {
     if (!txHash || !this.qrlInstance) return;
@@ -971,19 +1041,26 @@ class QrlStore {
   }
   // --- END NEW Function ---
 
-  // --- NEW: Send Transaction via Extension ---
-  async sendTransactionViaExtension(to: string, valueEther: string, feeLevel: FeeLevel = 'medium') {
-    if (!this.extensionProvider) {
-      console.error("sendTransactionViaExtension called but no provider is set.");
-      log("Error: sendTransactionViaExtension called without provider.");
+  // --- Send Transaction via a remote signer (extension or paired mobile app) ---
+  async sendTransactionViaProvider(to: string, valueEther: string, feeLevel: FeeLevel = 'medium') {
+    const source = this.activeAccountSource;
+    const walletName = source === 'mobile' ? 'mobile app' : 'extension';
+    const provider = this.remoteProvider;
+    if (!provider) {
+      console.error("sendTransactionViaProvider called but no provider is set.");
+      log("Error: sendTransactionViaProvider called without provider.");
       runInAction(() => {
-        this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: 'Extension not connected.' };
+        this.transactionStatus = {
+          ...this.transactionStatus,
+          state: 'failed',
+          error: source === 'mobile' ? 'Mobile app wallet not connected.' : 'Extension not connected.',
+        };
       });
       return;
     }
     if (!this.activeAccount.accountAddress) {
-      console.error("sendTransactionViaExtension called but no active account.");
-      log("Error: sendTransactionViaExtension called without active account.");
+      console.error("sendTransactionViaProvider called but no active account.");
+      log("Error: sendTransactionViaProvider called without active account.");
       runInAction(() => {
         this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: 'No active account selected.' };
       });
@@ -1008,36 +1085,49 @@ class QrlStore {
       }
       // --- End Wei Calculation ---
 
-      const gasLimit = 53000;
-
-      // Fetch current gas price and apply fee level multiplier
-      const baseGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(1000000000);
-      const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
-
       const valueHex = "0x" + BigInt(valueBaseUnit).toString(16);
-      const gasHex = "0x" + gasLimit.toString(16);
-      const maxPriorityFeeHex = "0x" + maxPriorityFeePerGas.toString(16);
-      const maxFeeHex = "0x" + maxFeePerGas.toString(16);
 
-      const params = [{
-        from: this.activeAccount.accountAddress,
-        to: to,
-        value: valueHex, // Use manually hexed value from toPlanck("quanta")
-        gas: gasHex,
-        maxPriorityFeePerGas: maxPriorityFeeHex,
-        maxFeePerGas: maxFeeHex,
-        type: '0x2'
-      }];
+      let params: object[];
+      if (source === 'mobile') {
+        // The relay wallet estimates its own gas and shows its own fee UI, so
+        // it must receive the MINIMAL shape: dApp-supplied gas fields are
+        // ignored at best and shape-mismatched at worst.
+        params = [{
+          from: this.activeAccount.accountAddress,
+          to: to,
+          value: valueHex,
+        }];
+      } else {
+        const gasLimit = 53000;
 
-      log(`Requesting transaction via extension (18 Decimals): ${JSON.stringify(params)}`);
-      // Extension provider handles user confirmation popup
-      const txHash = await this.extensionProvider.request({
+        // Fetch current gas price and apply fee level multiplier
+        const baseGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(1000000000);
+        const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
+
+        const gasHex = "0x" + gasLimit.toString(16);
+        const maxPriorityFeeHex = "0x" + maxPriorityFeePerGas.toString(16);
+        const maxFeeHex = "0x" + maxFeePerGas.toString(16);
+
+        params = [{
+          from: this.activeAccount.accountAddress,
+          to: to,
+          value: valueHex, // Use manually hexed value from toPlanck("quanta")
+          gas: gasHex,
+          maxPriorityFeePerGas: maxPriorityFeeHex,
+          maxFeePerGas: maxFeeHex,
+          type: '0x2'
+        }];
+      }
+
+      log(`Requesting transaction via ${walletName} (18 Decimals): ${JSON.stringify(params)}`);
+      // The remote wallet shows its own confirmation UI
+      const txHash = await provider.request({
         method: 'qrl_sendTransaction',
         params: params
       });
 
       if (txHash && typeof txHash === 'string') {
-        log(`Transaction sent via extension, hash: ${txHash}`);
+        log(`Transaction sent via ${walletName}, hash: ${txHash}`);
         runInAction(() => {
           // Still 'pending' until confirmed on-chain, but we have the hash
           this.transactionStatus = { ...this.transactionStatus, state: 'pending', txHash: txHash, error: null };
@@ -1046,14 +1136,14 @@ class QrlStore {
           this.pollForReceipt(txHash);
         });
       } else {
-        log(`Extension returned invalid txHash: ${txHash}`);
-        throw new Error("Extension did not return a valid transaction hash.");
+        log(`Wallet returned invalid txHash: ${txHash}`);
+        throw new Error(`The ${walletName} did not return a valid transaction hash.`);
       }
 
     } catch (error) {
-      console.error("Error sending transaction via extension:", error);
+      console.error(`Error sending transaction via ${walletName}:`, error);
       const message = getErrorMessage(error);
-      log(`Error sending via extension: ${message}`);
+      log(`Error sending via ${walletName}: ${message}`);
       runInAction(() => {
         // Check for user rejection code specifically if the provider follows EIP-1193 errors
         const userRejected = isProviderRpcError(error) && error.code === 4001;
@@ -1062,10 +1152,10 @@ class QrlStore {
           ...this.transactionStatus,
           state: 'failed',
           error: userRejected
-            ? 'Transaction rejected in extension.'
+            ? `Transaction rejected in ${walletName}.`
             : isCalcError
               ? message // Show calculation error
-              : (message || 'Transaction failed in extension.')
+              : (message || `Transaction failed in ${walletName}.`)
         };
       });
     }

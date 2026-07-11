@@ -15,6 +15,7 @@ import { observer } from "mobx-react-lite";
 import { AccountId } from "../AccountId/AccountId";
 import { AccountBalance } from "../AccountBalance/AccountBalance";
 import { ExtensionBadge } from "../ExtensionBadge/ExtensionBadge";
+import { MobileBadge } from "../MobileBadge/MobileBadge";
 import { CopyAddressButton } from "../CopyAddressButton/CopyAddressButton";
 
 export const OtherAccounts = observer(() => {
@@ -50,6 +51,7 @@ export const OtherAccounts = observer(() => {
               <AccountId className="text-xs md:text-sm" account={accountAddress} />
               <AccountBalance className="m-auto md:m-0" accountAddress={accountAddress} />
               {source === 'extension' && <ExtensionBadge />}
+              {source === 'mobile' && <MobileBadge />}
             </div>
             <div className="flex gap-4 items-center">
               <CopyAddressButton accountAddress={accountAddress} />
