@@ -74,6 +74,12 @@ export async function discoverNFTs(
       const std = normaliseStandard(n.tokenStandard);
       if (!std) continue;
       if (!n.contractAddress || !n.tokenID) continue;
+      // fetchedAt means "last SUCCESSFUL metadata fetch" (see
+      // NFTInterface). The explorer row may predate its own metadata
+      // backfill, so only stamp entries that actually carry metadata;
+      // unstamped ones get resolved by nftStore.refreshNftMetadata on
+      // the next gallery visit instead of waiting out the TTL.
+      const hasMetadata = Boolean(n.name || n.image);
       out.push({
         contractAddress: n.contractAddress.startsWith("Q")
           ? n.contractAddress
@@ -88,7 +94,7 @@ export async function discoverNFTs(
         description: n.description || undefined,
         image: n.image || undefined,
         balance: n.balance || undefined,
-        fetchedAt,
+        fetchedAt: hasMetadata ? fetchedAt : undefined,
       });
     }
 

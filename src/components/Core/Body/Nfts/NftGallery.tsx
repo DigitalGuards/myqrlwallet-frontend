@@ -78,7 +78,7 @@ const NftGallery = observer(() => {
                   size="sm"
                   onClick={onRefresh}
                   disabled={isRefreshing}
-                  aria-label="Refresh NFT ownership"
+                  aria-label="Refresh ownership, balances, and metadata"
                 >
                   {isRefreshing ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
