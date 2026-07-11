@@ -349,13 +349,10 @@ const Transfer = observer(() => {
     if (isNativeTransfer) {
       await handleNativeTransfer(formData);
     } else {
-      // Token transfers not supported for remote-signer wallets yet
-      if (isUsingRemoteSigner) {
-        control.setError("asset", {
-          message: isUsingMobile
-            ? "Token transfers are not yet supported with a connected mobile app wallet."
-            : "Token transfers are not yet supported with extension wallets.",
-        });
+      // Token transfers work through the mobile-app pairing (the relay
+      // carries contract calls) but not through extension wallets yet.
+      if (isUsingExtension) {
+        control.setError("asset", { message: "Token transfers are not yet supported with extension wallets." });
         return;
       }
       await handleTokenTransfer(formData);
@@ -421,6 +418,20 @@ const Transfer = observer(() => {
 
   async function handleTokenTransfer(formData: z.infer<typeof FormSchema>) {
     if (!selectedToken) return;
+
+    if (isUsingMobile) {
+      // Mobile pairing: no PIN, no seed. The store builds the transfer
+      // calldata and the phone signs after its own confirmation screen.
+      try {
+        const rawAmount = parseUnits(formData.amount.toString(), selectedToken.decimals).toString();
+        await sendTokenToStore(selectedToken, rawAmount, "", formData.receiverAddress);
+        resetForm();
+        window.scrollTo(0, 0);
+      } catch (error) {
+        control.setError("receiverAddress", { message: `Transfer failed: ${error instanceof Error ? error.message : String(error)}` });
+      }
+      return;
+    }
 
     if (isDesktop) {
       // Desktop: no PIN, no seed in the renderer. The store builds the transfer
