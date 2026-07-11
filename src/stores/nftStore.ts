@@ -58,12 +58,20 @@ class NftStore {
   // account alone is not enough.)
   private nftListScope: { blockchain: string; account: string } | null = null;
 
-  // Single-flight guards: React StrictMode double-mounts the gallery
-  // effect and the Refresh button can overlap the invisible mount chain;
-  // a second concurrent loop would double RPC/proxy traffic and its
-  // wholesale setNftList could resurrect an entry the first loop dropped.
-  private balancesRefreshInFlight = false;
-  private metadataRefreshInFlight = false;
+  // Single-flight refresh tracking. A call made while a run for the SAME
+  // scope is in flight coalesces into it (React StrictMode double-mounts
+  // the gallery effect; a second concurrent loop would double RPC/proxy
+  // traffic). A call for a DIFFERENT scope (account/network switch) or a
+  // forced metadata refresh chains behind the in-flight run instead, so
+  // it actually executes against the new state.
+  private balancesRefresh: {
+    scope: { blockchain: string; account: string };
+    done: Promise<void>;
+  } | null = null;
+  private metadataRefresh: {
+    scope: { blockchain: string; account: string };
+    done: Promise<void>;
+  } | null = null;
 
   constructor(
     private qrlStore: QrlStore,
@@ -183,6 +191,16 @@ class NftStore {
       // after the switch can't leak the prior account's results.
       this.discoveredNfts = [];
     });
+    // Kick a refresh for the freshly loaded scope so an already-mounted
+    // gallery is current after the switch (its mount effect only fires
+    // once). Fire-and-forget: the account switch must not block on
+    // per-NFT RPC. A run still draining for the previous scope is
+    // chained behind, and its own write is dropped by the scope guard.
+    void this.refreshNftBalances()
+      .then(() => this.refreshNftMetadata())
+      .catch((err: unknown) => {
+        console.error("post-switch NFT refresh failed:", err);
+      });
   }
 
   async setNftList(list: NFTInterface[]) {
@@ -255,65 +273,91 @@ class NftStore {
    * balance. Drops NFTs the wallet no longer owns (e.g. transferred
    * out from another client) so the gallery stays honest.
    *
-   * Single-flight: a run that starts while another is in flight returns
-   * immediately. Scope-guarded: bails when the nftList is not settled
-   * for the live scope, before iterating and again before persisting.
+   * Same-scope calls coalesce into the in-flight run; cross-scope calls
+   * (account/network switch) chain behind it. Scope-guarded: bails when
+   * the nftList is not settled for the live scope.
    */
-  async refreshNftBalances() {
-    if (this.balancesRefreshInFlight) return;
+  async refreshNftBalances(): Promise<void> {
+    const scope = this.scope;
+    const current = this.balancesRefresh;
+    if (current && NftStore.scopesEqual(current.scope, scope)) {
+      return current.done;
+    }
+    const done = (async () => {
+      if (current) await current.done.catch(() => undefined);
+      await this.runBalancesRefresh();
+    })();
+    const entry = {
+      scope,
+      done: done.finally(() => {
+        if (this.balancesRefresh === entry) this.balancesRefresh = null;
+      }),
+    };
+    this.balancesRefresh = entry;
+    return entry.done;
+  }
+
+  private async runBalancesRefresh(): Promise<void> {
     const scope = this.scope;
     if (!scope.account || this.nftList.length === 0) return;
     if (!this.nftListSettledFor(scope)) return;
-    this.balancesRefreshInFlight = true;
-    try {
-      const selectedBlockChain = await StorageUtil.getBlockChain();
-      const rpcUrl =
-        QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url;
+    const selectedBlockChain = await StorageUtil.getBlockChain();
+    const rpcUrl =
+      QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url;
 
-      const updated: NFTInterface[] = [];
-      for (const nft of this.nftList) {
-        try {
-          if (nft.standard === "ERC721") {
-            const stillOwner = await isErc721Owner(
-              nft.contractAddress,
-              scope.account,
-              nft.tokenId,
-              rpcUrl,
-            );
-            if (stillOwner) {
-              updated.push(nft);
-            }
-            // dropped if no longer owner
-          } else {
-            const bal = await fetchErc1155Balance(
-              nft.contractAddress,
-              scope.account,
-              nft.tokenId,
-              rpcUrl,
-            );
-            if (bal > 0n) {
-              updated.push({ ...nft, balance: bal.toString() });
-            }
-            // dropped if balance == 0
-          }
-        } catch (err) {
-          // Keep stale entries on transient errors so a flaky RPC doesn't
-          // wipe the gallery; log + carry on.
-          console.error(
-            `refreshNftBalances: ${nft.contractAddress}#${nft.tokenId}`,
-            err,
+    // Decide per-entry from a snapshot, then merge the decisions into
+    // the CURRENT list. A wholesale overwrite of this.nftList would
+    // silently wipe NFTs the user adds (and resurrect ones they remove)
+    // while the ownership checks are in flight.
+    const drops = new Set<string>();
+    const balances = new Map<string, string>();
+    for (const nft of this.nftList) {
+      const key = nftKey(nft.contractAddress, nft.tokenId);
+      try {
+        if (nft.standard === "ERC721") {
+          const stillOwner = await isErc721Owner(
+            nft.contractAddress,
+            scope.account,
+            nft.tokenId,
+            rpcUrl,
           );
-          updated.push(nft);
+          if (!stillOwner) drops.add(key);
+        } else {
+          const bal = await fetchErc1155Balance(
+            nft.contractAddress,
+            scope.account,
+            nft.tokenId,
+            rpcUrl,
+          );
+          if (bal > 0n) {
+            balances.set(key, bal.toString());
+          } else {
+            drops.add(key);
+          }
         }
+      } catch (err) {
+        // Keep entries on transient errors so a flaky RPC doesn't wipe
+        // the gallery; log + carry on.
+        console.error(
+          `refreshNftBalances: ${nft.contractAddress}#${nft.tokenId}`,
+          err,
+        );
       }
-      if (!this.nftListSettledFor(scope)) {
-        log("refreshNftBalances: scope changed mid-refresh, dropping result");
-        return;
-      }
-      await this.setNftList(updated);
-    } finally {
-      this.balancesRefreshInFlight = false;
     }
+    if (drops.size === 0 && balances.size === 0) return;
+    if (!this.nftListSettledFor(scope)) {
+      log("refreshNftBalances: scope changed mid-refresh, dropping result");
+      return;
+    }
+    const merged = this.nftList
+      .filter((n) => !drops.has(nftKey(n.contractAddress, n.tokenId)))
+      .map((n) => {
+        const bal = balances.get(nftKey(n.contractAddress, n.tokenId));
+        return bal !== undefined && bal !== n.balance
+          ? { ...n, balance: bal }
+          : n;
+      });
+    await this.setNftList(merged);
   }
 
   /**
@@ -335,104 +379,121 @@ class NftStore {
    * failure bookkeeping is written), and a successful fetch only
    * overwrites fields the new document provides, so a temporarily
    * broken tokenURI can't blank out a working card.
+   *
+   * Same-scope non-forced calls coalesce into the in-flight run; forced
+   * and cross-scope calls chain behind it so they actually execute.
    */
-  async refreshNftMetadata(force = false) {
-    if (this.metadataRefreshInFlight) return;
+  async refreshNftMetadata(force = false): Promise<void> {
+    const scope = this.scope;
+    const current = this.metadataRefresh;
+    if (current && !force && NftStore.scopesEqual(current.scope, scope)) {
+      return current.done;
+    }
+    const done = (async () => {
+      if (current) await current.done.catch(() => undefined);
+      await this.runMetadataRefresh(force);
+    })();
+    const entry = {
+      scope,
+      done: done.finally(() => {
+        if (this.metadataRefresh === entry) this.metadataRefresh = null;
+      }),
+    };
+    this.metadataRefresh = entry;
+    return entry.done;
+  }
+
+  private async runMetadataRefresh(force: boolean): Promise<void> {
     const scope = this.scope;
     if (!scope.account || this.nftList.length === 0) return;
     if (!this.nftListSettledFor(scope)) return;
-    this.metadataRefreshInFlight = true;
-    try {
-      const selectedBlockChain = await StorageUtil.getBlockChain();
-      const rpcUrl =
-        QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url;
+    const selectedBlockChain = await StorageUtil.getBlockChain();
+    const rpcUrl =
+      QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url;
 
-      const now = Date.now();
-      const updates = new Map<string, NFTInterface>();
-      const markFailed = (nft: NFTInterface) => {
+    const now = Date.now();
+    const updates = new Map<string, NFTInterface>();
+    const markFailed = (nft: NFTInterface) => {
+      updates.set(nftKey(nft.contractAddress, nft.tokenId), {
+        ...nft,
+        fetchRetryCount: (nft.fetchRetryCount ?? 0) + 1,
+        fetchFailedAt: Date.now(),
+      });
+    };
+    let attempts = 0;
+    for (const nft of this.nftList) {
+      if (attempts >= NFT_METADATA_MAX_PER_RUN) break;
+      const stale =
+        !nft.fetchedAt || now - nft.fetchedAt > NFT_METADATA_TTL_MS;
+      if (!force && !stale) continue;
+      if (!force && nft.fetchFailedAt) {
+        const backoff = Math.min(
+          NFT_METADATA_RETRY_BASE_MS *
+            2 ** Math.max((nft.fetchRetryCount ?? 1) - 1, 0),
+          NFT_METADATA_RETRY_MAX_MS,
+        );
+        if (now - nft.fetchFailedAt < backoff) continue;
+      }
+      attempts++;
+      try {
+        const uri = await fetchTokenUri(
+          nft.contractAddress,
+          nft.tokenId,
+          rpcUrl,
+          nft.standard,
+        );
+        if (!uri) {
+          markFailed(nft);
+          continue;
+        }
+        const meta = await fetchNftMetadata(uri);
+        if (!meta) {
+          markFailed(nft);
+          continue;
+        }
         updates.set(nftKey(nft.contractAddress, nft.tokenId), {
           ...nft,
-          fetchRetryCount: (nft.fetchRetryCount ?? 0) + 1,
-          fetchFailedAt: Date.now(),
+          name: meta.name ?? nft.name,
+          description: meta.description ?? nft.description,
+          image: meta.image ?? nft.image,
+          fetchedAt: Date.now(),
+          fetchRetryCount: undefined,
+          fetchFailedAt: undefined,
         });
-      };
-      let attempts = 0;
-      for (const nft of this.nftList) {
-        if (attempts >= NFT_METADATA_MAX_PER_RUN) break;
-        const stale =
-          !nft.fetchedAt || now - nft.fetchedAt > NFT_METADATA_TTL_MS;
-        if (!force && !stale) continue;
-        if (!force && nft.fetchFailedAt) {
-          const backoff = Math.min(
-            NFT_METADATA_RETRY_BASE_MS *
-              2 ** Math.max((nft.fetchRetryCount ?? 1) - 1, 0),
-            NFT_METADATA_RETRY_MAX_MS,
-          );
-          if (now - nft.fetchFailedAt < backoff) continue;
-        }
-        attempts++;
-        try {
-          const uri = await fetchTokenUri(
-            nft.contractAddress,
-            nft.tokenId,
-            rpcUrl,
-            nft.standard,
-          );
-          if (!uri) {
-            markFailed(nft);
-            continue;
-          }
-          const meta = await fetchNftMetadata(uri);
-          if (!meta) {
-            markFailed(nft);
-            continue;
-          }
-          updates.set(nftKey(nft.contractAddress, nft.tokenId), {
-            ...nft,
-            name: meta.name ?? nft.name,
-            description: meta.description ?? nft.description,
-            image: meta.image ?? nft.image,
-            fetchedAt: Date.now(),
-            fetchRetryCount: undefined,
-            fetchFailedAt: undefined,
-          });
-        } catch (err) {
-          markFailed(nft);
-          console.error(
-            `refreshNftMetadata: ${nft.contractAddress}#${nft.tokenId}`,
-            err,
-          );
-        }
+      } catch (err) {
+        markFailed(nft);
+        console.error(
+          `refreshNftMetadata: ${nft.contractAddress}#${nft.tokenId}`,
+          err,
+        );
       }
-      if (updates.size === 0) return;
-      // Scope guard: if the account or network switched while we awaited
-      // RPC, this.nftList belongs to another scope now and these updates
-      // must be dropped.
-      if (!this.nftListSettledFor(scope)) {
-        log("refreshNftMetadata: scope changed mid-refresh, dropping");
-        return;
-      }
-      // Merge into the CURRENT list rather than the snapshot we iterated:
-      // refreshNftBalances may have dropped or re-balanced entries while
-      // the metadata fetches were in flight, and ownership state wins.
-      const merged = this.nftList.map((n) => {
-        const u = updates.get(nftKey(n.contractAddress, n.tokenId));
-        if (!u) return n;
-        return {
-          ...n,
-          name: u.name,
-          description: u.description,
-          image: u.image,
-          fetchedAt: u.fetchedAt,
-          fetchRetryCount: u.fetchRetryCount,
-          fetchFailedAt: u.fetchFailedAt,
-        };
-      });
-      await this.setNftList(merged);
-      log(`refreshNftMetadata: refreshed ${updates.size} entries`);
-    } finally {
-      this.metadataRefreshInFlight = false;
     }
+    if (updates.size === 0) return;
+    // Scope guard: if the account or network switched while we awaited
+    // RPC, this.nftList belongs to another scope now and these updates
+    // must be dropped.
+    if (!this.nftListSettledFor(scope)) {
+      log("refreshNftMetadata: scope changed mid-refresh, dropping");
+      return;
+    }
+    // Merge into the CURRENT list rather than the snapshot we iterated:
+    // entries added/removed while fetches were in flight stay untouched,
+    // and refreshNftBalances ownership decisions win.
+    const merged = this.nftList.map((n) => {
+      const u = updates.get(nftKey(n.contractAddress, n.tokenId));
+      if (!u) return n;
+      return {
+        ...n,
+        name: u.name,
+        description: u.description,
+        image: u.image,
+        fetchedAt: u.fetchedAt,
+        fetchRetryCount: u.fetchRetryCount,
+        fetchFailedAt: u.fetchFailedAt,
+      };
+    });
+    await this.setNftList(merged);
+    log(`refreshNftMetadata: refreshed ${updates.size} entries`);
   }
 
   /**
