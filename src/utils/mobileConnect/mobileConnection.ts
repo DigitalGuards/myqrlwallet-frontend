@@ -33,15 +33,17 @@ export interface MobileConnectStore {
 let instance: QRLConnect | null = null;
 let creating: Promise<QRLConnect> | null = null;
 // One adapter per instance so observable.ref comparisons in the store don't
-// churn on every event.
-let adapter: ExtensionProvider | null = null;
+// churn on every event. Keyed by instance so a future re-create (not possible
+// today; the singleton is never torn down) can't serve a stale closure.
+const adapters = new WeakMap<QRLConnect, ExtensionProvider>();
 
 // The SDK's request() returns Promise<unknown>; the store's ExtensionProvider
 // surface is generic. Adapt with a single assertion from unknown at the
 // boundary rather than pretending QRLConnect IS an ExtensionProvider.
 function asExtensionProvider(qrl: QRLConnect): ExtensionProvider {
-  if (adapter) return adapter;
-  adapter = {
+  const cached = adapters.get(qrl);
+  if (cached) return cached;
+  const adapter: ExtensionProvider = {
     request: <T = unknown>(args: { method: string; params?: unknown[] | object }) => {
       // The relay protocol takes positional (array) params only; wrap a bare
       // object param the way EIP-1193 callers sometimes pass one.
@@ -52,6 +54,7 @@ function asExtensionProvider(qrl: QRLConnect): ExtensionProvider {
       return qrl.request({ method: args.method, params }) as Promise<T>;
     },
   };
+  adapters.set(qrl, adapter);
   return adapter;
 }
 
