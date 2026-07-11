@@ -43,7 +43,7 @@ export const IPFS_GATEWAY = `${SERVER_URL}/ipfs/`;
 const METADATA_FETCH_TIMEOUT_MS = 8000;
 
 // Try ERC-165 supportsInterface(0x...). Returns false on any RPC revert
-// (very common — pre-ERC-165 contracts revert instead of returning false).
+// (very common: pre-ERC-165 contracts revert instead of returning false).
 async function safeSupportsInterface(
   web3: Web3Type,
   contractAddress: string,
@@ -60,7 +60,7 @@ async function safeSupportsInterface(
 
 /**
  * Detect whether an address is an ERC-721 or ERC-1155 contract, or
- * neither (returns null — caller falls through to ERC-20 / unsupported).
+ * neither (returns null; caller falls through to ERC-20 / unsupported).
  */
 export async function detectTokenStandard(
   contractAddress: string,
@@ -99,12 +99,12 @@ export async function fetchNftCollectionInfo(
     try {
       name = await methods.name().call();
     } catch {
-      // Optional in ERC-721 — some implementations omit it.
+      // Optional in ERC-721; some implementations omit it.
     }
     try {
       symbol = await methods.symbol().call();
     } catch {
-      // Optional in ERC-721 — some implementations omit it.
+      // Optional in ERC-721; some implementations omit it.
     }
     const supportsEnumerable = await safeSupportsInterface(
       web3,
@@ -120,7 +120,7 @@ export async function fetchNftCollectionInfo(
 
 /**
  * For ERC-721 contracts that implement Enumerable, list owned token IDs.
- * Returns null if the contract doesn't support Enumerable — callers
+ * Returns null if the contract doesn't support Enumerable; callers
  * must then prompt the user for a tokenId.
  */
 export async function fetchOwned721Ids(
@@ -239,7 +239,7 @@ export function resolveIpfsUri(uri: string): string {
  * Fetch + parse NFT JSON metadata. Returns null on any failure (timeout,
  * 404, JSON parse error). Sanitizes the `image` field to proxied IPFS
  * (same-origin via `/api/ipfs/...`) or inline `data:image/...` only.
- * Raw http(s):// image URLs are dropped on purpose — tokenURI content
+ * Raw http(s):// image URLs are dropped on purpose: tokenURI content
  * is attacker-controlled and would otherwise leak the wallet user's IP
  * to any host the JSON points at.
  */
@@ -264,7 +264,7 @@ export async function fetchNftMetadata(uri: string): Promise<NftMetadata | null>
     if (image) {
       const rawImage = image;
       const resolvedImage = resolveIpfsUri(image);
-      // Only allow images that are either (a) proxied IPFS — `ipfs://`
+      // Only allow images that are either (a) proxied IPFS, `ipfs://`
       // resolves to same-origin `/api/ipfs/...` so the browser fetches
       // through the wallet backend and CSP `img-src 'self'` permits it,
       // or (b) inline `data:image/...`. Reject raw http(s):// images:
