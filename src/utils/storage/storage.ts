@@ -59,8 +59,9 @@ export interface EncryptedSeedData {
   lastAccessed: number;
 }
 
-// New type to track the source (seed vs extension) for an account stored in ACCOUNT_LIST
-export type AccountSource = 'seed' | 'extension';
+// Tracks where an account in ACCOUNT_LIST is signed: a locally stored seed,
+// a browser extension, or the mobile app paired over the QRL Connect relay.
+export type AccountSource = 'seed' | 'extension' | 'mobile';
 
 export interface AccountListItem {
   address: string;

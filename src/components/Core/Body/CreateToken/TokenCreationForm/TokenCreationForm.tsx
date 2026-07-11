@@ -102,7 +102,10 @@ export const TokenCreationForm = observer(
             formState: { isSubmitting, isValid },
         } = form;
 
-        const isUsingExtension = activeAccountSource === 'extension';
+        // Extension and mobile-app accounts have no local seed; token
+        // creation needs one, so both are blocked below.
+        const isUsingRemoteSigner =
+            activeAccountSource === 'extension' || activeAccountSource === 'mobile';
 
         const formatRealValue = (supply: string, decimals: number) => {
             try {
@@ -123,9 +126,9 @@ export const TokenCreationForm = observer(
                     return;
                 }
 
-                // For extension wallets, we need to handle differently
-                if (isUsingExtension) {
-                    setFormError("Token creation with extension wallets is not yet supported. Please use an imported seed account.");
+                // Remote-signer wallets cannot create tokens yet
+                if (isUsingRemoteSigner) {
+                    setFormError("Token creation with connected wallets is not yet supported. Please use an imported seed account.");
                     return;
                 }
 
@@ -134,7 +137,7 @@ export const TokenCreationForm = observer(
                 // renderer: the store builds the calldata and routes through
                 // the signer, so we pass an empty mnemonic placeholder.
                 let mnemonicPhrase = "";
-                if (!isUsingExtension && !isDesktop) {
+                if (!isUsingRemoteSigner && !isDesktop) {
                     if (!pin) {
                         setPinError("PIN is required");
                         return;
@@ -512,7 +515,7 @@ export const TokenCreationForm = observer(
                                 />
                             )}
 
-                            {isUsingExtension ? (
+                            {isUsingRemoteSigner ? (
                                 <div className="flex flex-col p-4 bg-yellow-900/20 rounded-lg">
                                     <p className="text-sm text-yellow-200">
                                         Token creation is currently only supported for imported seed accounts.
@@ -541,7 +544,7 @@ export const TokenCreationForm = observer(
                         </CardContent>
                         <CardFooter>
                             <ShinyButton
-                                disabled={!isValid || (!isUsingExtension && !isDesktop && pin.length === 0) || isUsingExtension}
+                                disabled={!isValid || (!isUsingRemoteSigner && !isDesktop && pin.length === 0) || isUsingRemoteSigner}
                                 processing={isSubmitting}
                                 className="w-full"
                                 type="submit"
