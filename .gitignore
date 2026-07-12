@@ -47,3 +47,6 @@ changes-extension.md
 # Claude Code auto-generated context files
 **/CLAUDE.md
 !/CLAUDE.md
+
+# Local operating notes; never tracked (private infrastructure detail)
+CLAUDE.md

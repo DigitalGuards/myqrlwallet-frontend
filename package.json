@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite --config config/vite.config.ts --host=127.0.0.1",
     "dev:lan": "vite --config config/vite.config.ts --host=0.0.0.0",
-    "dev:custom": "vite --config config/vite.config.ts --host=192.168.1.123",
+    "dev:custom": "vite --config config/vite.config.ts --host",
     "build": "tsc && vite --config config/vite.config.ts build",
     "lint": "eslint --config config/eslint.config.js . --report-unused-disable-directives --max-warnings 0",
     "test": "jest",
