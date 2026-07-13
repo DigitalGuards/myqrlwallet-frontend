@@ -59,6 +59,7 @@ const Security = () => {
                     <li>The MyQRLWallet desktop application, mobile application and browser extension.</li>
                     <li>The MyQRLWallet source repositories published by DigitalGuards on GitHub.</li>
                     <li>The DigitalGuards RPC proxy and dApp Connect relay used by the wallet.</li>
+                    <li>The ZondScan block explorer (zondscan.com).</li>
                 </ul>
                 <p className="mb-6">
                     Out of scope: third-party services, the QRL network and protocol itself, and issues that
