@@ -1,114 +1,217 @@
+import { Link } from "react-router-dom";
 import { SEO } from "@/components/SEO/SEO";
+import { ROUTES } from "@/router/router";
+
+const linkClass =
+    "text-blue-accent underline underline-offset-2 hover:text-blue-accent/80 transition-colors";
 
 const Privacy = () => {
     return (
         <div className="min-h-screen">
             <SEO
                 title="Privacy Policy"
-                description="Privacy policy for MyQRLWallet"
+                description="How DigitalGuards processes personal data in connection with MyQRLWallet, the self-custody wallet for QRL 2.0."
             />
-            <main className="container mx-auto px-4 py-8">
-                <div>
-                    <h1 className="text-3xl font-bold mb-4">Privacy Policy</h1>
+            <main className="container mx-auto max-w-3xl px-4 py-8">
+                <h1 className="text-3xl font-bold mb-4">Privacy Policy</h1>
 
-                    <p className="mb-4">
-                        Welcome to MyQRLWallet. We are deeply committed to your privacy. This Privacy Policy outlines our approach to your information, emphasizing that our Services are designed to be non-custodial and to collect no personal data or usage information from you.
-                    </p>
+                <p className="mb-2 text-sm text-muted-foreground">Last updated: 13 July 2026</p>
 
-                    <p className="mb-6">
-                        <strong>Last Updated: 14 March 2025</strong> {/* TODO: Update this date or make it dynamic */}
-                    </p>
+                <p className="mb-6">
+                    MyQRLWallet is self-custody client software. It is designed to process as little personal
+                    data as possible. This policy explains, honestly and specifically, what personal data is
+                    processed when you use MyQRLWallet, why, on what legal basis, who receives it, and what
+                    rights you have. It applies to the MyQRLWallet web wallet (qrlwallet.com), desktop
+                    application, mobile application and browser extension.
+                </p>
 
-                    <h2 className="text-2xl font-semibold mt-6 mb-3">1. Our Core Privacy Principles</h2>
-                    <ul className="list-disc list-inside mb-6">
-                        <li><strong>No User Accounts, No Personal Data Collection:</strong> MyQRLWallet does not require you to create an account or provide any personal information to use our core wallet services.</li>
-                        <li><strong>No Logging:</strong> We do not log your IP address, browser details, device information, or your activity on our Services.</li>
-                        <li><strong>No Cookies or Tracking:</strong> We do not use cookies or any other tracking technologies for advertising or analytics.</li>
-                        <li><strong>Non-Custodial:</strong> You, and only you, hold your private keys and control your funds. We never have access to your private keys or mnemonic seed.</li>
-                    </ul>
+                <h2 className="text-2xl font-semibold mt-6 mb-3">1. Who is the controller</h2>
+                <p className="mb-6">
+                    The controller for the processing described here is DigitalGuards, a sole proprietorship
+                    (eenmanszaak) established in the Netherlands, Oude Boekeloseweg 31, 7553 DS Hengelo,
+                    Netherlands, registered with the Chamber of Commerce (KvK) under number 91987482. For any
+                    privacy question or to exercise your rights, contact security@digitalguards.nl. Please do
+                    not use a public GitHub issue for requests that contain personal data.
+                </p>
 
-                    <h2 className="text-2xl font-semibold mt-6 mb-3">2. Information Handling</h2>
+                <h2 className="text-2xl font-semibold mt-6 mb-3">2. What stays on your device</h2>
+                <p className="mb-4">
+                    MyQRLWallet is non-custodial. The following are created and kept on your own device and are
+                    never sent to, or accessible by, DigitalGuards:
+                </p>
+                <ul className="list-disc list-inside mb-4">
+                    <li>
+                        your recovery (seed) phrase and your ML-DSA-87 signature keys, which are generated
+                        locally and, where you set a PIN or password, stored encrypted in your device's local
+                        storage;
+                    </li>
+                    <li>
+                        your wallet settings, preferences and address book, which are stored in your device's
+                        local storage.
+                    </li>
+                </ul>
+                <p className="mb-6">
+                    This on-device data is under your control. It is not transmitted to our servers, and it is
+                    not covered by the data-subject request process below because we never receive it. QRL 2.0
+                    uses ML-DSA-87 signatures and does not use "view keys", "spend keys" or any similar concept.
+                </p>
 
-                    <h3 className="text-xl font-semibold mt-4 mb-2">Information Processed by the Client-Side Application</h3>
-                    <p className="mb-4">
-                        To interact with the QRL blockchain, the MyQRLWallet client-side application (running in your browser) uses:
-                    </p>
-                    <ul className="list-disc list-inside mb-6">
-                        <li><strong>Your Wallet's Public Address and View Key:</strong> These are used by the application locally on your device to fetch your transaction history and display your balance. This information is necessary for the wallet to function but is not transmitted to or stored by MyQRLWallet's servers.</li>
-                        <li><strong>Transaction Data:</strong> When you make a transaction, the details are broadcast directly from your client to the QRL network.</li>
-                    </ul>
+                <h2 className="text-2xl font-semibold mt-6 mb-3">3. What is processed when you connect</h2>
+                <p className="mb-4">
+                    To read public blockchain data and to broadcast transactions that you have already signed
+                    on your device, MyQRLWallet connects to internet infrastructure. This necessarily involves
+                    some processing of personal data in transit. We do not pretend otherwise.
+                </p>
+                <h3 className="text-xl font-semibold mt-4 mb-2">3.1 Your IP address</h3>
+                <ul className="list-disc list-inside mb-4">
+                    <li>
+                        Our content delivery network and security provider, Cloudflare, sits in front of our
+                        websites and endpoints. Cloudflare receives and processes your real IP address at its
+                        edge, on our instruction, in order to deliver the sites and to protect them against
+                        denial-of-service and abuse.
+                    </li>
+                    <li>
+                        Our RPC proxy and our dApp Connect relay process your IP address transiently, in
+                        memory, to enforce rate limits. Where a security-relevant event occurs (for example a
+                        blocked method, an error or an unusually slow request), an entry that can include your
+                        IP address is written to our operational logs.
+                    </li>
+                    <li>
+                        Our origin web server keeps standard access logs. In normal operation these record the
+                        connecting address (which is usually Cloudflare's proxy address rather than your own),
+                        together with the requested path, timestamp, HTTP status, referrer and user-agent.
+                    </li>
+                </ul>
+                <h3 className="text-xl font-semibold mt-4 mb-2">3.2 Your public address and signed transactions</h3>
+                <p className="mb-4">
+                    When you view your balance or history, or broadcast a transaction, your public wallet
+                    address and, for a broadcast, your already-signed transaction are sent to our RPC proxy and,
+                    for balance, history, token and NFT data, to the ZondScan block explorer. These endpoints
+                    necessarily observe that public data in transit in order to answer your request. A signed
+                    transaction is then relayed to the public QRL network, where, by the nature of a public
+                    blockchain, it and the addresses involved become publicly visible.
+                </p>
+                <h3 className="text-xl font-semibold mt-4 mb-2">3.3 Support communications</h3>
+                <p className="mb-6">
+                    If you choose to contact us, we process the information you provide solely to handle your
+                    request.
+                </p>
 
-                    <h3 className="text-xl font-semibold mt-4 mb-2">Information We Explicitly Do Not Collect or Store</h3>
-                    <p className="mb-4">
-                        To be unequivocally clear, MyQRLWallet servers do NOT collect or store:
-                    </p>
-                    <ul className="list-disc list-inside mb-6">
-                        <li>Your IP Address</li>
-                        <li>Browser type, operating system, or device information</li>
-                        <li>Access times or pages viewed</li>
-                        <li>Error logs that contain personal or identifying information</li>
-                        <li>Cookies or any tracking identifiers</li>
-                        <li>Your private spend key or mnemonic seed (these should never be shared with anyone, including us)</li>
-                    </ul>
-                     <p className="mb-6">
-                        Any interaction with third-party services (e.g., blockchain explorers linked from the wallet) is subject to their respective privacy policies.
-                    </p>
+                <h2 className="text-2xl font-semibold mt-6 mb-3">4. Legal bases</h2>
+                <p className="mb-6">
+                    We rely on our legitimate interests (Article 6(1)(f) GDPR) in securing our infrastructure,
+                    preventing abuse and enforcing rate limits, and in providing the software and endpoints you
+                    have chosen to use. We do not rely on consent because we do not carry out any processing
+                    that would require it: there is no analytics, advertising or tracking. A dynamic IP address
+                    can be personal data (Court of Justice of the European Union, Breyer, C-582/14), and we
+                    treat it as such.
+                </p>
 
+                <h2 className="text-2xl font-semibold mt-6 mb-3">5. What we do not do</h2>
+                <ul className="list-disc list-inside mb-6">
+                    <li>We do not use analytics, telemetry, crash reporting or usage tracking.</li>
+                    <li>We do not use advertising or tracking cookies, and we do not profile you.</li>
+                    <li>We do not sell, rent or share your data for marketing.</li>
+                    <li>
+                        We do not link your IP address to your wallet address to identify you, and we do not
+                        retain the data that would be needed to do so. An endpoint that sees an IP address at
+                        the same time as a queried public address could in principle link the two; we do not,
+                        and our short log retention is designed to prevent it.
+                    </li>
+                    <li>We never receive your recovery phrase or private keys.</li>
+                </ul>
 
-                    <h2 className="text-2xl font-semibold mt-6 mb-3">3. Use of Information</h2>
-                    <p className="mb-6">
-                        Since we do not collect your personal information, there is no "use" of such information by MyQRLWallet for tracking, analytics, or advertising. The information processed by the client-side application (your public address, view key) is used solely to:
-                    </p>
-                    <ul className="list-disc list-inside mb-6">
-                        <li>Enable you to view your QRL balance and transaction history.</li>
-                        <li>Allow you to construct and broadcast transactions to the QRL network.</li>
-                        <li>Provide the core functionalities of the MyQRLWallet service as a QRL wallet interface.</li>
-                    </ul>
-                     <p className="mb-6">
-                        If you voluntarily contact us for support (e.g., by opening an issue on GitHub), any information you provide in that communication will be used solely to address your query.
-                    </p>
+                <h2 className="text-2xl font-semibold mt-6 mb-3">6. Recipients and processors</h2>
+                <ul className="list-disc list-inside mb-6">
+                    <li>
+                        <strong>Cloudflare, Inc. (United States):</strong> our CDN, DNS and security provider,
+                        acting as our processor. It sees your real IP address and request metadata at the edge.
+                    </li>
+                    <li>
+                        <strong>Hetzner Online GmbH (Germany, EU):</strong> our hosting provider, which
+                        operates the origin servers and carries out network-level logging as part of hosting.
+                    </li>
+                    <li>
+                        <strong>ZondScan (operated by DigitalGuards, behind Cloudflare):</strong> the block
+                        explorer that the wallet queries for balances, history, token and NFT data. It observes
+                        your IP address and the public addresses you query. ZondScan is a separate service with
+                        its own privacy policy.
+                    </li>
+                    <li>
+                        <strong>The public QRL network:</strong> broadcast transactions and the addresses they
+                        involve become part of the public ledger. This is inherent to any public blockchain and
+                        is not controlled by us.
+                    </li>
+                </ul>
 
-                    <h2 className="text-2xl font-semibold mt-6 mb-3">4. Sharing of Information</h2>
-                    <p className="mb-4">
-                        MyQRLWallet does not possess or store your personal information, so we do not "share" it in the traditional sense.
-                    </p>
-                    <ul className="list-disc list-inside mb-6">
-                        <li><strong>With the QRL Network:</strong> When you initiate a transaction, your transaction data (including your public address and the recipient's address) is broadcast to the public QRL network. This is an inherent part of how blockchains operate.</li>
-                        <li><strong>Legal Obligations:</strong> We will comply with lawful requests if applicable to our service infrastructure itself. However, as we do not hold user data, we would typically have no user-specific information to provide in response to such requests.</li>
-                    </ul>
-                    <p className="mb-6">
-                        We do not share information with vendors, consultants, or for business transfer purposes because we do not collect it in the first place. We do not engage in selling user data as we do not have any.
-                    </p>
+                <h2 className="text-2xl font-semibold mt-6 mb-3">7. International transfers</h2>
+                <p className="mb-6">
+                    Cloudflare is established in the United States, so using our sites involves a transfer of
+                    your IP address and request metadata to a third country. That transfer is covered by the
+                    data processing agreement and the appropriate safeguards (Standard Contractual Clauses
+                    and/or the EU-US Data Privacy Framework) that apply to our use of Cloudflare. Our origin
+                    servers are located in the European Union.
+                </p>
 
-                    <h2 className="text-2xl font-semibold mt-6 mb-3">5. Security</h2>
-                    <p className="mb-6">
-                        We are committed to the security of our application code. However, the security of your QRL assets is primarily your responsibility. Because MyQRLWallet is a non-custodial wallet:
-                    </p>
-                     <ul className="list-disc list-inside mb-6">
-                        <li>You are solely responsible for securely storing your mnemonic seed and private keys. Never share them.</li>
-                        <li>Be vigilant against phishing attempts and ensure you are using the official MyQRLWallet service.</li>
-                    </ul>
-                    <p className="mb-6">
-                        We do not store your keys or personal information, which significantly reduces the risk of data breaches from our side affecting your direct assets.
-                    </p>
+                <h2 className="text-2xl font-semibold mt-6 mb-3">8. Retention</h2>
+                <ul className="list-disc list-inside mb-6">
+                    <li>Origin web-server access logs are retained for up to 14 days, then deleted.</li>
+                    <li>
+                        Operational and security logs that may contain an IP address are retained for no longer
+                        than 30 days, then deleted.
+                    </li>
+                    <li>
+                        In-memory rate-limiting state is transient and is reset on a short rolling window; it is
+                        not written to persistent storage.
+                    </li>
+                    <li>Cloudflare retains edge data according to its own retention periods.</li>
+                </ul>
 
+                <h2 className="text-2xl font-semibold mt-6 mb-3">9. Cookies and local storage</h2>
+                <p className="mb-6">
+                    MyQRLWallet does not use tracking or advertising cookies. It uses your browser's local
+                    storage to hold your wallet data (such as encrypted seeds, settings and your address book)
+                    on your own device. That local-storage data is not transmitted to us.
+                </p>
 
-                    <h2 className="text-2xl font-semibold mt-6 mb-3">6. Your Control and Rights</h2>
-                    <p className="mb-6">
-                        You maintain complete control over your information because it's managed by you through your private keys. Since MyQRLWallet does not collect or store your personal information, traditional data subject rights (like requesting access to, correction, or deletion of data held by a service provider) are generally not applicable as there is no data held by us to which these rights would pertain. Your primary "right" is your inherent control over your keys and, by extension, your assets on the QRL blockchain.
-                    </p>
+                <h2 className="text-2xl font-semibold mt-6 mb-3">10. Your rights</h2>
+                <p className="mb-4">
+                    To the extent we process your personal data, you have the right to request access to it,
+                    and its rectification, erasure or restriction, to object to processing, and to data
+                    portability. In practice, because we hold very little data and do not link it to your
+                    identity, we may be unable to isolate data relating to you without additional information
+                    from you (Article 11 GDPR). To make a request, contact security@digitalguards.nl.
+                </p>
+                <p className="mb-6">
+                    You also have the right to lodge a complaint with the Dutch supervisory authority, the
+                    Autoriteit Persoonsgegevens (autoriteitpersoonsgegevens.nl), or with the supervisory
+                    authority of your own country of residence.
+                </p>
 
-                    <h2 className="text-2xl font-semibold mt-6 mb-3">7. Policy Updates</h2>
-                     <p className="mb-6">
-                        We may update this Privacy Policy from time to time to reflect changes in our practices or for other operational, legal, or regulatory reasons. We will notify you of any significant changes by updating the "Last Updated" date on this page and potentially through announcements on our official communication channels. We encourage you to review this Privacy Policy periodically.
-                    </p>
+                <h2 className="text-2xl font-semibold mt-6 mb-3">11. Third-party sites and children</h2>
+                <p className="mb-4">
+                    Links to third-party sites, block explorers and decentralised applications are subject to
+                    those parties' own privacy policies. We do not control them.
+                </p>
+                <p className="mb-6">
+                    MyQRLWallet is not directed at children, and we do not knowingly process the personal data
+                    of children.
+                </p>
 
-
-                    <h2 className="text-2xl font-semibold mt-6 mb-3">8. Contact Us</h2>
-                    <p className="mb-6">
-                        If you have any questions about this Privacy Policy or our privacy practices, please <a target="_blank" href="https://github.com/DigitalGuards/" className="text-blue-600 underline">open an issue in our GitHub repository</a>.
-                    </p>
-                </div>
+                <h2 className="text-2xl font-semibold mt-6 mb-3">12. Changes and contact</h2>
+                <p className="mb-6">
+                    We may update this policy to reflect changes in our practices or the law, and will post the
+                    amended version with a new "Last updated" date. For any question about this policy, or to
+                    exercise your rights, contact security@digitalguards.nl. See also our{" "}
+                    <Link className={linkClass} to={ROUTES.TERMS}>
+                        Terms of Use
+                    </Link>{" "}
+                    and{" "}
+                    <Link className={linkClass} to={ROUTES.SECURITY}>
+                        Security Policy
+                    </Link>
+                    .
+                </p>
             </main>
         </div>
     );
