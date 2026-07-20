@@ -50,7 +50,7 @@ export const ActiveAccountDisplay = observer(() => {
         <div className="cursor-pointer flex items-baseline" onClick={() => handleCopy(activeAccountBalance, 'balance')}>
           <span>
             <SlotBalance value={formatBalance(activeAccountBalance)} spinning={isSlotSpinning} />
-            <span className="ml-1.5 text-base font-medium text-muted-foreground">QRL</span>
+            <span className="ml-1.5 text-base font-medium text-muted-foreground">Quanta</span>
           </span>
           {copiedItem === 'balance' ? (
             <Check className="w-4 h-4 ml-2 self-center text-success" />

@@ -224,7 +224,7 @@ const TokenStatus = observer(() => {
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <span className="text-sm text-muted-foreground">Gas Used</span>
-                                    <span className="font-medium text-secondary">{gasInQrl} QRL</span>
+                                    <span className="font-medium text-secondary">{gasInQrl} Quanta</span>
                                 </div>
                             </div>
                         </CardContent>
