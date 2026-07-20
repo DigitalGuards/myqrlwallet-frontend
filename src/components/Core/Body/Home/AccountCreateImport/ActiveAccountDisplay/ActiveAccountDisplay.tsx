@@ -45,31 +45,39 @@ export const ActiveAccountDisplay = observer(() => {
   return (
     <div className="flex flex-col">
       <div
-        className="flex justify-center items-baseline text-2xl md:text-3xl font-semibold text-foreground group font-data"
+        className="flex justify-center text-2xl md:text-3xl font-semibold text-foreground group font-data"
       >
-        <div className="cursor-pointer flex items-baseline" onClick={() => handleCopy(activeAccountBalance, 'balance')}>
-          <span>
+        {/* The icons hang off the number via absolute positioning so the
+            number itself is what gets centered; putting them in the flex
+            row would shift the number left of the Quanta/fiat lines. */}
+        <div className="relative">
+          <div className="cursor-pointer" onClick={() => handleCopy(activeAccountBalance, 'balance')}>
             <SlotBalance value={formatBalance(activeAccountBalance)} spinning={isSlotSpinning} />
-          </span>
-          {copiedItem === 'balance' ? (
-            <Check className="w-4 h-4 ml-2 self-center text-success" />
-          ) : (
-            <Copy className="w-4 h-4 ml-2 self-center text-muted-foreground transition-colors group-hover:text-foreground" />
-          )}
+          </div>
+          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 flex items-center gap-1">
+            {copiedItem === 'balance' ? (
+              <Check className="w-4 h-4 text-success" />
+            ) : (
+              <Copy
+                className="w-4 h-4 cursor-pointer text-muted-foreground transition-colors group-hover:text-foreground"
+                onClick={() => handleCopy(activeAccountBalance, 'balance')}
+              />
+            )}
+            <button
+              className="p-1 rounded-full hover:bg-foreground/10 flex items-center justify-center transition-colors"
+              onClick={refreshBalance}
+              disabled={isRefreshing || refreshSuccess}
+            >
+              {refreshSuccess ? (
+                <Check className="w-4 h-4 text-success" />
+              ) : isRefreshing ? (
+                <RefreshCw className="w-4 h-4 text-foreground animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 text-muted-foreground" />
+              )}
+            </button>
+          </div>
         </div>
-        <button
-          className="ml-2 p-1 rounded-full self-center hover:bg-foreground/10 flex items-center justify-center transition-colors"
-          onClick={refreshBalance}
-          disabled={isRefreshing || refreshSuccess}
-        >
-          {refreshSuccess ? (
-            <Check className="w-4 h-4 text-success" />
-          ) : isRefreshing ? (
-            <RefreshCw className="w-4 h-4 text-foreground animate-spin" />
-          ) : (
-            <RefreshCw className="w-4 h-4 text-muted-foreground" />
-          )}
-        </button>
       </div>
       <div className="flex justify-center mt-0.5">
         <span className="font-data text-sm font-medium text-muted-foreground">Quanta</span>
