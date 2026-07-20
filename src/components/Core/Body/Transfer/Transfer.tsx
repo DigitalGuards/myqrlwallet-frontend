@@ -583,7 +583,7 @@ const Transfer = observer(() => {
                       <span className="text-muted-foreground">Value:</span>
                       <span>
                         {isNativeTransfer
-                          ? `${utils.fromPlanck(BigInt(transactionStatus.pendingDetails.value), "quanta")} Quanta`
+                          ? `${utils.fromPlanck(BigInt(transactionStatus.pendingDetails.value), "quanta")} ${NATIVE_TOKEN.symbol}`
                           : `${getOptimalTokenBalance(formValues.amount.toString())} ${assetSymbol}`
                         }
                       </span>
