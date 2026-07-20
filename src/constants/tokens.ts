@@ -8,9 +8,11 @@ export interface TokenInterface {
 
 export const KNOWN_TOKEN_LIST: TokenInterface[] = [];
 
+// Display identity of the native coin. Ecosystem convention: amounts show
+// as "Quanta"; "QRL" stays the project name and exchange ticker.
 export const NATIVE_TOKEN = {
-    name: "QRL",
-    symbol: "QRL",
+    name: "Quanta",
+    symbol: "Quanta",
     decimals: 18,
 };
 

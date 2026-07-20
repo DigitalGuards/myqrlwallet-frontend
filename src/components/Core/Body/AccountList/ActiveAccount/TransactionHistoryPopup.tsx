@@ -88,7 +88,7 @@ export const TransactionHistoryPopup = observer(({
                                             {tx.TxType}
                                         </span>
                                         <span className={tx.InOut === 1 ? "text-success" : "text-red-500"}>
-                                            {tx.InOut === 1 ? "+" : "-"}{formatBalance(tx.Amount)} QRL
+                                            {tx.InOut === 1 ? "+" : "-"}{formatBalance(tx.Amount)} Quanta
                                         </span>
                                     </div>
                                     <div className="text-sm text-muted-foreground">

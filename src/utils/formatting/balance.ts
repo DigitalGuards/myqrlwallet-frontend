@@ -3,7 +3,7 @@ import { utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
 
 /**
- * Safely format a raw planck transaction `value` into a "X QRL" string.
+ * Safely format a raw planck transaction `value` into a "X Quanta" string.
  * The value originates from a dApp (qrl_sendTransaction / qrl_signTransaction)
  * and is NOT schema-validated, so it may be non-numeric, negative, or a
  * fractional number. A bare `BigInt(value)` would throw during render and
@@ -11,11 +11,11 @@ import { BigNumber } from "bignumber.js";
  * request. Falls back to a safe label instead of throwing.
  */
 export const formatQuantaValue = (value: unknown): string => {
-    if (value === undefined || value === null || value === "") return "0 QRL";
+    if (value === undefined || value === null || value === "") return `0 ${NATIVE_TOKEN.symbol}`;
     try {
         const planck = BigInt(value as string);
         if (planck < 0n) return "invalid value";
-        return `${utils.fromPlanck(planck.toString(), "quanta")} QRL`;
+        return `${utils.fromPlanck(planck.toString(), "quanta")} ${NATIVE_TOKEN.symbol}`;
     } catch {
         return "invalid value";
     }
@@ -33,7 +33,7 @@ BigNumber.config({
 });
 
 export const getOptimalGasFee = (gas: string, tokenSymbol?: string) => {
-    const symbol = tokenSymbol ?? "QRL";
+    const symbol = tokenSymbol ?? NATIVE_TOKEN.symbol;
     try {
         if (Number(gas) == 0) return `0.0 ${symbol}`;
         const precisionFloat = parseFloat(Number(gas).toString()).toFixed(16);

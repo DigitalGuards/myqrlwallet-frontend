@@ -26,6 +26,7 @@ import {
 import { Input } from "@/components/UI/Input";
 import { Label } from "@/components/UI/Label";
 import { Separator } from "@/components/UI/Separator";
+import { NATIVE_TOKEN } from "@/constants";
 import { ROUTES } from "@/router/router";
 import { useStore } from "@/stores/store";
 import { StorageUtil } from "@/utils/storage";
@@ -309,7 +310,7 @@ const Transfer = observer(() => {
               <CardHeader>
                 <CardTitle className="text-2xl font-bold">Transfer</CardTitle>
                 <CardDescription>
-                  Send QRL or tokens to another wallet
+                  Send Quanta or tokens to another wallet
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -345,7 +346,7 @@ const Transfer = observer(() => {
 
   async function onSubmit(formData: z.infer<typeof FormSchema>) {
     setSubmittedAmount(formData.amount.toString());
-    setSubmittedAssetSymbol(isNativeTransfer ? "QRL" : (selectedToken?.symbol || ""));
+    setSubmittedAssetSymbol(isNativeTransfer ? NATIVE_TOKEN.symbol : (selectedToken?.symbol || ""));
     if (isNativeTransfer) {
       await handleNativeTransfer(formData);
     } else {
@@ -525,7 +526,7 @@ const Transfer = observer(() => {
     applyPercentage(percentage);
   };
 
-  const assetSymbol = isNativeTransfer ? "QRL" : (selectedToken?.symbol || "");
+  const assetSymbol = isNativeTransfer ? NATIVE_TOKEN.symbol : (selectedToken?.symbol || "");
 
   // Transaction States
   if (transactionStatus.state === 'confirmed' && transactionStatus.receipt) {
@@ -582,7 +583,7 @@ const Transfer = observer(() => {
                       <span className="text-muted-foreground">Value:</span>
                       <span>
                         {isNativeTransfer
-                          ? `${utils.fromPlanck(BigInt(transactionStatus.pendingDetails.value), "quanta")} QRL`
+                          ? `${utils.fromPlanck(BigInt(transactionStatus.pendingDetails.value), "quanta")} Quanta`
                           : `${getOptimalTokenBalance(formValues.amount.toString())} ${assetSymbol}`
                         }
                       </span>
@@ -703,7 +704,7 @@ const Transfer = observer(() => {
                 <CardHeader>
                   <CardTitle className="text-2xl font-bold">Transfer</CardTitle>
                   <CardDescription>
-                    Send QRL or tokens to another wallet
+                    Send Quanta or tokens to another wallet
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -724,7 +725,7 @@ const Transfer = observer(() => {
                             <SelectItem value="native">
                               <div className="flex items-center gap-2">
                                 <Coins className="h-4 w-4" />
-                                <span>QRL (Native)</span>
+                                <span>Quanta (Native)</span>
                               </div>
                             </SelectItem>
                             {visibleTokenList.map((token) => (

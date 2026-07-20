@@ -152,7 +152,7 @@ const TransactionHistory = observer(() => {
                                         className="py-2 px-4 border-b cursor-pointer text-left text-sm sm:text-base hidden sm:table-cell"
                                         onClick={() => requestSort('Amount')}
                                     >
-                                        Amount (QRL) {sortConfig?.key === 'Amount' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
+                                        Amount (Quanta) {sortConfig?.key === 'Amount' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
                                     </th>
                                     <th
                                         className="py-2 px-4 border-b cursor-pointer text-left text-sm sm:text-base table-cell sm:hidden"

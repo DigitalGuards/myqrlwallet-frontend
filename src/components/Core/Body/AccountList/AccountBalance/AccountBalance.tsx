@@ -15,7 +15,7 @@ export const AccountBalance = observer(({ accountAddress, className }: AccountBa
 
   return (
     <div className={cn("text-sm text-secondary font-data", className)}>
-      Balance: {formatBalance(balance)} QRL
+      Balance: {formatBalance(balance)} Quanta
     </div>
   );
 });
