@@ -65,7 +65,9 @@ const AccountImportSuccess = ({
       <CardContent className="space-y-8">
         <div className="flex flex-col gap-2">
           <div>Account public address:</div>
-          <div className="font-bold text-blue-accent font-mono">{formatAddress(accountAddress)}</div>
+          <div className="address-fit">
+            <div className="address-fit-line font-bold text-identity-accent">{formatAddress(accountAddress)}</div>
+          </div>
           <div>
             You can share this account public address with anyone. Others need
             it to interact with you.

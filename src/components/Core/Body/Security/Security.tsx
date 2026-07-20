@@ -3,7 +3,7 @@ import { SEO } from "@/components/SEO/SEO";
 import { ROUTES } from "@/router/router";
 
 const linkClass =
-    "text-blue-accent underline underline-offset-2 hover:text-blue-accent/80 transition-colors";
+    "text-identity-accent underline underline-offset-2 hover:text-identity-accent/80 transition-colors";
 
 const Security = () => {
     return (

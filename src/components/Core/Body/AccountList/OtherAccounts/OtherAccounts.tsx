@@ -47,13 +47,13 @@ export const OtherAccounts = observer(() => {
             id={accountAddress}
             className="flex flex-col md:flex-row items-center gap-4 p-4 font-bold text-foreground transition-colors hover:border-primary/30"
           >
-            <div className="flex flex-col gap-1">
-              <AccountId className="text-xs md:text-sm" account={accountAddress} />
+            <div className="flex w-full flex-col gap-1 md:w-auto md:flex-1 min-w-0">
+              <AccountId account={accountAddress} />
               <AccountBalance className="m-auto md:m-0" accountAddress={accountAddress} />
               {source === 'extension' && <ExtensionBadge />}
               {source === 'mobile' && <MobileBadge />}
             </div>
-            <div className="flex gap-4 items-center">
+            <div className="flex gap-4 items-center shrink-0">
               <CopyAddressButton accountAddress={accountAddress} />
               <span>
                 <TooltipProvider>

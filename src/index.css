@@ -30,8 +30,8 @@
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
 
-  --color-blue-accent: hsl(var(--blue-accent));
-  --color-blue-accent-foreground: hsl(var(--blue-accent-foreground));
+  --color-identity-accent: hsl(var(--identity-accent));
+  --color-identity-accent-foreground: hsl(var(--identity-accent-foreground));
 
   --color-success: hsl(var(--success));
   --color-success-foreground: hsl(var(--success-foreground));
@@ -92,9 +92,10 @@
 /* CSS Custom Properties for theming.
 
    "Obsidian & Ember": one deep warm-ink surface family, one ember-orange
-   action color (the QRL brand), quantum-cyan reserved for informational
-   states, and layered glow + grain atmosphere behind everything. All three
-   shells (web, mobile WebView, Electron renderer) inherit from here. */
+   action color (the QRL brand), champagne reserved for identity and
+   informational states, and layered glow + grain atmosphere behind
+   everything. All three shells (web, mobile WebView, Electron renderer)
+   inherit from here. */
 @layer base {
   :root {
     --background: 235 15% 4%;
@@ -114,10 +115,10 @@
     --secondary: 25 95% 53%;
     --secondary-foreground: 24 90% 6%;
 
-    /* QRL battery blue: the identity color (addresses, account markers)
-       and informational states. Orange acts, blue identifies. */
-    --blue-accent: 199 89% 64%;
-    --blue-accent-foreground: 200 90% 8%;
+    /* Champagne: the identity color (addresses, account markers) and
+       informational states. Orange acts, champagne identifies. */
+    --identity-accent: 38 45% 76%;
+    --identity-accent-foreground: 38 60% 8%;
 
     --success: 152 55% 48%;
     --success-foreground: 152 80% 8%;
@@ -277,6 +278,24 @@
     box-shadow:
       0 1px 0 hsl(var(--foreground) / 0.05) inset,
       0 18px 40px -24px hsl(235 30% 2% / 0.9);
+  }
+
+  /* Full-address one-liner. The wrapper measures the width actually
+     available (container query) and the line scales its mono type down to
+     fit instead of wrapping, so the grouped address never breaks ragged.
+     A grouped Q address is 47ch of JetBrains Mono at 0.6em advance
+     (~28em), so any font-size below width/28 stays on one line; 3.4cqw
+     leaves slack for rounding, capped at 13px. */
+  .address-fit {
+    container-type: inline-size;
+    min-width: 0;
+  }
+  .address-fit-line {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    font-size: min(3.4cqw, 0.8125rem);
   }
 
   /* Ember edge treatment for "hero" cards (active account, approvals). */

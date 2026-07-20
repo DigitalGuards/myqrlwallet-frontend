@@ -49,7 +49,7 @@ import { isDesktop } from "@/desktop/bridge";
 import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
 import type { FeeLevel } from "@/stores/qrlStore";
 import { SEO } from "@/components/SEO/SEO";
-import { getOptimalTokenBalance, formatAddressShort } from "@/utils/formatting";
+import { getOptimalTokenBalance, formatAddress, formatAddressShort } from "@/utils/formatting";
 import { fetchBalance } from "@/utils/web3";
 import { formatUnits, parseUnits } from "@/utils/web3/units";
 import { BigNumber } from "bignumber.js";
@@ -748,8 +748,10 @@ const Transfer = observer(() => {
                   {/* From Address */}
                   <div className="flex flex-col gap-2">
                     <Label>From</Label>
-                    <div className="font-bold text-blue-accent font-mono text-sm break-all">
-                      {accountAddress}
+                    <div className="address-fit">
+                      <div className="address-fit-line font-bold text-identity-accent">
+                        {formatAddress(accountAddress)}
+                      </div>
                     </div>
                     <div className="text-sm text-muted-foreground">
                       Available: {getOptimalTokenBalance(accountBalance, assetSymbol)}

@@ -243,7 +243,7 @@ const NftDetail = observer(() => {
               label="Contract"
               value={
                 <a
-                  className="inline-flex items-center gap-1 text-blue-accent underline"
+                  className="inline-flex items-center gap-1 text-identity-accent underline"
                   href={`${explorerUrl}/address/${nft.contractAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"

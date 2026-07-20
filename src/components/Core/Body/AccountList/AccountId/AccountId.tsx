@@ -18,8 +18,10 @@ export const AccountId = observer(({ account, className, oneLine = false }: Acco
   }
 
   return (
-    <div className={cn("font-mono", className)}>
-      {formatAddress(account)}
+    <div className={cn("address-fit", className)}>
+      <div className="address-fit-line text-center md:text-left">
+        {formatAddress(account)}
+      </div>
     </div>
   );
 });
