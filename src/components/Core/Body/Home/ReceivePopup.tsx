@@ -37,7 +37,7 @@ export const ReceivePopup = observer(({
             <Card className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
                 <CardContent className="p-4">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold">Receive QRL</h2>
+                        <h2 className="text-xl font-bold">Receive Quanta</h2>
                         <Button variant="ghost" size="sm" onClick={onClose}>×</Button>
                     </div>
                     
@@ -72,7 +72,7 @@ export const ReceivePopup = observer(({
                         </div>
                         
                         <div className="text-center text-sm text-muted-foreground mt-2">
-                            <p>Share this address or QR code to receive QRL.</p>
+                            <p>Share this address or QR code to receive Quanta.</p>
                         </div>
                     </div>
                 </CardContent>
