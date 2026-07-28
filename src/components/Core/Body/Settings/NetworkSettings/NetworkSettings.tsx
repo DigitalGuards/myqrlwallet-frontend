@@ -1,9 +1,8 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/UI/Card";
 import { useStore } from "../../../../../stores/store";
 import { observer } from "mobx-react-lite";
 import { QRL_PROVIDER } from "@/config";
-import { Button } from "@/components/UI/Button";
-import { Settings2 } from "lucide-react";
+import { Check, FlaskConical, Globe } from "lucide-react";
+import { SettingsRow, SettingsSection } from "../SettingsList";
 
 export const NetworkSettings = observer(() => {
     const { qrlStore } = useStore();
@@ -11,37 +10,26 @@ export const NetworkSettings = observer(() => {
     const { blockchain, isLoading } = qrlConnection;
     const { TEST_NET, MAIN_NET } = QRL_PROVIDER;
 
-    return (
-        <Card >
-            <CardHeader>
-                <CardTitle className="text-2xl font-bold">Network Settings</CardTitle>
-                <CardDescription>
-                    Configure your network connections and RPC endpoints
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button
-                        variant={blockchain === MAIN_NET.id ? "secondary" : "outline"}
-                        className="w-full justify-start"
-                        onClick={() => selectBlockchain(MAIN_NET.id)}
-                        disabled={isLoading}
-                    >
-                        <Settings2 className="mr-2 h-4 w-4" />
-                        Mainnet
-                    </Button>
+    const activeMark = <Check className="h-4 w-4 shrink-0 text-primary" />;
 
-                    <Button
-                        variant={blockchain === TEST_NET.id ? "secondary" : "outline"}
-                        className="w-full justify-start"
-                        onClick={() => selectBlockchain(TEST_NET.id)}
-                        disabled={isLoading}
-                    >
-                        <Settings2 className="mr-2 h-4 w-4" />
-                        Testnet
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
+    return (
+        <SettingsSection title="Network">
+            <SettingsRow
+                icon={Globe}
+                tint="bg-emerald-500/15 text-emerald-400"
+                title="Mainnet"
+                right={blockchain === MAIN_NET.id ? activeMark : undefined}
+                onClick={() => selectBlockchain(MAIN_NET.id)}
+                disabled={isLoading}
+            />
+            <SettingsRow
+                icon={FlaskConical}
+                tint="bg-amber-500/15 text-amber-400"
+                title="Testnet"
+                right={blockchain === TEST_NET.id ? activeMark : undefined}
+                onClick={() => selectBlockchain(TEST_NET.id)}
+                disabled={isLoading}
+            />
+        </SettingsSection>
     );
 });
