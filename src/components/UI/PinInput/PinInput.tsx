@@ -49,8 +49,13 @@ export const PinInput = forwardRef<PinInputHandle, PinInputProps>(({
   const chars = value.split("").slice(0, length);
 
   const focusCell = (idx: number) => {
+    const el = refs.current[idx];
+    // No-op when the cell doesn't exist or is already focused: focus() would
+    // fire no focus event, leaving advancingRef stuck true and letting the
+    // next click bypass the sequential-cell redirect.
+    if (!el || el === document.activeElement) return;
     advancingRef.current = true;
-    refs.current[idx]?.focus();
+    el.focus();
   };
 
   useImperativeHandle(ref, () => ({

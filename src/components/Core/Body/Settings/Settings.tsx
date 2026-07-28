@@ -15,7 +15,7 @@ import { observer } from "mobx-react-lite";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState, useEffect, useRef, lazy } from "react";
+import { useState, useEffect, useRef, useCallback, lazy } from "react";
 import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
 import type { EncryptedSeedData } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
@@ -123,19 +123,27 @@ const Settings = observer(() => {
         return () => clearInterval(interval);
     }, []);
 
+    // Last persisted auto-lock value: the fallback when a save must proceed
+    // while the timer field holds an invalid/in-progress edit.
+    const lastSavedTimerRef = useRef(15);
+
     const form = useForm<SettingsFormValues>({
         resolver: zodResolver(SettingsFormSchema),
+        // Never yank focus into the timer input from a background save.
+        shouldFocusError: false,
         defaultValues: async () => {
             const settings = await StorageUtil.getWalletSettings();
+            const minutes = settings.autoLockTimeout ? Math.floor(settings.autoLockTimeout / (60 * 1000)) : 15;
+            lastSavedTimerRef.current = minutes;
             return {
-                autoLockTimeout: settings.autoLockTimeout ? Math.floor(settings.autoLockTimeout / (60 * 1000)) : 15,
+                autoLockTimeout: minutes,
                 showTokensCard: settings.showTokensCard ?? true,
                 showNftsCard: settings.showNftsCard ?? true,
             };
         },
     });
 
-    async function onSubmit(data: SettingsFormValues) {
+    const onSubmit = useCallback(async (data: SettingsFormValues) => {
         setSettingsSaveSuccess(false);
         setSettingsSaveError(null);
         try {
@@ -145,32 +153,57 @@ const Settings = observer(() => {
                 autoLockTimeout: data.autoLockTimeout * 60 * 1000
             };
             await StorageUtil.setWalletSettings(settingsToSave);
+            lastSavedTimerRef.current = data.autoLockTimeout;
             setSettingsSaveSuccess(true);
         } catch (_error) {
             setSettingsSaveError("There was an error saving your settings.");
         }
-    }
+    }, []);
 
     // Preferences auto-save on change (debounced so rapid toggles and
-    // keystrokes in the timer input collapse into one write). Invalid
-    // values never reach onSubmit: handleSubmit runs the zod resolver.
+    // keystrokes in the timer input collapse into one write).
     const saveTimer = useRef<number | null>(null);
-    const queueSave = (delayMs: number) => {
+
+    // sanitizeTimer: a save triggered by something other than the timer field
+    // itself (switch toggle, blur, unmount) must not be blocked by a
+    // half-typed timer value; substitute the last persisted one instead.
+    // Timer-keystroke saves pass false so we never rewrite the field while
+    // the user is still typing; the invalid value just surfaces its message
+    // and no write happens until it is fixed or blurred.
+    const flushSave = useCallback((sanitizeTimer: boolean) => {
+        const timer = form.getValues("autoLockTimeout");
+        const invalid = !Number.isFinite(timer) || timer < 1 || timer > 60;
+        if (invalid && !sanitizeTimer) {
+            void form.trigger("autoLockTimeout");
+            return;
+        }
+        if (invalid) {
+            form.setValue("autoLockTimeout", lastSavedTimerRef.current, { shouldValidate: true });
+        }
+        void form.handleSubmit(onSubmit)();
+    }, [form, onSubmit]);
+
+    const queueSave = (delayMs: number, sanitizeTimer = false) => {
         if (saveTimer.current !== null) {
             window.clearTimeout(saveTimer.current);
         }
         saveTimer.current = window.setTimeout(() => {
-            void form.handleSubmit(onSubmit)();
+            saveTimer.current = null;
+            flushSave(sanitizeTimer);
         }, delayMs);
     };
 
+    // Flush (not discard) a pending save on unmount, so a toggle followed by
+    // an immediate navigation still persists.
     useEffect(() => {
         return () => {
             if (saveTimer.current !== null) {
                 window.clearTimeout(saveTimer.current);
+                saveTimer.current = null;
+                flushSave(true);
             }
         };
-    }, []);
+    }, [flushSave]);
 
     // Transient "Saved" chip in the Preferences section header
     useEffect(() => {
@@ -284,17 +317,32 @@ const Settings = observer(() => {
                                     title="Change PIN"
                                     subtitle="Change your wallet PIN used to encrypt your seeds"
                                     right={
-                                        <ChevronDown
-                                            className={cn(
-                                                "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                                                showPinForm && "rotate-180",
-                                            )}
-                                        />
+                                        <>
+                                            {/* Lockout state must be visible without expanding
+                                                the panel. */}
+                                            {pinLockout.isLocked ? (
+                                                <span className="text-xs font-medium text-destructive">Locked</span>
+                                            ) : hasFailedAttempts() && attemptsLeft < 5 ? (
+                                                <span className="text-xs text-yellow-400">
+                                                    {attemptsLeft} attempt{attemptsLeft === 1 ? '' : 's'} left
+                                                </span>
+                                            ) : null}
+                                            <ChevronDown
+                                                className={cn(
+                                                    "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                                                    showPinForm && "rotate-180",
+                                                )}
+                                            />
+                                        </>
                                     }
                                     onClick={() => setShowPinForm((open) => !open)}
+                                    // Collapsing mid-change would hide the outcome banner.
+                                    disabled={isChangingPin}
+                                    ariaExpanded={showPinForm}
+                                    ariaControls="change-pin-panel"
                                 />
                                 {showPinForm && (
-                                    <div className="px-4 pb-4 pt-3">
+                                    <div id="change-pin-panel" className="px-4 pb-4 pt-3">
                                         <Form {...changePinForm}>
                                             <form
                                                 onSubmit={changePinForm.handleSubmit(onChangePinSubmit)}
@@ -448,10 +496,22 @@ const Settings = observer(() => {
                                                         max={60}
                                                         className="h-9 w-20 shrink-0 text-center"
                                                         {...field}
-                                                        value={field.value ?? 15}
+                                                        value={Number.isFinite(field.value) ? field.value : ""}
                                                         onChange={(e) => {
-                                                            field.onChange(Number(e.target.value));
+                                                            // Empty stays empty while typing (NaN fails
+                                                            // validation, so nothing is written).
+                                                            field.onChange(e.target.value === "" ? Number.NaN : Number(e.target.value));
                                                             queueSave(800);
+                                                        }}
+                                                        onBlur={() => {
+                                                            field.onBlur();
+                                                            const t = form.getValues("autoLockTimeout");
+                                                            const invalid = !Number.isFinite(t) || t < 1 || t > 60;
+                                                            // Flush a pending save early; leaving the field
+                                                            // invalid reverts it to the last saved value.
+                                                            if (invalid || saveTimer.current !== null) {
+                                                                queueSave(0, true);
+                                                            }
                                                         }}
                                                     />
                                                 </FormControl>
@@ -483,7 +543,7 @@ const Settings = observer(() => {
                                                     checked={field.value ?? true}
                                                     onCheckedChange={(checked) => {
                                                         field.onChange(checked);
-                                                        queueSave(200);
+                                                        queueSave(200, true);
                                                     }}
                                                 />
                                             </FormControl>
@@ -513,7 +573,7 @@ const Settings = observer(() => {
                                                     checked={field.value ?? true}
                                                     onCheckedChange={(checked) => {
                                                         field.onChange(checked);
-                                                        queueSave(200);
+                                                        queueSave(200, true);
                                                     }}
                                                 />
                                             </FormControl>

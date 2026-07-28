@@ -49,6 +49,10 @@ interface SettingsRowProps {
     right?: ReactNode;
     onClick?: () => void;
     disabled?: boolean;
+    /** For disclosure rows: reflected as aria-expanded on the button. */
+    ariaExpanded?: boolean;
+    /** id of the element a disclosure row controls. */
+    ariaControls?: string;
 }
 
 export const SettingsRow = ({
@@ -59,6 +63,8 @@ export const SettingsRow = ({
     right,
     onClick,
     disabled,
+    ariaExpanded,
+    ariaControls,
 }: SettingsRowProps) => {
     const content = (
         <>
@@ -81,7 +87,11 @@ export const SettingsRow = ({
                 type="button"
                 onClick={onClick}
                 disabled={disabled}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-foreground/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
+                aria-expanded={ariaExpanded}
+                aria-controls={ariaControls}
+                // Inset ring: the section card is overflow-hidden, so an
+                // outline drawn outside the border box gets clipped away.
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:bg-foreground/[0.04] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
             >
                 {content}
             </button>
