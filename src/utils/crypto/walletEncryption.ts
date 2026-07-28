@@ -166,9 +166,11 @@ export class WalletEncryptionUtil {
     encryptedWallet: EncryptedWallet,
     password: string,
   ): Promise<WalletData> {
-    if (isDesktop) {
-      throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
-    }
+    // Deliberately NOT desktop-guarded: encrypted-file import is the desktop
+    // recovery path (ImportAccount.tsx renders the tab there on purpose). The
+    // secret comes from the user's own file and is handed to the signer
+    // without persisting in the renderer, same exposure as typing a mnemonic.
+    // The guard stays on every PIN/at-rest entry point below.
     try {
       const json = await aesGcmDecrypt(
         {

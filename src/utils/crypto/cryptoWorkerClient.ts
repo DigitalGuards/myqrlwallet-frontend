@@ -12,6 +12,7 @@
 
 import type { CryptoWorkerMessage, CryptoWorkerResponse, CryptoErrorCode } from './cryptoWorker';
 import { CryptoErrorCode as CryptoErrorCodes } from './cryptoWorker';
+import type { EncryptedKeystore } from './keystoreBackup';
 import {
   WalletEncryptionUtil,
   PinDecryptionError,
@@ -235,6 +236,27 @@ function postToWorker<T extends CryptoWorkerResponse['type']>(
  * Matches getHexSeedFromMnemonic's empty-input contract: returns "" for
  * undefined / empty / whitespace-only input without acquiring a worker.
  */
+/**
+ * Decrypt an extension-backup keystore (argon2id + AES-256-GCM) in the Web
+ * Worker and return the extended seed as 0x-hex.
+ *
+ * Intentionally NO desktop guard: encrypted-file import is the desktop
+ * recovery path by design (the secret arrives from the user's own file, is
+ * handed straight to the signer, and never persists in the renderer), same
+ * exposure as typing a mnemonic.
+ */
+export async function decryptKeystoreAsync(
+  keystore: EncryptedKeystore,
+  password: string,
+): Promise<string> {
+  const result = await postToWorker<'decryptKeystore'>({
+    type: 'decryptKeystore',
+    keystore,
+    password,
+  });
+  return result.hexSeed;
+}
+
 export async function deriveHexSeedAsync(mnemonic: string): Promise<string> {
   if (isDesktop) {
     throw new Error(DESKTOP_SEED_GUARD_MESSAGE);

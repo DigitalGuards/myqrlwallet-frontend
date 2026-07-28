@@ -113,6 +113,11 @@ export default tseslint.config(
               message:
                 'ML-KEM-768 is encapsulated in src/services/dappConnect/PQCrypto. Import the PQCrypto helpers instead.',
             },
+            {
+              group: ['hash-wasm', 'hash-wasm/*'],
+              message:
+                'Argon2id is encapsulated in src/utils/crypto (argon2/keystoreBackup). Import decryptKeystoreAsync/parseKeystoreBackup instead.',
+            },
           ],
         },
       ],
