@@ -159,6 +159,14 @@ describe('parseKeystoreBackup', () => {
     );
   });
 
+  it('rejects in-bounds dklen other than 32 at decrypt time as a format error', async () => {
+    // dklen 64 passes the parity bounds but AES-256 needs exactly 32 bytes;
+    // this must not be misreported as a wrong password.
+    await expect(
+      decryptKeystoreToHexSeed(withKdfParam({ dklen: 64 }), ASCII_PASSWORD),
+    ).rejects.toThrow(KeystoreFormatError);
+  });
+
   it('rejects a wrong-length IV', () => {
     const ks = firstKeystore();
     ks.crypto.cipherparams.iv = 'aabbcc';
@@ -218,6 +226,8 @@ describe('decryptKeystoreToHexSeed (extension parity)', () => {
 });
 
 describe('argon2id implementations agree', () => {
+  // Explicit timeouts: the pure-JS derivation takes 4-6s even at the fast
+  // test params and flakes against jest's 5s default on loaded runners.
   it('hash-wasm and @noble/hashes derive identical keys', async () => {
     const password = new TextEncoder().encode(UNICODE_PASSWORD.normalize('NFC'));
     const salt = new Uint8Array(32).fill(7);
@@ -230,7 +240,7 @@ describe('argon2id implementations agree', () => {
     _setWasmUnavailableForTests(false);
 
     expect(Buffer.from(viaWasm).toString('hex')).toBe(Buffer.from(viaJs).toString('hex'));
-  });
+  }, 30000);
 
   it('the pure-JS fallback decrypts the extension fixture too', async () => {
     _setWasmUnavailableForTests(true);
@@ -241,5 +251,5 @@ describe('argon2id implementations agree', () => {
     } finally {
       _setWasmUnavailableForTests(false);
     }
-  });
+  }, 30000);
 });

@@ -223,6 +223,15 @@ export async function decryptKeystoreToHexSeed(
   if (!password) {
     throw new KeystoreDecryptError('Password is required.');
   }
+  // The bounds allow dklen 16..64 for parity with the extension's validator,
+  // but AES-256-GCM needs exactly 32 bytes and every real writer emits 32.
+  // Fail up front as a format error instead of letting importKey throw a
+  // DOMException that would surface as "wrong password".
+  if (keystore.crypto.kdfparams.dklen !== 32) {
+    throw new KeystoreFormatError(
+      'Unsupported derived-key length (only dklen 32 / AES-256 is supported).',
+    );
+  }
   // Match the extension: NFC-normalize, then raw UTF-8 bytes into the KDF.
   const passwordBytes = new TextEncoder().encode(password.normalize('NFC'));
   const { kdfparams } = keystore.crypto;

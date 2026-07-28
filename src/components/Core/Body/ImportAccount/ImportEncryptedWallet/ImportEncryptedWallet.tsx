@@ -66,6 +66,7 @@ export const ImportEncryptedWallet = ({
   const [parsed, setParsed] = useState<ParsedWalletFile | null>(null);
   const [selectedKeystore, setSelectedKeystore] = useState("0");
   const [fileError, setFileError] = useState<string>("");
+  const [isParsing, setIsParsing] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   const form = useForm({
@@ -89,6 +90,10 @@ export const ImportEncryptedWallet = ({
     setSelectedFile(file);
     setSelectedKeystore("0");
     setFileError("");
+    // Submit is blocked while parsing so a fast submit cannot race the
+    // awaited file read and decrypt a previously selected file.
+    setIsParsing(true);
+    setParsed(null);
     try {
       const content: unknown = JSON.parse(await file.text());
       if (looksLikeKeystoreBackup(content)) {
@@ -117,6 +122,8 @@ export const ImportEncryptedWallet = ({
           ? error.message
           : "Invalid wallet file format",
       );
+    } finally {
+      setIsParsing(false);
     }
   };
 
@@ -152,6 +159,7 @@ export const ImportEncryptedWallet = ({
   };
 
   const onSubmit = async (formData: z.infer<typeof FormSchema>) => {
+    if (isParsing || isDecrypting) return;
     if (!selectedFile || !parsed) {
       setFileError("Please select a wallet file");
       return;
@@ -212,6 +220,9 @@ export const ImportEncryptedWallet = ({
 
   const isExtensionBackup = parsed?.kind === "keystore";
   const keystores = isExtensionBackup ? parsed.keystores : [];
+  const activeKeystore = isExtensionBackup
+    ? (keystores[Number(selectedKeystore)] ?? keystores[0])
+    : undefined;
 
   return (
     <Card >
@@ -243,6 +254,9 @@ export const ImportEncryptedWallet = ({
                   type="file"
                   accept=".json"
                   onChange={handleFileChange}
+                  // Swapping files mid-decrypt would finish the import with
+                  // the OLD file while the card shows the new one.
+                  disabled={isDecrypting}
                   className="hidden"
                 />
               </label>
@@ -257,7 +271,11 @@ export const ImportEncryptedWallet = ({
           {isExtensionBackup && keystores.length > 1 && (
             <div className="space-y-2">
               <Label className="text-foreground">Account to import</Label>
-              <Select value={selectedKeystore} onValueChange={setSelectedKeystore}>
+              <Select
+                value={selectedKeystore}
+                onValueChange={setSelectedKeystore}
+                disabled={isDecrypting}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select an account" />
                 </SelectTrigger>
@@ -290,6 +308,12 @@ export const ImportEncryptedWallet = ({
                 password.
               </p>
             )}
+            {activeKeystore && activeKeystore.crypto.kdfparams.m > 262144 && (
+              <p className="text-xs text-yellow-400">
+                This file requests an unusually large amount of memory to
+                decrypt and may take a long time or fail on low-memory devices.
+              </p>
+            )}
             {errors.password?.message && (
               <div className="text-sm font-medium text-destructive">
                 {errors.password.message}
@@ -298,7 +322,7 @@ export const ImportEncryptedWallet = ({
           </div>
         </CardContent>
         <CardFooter>
-          <Button className="w-full" type="submit" disabled={isDecrypting}>
+          <Button className="w-full" type="submit" disabled={isDecrypting || isParsing}>
             <Upload className="mr-2 h-4 w-4" />
             {isDecrypting ? "Decrypting..." : "Import Wallet"}
           </Button>

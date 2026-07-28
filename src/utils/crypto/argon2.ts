@@ -21,15 +21,18 @@ export interface Argon2idParams {
   dklen: number;
 }
 
-// Once WASM fails (CSP, unsupported engine) stop retrying it for the session.
-let wasmUnavailable = false;
+// Test seam only: forces the pure-JS path so both implementations get covered.
+let forceJsForTests = false;
+// Warn once per worker/module instance so the slow path is diagnosable
+// without spamming the console on every retry.
+let warnedWasmFallback = false;
 
 export async function deriveArgon2id(
   passwordBytes: Uint8Array,
   saltBytes: Uint8Array,
   params: Argon2idParams,
 ): Promise<Uint8Array<ArrayBuffer>> {
-  if (!wasmUnavailable) {
+  if (!forceJsForTests) {
     try {
       const derived = await argon2idWasm({
         password: passwordBytes,
@@ -41,8 +44,19 @@ export async function deriveArgon2id(
         outputType: 'binary',
       });
       return new Uint8Array(derived);
-    } catch {
-      wasmUnavailable = true;
+    } catch (error) {
+      // No permanent latch: a failure here can be transient (memory pressure
+      // on a large-m keystore) or input-specific, so WASM is retried on the
+      // next call; only genuinely unavailable WASM (e.g. CSP without
+      // 'wasm-unsafe-eval') pays a cheap failed attempt each time. The
+      // extension's reference implementation behaves the same way.
+      if (!warnedWasmFallback) {
+        warnedWasmFallback = true;
+        console.warn(
+          'argon2: hash-wasm failed, falling back to the slower pure-JS implementation',
+          error,
+        );
+      }
     }
   }
   const derived = argon2idJs(passwordBytes, saltBytes, {
@@ -56,5 +70,5 @@ export async function deriveArgon2id(
 
 /** Test seam: force/observe the fallback path. Not for production use. */
 export function _setWasmUnavailableForTests(value: boolean): void {
-  wasmUnavailable = value;
+  forceJsForTests = value;
 }
