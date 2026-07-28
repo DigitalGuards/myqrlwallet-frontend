@@ -32,7 +32,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import { SEO } from "@/components/SEO/SEO";
-import { PinInput } from "@/components/UI/PinInput/PinInput";
+import { PinInput, type PinInputHandle } from "@/components/UI/PinInput/PinInput";
 import { decryptSeedAsync, reEncryptSeedAsync } from "@/utils/crypto";
 import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
 import { isDesktop } from "@/desktop/bridge";
@@ -88,6 +88,8 @@ const Settings = observer(() => {
     const [attemptsLeft, setAttemptsLeft] = useState(5);
     const [settingsSaveSuccess, setSettingsSaveSuccess] = useState(false);
     const [settingsSaveError, setSettingsSaveError] = useState<string | null>(null);
+    const newPinRef = useRef<PinInputHandle>(null);
+    const confirmPinRef = useRef<PinInputHandle>(null);
 
     // Check for existing encrypted seeds on mount
     useEffect(() => {
@@ -332,6 +334,7 @@ const Settings = observer(() => {
                                                                     placeholder="Enter current PIN"
                                                                     error={fieldState.error?.message}
                                                                     disabled={isChangingPin || pinLockout.isLocked}
+                                                                    onComplete={() => newPinRef.current?.focus()}
                                                                 />
                                                             </FormControl>
                                                         </FormItem>
@@ -346,11 +349,13 @@ const Settings = observer(() => {
                                                             <FormLabel>New PIN</FormLabel>
                                                             <FormControl>
                                                                 <PinInput
+                                                                    ref={newPinRef}
                                                                     value={field.value}
                                                                     onChange={field.onChange}
                                                                     placeholder="Enter new PIN"
                                                                     error={fieldState.error?.message}
                                                                     disabled={isChangingPin || pinLockout.isLocked}
+                                                                    onComplete={() => confirmPinRef.current?.focus()}
                                                                 />
                                                             </FormControl>
                                                             <FormDescription>
@@ -368,6 +373,7 @@ const Settings = observer(() => {
                                                             <FormLabel>Confirm New PIN</FormLabel>
                                                             <FormControl>
                                                                 <PinInput
+                                                                    ref={confirmPinRef}
                                                                     value={field.value}
                                                                     onChange={field.onChange}
                                                                     placeholder="Confirm new PIN"

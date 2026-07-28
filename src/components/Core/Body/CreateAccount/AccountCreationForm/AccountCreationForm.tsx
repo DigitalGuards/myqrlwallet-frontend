@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ShinyButton } from "@/components/UI/ShinyButton";
 import {
   Card,
@@ -26,7 +26,7 @@ import { z } from "zod";
 import { encryptSeedAsync, decryptSeedAsync, getMnemonicFromHexSeed, CryptoOperationError, CryptoErrorCode } from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
-import { PinInput } from "@/components/UI/PinInput/PinInput";
+import { PinInput, type PinInputHandle } from "@/components/UI/PinInput/PinInput";
 import { Separator } from "@/components/UI/Separator";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 
@@ -119,6 +119,7 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds,
   const { qrlStore } = useStore();
   const { qrlInstance } = qrlStore;
   const [isEncrypting, setIsEncrypting] = useState(false);
+  const reEnterPinRef = useRef<PinInputHandle>(null);
 
   // Select schema based on whether user has existing seeds. On desktop the
   // password is the only secret (no PIN) so a dedicated schema is used.
@@ -321,6 +322,7 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds,
                       disabled={isSubmitting}
                       description={hasExistingSeeds ? "(All wallets use the same PIN)" : "Enter a 4-6 digit PIN"}
                       error={errors.pin?.message}
+                      onComplete={() => reEnterPinRef.current?.focus()}
                     />
                   )}
                 />
@@ -330,6 +332,7 @@ const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds,
                     name="reEnteredPin"
                     render={({ field }) => (
                       <PinInput
+                        ref={reEnterPinRef}
                         length={6}
                         placeholder="Re-enter PIN"
                         value={field.value}
