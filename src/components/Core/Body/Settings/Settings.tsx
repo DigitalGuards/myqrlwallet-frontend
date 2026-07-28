@@ -1,12 +1,5 @@
 import { Button } from "../../../UI/Button";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from "../../../UI/Card";
+import { Card } from "../../../UI/Card";
 import {
     Form,
     FormControl,
@@ -18,16 +11,24 @@ import {
 } from "../../../UI/Form";
 import { Input } from "../../../UI/Input";
 import { Switch } from "@/components/UI/switch";
-import { Separator } from "@/components/UI/Separator";
 import { observer } from "mobx-react-lite";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState, useEffect, lazy } from "react";
+import { useState, useEffect, useRef, lazy } from "react";
 import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
 import type { EncryptedSeedData } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
-import { BookUser, ChevronRight, Save, Shield } from "lucide-react";
+import {
+    BookUser,
+    Check,
+    ChevronDown,
+    ChevronRight,
+    Coins,
+    Images,
+    Shield,
+    TimerReset,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/router";
 import { SEO } from "@/components/SEO/SEO";
@@ -36,6 +37,8 @@ import { decryptSeedAsync, reEncryptSeedAsync } from "@/utils/crypto";
 import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
 import { isDesktop } from "@/desktop/bridge";
 import { withSuspense } from "@/utils/react";
+import { cn } from "@/utils/cn";
+import { SettingsIconTile, SettingsRow, SettingsSection } from "./SettingsList";
 import {
     checkLockout,
     recordFailedAttempt,
@@ -76,8 +79,8 @@ type ChangePinFormValues = z.infer<typeof ChangePinSchema>;
 
 const Settings = observer(() => {
     const navigate = useNavigate();
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [hasEncryptedSeeds, setHasEncryptedSeeds] = useState(false);
+    const [showPinForm, setShowPinForm] = useState(false);
     const [isChangingPin, setIsChangingPin] = useState(false);
     const [changePinError, setChangePinError] = useState<string | null>(null);
     const [changePinSuccess, setChangePinSuccess] = useState(false);
@@ -134,7 +137,6 @@ const Settings = observer(() => {
         setSettingsSaveSuccess(false);
         setSettingsSaveError(null);
         try {
-            setIsSubmitting(true);
             // Convert minutes to milliseconds for storage
             const settingsToSave = {
                 ...data,
@@ -144,10 +146,36 @@ const Settings = observer(() => {
             setSettingsSaveSuccess(true);
         } catch (_error) {
             setSettingsSaveError("There was an error saving your settings.");
-        } finally {
-            setIsSubmitting(false);
         }
     }
+
+    // Preferences auto-save on change (debounced so rapid toggles and
+    // keystrokes in the timer input collapse into one write). Invalid
+    // values never reach onSubmit: handleSubmit runs the zod resolver.
+    const saveTimer = useRef<number | null>(null);
+    const queueSave = (delayMs: number) => {
+        if (saveTimer.current !== null) {
+            window.clearTimeout(saveTimer.current);
+        }
+        saveTimer.current = window.setTimeout(() => {
+            void form.handleSubmit(onSubmit)();
+        }, delayMs);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (saveTimer.current !== null) {
+                window.clearTimeout(saveTimer.current);
+            }
+        };
+    }, []);
+
+    // Transient "Saved" chip in the Preferences section header
+    useEffect(() => {
+        if (!settingsSaveSuccess) return;
+        const timeout = setTimeout(() => setSettingsSaveSuccess(false), 2500);
+        return () => clearTimeout(timeout);
+    }, [settingsSaveSuccess]);
 
     // Change PIN form
     const changePinForm = useForm<ChangePinFormValues>({
@@ -242,259 +270,263 @@ const Settings = observer(() => {
             <SEO title="Settings" />
             <div className="flex w-full items-start justify-center py-2 md:py-8">
                 <div className="relative w-full max-w-2xl px-2 md:px-4">
-                    { /* <video
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        className={"fixed left-0 top-0 z-0 h-96 w-96 -translate-x-8 scale-150 overflow-hidden"}
-                    >
-                        <source src="/tree.mp4" type="video/mp4" />
-                    </video> */ }
-                    <div className="page-enter relative z-10 space-y-4 md:space-y-8">
-                        {/* PIN Management Card - web/native only. On desktop there
-                            is no PIN (the signer uses a password / Argon2id) and
-                            no in-renderer re-encrypt, so the card is hidden. */}
+                    <div className="page-enter relative z-10 space-y-5 md:space-y-6">
+                        {/* Security - web/native only. On desktop there is no
+                            PIN (the signer uses a password / Argon2id) and no
+                            in-renderer re-encrypt, so the section is hidden. */}
                         {hasEncryptedSeeds && !isDesktop && (
-                            <Card className="border-l-4 border-l-primary">
-                                <CardHeader>
-                                    <div className="flex items-center gap-2">
-                                        <Shield className="h-6 w-6 text-primary" />
-                                        <CardTitle className="text-2xl font-bold">PIN Management</CardTitle>
-                                    </div>
-                                    <CardDescription>
-                                        Change your wallet PIN used to encrypt your seeds
-                                    </CardDescription>
-                                </CardHeader>
-
-                                <Form {...changePinForm}>
-                                    <form onSubmit={changePinForm.handleSubmit(onChangePinSubmit)}>
-                                        <CardContent className="space-y-6">
-                                            {pinLockout.isLocked && (
-                                                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-                                                    Too many failed attempts. Please wait {formatLockoutTime(pinLockout.remainingMs)}.
-                                                </div>
+                            <SettingsSection title="Security">
+                                <SettingsRow
+                                    icon={Shield}
+                                    tint="bg-primary/15 text-primary"
+                                    title="Change PIN"
+                                    subtitle="Change your wallet PIN used to encrypt your seeds"
+                                    right={
+                                        <ChevronDown
+                                            className={cn(
+                                                "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                                                showPinForm && "rotate-180",
                                             )}
-                                            {!pinLockout.isLocked && hasFailedAttempts() && attemptsLeft > 0 && (
-                                                <div className="rounded-md bg-yellow-500/15 p-3 text-sm text-yellow-400">
-                                                    {attemptsLeft} attempt{attemptsLeft === 1 ? '' : 's'} remaining before lockout.
-                                                </div>
-                                            )}
-                                            {changePinError && !pinLockout.isLocked && (
-                                                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-                                                    {changePinError}
-                                                </div>
-                                            )}
-                                            {changePinSuccess && (
-                                                <div className="rounded-md bg-success/15 p-3 text-sm text-success">
-                                                    PIN changed successfully! Your wallet PIN has been updated.
-                                                </div>
-                                            )}
-
-                                            <FormField
-                                                control={changePinForm.control}
-                                                name="currentPin"
-                                                render={({ field, fieldState }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Current PIN</FormLabel>
-                                                        <FormControl>
-                                                            <PinInput
-                                                                value={field.value}
-                                                                onChange={field.onChange}
-                                                                placeholder="Enter current PIN"
-                                                                error={fieldState.error?.message}
-                                                                disabled={isChangingPin || pinLockout.isLocked}
-                                                            />
-                                                        </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
-
-                                            <FormField
-                                                control={changePinForm.control}
-                                                name="newPin"
-                                                render={({ field, fieldState }) => (
-                                                    <FormItem>
-                                                        <FormLabel>New PIN</FormLabel>
-                                                        <FormControl>
-                                                            <PinInput
-                                                                value={field.value}
-                                                                onChange={field.onChange}
-                                                                placeholder="Enter new PIN"
-                                                                error={fieldState.error?.message}
-                                                                disabled={isChangingPin || pinLockout.isLocked}
-                                                            />
-                                                        </FormControl>
-                                                        <FormDescription>
-                                                            PIN must be 4-6 digits
-                                                        </FormDescription>
-                                                    </FormItem>
-                                                )}
-                                            />
-
-                                            <FormField
-                                                control={changePinForm.control}
-                                                name="confirmNewPin"
-                                                render={({ field, fieldState }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Confirm New PIN</FormLabel>
-                                                        <FormControl>
-                                                            <PinInput
-                                                                value={field.value}
-                                                                onChange={field.onChange}
-                                                                placeholder="Confirm new PIN"
-                                                                error={fieldState.error?.message}
-                                                                disabled={isChangingPin || pinLockout.isLocked}
-                                                            />
-                                                        </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </CardContent>
-
-                                        <CardFooter>
-                                            <Button
-                                                type="submit"
-                                                className="w-full"
-                                                disabled={isChangingPin || pinLockout.isLocked}
+                                        />
+                                    }
+                                    onClick={() => setShowPinForm((open) => !open)}
+                                />
+                                {showPinForm && (
+                                    <div className="px-4 pb-4 pt-3">
+                                        <Form {...changePinForm}>
+                                            <form
+                                                onSubmit={changePinForm.handleSubmit(onChangePinSubmit)}
+                                                className="space-y-4"
                                             >
-                                                <Shield className="mr-2 h-4 w-4" />
-                                                {isChangingPin ? "Changing PIN..." : "Change PIN"}
-                                            </Button>
-                                        </CardFooter>
-                                    </form>
-                                </Form>
-                            </Card>
+                                                {pinLockout.isLocked && (
+                                                    <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                                                        Too many failed attempts. Please wait {formatLockoutTime(pinLockout.remainingMs)}.
+                                                    </div>
+                                                )}
+                                                {!pinLockout.isLocked && hasFailedAttempts() && attemptsLeft > 0 && (
+                                                    <div className="rounded-md bg-yellow-500/15 p-3 text-sm text-yellow-400">
+                                                        {attemptsLeft} attempt{attemptsLeft === 1 ? '' : 's'} remaining before lockout.
+                                                    </div>
+                                                )}
+                                                {changePinError && !pinLockout.isLocked && (
+                                                    <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                                                        {changePinError}
+                                                    </div>
+                                                )}
+                                                {changePinSuccess && (
+                                                    <div className="rounded-md bg-success/15 p-3 text-sm text-success">
+                                                        PIN changed successfully! Your wallet PIN has been updated.
+                                                    </div>
+                                                )}
+
+                                                <FormField
+                                                    control={changePinForm.control}
+                                                    name="currentPin"
+                                                    render={({ field, fieldState }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Current PIN</FormLabel>
+                                                            <FormControl>
+                                                                <PinInput
+                                                                    value={field.value}
+                                                                    onChange={field.onChange}
+                                                                    placeholder="Enter current PIN"
+                                                                    error={fieldState.error?.message}
+                                                                    disabled={isChangingPin || pinLockout.isLocked}
+                                                                />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+
+                                                <FormField
+                                                    control={changePinForm.control}
+                                                    name="newPin"
+                                                    render={({ field, fieldState }) => (
+                                                        <FormItem>
+                                                            <FormLabel>New PIN</FormLabel>
+                                                            <FormControl>
+                                                                <PinInput
+                                                                    value={field.value}
+                                                                    onChange={field.onChange}
+                                                                    placeholder="Enter new PIN"
+                                                                    error={fieldState.error?.message}
+                                                                    disabled={isChangingPin || pinLockout.isLocked}
+                                                                />
+                                                            </FormControl>
+                                                            <FormDescription>
+                                                                PIN must be 4-6 digits
+                                                            </FormDescription>
+                                                        </FormItem>
+                                                    )}
+                                                />
+
+                                                <FormField
+                                                    control={changePinForm.control}
+                                                    name="confirmNewPin"
+                                                    render={({ field, fieldState }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Confirm New PIN</FormLabel>
+                                                            <FormControl>
+                                                                <PinInput
+                                                                    value={field.value}
+                                                                    onChange={field.onChange}
+                                                                    placeholder="Confirm new PIN"
+                                                                    error={fieldState.error?.message}
+                                                                    disabled={isChangingPin || pinLockout.isLocked}
+                                                                />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+
+                                                <Button
+                                                    type="submit"
+                                                    className="w-full"
+                                                    disabled={isChangingPin || pinLockout.isLocked}
+                                                >
+                                                    <Shield className="mr-2 h-4 w-4" />
+                                                    {isChangingPin ? "Changing PIN..." : "Change PIN"}
+                                                </Button>
+                                            </form>
+                                        </Form>
+                                    </div>
+                                )}
+                            </SettingsSection>
                         )}
 
                         <NetworkSettings />
 
-                        <Card className="border-l-4 border-l-primary">
-                            <button
-                                type="button"
-                                className="w-full text-left cursor-pointer"
-                                onClick={() => navigate(ROUTES.ADDRESS_BOOK)}
-                            >
-                                <CardHeader>
-                                    <div className="flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-3">
-                                            <BookUser className="h-6 w-6 text-secondary" />
-                                            <div>
-                                                <CardTitle className="text-2xl font-bold">Address Book</CardTitle>
-                                                <CardDescription>
-                                                    Manage saved recipients for quick transfers
-                                                </CardDescription>
-                                            </div>
-                                        </div>
-                                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                                    </div>
-                                </CardHeader>
-                            </button>
-                        </Card>
-
-                        <Card >
-                            <CardHeader>
-                                <CardTitle className="text-2xl font-bold">Wallet Preferences</CardTitle>
-                                <CardDescription>
-                                    Customize your wallet experience and security settings
-                                </CardDescription>
-                            </CardHeader>
-
-                            <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onSubmit)}>
-                                    <CardContent className="space-y-8">
-                                        {settingsSaveSuccess && (
-                                            <div role="status" className="rounded-md bg-success/15 p-3 text-sm text-success">
-                                                Settings saved successfully! Your wallet settings have been updated.
-                                            </div>
-                                        )}
-                                        {settingsSaveError && (
-                                            <div role="alert" className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-                                                {settingsSaveError}
-                                            </div>
-                                        )}
-                                        <FormField
-                                            control={form.control}
-                                            name="autoLockTimeout"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Auto-lock Timer (minutes)</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            type="number"
-                                                            min={1}
-                                                            max={60}
-                                                            {...field}
-                                                            value={field.value ?? 15}
-                                                            onChange={(e) => field.onChange(Number(e.target.value))}
-                                                        />
-                                                    </FormControl>
-                                                    <FormDescription>
-                                                        Automatically lock your wallet after specified minutes of inactivity
-                                                    </FormDescription>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-
-                                        <Separator />
-
-                                        <FormField
-                                            control={form.control}
-                                            name="showTokensCard"
-                                            render={({ field }) => (
-                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                                    <div className="space-y-0.5">
-                                                        <FormLabel>Show Tokens Card</FormLabel>
-                                                        <FormDescription>
-                                                            Display the Tokens section on the Home page
-                                                        </FormDescription>
-                                                    </div>
-                                                    <FormControl>
-                                                        <Switch
-                                                            checked={field.value ?? true}
-                                                            onCheckedChange={field.onChange}
-                                                        />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-
-                                        <FormField
-                                            control={form.control}
-                                            name="showNftsCard"
-                                            render={({ field }) => (
-                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                                    <div className="space-y-0.5">
-                                                        <FormLabel>Show NFTs Card</FormLabel>
-                                                        <FormDescription>
-                                                            Display the NFT collection section on the Home page
-                                                        </FormDescription>
-                                                    </div>
-                                                    <FormControl>
-                                                        <Switch
-                                                            checked={field.value ?? true}
-                                                            onCheckedChange={field.onChange}
-                                                        />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </CardContent>
-
-                                    <CardFooter>
-                                        <Button
-                                            type="submit"
-                                            className="w-full"
-                                            disabled={isSubmitting}
+                        <Form {...form}>
+                            <SettingsSection
+                                title="Preferences"
+                                action={
+                                    settingsSaveSuccess ? (
+                                        <span
+                                            role="status"
+                                            className="flex items-center gap-1 text-xs text-success"
                                         >
-                                            <Save className="mr-2 h-4 w-4" />
-                                            Save Settings
-                                        </Button>
-                                    </CardFooter>
-                                </form>
-                            </Form>
-                        </Card>
+                                            <Check className="h-3 w-3" />
+                                            Saved
+                                        </span>
+                                    ) : undefined
+                                }
+                            >
+                                {settingsSaveError && (
+                                    <div role="alert" className="bg-destructive/10 px-4 py-2 text-xs text-destructive">
+                                        {settingsSaveError}
+                                    </div>
+                                )}
+
+                                <FormField
+                                    control={form.control}
+                                    name="autoLockTimeout"
+                                    render={({ field }) => (
+                                        <FormItem className="space-y-0">
+                                            <div className="flex items-center gap-3 px-4 py-3">
+                                                <SettingsIconTile
+                                                    icon={TimerReset}
+                                                    tint="bg-violet-500/15 text-violet-400"
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <FormLabel className="text-sm font-medium">
+                                                        Auto-lock Timer
+                                                    </FormLabel>
+                                                    <FormDescription className="mt-0.5 text-xs">
+                                                        Lock the wallet after this many minutes of inactivity
+                                                    </FormDescription>
+                                                </div>
+                                                <FormControl>
+                                                    <Input
+                                                        type="number"
+                                                        min={1}
+                                                        max={60}
+                                                        className="h-9 w-20 shrink-0 text-center"
+                                                        {...field}
+                                                        value={field.value ?? 15}
+                                                        onChange={(e) => {
+                                                            field.onChange(Number(e.target.value));
+                                                            queueSave(800);
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                            </div>
+                                            <FormMessage className="px-4 pb-3 text-xs" />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="showTokensCard"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center gap-3 space-y-0 px-4 py-3">
+                                            <SettingsIconTile
+                                                icon={Coins}
+                                                tint="bg-sky-500/15 text-sky-400"
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                                <FormLabel className="text-sm font-medium">
+                                                    Show Tokens Card
+                                                </FormLabel>
+                                                <FormDescription className="mt-0.5 text-xs">
+                                                    Display the Tokens section on the Home page
+                                                </FormDescription>
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                    checked={field.value ?? true}
+                                                    onCheckedChange={(checked) => {
+                                                        field.onChange(checked);
+                                                        queueSave(200);
+                                                    }}
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="showNftsCard"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center gap-3 space-y-0 px-4 py-3">
+                                            <SettingsIconTile
+                                                icon={Images}
+                                                tint="bg-fuchsia-500/15 text-fuchsia-400"
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                                <FormLabel className="text-sm font-medium">
+                                                    Show NFTs Card
+                                                </FormLabel>
+                                                <FormDescription className="mt-0.5 text-xs">
+                                                    Display the NFT collection section on the Home page
+                                                </FormDescription>
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                    checked={field.value ?? true}
+                                                    onCheckedChange={(checked) => {
+                                                        field.onChange(checked);
+                                                        queueSave(200);
+                                                    }}
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                            </SettingsSection>
+                        </Form>
+
+                        <SettingsSection title="Connections">
+                            <SettingsRow
+                                icon={BookUser}
+                                tint="bg-secondary/15 text-secondary"
+                                title="Address Book"
+                                subtitle="Manage saved recipients for quick transfers"
+                                right={<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                                onClick={() => navigate(ROUTES.ADDRESS_BOOK)}
+                            />
+                        </SettingsSection>
 
                         {/* dApp session management lives here (the list keeps
                             its own header + actions); the /dapp-sessions route
