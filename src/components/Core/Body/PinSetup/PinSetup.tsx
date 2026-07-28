@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -16,7 +16,7 @@ import {
   FormMessage,
 } from "../../../UI/Form";
 import { Input } from "../../../UI/Input";
-import { PinInput } from "../../../UI/PinInput/PinInput";
+import { PinInput, type PinInputHandle } from "../../../UI/PinInput/PinInput";
 import { ShinyButton } from "../../../UI/ShinyButton";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader } from "lucide-react";
@@ -231,6 +231,7 @@ const WebPinSetup = ({
   const { qrlConnection } = qrlStore;
   const { blockchain } = qrlConnection;
   const [isStoringPin, setIsStoringPin] = useState(false);
+  const reEnterPinRef = useRef<PinInputHandle>(null);
   const [hasExistingSeeds, setHasExistingSeeds] = useState<boolean | null>(null);
   const [existingSeeds, setExistingSeeds] = useState<{ address: string; encryptedSeed: string }[]>([]);
 
@@ -358,6 +359,7 @@ const WebPinSetup = ({
                       disabled={isSubmitting || isStoringPin}
                       description={hasExistingSeeds ? "Your existing wallet PIN" : "Enter a 4-6 digit PIN"}
                       error={form.formState.errors.pin?.message}
+                      onComplete={() => reEnterPinRef.current?.focus()}
                     />
                   )}
                 />
@@ -367,6 +369,7 @@ const WebPinSetup = ({
                     name="reEnteredPin"
                     render={({ field }) => (
                       <PinInput
+                        ref={reEnterPinRef}
                         length={6}
                         placeholder="Re-enter PIN"
                         value={field.value ?? ""}
