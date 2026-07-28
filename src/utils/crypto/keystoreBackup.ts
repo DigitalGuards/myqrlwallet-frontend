@@ -74,6 +74,10 @@ const KDF_PARAM_BOUNDS = {
 const SEED_BYTES = 51;
 const IV_BYTES = 12;
 const GCM_TAG_BYTES = 16;
+// argon2 implementations reject salts under 8 bytes; catching it at parse
+// time keeps a bad file from burning a KDF attempt (and, on the WASM path,
+// from being mistaken for WASM unavailability). Mirrors the extension.
+const MIN_SALT_BYTES = 8;
 
 function isHex(value: string): boolean {
   return value.length % 2 === 0 && !/[^0-9a-fA-F]/.test(value);
@@ -135,11 +139,14 @@ function validateKeystore(candidate: unknown, index: number): EncryptedKeystore 
   if (typeof iv !== 'string' || !isHex(iv) || iv.length !== IV_BYTES * 2) {
     throw new KeystoreFormatError(`Invalid IV in ${label} (expected 12 bytes of hex).`);
   }
+  // Exactly one seed + the GCM tag: wrong-era (e.g. future 64-byte QIP-55)
+  // or corrupt files fail here at selection time, not after a correct
+  // password. Mirrors the extension's importer.
   const ciphertext = c['ciphertext'];
   if (
     typeof ciphertext !== 'string' ||
     !isHex(ciphertext) ||
-    ciphertext.length < (GCM_TAG_BYTES + 1) * 2
+    ciphertext.length !== (SEED_BYTES + GCM_TAG_BYTES) * 2
   ) {
     throw new KeystoreFormatError(`Invalid ciphertext in ${label}.`);
   }
@@ -159,7 +166,11 @@ function validateKeystore(candidate: unknown, index: number): EncryptedKeystore 
     );
   }
   const salt = kp['salt'];
-  if (typeof salt !== 'string' || !isHex(salt) || salt.length === 0) {
+  if (
+    typeof salt !== 'string' ||
+    !isHex(salt) ||
+    salt.length < MIN_SALT_BYTES * 2
+  ) {
     throw new KeystoreFormatError(`Invalid salt in ${label}.`);
   }
   return {
