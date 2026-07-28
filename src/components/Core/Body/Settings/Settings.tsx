@@ -39,6 +39,7 @@ import { isDesktop } from "@/desktop/bridge";
 import { withSuspense } from "@/utils/react";
 import { cn } from "@/utils/cn";
 import { SettingsIconTile, SettingsRow, SettingsSection } from "./SettingsList";
+import { ExportWalletFile } from "./ExportWalletFile";
 import {
     checkLockout,
     recordFailedAttempt,
@@ -445,6 +446,7 @@ const Settings = observer(() => {
                                         </Form>
                                     </div>
                                 )}
+                                <ExportWalletFile />
                             </SettingsSection>
                         )}
 
