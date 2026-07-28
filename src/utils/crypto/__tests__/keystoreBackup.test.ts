@@ -178,6 +178,22 @@ describe('parseKeystoreBackup', () => {
     ks.crypto.ciphertext = 'zz' + ks.crypto.ciphertext.slice(2);
     expect(() => parseKeystoreBackup({ keystores: [ks] })).toThrow(KeystoreFormatError);
   });
+
+  it('rejects a ciphertext that is not exactly seed+tag sized', () => {
+    // 51-byte seed + 16-byte GCM tag = 67 bytes; wrong-era or corrupt files
+    // must fail at parse, not after a correct password. Extension parity.
+    for (const bytes of [66, 68, 80]) {
+      const ks = firstKeystore();
+      ks.crypto.ciphertext = '00'.repeat(bytes);
+      expect(() => parseKeystoreBackup({ keystores: [ks] })).toThrow(KeystoreFormatError);
+    }
+  });
+
+  it("rejects a salt below argon2's 8-byte minimum", () => {
+    const ks = firstKeystore();
+    ks.crypto.kdfparams.salt = 'abcd';
+    expect(() => parseKeystoreBackup({ keystores: [ks] })).toThrow(KeystoreFormatError);
+  });
 });
 
 describe('decryptKeystoreToHexSeed (extension parity)', () => {
