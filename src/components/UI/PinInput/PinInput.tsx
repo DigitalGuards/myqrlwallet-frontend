@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import { cn } from "@/utils/cn";
 
 interface PinInputProps {
@@ -11,6 +11,14 @@ interface PinInputProps {
   description?: string;
   error?: string;
   autoFocus?: boolean;
+  /** Fires once when entry fills all `length` cells (typing or paste), so
+   * stacked PIN forms can move focus to the next row. */
+  onComplete?: (pin: string) => void;
+}
+
+export interface PinInputHandle {
+  /** Focus the first empty cell (or the last cell when already full). */
+  focus: () => void;
 }
 
 /**
@@ -19,7 +27,7 @@ interface PinInputProps {
  * (`value`/`onChange`) so every call site stays untouched; only the
  * presentation changed from one input to `length` cells.
  */
-export const PinInput = ({
+export const PinInput = forwardRef<PinInputHandle, PinInputProps>(({
   length = 6,
   onChange,
   value = "",
@@ -30,7 +38,8 @@ export const PinInput = ({
   description,
   error,
   autoFocus = false,
-}: PinInputProps) => {
+  onComplete,
+}, ref) => {
   const refs = useRef<Array<HTMLInputElement | null>>([]);
   // Marks a focus move as programmatic (auto-advance / backspace / arrows /
   // paste) so the cell's onFocus does not bounce it back. focus() fires the
@@ -44,6 +53,10 @@ export const PinInput = ({
     refs.current[idx]?.focus();
   };
 
+  useImperativeHandle(ref, () => ({
+    focus: () => focusCell(Math.min(value.length, length - 1)),
+  }));
+
   useEffect(() => {
     if (autoFocus) {
       advancingRef.current = true;
@@ -51,10 +64,12 @@ export const PinInput = ({
     }
   }, [autoFocus]);
 
-  const setAt = (i: number, ch: string) => {
+  const setAt = (i: number, ch: string): string => {
     const next = value.split("");
     next[i] = ch;
-    onChange(next.join("").replace(/\D/g, "").slice(0, length));
+    const joined = next.join("").replace(/\D/g, "").slice(0, length);
+    onChange(joined);
+    return joined;
   };
 
   const handleChange =
@@ -64,8 +79,9 @@ export const PinInput = ({
       // current cell isn't cleared.
       if (ch && !/\d/.test(ch)) return;
       if (!ch && !chars[i]) return;
-      setAt(i, ch);
+      const next = setAt(i, ch);
       if (ch && i < length - 1) focusCell(i + 1);
+      if (next.length === length && value.length < length) onComplete?.(next);
     };
 
   const handleKeyDown =
@@ -98,6 +114,9 @@ export const PinInput = ({
       const joined = next.join("").replace(/\D/g, "").slice(0, length);
       onChange(joined);
       focusCell(Math.min(i + digits.length, length - 1));
+      // After the in-row focus move, so a listener that refocuses another
+      // row wins.
+      if (joined.length === length && value.length < length) onComplete?.(joined);
     };
 
   return (
@@ -151,6 +170,8 @@ export const PinInput = ({
       )}
     </div>
   );
-};
+});
+
+PinInput.displayName = "PinInput";
 
 export default PinInput;
