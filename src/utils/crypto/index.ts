@@ -19,6 +19,15 @@ export {
   decryptSeedAsync,
   reEncryptSeedAsync,
   deriveHexSeedAsync,
+  decryptKeystoreAsync,
   CryptoOperationError,
   CryptoErrorCode,
 } from './cryptoWorkerClient';
+
+export {
+  looksLikeKeystoreBackup,
+  parseKeystoreBackup,
+  KeystoreFormatError,
+  KeystoreDecryptError,
+  type EncryptedKeystore,
+} from './keystoreBackup';
