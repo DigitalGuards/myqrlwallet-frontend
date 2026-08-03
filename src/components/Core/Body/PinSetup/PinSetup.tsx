@@ -22,22 +22,33 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { encryptSeedAsync, decryptSeedAsync, CryptoOperationError, CryptoErrorCode } from "@/utils/crypto";
+import {
+  encryptSeedAsync,
+  decryptStoredSeedAsync,
+  CryptoOperationError,
+  CryptoErrorCode,
+} from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 import { useStore } from "../../../../stores/store";
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
+import { walletMutations } from "@/utils/nativeWalletMutation";
 
 // Password must match the signer's policy; same regex the create form uses.
-const passwordValidation = z.string()
+const passwordValidation = z
+  .string()
   .min(8, "Password must be at least 8 characters")
   .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
   .regex(/[a-z]/, "Password must contain at least one lowercase letter")
   .regex(/\d/, "Password must contain at least one number")
-  .regex(/[!@#$%^&*(),.?":{}|<>]/, "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)");
+  .regex(
+    /[!@#$%^&*(),.?":{}|<>]/,
+    'Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)',
+  );
 
 // Base PIN validation
-const pinValidation = z.string()
+const pinValidation = z
+  .string()
   .min(4, "PIN must be at least 4 digits")
   .max(6, "PIN must be at most 6 digits")
   .regex(/^\d+$/, "PIN must contain only digits");
@@ -69,7 +80,7 @@ type PinSetupProps = {
   hexSeed: string;
   // On desktop the signer provisions the wallet and returns the address, which
   // is passed back so the caller can set it active.
-  onPinSetupComplete: (provisionedAddress?: string) => void;
+  onPinSetupComplete: (provisionedAddress?: string) => void | Promise<void>;
 };
 
 export const PinSetup = ({
@@ -105,13 +116,15 @@ type DesktopPasswordValues = {
   reEnteredPassword: string;
 };
 
-const DesktopPasswordSchema = z.object({
-  password: passwordValidation,
-  reEnteredPassword: z.string().min(1, "Please re-enter your password"),
-}).refine((data) => data.password === data.reEnteredPassword, {
-  message: "Passwords don't match",
-  path: ["reEnteredPassword"],
-});
+const DesktopPasswordSchema = z
+  .object({
+    password: passwordValidation,
+    reEnteredPassword: z.string().min(1, "Please re-enter your password"),
+  })
+  .refine((data) => data.password === data.reEnteredPassword, {
+    message: "Passwords don't match",
+    path: ["reEnteredPassword"],
+  });
 
 const DesktopPasswordSetup = ({
   mnemonic,
@@ -120,7 +133,7 @@ const DesktopPasswordSetup = ({
 }: {
   mnemonic: string;
   hexSeed?: string;
-  onPinSetupComplete: (provisionedAddress?: string) => void;
+  onPinSetupComplete: (provisionedAddress?: string) => void | Promise<void>;
 }) => {
   const [isProvisioning, setIsProvisioning] = useState(false);
   const form = useForm<DesktopPasswordValues>({
@@ -145,7 +158,7 @@ const DesktopPasswordSetup = ({
       const source = mnemonic ? { mnemonic } : { hexSeed };
       const status = await desktopSigner.importWallet(source, data.password);
       setIsProvisioning(false);
-      onPinSetupComplete(status.address);
+      await onPinSetupComplete(status.address);
     } catch (error) {
       setIsProvisioning(false);
       setError("password", {
@@ -159,7 +172,9 @@ const DesktopPasswordSetup = ({
       <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
         <Card className="border-l-4 border-l-primary">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">Set Wallet Password</CardTitle>
+            <CardTitle className="text-2xl font-bold">
+              Set Wallet Password
+            </CardTitle>
             <CardDescription>
               This password unlocks your wallet on this device. The signer
               encrypts your seed with it; it never leaves your machine.
@@ -180,7 +195,8 @@ const DesktopPasswordSetup = ({
                     />
                   </FormControl>
                   <FormDescription>
-                    Must include uppercase, lowercase, number, and special character
+                    Must include uppercase, lowercase, number, and special
+                    character
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -232,8 +248,12 @@ const WebPinSetup = ({
   const { blockchain } = qrlConnection;
   const [isStoringPin, setIsStoringPin] = useState(false);
   const reEnterPinRef = useRef<PinInputHandle>(null);
-  const [hasExistingSeeds, setHasExistingSeeds] = useState<boolean | null>(null);
-  const [existingSeeds, setExistingSeeds] = useState<{ address: string; encryptedSeed: string }[]>([]);
+  const [hasExistingSeeds, setHasExistingSeeds] = useState<boolean | null>(
+    null,
+  );
+  const [existingSeeds, setExistingSeeds] = useState<
+    { address: string; encryptedSeed: string }[]
+  >([]);
 
   // Check for existing encrypted seeds on mount
   useEffect(() => {
@@ -267,6 +287,7 @@ const WebPinSetup = ({
     try {
       setIsStoringPin(true);
       const userPin = formData.pin;
+      const walletGeneration = walletMutations.captureGeneration();
 
       // PIN format and matching validation is handled by zod schema
 
@@ -276,12 +297,22 @@ const WebPinSetup = ({
         try {
           // length > 0 is checked above; `?? ''` only satisfies the index
           // checker and would route an (impossible) miss to the catch below.
-          await decryptSeedAsync(existingSeeds[0]?.encryptedSeed ?? '', userPin);
+          const existingSeed = existingSeeds[0];
+          await decryptStoredSeedAsync(
+            blockchain,
+            existingSeed?.address ?? "",
+            existingSeed?.encryptedSeed ?? "",
+            userPin,
+          );
         } catch (err) {
           const message =
-            err instanceof CryptoOperationError && err.code === CryptoErrorCode.OUTDATED_FORMAT
+            err instanceof CryptoOperationError &&
+            err.code === CryptoErrorCode.OUTDATED_FORMAT
               ? "This wallet was saved in an older format and must be re-imported."
-              : "Incorrect PIN. Please try again.";
+              : err instanceof CryptoOperationError &&
+                  err.code === CryptoErrorCode.DEVICE_CREDENTIAL_UNAVAILABLE
+                ? "This wallet's device security credential is unavailable. Re-import the existing seed."
+                : "Incorrect PIN. Please try again.";
           setError("pin", { message });
           setIsStoringPin(false);
           return;
@@ -292,25 +323,36 @@ const WebPinSetup = ({
       // This runs PBKDF2 (600k iterations) off the main thread
       const encryptedSeed = await encryptSeedAsync(mnemonic, hexSeed, userPin);
 
-      // Store the encrypted seed in localStorage
-      await StorageUtil.storeEncryptedSeed(
-        blockchain,
-        accountAddress,
-        encryptedSeed
+      await walletMutations.enqueueWalletMutation(
+        async (isCurrent) => {
+          if (!isCurrent())
+            throw new Error("Wallet was cleared during account import");
+          const storedSeed = await StorageUtil.storeEncryptedSeed(
+            blockchain,
+            accountAddress,
+            encryptedSeed,
+            isCurrent.epoch,
+          );
+
+          if (isInNativeApp()) {
+            await notifySeedStored({
+              address: accountAddress,
+              encryptedSeed,
+              blockchain,
+              revision: storedSeed.revision ?? 1,
+            });
+          }
+          if (!isCurrent())
+            throw new Error("Wallet was cleared during account import");
+          await onPinSetupComplete();
+        },
+        () => {
+          throw new Error("Wallet clear is in progress");
+        },
+        walletGeneration,
       );
 
-      // If running in native app, notify it to backup the encrypted seed
-      // Native app will store in AsyncStorage and prompt for biometric setup
-      if (isInNativeApp()) {
-        notifySeedStored({
-          address: accountAddress,
-          encryptedSeed,
-          blockchain,
-        });
-      }
-
       setIsStoringPin(false);
-      onPinSetupComplete();
     } catch (error) {
       setIsStoringPin(false);
       setError("pin", {
@@ -336,7 +378,9 @@ const WebPinSetup = ({
         <Card className="border-l-4 border-l-primary">
           <CardHeader>
             <CardTitle className="text-2xl font-bold">
-              {hasExistingSeeds ? "Enter Your Wallet PIN" : "Set Transaction PIN"}
+              {hasExistingSeeds
+                ? "Enter Your Wallet PIN"
+                : "Set Transaction PIN"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-8">
@@ -353,11 +397,19 @@ const WebPinSetup = ({
                   render={({ field }) => (
                     <PinInput
                       length={6}
-                      placeholder={hasExistingSeeds ? "Enter your existing PIN" : "Enter PIN (4-6 digits)"}
+                      placeholder={
+                        hasExistingSeeds
+                          ? "Enter your existing PIN"
+                          : "Enter PIN (4-6 digits)"
+                      }
                       value={field.value}
                       onChange={field.onChange}
                       disabled={isSubmitting || isStoringPin}
-                      description={hasExistingSeeds ? "Your existing wallet PIN" : "Enter a 4-6 digit PIN"}
+                      description={
+                        hasExistingSeeds
+                          ? "Your existing wallet PIN"
+                          : "Enter a 4-6 digit PIN"
+                      }
                       error={form.formState.errors.pin?.message}
                       onComplete={() => reEnterPinRef.current?.focus()}
                     />

@@ -1,5 +1,5 @@
 import { Wallet, ArrowRight, Settings as SettingsIcon, LogOut, BookUser } from "lucide-react"
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router";
 import { ROUTES } from "@/router/router";
 import { handleLogout } from "@/utils/logout";
 import { isInNativeApp } from "@/utils/nativeApp";

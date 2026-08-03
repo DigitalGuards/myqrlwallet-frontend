@@ -4,11 +4,8 @@ import { BigNumber } from "bignumber.js";
 
 /**
  * Safely format a raw planck transaction `value` into a "X Quanta" string.
- * The value originates from a dApp (qrl_sendTransaction / qrl_signTransaction)
- * and is NOT schema-validated, so it may be non-numeric, negative, or a
- * fractional number. A bare `BigInt(value)` would throw during render and
- * crash the approval modal, leaving the user unable to even reject the
- * request. Falls back to a safe label instead of throwing.
+ * Relay requests are validated before approval, while this defensive parser
+ * also protects direct/internal callers from crashing the review render.
  */
 export const formatQuantaValue = (value: unknown): string => {
     if (value === undefined || value === null || value === "") return `0 ${NATIVE_TOKEN.symbol}`;
@@ -106,7 +103,7 @@ export const formatBalance = (
 
     if (!bn.isZero() && parseFloat(formatted) === 0) {
         // Balance is non-zero but rounds to zero even at the expanded
-        // precision — fall back to the first ~4 significant digits.
+        // precision, so fall back to the first ~4 significant digits.
         formatted = bn.precision(4, BigNumber.ROUND_DOWN).toString();
     } else if (effectiveDecimals > decimals) {
         // Strip trailing zeros beyond the requested minimum decimal count

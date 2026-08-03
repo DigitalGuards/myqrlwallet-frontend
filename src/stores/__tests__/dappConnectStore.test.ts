@@ -10,11 +10,14 @@
  * tests are about the store's contract with the service, not the service.
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import type { DAppSession, PendingDAppRequest } from '@/services/dappConnect/types';
-import { SessionStatus } from '@/services/dappConnect/types';
+import { describe, it, expect, jest, beforeEach } from "@jest/globals";
+import type {
+  DAppSession,
+  PendingDAppRequest,
+} from "@/services/dappConnect/types";
+import { SessionStatus } from "@/services/dappConnect/types";
 
-jest.mock('@/services/dappConnect/DAppConnectService', () => {
+jest.mock("@/services/dappConnect/DAppConnectService", () => {
   const dappConnectService = {
     setHandlers: jest.fn(),
     getActiveSessions: jest.fn(() => []),
@@ -35,33 +38,36 @@ jest.mock('@/services/dappConnect/DAppConnectService', () => {
   return { dappConnectService, DAppConnectService };
 });
 
-jest.mock('@/desktop/bridge', () => ({
+jest.mock("@/desktop/bridge", () => ({
   isDesktop: false,
   desktopSigner: {
     dappRequestAttention: jest.fn(async () => undefined),
   },
 }));
 
-import DAppConnectStore from '@/stores/dappConnectStore';
-import { dappConnectService } from '@/services/dappConnect/DAppConnectService';
+import DAppConnectStore from "@/stores/dappConnectStore";
+import { dappConnectService } from "@/services/dappConnect/DAppConnectService";
 
 const mockService = jest.mocked(dappConnectService);
 
-const URI_A = 'qrlconnect://?q=blobA';
-const URI_B = 'qrlconnect://?q=blobB';
+const URI_A = "qrlconnect://?q=blobA";
+const URI_B = "qrlconnect://?q=blobB";
 
 function makeSession(): DAppSession {
   return {
-    version: 2,
-    id: 'c1',
-    dappInfo: { name: 'Test dApp', url: 'https://a.example', chainId: '0x1' },
-    connectedAccount: 'Q0000000000000000000000000000000000000000',
+    version: 4,
+    id: "c1",
+    dappInfo: { name: "Test dApp", url: "https://a.example/", chainId: "0x1" },
+    originatorInfoReceived: true,
+    accountAuthorized: true,
+    connectedAccount: "Q0000000000000000000000000000000000000000",
     keyExchange: {
-      cid: 'c1',
-      kAeadRaw: '',
-      htx: '',
-      sendDir: 'w2d',
-      recvDir: 'd2w',
+      protocolVersion: 3,
+      cid: "c1",
+      kAeadRaw: "",
+      htx: "",
+      sendDir: "w2d",
+      recvDir: "d2w",
       sendSeq: 0,
       recvSeq: 0,
     },
@@ -71,13 +77,15 @@ function makeSession(): DAppSession {
   };
 }
 
-function makeRequest(overrides: Partial<PendingDAppRequest> = {}): PendingDAppRequest {
+function makeRequest(
+  overrides: Partial<PendingDAppRequest> = {},
+): PendingDAppRequest {
   return {
     id: 1,
-    sessionId: 'session-1',
-    method: 'qrl_signMessage',
+    sessionId: "session-1",
+    method: "qrl_signMessage",
     params: [],
-    dappInfo: { name: 'Test dApp', url: 'https://a.example', chainId: '0x1' },
+    dappInfo: { name: "Test dApp", url: "https://a.example", chainId: "0x1" },
     timestamp: 0,
     ...overrides,
   };
@@ -89,14 +97,14 @@ beforeEach(() => {
   mockService.handleConnectionURI.mockResolvedValue({ success: true });
 });
 
-describe('constructor wiring', () => {
-  it('registers service handlers and loads sessions without reconnect when none stored', () => {
+describe("constructor wiring", () => {
+  it("registers service handlers and runs migration/reconnect maintenance when none stored", () => {
     new DAppConnectStore();
     expect(mockService.setHandlers).toHaveBeenCalledTimes(1);
-    expect(mockService.reconnectAll).not.toHaveBeenCalled();
+    expect(mockService.reconnectAll).toHaveBeenCalledTimes(1);
   });
 
-  it('auto-reconnects when stored sessions exist', () => {
+  it("auto-reconnects when stored sessions exist", () => {
     mockService.getActiveSessions.mockReturnValue([makeSession()]);
     const store = new DAppConnectStore();
     expect(store.sessionCount).toBe(1);
@@ -104,25 +112,27 @@ describe('constructor wiring', () => {
   });
 });
 
-describe('requestDesktopConnect', () => {
-  it('stages a valid URI with its source', () => {
+describe("requestDesktopConnect", () => {
+  it("stages a valid URI with its source", () => {
     const store = new DAppConnectStore();
-    store.requestDesktopConnect(URI_A, 'paste');
+    store.requestDesktopConnect(URI_A, "paste");
     expect(store.desktopConnectUri).toBe(URI_A);
-    expect(store.desktopConnectSource).toBe('paste');
+    expect(store.desktopConnectSource).toBe("paste");
   });
 
-  it('defaults the source to deeplink', () => {
+  it("defaults the source to deeplink", () => {
     const store = new DAppConnectStore();
     store.requestDesktopConnect(URI_A);
-    expect(store.desktopConnectSource).toBe('deeplink');
+    expect(store.desktopConnectSource).toBe("deeplink");
   });
 
-  it('drops a non-qrlconnect URI with a warning and stages nothing', () => {
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+  it("drops a non-qrlconnect URI with a warning and stages nothing", () => {
+    const warn = jest
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
     try {
       const store = new DAppConnectStore();
-      store.requestDesktopConnect('https://evil.example/?q=x', 'deeplink');
+      store.requestDesktopConnect("https://evil.example/?q=x", "deeplink");
       expect(store.desktopConnectUri).toBeNull();
       expect(warn).toHaveBeenCalledTimes(1);
     } finally {
@@ -130,32 +140,32 @@ describe('requestDesktopConnect', () => {
     }
   });
 
-  it('latest request wins while consent is pending', () => {
+  it("latest request wins while consent is pending", () => {
     const store = new DAppConnectStore();
-    store.requestDesktopConnect(URI_A, 'deeplink');
-    store.requestDesktopConnect(URI_B, 'paste');
+    store.requestDesktopConnect(URI_A, "deeplink");
+    store.requestDesktopConnect(URI_B, "paste");
     expect(store.desktopConnectUri).toBe(URI_B);
-    expect(store.desktopConnectSource).toBe('paste');
+    expect(store.desktopConnectSource).toBe("paste");
   });
 
-  it('stages a web fragment-link URI with the link source', () => {
+  it("stages a web fragment-link URI with the link source", () => {
     const store = new DAppConnectStore();
-    store.requestDesktopConnect(URI_A, 'link');
+    store.requestDesktopConnect(URI_A, "link");
     expect(store.desktopConnectUri).toBe(URI_A);
-    expect(store.desktopConnectSource).toBe('link');
+    expect(store.desktopConnectSource).toBe("link");
   });
 
-  it('latest request wins across web sources too (link then paste)', () => {
+  it("latest request wins across web sources too (link then paste)", () => {
     const store = new DAppConnectStore();
-    store.requestDesktopConnect(URI_A, 'link');
-    store.requestDesktopConnect(URI_B, 'paste');
+    store.requestDesktopConnect(URI_A, "link");
+    store.requestDesktopConnect(URI_B, "paste");
     expect(store.desktopConnectUri).toBe(URI_B);
-    expect(store.desktopConnectSource).toBe('paste');
+    expect(store.desktopConnectSource).toBe("paste");
   });
 });
 
-describe('clearDesktopConnect', () => {
-  it('dismisses the staged URI', () => {
+describe("clearDesktopConnect", () => {
+  it("dismisses the staged URI", () => {
     const store = new DAppConnectStore();
     store.requestDesktopConnect(URI_A);
     store.clearDesktopConnect();
@@ -163,54 +173,60 @@ describe('clearDesktopConnect', () => {
   });
 });
 
-describe('confirmDesktopConnect', () => {
-  it('fails without touching the service when nothing is staged', async () => {
+describe("confirmDesktopConnect", () => {
+  it("fails without touching the service when nothing is staged", async () => {
     const store = new DAppConnectStore();
     const result = await store.confirmDesktopConnect();
-    expect(result).toEqual({ success: false, error: 'No pending connection' });
+    expect(result).toEqual({ success: false, error: "No pending connection" });
     expect(mockService.handleConnectionURI).not.toHaveBeenCalled();
   });
 
-  it('maps a deeplink source to the deeplink origin and clears on success', async () => {
+  it("maps a deeplink source to the deeplink origin and clears on success", async () => {
     const store = new DAppConnectStore();
-    store.requestDesktopConnect(URI_A, 'deeplink');
+    store.requestDesktopConnect(URI_A, "deeplink");
     const result = await store.confirmDesktopConnect();
     expect(result.success).toBe(true);
-    expect(mockService.handleConnectionURI).toHaveBeenCalledWith(URI_A, 'deeplink');
+    expect(mockService.handleConnectionURI).toHaveBeenCalledWith(
+      URI_A,
+      "deeplink",
+    );
     expect(store.desktopConnectUri).toBeNull();
   });
 
-  it('maps a paste source to the qr origin (dApp may be on another device)', async () => {
+  it("maps a paste source to the qr origin (dApp may be on another device)", async () => {
     const store = new DAppConnectStore();
-    store.requestDesktopConnect(URI_A, 'paste');
+    store.requestDesktopConnect(URI_A, "paste");
     await store.confirmDesktopConnect();
-    expect(mockService.handleConnectionURI).toHaveBeenCalledWith(URI_A, 'qr');
+    expect(mockService.handleConnectionURI).toHaveBeenCalledWith(URI_A, "qr");
   });
 
-  it('maps a web link source to the qr origin (dApp may be in another tab)', async () => {
+  it("maps a web link source to the qr origin (dApp may be in another tab)", async () => {
     const store = new DAppConnectStore();
-    store.requestDesktopConnect(URI_A, 'link');
+    store.requestDesktopConnect(URI_A, "link");
     await store.confirmDesktopConnect();
-    expect(mockService.handleConnectionURI).toHaveBeenCalledWith(URI_A, 'qr');
+    expect(mockService.handleConnectionURI).toHaveBeenCalledWith(URI_A, "qr");
   });
 
-  it('keeps the staged URI when the connect fails (modal shows the error)', async () => {
-    mockService.handleConnectionURI.mockResolvedValue({ success: false, error: 'relay down' });
+  it("keeps the staged URI when the connect fails (modal shows the error)", async () => {
+    mockService.handleConnectionURI.mockResolvedValue({
+      success: false,
+      error: "relay down",
+    });
     const store = new DAppConnectStore();
-    store.requestDesktopConnect(URI_A, 'paste');
+    store.requestDesktopConnect(URI_A, "paste");
     const result = await store.confirmDesktopConnect();
-    expect(result).toEqual({ success: false, error: 'relay down' });
+    expect(result).toEqual({ success: false, error: "relay down" });
     expect(store.desktopConnectUri).toBe(URI_A);
   });
 
-  it('does not clobber a newer URI staged during the awaited handshake', async () => {
+  it("does not clobber a newer URI staged during the awaited handshake", async () => {
     // Regression guard: URI B arrives (protocol handler) while URI A's
     // handshake is in flight. A's success must not clear B, or B's consent
     // modal would never appear and the request would vanish silently.
     const store = new DAppConnectStore();
-    store.requestDesktopConnect(URI_A, 'deeplink');
+    store.requestDesktopConnect(URI_A, "deeplink");
     mockService.handleConnectionURI.mockImplementation(async () => {
-      store.requestDesktopConnect(URI_B, 'deeplink');
+      store.requestDesktopConnect(URI_B, "deeplink");
       return { success: true };
     });
     const result = await store.confirmDesktopConnect();
@@ -219,8 +235,8 @@ describe('confirmDesktopConnect', () => {
   });
 });
 
-describe('approval queue passthrough', () => {
-  it('approveCurrentRequest forwards the result and advances the queue', () => {
+describe("approval queue passthrough", () => {
+  it("approveCurrentRequest forwards the result and advances the queue", () => {
     const store = new DAppConnectStore();
     const first = makeRequest({ id: 1 });
     const second = makeRequest({ id: 2 });
@@ -228,64 +244,101 @@ describe('approval queue passthrough', () => {
     store.currentApproval = first;
     store.approvalModalOpen = true;
 
-    store.approveCurrentRequest('0xresult');
+    store.approveCurrentRequest("0xresult");
 
-    expect(mockService.approveRequest).toHaveBeenCalledWith('session-1', 1, '0xresult');
+    expect(mockService.approveRequest).toHaveBeenCalledWith(
+      "session-1",
+      1,
+      "0xresult",
+    );
     // mobx wraps queued requests in observable proxies; compare identity.
     expect(store.currentApproval?.id).toBe(second.id);
     expect(store.approvalModalOpen).toBe(true);
   });
 
-  it('rejectCurrentRequest forwards message AND error code (desktop 4902 chain pinning)', () => {
+  it("rejectCurrentRequest forwards message AND error code (desktop 4902 chain pinning)", () => {
     const store = new DAppConnectStore();
-    const req = makeRequest({ method: 'wallet_switchQrlChain' });
+    const req = makeRequest({ method: "wallet_switchQrlChain" });
     store.pendingRequests = [req];
     store.currentApproval = req;
 
-    store.rejectCurrentRequest('The desktop wallet is pinned to its configured chain', 4902);
+    store.rejectCurrentRequest(
+      "The desktop wallet is pinned to its configured chain",
+      4902,
+    );
 
     expect(mockService.rejectRequest).toHaveBeenCalledWith(
-      'session-1',
+      "session-1",
       1,
-      'The desktop wallet is pinned to its configured chain',
-      4902
+      "The desktop wallet is pinned to its configured chain",
+      4902,
     );
     expect(store.currentApproval).toBeNull();
     expect(store.approvalModalOpen).toBe(false);
   });
 
-  it('rejectCurrentRequest with no code leaves the code to the service default (4001)', () => {
+  it("rejectCurrentRequest with no code leaves the code to the service default (4001)", () => {
     const store = new DAppConnectStore();
     const req = makeRequest();
     store.pendingRequests = [req];
     store.currentApproval = req;
 
-    store.rejectCurrentRequest('User rejected');
+    store.rejectCurrentRequest("User rejected");
 
-    expect(mockService.rejectRequest).toHaveBeenCalledWith('session-1', 1, 'User rejected', undefined);
+    expect(mockService.rejectRequest).toHaveBeenCalledWith(
+      "session-1",
+      1,
+      "User rejected",
+      undefined,
+    );
   });
 
-  it('sendApprovalResultById keeps the modal open (progress UI)', () => {
+  it("sendApprovalResultById keeps the modal open (progress UI)", () => {
     const store = new DAppConnectStore();
     const req = makeRequest();
     store.pendingRequests = [req];
     store.currentApproval = req;
     store.approvalModalOpen = true;
 
-    store.sendApprovalResultById(req.sessionId, req.id, '0xhash');
+    store.sendApprovalResultById(req.sessionId, req.id, "0xhash");
 
-    expect(mockService.approveRequest).toHaveBeenCalledWith('session-1', 1, '0xhash');
+    expect(mockService.approveRequest).toHaveBeenCalledWith(
+      "session-1",
+      1,
+      "0xhash",
+    );
     expect(store.currentApproval?.id).toBe(req.id);
     expect(store.approvalModalOpen).toBe(true);
   });
 
-  it('approveRequestById answers the captured request, not the promoted one', () => {
+  it("ignores late progress from an approval that is no longer current", () => {
+    const store = new DAppConnectStore();
+    const reqA = makeRequest({ id: 1, sessionId: "session-1" });
+    const reqB = makeRequest({ id: 2, sessionId: "session-2" });
+    store.pendingRequests = [reqB];
+    store.currentApproval = reqB;
+    store.approvalModalOpen = true;
+
+    expect(
+      store.setTxProgressForApproval(
+        reqA.sessionId,
+        reqA.id,
+        "confirmed",
+        "0xlate",
+      ),
+    ).toBe(false);
+    expect(store.txProgress).toBe("idle");
+    expect(store.txHash).toBeNull();
+    expect(store.currentApproval?.id).toBe(reqB.id);
+  });
+
+  it("approveRequestById answers the captured request, not the promoted one", () => {
     // The wrong-request race: request A is approved, its async signing is in
     // flight, A's session disconnects and request B becomes current. The
     // resolution must answer A (already gone) and leave B untouched.
     const store = new DAppConnectStore();
     const reqA = makeRequest();
-    const reqB = { ...makeRequest(), id: 2, sessionId: 'session-2' };
+    const reqB = { ...makeRequest(), id: 2, sessionId: "session-2" };
     store.pendingRequests = [reqA, reqB];
     store.currentApproval = reqA;
     store.approvalModalOpen = true;
@@ -297,27 +350,31 @@ describe('approval queue passthrough', () => {
     store.pendingRequests = [reqB];
     store.currentApproval = reqB;
 
-    store.approveRequestById(sessionId, id, '0xsig');
+    store.approveRequestById(sessionId, id, "0xsig");
 
-    expect(mockService.approveRequest).toHaveBeenCalledWith('session-1', 1, '0xsig');
+    expect(mockService.approveRequest).toHaveBeenCalledWith(
+      "session-1",
+      1,
+      "0xsig",
+    );
     expect(store.currentApproval?.id).toBe(reqB.id);
     expect(store.approvalModalOpen).toBe(true);
     expect(store.pendingRequests).toEqual([reqB]);
   });
 
-  it('is a no-op with no current approval', () => {
+  it("is a no-op with no current approval", () => {
     const store = new DAppConnectStore();
-    store.approveCurrentRequest('x');
-    store.rejectCurrentRequest('y', 4001);
+    store.approveCurrentRequest("x");
+    store.rejectCurrentRequest("y", 4001);
     expect(mockService.approveRequest).not.toHaveBeenCalled();
     expect(mockService.rejectRequest).not.toHaveBeenCalled();
   });
 });
 
-describe('service handler callbacks', () => {
+describe("service handler callbacks", () => {
   function capturedHandlers() {
     const call = mockService.setHandlers.mock.calls[0];
-    if (!call) throw new Error('setHandlers not called');
+    if (!call) throw new Error("setHandlers not called");
     return call[0] as {
       onPendingRequest: (r: PendingDAppRequest) => void;
       onSessionDisconnected: (sessionId: string) => void;
@@ -325,7 +382,7 @@ describe('service handler callbacks', () => {
     };
   }
 
-  it('onPendingRequest queues and auto-shows the first request only', () => {
+  it("onPendingRequest queues and auto-shows the first request only", () => {
     const store = new DAppConnectStore();
     const handlers = capturedHandlers();
     const first = makeRequest({ id: 1 });
@@ -339,32 +396,35 @@ describe('service handler callbacks', () => {
     expect(store.approvalModalOpen).toBe(true);
   });
 
-  it('onSessionDisconnected clears that session\'s pending requests and modal', () => {
+  it("onSessionDisconnected clears that session and promotes the next request", () => {
     const store = new DAppConnectStore();
     const handlers = capturedHandlers();
-    const mine = makeRequest({ id: 1, sessionId: 'session-1' });
-    const other = makeRequest({ id: 2, sessionId: 'session-2' });
+    const mine = makeRequest({ id: 1, sessionId: "session-1" });
+    const other = makeRequest({ id: 2, sessionId: "session-2" });
     handlers.onPendingRequest(mine);
     handlers.onPendingRequest(other);
+    store.setTxProgress("confirming", "0xmine");
 
-    handlers.onSessionDisconnected('session-1');
+    handlers.onSessionDisconnected("session-1");
 
     expect(store.pendingRequests.map((r) => r.id)).toEqual([other.id]);
-    expect(store.currentApproval).toBeNull();
-    expect(store.approvalModalOpen).toBe(false);
+    expect(store.currentApproval?.id).toBe(other.id);
+    expect(store.approvalModalOpen).toBe(true);
+    expect(store.txProgress).toBe("idle");
+    expect(store.txHash).toBeNull();
   });
 
-  it('hasPendingApprovalsForChannel reflects per-channel pending state', () => {
+  it("hasPendingApprovalsForChannel reflects per-channel pending state", () => {
     const store = new DAppConnectStore();
     const handlers = capturedHandlers();
-    expect(handlers.hasPendingApprovalsForChannel('session-1')).toBe(false);
+    expect(handlers.hasPendingApprovalsForChannel("session-1")).toBe(false);
 
-    handlers.onPendingRequest(makeRequest({ id: 1, sessionId: 'session-1' }));
-    expect(handlers.hasPendingApprovalsForChannel('session-1')).toBe(true);
-    expect(handlers.hasPendingApprovalsForChannel('session-2')).toBe(false);
+    handlers.onPendingRequest(makeRequest({ id: 1, sessionId: "session-1" }));
+    expect(handlers.hasPendingApprovalsForChannel("session-1")).toBe(true);
+    expect(handlers.hasPendingApprovalsForChannel("session-2")).toBe(false);
 
-    handlers.onSessionDisconnected('session-1');
-    expect(handlers.hasPendingApprovalsForChannel('session-1')).toBe(false);
+    handlers.onSessionDisconnected("session-1");
+    expect(handlers.hasPendingApprovalsForChannel("session-1")).toBe(false);
     expect(store.pendingRequests).toHaveLength(0);
   });
 });

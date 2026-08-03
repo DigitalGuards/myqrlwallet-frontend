@@ -16,7 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [22.22.x]
 
     steps:
       - name: Checkout repository
@@ -33,6 +33,9 @@ jobs:
 
       - name: Run lint
         run: npm run lint
+
+      - name: Run tests
+        run: npm test -- --runInBand
 
       - name: Run build
         run: npm run build
@@ -87,10 +90,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            VITE_RPC_URL_TESTNET=${{ vars.VITE_RPC_URL_TESTNET }}
-            VITE_RPC_URL_MAINNET=${{ vars.VITE_RPC_URL_MAINNET }}
-            VITE_SERVER_URL_TESTNET=${{ vars.VITE_SERVER_URL_TESTNET }}
-            VITE_SERVER_URL_MAINNET=${{ vars.VITE_SERVER_URL_MAINNET }}
+            VITE_RPC_URL_PRODUCTION=${{ vars.VITE_RPC_URL_PRODUCTION || 'https://qrlwallet.com/api/qrl-rpc' }}
+            VITE_SERVER_URL_PRODUCTION=${{ vars.VITE_SERVER_URL_PRODUCTION || 'https://qrlwallet.com/api' }}
+            VITE_EXPLORER_URL_PRODUCTION=${{ vars.VITE_EXPLORER_URL_PRODUCTION || 'https://zondscan.com' }}
             VITE_CUSTOMERC20FACTORY_ADDRESS=${{ vars.VITE_CUSTOMERC20FACTORY_ADDRESS }}
             VITE_DEPLOYER=${{ vars.VITE_DEPLOYER }}
 

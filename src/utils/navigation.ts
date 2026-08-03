@@ -2,7 +2,7 @@
  * Navigation utilities with native app awareness
  */
 
-import type { NavigateFunction } from "react-router-dom";
+import type { NavigateFunction } from "react-router";
 import { isInNativeApp, openNativeSettings } from "@/utils/nativeApp";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { ROUTES } from "@/router/router";

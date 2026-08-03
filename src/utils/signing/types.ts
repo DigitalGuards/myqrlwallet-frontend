@@ -20,19 +20,23 @@ const HexBytesSchema = z
 
 export const SignMessageParamsSchema = z.tuple([QAddressSchema, HexBytesSchema]);
 
-const TypedFieldSchema = z.object({
-  name: z.string().min(1, { message: 'field name required' }),
-  type: z.string().min(1, { message: 'field type required' }),
-});
+const TypedFieldSchema = z
+  .object({
+    name: z.string().min(1, { message: 'field name required' }),
+    type: z.string().min(1, { message: 'field type required' }),
+  })
+  .strict();
 
 const StructDefSchema = z.array(TypedFieldSchema).min(1, { message: 'struct must have ≥1 field' });
 
-const TypedDataPayloadSchema = z.object({
-  types: z.record(z.string().min(1), StructDefSchema),
-  primaryType: z.string().min(1),
-  domain: z.record(z.string(), z.unknown()),
-  message: z.record(z.string(), z.unknown()),
-});
+const TypedDataPayloadSchema = z
+  .object({
+    types: z.record(z.string().min(1), StructDefSchema),
+    primaryType: z.string().min(1),
+    domain: z.record(z.string(), z.unknown()),
+    message: z.record(z.string(), z.unknown()),
+  })
+  .strict();
 
 export const SignTypedDataParamsSchema = z.tuple([QAddressSchema, TypedDataPayloadSchema]);
 

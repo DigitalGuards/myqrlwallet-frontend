@@ -3,29 +3,29 @@
  * Single source of truth for all dApp request approvals.
  */
 
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { toJS } from 'mobx';
-import { observer } from 'mobx-react-lite';
-import { useStore } from '@/stores/store';
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { toJS } from "mobx";
+import { observer } from "mobx-react-lite";
+import { useStore } from "@/stores/store";
+import { Dialog, DialogContent } from "@/components/UI/Dialog";
+import { Button } from "@/components/UI/Button";
+import DAppTransactionReview from "./DAppTransactionReview";
+import DAppMessageReview from "./DAppMessageReview";
+import DAppTypedDataReview from "./DAppTypedDataReview";
+import { utils } from "@theqrl/web3";
 import {
-  Dialog,
-  DialogContent,
-} from '@/components/UI/Dialog';
-import { Button } from '@/components/UI/Button';
-import DAppTransactionReview from './DAppTransactionReview';
-import DAppMessageReview from './DAppMessageReview';
-import DAppTypedDataReview from './DAppTypedDataReview';
-import { utils } from '@theqrl/web3';
-import { WalletEncryptionUtil } from '@/utils/crypto/walletEncryption';
-import { getNativeInjectedPin } from '@/utils/nativeApp';
-import StorageUtil from '@/utils/storage/storage';
-import { getExplorerTxUrl } from '@/config';
-import { formatAddressShort, formatQuantaValue } from '@/utils/formatting';
+  DeviceCredentialUnavailableError,
+  decryptStoredSeedWithPin,
+} from "@/utils/crypto";
+import { getNativeInjectedPin } from "@/utils/nativeApp";
+import StorageUtil from "@/utils/storage/storage";
+import { getExplorerTxUrl } from "@/config";
+import { formatAddressShort, formatQuantaValue } from "@/utils/formatting";
 import {
   isReceiptStatusSuccess,
   QRL_TX_POLLING_CONFIG,
   waitForTransactionReceipt,
-} from '@/utils/web3/txPolling';
+} from "@/utils/web3/txPolling";
 import {
   bytesToHex,
   computeMessageDigest,
@@ -37,58 +37,88 @@ import {
   signTypedData,
   SignMessageParamsSchema,
   SignTypedDataParamsSchema,
-} from '@/utils/signing';
-import { Loader, Check, X, ExternalLink, Shield, Globe } from 'lucide-react';
-import type { TxProgressState } from '@/stores/dappConnectStore';
-import type { ZodError } from 'zod';
-import { isDesktop, desktopSigner, buildDappOrigin } from '@/desktop/bridge';
+} from "@/utils/signing";
+import { Loader, Check, X, ExternalLink, Shield, Globe } from "lucide-react";
+import type { TxProgressState } from "@/stores/dappConnectStore";
+import type { ZodError } from "zod";
+import { isDesktop, desktopSigner, buildDappOrigin } from "@/desktop/bridge";
+import { isExactQrlAccount } from "@/services/dappConnect/accountBinding";
+import { waitForDAppBroadcastSettlement } from "./dappBroadcastSettlement";
+import {
+  walletMutations,
+  type WalletMutationToken,
+} from "@/utils/nativeWalletMutation";
+import {
+  buildReviewedDAppTransaction,
+  requestedGasLimit,
+} from "./dappTransaction";
 
 function formatZodIssues(error: ZodError): string {
   // path segments can be symbols (e.g. a MobX admin key surfaced by zod's
   // record key check); String() coerces them safely whereas Array.join would
   // throw "Cannot convert a Symbol value to a string" and crash the render.
-  return error.issues
-    .map((i) => `${i.path.length ? i.path.map(String).join('.') : '(root)'}: ${i.message}`)
-    .join('; ') || 'malformed params';
+  return (
+    error.issues
+      .map(
+        (i) =>
+          `${i.path.length ? i.path.map(String).join(".") : "(root)"}: ${i.message}`,
+      )
+      .join("; ") || "malformed params"
+  );
 }
 
 const METHOD_LABELS: Record<string, string> = {
-  qrl_requestAccounts: 'Connect Account',
-  qrl_sendTransaction: 'Send Transaction',
-  qrl_signTransaction: 'Sign Transaction',
-  qrl_signMessage: 'Sign Message',
-  qrl_signTypedData: 'Sign Typed Data',
-  wallet_addQrlChain: 'Add Network',
-  wallet_switchQrlChain: 'Switch Network',
+  qrl_requestAccounts: "Connect Account",
+  qrl_sendTransaction: "Send Transaction",
+  qrl_signTransaction: "Sign Transaction",
+  qrl_signMessage: "Sign Message",
+  qrl_signTypedData: "Sign Typed Data",
+  wallet_addQrlChain: "Add Network",
+  wallet_switchQrlChain: "Switch Network",
 };
 
 const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
 
-function parseRpcNumber(value: unknown, fallback: number): number {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'bigint') return Number(value);
-  if (typeof value === 'string') {
-    const parsed = Number.parseInt(value, value.startsWith('0x') ? 16 : 10);
-    if (Number.isFinite(parsed)) return parsed;
+function canonicalChainId(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    value.length > 66 ||
+    !/^0x[0-9a-fA-F]+$/.test(value)
+  ) {
+    throw new Error("Invalid chain id");
   }
-  return fallback;
+  return `0x${BigInt(value).toString(16)}`;
+}
+
+async function readWalletChainId(web3: unknown): Promise<string> {
+  if (!web3 || typeof web3 !== "object")
+    throw new Error("Web3 not initialized");
+  const provider = (web3 as { currentProvider?: unknown }).currentProvider;
+  if (!provider || typeof provider !== "object")
+    throw new Error("Web3 provider unavailable");
+  const request = (provider as { request?: unknown }).request;
+  if (typeof request !== "function")
+    throw new Error("Web3 provider does not support request()");
+  return canonicalChainId(
+    await request.call(provider, { method: "qrl_chainId", params: [] }),
+  );
 }
 
 function toUserFacingError(error: string): string {
   const msg = error.toLowerCase();
-  if (msg.includes('insufficient funds')) {
-    return 'Insufficient funds for this transaction.';
+  if (msg.includes("insufficient funds")) {
+    return "Insufficient funds for this transaction.";
   }
-  if (msg.includes('nonce too low')) {
-    return 'Transaction nonce is too low. Please retry.';
+  if (msg.includes("nonce too low")) {
+    return "Transaction nonce is too low. Please retry.";
   }
-  if (msg.includes('already known')) {
-    return 'This transaction was already submitted.';
+  if (msg.includes("already known")) {
+    return "This transaction was already submitted.";
   }
-  if (msg.includes('user denied') || msg.includes('rejected')) {
-    return 'Request was rejected.';
+  if (msg.includes("user denied") || msg.includes("rejected")) {
+    return "Request was rejected.";
   }
-  return 'Transaction failed. Please verify details and try again.';
+  return "Transaction failed. Please verify details and try again.";
 }
 
 /**
@@ -99,40 +129,74 @@ function toUserFacingError(error: string): string {
 async function unlockHexSeed(
   pinToUse: string,
   activeAddress: string,
+  signingGeneration: WalletMutationToken,
 ): Promise<{ hexSeed: string } | { error: string }> {
-  if (!pinToUse) return { error: 'Please enter your PIN' };
+  if (!pinToUse) return { error: "Please enter your PIN" };
+  if (!walletMutations.isCurrent(signingGeneration)) {
+    return { error: "Wallet changed while preparing the request" };
+  }
   const blockchainVal = await StorageUtil.getBlockChain();
-  const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchainVal, activeAddress);
-  if (!encryptedSeed) return { error: 'No encrypted seed found' };
+  const encryptedSeed = await StorageUtil.getEncryptedSeed(
+    blockchainVal,
+    activeAddress,
+  );
+  if (!encryptedSeed) return { error: "No encrypted seed found" };
   try {
-    const decrypted = await WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pinToUse);
+    const decrypted = await decryptStoredSeedWithPin(
+      blockchainVal,
+      activeAddress,
+      encryptedSeed,
+      pinToUse,
+      signingGeneration,
+    );
     return { hexSeed: decrypted.hexSeed };
-  } catch {
-    return { error: 'Incorrect PIN' };
+  } catch (error) {
+    if (!walletMutations.isCurrent(signingGeneration)) {
+      return { error: "Wallet changed while preparing the request" };
+    }
+    return {
+      error:
+        error instanceof DeviceCredentialUnavailableError
+          ? "Wallet device security credential unavailable; re-import the seed"
+          : "Incorrect PIN",
+    };
+  }
+}
+
+function assertSigningGenerationCurrent(token: WalletMutationToken): void {
+  if (!walletMutations.isCurrent(token)) {
+    throw new Error("Wallet changed while preparing the request");
   }
 }
 
 function getBorderColor(progress: TxProgressState): string {
   switch (progress) {
-    case 'confirming': return 'border-l-primary';
-    case 'confirmed': return 'border-l-success';
-    case 'failed': return 'border-l-destructive';
-    default: return 'border-l-secondary';
+    case "confirming":
+      return "border-l-primary";
+    case "confirmed":
+      return "border-l-success";
+    case "failed":
+      return "border-l-destructive";
+    default:
+      return "border-l-secondary";
   }
 }
 
-const DAppApprovalModal = observer(() => {
+const DAppApprovalModalContent = observer(() => {
   const { dappConnectStore, qrlStore } = useStore();
-  const { currentApproval, approvalModalOpen, txProgress, txHash, txError } = dappConnectStore;
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
+  const { currentApproval, approvalModalOpen, txProgress, txHash, txError } =
+    dappConnectStore;
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   // When the current approval changes (a queued request gets promoted after
   // the previous one is answered), briefly ignore dismissals: a double-click
   // on the X must not reject a request the user never saw rendered.
   const approvalShownAtRef = useRef(0);
-  const approvalKey = currentApproval ? `${currentApproval.sessionId}:${currentApproval.id}` : '';
+  const approvalKey = currentApproval
+    ? `${currentApproval.sessionId}:${currentApproval.id}`
+    : "";
   useEffect(() => {
     approvalShownAtRef.current = Date.now();
   }, [approvalKey]);
@@ -142,7 +206,7 @@ const DAppApprovalModal = observer(() => {
   const handleApprove = useCallback(async () => {
     if (!currentApproval) return;
 
-    setError('');
+    setError("");
     setLoading(true);
 
     // Answer THIS request, never "whatever is current when an await resolves":
@@ -150,6 +214,20 @@ const DAppApprovalModal = observer(() => {
     // the desktop trusted confirm, or a broadcast is in flight, and answering
     // the live currentApproval would route this result to that other request.
     const { sessionId: approvalSessionId, id: approvalId } = currentApproval;
+    const isStillCurrent = () =>
+      dappConnectStore.isCurrentApproval(approvalSessionId, approvalId);
+    const setCurrentTxProgress = (
+      state: TxProgressState,
+      hash?: string,
+      progressError?: string,
+    ) =>
+      dappConnectStore.setTxProgressForApproval(
+        approvalSessionId,
+        approvalId,
+        state,
+        hash,
+        progressError,
+      );
 
     try {
       const { method } = currentApproval;
@@ -170,14 +248,32 @@ const DAppApprovalModal = observer(() => {
           )
         : undefined;
 
-      if (method === 'qrl_requestAccounts') {
+      if (method === "qrl_requestAccounts") {
         const activeAddress = qrlStore.activeAccount?.accountAddress;
-        dappConnectStore.approveRequestById(approvalSessionId, approvalId, activeAddress ? [activeAddress] : []);
-        setPin('');
+        dappConnectStore.approveRequestById(
+          approvalSessionId,
+          approvalId,
+          activeAddress ? [activeAddress] : [],
+        );
+        setPin("");
         return;
       }
 
-      if (method === 'wallet_addQrlChain' || method === 'wallet_switchQrlChain') {
+      if (method === "wallet_addQrlChain") {
+        // This wallet has no durable chain registry. A success response would
+        // claim a network was added even though future requests still use the
+        // configured provider.
+        dappConnectStore.rejectRequestById(
+          approvalSessionId,
+          approvalId,
+          "Adding networks is not supported by this wallet",
+          4200,
+        );
+        setPin("");
+        return;
+      }
+
+      if (method === "wallet_switchQrlChain") {
         // Desktop is single-network: main builds/signs/broadcasts against its
         // configured RPC + chain id, so honouring a renderer-side switch would
         // silently sign for a different chain than the dApp expects. Reject
@@ -185,37 +281,68 @@ const DAppApprovalModal = observer(() => {
         // flipping renderer state; 4901 would falsely signal a transient
         // provider disconnect and invite reconnect loops.
         if (isDesktop) {
-          dappConnectStore.rejectRequestById(approvalSessionId, approvalId, 
-            'The desktop wallet is pinned to its configured chain',
+          dappConnectStore.rejectRequestById(
+            approvalSessionId,
+            approvalId,
+            "The desktop wallet is pinned to its configured chain",
             4902,
           );
-          setPin('');
+          setPin("");
           return;
         }
-        dappConnectStore.approveRequestById(approvalSessionId, approvalId, null);
-        setPin('');
+
+        try {
+          const request = params?.[0] as Record<string, unknown> | undefined;
+          const requestedChainId = canonicalChainId(request?.["chainId"]);
+          const walletChainId = await readWalletChainId(qrlStore.qrlInstance);
+          if (requestedChainId !== walletChainId) {
+            dappConnectStore.rejectRequestById(
+              approvalSessionId,
+              approvalId,
+              `The wallet is connected to ${walletChainId} and cannot switch to ${requestedChainId}`,
+              4902,
+            );
+            setPin("");
+            return;
+          }
+        } catch {
+          dappConnectStore.rejectRequestById(
+            approvalSessionId,
+            approvalId,
+            "The wallet could not verify the requested network",
+            4902,
+          );
+          setPin("");
+          return;
+        }
+        dappConnectStore.approveRequestById(
+          approvalSessionId,
+          approvalId,
+          null,
+        );
+        setPin("");
         return;
       }
 
-      if (method === 'qrl_sendTransaction' || method === 'qrl_signTransaction') {
+      if (
+        method === "qrl_sendTransaction" ||
+        method === "qrl_signTransaction"
+      ) {
         const activeAddress = qrlStore.activeAccount?.accountAddress;
         if (!activeAddress) {
-          setError('No active account');
+          setError("No active account");
           setLoading(false);
           return;
         }
 
-        // Bind the request to the account it names, exactly like the
-        // signMessage / signTypedData paths above. The tx `from` is substituted
-        // with the LIVE active account at approve-click, and that active account
-        // can now flip automatically (e.g. an autolock + unlock of a different
-        // wallet while this approval sits open), so without this check the dApp
-        // could get a signature/spend from an account it never asked for. A dApp
-        // that omits `from` accepts the active account.
-        const requestedFrom = ((params?.[0] as Record<string, unknown> | undefined)?.['from'] ??
-          '') as string;
-        if (requestedFrom && requestedFrom.toLowerCase() !== activeAddress.toLowerCase()) {
-          setError('Signer mismatch: request is for a different account');
+        // Bind the required transaction `from` to the live active account at
+        // approve-click. The active account can flip while this approval sits
+        // open, so an exact comparison prevents signing for a different wallet.
+        const requestedFrom = ((
+          params?.[0] as Record<string, unknown> | undefined
+        )?.["from"] ?? "") as string;
+        if (!isExactQrlAccount(requestedFrom, activeAddress)) {
+          setError("Signer mismatch: request is for a different account");
           setLoading(false);
           return;
         }
@@ -225,20 +352,17 @@ const DAppApprovalModal = observer(() => {
         // PIN, no seed in the renderer.
         if (isDesktop) {
           const txParamsD = (params?.[0] || {}) as Record<string, unknown>;
-          const toD = txParamsD['to'] as string;
-          const dataD = (txParamsD['data'] as string) || undefined;
-          const valueD = txParamsD['value']
-            ? BigInt(txParamsD['value'] as string).toString()
-            : '0';
+          const toD = txParamsD["to"] as string;
+          const dataD = (txParamsD["data"] as string) || undefined;
+          const valueD = txParamsD["value"]
+            ? BigInt(txParamsD["value"] as string).toString()
+            : "0";
           // The receipt wait below can outlive this approval being current (a
           // session disconnect promotes the queue mid-poll); always answer the
           // CAPTURED request, but only paint progress while it is still shown.
-          const isStillCurrent = () =>
-            dappConnectStore.currentApproval?.sessionId === approvalSessionId &&
-            dappConnectStore.currentApproval?.id === approvalId;
           try {
-            dappConnectStore.setTxProgress('signing');
-            if (method === 'qrl_signTransaction') {
+            setCurrentTxProgress("signing");
+            if (method === "qrl_signTransaction") {
               const rawTx = await desktopSigner.signTransactionOnly(
                 {
                   from: activeAddress,
@@ -248,34 +372,43 @@ const DAppApprovalModal = observer(() => {
                 },
                 dappOrigin,
               );
-              dappConnectStore.approveRequestById(approvalSessionId, approvalId, rawTx);
-              dappConnectStore.resetTxProgress();
-              setLoading(false);
+              dappConnectStore.approveRequestById(
+                approvalSessionId,
+                approvalId,
+                rawTx,
+              );
               return;
             }
-            dappConnectStore.setTxProgress('broadcasting');
-            const { transactionHash } = await desktopSigner.signAndSendTransaction(
-              {
-                from: activeAddress,
-                to: toD,
-                value: valueD,
-                data: dataD,
-              },
-              dappOrigin,
-            );
+            setCurrentTxProgress("broadcasting");
+            const { transactionHash } =
+              await desktopSigner.signAndSendTransaction(
+                {
+                  from: activeAddress,
+                  to: toD,
+                  value: valueD,
+                  data: dataD,
+                },
+                dappOrigin,
+              );
             // Broadcast succeeded; now wait for the on-chain receipt (web
             // parity: the web path answers the dApp only on the `receipt`
             // event). The desktop bridge exposes no receipt API, so poll the
             // renderer's own provider, the same instance the web path uses.
-            dappConnectStore.setTxProgress('confirming', transactionHash);
+            setCurrentTxProgress("confirming", transactionHash);
 
             const web3ForReceipt = qrlStore.qrlInstance;
             if (!web3ForReceipt) {
               // The tx IS broadcast; with no provider to poll, degrade to the
               // legacy answer-at-broadcast rather than fake a rejection.
-              console.log('[DAppConnect] no web3 instance for receipt polling; answering at broadcast');
-              dappConnectStore.setTxProgress('confirmed', transactionHash);
-              dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, transactionHash);
+              console.log(
+                "[DAppConnect] no web3 instance for receipt polling; answering at broadcast",
+              );
+              setCurrentTxProgress("confirmed", transactionHash);
+              dappConnectStore.sendApprovalResultById(
+                approvalSessionId,
+                approvalId,
+                transactionHash,
+              );
               return;
             }
 
@@ -284,13 +417,18 @@ const DAppApprovalModal = observer(() => {
               transactionHash,
             );
 
-            if (outcome.status === 'receipt' && isReceiptStatusSuccess(outcome.receipt.status)) {
-              if (isStillCurrent()) {
-                dappConnectStore.setTxProgress('confirmed', transactionHash);
-              }
+            if (
+              outcome.status === "receipt" &&
+              isReceiptStatusSuccess(outcome.receipt.status)
+            ) {
+              setCurrentTxProgress("confirmed", transactionHash);
               // Answer even after a promotion: sending into a gone session is
               // a logged no-op inside the connect service.
-              dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, transactionHash);
+              dappConnectStore.sendApprovalResultById(
+                approvalSessionId,
+                approvalId,
+                transactionHash,
+              );
               return;
             }
 
@@ -300,18 +438,20 @@ const DAppApprovalModal = observer(() => {
             // (which emits `receipt` then `error` for reverted txs and so
             // double-answers the dApp), this sends a single rejection.
             throw new Error(
-              outcome.status === 'receipt'
-                ? 'Transaction has been reverted by the QRVM'
+              outcome.status === "receipt"
+                ? "Transaction has been reverted by the QRVM"
                 : `Transaction was not mined within ${QRL_TX_POLLING_CONFIG.transactionPollingTimeout / 1000} seconds`,
             );
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
-            console.log('[DAppConnect] desktop tx error:', errMsg);
+            console.log("[DAppConnect] desktop tx error:", errMsg);
             const userError = toUserFacingError(errMsg);
-            if (isStillCurrent()) {
-              dappConnectStore.setTxProgress('failed', undefined, userError);
-            }
-            dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, `Transaction failed: ${userError}`);
+            setCurrentTxProgress("failed", undefined, userError);
+            dappConnectStore.sendRejectionResultById(
+              approvalSessionId,
+              approvalId,
+              `Transaction failed: ${userError}`,
+            );
           }
           return;
         }
@@ -323,26 +463,35 @@ const DAppApprovalModal = observer(() => {
         // PIN reaching the unlock below would strand the user with no retry
         // and leave the dApp request unanswered.
         if (!pinToUse) {
-          setError('Please enter your PIN');
+          setError("Please enter your PIN");
           setLoading(false);
           return;
         }
 
         // Stage: signing
-        dappConnectStore.setTxProgress('signing');
+        setCurrentTxProgress("signing");
 
-        const unlocked = await unlockHexSeed(pinToUse, activeAddress);
-        if ('error' in unlocked) {
+        const signingGeneration = walletMutations.captureGeneration();
+        const unlocked = await unlockHexSeed(
+          pinToUse,
+          activeAddress,
+          signingGeneration,
+        );
+        if ("error" in unlocked) {
           setError(unlocked.error);
-          if (unlocked.error === 'Incorrect PIN') {
+          if (unlocked.error === "Incorrect PIN") {
             // Recoverable: reset to the editable state so the user can retry.
-            setPin('');
-            dappConnectStore.resetTxProgress();
+            setPin("");
+            if (isStillCurrent()) dappConnectStore.resetTxProgress();
           } else {
             // Non-recoverable (e.g. no stored seed). Answer the dApp so its
             // request does not hang, then show the terminal failed state.
-            dappConnectStore.setTxProgress('failed', undefined, unlocked.error);
-            dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, unlocked.error);
+            setCurrentTxProgress("failed", undefined, unlocked.error);
+            dappConnectStore.sendRejectionResultById(
+              approvalSessionId,
+              approvalId,
+              unlocked.error,
+            );
           }
           setLoading(false);
           return;
@@ -352,26 +501,31 @@ const DAppApprovalModal = observer(() => {
         const txParams = (params?.[0] || {}) as Record<string, unknown>;
         const web3 = qrlStore.qrlInstance;
         if (!web3) {
-          setError('Web3 not initialized');
-          dappConnectStore.setTxProgress('failed', undefined, 'Web3 not initialized');
-          dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, 'Web3 not initialized');
+          setError("Web3 not initialized");
+          setCurrentTxProgress("failed", undefined, "Web3 not initialized");
+          dappConnectStore.sendRejectionResultById(
+            approvalSessionId,
+            approvalId,
+            "Web3 not initialized",
+          );
           setLoading(false);
           return;
         }
 
-        const nonce = await web3.getTransactionCount(activeAddress, 'pending');
+        const nonce = await web3.getTransactionCount(activeAddress, "pending");
         const gasPrice = await web3.getGasPrice();
         const gasPriceHex = utils.toHex(gasPrice);
-        const txData = (txParams['data'] as string) || '0x';
-        const txValue = txParams['value'] ? BigInt(txParams['value'] as string).toString() : '0';
+        const txData = (txParams["data"] as string) || "0x";
+        const txValue = (txParams["value"] as string | undefined) ?? "0x0";
 
-        let gas: number;
-        if (txParams['gas']) {
-          gas = parseRpcNumber(txParams['gas'], 21000);
-        } else if (txData && txData !== '0x') {
+        let gas: string | number;
+        const explicitGas = requestedGasLimit(txParams);
+        if (explicitGas !== undefined) {
+          gas = explicitGas;
+        } else if (txData && txData !== "0x") {
           const estimated = await web3.estimateGas({
             from: activeAddress,
-            to: txParams['to'] as string,
+            to: txParams["to"] as string,
             value: txValue,
             data: txData,
           });
@@ -380,90 +534,107 @@ const DAppApprovalModal = observer(() => {
           gas = 21000;
         }
 
-        const txObject = {
-          from: activeAddress,
-          to: txParams['to'] as string,
-          value: txValue,
+        const txObject = buildReviewedDAppTransaction(txParams, {
           gas,
-          maxFeePerGas: gasPriceHex,
-          maxPriorityFeePerGas: gasPriceHex,
           nonce: Number(nonce),
-          data: txData,
-          type: '0x2',
-        };
+          gasPriceHex,
+        });
 
         // Stage: broadcasting
-        dappConnectStore.setTxProgress('broadcasting');
+        setCurrentTxProgress("broadcasting");
 
+        assertSigningGenerationCurrent(signingGeneration);
         const signedTx = await web3.accounts.signTransaction(txObject, hexSeed);
+        assertSigningGenerationCurrent(signingGeneration);
 
         if (!signedTx.rawTransaction) {
-          dappConnectStore.setTxProgress('failed', undefined, 'Failed to sign transaction');
-          dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, 'Failed to sign transaction');
+          setCurrentTxProgress(
+            "failed",
+            undefined,
+            "Failed to sign transaction",
+          );
+          dappConnectStore.sendRejectionResultById(
+            approvalSessionId,
+            approvalId,
+            "Failed to sign transaction",
+          );
           setLoading(false);
           return;
         }
 
-        if (method === 'qrl_signTransaction') {
-          dappConnectStore.approveRequestById(approvalSessionId, approvalId, signedTx.rawTransaction);
-          setPin('');
+        if (method === "qrl_signTransaction") {
+          assertSigningGenerationCurrent(signingGeneration);
+          dappConnectStore.approveRequestById(
+            approvalSessionId,
+            approvalId,
+            signedTx.rawTransaction,
+          );
+          setPin("");
           setLoading(false);
           return;
         }
 
         // Use PromiEvent to get real broadcasting → confirming transition
+        assertSigningGenerationCurrent(signingGeneration);
         const promiEvent = web3.sendSignedTransaction(signedTx.rawTransaction);
 
-        await new Promise<void>((resolve) => {
-          promiEvent
-            .on('transactionHash', (hash: string) => {
-              // Tx has been broadcast and accepted by the node
-              dappConnectStore.setTxProgress('confirming', hash);
-            })
-            .on('receipt', (receipt) => {
-              const hash = typeof receipt.transactionHash === 'string'
-                ? receipt.transactionHash
-                : String(receipt.transactionHash);
-              dappConnectStore.setTxProgress('confirmed', hash);
-              // Send result to dApp but keep modal open to show confirmed state
-              dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, hash);
-              setPin('');
+        await waitForDAppBroadcastSettlement(promiEvent, {
+          onTransactionHash: (hash) => {
+            // Tx has been broadcast and accepted by the node
+            setCurrentTxProgress("confirming", hash);
+          },
+          onSuccess: (hash) => {
+            setCurrentTxProgress("confirmed", hash);
+            // Send result to dApp but keep modal open to show confirmed state
+            dappConnectStore.sendApprovalResultById(
+              approvalSessionId,
+              approvalId,
+              hash,
+            );
+            if (isStillCurrent()) {
+              setPin("");
               setLoading(false);
-              resolve();
-            })
-            .on('error', (txErr: Error) => {
-              const txErrMsg = txErr.message || String(txErr);
-              // Log the raw node/broadcast reason (bridges to Metro as a
-              // [WebView] line; console.error does not bridge) since
-              // toUserFacingError intentionally hides it from the UI.
-              console.log('[DAppConnect] tx broadcast error:', txErrMsg);
-              const userError = toUserFacingError(txErrMsg);
-              dappConnectStore.setTxProgress('failed', undefined, userError);
-              dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, `Transaction failed: ${userError}`);
-              setPin('');
+            }
+          },
+          onFailure: (txErrMsg) => {
+            // Log the raw node/broadcast reason (bridges to Metro as a
+            // [WebView] line; console.error does not bridge) since
+            // toUserFacingError intentionally hides it from the UI.
+            console.log("[DAppConnect] tx broadcast error:", txErrMsg);
+            const userError = toUserFacingError(txErrMsg);
+            setCurrentTxProgress("failed", undefined, userError);
+            dappConnectStore.sendRejectionResultById(
+              approvalSessionId,
+              approvalId,
+              `Transaction failed: ${userError}`,
+            );
+            if (isStillCurrent()) {
+              setPin("");
               setLoading(false);
-              resolve();
-            });
+            }
+          },
         });
         return;
       }
 
-      if (method === 'qrl_signMessage') {
+      if (method === "qrl_signMessage") {
         const parsed = SignMessageParamsSchema.safeParse(params);
         if (!parsed.success) {
-          setError(`Invalid qrl_signMessage params: ${formatZodIssues(parsed.error)}`);
+          setError(
+            `Invalid qrl_signMessage params: ${formatZodIssues(parsed.error)}`,
+          );
           setLoading(false);
           return;
         }
         const [signerParam, messageHex] = parsed.data;
         const activeAddress = qrlStore.activeAccount?.accountAddress;
         if (!activeAddress) {
-          setError('No active account');
+          setError("No active account");
           setLoading(false);
           return;
         }
-        if (signerParam.toLowerCase() !== activeAddress.toLowerCase()) {
-          setError('Signer mismatch: request is for a different account');
+        if (!isExactQrlAccount(signerParam, activeAddress)) {
+          setError("Signer mismatch: request is for a different account");
           setLoading(false);
           return;
         }
@@ -474,63 +645,99 @@ const DAppApprovalModal = observer(() => {
         // returns (the dApp must not see the bridge-internal `kind`).
         if (isDesktop) {
           try {
-            const result = await desktopSigner.signMessage(messageHex, activeAddress, dappOrigin);
+            const result = await desktopSigner.signMessage(
+              messageHex,
+              activeAddress,
+              dappOrigin,
+            );
+            if (!isExactQrlAccount(result.signer, activeAddress)) {
+              throw new Error(
+                "the desktop signer does not match the requested signer",
+              );
+            }
             dappConnectStore.approveRequestById(approvalSessionId, approvalId, {
               signature: result.signature,
               publicKey: result.publicKey,
               signer: result.signer,
+              ...(result.descriptor ? { descriptor: result.descriptor } : {}),
               digest: result.digest,
               schemeVersion: result.schemeVersion ?? SCHEME_VERSION_MSG,
             });
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
             setError(`Message signing failed: ${errMsg}`);
-            dappConnectStore.rejectRequestById(approvalSessionId, approvalId, `Message signing failed: ${errMsg}`);
+            dappConnectStore.rejectRequestById(
+              approvalSessionId,
+              approvalId,
+              `Message signing failed: ${errMsg}`,
+            );
           }
           setLoading(false);
           return;
         }
         const pinToUse = getNativeInjectedPin() || pin;
-        const unlocked = await unlockHexSeed(pinToUse, activeAddress);
-        if ('error' in unlocked) {
-          if (unlocked.error === 'Incorrect PIN') setPin('');
+        const signingGeneration = walletMutations.captureGeneration();
+        const unlocked = await unlockHexSeed(
+          pinToUse,
+          activeAddress,
+          signingGeneration,
+        );
+        if ("error" in unlocked) {
+          if (unlocked.error === "Incorrect PIN") setPin("");
           setError(unlocked.error);
           setLoading(false);
           return;
         }
         try {
+          assertSigningGenerationCurrent(signingGeneration);
           const result = signMessage(messageHex, unlocked.hexSeed);
-          dappConnectStore.approveRequestById(approvalSessionId, approvalId, result);
+          if (!isExactQrlAccount(result.signer, activeAddress)) {
+            throw new Error(
+              "the stored seed does not match the requested signer",
+            );
+          }
+          assertSigningGenerationCurrent(signingGeneration);
+          dappConnectStore.approveRequestById(
+            approvalSessionId,
+            approvalId,
+            result,
+          );
         } catch (e) {
           // Reject the dApp on a signing failure instead of relying on the
           // outer catch, so the error message is specific and the request is
           // always answered (never left hanging).
           const errMsg = e instanceof Error ? e.message : String(e);
           setError(`Message signing failed: ${errMsg}`);
-          dappConnectStore.rejectRequestById(approvalSessionId, approvalId, `Message signing failed: ${errMsg}`);
+          dappConnectStore.rejectRequestById(
+            approvalSessionId,
+            approvalId,
+            `Message signing failed: ${errMsg}`,
+          );
           setLoading(false);
           return;
         }
-        setPin('');
+        setPin("");
         return;
       }
 
-      if (method === 'qrl_signTypedData') {
+      if (method === "qrl_signTypedData") {
         const parsed = SignTypedDataParamsSchema.safeParse(params);
         if (!parsed.success) {
-          setError(`Invalid qrl_signTypedData params: ${formatZodIssues(parsed.error)}`);
+          setError(
+            `Invalid qrl_signTypedData params: ${formatZodIssues(parsed.error)}`,
+          );
           setLoading(false);
           return;
         }
         const [signerParam, payload] = parsed.data;
         const activeAddress = qrlStore.activeAccount?.accountAddress;
         if (!activeAddress) {
-          setError('No active account');
+          setError("No active account");
           setLoading(false);
           return;
         }
-        if (signerParam.toLowerCase() !== activeAddress.toLowerCase()) {
-          setError('Signer mismatch: request is for a different account');
+        if (!isExactQrlAccount(signerParam, activeAddress)) {
+          setError("Signer mismatch: request is for a different account");
           setLoading(false);
           return;
         }
@@ -540,19 +747,31 @@ const DAppApprovalModal = observer(() => {
         // the message arm, so this is already correct when the hasher lands.
         if (isDesktop) {
           try {
-            const result = await desktopSigner.signTypedData(payload, activeAddress, dappOrigin);
+            const result = await desktopSigner.signTypedData(
+              payload,
+              activeAddress,
+              dappOrigin,
+            );
+            if (!isExactQrlAccount(result.signer, activeAddress)) {
+              throw new Error(
+                "the desktop signer does not match the requested signer",
+              );
+            }
             dappConnectStore.approveRequestById(approvalSessionId, approvalId, {
               signature: result.signature,
               publicKey: result.publicKey,
               signer: result.signer,
+              ...(result.descriptor ? { descriptor: result.descriptor } : {}),
               digest: result.digest,
               schemeVersion: result.schemeVersion ?? SCHEME_VERSION_TYPED,
               domain: payload.domain,
             });
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
-            setError('Typed-data signing not yet supported on desktop');
-            dappConnectStore.rejectRequestById(approvalSessionId, approvalId, 
+            setError("Typed-data signing not yet supported on desktop");
+            dappConnectStore.rejectRequestById(
+              approvalSessionId,
+              approvalId,
               `Typed-data signing not yet supported on desktop: ${errMsg}`,
             );
           }
@@ -560,65 +779,96 @@ const DAppApprovalModal = observer(() => {
           return;
         }
         const pinToUse = getNativeInjectedPin() || pin;
-        const unlocked = await unlockHexSeed(pinToUse, activeAddress);
-        if ('error' in unlocked) {
-          if (unlocked.error === 'Incorrect PIN') setPin('');
+        const signingGeneration = walletMutations.captureGeneration();
+        const unlocked = await unlockHexSeed(
+          pinToUse,
+          activeAddress,
+          signingGeneration,
+        );
+        if ("error" in unlocked) {
+          if (unlocked.error === "Incorrect PIN") setPin("");
           setError(unlocked.error);
           setLoading(false);
           return;
         }
         try {
+          assertSigningGenerationCurrent(signingGeneration);
           const result = signTypedData(payload, unlocked.hexSeed);
-          dappConnectStore.approveRequestById(approvalSessionId, approvalId, result);
+          if (!isExactQrlAccount(result.signer, activeAddress)) {
+            throw new Error(
+              "the stored seed does not match the requested signer",
+            );
+          }
+          assertSigningGenerationCurrent(signingGeneration);
+          dappConnectStore.approveRequestById(
+            approvalSessionId,
+            approvalId,
+            result,
+          );
         } catch (e) {
           // Reject the dApp on encode/sign failure so its request is answered
           // rather than left hanging until its own timeout.
           const errMsg = e instanceof Error ? e.message : String(e);
           setError(`Typed data signing failed: ${errMsg}`);
-          dappConnectStore.rejectRequestById(approvalSessionId, approvalId, `Typed data signing failed: ${errMsg}`);
+          dappConnectStore.rejectRequestById(
+            approvalSessionId,
+            approvalId,
+            `Typed data signing failed: ${errMsg}`,
+          );
           setLoading(false);
           return;
         }
-        setPin('');
+        setPin("");
         return;
       }
 
       // Default: approve with null
       dappConnectStore.approveRequestById(approvalSessionId, approvalId, null);
-      setPin('');
+      setPin("");
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       // Log the raw cause (bridges to Metro) before toUserFacingError flattens
       // it for display.
-      console.log('[DAppConnect] approval error:', errMsg);
+      console.log("[DAppConnect] approval error:", errMsg);
       const userError = toUserFacingError(errMsg);
-      setError(userError);
-      if (currentApproval) {
-        const isTxMethod = currentApproval.method === 'qrl_sendTransaction' ||
-          currentApproval.method === 'qrl_signTransaction';
-        if (isTxMethod && dappConnectStore.txProgress !== 'idle') {
-          // Keep modal open to show failed state
-          dappConnectStore.setTxProgress('failed', undefined, userError);
-          dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, userError);
-        } else {
-          dappConnectStore.rejectRequestById(approvalSessionId, approvalId, userError);
-        }
+      if (isStillCurrent()) setError(userError);
+      const isTxMethod =
+        currentApproval.method === "qrl_sendTransaction" ||
+        currentApproval.method === "qrl_signTransaction";
+      if (
+        isStillCurrent() &&
+        isTxMethod &&
+        dappConnectStore.txProgress !== "idle"
+      ) {
+        // Keep modal open to show failed state
+        setCurrentTxProgress("failed", undefined, userError);
+        dappConnectStore.sendRejectionResultById(
+          approvalSessionId,
+          approvalId,
+          userError,
+        );
+      } else {
+        dappConnectStore.rejectRequestById(
+          approvalSessionId,
+          approvalId,
+          userError,
+        );
       }
     } finally {
-      setLoading(false);
+      if (isStillCurrent()) setLoading(false);
     }
   }, [currentApproval, pin, dappConnectStore, qrlStore]);
 
   const handleReject = useCallback(() => {
     dappConnectStore.rejectCurrentRequest();
-    setPin('');
-    setError('');
+    setPin("");
+    setError("");
   }, [dappConnectStore]);
 
   const handleDone = useCallback(() => {
     dappConnectStore.dismissCurrentApproval();
-    setPin('');
-    setError('');
+    setPin("");
+    setError("");
   }, [dappConnectStore]);
 
   /**
@@ -637,30 +887,44 @@ const DAppApprovalModal = observer(() => {
     // check would otherwise trip over MobX's Symbol(mobx administration) key
     // and formatZodIssues would throw while rendering.
     const params = toJS(currentApproval.params);
-    if (method === 'qrl_signMessage') {
+    if (method === "qrl_signMessage") {
       const parsed = SignMessageParamsSchema.safeParse(params);
       if (!parsed.success) {
-        return { kind: 'invalid' as const, reason: formatZodIssues(parsed.error) };
+        return {
+          kind: "invalid" as const,
+          reason: formatZodIssues(parsed.error),
+        };
       }
       try {
         const [, messageHex] = parsed.data;
-        const digestHex = bytesToHex(computeMessageDigest(hexToBytes(messageHex)));
-        return { kind: 'message' as const, messageHex, digestHex };
+        const digestHex = bytesToHex(
+          computeMessageDigest(hexToBytes(messageHex)),
+        );
+        return { kind: "message" as const, messageHex, digestHex };
       } catch (e) {
-        return { kind: 'invalid' as const, reason: e instanceof Error ? e.message : String(e) };
+        return {
+          kind: "invalid" as const,
+          reason: e instanceof Error ? e.message : String(e),
+        };
       }
     }
-    if (method === 'qrl_signTypedData') {
+    if (method === "qrl_signTypedData") {
       const parsed = SignTypedDataParamsSchema.safeParse(params);
       if (!parsed.success) {
-        return { kind: 'invalid' as const, reason: formatZodIssues(parsed.error) };
+        return {
+          kind: "invalid" as const,
+          reason: formatZodIssues(parsed.error),
+        };
       }
       try {
         const payload = parsed.data[1];
         const digestHex = bytesToHex(computeTypedDataDigest(payload));
-        return { kind: 'typed' as const, payload, digestHex };
+        return { kind: "typed" as const, payload, digestHex };
       } catch (e) {
-        return { kind: 'invalid' as const, reason: e instanceof Error ? e.message : String(e) };
+        return {
+          kind: "invalid" as const,
+          reason: e instanceof Error ? e.message : String(e),
+        };
       }
     }
     return null;
@@ -670,37 +934,44 @@ const DAppApprovalModal = observer(() => {
 
   const { method, params, dappInfo } = currentApproval;
   const label = METHOD_LABELS[method] || method;
-  const needsPin = method !== 'qrl_requestAccounts' &&
-    method !== 'wallet_addQrlChain' &&
-    method !== 'wallet_switchQrlChain';
+  const needsPin =
+    method !== "qrl_requestAccounts" &&
+    method !== "wallet_addQrlChain" &&
+    method !== "wallet_switchQrlChain";
   const hasNativePin = !!getNativeInjectedPin();
-  const isTransaction = method === 'qrl_sendTransaction' || method === 'qrl_signTransaction';
+  const isTransaction =
+    method === "qrl_sendTransaction" || method === "qrl_signTransaction";
 
-  const isTxInProgress = txProgress !== 'idle';
-  const isTxTerminal = txProgress === 'confirmed' || txProgress === 'failed';
+  const isTxInProgress = txProgress !== "idle";
+  const isTxTerminal = txProgress === "confirmed" || txProgress === "failed";
 
   // Transaction details for display during progress
-  const txParams = isTransaction ? (params?.[0] as Record<string, unknown> | undefined) : undefined;
-  const txDisplayValue = formatQuantaValue(txParams?.['value']);
+  const txParams = isTransaction
+    ? (params?.[0] as Record<string, unknown> | undefined)
+    : undefined;
+  const txDisplayValue = formatQuantaValue(txParams?.["value"]);
 
   return (
-    <Dialog open={approvalModalOpen} onOpenChange={(open) => {
-      if (open) return;
-      // Ignore any close while a signing/broadcast is in flight: the request
-      // must resolve first. Answering the dApp with a rejection here would
-      // race the desktop's trusted confirm, which can still approve and
-      // produce a signature for an already-rejected request.
-      if (loading) return;
-      if (isTxTerminal) {
-        handleDone();
-        return;
-      }
-      if (isTxInProgress) return;
-      if (Date.now() - approvalShownAtRef.current < 350) return;
-      // An explicit close (the X button) IS an answer: reject, so the dApp is
-      // never left hanging on a dismissed card.
-      handleReject();
-    }}>
+    <Dialog
+      open={approvalModalOpen}
+      onOpenChange={(open) => {
+        if (open) return;
+        // Ignore any close while a signing/broadcast is in flight: the request
+        // must resolve first. Answering the dApp with a rejection here would
+        // race the desktop's trusted confirm, which can still approve and
+        // produce a signature for an already-rejected request.
+        if (loading) return;
+        if (isTxTerminal) {
+          handleDone();
+          return;
+        }
+        if (isTxInProgress) return;
+        if (Date.now() - approvalShownAtRef.current < 350) return;
+        // An explicit close (the X button) IS an answer: reject, so the dApp is
+        // never left hanging on a dismissed card.
+        handleReject();
+      }}
+    >
       {/* A pending approval demands an explicit answer (Approve / Reject / X).
           Stray clicks elsewhere in the wallet and Escape must not dismiss the
           card: silently swallowing the decision is how requests get answered
@@ -717,51 +988,69 @@ const DAppApprovalModal = observer(() => {
               <Globe className="h-5 w-5 text-secondary" />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-foreground truncate">{dappInfo.name}</h3>
-              <p className="text-xs text-muted-foreground truncate">{dappInfo.url}</p>
+              <h3 className="font-semibold text-foreground truncate">
+                {dappInfo.name}
+              </h3>
+              <p className="text-xs text-muted-foreground truncate">
+                {dappInfo.url}
+              </p>
             </div>
             <div className="flex items-center gap-1 rounded-full bg-secondary/10 px-2 py-1">
               <Shield className="h-3 w-3 text-secondary" />
-              <span className="text-xs text-secondary font-medium">{label}</span>
+              <span className="text-xs text-secondary font-medium">
+                {label}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Content area with state-based accent border */}
-        <div className={`border-l-4 ${getBorderColor(txProgress)} mx-4 my-3 pl-4 space-y-4`}>
+        <div
+          className={`border-l-4 ${getBorderColor(txProgress)} mx-4 my-3 pl-4 space-y-4`}
+        >
           {/* Transaction progress states */}
           {isTxInProgress ? (
             <div className="space-y-4">
               {/* Progress status row */}
               <div className="flex items-center gap-3 py-2">
-                {txProgress === 'signing' && (
+                {txProgress === "signing" && (
                   <>
                     <Loader className="h-5 w-5 animate-spin text-secondary" />
-                    <span className="text-sm font-medium">Signing transaction...</span>
+                    <span className="text-sm font-medium">
+                      Signing transaction...
+                    </span>
                   </>
                 )}
-                {txProgress === 'broadcasting' && (
+                {txProgress === "broadcasting" && (
                   <>
                     <Loader className="h-5 w-5 animate-spin text-secondary" />
-                    <span className="text-sm font-medium">Broadcasting to network...</span>
+                    <span className="text-sm font-medium">
+                      Broadcasting to network...
+                    </span>
                   </>
                 )}
-                {txProgress === 'confirming' && (
+                {txProgress === "confirming" && (
                   <>
                     <Loader className="h-5 w-5 animate-spin text-primary" />
-                    <span className="text-sm font-medium">Awaiting confirmation...</span>
+                    <span className="text-sm font-medium">
+                      Awaiting confirmation...
+                    </span>
                   </>
                 )}
-                {txProgress === 'confirmed' && (
+                {txProgress === "confirmed" && (
                   <>
                     <Check className="h-5 w-5 text-success" />
-                    <span className="text-sm font-medium text-success">Transaction Confirmed</span>
+                    <span className="text-sm font-medium text-success">
+                      Transaction Confirmed
+                    </span>
                   </>
                 )}
-                {txProgress === 'failed' && (
+                {txProgress === "failed" && (
                   <>
                     <X className="h-5 w-5 text-destructive" />
-                    <span className="text-sm font-medium text-destructive">Transaction Failed</span>
+                    <span className="text-sm font-medium text-destructive">
+                      Transaction Failed
+                    </span>
                   </>
                 )}
               </div>
@@ -783,7 +1072,9 @@ const DAppApprovalModal = observer(() => {
                 <div className="rounded border bg-muted p-4 text-sm space-y-2">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">To</span>
-                    <span className="font-mono text-xs">{formatAddressShort(txParams['to'] as string || '')}</span>
+                    <span className="font-mono text-xs">
+                      {formatAddressShort((txParams["to"] as string) || "")}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Value</span>
@@ -793,41 +1084,47 @@ const DAppApprovalModal = observer(() => {
               )}
 
               {/* Error message for failed state */}
-              {txProgress === 'failed' && txError && (
+              {txProgress === "failed" && txError && (
                 <p className="text-sm text-destructive break-all">{txError}</p>
               )}
             </div>
           ) : (
             /* Normal approval content (before tx progress starts) */
             <div className="space-y-4">
-              {method === 'qrl_requestAccounts' && (
+              {method === "qrl_requestAccounts" && (
                 <p className="text-sm text-muted-foreground">
                   This dApp wants to view your account address.
                 </p>
               )}
 
               {isTransaction && params?.[0] != null && (
-                <DAppTransactionReview params={params[0] as Record<string, unknown>} />
+                <DAppTransactionReview
+                  params={params[0] as Record<string, unknown>}
+                />
               )}
 
-              {signingPreview?.kind === 'message' && (
+              {signingPreview?.kind === "message" && (
                 <DAppMessageReview
                   messageHex={signingPreview.messageHex}
                   digestHex={signingPreview.digestHex}
                 />
               )}
 
-              {signingPreview?.kind === 'typed' && (
+              {signingPreview?.kind === "typed" && (
                 <DAppTypedDataReview
                   payload={signingPreview.payload}
                   digestHex={signingPreview.digestHex}
                 />
               )}
 
-              {signingPreview?.kind === 'invalid' && (
+              {signingPreview?.kind === "invalid" && (
                 <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
-                  <p className="mb-1 font-medium text-destructive">Cannot decode this request</p>
-                  <p className="text-xs text-muted-foreground break-all">{signingPreview.reason}</p>
+                  <p className="mb-1 font-medium text-destructive">
+                    Cannot decode this request
+                  </p>
+                  <p className="text-xs text-muted-foreground break-all">
+                    {signingPreview.reason}
+                  </p>
                 </div>
               )}
 
@@ -835,17 +1132,22 @@ const DAppApprovalModal = observer(() => {
                   already unlocked and signing does not re-prompt. */}
               {needsPin && !hasNativePin && !isDesktop && (
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Enter PIN to sign</label>
+                  <label className="mb-1 block text-sm font-medium">
+                    Enter PIN to sign
+                  </label>
                   <input
                     type="password"
                     inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    autoComplete="one-time-code"
                     value={pin}
                     onChange={(e) => {
                       setPin(e.target.value);
-                      setError('');
+                      setError("");
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && pin) handleApprove();
+                      if (e.key === "Enter" && pin) handleApprove();
                     }}
                     placeholder="Enter PIN"
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -854,9 +1156,7 @@ const DAppApprovalModal = observer(() => {
                 </div>
               )}
 
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
+              {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
           )}
         </div>
@@ -865,7 +1165,7 @@ const DAppApprovalModal = observer(() => {
         <div className="border-t border-border px-4 py-4">
           {isTxTerminal ? (
             <Button onClick={handleDone} className="w-full">
-              {txProgress === 'confirmed' ? 'Done' : 'Close'}
+              {txProgress === "confirmed" ? "Done" : "Close"}
             </Button>
           ) : isTxInProgress ? (
             <p className="text-center text-xs text-muted-foreground">
@@ -873,11 +1173,15 @@ const DAppApprovalModal = observer(() => {
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" onClick={handleReject} disabled={loading}>
+              <Button
+                variant="outline"
+                onClick={handleReject}
+                disabled={loading}
+              >
                 Reject
               </Button>
               <Button onClick={handleApprove} disabled={loading}>
-                {loading ? 'Processing...' : 'Approve'}
+                {loading ? "Processing..." : "Approve"}
               </Button>
             </div>
           )}
@@ -885,6 +1189,15 @@ const DAppApprovalModal = observer(() => {
       </DialogContent>
     </Dialog>
   );
+});
+
+const DAppApprovalModal = observer(() => {
+  const { dappConnectStore } = useStore();
+  const approval = dappConnectStore.currentApproval;
+  const approvalKey = approval
+    ? `${approval.sessionId}:${approval.id}`
+    : "none";
+  return <DAppApprovalModalContent key={approvalKey} />;
 });
 
 export default DAppApprovalModal;

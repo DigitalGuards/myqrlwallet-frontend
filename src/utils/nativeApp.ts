@@ -18,9 +18,11 @@ export type WebToNativeMessageType =
   | 'HAPTIC'                // Trigger haptic feedback
   // Seed persistence messages
   | 'SEED_STORED'           // Web stored encrypted seed, native should backup
+  | 'DEVICE_CREDENTIAL_REQUEST' // Get/create the hardware-backed v5 wallet factor
   | 'REQUEST_BIOMETRIC_UNLOCK'  // Web asks native to unlock with biometric
   | 'WALLET_CLEARED'        // Web confirmed it cleared localStorage
   | 'WEB_APP_READY'         // Web app is fully initialized and ready to receive data
+  | 'WEB_DOCUMENT_READY'    // Web echoes the native document challenge
   | 'PIN_VERIFIED'          // Web responds to PIN verification request
   | 'PIN_CHANGED'           // Web responds to PIN change request
   | 'CONTACTS_UPDATED'      // Web address book changed, native should back it up
@@ -30,6 +32,7 @@ export type WebToNativeMessageType =
   | 'DAPP_SHOW_WEBVIEW'     // Request native to show/focus WebView (for approval modal)
   | 'DAPP_CONNECTED'        // Notify native that a dApp connected
   | 'DAPP_DISCONNECTED'     // Notify native that a dApp disconnected
+  | 'DAPP_DISCONNECT_RESPONSE' // Correlated durable disconnect result
   | 'DAPP_HAPTIC'           // Trigger haptic for dApp approve/reject
   | 'DAPP_RETURN';          // Bounce back to the dApp after approval (peer redirect)
 
@@ -47,10 +50,13 @@ export type NativeToWebMessageType =
   // Seed persistence messages
   | 'UNLOCK_WITH_PIN'       // Native sends PIN after biometric success
   | 'RESTORE_SEED'          // Native sends backup seed if localStorage empty
+  | 'WEB_DOCUMENT_CHALLENGE' // Native proves this exact WebView document is current
   | 'CLEAR_WALLET'          // Native requests web to clear wallet
   | 'BIOMETRIC_SETUP_PROMPT' // Native prompts user to enable biometric
   | 'VERIFY_PIN'            // Native asks web to verify PIN can decrypt seed
   | 'CHANGE_PIN'            // Native requests web to re-encrypt seeds with new PIN
+  | 'SEED_STORED_RESPONSE'  // Native durably acknowledged a seed backup revision
+  | 'DEVICE_CREDENTIAL_RESPONSE' // Native returns the hardware-backed v5 wallet factor
   // DApp Connect messages
   | 'DAPP_URI'              // Deep link URI received by native, forwarded to WebView
   | 'DAPP_DISCONNECT'       // Native requests web to disconnect a specific dApp session
@@ -63,6 +69,29 @@ export interface NativeMessage {
   type: NativeToWebMessageType;
   payload?: Record<string, unknown>;
 }
+
+// Module evaluation happens once per full WebView document. A same-origin
+// navigation creates a new module graph and therefore a new unguessable id.
+const CURRENT_DOCUMENT_ID = randomRequestId();
+
+export const getCurrentNativeDocumentId = (): string => CURRENT_DOCUMENT_ID;
+
+export const isNativeMessageForCurrentDocument = (
+  message: unknown,
+): message is NativeMessage => {
+  if (typeof message !== 'object' || message === null || Array.isArray(message)) {
+    return false;
+  }
+  const record = message as Record<string, unknown>;
+  const payload = record['payload'];
+  return (
+    typeof record['type'] === 'string' &&
+    typeof payload === 'object' &&
+    payload !== null &&
+    !Array.isArray(payload) &&
+    (payload as Record<string, unknown>)['documentId'] === CURRENT_DOCUMENT_ID
+  );
+};
 
 /**
  * Check if the web app is running inside the native MyQRLWallet app
@@ -83,7 +112,12 @@ export const sendToNative = (
   const webView = window.ReactNativeWebView;
 
   if (webView?.postMessage) {
-    webView.postMessage(JSON.stringify({ type, payload }));
+    webView.postMessage(
+      JSON.stringify({
+        type,
+        payload: { ...(payload ?? {}), documentId: CURRENT_DOCUMENT_ID },
+      }),
+    );
     return true;
   }
 
@@ -160,15 +194,44 @@ export const logToNative = (message: string): boolean => {
   return sendToNative('LOG', { message });
 };
 
+/** Parse external navigation at the hosted-wallet trust boundary. */
+export const parseExternalHttpUrl = (value: string): string | null => {
+  if (value.length === 0 || value.length > 2048 || value.trim() !== value) return null;
+  try {
+    const parsed = new URL(value);
+    const loopback =
+      parsed.hostname === 'localhost' ||
+      parsed.hostname.endsWith('.localhost') ||
+      parsed.hostname === '127.0.0.1' ||
+      parsed.hostname === '[::1]';
+    if (
+      (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && loopback)) ||
+      parsed.username !== '' ||
+      parsed.password !== '' ||
+      parsed.hostname === ''
+    ) {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Open an external URL - uses native browser when in app, window.open otherwise
  * This is the preferred function to use for external links
  */
 export const openExternalUrl = (url: string): void => {
+  const safeUrl = parseExternalHttpUrl(url);
+  if (safeUrl === null) {
+    console.warn('[NativeApp] Refusing to open an unsafe external URL');
+    return;
+  }
   if (isInNativeApp()) {
-    sendToNative('OPEN_URL', { url });
+    sendToNative('OPEN_URL', { url: safeUrl });
   } else {
-    window.open(url, '_blank');
+    window.open(safeUrl, '_blank', 'noopener,noreferrer');
   }
 };
 
@@ -197,7 +260,8 @@ export const subscribeToNativeMessages = (
       return;
     }
     if (event.detail) {
-      callback(event.detail as NativeMessage);
+      const message = event.detail;
+      if (isNativeMessageForCurrentDocument(message)) callback(message);
     }
   };
 
@@ -241,6 +305,14 @@ export const clearNativeInjectedPin = (): void => {
 };
 
 /**
+ * Every native lifecycle transition invalidates the WebView's cached PIN.
+ * A fresh PIN is injected only after the native app completes Device Login.
+ */
+export const clearNativeInjectedPinForAppState = (): void => {
+  clearNativeInjectedPin();
+};
+
+/**
  * Check if a PIN has been injected by the native app
  */
 export const hasNativeInjectedPin = (): boolean => {
@@ -251,17 +323,217 @@ export const hasNativeInjectedPin = (): boolean => {
 // Seed Persistence Functions (for native app integration)
 // ============================================================
 
+export type SeedBackupAcknowledgement = {
+  revision: number;
+  ciphertextHash: string;
+};
+
+type PendingSeedBackupRequest = {
+  revision: number;
+  ciphertextHash: string;
+  resolve: (acknowledgement: SeedBackupAcknowledgement) => void;
+  reject: (error: Error) => void;
+  timeout: ReturnType<typeof setTimeout>;
+};
+
+const pendingSeedBackupRequests = new Map<string, PendingSeedBackupRequest>();
+let seedBackupListenerInstalled = false;
+
+/** SHA-256 identity for an exact encrypted-seed envelope. */
+export async function hashEncryptedSeed(encryptedSeed: string): Promise<string> {
+  const digest = new Uint8Array(
+    await crypto.subtle.digest('SHA-256', new TextEncoder().encode(encryptedSeed)),
+  );
+  let hex = '';
+  for (const byte of digest) hex += byte.toString(16).padStart(2, '0');
+  return hex;
+}
+
+function ensureSeedBackupListener(): void {
+  if (seedBackupListenerInstalled || typeof window === 'undefined') return;
+
+  window.addEventListener('nativeMessage', (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const message = event.detail as NativeMessage | undefined;
+    if (message?.type !== 'SEED_STORED_RESPONSE') return;
+    if (!isNativeMessageForCurrentDocument(message)) return;
+
+    const requestId = message.payload?.['requestId'];
+    if (typeof requestId !== 'string') return;
+    const pending = pendingSeedBackupRequests.get(requestId);
+    if (!pending) return;
+
+    pendingSeedBackupRequests.delete(requestId);
+    clearTimeout(pending.timeout);
+
+    if (message.payload?.['success'] !== true) {
+      pending.reject(new Error('Native secure seed backup failed.'));
+      return;
+    }
+    const revision = message.payload?.['revision'];
+    const ciphertextHash = message.payload?.['ciphertextHash'];
+    if (revision !== pending.revision || ciphertextHash !== pending.ciphertextHash) {
+      pending.reject(new Error('Native acknowledged a different seed backup revision.'));
+      return;
+    }
+    pending.resolve({ revision, ciphertextHash });
+  });
+
+  seedBackupListenerInstalled = true;
+}
+
 /**
- * Notify native app that a seed has been stored
- * Native app will backup the encrypted seed and prompt for biometric setup
+ * Ask native to durably back up one exact encrypted-seed revision. The promise
+ * resolves only after native storage read-back confirms the same revision and
+ * SHA-256 identity, so PIN rotation can wait for every backup before reporting
+ * success.
  */
-export const notifySeedStored = (options: {
+export const notifySeedStored = async (options: {
   address: string;
   encryptedSeed: string;
   blockchain: string;
-}): boolean => {
-  return sendToNative('SEED_STORED', options);
+  revision: number;
+}): Promise<SeedBackupAcknowledgement> => {
+  if (!isInNativeApp()) {
+    throw new Error('Native secure seed backup is unavailable.');
+  }
+  if (!Number.isSafeInteger(options.revision) || options.revision < 1) {
+    throw new Error('A valid encrypted-seed revision is required.');
+  }
+
+  ensureSeedBackupListener();
+  const requestId = randomRequestId();
+  const ciphertextHash = await hashEncryptedSeed(options.encryptedSeed);
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      pendingSeedBackupRequests.delete(requestId);
+      reject(new Error('The native app did not confirm the secure seed backup.'));
+    }, 10000);
+
+    pendingSeedBackupRequests.set(requestId, {
+      revision: options.revision,
+      ciphertextHash,
+      resolve,
+      reject,
+      timeout,
+    });
+    const sent = sendToNative('SEED_STORED', {
+      ...options,
+      requestId,
+      ciphertextHash,
+    });
+    if (!sent) {
+      clearTimeout(timeout);
+      pendingSeedBackupRequests.delete(requestId);
+      reject(new Error('The native wallet bridge is unavailable.'));
+    }
+  });
 };
+
+type DeviceCredentialRequest = {
+  createIfMissing: boolean;
+  candidate?: string;
+};
+
+type PendingDeviceCredentialRequest = {
+  resolve: (credential: string | null) => void;
+  reject: (error: Error) => void;
+  timeout: ReturnType<typeof setTimeout>;
+};
+
+const pendingDeviceCredentialRequests = new Map<string, PendingDeviceCredentialRequest>();
+let deviceCredentialListenerInstalled = false;
+
+function randomRequestId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  let id = '';
+  for (const byte of bytes) id += byte.toString(16).padStart(2, '0');
+  return id;
+}
+
+function ensureDeviceCredentialListener(): void {
+  if (deviceCredentialListenerInstalled || typeof window === 'undefined') return;
+
+  window.addEventListener('nativeMessage', (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const message = event.detail as NativeMessage | undefined;
+    if (message?.type !== 'DEVICE_CREDENTIAL_RESPONSE') return;
+    if (!isNativeMessageForCurrentDocument(message)) return;
+
+    const requestId = message.payload?.['requestId'];
+    if (typeof requestId !== 'string') return;
+    const pending = pendingDeviceCredentialRequests.get(requestId);
+    if (!pending) return;
+
+    pendingDeviceCredentialRequests.delete(requestId);
+    clearTimeout(pending.timeout);
+
+    const error = message.payload?.['error'];
+    if (error === 'NOT_FOUND') {
+      pending.resolve(null);
+      return;
+    }
+    if (typeof error === 'string' && error) {
+      pending.reject(new Error('Native secure storage could not provide the wallet credential.'));
+      return;
+    }
+
+    const credential = message.payload?.['credential'];
+    if (typeof credential !== 'string') {
+      pending.reject(new Error('Native returned an invalid wallet credential response.'));
+      return;
+    }
+    pending.resolve(credential);
+  });
+
+  deviceCredentialListenerInstalled = true;
+}
+
+/**
+ * Request the independent v5 wallet factor from native Keychain/Keystore.
+ * When creation is requested, native must confirm the supplied random
+ * candidate was durably stored before resolving this promise.
+ */
+export function requestNativeDeviceCredential(
+  options: DeviceCredentialRequest,
+): Promise<string | null> {
+  if (!isInNativeApp()) {
+    return Promise.reject(new Error('Native secure storage is unavailable.'));
+  }
+  if (
+    options.createIfMissing &&
+    (typeof options.candidate !== 'string' || !/^[0-9a-f]{64}$/.test(options.candidate))
+  ) {
+    return Promise.reject(new Error('A valid device credential candidate is required.'));
+  }
+
+  ensureDeviceCredentialListener();
+  const requestId = randomRequestId();
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      pendingDeviceCredentialRequests.delete(requestId);
+      reject(
+        new Error(
+          'The native app did not confirm secure wallet storage. Update the app and try again.',
+        ),
+      );
+    }, 3000);
+
+    pendingDeviceCredentialRequests.set(requestId, { resolve, reject, timeout });
+    const sent = sendToNative('DEVICE_CREDENTIAL_REQUEST', {
+      requestId,
+      createIfMissing: options.createIfMissing,
+      ...(options.candidate ? { candidate: options.candidate } : {}),
+    });
+    if (!sent) {
+      clearTimeout(timeout);
+      pendingDeviceCredentialRequests.delete(requestId);
+      reject(new Error('The native wallet bridge is unavailable.'));
+    }
+  });
+}
 
 /**
  * Mirror the address book to native storage so contacts survive WebView
@@ -279,26 +551,69 @@ export const requestBiometricUnlock = (): boolean => {
   return sendToNative('REQUEST_BIOMETRIC_UNLOCK');
 };
 
+const CORRELATION_ID_PATTERN = /^[0-9a-f]{32}$/;
+const DAPP_CHANNEL_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function correlationPayload(
+  requestId: string,
+  success: boolean,
+  error?: string,
+): Record<string, unknown> | null {
+  if (!CORRELATION_ID_PATTERN.test(requestId)) return null;
+  return { requestId, success, ...(error === undefined ? {} : { error }) };
+}
+
 /**
  * Confirm to native app that web has cleared its wallet data
  */
-export const confirmWalletCleared = (): boolean => {
-  return sendToNative('WALLET_CLEARED');
+export const confirmWalletCleared = (
+  requestId: string,
+  success: boolean,
+  error?: string,
+): boolean => {
+  const payload = correlationPayload(requestId, success, error);
+  return payload ? sendToNative('WALLET_CLEARED', payload) : false;
 };
 
 /**
  * Send PIN verification result to native app
  */
-export const sendPinVerified = (success: boolean, error?: string): boolean => {
-  return sendToNative('PIN_VERIFIED', { success, error });
+export const sendPinVerified = (
+  requestId: string,
+  success: boolean,
+  error?: string,
+): boolean => {
+  const payload = correlationPayload(requestId, success, error);
+  return payload ? sendToNative('PIN_VERIFIED', payload) : false;
+};
+
+/** Reply only after the requested dApp session is durably removed. */
+export const sendDAppDisconnectResponse = (
+  requestId: string,
+  channelId: string,
+  success: boolean,
+  error?: string,
+): boolean => {
+  const payload = correlationPayload(requestId, success, error);
+  if (!payload || !DAPP_CHANNEL_ID_PATTERN.test(channelId)) return false;
+  return sendToNative('DAPP_DISCONNECT_RESPONSE', {
+    ...payload,
+    channelId,
+  });
 };
 
 /**
  * Send PIN change result to native app
  * Called after web re-encrypts all seeds with the new PIN
  */
-export const sendPinChanged = (success: boolean, newPin?: string, error?: string): boolean => {
-  return sendToNative('PIN_CHANGED', { success, newPin, error });
+export const sendPinChanged = (
+  requestId: string,
+  success: boolean,
+  newPin?: string,
+  error?: string,
+): boolean => {
+  return sendToNative('PIN_CHANGED', { requestId, success, newPin, error });
 };
 
 /**
@@ -307,6 +622,12 @@ export const sendPinChanged = (success: boolean, newPin?: string, error?: string
  */
 export const notifyWebAppReady = (): boolean => {
   return sendToNative('WEB_APP_READY');
+};
+
+/** Echo the exact native challenge for this full WebView document. */
+export const confirmWebDocumentReady = (challengeId: string): boolean => {
+  if (!CORRELATION_ID_PATTERN.test(challengeId)) return false;
+  return sendToNative('WEB_DOCUMENT_READY', { challengeId });
 };
 
 /**

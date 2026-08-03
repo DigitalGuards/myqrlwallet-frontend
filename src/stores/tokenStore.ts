@@ -27,6 +27,7 @@ import { getOptimalTokenBalance } from "@/utils/formatting";
 import type QrlStore from "./qrlStore";
 import type { FeeLevel } from "./qrlStore";
 import { applyFeeLevel } from "./qrlStore";
+import { walletMutations } from "@/utils/nativeWalletMutation";
 
 type CreatingTokenType = {
   name: string;
@@ -492,13 +493,25 @@ class TokenStore {
       }
     }
 
+    const signingGeneration = walletMutations.captureGeneration();
+    const assertSigningCurrent = (): void => {
+      if (!walletMutations.isCurrent(signingGeneration)) {
+        throw new Error("Wallet changed while preparing the token transfer");
+      }
+    };
+
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
       const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
+      assertSigningCurrent();
       const seed = await deriveHexSeedAsync(mnemonicPhrases);
+      assertSigningCurrent();
       const acc = web3.qrl.accounts.seedToAccount(seed);
+      if (acc.address !== this.qrlStore.activeAccount.accountAddress) {
+        throw new Error("The signing seed does not match the active account");
+      }
       web3.qrl.wallet?.add(seed);
       web3.qrl.transactionConfirmationBlocks = 1;
       const baseGasPrice = (await web3.qrl.getGasPrice()) ?? BigInt(1000000000);
@@ -521,6 +534,7 @@ class TokenStore {
         maxPriorityFeePerGas,
       };
 
+      assertSigningCurrent();
       const promiEvent = web3.qrl.sendTransaction(txObj, undefined, {
         checkRevertBeforeSending: true,
       });
@@ -599,6 +613,17 @@ class TokenStore {
     mnemonicPhrases: string,
   ) {
     this.qrlStore.resetTransactionStatus();
+    const signingGeneration = isDesktop
+      ? null
+      : walletMutations.captureGeneration();
+    const assertSigningCurrent = (): void => {
+      if (
+        signingGeneration &&
+        !walletMutations.isCurrent(signingGeneration)
+      ) {
+        throw new Error("Wallet changed while preparing token creation");
+      }
+    };
     try {
       this.setCreatingToken(tokenName, true);
       const selectedBlockChain = await StorageUtil.getBlockChain();
@@ -628,8 +653,13 @@ class TokenStore {
       if (isDesktop) {
         fromAddress = this.qrlStore.activeAccount.accountAddress;
       } else {
+        assertSigningCurrent();
         const seed = await deriveHexSeedAsync(mnemonicPhrases);
+        assertSigningCurrent();
         const acc = web3.qrl.accounts.seedToAccount(seed);
+        if (acc.address !== this.qrlStore.activeAccount.accountAddress) {
+          throw new Error("The signing seed does not match the active account");
+        }
         web3.qrl.wallet?.add(seed);
         web3.qrl.transactionConfirmationBlocks = 1;
         fromAddress = acc.address;
@@ -778,6 +808,7 @@ class TokenStore {
         to: contractAddress,
       };
 
+      assertSigningCurrent();
       await web3.qrl
         .sendTransaction(txObj, undefined, {
           checkRevertBeforeSending: true,

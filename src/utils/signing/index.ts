@@ -19,6 +19,7 @@ export {
   hashStruct,
   encodeField,
   computeTypedDataDigest,
+  TYPED_DATA_LIMITS,
   type TypedDataPayload,
   type TypeMap,
   type StructDef,
