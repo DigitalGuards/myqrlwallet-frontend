@@ -3,7 +3,7 @@
  * encryption in walletEncryption.ts, after the crypto-js -> WebCrypto migration.
  *
  * What it pins:
- * - pin_v4 seed blob round-trips with the correct PIN.
+ * - pin_v5 seed blobs require both the PIN and an independent device key.
  * - Wrong PIN is rejected (GCM tag mismatch) with PinDecryptionError.
  * - Tampering the ciphertext is DETECTED (the property the old unauthenticated
  *   AES-CBC lacked): a one-nibble flip makes decrypt throw.
@@ -24,13 +24,32 @@ jest.mock('@/utils/nativeApp', () => ({
   shareContent: jest.fn(),
 }));
 
+jest.mock('../deviceCredential', () => {
+  class DeviceCredentialUnavailableError extends Error {
+    constructor(message: string = 'Device credential unavailable') {
+      super(message);
+      this.name = 'DeviceCredentialUnavailableError';
+    }
+  }
+  return {
+    DeviceCredentialUnavailableError,
+    getDeviceEncryptionKey: jest.fn(),
+  };
+});
+
 import {
   WalletEncryptionUtil,
   PinDecryptionError,
   OutdatedWalletFormatError,
+  DeviceCredentialUnavailableError,
   type EncryptedWallet,
   type WalletData,
 } from '../walletEncryption';
+import { getDeviceEncryptionKey } from '../deviceCredential';
+
+const mockGetDeviceEncryptionKey = getDeviceEncryptionKey as jest.MockedFunction<
+  typeof getDeviceEncryptionKey
+>;
 
 const MNEMONIC =
   'absorb absurd abuse access accident account accuse achieve acid acoustic acquire across';
@@ -38,19 +57,74 @@ const HEX_SEED = '0x' + 'ab'.repeat(48);
 const PIN = '123456';
 const PASSWORD = 'Str0ng!Passw0rd';
 
+let deviceKey: CryptoKey;
+let otherDeviceKey: CryptoKey;
+
+async function makePinV4(pin: string = PIN): Promise<string> {
+  const encoder = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const baseKey = await crypto.subtle.importKey('raw', encoder.encode(pin), 'PBKDF2', false, [
+    'deriveKey',
+  ]);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 600000 },
+    baseKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt'],
+  );
+  const ciphertext = new Uint8Array(
+    await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      encoder.encode(JSON.stringify({ mnemonic: MNEMONIC, hexSeed: HEX_SEED })),
+    ),
+  );
+  const toHex = (bytes: Uint8Array) =>
+    Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  return JSON.stringify({
+    version: 'pin_v4',
+    salt: toHex(salt),
+    iv: toHex(iv),
+    encryptedData: toHex(ciphertext),
+    timestamp: Date.now(),
+  });
+}
+
+beforeAll(async () => {
+  deviceKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
+    'encrypt',
+    'decrypt',
+  ]);
+  otherDeviceKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
+    'encrypt',
+    'decrypt',
+  ]);
+});
+
+beforeEach(() => {
+  mockGetDeviceEncryptionKey.mockReset();
+  mockGetDeviceEncryptionKey.mockResolvedValue(deviceKey);
+});
+
 describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
-  it('writes pin_v4 and round-trips with the correct PIN', async () => {
+  it('writes pin_v5 and round-trips only after obtaining the device key', async () => {
     const blob = await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN);
-    expect(JSON.parse(blob).version).toBe('pin_v4');
+    const parsed = JSON.parse(blob);
+    expect(parsed.version).toBe('pin_v5');
+    expect(parsed.deviceKeyVersion).toBe('device_v1');
+    expect(parsed.salt).toBeUndefined();
 
     const out = await WalletEncryptionUtil.decryptSeedWithPin(blob, PIN);
     expect(out).toEqual({ mnemonic: MNEMONIC, hexSeed: HEX_SEED });
+    expect(mockGetDeviceEncryptionKey).toHaveBeenNthCalledWith(1, true);
+    expect(mockGetDeviceEncryptionKey).toHaveBeenNthCalledWith(2, false);
   });
 
-  it('produces a fresh random salt + iv per encryption', async () => {
+  it('produces a fresh random device nonce and ciphertext per encryption', async () => {
     const a = JSON.parse(await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN));
     const b = JSON.parse(await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN));
-    expect(a.salt).not.toEqual(b.salt);
     expect(a.iv).not.toEqual(b.iv);
     expect(a.encryptedData).not.toEqual(b.encryptedData);
   });
@@ -62,14 +136,56 @@ describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
     );
   });
 
-  it('detects ciphertext tampering (AES-GCM authentication)', async () => {
+  it('detects outer ciphertext tampering before treating the failure as a bad PIN', async () => {
     const parsed = JSON.parse(await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN));
     // Flip the first nibble of the ciphertext; GCM must reject on the tag check.
     parsed.encryptedData =
       (parsed.encryptedData[0] === '0' ? '1' : '0') + parsed.encryptedData.slice(1);
     await expect(
       WalletEncryptionUtil.decryptSeedWithPin(JSON.stringify(parsed), PIN),
-    ).rejects.toBeInstanceOf(PinDecryptionError);
+    ).rejects.toBeInstanceOf(DeviceCredentialUnavailableError);
+  });
+
+  it('cannot open a v5 blob with a different device key', async () => {
+    const blob = await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN);
+    mockGetDeviceEncryptionKey.mockResolvedValue(otherDeviceKey);
+    await expect(WalletEncryptionUtil.decryptSeedWithPin(blob, PIN)).rejects.toBeInstanceOf(
+      DeviceCredentialUnavailableError,
+    );
+  });
+
+  it('fails closed when durable device-key creation is unavailable', async () => {
+    mockGetDeviceEncryptionKey.mockRejectedValue(new DeviceCredentialUnavailableError());
+    await expect(
+      WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN),
+    ).rejects.toBeInstanceOf(DeviceCredentialUnavailableError);
+  });
+
+  it('unlocks authenticated pin_v4 for explicit lazy migration', async () => {
+    const legacy = await makePinV4();
+    const decrypted = await WalletEncryptionUtil.decryptSeedWithPinVersioned(legacy, PIN);
+    expect(decrypted).toEqual({
+      seed: { mnemonic: MNEMONIC, hexSeed: HEX_SEED },
+      version: 'pin_v4',
+    });
+    expect(mockGetDeviceEncryptionKey).not.toHaveBeenCalled();
+  });
+
+  it('re-encrypts pin_v4 as pin_v5 without changing the original on failure', async () => {
+    const legacy = await makePinV4();
+    mockGetDeviceEncryptionKey.mockRejectedValueOnce(new DeviceCredentialUnavailableError());
+    await expect(WalletEncryptionUtil.reEncryptSeed(legacy, PIN, '654321')).rejects.toBeInstanceOf(
+      DeviceCredentialUnavailableError,
+    );
+    expect(JSON.parse(legacy).version).toBe('pin_v4');
+
+    mockGetDeviceEncryptionKey.mockResolvedValue(deviceKey);
+    const migrated = await WalletEncryptionUtil.reEncryptSeed(legacy, PIN, '654321');
+    expect(JSON.parse(migrated).version).toBe('pin_v5');
+    await expect(WalletEncryptionUtil.decryptSeedWithPin(migrated, '654321')).resolves.toEqual({
+      mnemonic: MNEMONIC,
+      hexSeed: HEX_SEED,
+    });
   });
 
   it('rejects an outdated pre-WebCrypto (pin_v3) blob with a distinct error', async () => {
@@ -102,13 +218,20 @@ describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
     ).rejects.toBeInstanceOf(PinDecryptionError);
   });
 
-  it('rejects a pin_v4 blob missing envelope fields as a format error', async () => {
-    // Correctly versioned but corrupt (no salt/iv/encryptedData): must be a
+  it('rejects a pin_v5 blob missing envelope fields as a format error', async () => {
+    // Correctly versioned but corrupt (no iv/encryptedData): must be a
     // clear format error, not a misleading "Invalid PIN".
-    const malformed = JSON.stringify({ version: 'pin_v4', timestamp: 0 });
+    const malformed = JSON.stringify({ version: 'pin_v5', timestamp: 0 });
     await expect(
       WalletEncryptionUtil.decryptSeedWithPin(malformed, PIN),
     ).rejects.toThrow(/Invalid encrypted seed format/);
+  });
+
+  it('rejects an oversized seed envelope before parsing or device-key access', async () => {
+    await expect(
+      WalletEncryptionUtil.decryptSeedWithPin('x'.repeat(64 * 1024 + 1), PIN),
+    ).rejects.toBeInstanceOf(PinDecryptionError);
+    expect(mockGetDeviceEncryptionKey).not.toHaveBeenCalled();
   });
 });
 
@@ -133,5 +256,35 @@ describe('WalletEncryptionUtil password wallet file (WebCrypto AES-GCM)', () => 
     await expect(WalletEncryptionUtil.decryptWallet(encrypted, 'Wr0ng!Passw0rd')).rejects.toThrow(
       /Failed to decrypt wallet/,
     );
+  });
+
+  it.each([
+    ['wrong salt length', (wallet: EncryptedWallet) => { wallet.salt = 'aa'; }],
+    ['wrong IV length', (wallet: EncryptedWallet) => { wallet.iv = 'bb'; }],
+    ['non-hex ciphertext', (wallet: EncryptedWallet) => { wallet.encryptedData = 'zz'.repeat(16); }],
+    ['oversized ciphertext', (wallet: EncryptedWallet) => {
+      wallet.encryptedData = 'aa'.repeat(16 * 1024 + 1);
+    }],
+    ['wrong version', (wallet: EncryptedWallet) => { wallet.version = 'v3'; }],
+  ])('rejects %s in the envelope before PBKDF2', async (_label, mutate) => {
+    const encrypted = await WalletEncryptionUtil.encryptWallet(walletData, PASSWORD);
+    mutate(encrypted);
+    const importKey = jest.spyOn(crypto.subtle, 'importKey');
+
+    await expect(WalletEncryptionUtil.decryptWallet(encrypted, PASSWORD)).rejects.toThrow(
+      /Failed to decrypt wallet/,
+    );
+    expect(importKey).not.toHaveBeenCalled();
+    importKey.mockRestore();
+  });
+
+  it('rejects an oversized password before PBKDF2', async () => {
+    const encrypted = await WalletEncryptionUtil.encryptWallet(walletData, PASSWORD);
+    const importKey = jest.spyOn(crypto.subtle, 'importKey');
+    await expect(
+      WalletEncryptionUtil.decryptWallet(encrypted, 'x'.repeat(1025)),
+    ).rejects.toThrow(/Failed to decrypt wallet/);
+    expect(importKey).not.toHaveBeenCalled();
+    importKey.mockRestore();
   });
 });

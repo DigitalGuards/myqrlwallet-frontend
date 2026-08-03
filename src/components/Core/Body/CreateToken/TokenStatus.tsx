@@ -8,7 +8,7 @@ import { utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
 import { Button } from "@/components/UI/Button";
 import { ROUTES } from "@/router/router";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { QRL_PROVIDER } from "@/config";
 

@@ -13,7 +13,7 @@ import { getExplorerAddressUrl } from "@/config";
 import { openExternalUrl } from "@/utils/nativeApp";
 import { ExternalLink, SendHorizontal, History, Unlink } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { AccountId } from "../AccountId/AccountId";
 import { AccountBalance } from "../AccountBalance/AccountBalance";
 import { useState } from "react";

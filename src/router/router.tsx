@@ -1,7 +1,7 @@
-import { createBrowserRouter, createHashRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, createHashRouter, Navigate } from "react-router";
+import { RouterProvider } from "react-router/dom";
 import { lazy, Suspense } from "react";
 import { Loading } from "@/components/UI/Loading";
-import { Navigate } from "react-router-dom";
 
 // Kick off the two chunks needed on every page-load immediately so they
 // download in parallel with the main bundle instead of sequentially.

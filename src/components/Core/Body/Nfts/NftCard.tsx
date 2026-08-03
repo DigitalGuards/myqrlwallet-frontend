@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { EyeOff } from "lucide-react";
 import type { NFTInterface } from "@/constants";
 import { Button } from "@/components/UI/Button";

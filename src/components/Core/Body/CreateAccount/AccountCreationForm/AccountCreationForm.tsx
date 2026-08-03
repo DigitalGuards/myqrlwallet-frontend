@@ -23,22 +23,37 @@ import { Loader, Plus } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { encryptSeedAsync, decryptSeedAsync, getMnemonicFromHexSeed, CryptoOperationError, CryptoErrorCode } from "@/utils/crypto";
+import {
+  encryptSeedAsync,
+  decryptStoredSeedAsync,
+  getMnemonicFromHexSeed,
+  CryptoOperationError,
+  CryptoErrorCode,
+} from "@/utils/crypto";
 import { StorageUtil } from "@/utils/storage";
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
-import { PinInput, type PinInputHandle } from "@/components/UI/PinInput/PinInput";
+import {
+  PinInput,
+  type PinInputHandle,
+} from "@/components/UI/PinInput/PinInput";
 import { Separator } from "@/components/UI/Separator";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
+import { walletMutations } from "@/utils/nativeWalletMutation";
 
 // Password must match WalletEncryptionUtil.validatePassword() requirements
-const passwordValidation = z.string()
+const passwordValidation = z
+  .string()
   .min(8, "Password must be at least 8 characters")
   .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
   .regex(/[a-z]/, "Password must contain at least one lowercase letter")
   .regex(/\d/, "Password must contain at least one number")
-  .regex(/[!@#$%^&*(),.?":{}|<>]/, "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)");
+  .regex(
+    /[!@#$%^&*(),.?":{}|<>]/,
+    'Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)',
+  );
 
-const pinValidation = z.string()
+const pinValidation = z
+  .string()
   .min(4, "PIN must be at least 4 digits")
   .max(6, "PIN must be at most 6 digits")
   .regex(/^\d+$/, "PIN must contain only digits");
@@ -52,42 +67,49 @@ type FormValues = {
 };
 
 // Schema for new users (no existing seeds) - requires PIN confirmation
-const NewUserSchema = z.object({
-  password: passwordValidation,
-  reEnteredPassword: z.string().min(1, "Please re-enter your password"),
-  pin: pinValidation,
-  reEnteredPin: pinValidation,
-}).refine((data) => data.password === data.reEnteredPassword, {
-  message: "Passwords don't match",
-  path: ["reEnteredPassword"],
-}).refine((data) => data.pin === data.reEnteredPin, {
-  message: "PINs don't match",
-  path: ["reEnteredPin"],
-});
+const NewUserSchema = z
+  .object({
+    password: passwordValidation,
+    reEnteredPassword: z.string().min(1, "Please re-enter your password"),
+    pin: pinValidation,
+    reEnteredPin: pinValidation,
+  })
+  .refine((data) => data.password === data.reEnteredPassword, {
+    message: "Passwords don't match",
+    path: ["reEnteredPassword"],
+  })
+  .refine((data) => data.pin === data.reEnteredPin, {
+    message: "PINs don't match",
+    path: ["reEnteredPin"],
+  });
 
 // Schema for existing users - no PIN confirmation needed
-const ExistingUserSchema = z.object({
-  password: passwordValidation,
-  reEnteredPassword: z.string().min(1, "Please re-enter your password"),
-  pin: pinValidation,
-  reEnteredPin: z.string(), // Present but not validated
-}).refine((data) => data.password === data.reEnteredPassword, {
-  message: "Passwords don't match",
-  path: ["reEnteredPassword"],
-});
+const ExistingUserSchema = z
+  .object({
+    password: passwordValidation,
+    reEnteredPassword: z.string().min(1, "Please re-enter your password"),
+    pin: pinValidation,
+    reEnteredPin: z.string(), // Present but not validated
+  })
+  .refine((data) => data.password === data.reEnteredPassword, {
+    message: "Passwords don't match",
+    path: ["reEnteredPassword"],
+  });
 
 // Desktop schema - PIN is not used (the signer does Argon2id over a password);
 // only the password and its confirmation are validated. The PIN fields stay
 // present in the form values so the shared form typing is unchanged.
-const DesktopSchema = z.object({
-  password: passwordValidation,
-  reEnteredPassword: z.string().min(1, "Please re-enter your password"),
-  pin: z.string(),
-  reEnteredPin: z.string(),
-}).refine((data) => data.password === data.reEnteredPassword, {
-  message: "Passwords don't match",
-  path: ["reEnteredPassword"],
-});
+const DesktopSchema = z
+  .object({
+    password: passwordValidation,
+    reEnteredPassword: z.string().min(1, "Please re-enter your password"),
+    pin: z.string(),
+    reEnteredPin: z.string(),
+  })
+  .refine((data) => data.password === data.reEnteredPassword, {
+    message: "Passwords don't match",
+    path: ["reEnteredPassword"],
+  });
 
 type AccountCreationFormProps = {
   // On desktop, `account` is undefined and the signer-returned mnemonic +
@@ -97,7 +119,7 @@ type AccountCreationFormProps = {
     account: Web3BaseWalletAccount | undefined,
     password: string,
     desktopBackup?: { address: string; mnemonic: string },
-  ) => void;
+  ) => void | Promise<void>;
 };
 
 type InnerFormProps = {
@@ -105,7 +127,7 @@ type InnerFormProps = {
     account: Web3BaseWalletAccount | undefined,
     password: string,
     desktopBackup?: { address: string; mnemonic: string },
-  ) => void;
+  ) => void | Promise<void>;
   hasExistingSeeds: boolean;
   existingSeeds: { address: string; encryptedSeed: string }[];
   blockchain: string;
@@ -115,261 +137,315 @@ type InnerFormProps = {
  * Inner form component - only rendered after we know if user has existing seeds.
  * This ensures the correct schema is used from the start.
  */
-const InnerForm = observer(({ onAccountCreated, hasExistingSeeds, existingSeeds, blockchain }: InnerFormProps) => {
-  const { qrlStore } = useStore();
-  const { qrlInstance } = qrlStore;
-  const [isEncrypting, setIsEncrypting] = useState(false);
-  const reEnterPinRef = useRef<PinInputHandle>(null);
+const InnerForm = observer(
+  ({
+    onAccountCreated,
+    hasExistingSeeds,
+    existingSeeds,
+    blockchain,
+  }: InnerFormProps) => {
+    const { qrlStore } = useStore();
+    const { qrlInstance } = qrlStore;
+    const [isEncrypting, setIsEncrypting] = useState(false);
+    const reEnterPinRef = useRef<PinInputHandle>(null);
 
-  // Select schema based on whether user has existing seeds. On desktop the
-  // password is the only secret (no PIN) so a dedicated schema is used.
-  const schema = isDesktop
-    ? DesktopSchema
-    : hasExistingSeeds
-    ? ExistingUserSchema
-    : NewUserSchema;
+    // Select schema based on whether user has existing seeds. On desktop the
+    // password is the only secret (no PIN) so a dedicated schema is used.
+    const schema = isDesktop
+      ? DesktopSchema
+      : hasExistingSeeds
+        ? ExistingUserSchema
+        : NewUserSchema;
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    mode: "onChange",
-    reValidateMode: "onChange",
-    defaultValues: {
-      password: "",
-      reEnteredPassword: "",
-      pin: "",
-      reEnteredPin: "",
-    },
-  });
+    const form = useForm<FormValues>({
+      resolver: zodResolver(schema),
+      mode: "onChange",
+      reValidateMode: "onChange",
+      defaultValues: {
+        password: "",
+        reEnteredPassword: "",
+        pin: "",
+        reEnteredPin: "",
+      },
+    });
 
-  const {
-    handleSubmit,
-    control,
-    formState: { isSubmitting, isValid, errors },
-    setError,
-  } = form;
+    const {
+      handleSubmit,
+      control,
+      formState: { isSubmitting, isValid, errors },
+      setError,
+    } = form;
 
-  async function onSubmit(formData: FormValues) {
-    try {
-      const userPassword = formData.password;
-      const userPin = formData.pin;
+    async function onSubmit(formData: FormValues) {
+      try {
+        const userPassword = formData.password;
+        const userPin = formData.pin;
 
-      // Desktop: the signer generates the seed and returns the mnemonic ONCE
-      // for backup. No seed material is materialised, encrypted, or stored in
-      // the renderer (no accounts.create / getMnemonicFromHexSeed /
-      // encryptSeedAsync / storeEncryptedSeed).
-      if (isDesktop) {
-        setIsEncrypting(true);
-        try {
-          const { status, mnemonic } = await desktopSigner.createWallet(userPassword);
-          setIsEncrypting(false);
-          onAccountCreated(undefined, userPassword, {
-            address: status.address,
-            mnemonic,
-          });
-        } catch (err) {
-          setIsEncrypting(false);
-          setError("root", {
-            message: `${err instanceof Error ? err.message : String(err)} There was an error while creating the account`,
-          });
-        }
-        return;
-      }
-
-      // If existing seeds exist, verify PIN by attempting to decrypt one
-      if (hasExistingSeeds && existingSeeds.length > 0) {
-        try {
-          // length > 0 is checked above; `?? ''` only satisfies the index
-          // checker and would route an (impossible) miss to the catch below.
-          await decryptSeedAsync(existingSeeds[0]?.encryptedSeed ?? '', userPin);
-        } catch (err) {
-          const message =
-            err instanceof CryptoOperationError && err.code === CryptoErrorCode.OUTDATED_FORMAT
-              ? "This wallet was saved in an older format and must be re-imported."
-              : "Incorrect PIN. Please enter your existing wallet PIN.";
-          setError("pin", { message });
+        // Desktop: the signer generates the seed and returns the mnemonic ONCE
+        // for backup. No seed material is materialised, encrypted, or stored in
+        // the renderer (no accounts.create / getMnemonicFromHexSeed /
+        // encryptSeedAsync / storeEncryptedSeed).
+        if (isDesktop) {
+          setIsEncrypting(true);
+          try {
+            const { status, mnemonic } =
+              await desktopSigner.createWallet(userPassword);
+            setIsEncrypting(false);
+            await onAccountCreated(undefined, userPassword, {
+              address: status.address,
+              mnemonic,
+            });
+          } catch (err) {
+            setIsEncrypting(false);
+            setError("root", {
+              message: `${err instanceof Error ? err.message : String(err)} There was an error while creating the account`,
+            });
+          }
           return;
         }
-      }
 
-      // Create the account
-      const newAccount = await qrlInstance?.accounts.create();
-      if (!newAccount || !newAccount.seed) {
-        throw new Error("Failed to create account");
-      }
+        const walletGeneration = walletMutations.captureGeneration();
 
-      // Get mnemonic from hex seed
-      const hexSeed = newAccount.seed;
-      const mnemonic = getMnemonicFromHexSeed(hexSeed);
-      if (!mnemonic) {
-        throw new Error("Failed to generate mnemonic");
-      }
+        // If existing seeds exist, verify PIN by attempting to decrypt one
+        if (hasExistingSeeds && existingSeeds.length > 0) {
+          try {
+            // length > 0 is checked above; `?? ''` only satisfies the index
+            // checker and would route an (impossible) miss to the catch below.
+            const existingSeed = existingSeeds[0];
+            await decryptStoredSeedAsync(
+              blockchain,
+              existingSeed?.address ?? "",
+              existingSeed?.encryptedSeed ?? "",
+              userPin,
+            );
+          } catch (err) {
+            const message =
+              err instanceof CryptoOperationError &&
+              err.code === CryptoErrorCode.OUTDATED_FORMAT
+                ? "This wallet was saved in an older format and must be re-imported."
+                : err instanceof CryptoOperationError &&
+                    err.code === CryptoErrorCode.DEVICE_CREDENTIAL_UNAVAILABLE
+                  ? "This wallet's device security credential is unavailable. Re-import the existing seed before adding an account."
+                  : "Incorrect PIN. Please enter your existing wallet PIN.";
+            setError("pin", { message });
+            return;
+          }
+        }
 
-      // Encrypt the seed with PIN (runs in Web Worker)
-      setIsEncrypting(true);
-      const encryptedSeed = await encryptSeedAsync(mnemonic, hexSeed, userPin);
+        // Create the account
+        const newAccount = await qrlInstance?.accounts.create();
+        if (!newAccount || !newAccount.seed) {
+          throw new Error("Failed to create account");
+        }
 
-      // Store the encrypted seed in localStorage
-      await StorageUtil.storeEncryptedSeed(blockchain, newAccount.address, encryptedSeed);
+        // Get mnemonic from hex seed
+        const hexSeed = newAccount.seed;
+        const mnemonic = getMnemonicFromHexSeed(hexSeed);
+        if (!mnemonic) {
+          throw new Error("Failed to generate mnemonic");
+        }
 
-      // Notify native app if running in native context
-      if (isInNativeApp()) {
-        notifySeedStored({
-          address: newAccount.address,
-          encryptedSeed,
-          blockchain,
+        // Encrypt the seed with PIN (runs in Web Worker)
+        setIsEncrypting(true);
+        const encryptedSeed = await encryptSeedAsync(
+          mnemonic,
+          hexSeed,
+          userPin,
+        );
+
+        await walletMutations.enqueueWalletMutation(
+          async (isCurrent) => {
+            if (!isCurrent())
+              throw new Error("Wallet was cleared during account creation");
+            const storedSeed = await StorageUtil.storeEncryptedSeed(
+              blockchain,
+              newAccount.address,
+              encryptedSeed,
+              isCurrent.epoch,
+            );
+
+            if (isInNativeApp()) {
+              await notifySeedStored({
+                address: newAccount.address,
+                encryptedSeed,
+                blockchain,
+                revision: storedSeed.revision ?? 1,
+              });
+            }
+            if (!isCurrent())
+              throw new Error("Wallet was cleared during account creation");
+            await onAccountCreated(newAccount, userPassword);
+          },
+          () => {
+            throw new Error("Wallet clear is in progress");
+          },
+          walletGeneration,
+        );
+
+        setIsEncrypting(false);
+      } catch (error) {
+        setIsEncrypting(false);
+        setError("root", {
+          message: `${error} There was an error while creating the account`,
         });
       }
-
-      setIsEncrypting(false);
-      onAccountCreated(newAccount, userPassword);
-    } catch (error) {
-      setIsEncrypting(false);
-      setError("root", {
-        message: `${error} There was an error while creating the account`,
-      });
     }
-  }
 
-  const isProcessing = isSubmitting || isEncrypting;
-  const buttonText = isEncrypting
-    ? "Encrypting..."
-    : isSubmitting
-    ? "Creating account..."
-    : "Create account";
+    const isProcessing = isSubmitting || isEncrypting;
+    const buttonText = isEncrypting
+      ? "Encrypting..."
+      : isSubmitting
+        ? "Creating account..."
+        : "Create account";
 
-  return (
-    <Form {...form}>
-      <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-        <Card >
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">Create new account</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            <div>
-              <h3 className="text-lg font-medium mb-4">Wallet Password</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                This password will be used to encrypt your wallet backup files. It should be strong and secure.
-              </p>
-              <div className="space-y-4">
-                <FormField
-                  control={control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input
-                          disabled={isSubmitting}
-                          placeholder="Password"
-                          type="password"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Must include uppercase, lowercase, number, and special character
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={control}
-                  name="reEnteredPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          disabled={isSubmitting}
-                          placeholder="Re-enter the password"
-                          type="password"
-                        />
-                      </FormControl>
-                      <FormDescription>Re-enter the password</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-
-            {/* PIN section is web/native only. On desktop the signer uses the
-                password (Argon2id) and there is no per-transaction PIN. */}
-            {!isDesktop && (
-            <>
-            <Separator />
-
-            <div>
-              <h3 className="text-lg font-medium mb-4">
-                {hasExistingSeeds ? "Your Existing PIN" : "Transaction PIN"}
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                {hasExistingSeeds
-                  ? "Enter your existing PIN to add this wallet. All wallets use the same PIN for security."
-                  : isInNativeApp()
-                  ? "This PIN will be used for daily transactions and to enable security features like Device Login. You'll enter this PIN instead of your seed phrase when sending funds. Your wallet is secured by Device Login and automatically locks when you switch apps."
-                  : "This PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press \"Logout\" when done for extra security."}
-              </p>
-              <div className="space-y-4">
-                <FormField
-                  control={control}
-                  name="pin"
-                  render={({ field }) => (
-                    <PinInput
-                      length={6}
-                      placeholder={hasExistingSeeds ? "Your existing PIN" : "Enter PIN (4-6 digits)"}
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={isSubmitting}
-                      description={hasExistingSeeds ? "(All wallets use the same PIN)" : "Enter a 4-6 digit PIN"}
-                      error={errors.pin?.message}
-                      onComplete={() => reEnterPinRef.current?.focus()}
-                    />
-                  )}
-                />
-                {!hasExistingSeeds && (
+    return (
+      <Form {...form}>
+        <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold">
+                Create new account
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              <div>
+                <h3 className="text-lg font-medium mb-4">Wallet Password</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  This password will be used to encrypt your wallet backup
+                  files. It should be strong and secure.
+                </p>
+                <div className="space-y-4">
                   <FormField
                     control={control}
-                    name="reEnteredPin"
+                    name="password"
                     render={({ field }) => (
-                      <PinInput
-                        ref={reEnterPinRef}
-                        length={6}
-                        placeholder="Re-enter PIN"
-                        value={field.value}
-                        onChange={field.onChange}
-                        disabled={isSubmitting}
-                        description="Re-enter your PIN"
-                        error={errors.reEnteredPin?.message}
-                      />
+                      <FormItem>
+                        <FormControl>
+                          <Input
+                            disabled={isSubmitting}
+                            placeholder="Password"
+                            type="password"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Must include uppercase, lowercase, number, and special
+                          character
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
                     )}
                   />
-                )}
+                  <FormField
+                    control={control}
+                    name="reEnteredPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            disabled={isSubmitting}
+                            placeholder="Re-enter the password"
+                            type="password"
+                          />
+                        </FormControl>
+                        <FormDescription>Re-enter the password</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
-            </div>
-            </>
-            )}
-          </CardContent>
-          <CardFooter className="flex-col gap-4">
-            {errors.root && (
-              <p className="text-sm text-destructive w-full">
-                {errors.root.message}
-              </p>
-            )}
-            <ShinyButton
-              disabled={!isValid || isProcessing}
-              processing={isProcessing}
-              className="w-full"
-              type="submit"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {buttonText}
-            </ShinyButton>
-          </CardFooter>
-        </Card>
-      </form>
-    </Form>
-  );
-});
+
+              {/* PIN section is web/native only. On desktop the signer uses the
+                password (Argon2id) and there is no per-transaction PIN. */}
+              {!isDesktop && (
+                <>
+                  <Separator />
+
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">
+                      {hasExistingSeeds
+                        ? "Your Existing PIN"
+                        : "Transaction PIN"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {hasExistingSeeds
+                        ? "Enter your existing PIN to add this wallet. All wallets use the same PIN for security."
+                        : isInNativeApp()
+                          ? "This PIN will be used for daily transactions and to enable security features like Device Login. You'll enter this PIN instead of your seed phrase when sending funds. Your wallet is secured by Device Login and automatically locks when you switch apps."
+                          : 'This PIN will be used for daily transactions. You\'ll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.'}
+                    </p>
+                    <div className="space-y-4">
+                      <FormField
+                        control={control}
+                        name="pin"
+                        render={({ field }) => (
+                          <PinInput
+                            length={6}
+                            placeholder={
+                              hasExistingSeeds
+                                ? "Your existing PIN"
+                                : "Enter PIN (4-6 digits)"
+                            }
+                            value={field.value}
+                            onChange={field.onChange}
+                            disabled={isSubmitting}
+                            description={
+                              hasExistingSeeds
+                                ? "(All wallets use the same PIN)"
+                                : "Enter a 4-6 digit PIN"
+                            }
+                            error={errors.pin?.message}
+                            onComplete={() => reEnterPinRef.current?.focus()}
+                          />
+                        )}
+                      />
+                      {!hasExistingSeeds && (
+                        <FormField
+                          control={control}
+                          name="reEnteredPin"
+                          render={({ field }) => (
+                            <PinInput
+                              ref={reEnterPinRef}
+                              length={6}
+                              placeholder="Re-enter PIN"
+                              value={field.value}
+                              onChange={field.onChange}
+                              disabled={isSubmitting}
+                              description="Re-enter your PIN"
+                              error={errors.reEnteredPin?.message}
+                            />
+                          )}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+            <CardFooter className="flex-col gap-4">
+              {errors.root && (
+                <p className="text-sm text-destructive w-full">
+                  {errors.root.message}
+                </p>
+              )}
+              <ShinyButton
+                disabled={!isValid || isProcessing}
+                processing={isProcessing}
+                className="w-full"
+                type="submit"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                {buttonText}
+              </ShinyButton>
+            </CardFooter>
+          </Card>
+        </form>
+      </Form>
+    );
+  },
+);
 
 /**
  * Wrapper component that loads seed data before rendering the form.
@@ -380,8 +456,12 @@ export const AccountCreationForm = observer(
     const { qrlStore } = useStore();
     const { qrlConnection } = qrlStore;
     const { blockchain } = qrlConnection;
-    const [hasExistingSeeds, setHasExistingSeeds] = useState<boolean | null>(null);
-    const [existingSeeds, setExistingSeeds] = useState<{ address: string; encryptedSeed: string }[]>([]);
+    const [hasExistingSeeds, setHasExistingSeeds] = useState<boolean | null>(
+      null,
+    );
+    const [existingSeeds, setExistingSeeds] = useState<
+      { address: string; encryptedSeed: string }[]
+    >([]);
 
     // Check for existing encrypted seeds on mount
     useEffect(() => {
@@ -413,5 +493,5 @@ export const AccountCreationForm = observer(
         blockchain={blockchain}
       />
     );
-  }
+  },
 );

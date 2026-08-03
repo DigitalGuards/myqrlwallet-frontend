@@ -1,4 +1,5 @@
-import type { PersistedSession } from './KeyExchange';
+import type { PersistedSession } from "./KeyExchange";
+import type { WalletEpoch } from "@/utils/walletEpoch";
 
 /** dApp metadata received during connection */
 export interface DAppInfo {
@@ -17,28 +18,35 @@ export interface DAppInfo {
 /**
  * A connected dApp session (persisted in localStorage).
  *
- * v2 persists the derived AES-256 session key rather than an ML-KEM secret
- * key — the KEM keypair is ephemeral and zeroized after the handshake.
- * Re-pair (scan a new QR) to rotate the session key.
+ * Storage v4 denotes PQP3-derived keys and checkpoints the AEAD counters after
+ * every successful seal/open. Earlier records are deliberately dropped so a
+ * pre-PQP3 key is never resumed after the capability-bound protocol upgrade.
  */
 export interface DAppSession {
-  version: 2;
+  version: 4;
   id: string;
   dappInfo: DAppInfo;
+  /** True only after this session's qrl_requestAccounts was approved. */
+  accountAuthorized: boolean;
+  /** Exact account bound by that approval, or empty while unauthorized. */
   connectedAccount: string;
+  /** Whether the first authenticated ORIGINATOR_INFO has been pinned. */
+  originatorInfoReceived: boolean;
   keyExchange: PersistedSession;
   relayUrl?: string;
   status: SessionStatus;
   createdAt: number;
   lastActivity: number;
+  /** Wallet identity generation that is allowed to restore this key. */
+  walletEpoch?: WalletEpoch;
 }
 
 export enum SessionStatus {
-  CONNECTING = 'connecting',
-  KEY_EXCHANGE = 'key_exchange',
-  CONNECTED = 'connected',
-  RECONNECTING = 'reconnecting',
-  DISCONNECTED = 'disconnected',
+  CONNECTING = "connecting",
+  KEY_EXCHANGE = "key_exchange",
+  CONNECTED = "connected",
+  RECONNECTING = "reconnecting",
+  DISCONNECTED = "disconnected",
 }
 
 /** A pending JSON-RPC request from a dApp */
@@ -53,26 +61,26 @@ export interface PendingDAppRequest {
 
 /** Key-exchange message types (must match SDK) */
 export enum KeyExchangeMessageType {
-  SYN = 'key_handshake_SYN',
-  SYNACK = 'key_handshake_SYNACK',
-  ACK = 'key_handshake_ACK',
+  SYN = "key_handshake_SYN",
+  SYNACK = "key_handshake_SYNACK",
+  ACK = "key_handshake_ACK",
 }
 
 /** Message types (must match SDK) */
 export enum MessageType {
-  KEY_EXCHANGE = 'key_exchange',
-  JSONRPC = 'jsonrpc',
-  WALLET_INFO = 'wallet_info',
-  ORIGINATOR_INFO = 'originator_info',
-  TERMINATE = 'terminate',
-  PING = 'ping',
-  READY = 'ready',
+  KEY_EXCHANGE = "key_exchange",
+  JSONRPC = "jsonrpc",
+  WALLET_INFO = "wallet_info",
+  ORIGINATOR_INFO = "originator_info",
+  TERMINATE = "terminate",
+  PING = "ping",
+  READY = "ready",
 }
 
 /** Wire message format sent through the relay */
 export interface RelayMessage {
   id: string;
-  clientType: 'dapp' | 'wallet';
+  clientType: "dapp" | "wallet";
   message: string | object;
 }
 

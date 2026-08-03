@@ -1,6 +1,6 @@
 # MyQRLWallet Frontend - Multi-stage Docker Build
 # Stage 1: Build the React/Vite application
-FROM node:20-alpine AS builder
+FROM node:22.22-alpine@sha256:e58326d0d441090181ac150dc2078d3e2cf6a0d42e809aebba3ef5880935ffdd AS builder
 
 WORKDIR /app
 
@@ -15,18 +15,21 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 
 # Build arguments for Vite environment variables (must be set at build time)
-ARG VITE_RPC_URL_TESTNET
-ARG VITE_RPC_URL_MAINNET
-ARG VITE_SERVER_URL_TESTNET
-ARG VITE_SERVER_URL_MAINNET
+ARG VITE_RPC_URL_PRODUCTION=https://qrlwallet.com/api/qrl-rpc
+ARG VITE_SERVER_URL_PRODUCTION=https://qrlwallet.com/api
+ARG VITE_EXPLORER_URL_PRODUCTION=https://zondscan.com
 ARG VITE_CUSTOMERC20FACTORY_ADDRESS
 ARG VITE_DEPLOYER
+
+ENV VITE_RPC_URL_PRODUCTION=$VITE_RPC_URL_PRODUCTION \
+    VITE_SERVER_URL_PRODUCTION=$VITE_SERVER_URL_PRODUCTION \
+    VITE_EXPLORER_URL_PRODUCTION=$VITE_EXPLORER_URL_PRODUCTION
 
 # Build the application
 RUN npm run build
 
 # Stage 2: Serve with unprivileged nginx (runs as non-root on port 8080)
-FROM nginxinc/nginx-unprivileged:alpine
+FROM nginxinc/nginx-unprivileged:alpine@sha256:a6c3ec0c0d249d68b0682df854d4a9e222b90fb607dc3fcf2f1d2fcbc85d347e
 
 # Copy custom nginx config
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf

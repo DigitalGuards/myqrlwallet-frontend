@@ -11,7 +11,7 @@ import { SEO } from "../../../SEO/SEO";
 import { PinSetup } from "../PinSetup/PinSetup";
 import { useWalletLimit } from "@/hooks/useWalletLimit";
 import { AlertCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ROUTES } from "@/router/router";
 import { Button } from "@/components/UI/Button";
 import { isDesktop } from "@/desktop/bridge";

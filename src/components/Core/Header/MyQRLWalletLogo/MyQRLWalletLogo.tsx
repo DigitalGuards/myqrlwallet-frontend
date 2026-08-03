@@ -1,5 +1,5 @@
 import { ROUTES } from "../../../../router/router";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 interface MyQRLWalletLogoProps {
   showText?: boolean;

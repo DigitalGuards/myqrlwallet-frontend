@@ -2,10 +2,17 @@ export {
   WalletEncryptionUtil,
   PinDecryptionError,
   OutdatedWalletFormatError,
+  DeviceCredentialUnavailableError,
+  MAX_WALLET_FILE_BYTES,
+  MAX_WALLET_PASSWORD_LENGTH,
   type WalletData,
   type EncryptedWallet,
   type ExtendedWalletAccount,
+  type VersionedSeedDecryption,
 } from './walletEncryption';
+
+export { decryptStoredSeedWithPin } from './storedSeed';
+export { deriveCanonicalAddressFromHexSeed } from './seedIdentity';
 
 export {
   getMnemonicFromHexSeed,
@@ -17,6 +24,7 @@ export {
 export {
   encryptSeedAsync,
   decryptSeedAsync,
+  decryptStoredSeedAsync,
   reEncryptSeedAsync,
   deriveHexSeedAsync,
   decryptKeystoreAsync,

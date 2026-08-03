@@ -2,7 +2,7 @@ import RouteMonitor from "./RouteMonitor/RouteMonitor";
 import { withSuspense } from "@/utils/react";
 import { observer } from "mobx-react-lite";
 import { lazy, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { setupActivityTracking, startAutoLockTimer, clearAutoLockTimer } from "@/utils/storage";
 import NativeAppBridge from "@/components/NativeAppBridge";
 import { isDesktop } from "@/desktop/bridge";

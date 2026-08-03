@@ -137,6 +137,14 @@ describe('parseKeystoreBackup', () => {
     expect(() => parseKeystoreBackup({ keystores: [] })).toThrow(KeystoreFormatError);
   });
 
+  it('rejects backups containing more than the supported ten wallets', () => {
+    expect(() =>
+      parseKeystoreBackup({
+        keystores: Array.from({ length: 11 }, () => firstKeystore()),
+      }),
+    ).toThrow(/more than 10/);
+  });
+
   it.each([
     ['version', { ...firstKeystore(), version: 2 }],
     ['cipher', { ...firstKeystore(), crypto: { ...firstKeystore().crypto, cipher: 'aes-256-cbc' } }],
@@ -159,12 +167,18 @@ describe('parseKeystoreBackup', () => {
     );
   });
 
-  it('rejects in-bounds dklen other than 32 at decrypt time as a format error', async () => {
-    // dklen 64 passes the parity bounds but AES-256 needs exactly 32 bytes;
-    // this must not be misreported as a wrong password.
-    await expect(
-      decryptKeystoreToHexSeed(withKdfParam({ dklen: 64 }), ASCII_PASSWORD),
-    ).rejects.toThrow(KeystoreFormatError);
+  it('rejects work factors above the production writer ceiling before KDF', () => {
+    const excessiveWorkFactors: Array<Record<string, number>> = [
+      { m: 262145 },
+      { t: 9 },
+      { p: 2 },
+      { dklen: 64 },
+    ];
+    for (const overrides of excessiveWorkFactors) {
+      expect(() =>
+        parseKeystoreBackup({ keystores: [withKdfParam(overrides)] }),
+      ).toThrow(KeystoreFormatError);
+    }
   });
 
   it('rejects a wrong-length IV', () => {
@@ -193,6 +207,18 @@ describe('parseKeystoreBackup', () => {
     const ks = firstKeystore();
     ks.crypto.kdfparams.salt = 'abcd';
     expect(() => parseKeystoreBackup({ keystores: [ks] })).toThrow(KeystoreFormatError);
+  });
+
+  it('rejects unbounded salt and metadata strings before Argon2', () => {
+    for (const mutate of [
+      (ks: EncryptedKeystore) => { ks.crypto.kdfparams.salt = 'aa'.repeat(65); },
+      (ks: EncryptedKeystore) => { ks.id = 'i'.repeat(130); },
+      (ks: EncryptedKeystore) => { ks.address = 'Q'.repeat(130); },
+    ]) {
+      const ks = firstKeystore();
+      mutate(ks);
+      expect(() => parseKeystoreBackup({ keystores: [ks] })).toThrow(KeystoreFormatError);
+    }
   });
 });
 
@@ -225,6 +251,12 @@ describe('decryptKeystoreToHexSeed (extension parity)', () => {
 
   it('rejects an empty password', async () => {
     await expect(decryptKeystoreToHexSeed(keystoreAt(0), '')).rejects.toThrow(
+      KeystoreDecryptError,
+    );
+  });
+
+  it('rejects an unbounded password before Argon2', async () => {
+    await expect(decryptKeystoreToHexSeed(keystoreAt(0), 'x'.repeat(1025))).rejects.toThrow(
       KeystoreDecryptError,
     );
   });

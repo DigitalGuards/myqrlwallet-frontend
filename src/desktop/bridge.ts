@@ -57,14 +57,16 @@ export interface UnsignedTransaction {
   type?: string;
 }
 
-export type FeeLevelHint = 'low' | 'medium' | 'high';
+export type FeeLevelHint = "low" | "medium" | "high";
 
 /** Result of a signing request handled by the signer (after its trusted confirm modal). */
 export interface SignatureResult {
-  kind: 'transaction' | 'message' | 'typedData';
+  kind: "transaction" | "message" | "typedData";
   signature: string;
   publicKey?: string;
   signer: string;
+  /** Descriptor bytes as 0x-hex (absent on older desktop shells). */
+  descriptor?: string;
   digest?: string;
   /** Scheme identifier for message/typedData (e.g. "QRL-SIGN-MSG-v1"). */
   schemeVersion?: string;
@@ -81,7 +83,7 @@ export interface SignatureResult {
  * raw ORIGINATOR_INFO through.
  */
 export interface DAppOriginMeta {
-  via: 'dapp';
+  via: "dapp";
   name: string;
   url: string;
   channelId: string;
@@ -94,9 +96,19 @@ export interface DAppOriginMeta {
  * unlocked session (transactions carry the same binding via tx.from).
  */
 export type SignatureRequest =
-  | { kind: 'transaction'; tx: UnsignedTransaction; origin?: DAppOriginMeta }
-  | { kind: 'message'; messageHex: string; signer: string; origin?: DAppOriginMeta }
-  | { kind: 'typedData'; payload: unknown; signer: string; origin?: DAppOriginMeta };
+  | { kind: "transaction"; tx: UnsignedTransaction; origin?: DAppOriginMeta }
+  | {
+      kind: "message";
+      messageHex: string;
+      signer: string;
+      origin?: DAppOriginMeta;
+    }
+  | {
+      kind: "typedData";
+      payload: unknown;
+      signer: string;
+      origin?: DAppOriginMeta;
+    };
 
 export interface CreateWalletResult {
   status: WalletStatus;
@@ -110,7 +122,10 @@ export interface CreateWalletResult {
  * satisfies it.
  */
 export interface QrlWalletBridge {
-  createWallet(args: { password: string; useKeychain?: boolean }): Promise<CreateWalletResult>;
+  createWallet(args: {
+    password: string;
+    useKeychain?: boolean;
+  }): Promise<CreateWalletResult>;
   /** Import from a mnemonic OR a 51-byte hex extended seed (exactly one). */
   importWallet(args: {
     mnemonic?: string;
@@ -127,12 +142,17 @@ export interface QrlWalletBridge {
   removeWallet(args?: { address?: string }): Promise<WalletStatus>;
   getStatus(): Promise<WalletStatus>;
   /** Every wallet on this device + the active one. */
-  listWallets(): Promise<{ wallets: DesktopWalletInfo[]; active: string | null }>;
+  listWallets(): Promise<{
+    wallets: DesktopWalletInfo[];
+    active: string | null;
+  }>;
   /** Switch the active wallet. When the session belongs to a different account
    * the desktop locks and raises its native unlock window. */
   setActiveWallet(args: { address: string }): Promise<WalletStatus>;
   hasWallet(): Promise<boolean>;
-  getBalance(args: { address: string }): Promise<{ address: string; balance: string }>;
+  getBalance(args: {
+    address: string;
+  }): Promise<{ address: string; balance: string }>;
   buildTransaction(args: {
     from: string;
     to: string;
@@ -142,7 +162,9 @@ export interface QrlWalletBridge {
     data?: string;
   }): Promise<UnsignedTransaction>;
   requestSignature(request: SignatureRequest): Promise<SignatureResult>;
-  sendRawTransaction(args: { rawTx: string }): Promise<{ transactionHash: string }>;
+  sendRawTransaction(args: {
+    rawTx: string;
+  }): Promise<{ transactionHash: string }>;
   /** Surface the wallet window (taskbar flash / dock bounce, no focus steal)
    * because a dApp request needs the user. Rate-limited by main. Optional:
    * absent on desktop shells that predate dApp-connect. */
@@ -176,7 +198,8 @@ declare global {
  * snapshot avoids re-reading `window` on every call site.
  */
 export const isDesktop: boolean =
-  typeof window !== 'undefined' && Boolean((window as { qrlWallet?: unknown }).qrlWallet);
+  typeof window !== "undefined" &&
+  Boolean((window as { qrlWallet?: unknown }).qrlWallet);
 
 /**
  * Typed accessor for the bridge. Throws if absent so a desktop-only path that
@@ -184,9 +207,9 @@ export const isDesktop: boolean =
  * fallback.
  */
 export function qrlWallet(): QrlWalletBridge {
-  const bridge = typeof window !== 'undefined' ? window.qrlWallet : undefined;
+  const bridge = typeof window !== "undefined" ? window.qrlWallet : undefined;
   if (!bridge) {
-    throw new Error('desktop: window.qrlWallet bridge is not available');
+    throw new Error("desktop: window.qrlWallet bridge is not available");
   }
   return bridge;
 }
@@ -211,12 +234,12 @@ export function buildDappOrigin(
 ): DAppOriginMeta | undefined {
   if (!/^[0-9a-fA-F-]{1,64}$/.test(channelId)) return undefined;
   const cleanName =
-    (name ?? '')
+    (name ?? "")
       // eslint-disable-next-line no-control-regex -- stripping control chars is the point
-      .replace(/[\u0000-\u001f\u007f]/g, '')
+      .replace(/[\u0000-\u001f\u007f]/g, "")
       .trim()
-      .slice(0, 64) || 'Unknown dApp';
-  let cleanUrl = '';
+      .slice(0, 64) || "Unknown dApp";
+  let cleanUrl = "";
   // Validate the WHOLE url, then accept it only if it is a well-formed http(s)
   // URL within the schema's 256-char cap. Slicing before parsing would truncate
   // a long-but-valid URL into junk (dropped to '' or, worse, a valid-but-wrong
@@ -224,12 +247,12 @@ export function buildDappOrigin(
   if (url && url.length <= 256) {
     try {
       const proto = new URL(url).protocol;
-      if (proto === 'https:' || proto === 'http:') cleanUrl = url;
+      if (proto === "https:" || proto === "http:") cleanUrl = url;
     } catch {
       /* unusable URL: leave '' */
     }
   }
-  return { via: 'dapp', name: cleanName, url: cleanUrl, channelId };
+  return { via: "dapp", name: cleanName, url: cleanUrl, channelId };
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +266,10 @@ export function buildDappOrigin(
  */
 export const desktopSigner = {
   /** Provision a fresh wallet. Returns the one-time mnemonic for backup. */
-  async createWallet(password: string, useKeychain?: boolean): Promise<CreateWalletResult> {
+  async createWallet(
+    password: string,
+    useKeychain?: boolean,
+  ): Promise<CreateWalletResult> {
     return qrlWallet().createWallet({ password, useKeychain });
   },
 
@@ -260,7 +286,9 @@ export const desktopSigner = {
 
   /** Unlock the signer session. Omit password for an OS keychain unlock. */
   async unlock(password?: string): Promise<WalletStatus> {
-    return qrlWallet().unlock(password === undefined ? undefined : { password });
+    return qrlWallet().unlock(
+      password === undefined ? undefined : { password },
+    );
   },
 
   /** Lock the signer session (keeps the seed, drops the in-memory session). */
@@ -272,11 +300,16 @@ export const desktopSigner = {
    * address is given). The caller still clears the renderer's local account
    * state for that account. */
   async removeWallet(address?: string): Promise<WalletStatus> {
-    return qrlWallet().removeWallet(address === undefined ? undefined : { address });
+    return qrlWallet().removeWallet(
+      address === undefined ? undefined : { address },
+    );
   },
 
   /** Every wallet on this device + the active one. */
-  async listWallets(): Promise<{ wallets: DesktopWalletInfo[]; active: string | null }> {
+  async listWallets(): Promise<{
+    wallets: DesktopWalletInfo[];
+    active: string | null;
+  }> {
     return qrlWallet().listWallets();
   },
 
@@ -325,9 +358,13 @@ export const desktopSigner = {
       data: args.data,
       feeLevel: args.feeLevel,
     });
-    const signed = await bridge.requestSignature({ kind: 'transaction', tx, origin });
+    const signed = await bridge.requestSignature({
+      kind: "transaction",
+      tx,
+      origin,
+    });
     if (!signed.rawTransaction) {
-      throw new Error('desktop: signer returned no raw transaction');
+      throw new Error("desktop: signer returned no raw transaction");
     }
     return bridge.sendRawTransaction({ rawTx: signed.rawTransaction });
   },
@@ -355,9 +392,13 @@ export const desktopSigner = {
       data: args.data,
       feeLevel: args.feeLevel,
     });
-    const signed = await bridge.requestSignature({ kind: 'transaction', tx, origin });
+    const signed = await bridge.requestSignature({
+      kind: "transaction",
+      tx,
+      origin,
+    });
     if (!signed.rawTransaction) {
-      throw new Error('desktop: signer returned no raw transaction');
+      throw new Error("desktop: signer returned no raw transaction");
     }
     return signed.rawTransaction;
   },
@@ -373,7 +414,12 @@ export const desktopSigner = {
     signer: string,
     origin?: DAppOriginMeta,
   ): Promise<SignatureResult> {
-    return qrlWallet().requestSignature({ kind: 'message', messageHex, signer, origin });
+    return qrlWallet().requestSignature({
+      kind: "message",
+      messageHex,
+      signer,
+      origin,
+    });
   },
 
   /**
@@ -387,7 +433,12 @@ export const desktopSigner = {
     signer: string,
     origin?: DAppOriginMeta,
   ): Promise<SignatureResult> {
-    return qrlWallet().requestSignature({ kind: 'typedData', payload, signer, origin });
+    return qrlWallet().requestSignature({
+      kind: "typedData",
+      payload,
+      signer,
+      origin,
+    });
   },
 
   /**
@@ -407,10 +458,12 @@ export const desktopSigner = {
    */
   async openDesktopSettings(): Promise<void> {
     const bridge = qrlWallet();
-    if (typeof bridge.openDesktopSettings !== 'function') {
+    if (typeof bridge.openDesktopSettings !== "function") {
       // Dev-only skew (bundled renderers ship with their shell): make the
       // silent degrade visible instead of a dead Settings button.
-      console.warn('desktop: this shell has no settings window (openDesktopSettings missing)');
+      console.warn(
+        "desktop: this shell has no settings window (openDesktopSettings missing)",
+      );
       return;
     }
     await bridge.openDesktopSettings();
@@ -422,12 +475,14 @@ export const desktopSigner = {
    */
   onDAppConnectUri(cb: (uri: string) => void): () => void {
     const bridge = qrlWallet();
-    if (typeof bridge.onDAppConnectUri !== 'function') return () => undefined;
+    if (typeof bridge.onDAppConnectUri !== "function") return () => undefined;
     return bridge.onDAppConnectUri(cb);
   },
 
   /** Broadcast an already-signed raw transaction. */
-  async sendRawTransaction(rawTx: string): Promise<{ transactionHash: string }> {
+  async sendRawTransaction(
+    rawTx: string,
+  ): Promise<{ transactionHash: string }> {
     return qrlWallet().sendRawTransaction({ rawTx });
   },
 

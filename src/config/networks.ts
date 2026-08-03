@@ -1,28 +1,34 @@
-const RPC_API_BASE = import.meta.env['VITE_NODE_ENV'] === 'production'
-  ? import.meta.env['VITE_RPC_URL_PRODUCTION']
-  : import.meta.env['VITE_RPC_URL_DEVELOPMENT'];  // Using Vite's default port
+const IS_PRODUCTION = import.meta.env.PROD;
 
-export const SERVER_URL = import.meta.env['VITE_NODE_ENV'] === 'production'
-  ? import.meta.env['VITE_SERVER_URL_PRODUCTION']
-  : import.meta.env['VITE_SERVER_URL_DEVELOPMENT'];
+const RPC_API_BASE = IS_PRODUCTION
+  ? import.meta.env["VITE_RPC_URL_PRODUCTION"] ||
+    "https://qrlwallet.com/api/qrl-rpc"
+  : import.meta.env["VITE_RPC_URL_DEVELOPMENT"] || "http://localhost:8545";
 
-export const EXPLORER_BASE = (import.meta.env['VITE_NODE_ENV'] === 'production'
-  ? import.meta.env['VITE_EXPLORER_URL_PRODUCTION']
-  : import.meta.env['VITE_EXPLORER_URL_DEVELOPMENT']) || 'https://zondscan.com';
+export const SERVER_URL = IS_PRODUCTION
+  ? import.meta.env["VITE_SERVER_URL_PRODUCTION"] || "https://qrlwallet.com/api"
+  : import.meta.env["VITE_SERVER_URL_DEVELOPMENT"] ||
+    "http://localhost:3000/api";
+
+export const EXPLORER_BASE =
+  (IS_PRODUCTION
+    ? import.meta.env["VITE_EXPLORER_URL_PRODUCTION"]
+    : import.meta.env["VITE_EXPLORER_URL_DEVELOPMENT"]) ||
+  "https://zondscan.com";
 
 export const QRL_PROVIDER = {
   TEST_NET: {
     id: "TEST_NET",
     url: `${RPC_API_BASE}/testnet`,
     name: "QRL 2.0 Testnet",
-    explorer: EXPLORER_BASE
+    explorer: EXPLORER_BASE,
   },
   MAIN_NET: {
     id: "MAIN_NET",
     url: `${RPC_API_BASE}/mainnet`,
     name: "QRL 2.0 Mainnet",
-    explorer: EXPLORER_BASE
-  }
+    explorer: EXPLORER_BASE,
+  },
 };
 
 export const getExplorerAddressUrl = (address: string, blockchain: string) => {
@@ -50,7 +56,10 @@ export const getPendingTxApiUrl = (blockchain: string) => {
 // row per (NFT contract, tokenID) the address holds, and the wallet's
 // ERC-20-aware renderer treats those as 18-decimal fungibles and shows
 // "Amount: 0" for every NFT row.
-export const getTokenDiscoveryApiUrl = (address: string, blockchain: string) => {
+export const getTokenDiscoveryApiUrl = (
+  address: string,
+  blockchain: string,
+) => {
   const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
   return `${provider.explorer}/api/address/${address}/tokens?standard=ERC-20`;
 };

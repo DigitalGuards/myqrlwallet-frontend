@@ -17,7 +17,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useState, useEffect, useRef, useCallback, lazy } from "react";
 import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
-import type { EncryptedSeedData } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
 import {
     BookUser,
@@ -29,12 +28,14 @@ import {
     Shield,
     TimerReset,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ROUTES } from "@/router/router";
 import { SEO } from "@/components/SEO/SEO";
 import { PinInput, type PinInputHandle } from "@/components/UI/PinInput/PinInput";
-import { decryptSeedAsync, reEncryptSeedAsync } from "@/utils/crypto";
-import { isInNativeApp, sendPinChanged } from "@/utils/nativeApp";
+import { CryptoErrorCode, CryptoOperationError } from "@/utils/crypto";
+import { rotateStoredSeedPin } from "@/utils/crypto/pinRotation";
+import { isInNativeApp } from "@/utils/nativeApp";
+import { QRL_PROVIDER } from "@/config";
 import { isDesktop } from "@/desktop/bridge";
 import { withSuspense } from "@/utils/react";
 import { cn } from "@/utils/cn";
@@ -95,8 +96,13 @@ const Settings = observer(() => {
     // Check for existing encrypted seeds on mount
     useEffect(() => {
         const checkSeeds = async () => {
-            const blockchain = await StorageUtil.getBlockChain();
-            const hasSeeds = await StorageUtil.hasEncryptedSeeds(blockchain);
+            const hasSeeds = (
+                await Promise.all(
+                    Object.keys(QRL_PROVIDER).map(blockchain =>
+                        StorageUtil.hasEncryptedSeeds(blockchain),
+                    ),
+                )
+            ).some(Boolean);
             setHasEncryptedSeeds(hasSeeds);
         };
         checkSeeds();
@@ -236,52 +242,11 @@ const Settings = observer(() => {
         setChangePinSuccess(false);
 
         try {
-            const blockchain = await StorageUtil.getBlockChain();
-            const allSeeds = await StorageUtil.getAllEncryptedSeeds(blockchain);
-
-            if (allSeeds.length === 0) {
-                setChangePinError("No encrypted seeds found.");
-                return;
-            }
-
-            // Verify current PIN by attempting to decrypt the first seed
-            // Uses Web Worker to avoid blocking UI during PBKDF2
-            try {
-                await decryptSeedAsync(allSeeds[0]?.encryptedSeed ?? '', data.currentPin);
-            } catch {
-                // Record failed attempt
-                const result = recordFailedAttempt();
-                setPinLockout({ isLocked: result.isLocked, remainingMs: result.remainingMs });
-                setAttemptsLeft(result.attemptsLeft);
-
-                if (result.isLocked) {
-                    setChangePinError(`Too many failed attempts. Please wait ${formatLockoutTime(result.remainingMs)}.`);
-                } else {
-                    setChangePinError(`Incorrect PIN. ${result.attemptsLeft} attempt${result.attemptsLeft === 1 ? '' : 's'} remaining.`);
-                }
-                return;
-            }
-
-            // Re-encrypt all seeds with the new PIN using Web Worker
-            // This runs PBKDF2 (600k iterations) off the main thread
-            const updatedSeeds: EncryptedSeedData[] = await Promise.all(
-                allSeeds.map(async (seed) => ({
-                    ...seed,
-                    encryptedSeed: await reEncryptSeedAsync(
-                        seed.encryptedSeed,
-                        data.currentPin,
-                        data.newPin
-                    ),
-                }))
-            );
-
-            // Update all seeds atomically
-            await StorageUtil.updateAllEncryptedSeeds(blockchain, updatedSeeds);
-
-            // Notify native app if running in native context
-            if (isInNativeApp()) {
-                sendPinChanged(true, data.newPin);
-            }
+            await rotateStoredSeedPin({
+                blockchains: Object.keys(QRL_PROVIDER),
+                oldPin: data.currentPin,
+                newPin: data.newPin,
+            });
 
             // Record successful attempt (resets counter)
             recordSuccessfulAttempt();
@@ -293,9 +258,33 @@ const Settings = observer(() => {
             // Reset form
             changePinForm.reset();
         } catch (error) {
-            // Log internally but show generic message to user
             console.error("Error changing PIN:", error);
-            setChangePinError("An unexpected error occurred while changing your PIN. Please try again.");
+            if (
+                error instanceof CryptoOperationError &&
+                error.code === CryptoErrorCode.DEVICE_CREDENTIAL_UNAVAILABLE
+            ) {
+                setChangePinError("This wallet's device security credential is unavailable. Re-import the seed before changing its PIN.");
+            } else if (
+                error instanceof CryptoOperationError &&
+                error.code === CryptoErrorCode.INCORRECT_PIN
+            ) {
+                const result = recordFailedAttempt();
+                setPinLockout({ isLocked: result.isLocked, remainingMs: result.remainingMs });
+                setAttemptsLeft(result.attemptsLeft);
+                setChangePinError(
+                    result.isLocked
+                        ? `Too many failed attempts. Please wait ${formatLockoutTime(result.remainingMs)}.`
+                        : `Incorrect PIN. ${result.attemptsLeft} attempt${result.attemptsLeft === 1 ? '' : 's'} remaining.`,
+                );
+            } else if (error instanceof Error && error.message === 'No encrypted seeds found') {
+                setChangePinError("No encrypted seeds found.");
+            } else {
+                setChangePinError(
+                    error instanceof Error && error.message.includes('old PIN remains active')
+                        ? error.message
+                        : "An unexpected error occurred while changing your PIN. Please try again.",
+                );
+            }
         } finally {
             setIsChangingPin(false);
         }
@@ -307,10 +296,10 @@ const Settings = observer(() => {
             <div className="flex w-full items-start justify-center py-2 md:py-8">
                 <div className="relative w-full max-w-2xl px-2 md:px-4">
                     <div className="page-enter relative z-10 space-y-5 md:space-y-6">
-                        {/* Security - web/native only. On desktop there is no
-                            PIN (the signer uses a password / Argon2id) and no
-                            in-renderer re-encrypt, so the section is hidden. */}
-                        {hasEncryptedSeeds && !isDesktop && (
+                        {/* Security is browser-only here. Native routes Settings
+                            to its request-bound PIN flow, and desktop uses a
+                            password / Argon2id rather than this PIN. */}
+                        {hasEncryptedSeeds && !isDesktop && !isInNativeApp() && (
                             <SettingsSection title="Security">
                                 <SettingsRow
                                     icon={Shield}

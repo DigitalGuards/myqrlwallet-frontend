@@ -11,7 +11,7 @@ import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
 
 const textEncoder = new TextEncoder();
 
-export const LABEL = textEncoder.encode('pq-pair/v1');
+export const LABEL = textEncoder.encode('pq-pair/v3');
 const LABEL_AEAD_SUFFIX = textEncoder.encode(' aead');
 
 export const DIR_DAPP_TX = new Uint8Array([0, 0, 0, 1]);
@@ -22,6 +22,8 @@ export const ML_KEM_768_SK_LEN = 2400;
 export const ML_KEM_768_CT_LEN = 1088;
 export const SHARED_SECRET_LEN = 32;
 export const AEAD_KEY_LEN = 32;
+export const CID_LEN = 16;
+export const CAP_LEN = 32;
 
 export interface Keypair {
   pk: Uint8Array;
@@ -71,25 +73,56 @@ export function kemDecaps(sk: Uint8Array, ct: Uint8Array): Uint8Array {
 export async function transcriptHash(
   cid: Uint8Array,
   pk: Uint8Array,
-  ct: Uint8Array
+  ct: Uint8Array,
+  cap: Uint8Array
 ): Promise<Uint8Array> {
-  const buf = concat(LABEL, cid, pk, ct);
-  return new Uint8Array(await subtle().digest('SHA-256', bs(buf)));
+  if (cid.length !== CID_LEN) {
+    throw new Error(`PQCrypto: cid must be ${CID_LEN} bytes`);
+  }
+  if (pk.length !== ML_KEM_768_PK_LEN) {
+    throw new Error(`PQCrypto: public key must be ${ML_KEM_768_PK_LEN} bytes`);
+  }
+  if (ct.length !== ML_KEM_768_CT_LEN) {
+    throw new Error(`PQCrypto: ciphertext must be ${ML_KEM_768_CT_LEN} bytes`);
+  }
+  if (cap.length !== CAP_LEN) {
+    throw new Error(`PQCrypto: capability must be ${CAP_LEN} bytes`);
+  }
+  const buf = concat(LABEL, cid, pk, ct, cap);
+  try {
+    return new Uint8Array(await subtle().digest('SHA-256', bs(buf)));
+  } finally {
+    zeroize(buf);
+  }
 }
 
 export async function deriveAeadKey(
   ss: Uint8Array,
-  htx: Uint8Array
+  htx: Uint8Array,
+  cap: Uint8Array
 ): Promise<CryptoKey> {
+  if (ss.length !== SHARED_SECRET_LEN) {
+    throw new Error(`PQCrypto: shared secret must be ${SHARED_SECRET_LEN} bytes`);
+  }
+  if (htx.length !== 32) {
+    throw new Error('PQCrypto: transcript hash must be 32 bytes');
+  }
+  if (cap.length !== CAP_LEN) {
+    throw new Error(`PQCrypto: capability must be ${CAP_LEN} bytes`);
+  }
   const ikm = await subtle().importKey('raw', bs(ss), 'HKDF', false, ['deriveKey']);
   const info = concat(LABEL, LABEL_AEAD_SUFFIX, htx);
-  return subtle().deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: bs(info) },
-    ikm,
-    { name: 'AES-GCM', length: 256 },
-    true,
-    ['encrypt', 'decrypt']
-  );
+  try {
+    return await subtle().deriveKey(
+      { name: 'HKDF', hash: 'SHA-256', salt: bs(cap), info: bs(info) },
+      ikm,
+      { name: 'AES-GCM', length: 256 },
+      true,
+      ['encrypt', 'decrypt']
+    );
+  } finally {
+    zeroize(info);
+  }
 }
 
 export async function importRawAeadKey(raw: Uint8Array): Promise<CryptoKey> {

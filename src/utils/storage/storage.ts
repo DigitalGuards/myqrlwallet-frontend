@@ -2,6 +2,12 @@ import { QRL_PROVIDER } from "@/config";
 import type { TokenInterface, NFTInterface } from "@/constants";
 import { isInNativeApp } from "@/utils/nativeApp";
 import { isDesktop } from "@/desktop/bridge";
+import {
+  getWalletEpoch,
+  INITIAL_WALLET_EPOCH,
+  isWalletEpochCurrent,
+  type WalletEpoch,
+} from "@/utils/walletEpoch";
 
 const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
 const BLOCKCHAIN_SELECTION_IDENTIFIER = "BLOCKCHAIN_SELECTION";
@@ -14,7 +20,7 @@ const HIDDEN_TOKENS_IDENTIFIER = "HIDDEN_TOKENS";
 const NFT_LIST_IDENTIFIER = "NFT_LIST";
 const HIDDEN_NFTS_IDENTIFIER = "HIDDEN_NFTS";
 const BALANCE_CACHE_IDENTIFIER = "BALANCE_CACHE";
-const STORAGE_VERSION = 'v1';
+const STORAGE_VERSION = "v1";
 const MAX_STORAGE_AGE = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
 const MAX_WALLETS = 10; // Maximum number of wallets that can be imported
 const WALLET_SETTINGS_IDENTIFIER = "WALLET_SETTINGS";
@@ -26,10 +32,11 @@ const AUTO_LOCK_TIMEOUT = 15 * 60 * 1000; // 15 minutes default auto-lock timeou
 // (e.g. autoLock) react to writes happening in the same tab without
 // monkey-patching `localStorage.setItem`. Guarded against environments
 // where `window` is undefined (SSR / tests).
-export const STORAGE_EVENT_ACTIVE_ACCOUNT = 'qrl-wallet:active-account-changed';
-export const STORAGE_EVENT_WALLET_SETTINGS = 'qrl-wallet:wallet-settings-changed';
+export const STORAGE_EVENT_ACTIVE_ACCOUNT = "qrl-wallet:active-account-changed";
+export const STORAGE_EVENT_WALLET_SETTINGS =
+  "qrl-wallet:wallet-settings-changed";
 const dispatchStorageEvent = (name: string) => {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(name));
   }
 };
@@ -57,11 +64,56 @@ export interface EncryptedSeedData {
   address: string;
   encryptedSeed: string; // JSON string from WalletEncryptionUtil.encryptSeedWithPin
   lastAccessed: number;
+  /**
+   * Monotonic per-(blockchain,address) revision used by the native backup
+   * protocol. Records written before the acknowledged-backup protocol have no
+   * revision and are treated as revision 0.
+   */
+  revision?: number;
+  /** Wallet identity generation that is allowed to read this ciphertext. */
+  walletEpoch?: WalletEpoch;
+}
+
+function seedBelongsToEpoch(
+  seed: EncryptedSeedData,
+  epoch: WalletEpoch,
+): boolean {
+  return (
+    seed.walletEpoch === epoch ||
+    (seed.walletEpoch === undefined && epoch === INITIAL_WALLET_EPOCH)
+  );
+}
+
+function seedRevision(seed: EncryptedSeedData | undefined): number {
+  return seed &&
+    Number.isSafeInteger(seed.revision) &&
+    (seed.revision ?? 0) >= 0
+    ? (seed.revision ?? 0)
+    : 0;
+}
+
+function encryptedSeedSetsEqual(
+  a: EncryptedSeedData[],
+  b: EncryptedSeedData[],
+): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((seed, index) => {
+    const other = b[index];
+    return (
+      other !== undefined &&
+      seed.address === other.address &&
+      seed.encryptedSeed === other.encryptedSeed &&
+      seed.lastAccessed === other.lastAccessed &&
+      seedRevision(seed) === seedRevision(other) &&
+      (seed.walletEpoch ?? INITIAL_WALLET_EPOCH) ===
+        (other.walletEpoch ?? INITIAL_WALLET_EPOCH)
+    );
+  });
 }
 
 // Tracks where an account in ACCOUNT_LIST is signed: a locally stored seed,
 // a browser extension, or the mobile app paired over the QRL Connect relay.
-export type AccountSource = 'seed' | 'extension' | 'mobile';
+export type AccountSource = "seed" | "extension" | "mobile";
 
 export interface AccountListItem {
   address: string;
@@ -77,7 +129,7 @@ class StorageUtil {
     return {
       value,
       timestamp: Date.now(),
-      version: STORAGE_VERSION
+      version: STORAGE_VERSION,
     };
   }
 
@@ -114,6 +166,25 @@ class StorageUtil {
     localStorage.setItem(key, JSON.stringify(item));
   }
 
+  private static setItemAtWalletEpoch<T>(
+    key: string,
+    value: T,
+    expectedEpoch: WalletEpoch,
+  ): void {
+    if (!isWalletEpochCurrent(expectedEpoch)) {
+      throw new Error("Wallet identity changed before sensitive storage write");
+    }
+    const serialized = JSON.stringify(this.wrapWithMetadata(value));
+    localStorage.setItem(key, serialized);
+    if (isWalletEpochCurrent(expectedEpoch)) return;
+
+    // A wipe can race between the pre-write epoch check and localStorage's
+    // setItem in another renderer process. Remove only our exact late value so
+    // a new wallet imported after the wipe is never clobbered.
+    if (localStorage.getItem(key) === serialized) localStorage.removeItem(key);
+    throw new Error("Wallet identity changed during sensitive storage write");
+  }
+
   /**
    * A function for storing the active page route.
    * Call the getActivePage function to retrieve the stored value.
@@ -138,8 +209,28 @@ class StorageUtil {
     this.setItem(BLOCKCHAIN_SELECTION_IDENTIFIER, selectedBlockchain);
   }
 
-  static async setCreatedToken(name: string, symbol: string, decimals: number, address: string, tx: string, blockNumber: number, gasUsed: number, effectiveGasPrice: number, blockHash: string) {
-    this.setItem(BLOCKCHAIN_CREATED_TOKEN, { name, symbol, decimals, address, tx, blockNumber, gasUsed, effectiveGasPrice, blockHash });
+  static async setCreatedToken(
+    name: string,
+    symbol: string,
+    decimals: number,
+    address: string,
+    tx: string,
+    blockNumber: number,
+    gasUsed: number,
+    effectiveGasPrice: number,
+    blockHash: string,
+  ) {
+    this.setItem(BLOCKCHAIN_CREATED_TOKEN, {
+      name,
+      symbol,
+      decimals,
+      address,
+      tx,
+      blockNumber,
+      gasUsed,
+      effectiveGasPrice,
+      blockHash,
+    });
   }
 
   /**
@@ -158,14 +249,21 @@ class StorageUtil {
     return `${blockchain}_${account.toLowerCase()}_${HIDDEN_TOKENS_IDENTIFIER}`;
   }
 
-  static async updateTokenList(blockchain: string, account: string, tokenList: TokenInterface[]) {
+  static async updateTokenList(
+    blockchain: string,
+    account: string,
+    tokenList: TokenInterface[],
+  ) {
     if (!blockchain || !account) return;
     this.setItem(this.tokenListKey(blockchain, account), tokenList);
   }
 
   static async getTokenList(blockchain: string, account: string) {
     if (!blockchain || !account) return [];
-    return this.getItem<TokenInterface[]>(this.tokenListKey(blockchain, account)) ?? [];
+    return (
+      this.getItem<TokenInterface[]>(this.tokenListKey(blockchain, account)) ??
+      []
+    );
   }
 
   static async clearTokenList(blockchain: string, account: string) {
@@ -228,7 +326,9 @@ class StorageUtil {
 
   static async getBlockChain() {
     const DEFAULT_BLOCKCHAIN = QRL_PROVIDER.TEST_NET.id;
-    const storedBlockchain = this.getItem<string>(BLOCKCHAIN_SELECTION_IDENTIFIER);
+    const storedBlockchain = this.getItem<string>(
+      BLOCKCHAIN_SELECTION_IDENTIFIER,
+    );
     // Guard against stale keys (e.g. "CUSTOM_RPC") that no longer exist in
     // QRL_PROVIDER — silently migrate those users to TEST_NET (default until
     // mainnet launch).
@@ -250,8 +350,15 @@ class StorageUtil {
 
       // Ensure account is in the account list (default source assumed to be 'seed')
       const accountList = await this.getAccountList(blockchain);
-      if (!accountList.some(item => item.address.toLowerCase() === activeAccount.toLowerCase())) {
-        await this.setAccountList(blockchain, [...accountList, { address: activeAccount, source: 'seed' }]);
+      if (
+        !accountList.some(
+          (item) => item.address.toLowerCase() === activeAccount.toLowerCase(),
+        )
+      ) {
+        await this.setAccountList(blockchain, [
+          ...accountList,
+          { address: activeAccount, source: "seed" },
+        ]);
       }
     } else {
       localStorage.removeItem(blockChainAccountIdentifier);
@@ -273,7 +380,10 @@ class StorageUtil {
   /**
    * Stores a list of accounts along with their sources (seed or extension).
    */
-  static async setAccountList(blockchain: string, accountList: AccountListItem[]) {
+  static async setAccountList(
+    blockchain: string,
+    accountList: AccountListItem[],
+  ) {
     const blockChainAccountListIdentifier = `${blockchain}_${ACCOUNT_LIST_IDENTIFIER}`;
     this.setItem(blockChainAccountListIdentifier, accountList);
   }
@@ -292,13 +402,19 @@ class StorageUtil {
     }
 
     // New format: already an array of objects with address + source
-    if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object') {
+    if (Array.isArray(data) && data.length > 0 && typeof data[0] === "object") {
       return data as AccountListItem[];
     }
 
     // Old format: array of address strings, convert to new structure (default source = 'seed')
-    if (Array.isArray(data) && (data.length === 0 || typeof data[0] === 'string')) {
-      const converted: AccountListItem[] = (data as string[]).map(addr => ({ address: addr, source: 'seed' }));
+    if (
+      Array.isArray(data) &&
+      (data.length === 0 || typeof data[0] === "string")
+    ) {
+      const converted: AccountListItem[] = (data as string[]).map((addr) => ({
+        address: addr,
+        source: "seed",
+      }));
       // Persist back in new format so we do the conversion only once
       await this.setAccountList(blockchain, converted);
       return converted;
@@ -355,7 +471,9 @@ class StorageUtil {
 
   static async getTransactionValues(blockchain: string) {
     const transactionValuesIdentifier = `${blockchain}_${TRANSACTION_VALUES_IDENTIFIER}`;
-    return this.getItem<TransactionValuesType>(transactionValuesIdentifier) ?? {};
+    return (
+      this.getItem<TransactionValuesType>(transactionValuesIdentifier) ?? {}
+    );
   }
 
   static async clearTransactionValues(blockchain: string) {
@@ -369,7 +487,8 @@ class StorageUtil {
   }
 
   static async getWalletSettings(): Promise<WalletSettings> {
-    const stored = this.getItem<Partial<WalletSettings>>(WALLET_SETTINGS_IDENTIFIER) ?? {};
+    const stored =
+      this.getItem<Partial<WalletSettings>>(WALLET_SETTINGS_IDENTIFIER) ?? {};
     return {
       autoLockTimeout: stored.autoLockTimeout ?? AUTO_LOCK_TIMEOUT,
       showTokensCard: stored.showTokensCard ?? true,
@@ -383,22 +502,36 @@ class StorageUtil {
    * @param address The account address
    * @param encryptedSeed The encrypted seed data from WalletEncryptionUtil.encryptSeedWithPin
    */
-  static async storeEncryptedSeed(blockchain: string, address: string, encryptedSeed: string) {
+  static async storeEncryptedSeed(
+    blockchain: string,
+    address: string,
+    encryptedSeed: string,
+    expectedEpoch: WalletEpoch = getWalletEpoch(),
+  ): Promise<EncryptedSeedData> {
     // Defense-in-depth: on desktop the seed lives only in the isolated signer
     // and must NEVER be written to renderer localStorage. Throw loudly so any
     // missed reroute fails rather than silently persisting key material.
     if (isDesktop) {
-      throw new Error('desktop: encrypted seeds must never be stored in the renderer');
+      throw new Error(
+        "desktop: encrypted seeds must never be stored in the renderer",
+      );
     }
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
-    const encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
+    const encryptedSeeds = (
+      this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+    ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
 
     // Update or add the encrypted seed
-    const existingIndex = encryptedSeeds.findIndex(item => item.address === address);
+    const existingIndex = encryptedSeeds.findIndex(
+      (item) => item.address.toLowerCase() === address.toLowerCase(),
+    );
+    const existing = encryptedSeeds[existingIndex];
     const seedData: EncryptedSeedData = {
       address,
       encryptedSeed,
-      lastAccessed: Date.now()
+      lastAccessed: Date.now(),
+      revision: seedRevision(existing) + 1,
+      walletEpoch: expectedEpoch,
     };
 
     if (existingIndex >= 0) {
@@ -407,7 +540,12 @@ class StorageUtil {
       encryptedSeeds.push(seedData);
     }
 
-    this.setItem(encryptedSeedsKey, encryptedSeeds);
+    this.setItemAtWalletEpoch(
+      encryptedSeedsKey,
+      encryptedSeeds.map((seed) => ({ ...seed, walletEpoch: expectedEpoch })),
+      expectedEpoch,
+    );
+    return seedData;
   }
 
   /**
@@ -416,14 +554,33 @@ class StorageUtil {
    * @param address The account address
    * @returns The encrypted seed data or null if not found
    */
-  static async getEncryptedSeed(blockchain: string, address: string): Promise<string | null> {
+  static async getEncryptedSeed(
+    blockchain: string,
+    address: string,
+    expectedEpoch: WalletEpoch = getWalletEpoch(),
+  ): Promise<string | null> {
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
-    const encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
+    const encryptedSeeds = (
+      this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+    ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
 
-    const seedData = encryptedSeeds.find(item => item.address === address);
+    const seedIndex = encryptedSeeds.findIndex(
+      (item) => item.address.toLowerCase() === address.toLowerCase(),
+    );
+    const seedData = encryptedSeeds[seedIndex];
     if (seedData) {
-      // Update last accessed time
-      await this.storeEncryptedSeed(blockchain, address, seedData.encryptedSeed);
+      // A read must not create a new backup revision. Only touch the local
+      // expiry timestamp while preserving the ciphertext's identity.
+      encryptedSeeds[seedIndex] = {
+        ...seedData,
+        lastAccessed: Date.now(),
+        walletEpoch: expectedEpoch,
+      };
+      this.setItemAtWalletEpoch(
+        encryptedSeedsKey,
+        encryptedSeeds.map((seed) => ({ ...seed, walletEpoch: expectedEpoch })),
+        expectedEpoch,
+      );
       return seedData.encryptedSeed;
     }
 
@@ -435,9 +592,14 @@ class StorageUtil {
    * @param blockchain The blockchain identifier
    * @returns Array of all stored encrypted seeds
    */
-  static async getAllEncryptedSeeds(blockchain: string): Promise<EncryptedSeedData[]> {
+  static async getAllEncryptedSeeds(
+    blockchain: string,
+  ): Promise<EncryptedSeedData[]> {
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
-    return this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
+    const epoch = getWalletEpoch();
+    return (this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []).filter(
+      (seed) => seedBelongsToEpoch(seed, epoch),
+    );
   }
 
   /**
@@ -456,9 +618,127 @@ class StorageUtil {
    * @param blockchain The blockchain identifier
    * @param seeds Array of updated encrypted seed data
    */
-  static async updateAllEncryptedSeeds(blockchain: string, seeds: EncryptedSeedData[]): Promise<void> {
+  static async updateAllEncryptedSeeds(
+    blockchain: string,
+    seeds: EncryptedSeedData[],
+    expectedEpoch: WalletEpoch = getWalletEpoch(),
+  ): Promise<void> {
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
-    this.setItem(encryptedSeedsKey, seeds);
+    this.setItemAtWalletEpoch(
+      encryptedSeedsKey,
+      seeds.map((seed) => ({ ...seed, walletEpoch: expectedEpoch })),
+      expectedEpoch,
+    );
+  }
+
+  /**
+   * Replace one blockchain's complete encrypted-seed set only if it is still
+   * byte-for-byte the snapshot the caller prepared against. PIN rotation does
+   * expensive asynchronous KDF work before writing; this compare-and-swap
+   * prevents it from clobbering an account import or another rotation that won
+   * during those awaits.
+   */
+  static async replaceEncryptedSeedSetIfUnchanged(
+    blockchain: string,
+    expected: EncryptedSeedData[],
+    replacement: EncryptedSeedData[],
+    expectedEpoch: WalletEpoch = getWalletEpoch(),
+  ): Promise<boolean> {
+    if (!isWalletEpochCurrent(expectedEpoch)) return false;
+    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    const current = (
+      this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+    ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
+    if (!encryptedSeedSetsEqual(current, expected)) return false;
+    this.setItemAtWalletEpoch(
+      encryptedSeedsKey,
+      replacement.map((seed) => ({ ...seed, walletEpoch: expectedEpoch })),
+      expectedEpoch,
+    );
+    return true;
+  }
+
+  /**
+   * Merge a native restore record without ever replacing an equal/newer local
+   * record. Missing legacy records are revision 0; a revision-0 native backup
+   * therefore restores only into an empty slot and can never overwrite live
+   * browser state.
+   */
+  static async restoreEncryptedSeedIfNewer(
+    blockchain: string,
+    address: string,
+    encryptedSeed: string,
+    revision: number,
+    expectedEpoch: WalletEpoch = getWalletEpoch(),
+  ): Promise<"stored" | "skipped"> {
+    if (!Number.isSafeInteger(revision) || revision < 0) {
+      throw new Error("Invalid encrypted seed revision");
+    }
+    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    const encryptedSeeds = (
+      this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+    ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
+    const existingIndex = encryptedSeeds.findIndex(
+      (item) => item.address.toLowerCase() === address.toLowerCase(),
+    );
+    const existing = encryptedSeeds[existingIndex];
+    if (existing && seedRevision(existing) >= revision) return "skipped";
+
+    const restored: EncryptedSeedData = {
+      address,
+      encryptedSeed,
+      lastAccessed: Date.now(),
+      revision,
+      walletEpoch: expectedEpoch,
+    };
+    if (existingIndex >= 0) encryptedSeeds[existingIndex] = restored;
+    else encryptedSeeds.push(restored);
+    this.setItemAtWalletEpoch(
+      encryptedSeedsKey,
+      encryptedSeeds.map((seed) => ({ ...seed, walletEpoch: expectedEpoch })),
+      expectedEpoch,
+    );
+    return "stored";
+  }
+
+  /**
+   * Replace a legacy encrypted seed only if it has not changed since it was
+   * decrypted. This compare-and-swap prevents a lazy v4 migration from
+   * overwriting a concurrent PIN change or account replacement.
+   */
+  static async migrateEncryptedSeed(
+    blockchain: string,
+    address: string,
+    expectedEncryptedSeed: string,
+    migratedEncryptedSeed: string,
+    expectedEpoch: WalletEpoch = getWalletEpoch(),
+  ): Promise<EncryptedSeedData | null> {
+    if (!isWalletEpochCurrent(expectedEpoch)) return null;
+    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    const encryptedSeeds = (
+      this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+    ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
+    const existingIndex = encryptedSeeds.findIndex(
+      (item) => item.address.toLowerCase() === address.toLowerCase(),
+    );
+    const existing = encryptedSeeds[existingIndex];
+    if (!existing || existing.encryptedSeed !== expectedEncryptedSeed)
+      return null;
+
+    const migrated: EncryptedSeedData = {
+      ...existing,
+      encryptedSeed: migratedEncryptedSeed,
+      lastAccessed: Date.now(),
+      revision: seedRevision(existing) + 1,
+      walletEpoch: expectedEpoch,
+    };
+    encryptedSeeds[existingIndex] = migrated;
+    this.setItemAtWalletEpoch(
+      encryptedSeedsKey,
+      encryptedSeeds.map((seed) => ({ ...seed, walletEpoch: expectedEpoch })),
+      expectedEpoch,
+    );
+    return migrated;
   }
 
   /**
@@ -466,29 +746,48 @@ class StorageUtil {
    * @param blockchain The blockchain identifier
    * @param address The account address
    */
-  static async removeEncryptedSeed(blockchain: string, address: string) {
+  static async removeEncryptedSeed(
+    blockchain: string,
+    address: string,
+    expectedEpoch: WalletEpoch = getWalletEpoch(),
+  ) {
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
-    let encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
+    let encryptedSeeds = (
+      this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+    ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
 
-    encryptedSeeds = encryptedSeeds.filter(item => item.address !== address);
-    this.setItem(encryptedSeedsKey, encryptedSeeds);
+    encryptedSeeds = encryptedSeeds.filter((item) => item.address !== address);
+    this.setItemAtWalletEpoch(
+      encryptedSeedsKey,
+      encryptedSeeds.map((seed) => ({ ...seed, walletEpoch: expectedEpoch })),
+      expectedEpoch,
+    );
   }
 
   /**
    * Removes all encrypted seeds that have not been accessed within the auto-lock timeout period
    * @param blockchain The blockchain identifier
    */
-  static async cleanupExpiredSeeds(blockchain: string) {
+  static async cleanupExpiredSeeds(
+    blockchain: string,
+    expectedEpoch: WalletEpoch = getWalletEpoch(),
+  ) {
     const settings = await this.getWalletSettings();
     const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
-    let encryptedSeeds = this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? [];
+    let encryptedSeeds = (
+      this.getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+    ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
 
     const now = Date.now();
     encryptedSeeds = encryptedSeeds.filter(
-      item => (now - item.lastAccessed) < settings.autoLockTimeout
+      (item) => now - item.lastAccessed < settings.autoLockTimeout,
     );
 
-    this.setItem(encryptedSeedsKey, encryptedSeeds);
+    this.setItemAtWalletEpoch(
+      encryptedSeedsKey,
+      encryptedSeeds.map((seed) => ({ ...seed, walletEpoch: expectedEpoch })),
+      expectedEpoch,
+    );
   }
 
   /**
@@ -512,18 +811,31 @@ class StorageUtil {
   /**
    * Get list of hidden token addresses for an account scope.
    */
-  static async getHiddenTokens(blockchain: string, account: string): Promise<string[]> {
+  static async getHiddenTokens(
+    blockchain: string,
+    account: string,
+  ): Promise<string[]> {
     if (!blockchain || !account) return [];
-    return this.getItem<string[]>(this.hiddenTokensKey(blockchain, account)) ?? [];
+    return (
+      this.getItem<string[]>(this.hiddenTokensKey(blockchain, account)) ?? []
+    );
   }
 
   /**
    * Add a token address to the hidden list
    */
-  static async hideToken(blockchain: string, account: string, tokenAddress: string) {
+  static async hideToken(
+    blockchain: string,
+    account: string,
+    tokenAddress: string,
+  ) {
     if (!blockchain || !account) return;
     const hiddenTokens = await this.getHiddenTokens(blockchain, account);
-    if (!hiddenTokens.some(addr => addr.toLowerCase() === tokenAddress.toLowerCase())) {
+    if (
+      !hiddenTokens.some(
+        (addr) => addr.toLowerCase() === tokenAddress.toLowerCase(),
+      )
+    ) {
       hiddenTokens.push(tokenAddress.toLowerCase());
       this.setItem(this.hiddenTokensKey(blockchain, account), hiddenTokens);
     }
@@ -532,19 +844,30 @@ class StorageUtil {
   /**
    * Remove a token address from the hidden list
    */
-  static async unhideToken(blockchain: string, account: string, tokenAddress: string) {
+  static async unhideToken(
+    blockchain: string,
+    account: string,
+    tokenAddress: string,
+  ) {
     if (!blockchain || !account) return;
     let hiddenTokens = await this.getHiddenTokens(blockchain, account);
-    hiddenTokens = hiddenTokens.filter(addr => addr.toLowerCase() !== tokenAddress.toLowerCase());
+    hiddenTokens = hiddenTokens.filter(
+      (addr) => addr.toLowerCase() !== tokenAddress.toLowerCase(),
+    );
     this.setItem(this.hiddenTokensKey(blockchain, account), hiddenTokens);
   }
 
-  static async setBalanceCache(blockchain: string, balances: Record<string, string>) {
+  static async setBalanceCache(
+    blockchain: string,
+    balances: Record<string, string>,
+  ) {
     const key = `${blockchain}_${BALANCE_CACHE_IDENTIFIER}`;
     this.setItem(key, balances);
   }
 
-  static async getBalanceCache(blockchain: string): Promise<Record<string, string>> {
+  static async getBalanceCache(
+    blockchain: string,
+  ): Promise<Record<string, string>> {
     const key = `${blockchain}_${BALANCE_CACHE_IDENTIFIER}`;
     return this.getItem<Record<string, string>>(key) ?? {};
   }
@@ -572,12 +895,21 @@ class StorageUtil {
     return `${blockchain}_${account.toLowerCase()}_${HIDDEN_NFTS_IDENTIFIER}`;
   }
 
-  static async getNftList(blockchain: string, account: string): Promise<NFTInterface[]> {
+  static async getNftList(
+    blockchain: string,
+    account: string,
+  ): Promise<NFTInterface[]> {
     if (!blockchain || !account) return [];
-    return this.getItem<NFTInterface[]>(this.nftListKey(blockchain, account)) ?? [];
+    return (
+      this.getItem<NFTInterface[]>(this.nftListKey(blockchain, account)) ?? []
+    );
   }
 
-  static async updateNftList(blockchain: string, account: string, list: NFTInterface[]) {
+  static async updateNftList(
+    blockchain: string,
+    account: string,
+    list: NFTInterface[],
+  ) {
     if (!blockchain || !account) return;
     this.setItem(this.nftListKey(blockchain, account), list);
   }
@@ -587,15 +919,20 @@ class StorageUtil {
     localStorage.removeItem(this.nftListKey(blockchain, account));
   }
 
-  static async getHiddenNfts(blockchain: string, account: string): Promise<string[]> {
+  static async getHiddenNfts(
+    blockchain: string,
+    account: string,
+  ): Promise<string[]> {
     if (!blockchain || !account) return [];
-    return this.getItem<string[]>(this.hiddenNftsKey(blockchain, account)) ?? [];
+    return (
+      this.getItem<string[]>(this.hiddenNftsKey(blockchain, account)) ?? []
+    );
   }
 
   static async hideNft(blockchain: string, account: string, key: string) {
     if (!blockchain || !account) return;
     const list = await this.getHiddenNfts(blockchain, account);
-    if (!list.some(k => k.toLowerCase() === key.toLowerCase())) {
+    if (!list.some((k) => k.toLowerCase() === key.toLowerCase())) {
       list.push(key.toLowerCase());
       this.setItem(this.hiddenNftsKey(blockchain, account), list);
     }
@@ -604,7 +941,7 @@ class StorageUtil {
   static async unhideNft(blockchain: string, account: string, key: string) {
     if (!blockchain || !account) return;
     let list = await this.getHiddenNfts(blockchain, account);
-    list = list.filter(k => k.toLowerCase() !== key.toLowerCase());
+    list = list.filter((k) => k.toLowerCase() !== key.toLowerCase());
     this.setItem(this.hiddenNftsKey(blockchain, account), list);
   }
 

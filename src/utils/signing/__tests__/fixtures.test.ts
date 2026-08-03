@@ -15,8 +15,9 @@
  * docs/POST-QUANTUM-SIGNING-PLAN.md) and bump SCHEME_VERSION_*.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { newWalletFromExtendedSeed } from "@theqrl/wallet.js";
 import {
   bytesToHex,
   computeMessageDigest,
@@ -29,8 +30,8 @@ import {
   typeHash,
   verifyMessage,
   verifyTypedData,
-} from '..';
-import type { TypedDataPayload } from '..';
+} from "..";
+import type { TypedDataPayload } from "..";
 
 interface MessageVector {
   label: string;
@@ -60,19 +61,21 @@ interface SigningVector {
 }
 
 interface Canonical {
-  schemeVersionMsg: 'QRL-SIGN-MSG-v1';
-  schemeVersionTyped: 'QRL-SIGN-TYPED-v1';
+  schemeVersionMsg: "QRL-SIGN-MSG-v1";
+  schemeVersionTyped: "QRL-SIGN-TYPED-v1";
   messageVectors: MessageVector[];
   typedVectors: TypedVector[];
   signingVectors: SigningVector[];
 }
 
-const CANONICAL_PATH = join(__dirname, '..', '__fixtures__', 'canonical.json');
+const CANONICAL_PATH = join(__dirname, "..", "__fixtures__", "canonical.json");
 
-describe('canonical fixtures', () => {
-  const canonical: Canonical = JSON.parse(readFileSync(CANONICAL_PATH, 'utf-8'));
+describe("canonical fixtures", () => {
+  const canonical: Canonical = JSON.parse(
+    readFileSync(CANONICAL_PATH, "utf-8"),
+  );
 
-  it('messageDigest agrees with every locked vector', () => {
+  it("messageDigest agrees with every locked vector", () => {
     expect(canonical.messageVectors.length).toBeGreaterThan(0);
     for (const v of canonical.messageVectors) {
       const got = bytesToHex(computeMessageDigest(hexToBytes(v.messageHex)));
@@ -83,11 +86,13 @@ describe('canonical fixtures', () => {
     }
   });
 
-  it('typedData encoder agrees with every locked vector', () => {
+  it("typedData encoder agrees with every locked vector", () => {
     expect(canonical.typedVectors.length).toBeGreaterThan(0);
     for (const v of canonical.typedVectors) {
-      expect({ label: v.label, encoded: encodeType(v.payload.primaryType, v.payload.types) })
-        .toEqual({ label: v.label, encoded: v.encodeTypeString });
+      expect({
+        label: v.label,
+        encoded: encodeType(v.payload.primaryType, v.payload.types),
+      }).toEqual({ label: v.label, encoded: v.encodeTypeString });
 
       const th = bytesToHex(typeHash(v.payload.primaryType, v.payload.types));
       expect({ label: v.label, typeHash: th }).toEqual({
@@ -95,13 +100,17 @@ describe('canonical fixtures', () => {
         typeHash: v.typeHashHex,
       });
 
-      const dh = bytesToHex(hashStruct('QRLDomain', v.payload.domain, v.payload.types));
+      const dh = bytesToHex(
+        hashStruct("QRLDomain", v.payload.domain, v.payload.types),
+      );
       expect({ label: v.label, domainHash: dh }).toEqual({
         label: v.label,
         domainHash: v.domainHashHex,
       });
 
-      const mh = bytesToHex(hashStruct(v.payload.primaryType, v.payload.message, v.payload.types));
+      const mh = bytesToHex(
+        hashStruct(v.payload.primaryType, v.payload.message, v.payload.types),
+      );
       expect({ label: v.label, messageHash: mh }).toEqual({
         label: v.label,
         messageHash: v.messageHashHex,
@@ -115,38 +124,58 @@ describe('canonical fixtures', () => {
     }
   });
 
-  it('deterministic signing vector reproduces locked signature byte-for-byte', () => {
+  it("deterministic signing vector reproduces locked signature byte-for-byte", () => {
     for (const v of canonical.signingVectors) {
+      const wallet = newWalletFromExtendedSeed(v.hexSeed);
+      const expectedDescriptor = bytesToHex(wallet.getDescriptor().toBytes());
+      wallet.zeroize();
       if (v.messageHex !== undefined) {
         const got = signMessage(v.messageHex, v.hexSeed, { randomized: false });
-        expect({ label: v.label, ...got, schemeVersion: undefined }).toEqual({
+        expect(got.descriptor).toBe(expectedDescriptor);
+        expect({
+          label: v.label,
+          ...got,
+          descriptor: undefined,
+          schemeVersion: undefined,
+        }).toEqual({
           label: v.label,
           signature: v.signature,
           publicKey: v.publicKey,
           signer: v.signer,
           digest: v.digest,
+          descriptor: undefined,
           schemeVersion: undefined,
         });
-        expect(verifyMessage({
-          signature: got.signature,
-          publicKey: got.publicKey,
-          messageBytes: v.messageHex,
-        })).toBe(true);
+        expect(
+          verifyMessage({
+            signature: got.signature,
+            publicKey: got.publicKey,
+            messageBytes: v.messageHex,
+          }),
+        ).toBe(true);
       } else if (v.payload) {
         const got = signTypedData(v.payload, v.hexSeed, { randomized: false });
-        expect({ label: v.label, signature: got.signature, publicKey: got.publicKey, signer: got.signer, digest: got.digest })
-          .toEqual({
-            label: v.label,
-            signature: v.signature,
-            publicKey: v.publicKey,
-            signer: v.signer,
-            digest: v.digest,
-          });
-        expect(verifyTypedData({
+        expect(got.descriptor).toBe(expectedDescriptor);
+        expect({
+          label: v.label,
           signature: got.signature,
           publicKey: got.publicKey,
-          payload: v.payload,
-        })).toBe(true);
+          signer: got.signer,
+          digest: got.digest,
+        }).toEqual({
+          label: v.label,
+          signature: v.signature,
+          publicKey: v.publicKey,
+          signer: v.signer,
+          digest: v.digest,
+        });
+        expect(
+          verifyTypedData({
+            signature: got.signature,
+            publicKey: got.publicKey,
+            payload: v.payload,
+          }),
+        ).toBe(true);
       }
     }
   });

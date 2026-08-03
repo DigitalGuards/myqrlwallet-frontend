@@ -32,25 +32,55 @@ import { useStore } from "@/stores/store";
 import { StorageUtil } from "@/utils/storage";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { utils } from "@theqrl/web3";
-import { Loader, Send, X, Copy, Coins, ExternalLink, ScanLine, Check, BookUser } from "lucide-react";
+import {
+  Loader,
+  Send,
+  X,
+  Copy,
+  Coins,
+  ExternalLink,
+  ScanLine,
+  Check,
+  BookUser,
+} from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { z } from "zod";
 import { GasFeeNotice } from "./GasFeeNotice/GasFeeNotice";
 import { AddressBookPicker } from "../AddressBook/AddressBookPicker";
 import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSuccessful";
-import { getExplorerAddressUrl, getExplorerTxUrl, QRL_PROVIDER } from "@/config";
+import {
+  getExplorerAddressUrl,
+  getExplorerTxUrl,
+  QRL_PROVIDER,
+} from "@/config";
 import { Slider } from "@/components/UI/Slider";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
-import { WalletEncryptionUtil, getAddressFromMnemonicAsync } from "@/utils/crypto";
+import {
+  DeviceCredentialUnavailableError,
+  decryptStoredSeedWithPin,
+  getAddressFromMnemonicAsync,
+} from "@/utils/crypto";
+import { walletMutations } from "@/utils/nativeWalletMutation";
 import { isDesktop } from "@/desktop/bridge";
-import { copyToClipboard, openExternalUrl, isInNativeApp, requestQRScan, subscribeToNativeMessages, triggerHaptic } from "@/utils/nativeApp";
+import {
+  copyToClipboard,
+  openExternalUrl,
+  isInNativeApp,
+  requestQRScan,
+  subscribeToNativeMessages,
+  triggerHaptic,
+} from "@/utils/nativeApp";
 import type { FeeLevel } from "@/stores/qrlStore";
 import { SEO } from "@/components/SEO/SEO";
-import { getOptimalTokenBalance, formatAddress, formatAddressShort } from "@/utils/formatting";
-import { fetchBalance } from "@/utils/web3";
+import {
+  getOptimalTokenBalance,
+  formatAddress,
+  formatAddressShort,
+} from "@/utils/formatting";
+import { fetchBalance, isValidQrlAddress } from "@/utils/web3";
 import { formatUnits, parseUnits } from "@/utils/web3/units";
 import { BigNumber } from "bignumber.js";
 
@@ -73,56 +103,59 @@ const Transfer = observer(() => {
   const { blockchain } = qrlConnection;
   const { accountAddress } = activeAccount;
 
-  const isUsingExtension = activeAccountSource === 'extension';
-  const isUsingMobile = activeAccountSource === 'mobile';
+  const isUsingExtension = activeAccountSource === "extension";
+  const isUsingMobile = activeAccountSource === "mobile";
   // Remote signers (extension popup or paired mobile app) confirm in their
   // own UI, so no local PIN is involved.
   const isUsingRemoteSigner = isUsingExtension || isUsingMobile;
 
   // Create FormSchema with PIN validation based on the signer type
-  const FormSchema = useMemo(() => z
-    .object({
-      asset: z.string().min(1, "Please select an asset"),
-      receiverAddress: z.string().min(1, "Receiver address is required"),
-      amount: z.coerce.number().gt(0, "Amount should be more than 0"),
-      pin: z.string().optional(),
-    })
-    .superRefine((fields, ctx) => {
-      // Validate address format
-      if (fields.receiverAddress.trim()) {
-        const address = fields.receiverAddress.trim();
-        const isValidQrlAddress = address.startsWith('Q') &&
-          address.length === 41;
-        if (!isValidQrlAddress) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Invalid QRL address format",
-            path: ["receiverAddress"]
-          });
-        }
-      }
+  const FormSchema = useMemo(
+    () =>
+      z
+        .object({
+          asset: z.string().min(1, "Please select an asset"),
+          receiverAddress: z.string().min(1, "Receiver address is required"),
+          amount: z.coerce.number().gt(0, "Amount should be more than 0"),
+          pin: z.string().optional(),
+        })
+        .superRefine((fields, ctx) => {
+          // Validate address format
+          if (fields.receiverAddress.trim()) {
+            const address = fields.receiverAddress.trim();
+            if (!isValidQrlAddress(address)) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Invalid QRL address format",
+                path: ["receiverAddress"],
+              });
+            }
+          }
 
-      // Validate PIN for seed accounts only. Remote signers confirm on their
-      // side, and on desktop there is no PIN: the signer session is already
-      // unlocked, so the PIN field is hidden and not required.
-      if (!isUsingRemoteSigner && !isDesktop) {
-        if (!fields.pin || fields.pin.length < 4 || fields.pin.length > 6) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "PIN must be between 4 to 6 digits",
-            path: ["pin"]
-          });
-        }
-      }
-    }), [isUsingRemoteSigner]);
+          // Validate PIN for seed accounts only. Remote signers confirm on their
+          // side, and on desktop there is no PIN: the signer session is already
+          // unlocked, so the PIN field is hidden and not required.
+          if (!isUsingRemoteSigner && !isDesktop) {
+            if (!fields.pin || fields.pin.length < 4 || fields.pin.length > 6) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "PIN must be between 4 to 6 digits",
+                path: ["pin"],
+              });
+            }
+          }
+        }),
+    [isUsingRemoteSigner],
+  );
 
   // Get initial asset from URL params (for token transfers from home page)
-  const initialAsset = searchParams.get('asset') || 'native';
+  const initialAsset = searchParams.get("asset") || "native";
 
   // Prefill from the address book page's Send action (navigation state).
   const location = useLocation();
   const prefilledReceiver =
-    typeof (location.state as { receiverAddress?: unknown } | null)?.receiverAddress === "string"
+    typeof (location.state as { receiverAddress?: unknown } | null)
+      ?.receiverAddress === "string"
       ? (location.state as { receiverAddress: string }).receiverAddress
       : "";
 
@@ -136,7 +169,9 @@ const Transfer = observer(() => {
   // QR Scanner state
   const [isScanning, setIsScanning] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
-  const [scannedAddressPreview, setScannedAddressPreview] = useState<string | null>(null);
+  const [scannedAddressPreview, setScannedAddressPreview] = useState<
+    string | null
+  >(null);
 
   // Address book picker state
   const [addressBookOpen, setAddressBookOpen] = useState(false);
@@ -172,7 +207,7 @@ const Transfer = observer(() => {
 
   // Get selected token info
   const selectedToken = !isNativeTransfer
-    ? visibleTokenList.find(t => t.address === selectedAsset)
+    ? visibleTokenList.find((t) => t.address === selectedAsset)
     : null;
 
   // Get balance based on selected asset
@@ -189,9 +224,11 @@ const Transfer = observer(() => {
           const balance = await fetchBalance(
             selectedAsset,
             accountAddress,
-            QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url
+            QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url,
           );
-          const token = visibleTokenList.find(t => t.address === selectedAsset);
+          const token = visibleTokenList.find(
+            (t) => t.address === selectedAsset,
+          );
           setTokenBalance(formatUnits(balance, token?.decimals || 18));
         } catch (error) {
           console.error("Error fetching token balance:", error);
@@ -227,8 +264,16 @@ const Transfer = observer(() => {
         if (!cancelled) setNativeGasReserve("0");
       }
     })();
-    return () => { cancelled = true; };
-  }, [isNativeTransfer, isUsingExtension, feeLevel, estimateNativeTransferFee, accountAddress]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isNativeTransfer,
+    isUsingExtension,
+    feeLevel,
+    estimateNativeTransferFee,
+    accountAddress,
+  ]);
 
   // Balance available for the transfer amount itself (subtracting gas reserve for native).
   const maxSendableBalance = useMemo(() => {
@@ -238,12 +283,6 @@ const Transfer = observer(() => {
     const sendable = balanceBn.minus(reserveBn);
     return sendable.isPositive() ? sendable.toString() : "0";
   }, [accountBalance, nativeGasReserve, isNativeTransfer]);
-
-  // Validate QRL address format
-  const isValidQRLAddress = useCallback((address: string): boolean => {
-    const trimmed = address.trim();
-    return trimmed.startsWith('Q') && trimmed.length === 41;
-  }, []);
 
   // Handle QR scan request
   const handleScanQR = useCallback(() => {
@@ -259,17 +298,17 @@ const Transfer = observer(() => {
     if (!isInNativeApp()) return;
 
     const unsubscribe = subscribeToNativeMessages((message) => {
-      if (message.type === 'QR_RESULT' && message.payload) {
-        const scannedAddress = (message.payload['address'] as string) || '';
+      if (message.type === "QR_RESULT" && message.payload) {
+        const scannedAddress = (message.payload["address"] as string) || "";
         setIsScanning(false);
 
         // Validate the scanned address
-        if (isValidQRLAddress(scannedAddress)) {
+        if (isValidQrlAddress(scannedAddress)) {
           // Success - trigger haptic, show success animation, set value
-          triggerHaptic('success');
+          triggerHaptic("success");
           setScanSuccess(true);
           setScannedAddressPreview(formatAddressShort(scannedAddress));
-          setValue('receiverAddress', scannedAddress, { shouldValidate: true });
+          setValue("receiverAddress", scannedAddress, { shouldValidate: true });
 
           // Clear success state after animation
           setTimeout(() => {
@@ -278,22 +317,22 @@ const Transfer = observer(() => {
           }, 2000);
         } else {
           // Invalid address - show error haptic
-          triggerHaptic('error');
-          control.setError('receiverAddress', {
-            message: 'Scanned QR does not contain a valid QRL address'
+          triggerHaptic("error");
+          control.setError("receiverAddress", {
+            message: "Scanned QR does not contain a valid QRL address",
           });
         }
-      } else if (message.type === 'QR_CANCELLED') {
+      } else if (message.type === "QR_CANCELLED") {
         // User closed scanner without scanning - just reset the scanning state
         setIsScanning(false);
-      } else if (message.type === 'ERROR') {
+      } else if (message.type === "ERROR") {
         setIsScanning(false);
-        triggerHaptic('error');
+        triggerHaptic("error");
       }
     });
 
     return unsubscribe;
-  }, [isValidQRLAddress, setValue, control]);
+  }, [setValue, control]);
 
   if (!accountAddress) {
     return (
@@ -346,14 +385,19 @@ const Transfer = observer(() => {
 
   async function onSubmit(formData: z.infer<typeof FormSchema>) {
     setSubmittedAmount(formData.amount.toString());
-    setSubmittedAssetSymbol(isNativeTransfer ? NATIVE_TOKEN.symbol : (selectedToken?.symbol || ""));
+    setSubmittedAssetSymbol(
+      isNativeTransfer ? NATIVE_TOKEN.symbol : selectedToken?.symbol || "",
+    );
     if (isNativeTransfer) {
       await handleNativeTransfer(formData);
     } else {
       // Token transfers work through the mobile-app pairing (the relay
       // carries contract calls) but not through extension wallets yet.
       if (isUsingExtension) {
-        control.setError("asset", { message: "Token transfers are not yet supported with extension wallets." });
+        control.setError("asset", {
+          message:
+            "Token transfers are not yet supported with extension wallets.",
+        });
         return;
       }
       await handleTokenTransfer(formData);
@@ -367,30 +411,59 @@ const Transfer = observer(() => {
       // Desktop: no PIN, no seed in the renderer. The store routes through the
       // signer (build + confirm + sign + broadcast); the mnemonic arg is unused.
       try {
-        await signAndSendTransaction(accountAddress, formData.receiverAddress, valueEther, "", feeLevel);
+        await signAndSendTransaction(
+          accountAddress,
+          formData.receiverAddress,
+          valueEther,
+          "",
+          feeLevel,
+        );
         resetForm();
         window.scrollTo(0, 0);
       } catch (error) {
-        control.setError("receiverAddress", { message: `Transaction failed: ${error instanceof Error ? error.message : String(error)}` });
+        control.setError("receiverAddress", {
+          message: `Transaction failed: ${error instanceof Error ? error.message : String(error)}`,
+        });
       }
     } else if (isUsingRemoteSigner) {
-      await sendTransactionViaProvider(formData.receiverAddress, valueEther, feeLevel);
+      await sendTransactionViaProvider(
+        formData.receiverAddress,
+        valueEther,
+        feeLevel,
+      );
       resetForm();
       window.scrollTo(0, 0);
     } else {
       try {
-        const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchain, accountAddress);
+        const signingGeneration = walletMutations.captureGeneration();
+        const encryptedSeed = await StorageUtil.getEncryptedSeed(
+          blockchain,
+          accountAddress,
+        );
         if (!encryptedSeed) {
-          control.setError("pin", { message: "No stored seed found. Please import your account again." });
+          control.setError("pin", {
+            message: "No stored seed found. Please import your account again.",
+          });
           return;
         }
 
         let mnemonicPhrases;
         try {
-          const decryptedSeed = await WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.pin || "");
+          const decryptedSeed = await decryptStoredSeedWithPin(
+            blockchain,
+            accountAddress,
+            encryptedSeed,
+            formData.pin || "",
+            signingGeneration,
+          );
           mnemonicPhrases = decryptedSeed.mnemonic;
-        } catch {
-          control.setError("pin", { message: "Invalid PIN. Please try again." });
+        } catch (error) {
+          control.setError("pin", {
+            message:
+              error instanceof DeviceCredentialUnavailableError
+                ? "This wallet's device security credential is unavailable. Restore it on the original device or re-import the seed."
+                : "Invalid PIN. Please try again.",
+          });
           return;
         }
 
@@ -399,20 +472,40 @@ const Transfer = observer(() => {
         // Transfer modal animating smoothly during the 50–300 ms check.
         const qrlInstance = qrlStore.qrlInstance;
         if (!qrlInstance) {
-          control.setError("pin", { message: "Wallet not connected. Please try again." });
+          control.setError("pin", {
+            message: "Wallet not connected. Please try again.",
+          });
           return;
         }
-        const senderAddress = await getAddressFromMnemonicAsync(mnemonicPhrases, qrlInstance);
-        if (senderAddress.toLowerCase() !== accountAddress.toLowerCase()) {
-          control.setError("pin", { message: "Security error: seed mismatch detected. Please re-import this account." });
+        const senderAddress = await getAddressFromMnemonicAsync(
+          mnemonicPhrases,
+          qrlInstance,
+        );
+        if (senderAddress !== accountAddress) {
+          control.setError("pin", {
+            message:
+              "Security error: seed mismatch detected. Please re-import this account.",
+          });
           return;
         }
 
-        await signAndSendTransaction(accountAddress, formData.receiverAddress, valueEther, mnemonicPhrases, feeLevel);
+        if (!walletMutations.isCurrent(signingGeneration)) {
+          throw new Error("Wallet changed while preparing the transaction");
+        }
+
+        await signAndSendTransaction(
+          accountAddress,
+          formData.receiverAddress,
+          valueEther,
+          mnemonicPhrases,
+          feeLevel,
+        );
         resetForm();
         window.scrollTo(0, 0);
       } catch (error) {
-        control.setError("pin", { message: `Transaction failed: ${error instanceof Error ? error.message : String(error)}` });
+        control.setError("pin", {
+          message: `Transaction failed: ${error instanceof Error ? error.message : String(error)}`,
+        });
       }
     }
   }
@@ -426,8 +519,16 @@ const Transfer = observer(() => {
       // sendToken reports failure via its return value (the failed
       // transactionStatus screen takes over), so only reset the form on
       // success: Try Again then returns to the still-filled form.
-      const rawAmount = parseUnits(formData.amount.toString(), selectedToken.decimals).toString();
-      const sent = await sendTokenToStore(selectedToken, rawAmount, "", formData.receiverAddress);
+      const rawAmount = parseUnits(
+        formData.amount.toString(),
+        selectedToken.decimals,
+      ).toString();
+      const sent = await sendTokenToStore(
+        selectedToken,
+        rawAmount,
+        "",
+        formData.receiverAddress,
+      );
       if (sent) {
         resetForm();
         window.scrollTo(0, 0);
@@ -439,49 +540,95 @@ const Transfer = observer(() => {
       // Desktop: no PIN, no seed in the renderer. The store builds the transfer
       // calldata and routes through the signer; the mnemonic arg is unused.
       try {
-        const rawAmount = parseUnits(formData.amount.toString(), selectedToken.decimals).toString();
-        await sendTokenToStore(selectedToken, rawAmount, "", formData.receiverAddress);
+        const rawAmount = parseUnits(
+          formData.amount.toString(),
+          selectedToken.decimals,
+        ).toString();
+        await sendTokenToStore(
+          selectedToken,
+          rawAmount,
+          "",
+          formData.receiverAddress,
+        );
         resetForm();
         window.scrollTo(0, 0);
       } catch (error) {
-        control.setError("receiverAddress", { message: `Transfer failed: ${error instanceof Error ? error.message : String(error)}` });
+        control.setError("receiverAddress", {
+          message: `Transfer failed: ${error instanceof Error ? error.message : String(error)}`,
+        });
       }
       return;
     }
 
     try {
-      const encryptedSeed = await StorageUtil.getEncryptedSeed(blockchain, accountAddress);
+      const signingGeneration = walletMutations.captureGeneration();
+      const encryptedSeed = await StorageUtil.getEncryptedSeed(
+        blockchain,
+        accountAddress,
+      );
       if (!encryptedSeed) {
-        control.setError("pin", { message: "No stored seed found. Please import your account again." });
+        control.setError("pin", {
+          message: "No stored seed found. Please import your account again.",
+        });
         return;
       }
 
       let mnemonic;
       try {
-        const decryptedSeed = await WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, formData.pin || "");
+        const decryptedSeed = await decryptStoredSeedWithPin(
+          blockchain,
+          accountAddress,
+          encryptedSeed,
+          formData.pin || "",
+          signingGeneration,
+        );
         mnemonic = decryptedSeed.mnemonic;
-      } catch {
-        control.setError("pin", { message: "Invalid PIN. Please try again." });
+      } catch (error) {
+        control.setError("pin", {
+          message:
+            error instanceof DeviceCredentialUnavailableError
+              ? "This wallet's device security credential is unavailable. Restore it on the original device or re-import the seed."
+              : "Invalid PIN. Please try again.",
+        });
         return;
       }
 
       const qrlInstance = qrlStore.qrlInstance;
       if (!qrlInstance) {
-        control.setError("pin", { message: "Wallet not connected. Please try again." });
+        control.setError("pin", {
+          message: "Wallet not connected. Please try again.",
+        });
         return;
       }
-      const senderAddress = await getAddressFromMnemonicAsync(mnemonic, qrlInstance);
-      if (senderAddress.toLowerCase() !== accountAddress.toLowerCase()) {
+      const senderAddress = await getAddressFromMnemonicAsync(
+        mnemonic,
+        qrlInstance,
+      );
+      if (senderAddress !== accountAddress) {
         control.setError("pin", { message: "PIN decrypted an invalid seed." });
         return;
       }
 
-      const rawAmount = parseUnits(formData.amount.toString(), selectedToken.decimals).toString();
-      await sendTokenToStore(selectedToken, rawAmount, mnemonic, formData.receiverAddress);
+      if (!walletMutations.isCurrent(signingGeneration)) {
+        throw new Error("Wallet changed while preparing the transaction");
+      }
+
+      const rawAmount = parseUnits(
+        formData.amount.toString(),
+        selectedToken.decimals,
+      ).toString();
+      await sendTokenToStore(
+        selectedToken,
+        rawAmount,
+        mnemonic,
+        formData.receiverAddress,
+      );
       resetForm();
       window.scrollTo(0, 0);
     } catch (error) {
-      control.setError("pin", { message: `Transfer failed: ${error instanceof Error ? error.message : String(error)}` });
+      control.setError("pin", {
+        message: `Transfer failed: ${error instanceof Error ? error.message : String(error)}`,
+      });
     }
   }
 
@@ -507,13 +654,14 @@ const Transfer = observer(() => {
     }
     // For 100% use the raw max so rounding can't push the amount above the
     // gas-adjusted balance. Below 100% round down to 6 decimals for display.
-    const formattedAmount = percentage === 100
-      ? sendableBn.toString()
-      : sendableBn
-          .multipliedBy(percentage)
-          .dividedBy(100)
-          .toFixed(6, BigNumber.ROUND_DOWN)
-          .replace(/\.?0+$/, "");
+    const formattedAmount =
+      percentage === 100
+        ? sendableBn.toString()
+        : sendableBn
+            .multipliedBy(percentage)
+            .dividedBy(100)
+            .toFixed(6, BigNumber.ROUND_DOWN)
+            .replace(/\.?0+$/, "");
     setAmountInputValue(formattedAmount);
     setValue("amount", parseFloat(formattedAmount));
   };
@@ -526,10 +674,12 @@ const Transfer = observer(() => {
     applyPercentage(percentage);
   };
 
-  const assetSymbol = isNativeTransfer ? NATIVE_TOKEN.symbol : (selectedToken?.symbol || "");
+  const assetSymbol = isNativeTransfer
+    ? NATIVE_TOKEN.symbol
+    : selectedToken?.symbol || "";
 
   // Transaction States
-  if (transactionStatus.state === 'confirmed' && transactionStatus.receipt) {
+  if (transactionStatus.state === "confirmed" && transactionStatus.receipt) {
     return (
       <TransactionSuccessful
         transactionReceipt={transactionStatus.receipt}
@@ -543,7 +693,7 @@ const Transfer = observer(() => {
     );
   }
 
-  if (transactionStatus.state === 'pending') {
+  if (transactionStatus.state === "pending") {
     return (
       <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
         <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
@@ -557,11 +707,15 @@ const Transfer = observer(() => {
             <CardContent className="py-8">
               <div className="flex flex-col items-center gap-4 text-center">
                 <p className="text-muted-foreground">
-                  Your transaction has been submitted and is awaiting confirmation.
+                  Your transaction has been submitted and is awaiting
+                  confirmation.
                 </p>
                 {transactionStatus.txHash && (
                   <a
-                    href={getExplorerTxUrl(transactionStatus.txHash, blockchain)}
+                    href={getExplorerTxUrl(
+                      transactionStatus.txHash,
+                      blockchain,
+                    )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
@@ -573,32 +727,52 @@ const Transfer = observer(() => {
                   <div className="mt-4 w-full max-w-md rounded border bg-muted p-4 text-left text-sm space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">From:</span>
-                      <span className="font-mono text-xs">{formatAddressShort(transactionStatus.pendingDetails.from)}</span>
+                      <span className="font-mono text-xs">
+                        {formatAddressShort(
+                          transactionStatus.pendingDetails.from,
+                        )}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">To:</span>
-                      <span className="font-mono text-xs">{formatAddressShort(transactionStatus.pendingDetails.to)}</span>
+                      <span className="font-mono text-xs">
+                        {formatAddressShort(
+                          transactionStatus.pendingDetails.to,
+                        )}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Value:</span>
                       <span>
                         {isNativeTransfer
                           ? `${utils.fromPlanck(BigInt(transactionStatus.pendingDetails.value), "quanta")} ${NATIVE_TOKEN.symbol}`
-                          : `${getOptimalTokenBalance(formValues.amount.toString())} ${assetSymbol}`
-                        }
+                          : `${getOptimalTokenBalance(formValues.amount.toString())} ${assetSymbol}`}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Gas Price:</span>
-                      <span>{utils.fromPlanck(BigInt(transactionStatus.pendingDetails.gasPrice), "shor")} Shor</span>
+                      <span>
+                        {utils.fromPlanck(
+                          BigInt(transactionStatus.pendingDetails.gasPrice),
+                          "shor",
+                        )}{" "}
+                        Shor
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Gas Limit:</span>
-                      <span>{parseInt(transactionStatus.pendingDetails.gas, 16).toLocaleString()}</span>
+                      <span>
+                        {parseInt(
+                          transactionStatus.pendingDetails.gas,
+                          16,
+                        ).toLocaleString()}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Nonce:</span>
-                      <span>{parseInt(transactionStatus.pendingDetails.nonce, 16)}</span>
+                      <span>
+                        {parseInt(transactionStatus.pendingDetails.nonce, 16)}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -610,7 +784,7 @@ const Transfer = observer(() => {
     );
   }
 
-  if (transactionStatus.state === 'timeout') {
+  if (transactionStatus.state === "timeout") {
     return (
       <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
         <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
@@ -629,7 +803,10 @@ const Transfer = observer(() => {
                 </p>
                 {transactionStatus.txHash && (
                   <a
-                    href={getExplorerTxUrl(transactionStatus.txHash, blockchain)}
+                    href={getExplorerTxUrl(
+                      transactionStatus.txHash,
+                      blockchain,
+                    )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
@@ -640,7 +817,11 @@ const Transfer = observer(() => {
               </div>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" onClick={resetTransactionStatus} className="w-full">
+              <Button
+                variant="outline"
+                onClick={resetTransactionStatus}
+                className="w-full"
+              >
                 Done
               </Button>
             </CardFooter>
@@ -650,7 +831,7 @@ const Transfer = observer(() => {
     );
   }
 
-  if (transactionStatus.state === 'failed') {
+  if (transactionStatus.state === "failed") {
     return (
       <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
         <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
@@ -663,10 +844,15 @@ const Transfer = observer(() => {
             </CardHeader>
             <CardContent className="py-8">
               <div className="flex flex-col items-center gap-4 text-center">
-                <p className="text-destructive">{transactionStatus.error || "An unknown error occurred."}</p>
+                <p className="text-destructive">
+                  {transactionStatus.error || "An unknown error occurred."}
+                </p>
                 {transactionStatus.txHash && (
                   <a
-                    href={getExplorerTxUrl(transactionStatus.txHash, blockchain)}
+                    href={getExplorerTxUrl(
+                      transactionStatus.txHash,
+                      blockchain,
+                    )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
@@ -677,7 +863,11 @@ const Transfer = observer(() => {
               </div>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" onClick={resetTransactionStatus} className="w-full">
+              <Button
+                variant="outline"
+                onClick={resetTransactionStatus}
+                className="w-full"
+              >
                 Try Again
               </Button>
             </CardFooter>
@@ -715,7 +905,10 @@ const Transfer = observer(() => {
                     render={({ field }) => (
                       <FormItem>
                         <Label>Asset</Label>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select asset to send" />
@@ -729,10 +922,17 @@ const Transfer = observer(() => {
                               </div>
                             </SelectItem>
                             {visibleTokenList.map((token) => (
-                              <SelectItem key={token.address} value={token.address}>
+                              <SelectItem
+                                key={token.address}
+                                value={token.address}
+                              >
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium">{token.symbol}</span>
-                                  <span className="text-muted-foreground">- {token.name}</span>
+                                  <span className="font-medium">
+                                    {token.symbol}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    - {token.name}
+                                  </span>
                                 </div>
                               </SelectItem>
                             ))}
@@ -754,7 +954,8 @@ const Transfer = observer(() => {
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Available: {getOptimalTokenBalance(accountBalance, assetSymbol)}
+                      Available:{" "}
+                      {getOptimalTokenBalance(accountBalance, assetSymbol)}
                     </div>
                     <div className="flex gap-4">
                       <Button
@@ -837,7 +1038,8 @@ const Transfer = observer(() => {
                         )}
                         {!isScanning && !scanSuccess && (
                           <FormDescription>
-                            Enter the receiver's address, pick a contact{isInNativeApp() ? ', or scan QR' : ''}
+                            Enter the receiver's address, pick a contact
+                            {isInNativeApp() ? ", or scan QR" : ""}
                           </FormDescription>
                         )}
                         <FormMessage />
@@ -850,7 +1052,9 @@ const Transfer = observer(() => {
                     onOpenChange={setAddressBookOpen}
                     currentAddress={formValues.receiverAddress}
                     onSelect={(address) =>
-                      setValue("receiverAddress", address, { shouldValidate: true })
+                      setValue("receiverAddress", address, {
+                        shouldValidate: true,
+                      })
                     }
                   />
 
@@ -873,10 +1077,19 @@ const Transfer = observer(() => {
                                 const value = e.target.value.replace(",", ".");
                                 if (value === "" || /^\d*\.?\d*$/.test(value)) {
                                   setAmountInputValue(value);
-                                  const numValue = value === "" ? 0 : parseFloat(value) || 0;
+                                  const numValue =
+                                    value === "" ? 0 : parseFloat(value) || 0;
                                   field.onChange(numValue);
-                                  if (maxSendableBalance && parseFloat(maxSendableBalance) > 0) {
-                                    const percentage = Math.min(100, (numValue / parseFloat(maxSendableBalance)) * 100);
+                                  if (
+                                    maxSendableBalance &&
+                                    parseFloat(maxSendableBalance) > 0
+                                  ) {
+                                    const percentage = Math.min(
+                                      100,
+                                      (numValue /
+                                        parseFloat(maxSendableBalance)) *
+                                        100,
+                                    );
                                     setSliderValue(Math.round(percentage));
                                   }
                                 }
@@ -888,7 +1101,9 @@ const Transfer = observer(() => {
                         <div className="mt-4 space-y-4">
                           <div className="flex justify-between">
                             <Label>Percentage of balance</Label>
-                            <span className="text-sm text-muted-foreground">{sliderValue}%</span>
+                            <span className="text-sm text-muted-foreground">
+                              {sliderValue}%
+                            </span>
                           </div>
 
                           <Slider
@@ -937,7 +1152,7 @@ const Transfer = observer(() => {
                             <PinInput
                               length={6}
                               onChange={field.onChange}
-                              value={field.value || ''}
+                              value={field.value || ""}
                               disabled={isSubmitting}
                             />
                           </FormControl>
@@ -955,7 +1170,8 @@ const Transfer = observer(() => {
                       presents the fee in its confirmation screen. */}
                   {isNativeTransfer && isUsingMobile && (
                     <p className="text-sm text-muted-foreground">
-                      The network fee is estimated and confirmed in the mobile app.
+                      The network fee is estimated and confirmed in the mobile
+                      app.
                     </p>
                   )}
                   {isNativeTransfer && !isUsingMobile && (
@@ -970,7 +1186,11 @@ const Transfer = observer(() => {
                   )}
                 </CardContent>
                 <CardFooter className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" type="button" onClick={cancelTransaction}>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={cancelTransaction}
+                  >
                     <X className="mr-2 h-4 w-4" />
                     Cancel
                   </Button>
@@ -980,7 +1200,9 @@ const Transfer = observer(() => {
                     type="submit"
                   >
                     <Send className="mr-2 h-4 w-4" />
-                    {isSubmitting ? `Sending ${assetSymbol}...` : `Send ${assetSymbol}`}
+                    {isSubmitting
+                      ? `Sending ${assetSymbol}...`
+                      : `Send ${assetSymbol}`}
                   </ShinyButton>
                 </CardFooter>
               </Card>

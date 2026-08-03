@@ -23,7 +23,7 @@ import { withSuspense } from "@/utils/react";
 import type { Web3BaseWalletAccount } from "@theqrl/web3";
 import { Check, Copy, HardDriveDownload, QrCode, Undo } from "lucide-react";
 import { lazy, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { QRCodeSVG } from "qrcode.react";
 import { WalletEncryptionUtil } from "@/utils/crypto";
 import { HexSeedListing } from "@/components/UI/HexSeedListing/HexSeedListing";

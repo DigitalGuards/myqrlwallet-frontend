@@ -10,6 +10,7 @@ import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
 import { QRL_TX_POLLING_CONFIG } from "@/utils/web3/txPolling";
 import type { TransactionReceipt, Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
+import { walletMutations } from "@/utils/nativeWalletMutation";
 
 type ActiveAccountType = {
   accountAddress: string;
@@ -782,6 +783,13 @@ class QrlStore {
       return;
     }
 
+    const signingGeneration = walletMutations.captureGeneration();
+    const assertSigningCurrent = (): void => {
+      if (!walletMutations.isCurrent(signingGeneration)) {
+        throw new Error("Wallet changed while preparing the transaction");
+      }
+    };
+
     try {
       // Fetch the next available nonce, including pending transactions
       const nonce = await this.qrlInstance?.getTransactionCount(from, "pending");
@@ -804,9 +812,11 @@ class QrlStore {
       // Run the MLDSA87 derivation in the crypto worker so the 50–300 ms
       // expansion doesn't freeze the main thread mid-Send animation.
       // Subsequent signTransaction call is comparatively cheap.
+      assertSigningCurrent();
       const privateKey = await deriveHexSeedAsync(mnemonicPhrases);
 
       // Sign the transaction first to ensure validity before proceeding
+      assertSigningCurrent();
       const signedTransaction =
         await this.qrlInstance?.accounts.signTransaction(
           transactionObject,
@@ -818,6 +828,7 @@ class QrlStore {
       }
 
       // Send the signed transaction and handle PromiEvents
+      assertSigningCurrent();
       const promiEvent = this.qrlInstance?.sendSignedTransaction(
         signedTransaction.rawTransaction
       );

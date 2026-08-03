@@ -59,14 +59,17 @@ export interface EncryptedKeystore {
   };
 }
 
-// Mirrors the extension's KDF_PARAM_BOUNDS (keystoreCrypto.ts) / upstream
-// kdf_policy.js. Anything outside is either corrupt or a DoS vector
-// (attacker-controlled m is an allocation bomb).
+// Operational import ceiling: accept historical weaker files, but never more
+// work than the extension's current production writer emits. The upstream
+// format permits much larger values (up to 1 GiB / t=50 / p=16); honoring
+// those from an untrusted file would turn WASM allocation failure plus the JS
+// fallback into a memory/CPU denial of service. Deliberate tradeoff: unusually
+// over-hardened custom backups must be re-exported with production parameters.
 const KDF_PARAM_BOUNDS = {
-  m: { min: 4096, max: 1048576 },
-  t: { min: 2, max: 50 },
-  p: { min: 1, max: 16 },
-  dklen: { min: 16, max: 64 },
+  m: { min: 4096, max: 262144 },
+  t: { min: 2, max: 8 },
+  p: { min: 1, max: 1 },
+  dklen: { min: 32, max: 32 },
 } as const;
 
 // Current extended-seed length (3-byte descriptor + 48-byte seed). Will grow
@@ -78,6 +81,10 @@ const GCM_TAG_BYTES = 16;
 // time keeps a bad file from burning a KDF attempt (and, on the WASM path,
 // from being mistaken for WASM unavailability). Mirrors the extension.
 const MIN_SALT_BYTES = 8;
+const MAX_SALT_BYTES = 64;
+const MAX_KEYSTORES_PER_BACKUP = 10;
+const MAX_METADATA_STRING_LENGTH = 129;
+const MAX_KEYSTORE_PASSWORD_LENGTH = 1024;
 
 function isHex(value: string): boolean {
   return value.length % 2 === 0 && !/[^0-9a-fA-F]/.test(value);
@@ -169,14 +176,25 @@ function validateKeystore(candidate: unknown, index: number): EncryptedKeystore 
   if (
     typeof salt !== 'string' ||
     !isHex(salt) ||
-    salt.length < MIN_SALT_BYTES * 2
+    salt.length < MIN_SALT_BYTES * 2 ||
+    salt.length > MAX_SALT_BYTES * 2
   ) {
     throw new KeystoreFormatError(`Invalid salt in ${label}.`);
   }
+  const id = ks['id'];
+  const address = ks['address'];
+  if (
+    (id !== undefined &&
+      (typeof id !== 'string' || id.length > MAX_METADATA_STRING_LENGTH)) ||
+    (address !== undefined &&
+      (typeof address !== 'string' || address.length > MAX_METADATA_STRING_LENGTH))
+  ) {
+    throw new KeystoreFormatError(`Invalid metadata in ${label}.`);
+  }
   return {
     version: 1,
-    id: typeof ks['id'] === 'string' ? ks['id'] : undefined,
-    address: typeof ks['address'] === 'string' ? ks['address'] : undefined,
+    id,
+    address,
     crypto: {
       ciphertext,
       cipherparams: { iv },
@@ -219,6 +237,11 @@ export function parseKeystoreBackup(parsed: unknown): EncryptedKeystore[] {
   if (rawList.length === 0) {
     throw new KeystoreFormatError('The backup file contains no keystores.');
   }
+  if (rawList.length > MAX_KEYSTORES_PER_BACKUP) {
+    throw new KeystoreFormatError(
+      `The backup file contains more than ${MAX_KEYSTORES_PER_BACKUP} keystores.`,
+    );
+  }
   return rawList.map((entry, i) => validateKeystore(entry, i));
 }
 
@@ -231,13 +254,11 @@ export async function decryptKeystoreToHexSeed(
   keystore: EncryptedKeystore,
   password: string,
 ): Promise<string> {
-  if (!password) {
+  if (!password || password.length > MAX_KEYSTORE_PASSWORD_LENGTH) {
     throw new KeystoreDecryptError('Password is required.');
   }
-  // The bounds allow dklen 16..64 for parity with the extension's validator,
-  // but AES-256-GCM needs exactly 32 bytes and every real writer emits 32.
-  // Fail up front as a format error instead of letting importKey throw a
-  // DOMException that would surface as "wrong password".
+  // Defense-in-depth for callers that bypass parseKeystoreBackup: AES-256-GCM
+  // requires the production writer's exact 32-byte derived key.
   if (keystore.crypto.kdfparams.dklen !== 32) {
     throw new KeystoreFormatError(
       'Unsupported derived-key length (only dklen 32 / AES-256 is supported).',
