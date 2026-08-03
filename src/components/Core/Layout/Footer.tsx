@@ -1,6 +1,6 @@
 import { EXPLORER_BASE } from "@/config";
 import { ROUTES } from "@/router/router";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { cn } from "@/utils/cn";
 
 /**

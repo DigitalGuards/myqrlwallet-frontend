@@ -25,10 +25,11 @@ import { z } from "zod";
 import { useEffect, useState } from "react";
 import { useStore } from "@/stores/store";
 import { formatUnits, parseUnits } from "@/utils/web3/units";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ROUTES } from "@/router/router";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
-import { WalletEncryptionUtil } from "@/utils/crypto";
+import { DeviceCredentialUnavailableError, decryptStoredSeedWithPin } from "@/utils/crypto";
+import { walletMutations, type WalletMutationToken } from "@/utils/nativeWalletMutation";
 import { StorageUtil } from "@/utils/storage";
 import { getAddressFromMnemonicAsync } from "@/utils/crypto";
 import { isDesktop } from "@/desktop/bridge";
@@ -137,12 +138,14 @@ export const TokenCreationForm = observer(
                 // renderer: the store builds the calldata and routes through
                 // the signer, so we pass an empty mnemonic placeholder.
                 let mnemonicPhrase = "";
+                let signingGeneration: WalletMutationToken | null = null;
                 if (!isUsingRemoteSigner && !isDesktop) {
                     if (!pin) {
                         setPinError("PIN is required");
                         return;
                     }
 
+                    signingGeneration = walletMutations.captureGeneration();
                     const selectedBlockChain = await StorageUtil.getBlockChain();
                     const encryptedSeed = await StorageUtil.getEncryptedSeed(selectedBlockChain, activeAccount.accountAddress);
 
@@ -156,10 +159,20 @@ export const TokenCreationForm = observer(
                     // crypto worker is not a wrong-PIN error and shouldn't
                     // be misreported as one.
                     try {
-                        const decryptedSeed = await WalletEncryptionUtil.decryptSeedWithPin(encryptedSeed, pin);
+                        const decryptedSeed = await decryptStoredSeedWithPin(
+                            selectedBlockChain,
+                            activeAccount.accountAddress,
+                            encryptedSeed,
+                            pin,
+                            signingGeneration,
+                        );
                         mnemonicPhrase = decryptedSeed.mnemonic;
-                    } catch (_error) {
-                        setPinError("Invalid PIN. Please try again.");
+                    } catch (error) {
+                        setPinError(
+                            error instanceof DeviceCredentialUnavailableError
+                                ? "This wallet's device security credential is unavailable. Re-import the seed."
+                                : "Invalid PIN. Please try again.",
+                        );
                         return;
                     }
 
@@ -174,10 +187,17 @@ export const TokenCreationForm = observer(
                         return;
                     }
                     const address = await getAddressFromMnemonicAsync(mnemonicPhrase, qrlInstance);
-                    if (address.toLowerCase() !== activeAccount.accountAddress.toLowerCase()) {
+                    if (address !== activeAccount.accountAddress) {
                         setPinError("PIN decrypted an invalid seed. Please import your account again.");
                         return;
                     }
+                }
+
+                if (
+                    signingGeneration &&
+                    !walletMutations.isCurrent(signingGeneration)
+                ) {
+                    throw new Error("Wallet changed while preparing token creation");
                 }
 
                 const tokenName = formData.tokenName;

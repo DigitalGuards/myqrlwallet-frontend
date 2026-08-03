@@ -18,7 +18,8 @@ import { StorageUtil } from "@/utils/storage";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import {
     WalletEncryptionUtil,
-    decryptSeedAsync,
+    decryptStoredSeedAsync,
+    getAddressFromMnemonicAsync,
     CryptoOperationError,
     CryptoErrorCode,
     type ExtendedWalletAccount,
@@ -114,7 +115,12 @@ export const ExportWalletFile = observer(() => {
 
             let decrypted: { mnemonic: string; hexSeed: string };
             try {
-                decrypted = await decryptSeedAsync(entry.encryptedSeed, data.pin);
+                decrypted = await decryptStoredSeedAsync(
+                    blockchain,
+                    entry.address,
+                    entry.encryptedSeed,
+                    data.pin,
+                );
             } catch (error) {
                 if (
                     error instanceof CryptoOperationError &&
@@ -132,6 +138,11 @@ export const ExportWalletFile = observer(() => {
                     error.code === CryptoErrorCode.OUTDATED_FORMAT
                 ) {
                     setExportError("This wallet was saved in an older format and must be re-imported before it can be exported.");
+                } else if (
+                    error instanceof CryptoOperationError &&
+                    error.code === CryptoErrorCode.DEVICE_CREDENTIAL_UNAVAILABLE
+                ) {
+                    setExportError("This wallet's device security credential is unavailable. Re-import the seed to restore access.");
                 } else {
                     setExportError("Failed to unlock the seed. Please try again.");
                 }
@@ -139,6 +150,20 @@ export const ExportWalletFile = observer(() => {
             }
 
             recordSuccessfulAttempt();
+
+            const qrlInstance = qrlStore.qrlInstance;
+            if (!qrlInstance) {
+                setExportError("Wallet connection is unavailable. Please reconnect and try again.");
+                return;
+            }
+            const derivedAddress = await getAddressFromMnemonicAsync(
+                decrypted.mnemonic,
+                qrlInstance,
+            );
+            if (derivedAddress.toLowerCase() !== entry.address.toLowerCase()) {
+                setExportError("Security error: the stored seed does not match this account. Re-import the account before exporting.");
+                return;
+            }
 
             const account = {
                 address: entry.address,

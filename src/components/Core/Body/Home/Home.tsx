@@ -9,7 +9,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/UI/Button";
 import { ROUTES } from "@/router/router";
 import { ActiveAccountDisplay } from "./AccountCreateImport/ActiveAccountDisplay/ActiveAccountDisplay";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { TransactionHistoryPopup } from "../AccountList/ActiveAccount/TransactionHistoryPopup";
 import { ReceivePopup } from "./ReceivePopup";
 import { isInNativeApp, requestQRScan } from "@/utils/nativeApp";

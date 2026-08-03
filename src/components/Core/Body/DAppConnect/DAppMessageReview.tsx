@@ -15,7 +15,17 @@ interface DAppMessageReviewProps {
   digestHex?: string;
 }
 
-function tryDecodeUtf8(hex: string): { ok: true; text: string } | { ok: false; reason: 'not-hex' | 'non-utf8' | 'control-chars' } {
+const UNSAFE_VISUAL_CONTROL_PATTERN =
+  /[\u061c\u180e\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/u;
+
+export function tryDecodeUtf8(
+  hex: string,
+):
+  | { ok: true; text: string }
+  | {
+      ok: false;
+      reason: 'not-hex' | 'non-utf8' | 'control-chars' | 'format-controls';
+    } {
   let bytes: Uint8Array;
   try {
     bytes = hexToBytes(hex);
@@ -24,9 +34,16 @@ function tryDecodeUtf8(hex: string): { ok: true; text: string } | { ok: false; r
   }
   try {
     const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    if (UNSAFE_VISUAL_CONTROL_PATTERN.test(text)) {
+      return { ok: false, reason: 'format-controls' };
+    }
     for (let i = 0; i < text.length; i++) {
       const c = text.charCodeAt(i);
-      if (c <= 0x08 || (c >= 0x0e && c <= 0x1f) || c === 0x7f) {
+      if (
+        c <= 0x08 ||
+        (c >= 0x0e && c <= 0x1f) ||
+        (c >= 0x7f && c <= 0x9f)
+      ) {
         return { ok: false, reason: 'control-chars' };
       }
     }
@@ -50,13 +67,33 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
         </span>
       </div>
       {decoded.ok ? (
-        <p className="max-h-32 overflow-auto break-words font-mono text-sm">{decoded.text}</p>
+        <>
+          <p
+            className="max-h-32 overflow-auto break-words font-mono text-sm"
+            dir="ltr"
+          >
+            {decoded.text}
+          </p>
+          <details className="text-xs">
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+              Raw signed bytes
+            </summary>
+            <p className="mt-2 max-h-32 overflow-auto break-all font-mono" dir="ltr">
+              {messageHex}
+            </p>
+          </details>
+        </>
       ) : (
         <div>
           <p className="text-xs text-muted-foreground italic">
-            Not a UTF-8 string, showing raw hex.
+            Not a safely printable UTF-8 string, showing raw hex.
           </p>
-          <p className="mt-1 max-h-32 overflow-auto break-all font-mono text-xs">{messageHex}</p>
+          <p
+            className="mt-1 max-h-32 overflow-auto break-all font-mono text-xs"
+            dir="ltr"
+          >
+            {messageHex}
+          </p>
         </div>
       )}
       {digestHex && (
@@ -68,7 +105,7 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
           <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
             Advanced: 64-byte SHAKE256 digest
           </summary>
-          <p className="mt-2 break-all font-mono">{digestHex}</p>
+          <p className="mt-2 break-all font-mono" dir="ltr">{digestHex}</p>
         </details>
       )}
     </div>

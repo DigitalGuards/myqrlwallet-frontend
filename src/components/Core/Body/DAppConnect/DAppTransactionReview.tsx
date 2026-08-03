@@ -26,6 +26,7 @@ function formatGasLimit(gas: unknown): string {
 }
 
 const DAppTransactionReview: React.FC<TransactionReviewProps> = ({ params }) => {
+  const from = (params['from'] as string) || 'Unknown';
   const to = (params['to'] as string) || 'Unknown';
   const value = params['value'] as string | undefined;
   const data = params['data'] as string | undefined;
@@ -35,6 +36,10 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({ params }) => 
 
   return (
     <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm">
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">From</span>
+        <span className="font-mono text-xs break-all max-w-[200px] text-right">{from}</span>
+      </div>
       <div className="flex justify-between">
         <span className="text-muted-foreground">To</span>
         <span className="font-mono text-xs break-all max-w-[200px] text-right">{to}</span>

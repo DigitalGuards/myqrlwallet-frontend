@@ -12,13 +12,16 @@ import { cva } from "class-variance-authority";
 import { Download, Plus, Link2, Smartphone } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
   connectWithProvider,
   discoverQrlProviders,
   type EIP6963ProviderDetail,
 } from "@/utils/extension";
-import { startMobilePairing } from "@/utils/mobileConnect/mobileConnection";
+import {
+  cancelMobilePairing,
+  startMobilePairing,
+} from "@/utils/mobileConnect/mobileConnection";
 import ExtensionPickerDialog from "./ExtensionPickerDialog";
 import MobilePairingDialog from "./MobilePairingDialog";
 import { isInNativeApp } from "@/utils/nativeApp";
@@ -58,13 +61,14 @@ const AccountCreateImport = observer(() => {
 
   // Close the pairing dialog once the store adopts the paired account (the
   // mobileConnection event wiring sets the provider on 'connect').
-  const isMobileProviderSet = !!qrlStore.mobileProvider;
+  const hasAdoptedMobileAccount =
+    !!qrlStore.activeAccount.accountAddress && qrlStore.activeAccountSource === "mobile";
   useEffect(() => {
-    if (mobilePairing && isMobileProviderSet) {
+    if (mobilePairing && hasAdoptedMobileAccount) {
       setMobilePairing(null);
       navigate(ROUTES.HOME);
     }
-  }, [mobilePairing, isMobileProviderSet, navigate]);
+  }, [mobilePairing, hasAdoptedMobileAccount, navigate]);
 
   const finishConnect = async (detail: EIP6963ProviderDetail) => {
     setPickerProviders(null);
@@ -113,6 +117,16 @@ const AccountCreateImport = observer(() => {
   };
 
   const handleConnectMobile = () => void openMobilePairing(false);
+
+  const cancelPendingMobilePairing = async () => {
+    try {
+      await cancelMobilePairing();
+      setMobilePairing(null);
+    } catch (error) {
+      console.error("Mobile pairing cancellation failed:", error);
+      setMobileConnectError("Could not cancel the pending mobile pairing. Please try again.");
+    }
+  };
 
   return (
     <div
@@ -172,7 +186,7 @@ const AccountCreateImport = observer(() => {
         <MobilePairingDialog
           uri={mobilePairing.uri}
           installHint={mobilePairing.installHint}
-          onClose={() => setMobilePairing(null)}
+          onClose={cancelPendingMobilePairing}
           onNewCode={() => openMobilePairing(true)}
         />
       ) : null}

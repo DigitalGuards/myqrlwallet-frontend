@@ -42,7 +42,9 @@ Edit `.env` with your settings:
 - `VITE_SERVER_URL_*` - Backend API endpoints
 - `VITE_CUSTOMERC20FACTORY_ADDRESS` - Token factory contract address
 - `VITE_DEPLOYER` - Factory deployer account
-- `VITE_SEED` - Deployer seed (development only - never commit!)
+
+Never place seeds, mnemonics, private keys, or credentials in a `VITE_*`
+variable. Vite embeds that namespace in client assets.
 
 ### Development
 
@@ -67,10 +69,9 @@ npm test            # Run tests
 ```bash
 docker build -t myqrlwallet-frontend:latest \
   -f deploy/Dockerfile \
-  --build-arg VITE_RPC_URL_TESTNET=https://qrlwallet.com/api/qrl-rpc/testnet \
-  --build-arg VITE_RPC_URL_MAINNET=https://qrlwallet.com/api/qrl-rpc/mainnet \
-  --build-arg VITE_SERVER_URL_TESTNET=https://qrlwallet.com/api \
-  --build-arg VITE_SERVER_URL_MAINNET=https://qrlwallet.com/api \
+  --build-arg VITE_RPC_URL_PRODUCTION=https://qrlwallet.com/api/qrl-rpc \
+  --build-arg VITE_SERVER_URL_PRODUCTION=https://qrlwallet.com/api \
+  --build-arg VITE_EXPLORER_URL_PRODUCTION=https://zondscan.com \
   .
 ```
 
@@ -140,10 +141,9 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) automatically:
 ### Required GitHub Configuration
 
 **Variables** (Settings → Secrets and variables → Actions → Variables):
-- `VITE_RPC_URL_TESTNET`
-- `VITE_RPC_URL_MAINNET`
-- `VITE_SERVER_URL_TESTNET`
-- `VITE_SERVER_URL_MAINNET`
+- `VITE_RPC_URL_PRODUCTION`
+- `VITE_SERVER_URL_PRODUCTION`
+- `VITE_EXPLORER_URL_PRODUCTION`
 - `VITE_CUSTOMERC20FACTORY_ADDRESS`
 - `VITE_DEPLOYER`
 
@@ -161,6 +161,10 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) automatically:
 | Routing | React Router 7 |
 | Blockchain | @theqrl/web3 |
 | Container | nginx-unprivileged (Alpine) |
+
+`@theqrl/web3` is intentionally pinned to `1.0.1`: the deployed wallet and
+testnet v2 use canonical `Q` + 40-hex account addresses. Expanded-address
+support is roadmap work and must ship as an explicit, ecosystem-wide migration.
 
 ## Project Structure
 

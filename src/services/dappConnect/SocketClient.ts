@@ -6,18 +6,102 @@ import type { Socket } from 'socket.io-client';
 import type { RelayMessage } from './types';
 import { logToNative } from '@/utils/nativeApp';
 
+type SocketIoLoader = () => Promise<Pick<typeof import('socket.io-client'), 'io'>>;
+const defaultSocketIoLoader: SocketIoLoader = () => import('socket.io-client');
+let socketIoLoader: SocketIoLoader = defaultSocketIoLoader;
+
+/** Test-only seam for holding the dynamic import across a lifecycle cancel. */
+export function _setSocketIoLoaderForTests(loader?: SocketIoLoader): void {
+  socketIoLoader = loader ?? defaultSocketIoLoader;
+}
+
 const RELAY_PATH = '/relay';
 // Give an outbound leave/close packet a bounded window to reach the relay
 // (resolving on its ack) before the socket is torn down, so disconnect() can't
 // drop the unflushed packet and lose the tombstone / leave notification.
 const SEND_FLUSH_TIMEOUT_MS = 600;
+export const RELAY_ACK_TIMEOUT_MS = 10000;
+const MAX_BUFFERED_MESSAGES = 50;
+const MAX_CHANNEL_PUBLIC_KEY_B64_LEN = 2048;
+const MAX_RELAY_ERROR_LENGTH = 256;
+const MAX_RELAY_MESSAGE_STRING_LENGTH = 256 * 1024;
+
+type ParticipantChange = {
+  event: 'join' | 'leave' | 'disconnect' | 'close';
+  clientType: 'dapp';
+};
+
+interface JoinChannelResult {
+  bufferedMessages: RelayMessage[];
+  channelPublicKey: string | null;
+  terminated: boolean;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isRelayMessage(value: unknown): value is RelayMessage {
+  if (!isRecord(value)) return false;
+  const message = value['message'];
+  return (
+    typeof value['id'] === 'string' &&
+    value['id'].length > 0 &&
+    value['id'].length <= 128 &&
+    (value['clientType'] === 'dapp' || value['clientType'] === 'wallet') &&
+    ((typeof message === 'string' &&
+      message.length <= MAX_RELAY_MESSAGE_STRING_LENGTH) ||
+      isRecord(message))
+  );
+}
+
+function parseJoinResponse(response: unknown): JoinChannelResult {
+  if (!isRecord(response) || response['success'] !== true) {
+    const error =
+      isRecord(response) &&
+      typeof response['error'] === 'string' &&
+      response['error'].length <= MAX_RELAY_ERROR_LENGTH
+      ? response['error']
+      : 'Failed to join channel';
+    throw new Error(error);
+  }
+  const rawMessages = response['bufferedMessages'];
+  if (!Array.isArray(rawMessages)) {
+    throw new Error('Relay returned malformed buffered messages');
+  }
+  const bufferedMessages = rawMessages;
+  if (bufferedMessages.length > MAX_BUFFERED_MESSAGES) {
+    throw new Error('Relay returned too many buffered messages');
+  }
+  if (!bufferedMessages.every(isRelayMessage)) {
+    throw new Error('Relay returned a malformed buffered message');
+  }
+
+  const rawPublicKey = response['channelPublicKey'];
+  if (
+    rawPublicKey !== undefined &&
+    rawPublicKey !== null &&
+    (typeof rawPublicKey !== 'string' || rawPublicKey.length > MAX_CHANNEL_PUBLIC_KEY_B64_LEN)
+  ) {
+    throw new Error('Relay returned a malformed channel public key');
+  }
+  if (typeof response['terminated'] !== 'boolean') {
+    throw new Error('Relay returned a malformed termination status');
+  }
+
+  return {
+    bufferedMessages,
+    channelPublicKey: typeof rawPublicKey === 'string' ? rawPublicKey : null,
+    terminated: response['terminated'],
+  };
+}
 
 type SocketEventHandler = {
   onMessage: (data: RelayMessage) => void;
   onConnected: () => void;
   onDisconnected: (reason: string) => void;
   onReconnected: () => void;
-  onParticipantsChanged: (data: { event: string; clientType?: string }) => void;
+  onParticipantsChanged: (data: ParticipantChange) => void;
   /** The relay reported a terminated (tombstoned) channel on (re)join. */
   onTerminated?: () => void;
 };
@@ -29,6 +113,8 @@ export class SocketClient {
   private channelId: string | null = null;
   private handlers: SocketEventHandler;
   private hasJoinedOnce = false;
+  private lifecycleGeneration = 0;
+  private readonly pendingConnectCancellations = new Set<() => void>();
 
   constructor(relayUrl: string, handlers: SocketEventHandler) {
     this.relayUrl = relayUrl;
@@ -40,20 +126,46 @@ export class SocketClient {
   // (a boolean guard let a second caller race past and hit joinChannel on
   // an uninitialized socket).
   private connectPromise: Promise<void> | null = null;
+  private joinPromise: Promise<JoinChannelResult> | null = null;
+  private joiningChannelId: string | null = null;
 
   connect(): Promise<void> {
     if (this.socket?.connected) return Promise.resolve();
-    this.connectPromise ??= this.doConnect().finally(() => {
-      this.connectPromise = null;
+    if (this.connectPromise) return this.connectPromise;
+    const generation = this.lifecycleGeneration;
+    const task = this.doConnect(generation).finally(() => {
+      if (this.connectPromise === task) this.connectPromise = null;
     });
-    return this.connectPromise;
+    this.connectPromise = task;
+    return task;
   }
 
-  private async doConnect(): Promise<void> {
-    const ioFn = (await import('socket.io-client')).io;
+  private assertLifecycleCurrent(generation: number): void {
+    if (generation !== this.lifecycleGeneration) {
+      throw new Error('Socket connection cancelled');
+    }
+  }
+
+  private async doConnect(generation: number): Promise<void> {
+    this.assertLifecycleCurrent(generation);
+    const existing = this.socket;
+    if (existing) {
+      if (existing.connected) return;
+      await this.waitForConnect(existing, 20000, generation);
+      this.assertLifecycleCurrent(generation);
+      return;
+    }
+    const ioFn = (await socketIoLoader()).io;
+    this.assertLifecycleCurrent(generation);
     // A prior attempt may have finished while we awaited the import
-    if (this.socket?.connected) return;
-    this.socket = ioFn(this.relayUrl, {
+    if (this.socket) {
+      if (!this.socket.connected) {
+        await this.waitForConnect(this.socket, 20000, generation);
+      }
+      this.assertLifecycleCurrent(generation);
+      return;
+    }
+    const socket = ioFn(this.relayUrl, {
       path: RELAY_PATH,
       // Websocket-first, matching the dApp SDK. Long-poll XHRs are killed
       // when native UI transitions interrupt the WebView (tab switch on
@@ -70,8 +182,9 @@ export class SocketClient {
       reconnectionAttempts: Infinity,
       timeout: 20000,
     });
+    this.socket = socket;
 
-    this.socket.on('connect', () => {
+    socket.on('connect', () => {
       this.connectedAt = Date.now();
       logToNative(`[SocketClient] connected via ${this.transportName()}`);
       this.handlers.onConnected();
@@ -101,7 +214,7 @@ export class SocketClient {
       }
     });
 
-    this.socket.on('disconnect', (reason, description) => {
+    socket.on('disconnect', (reason, description) => {
       // Diagnostic context for on-device transport flaps: which transport
       // died, how long it lived, what the engine said, and whether the
       // WebView was visible at that instant.
@@ -126,23 +239,54 @@ export class SocketClient {
       this.handlers.onDisconnected(reason);
     });
 
-    this.socket.on('message', (data: RelayMessage) => {
+    socket.on('message', (data: RelayMessage) => {
       this.handlers.onMessage(data);
     });
 
-    this.socket.on('participants_changed', (data) => {
-      this.handlers.onParticipantsChanged(data);
+    socket.on('participants_changed', (data: unknown) => {
+      if (!isRecord(data)) return;
+      const event = data['event'];
+      if (
+        (event !== 'join' &&
+          event !== 'leave' &&
+          event !== 'disconnect' &&
+          event !== 'close') ||
+        data['clientType'] !== 'dapp'
+      ) {
+        return;
+      }
+      this.handlers.onParticipantsChanged({ event, clientType: 'dapp' });
     });
 
-    this.socket.on('connect_error', (err) => {
+    socket.on('connect_error', (err) => {
       console.warn('[SocketClient] Connection error:', err.message);
       logToNative(`[SocketClient] connect_error: ${err.message}`);
     });
+    if (!socket.connected) await this.waitForConnect(socket, 20000, generation);
+    this.assertLifecycleCurrent(generation);
   }
 
   async joinChannel(
     channelId: string
-  ): Promise<{ bufferedMessages: unknown[]; channelPublicKey: string | null; terminated: boolean }> {
+  ): Promise<JoinChannelResult> {
+    if (this.joinPromise) {
+      if (this.joiningChannelId !== channelId) {
+        throw new Error('A different relay channel join is already in progress');
+      }
+      return this.joinPromise;
+    }
+    this.joiningChannelId = channelId;
+    const task = this.joinChannelNow(channelId).finally(() => {
+      if (this.joinPromise === task) {
+        this.joinPromise = null;
+        this.joiningChannelId = null;
+      }
+    });
+    this.joinPromise = task;
+    return task;
+  }
+
+  private async joinChannelNow(channelId: string): Promise<JoinChannelResult> {
     this.channelId = channelId;
     const socket = this.socket;
     if (!socket) {
@@ -152,19 +296,24 @@ export class SocketClient {
       // Match the socket.io `timeout` above; a shorter wait here would
       // reject joinChannel while the underlying socket is still legitimately
       // trying to connect, corrupting our session state.
-      await this.waitForConnect(socket, 20000);
+      await this.waitForConnect(socket, 20000, this.lifecycleGeneration);
     }
     const result = await this.emitJoinChannel(socket, channelId);
     this.hasJoinedOnce = true;
     return result;
   }
 
-  private waitForConnect(socket: Socket, timeoutMs: number): Promise<void> {
+  private waitForConnect(
+    socket: Socket,
+    timeoutMs: number,
+    generation: number,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const cleanup = () => {
         clearTimeout(timer);
         socket.off('connect', onConnect);
         socket.off('connect_error', onError);
+        this.pendingConnectCancellations.delete(onCancelled);
       };
       const onConnect = () => {
         cleanup();
@@ -174,41 +323,56 @@ export class SocketClient {
         cleanup();
         reject(err);
       };
+      const onCancelled = () => {
+        cleanup();
+        reject(new Error('Socket connection cancelled'));
+      };
       const timer = setTimeout(() => {
         cleanup();
         reject(new Error('Socket connect timeout'));
       }, timeoutMs);
       socket.once('connect', onConnect);
       socket.once('connect_error', onError);
+      if (generation !== this.lifecycleGeneration) {
+        onCancelled();
+      } else {
+        this.pendingConnectCancellations.add(onCancelled);
+      }
     });
   }
 
   private emitJoinChannel(
     socket: Socket,
     channelId: string
-  ): Promise<{ bufferedMessages: unknown[]; channelPublicKey: string | null; terminated: boolean }> {
+  ): Promise<JoinChannelResult> {
     return new Promise((resolve, reject) => {
-      socket.emit(
-        'join_channel',
-        { channelId, clientType: 'wallet' },
-        (response: {
-          success: boolean;
-          error?: string;
-          bufferedMessages?: unknown[];
-          channelPublicKey?: string | null;
-          terminated?: boolean;
-        }) => {
-          if (response?.success) {
-            resolve({
-              bufferedMessages: response.bufferedMessages || [],
-              channelPublicKey: response.channelPublicKey ?? null,
-              terminated: response.terminated === true,
-            });
-          } else {
-            reject(new Error(response?.error || 'Failed to join channel'));
-          }
-        }
+      let settled = false;
+      const finish = (error: Error | null, result?: JoinChannelResult): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (error) reject(error);
+        else resolve(result as JoinChannelResult);
+      };
+      const timer = setTimeout(
+        () => finish(new Error('Relay join acknowledgement timeout')),
+        RELAY_ACK_TIMEOUT_MS
       );
+      try {
+        socket.emit(
+          'join_channel',
+          { channelId, clientType: 'wallet' },
+          (response: unknown) => {
+            try {
+              finish(null, parseJoinResponse(response));
+            } catch (error) {
+              finish(error instanceof Error ? error : new Error(String(error)));
+            }
+          }
+        );
+      } catch (error) {
+        finish(error instanceof Error ? error : new Error(String(error)));
+      }
     });
   }
 
@@ -218,14 +382,35 @@ export class SocketClient {
         reject(new Error('Socket not connected'));
         return;
       }
-
-      this.socket.emit('message', data, (response: { success: boolean; error?: string }) => {
-        if (response?.success) {
-          resolve();
-        } else {
-          reject(new Error(response?.error || 'Failed to send'));
-        }
-      });
+      let settled = false;
+      const finish = (error?: Error): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (error) reject(error);
+        else resolve();
+      };
+      const timer = setTimeout(
+        () => finish(new Error('Relay send acknowledgement timeout')),
+        RELAY_ACK_TIMEOUT_MS
+      );
+      try {
+        this.socket.emit('message', data, (response: unknown) => {
+          if (isRecord(response) && response['success'] === true) {
+            finish();
+          } else {
+            const message =
+              isRecord(response) &&
+              typeof response['error'] === 'string' &&
+              response['error'].length <= MAX_RELAY_ERROR_LENGTH
+                ? response['error']
+                : 'Failed to send';
+            finish(new Error(message));
+          }
+        });
+      } catch (error) {
+        finish(error instanceof Error ? error : new Error(String(error)));
+      }
     });
   }
 
@@ -234,30 +419,41 @@ export class SocketClient {
    * flush window. Lets a caller await transmission before tearing the socket
    * down (socket.io buffers emits, and disconnect() drops anything unflushed).
    */
-  private flushEmit(event: string, payload: object): Promise<void> {
+  private flushEmit(
+    event: 'leave_channel' | 'close_channel',
+    payload: object,
+  ): Promise<boolean> {
     return new Promise((resolve) => {
       if (!this.socket?.connected) {
-        resolve();
+        resolve(false);
         return;
       }
       let settled = false;
-      const done = (): void => {
+      const done = (success: boolean): void => {
         if (settled) return;
         settled = true;
-        resolve();
-      };
-      const timer = setTimeout(done, SEND_FLUSH_TIMEOUT_MS);
-      this.socket.emit(event, payload, () => {
         clearTimeout(timer);
-        done();
-      });
+        resolve(success);
+      };
+      const timer = setTimeout(() => done(false), SEND_FLUSH_TIMEOUT_MS);
+      try {
+        this.socket.emit(event, payload, (response: unknown) => {
+          done(
+            isRecord(response) &&
+              response['success'] === true &&
+              (event !== 'close_channel' || response['terminated'] === true),
+          );
+        });
+      } catch {
+        done(false);
+      }
     });
   }
 
-  leaveChannel(): Promise<void> {
+  leaveChannel(): Promise<boolean> {
     const channelId = this.channelId;
     this.channelId = null;
-    if (!this.socket?.connected || !channelId) return Promise.resolve();
+    if (!this.socket?.connected || !channelId) return Promise.resolve(false);
     return this.flushEmit('leave_channel', { channelId });
   }
 
@@ -268,14 +464,18 @@ export class SocketClient {
    * currently joined and only re-joins later. Resolves once the close is
    * flushed (or times out) so the caller can safely disconnect afterwards.
    */
-  closeChannel(): Promise<void> {
-    const channelId = this.channelId;
+  closeChannel(channelOverride?: string): Promise<boolean> {
+    const channelId = channelOverride ?? this.channelId;
     this.channelId = null;
-    if (!this.socket?.connected || !channelId) return Promise.resolve();
+    if (!this.socket?.connected || !channelId) return Promise.resolve(false);
     return this.flushEmit('close_channel', { channelId });
   }
 
   disconnect(): void {
+    this.lifecycleGeneration += 1;
+    for (const cancel of [...this.pendingConnectCancellations]) cancel();
+    this.pendingConnectCancellations.clear();
+    this.connectPromise = null;
     this.channelId = null;
     if (this.socket) {
       this.socket.removeAllListeners();

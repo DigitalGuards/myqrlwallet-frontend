@@ -13,7 +13,7 @@ import { useStore } from "../../../../../stores/store";
 import type { Web3BaseWalletAccount } from "@theqrl/web3";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { formatAddress } from "@/utils/formatting";
 
 type AccountImportSuccessProps = {

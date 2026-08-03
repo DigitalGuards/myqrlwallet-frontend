@@ -25,7 +25,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/UI/Tooltip";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ROUTES } from "@/router/router";
 
 const TokenForm = observer(() => {

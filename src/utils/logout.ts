@@ -4,7 +4,13 @@ import { QRL_PROVIDER } from "@/config";
 import { isInNativeApp } from "./nativeApp";
 import { clearAttemptTracker } from "./crypto/pinAttemptTracker";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
-import { disconnectMobile, hasMobileSession } from "./mobileConnect/mobileConnection";
+import {
+  disconnectMobile,
+  hasMobileSession,
+} from "./mobileConnect/mobileConnection";
+import { clearDeviceCredential } from "./crypto/deviceCredential";
+import { dappConnectService } from "@/services/dappConnect/DAppConnectService";
+import { walletMutations } from "./nativeWalletMutation";
 
 /**
  * A utility function to handle logout by clearing
@@ -18,70 +24,84 @@ import { disconnectMobile, hasMobileSession } from "./mobileConnect/mobileConnec
  *
  * @param navigate - The navigate function from react-router
  */
+/**
+ * Lock the isolated desktop signer before touching fallible relay state.
+ * Neither failure may be presented as a completed logout.
+ */
+export const secureDesktopLogout = async (): Promise<void> => {
+  await desktopSigner.lock();
+  await dappConnectService.clearAllSessions();
+};
+
 export const handleLogout = async (navigate: (path: string) => void) => {
+  // Desktop: the seed lives in the isolated signer, NOT in localStorage,
+  // so logout LOCKS the signer session (drops the in-memory keys) instead
+  // of wiping. A wipe here would clear the UI's account list while the
+  // encrypted seed file persists in the signer, orphaning the wallet.
+  // Re-entry is a password unlock (the desktop unlock screen). Fully
+  // removing the wallet from the device is a separate, explicit action
+  // that deletes the signer's seed file, not this button.
+  if (isDesktop) {
     try {
-        // Desktop: the seed lives in the isolated signer, NOT in localStorage,
-        // so logout LOCKS the signer session (drops the in-memory keys) instead
-        // of wiping. A wipe here would clear the UI's account list while the
-        // encrypted seed file persists in the signer, orphaning the wallet.
-        // Re-entry is a password unlock (the desktop unlock screen). Fully
-        // removing the wallet from the device is a separate, explicit action
-        // that deletes the signer's seed file, not this button.
-        if (isDesktop) {
-            await desktopSigner
-                .lock()
-                .catch((err) => console.error("Desktop logout: signer lock failed", err));
-            navigate(ROUTES.HOME);
-            window.location.reload();
-            return;
-        }
-
-        // End any mobile-app pairing first (best-effort, notifies the phone
-        // when live) so the SDK session in localStorage cannot silently
-        // re-pair on the next load after the account list is wiped.
-        if (hasMobileSession()) {
-            await disconnectMobile().catch((err) =>
-                console.error("Logout: mobile pairing disconnect failed", err),
-            );
-        }
-
-        // Get all blockchain types
-        const blockchains = Object.keys(QRL_PROVIDER);
-
-        // Clear active accounts and encrypted seeds for all blockchains
-        for (const blockchain of blockchains) {
-            await StorageUtil.clearActiveAccount(blockchain);
-            await StorageUtil.clearTransactionValues(blockchain);
-
-            // On web app, clear all encrypted seeds on logout
-            // On native app, seeds persist (backed up to native storage)
-            if (!isInNativeApp()) {
-                StorageUtil.clearAllEncryptedSeeds(blockchain);
-                StorageUtil.clearAccountList(blockchain);
-            }
-        }
-
-        // Clear PIN attempt tracker on web logout
-        if (!isInNativeApp()) {
-            clearAttemptTracker();
-        }
-
-        // NOTE: token and NFT lists are intentionally NOT cleared here.
-        // They are public contract addresses (not secrets) keyed per
-        // account, so preserving them means re-importing the same account
-        // restores its curated token/NFT lists instead of forcing the
-        // user to re-add every contract. A full wipe (CLEAR_WALLET) does
-        // clear them.
-
-        // Navigate to homepage
-        navigate(ROUTES.HOME);
-
-        // Reload the application to reset all state
-        window.location.reload();
+      await secureDesktopLogout();
+      navigate(ROUTES.HOME);
+      window.location.reload();
     } catch (error) {
-        console.error("Error during logout:", error);
-        // Fallback: navigate and reload anyway
-        navigate(ROUTES.HOME);
-        window.location.reload();
+      console.error("Desktop logout did not complete:", error);
     }
+    return;
+  }
+
+  try {
+    const nativeApp = isInNativeApp();
+    const blockchains = Object.keys(QRL_PROVIDER);
+
+    const clearWalletStorage = async () => {
+      for (const blockchain of blockchains) {
+        await StorageUtil.clearActiveAccount(blockchain);
+        await StorageUtil.clearTransactionValues(blockchain);
+
+        // Native logout locks the UI while preserving its seed backup.
+        if (!nativeApp) {
+          StorageUtil.clearAllEncryptedSeeds(blockchain);
+          StorageUtil.clearAccountList(blockchain);
+        }
+      }
+    };
+
+    await walletMutations.clear(clearWalletStorage, async () => {
+      // The coordinator already advanced the shared epoch.
+      await dappConnectService.clearAllSessions(false);
+      if (hasMobileSession()) {
+        await disconnectMobile().catch((err) =>
+          console.error("Logout: mobile pairing disconnect failed", err),
+        );
+      }
+
+      if (!nativeApp) {
+        clearAttemptTracker();
+        await clearDeviceCredential().catch((error) =>
+          console.error("Logout: device credential clear failed", error),
+        );
+      }
+    });
+
+    // NOTE: token and NFT lists are intentionally NOT cleared here.
+    // They are public contract addresses (not secrets) keyed per
+    // account, so preserving them means re-importing the same account
+    // restores its curated token/NFT lists instead of forcing the
+    // user to re-add every contract. A full wipe (CLEAR_WALLET) does
+    // clear them.
+
+    // Navigate to homepage
+    navigate(ROUTES.HOME);
+
+    // Reload the application to reset all state
+    window.location.reload();
+  } catch (error) {
+    console.error("Error during logout:", error);
+    // Fallback: navigate and reload anyway
+    navigate(ROUTES.HOME);
+    window.location.reload();
+  }
 };

@@ -4,9 +4,9 @@
  * On mobile the physical QR scan IS the user's consent to pair. On desktop
  * the qrlconnect:// OS protocol handler lets ANY webpage or local process
  * fire connection URIs at the wallet, so this modal restores the missing
- * consent step: no relay contact, no handshake, and no account disclosure
- * happen until the user explicitly confirms. Declining drops the URI with
- * zero network traffic.
+ * consent step: no relay contact or encrypted handshake happens until the
+ * user explicitly confirms. Pairing itself discloses no account; account
+ * access requires a later, separate qrl_requestAccounts approval.
  *
  * The dApp's identity is only learned AFTER the handshake (ORIGINATOR_INFO),
  * so the modal can only show the relay the URI points at; the copy therefore
@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useStore } from '@/stores/store';
 import {
   Dialog,
@@ -35,8 +35,8 @@ const DEFAULT_RELAY_ORIGIN = new URL(DEFAULT_RELAY_URL).origin;
 
 const DAppConnectConsentModal = observer(() => {
   const { dappConnectStore, qrlStore } = useStore();
-  // Pairing without an account is a ghost session: there is nothing to
-  // share, and the dApp just sees "no account". Gate Connect on having one.
+  // Keep the existing account prerequisite as UX: pairing itself shares no
+  // account, but this wallet cannot satisfy a later account request without one.
   // activeAccount hydrates asynchronously on boot, so suppress the warning
   // (not the gate) until the store settles: a fragment-link cold load can
   // stage this modal before hydration finishes.
@@ -120,16 +120,16 @@ const DAppConnectConsentModal = observer(() => {
             Relay: <span className="font-mono">{relayOrigin}</span>
           </p>
           <p>
-            Connecting shares your active account address with the dApp. Its
-            name and site are only verified after the encrypted channel is
-            established. Only continue if you just clicked Connect in a dApp,
-            opened its connection link, or pasted its connection code yourself.
+            Connecting establishes an encrypted channel and does not share an
+            account. The dApp's name and site are pinned after the channel is
+            established, and account access requires a separate approval. Only
+            continue if you just clicked Connect in a dApp, opened its connection
+            link, or pasted its connection code yourself.
           </p>
           {!hasAccount && !isInitializing && (
             <p className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-2 text-yellow-500">
-              This wallet has no account yet, so there is nothing to share with
-              the dApp. Create or import an account first, then reconnect from
-              the dApp.
+              Create or import an account first so you can approve a later account
+              access request from the dApp.
             </p>
           )}
           {error && <p className="text-destructive">{error}</p>}

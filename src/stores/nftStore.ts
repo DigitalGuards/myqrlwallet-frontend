@@ -38,6 +38,7 @@ import { discoverNFTs } from "@/utils/web3";
 import type QrlStore from "./qrlStore";
 import type TokenStore from "./tokenStore";
 import { applyFeeLevel, type FeeLevel } from "./qrlStore";
+import { walletMutations } from "@/utils/nativeWalletMutation";
 
 class NftStore {
   nftList: NFTInterface[] = [];
@@ -586,14 +587,26 @@ class NftStore {
       }
     }
 
+    const signingGeneration = walletMutations.captureGeneration();
+    const assertSigningCurrent = (): void => {
+      if (!walletMutations.isCurrent(signingGeneration)) {
+        throw new Error("Wallet changed while preparing the NFT transfer");
+      }
+    };
+
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } =
         QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
       const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
+      assertSigningCurrent();
       const seed = await deriveHexSeedAsync(mnemonicPhrases);
+      assertSigningCurrent();
       const acc = web3.qrl.accounts.seedToAccount(seed);
+      if (acc.address !== this.qrlStore.activeAccount.accountAddress) {
+        throw new Error("The signing seed does not match the active account");
+      }
       web3.qrl.wallet?.add(seed);
       web3.qrl.transactionConfirmationBlocks = 1;
 
@@ -657,6 +670,7 @@ class NftStore {
 
       const finalTx = { ...txObj, gas };
 
+      assertSigningCurrent();
       const promiEvent = web3.qrl.sendTransaction(finalTx, undefined, {
         checkRevertBeforeSending: true,
       });

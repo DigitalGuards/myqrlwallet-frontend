@@ -17,7 +17,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 import type { TokenInterface } from "@/constants";
 import { Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ROUTES } from "@/router/router";
 
 interface DataTableProps<TData, TValue> {

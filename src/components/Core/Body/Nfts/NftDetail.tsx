@@ -1,5 +1,5 @@
 import { observer } from "mobx-react-lite";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ExternalLink, Loader2, Send } from "lucide-react";
 import {
@@ -21,8 +21,8 @@ import {
   isValidQrlAddress,
   getAddressValidationError,
 } from "@/utils/web3";
-import { WalletEncryptionUtil } from "@/utils/crypto";
-import { getAddressFromMnemonicAsync } from "@/utils/crypto";
+import { DeviceCredentialUnavailableError, decryptStoredSeedWithPin, getAddressFromMnemonicAsync } from "@/utils/crypto";
+import { walletMutations } from "@/utils/nativeWalletMutation";
 import { isDesktop } from "@/desktop/bridge";
 import { NftImage } from "./NftImage";
 import { ROUTES } from "@/router/router";
@@ -151,6 +151,7 @@ const NftDetail = observer(() => {
         return;
       }
 
+      const signingGeneration = walletMutations.captureGeneration();
       const blockchain = await StorageUtil.getBlockChain();
       const encryptedSeed = await StorageUtil.getEncryptedSeed(
         blockchain,
@@ -165,13 +166,20 @@ const NftDetail = observer(() => {
       }
       let mnemonic: string;
       try {
-        const decrypted = await WalletEncryptionUtil.decryptSeedWithPin(
+        const decrypted = await decryptStoredSeedWithPin(
+          blockchain,
+          accountAddress,
           encryptedSeed,
           pin,
+          signingGeneration,
         );
         mnemonic = decrypted.mnemonic;
-      } catch {
-        setPinError("Invalid PIN.");
+      } catch (error) {
+        setPinError(
+          error instanceof DeviceCredentialUnavailableError
+            ? "This wallet's device security credential is unavailable. Re-import the seed."
+            : "Invalid PIN.",
+        );
         setIsSending(false);
         return;
       }
@@ -182,10 +190,14 @@ const NftDetail = observer(() => {
         return;
       }
       const sender = await getAddressFromMnemonicAsync(mnemonic, qrlInstance);
-      if (sender.toLowerCase() !== accountAddress.toLowerCase()) {
+      if (sender !== accountAddress) {
         setPinError("PIN decrypted an invalid seed. Re-import this account.");
         setIsSending(false);
         return;
+      }
+
+      if (!walletMutations.isCurrent(signingGeneration)) {
+        throw new Error("Wallet changed while preparing the NFT transfer");
       }
 
       const ok = await nftStore.transferNft(

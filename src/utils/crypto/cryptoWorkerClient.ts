@@ -17,8 +17,10 @@ import {
   WalletEncryptionUtil,
   PinDecryptionError,
   OutdatedWalletFormatError,
+  DeviceCredentialUnavailableError,
 } from './walletEncryption';
 import { isDesktop } from '@/desktop/bridge';
+import { decryptStoredSeedWithPin } from './storedSeed';
 
 /**
  * Defense-in-depth: on desktop the seed never leaves the isolated signer, so
@@ -57,6 +59,12 @@ function toCryptoOperationError(error: unknown): CryptoOperationError {
   if (error instanceof PinDecryptionError) {
     return new CryptoOperationError(CryptoErrorCodes.INCORRECT_PIN, 'Incorrect PIN');
   }
+  if (error instanceof DeviceCredentialUnavailableError) {
+    return new CryptoOperationError(
+      CryptoErrorCodes.DEVICE_CREDENTIAL_UNAVAILABLE,
+      error.message,
+    );
+  }
   const message = error instanceof Error ? error.message : 'Unknown crypto error';
   return new CryptoOperationError(CryptoErrorCodes.UNKNOWN, message);
 }
@@ -91,6 +99,23 @@ export async function decryptSeedAsync(
   }
   try {
     return await WalletEncryptionUtil.decryptSeedWithPin(encryptedData, pin);
+  } catch (error) {
+    throw toCryptoOperationError(error);
+  }
+}
+
+/** Decrypt a locally stored seed and perform a failure-safe pin_v4 migration. */
+export async function decryptStoredSeedAsync(
+  blockchain: string,
+  address: string,
+  encryptedData: string,
+  pin: string,
+): Promise<{ mnemonic: string; hexSeed: string }> {
+  if (isDesktop) {
+    throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
+  }
+  try {
+    return await decryptStoredSeedWithPin(blockchain, address, encryptedData, pin);
   } catch (error) {
     throw toCryptoOperationError(error);
   }

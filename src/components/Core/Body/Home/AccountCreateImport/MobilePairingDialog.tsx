@@ -16,7 +16,7 @@ interface Props {
   uri: string;
   /** Set on mobile browsers when the deep link into the app failed. */
   installHint: string | null;
-  onClose: () => void;
+  onClose: () => void | Promise<void>;
   /** Rotate to a fresh channel/keys and show the new code. */
   onNewCode: () => Promise<void>;
 }
@@ -56,7 +56,7 @@ const MobilePairingDialog = ({ uri, installHint, onClose, onNewCode }: Props) =>
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open) void onClose();
       }}
     >
       <DialogContent className="max-w-md">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { BookUser, Plus } from "lucide-react";
 import { Button } from "@/components/UI/Button";
 import { Input } from "@/components/UI/Input";

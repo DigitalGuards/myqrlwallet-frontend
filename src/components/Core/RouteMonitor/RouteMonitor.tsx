@@ -4,7 +4,7 @@ import { StorageUtil } from "@/utils/storage";
 import { isDesktop } from "@/desktop/bridge";
 import { observer } from "mobx-react-lite";
 import { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 
 const RouteMonitor = observer(() => {
   const { qrlStore } = useStore();

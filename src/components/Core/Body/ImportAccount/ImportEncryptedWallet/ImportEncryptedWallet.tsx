@@ -16,8 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/UI/Select";
-import type { EncryptedKeystore, ExtendedWalletAccount } from "@/utils/crypto";
+import type {
+  EncryptedKeystore,
+  EncryptedWallet,
+  ExtendedWalletAccount,
+} from "@/utils/crypto";
 import {
+  MAX_WALLET_FILE_BYTES,
+  MAX_WALLET_PASSWORD_LENGTH,
   WalletEncryptionUtil,
   decryptKeystoreAsync,
   getMnemonicFromHexSeed,
@@ -35,7 +41,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { isDesktop } from "@/desktop/bridge";
 
 const FormSchema = z.object({
-  password: z.string().min(1, "Password is required"),
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .max(MAX_WALLET_PASSWORD_LENGTH, "Password is too long"),
 });
 
 type ImportEncryptedWalletProps = {
@@ -48,7 +57,7 @@ type ImportEncryptedWalletProps = {
 // - 'keystore': the browser extension's Settings > Data backup
 //   (qrl-wallet-backup-*.json, argon2id + AES-256-GCM keystores)
 type ParsedWalletFile =
-  | { kind: "v2"; wallet: { encryptedData: string; salt: string; iv: string } }
+  | { kind: "v2"; wallet: EncryptedWallet }
   | { kind: "keystore"; keystores: EncryptedKeystore[] };
 
 function shortAddress(address: string | undefined, index: number): string {
@@ -81,7 +90,13 @@ export const ImportEncryptedWallet = ({
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (file.type !== "application/json") {
+    if (file.size > MAX_WALLET_FILE_BYTES) {
+      setFileError("Wallet file is too large");
+      setSelectedFile(null);
+      setParsed(null);
+      return;
+    }
+    if (file.type !== "application/json" && file.type !== "") {
       setFileError("Please select a valid JSON wallet file");
       setSelectedFile(null);
       setParsed(null);
@@ -100,18 +115,14 @@ export const ImportEncryptedWallet = ({
         setParsed({ kind: "keystore", keystores: parseKeystoreBackup(content) });
         return;
       }
-      if (
-        content &&
-        typeof content === "object" &&
-        typeof (content as Record<string, unknown>)["encryptedData"] === "string" &&
-        typeof (content as Record<string, unknown>)["salt"] === "string" &&
-        typeof (content as Record<string, unknown>)["iv"] === "string"
-      ) {
+      try {
         setParsed({
           kind: "v2",
-          wallet: content as { encryptedData: string; salt: string; iv: string },
+          wallet: WalletEncryptionUtil.parseEncryptedWallet(content),
         });
         return;
+      } catch {
+        // Fall through to the common invalid-format message below.
       }
       setParsed(null);
       setFileError("Invalid wallet file format");
@@ -200,14 +211,10 @@ export const ImportEncryptedWallet = ({
       return;
     }
 
+    setIsDecrypting(true);
     try {
       const decryptedWallet = await WalletEncryptionUtil.decryptWallet(
-        {
-          ...parsed.wallet,
-          address: "",
-          version: "",
-          timestamp: 0,
-        },
+        parsed.wallet,
         formData.password
       );
       finishImport(decryptedWallet.hexSeed, decryptedWallet.mnemonic);
@@ -215,6 +222,8 @@ export const ImportEncryptedWallet = ({
       setError("password", {
         message: "Failed to decrypt wallet. Please check your password.",
       });
+    } finally {
+      setIsDecrypting(false);
     }
   };
 
