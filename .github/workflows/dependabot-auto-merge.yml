@@ -2,7 +2,20 @@ name: Dependabot auto-merge
 
 # Auto-merges Dependabot PRs once the required CI check passes, so security and
 # patch/minor dependency fixes flow to prod (main -> cicd webhook) hands-free.
-# MAJOR version bumps are excluded and left for manual review.
+#
+# The guard is deliberately fail-CLOSED: auto-merge is enabled only when
+# fetch-metadata reports an explicit patch or minor update. Anything else is
+# left for manual review, including:
+#   - major bumps
+#   - multi-dependency PRs, where `update-type` is null and a major bump can
+#     hide behind a minor one. This is what shipped express 5 to the
+#     backend's prod on 2026-09-03: the PR read "bump qs and express" (qs
+#     minor, express 4 -> 5 major), update-type came back null, and a
+#     `!= major` guard let it straight through, crash-looping the API.
+#
+# Auto-merge is only a real gate when the default branch requires the CI status
+# check. Without that, `gh pr merge --auto` merges immediately and a red CI is
+# advisory only.
 on: pull_request_target
 
 permissions:
@@ -19,9 +32,20 @@ jobs:
         uses: dependabot/fetch-metadata@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Enable auto-merge (skip majors)
-        if: ${{ steps.meta.outputs.update-type != 'version-update:semver-major' }}
+
+      - name: Enable auto-merge (patch and minor only)
+        if: ${{ steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor' }}
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Explain why auto-merge was withheld
+        if: ${{ steps.meta.outputs.update-type != 'version-update:semver-patch' && steps.meta.outputs.update-type != 'version-update:semver-minor' }}
+        run: |
+          gh pr comment "$PR_URL" --body "Auto-merge withheld: \`update-type\` was \`${UPDATE_TYPE:-null}\` for \`${DEP_NAMES}\`. Only explicit patch and minor updates auto-merge; majors and multi-dependency PRs need manual review."
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          DEP_NAMES: ${{ steps.meta.outputs.dependency-names }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
