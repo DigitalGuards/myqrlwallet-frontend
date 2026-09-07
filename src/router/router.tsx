@@ -28,6 +28,9 @@ const Transfer = lazy(() => import("../components/Core/Body/Transfer/Transfer.ts
 const DAppSessionsPage = lazy(() => import("../components/Core/Body/DAppConnect/DAppSessionsPage.tsx"));
 const NftDetail = lazy(() => import("../components/Core/Body/Nfts/NftDetail.tsx"));
 const AddressBook = lazy(() => import("../components/Core/Body/AddressBook/AddressBook.tsx"));
+const TelegramControlCenter = lazy(
+  () => import("../components/Telegram/TelegramControlCenter.tsx"),
+);
 
 const ROUTES = {
   HOME: "/",
@@ -50,6 +53,7 @@ const ROUTES = {
   DAPP_SESSIONS: "/dapp-sessions",
   ADDRESS_BOOK: "/address-book",
   NFT_DETAIL: "/nft/:contractAddress/:tokenId",
+  TELEGRAM: "/telegram",
 } as const;
 
 // Under the MyQRLWallet desktop shell the app is loaded from disk via
@@ -62,6 +66,14 @@ const isDesktopShell =
 const createAppRouter = isDesktopShell ? createHashRouter : createBrowserRouter;
 
 const router = createAppRouter([
+  {
+    path: ROUTES.TELEGRAM,
+    element: (
+      <Suspense fallback={<Loading />}>
+        <TelegramControlCenter />
+      </Suspense>
+    ),
+  },
   {
     path: ROUTES.HOME,
     element: (
