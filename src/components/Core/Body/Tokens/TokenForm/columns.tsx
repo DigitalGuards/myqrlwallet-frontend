@@ -22,7 +22,7 @@ const CopyableText = ({ text, className }: { text: string; className?: string })
     };
 
     return (
-        <div className="flex items-center gap-2 group">
+        <div className="flex flex-wrap items-center gap-2 group">
             <span className={className}>{text}</span>
             {isCopied ? (
                 <Check className="w-4 h-4 text-success" />
@@ -52,7 +52,7 @@ const BalanceCell = observer(({ amount }: { amount: string }) => {
     };
 
     return (
-        <div className="flex items-center gap-2 group">
+        <div className="flex flex-wrap items-center gap-2 group">
             <SlotBalance value={amount} spinning={tokenStore.isRefreshingBalances} />
             {isCopied ? (
                 <Check className="w-4 h-4 text-success" />
@@ -110,7 +110,8 @@ export const columns: ColumnDef<TokenInterface>[] = [
                 <div className="hidden md:block">
                     <QrlAddress
                         address={address}
-                        revealable
+                        compactFormat="short"
+                        onShowFull={() => row.toggleSelected(true)}
                         copyable
                         className="font-medium"
                     />

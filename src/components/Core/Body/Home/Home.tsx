@@ -173,7 +173,7 @@ const Home = observer(() => {
                       <CardTitle className="text-2xl font-bold">Active account</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <ActiveAccountDisplay />
+                        <ActiveAccountDisplay onShowAddress={() => setReceiveOpen(true)} />
                       </CardContent>
                       <CardFooter className="justify-end gap-2">
                         <Link className="flex-1" to={ROUTES.TRANSFER}>
