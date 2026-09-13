@@ -1,6 +1,6 @@
 import { observer } from "mobx-react-lite";
 import { cn } from "@/utils/cn";
-import { formatAddress, formatAddressShort } from "@/utils/formatting";
+import { QrlAddress } from "@/components/UI/QrlAddress";
 
 type AccountIdType = {
   account: string;
@@ -8,20 +8,15 @@ type AccountIdType = {
   oneLine?: boolean;
 };
 
-export const AccountId = observer(({ account, className, oneLine = false }: AccountIdType) => {
-  if (oneLine) {
+export const AccountId = observer(
+  ({ account, className, oneLine = false }: AccountIdType) => {
     return (
-      <div className={cn("font-mono", className)}>
-        {formatAddressShort(account)}
-      </div>
+      <QrlAddress
+        address={account}
+        revealable={!oneLine}
+        className={cn("w-full", className)}
+        addressClassName="text-center md:text-left"
+      />
     );
-  }
-
-  return (
-    <div className={cn("address-fit", className)}>
-      <div className="address-fit-line text-center md:text-left">
-        {formatAddress(account)}
-      </div>
-    </div>
-  );
-});
+  },
+);

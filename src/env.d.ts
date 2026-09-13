@@ -3,6 +3,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 interface ImportMetaEnv {
   readonly VITE_APP_TITLE: string
+  readonly VITE_QRNS_CHAIN_ID_TEST_NET?: string
+  readonly VITE_QRNS_REGISTRY_TEST_NET?: string
+  readonly VITE_QRNS_CHAIN_ID_MAIN_NET?: string
+  readonly VITE_QRNS_REGISTRY_MAIN_NET?: string
   readonly DEV: boolean
   readonly PROD: boolean
   readonly MODE: string

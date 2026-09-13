@@ -21,6 +21,7 @@ import { SessionStatus } from '@/services/dappConnect/types';
 import { DAppConnectService } from '@/services/dappConnect/DAppConnectService';
 import { isDesktop } from '@/desktop/bridge';
 import { isInNativeApp } from '@/utils/nativeApp';
+import { QrlAddress } from '@/components/UI/QrlAddress';
 
 const statusDotColors: Record<SessionStatus, string> = {
   [SessionStatus.CONNECTED]: '#3fba82',     // success green
@@ -213,9 +214,10 @@ const DAppSessionsList = observer(() => {
                   <p className="truncate text-xs text-muted-foreground">{session.dappInfo.url}</p>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     {session.connectedAccount ? (
-                      <span className="font-mono">
-                        {session.connectedAccount.slice(0, 8)}...{session.connectedAccount.slice(-6)}
-                      </span>
+                      <QrlAddress
+                        address={session.connectedAccount}
+                        revealable
+                      />
                     ) : (
                       <span className="italic">No account shared</span>
                     )}

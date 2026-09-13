@@ -42,7 +42,7 @@ const originalLocalStorage = Object.getOwnPropertyDescriptor(
   globalThis,
   "localStorage",
 );
-const ADDRESS = `Q${"12".repeat(20)}`;
+const ADDRESS = `Q${"12".repeat(64)}`;
 
 describe("encrypted seed revision merge", () => {
   beforeEach(() => {

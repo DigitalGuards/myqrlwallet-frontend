@@ -23,8 +23,11 @@ import {
   isPendingDAppInfo,
   parseDAppInfo as parseValidatedDAppInfo,
 } from "./dappMetadata";
+import { isQrlAccount } from "./accountBinding";
 
-const STORAGE_KEY = "qrlconnect:sessions";
+import { profileStorageKey } from '@/config/runtimeProfile';
+
+const STORAGE_KEY = profileStorageKey("qrlconnect:sessions");
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const CID_STRING_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -190,7 +193,7 @@ function parseSession(
     typeof value["accountAuthorized"] !== "boolean" ||
     typeof value["connectedAccount"] !== "string" ||
     (value["accountAuthorized"]
-      ? !/^Q[0-9a-fA-F]{40}$/.test(value["connectedAccount"])
+      ? !isQrlAccount(value["connectedAccount"])
       : value["connectedAccount"] !== "") ||
     !isSafeRelayUrl(value["relayUrl"]) ||
     !validStatus ||
@@ -357,7 +360,7 @@ export class SessionStore {
       !sessionIdMatchesKeyExchange(session.id, session.keyExchange) ||
       !isSafeRelayUrl(session.relayUrl) ||
       (session.accountAuthorized
-        ? !/^Q[0-9a-fA-F]{40}$/.test(session.connectedAccount)
+        ? !isQrlAccount(session.connectedAccount)
         : session.connectedAccount !== "")
     ) {
       throw new Error("QRL Connect session has an invalid connected account");

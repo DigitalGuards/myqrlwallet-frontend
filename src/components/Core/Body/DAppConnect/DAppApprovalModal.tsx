@@ -19,11 +19,11 @@ import {
 } from "@/utils/crypto";
 import { getNativeInjectedPin } from "@/utils/nativeApp";
 import StorageUtil from "@/utils/storage/storage";
-import { getExplorerTxUrl } from "@/config";
-import { formatAddressShort, formatQuantaValue } from "@/utils/formatting";
+import { getExplorerTxUrl, QRL_PROVIDER } from "@/config";
+import { IS_V3_PROFILE } from '@/config/runtimeProfile';
+import { formatQuantaValue } from "@/utils/formatting";
+import { QrlAddress } from "@/components/UI/QrlAddress";
 import {
-  isReceiptStatusSuccess,
-  QRL_TX_POLLING_CONFIG,
   waitForTransactionReceipt,
 } from "@/utils/web3/txPolling";
 import {
@@ -43,7 +43,7 @@ import type { TxProgressState } from "@/stores/dappConnectStore";
 import type { ZodError } from "zod";
 import { isDesktop, desktopSigner, buildDappOrigin } from "@/desktop/bridge";
 import { isExactQrlAccount } from "@/services/dappConnect/accountBinding";
-import { waitForDAppBroadcastSettlement } from "./dappBroadcastSettlement";
+import { getDAppReceiptStatus, waitForDAppBroadcastSettlement } from "./dappBroadcastSettlement";
 import {
   walletMutations,
   type WalletMutationToken,
@@ -229,8 +229,23 @@ const DAppApprovalModalContent = observer(() => {
         progressError,
       );
 
+    const reportUnknownTransaction = (hash: string, message: string) => {
+      setCurrentTxProgress("unknown", hash, message);
+      if (hash) {
+        // A send request can return its broadcast hash while inclusion is unknown.
+        dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, hash);
+      } else {
+        dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, message);
+      }
+      if (isStillCurrent()) {
+        setPin("");
+        setLoading(false);
+      }
+    };
+
     try {
       const { method } = currentApproval;
+      if (IS_V3_PROFILE) await qrlStore.assertNetworkReady();
       // currentApproval is a deep MobX observable, so its nested params objects
       // carry a Symbol(mobx administration) key. zod's z.record key check walks
       // own symbols and rejects that key (and the signing encoders must hash a
@@ -398,17 +413,7 @@ const DAppApprovalModalContent = observer(() => {
 
             const web3ForReceipt = qrlStore.qrlInstance;
             if (!web3ForReceipt) {
-              // The tx IS broadcast; with no provider to poll, degrade to the
-              // legacy answer-at-broadcast rather than fake a rejection.
-              console.log(
-                "[DAppConnect] no web3 instance for receipt polling; answering at broadcast",
-              );
-              setCurrentTxProgress("confirmed", transactionHash);
-              dappConnectStore.sendApprovalResultById(
-                approvalSessionId,
-                approvalId,
-                transactionHash,
-              );
+              reportUnknownTransaction(transactionHash, "Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again.");
               return;
             }
 
@@ -417,10 +422,13 @@ const DAppApprovalModalContent = observer(() => {
               transactionHash,
             );
 
-            if (
-              outcome.status === "receipt" &&
-              isReceiptStatusSuccess(outcome.receipt.status)
-            ) {
+            const succeeded = outcome.status === "receipt"
+              ? getDAppReceiptStatus(outcome.receipt, transactionHash) : undefined;
+            if (succeeded === undefined) {
+              reportUnknownTransaction(transactionHash, "Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again.");
+              return;
+            }
+            if (succeeded) {
               setCurrentTxProgress("confirmed", transactionHash);
               // Answer even after a promotion: sending into a gone session is
               // a logged no-op inside the connect service.
@@ -432,16 +440,7 @@ const DAppApprovalModalContent = observer(() => {
               return;
             }
 
-            // Reverted or polling window closed: reuse web3's error message
-            // shapes so the shared catch below produces the same user-facing
-            // copy the web path gets from its PromiEvent errors. Unlike web
-            // (which emits `receipt` then `error` for reverted txs and so
-            // double-answers the dApp), this sends a single rejection.
-            throw new Error(
-              outcome.status === "receipt"
-                ? "Transaction has been reverted by the QRVM"
-                : `Transaction was not mined within ${QRL_TX_POLLING_CONFIG.transactionPollingTimeout / 1000} seconds`,
-            );
+            throw new Error("Transaction has been reverted by the QRVM");
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
             console.log("[DAppConnect] desktop tx error:", errMsg);
@@ -544,7 +543,11 @@ const DAppApprovalModalContent = observer(() => {
         setCurrentTxProgress("broadcasting");
 
         assertSigningGenerationCurrent(signingGeneration);
-        const signedTx = await web3.accounts.signTransaction(txObject, hexSeed);
+        if (IS_V3_PROFILE) await qrlStore.assertNetworkReady(web3);
+        assertSigningGenerationCurrent(signingGeneration);
+        const signedTx = await web3.accounts.signTransaction({ ...txObject,
+          ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+        }, hexSeed);
         assertSigningGenerationCurrent(signingGeneration);
 
         if (!signedTx.rawTransaction) {
@@ -576,9 +579,12 @@ const DAppApprovalModalContent = observer(() => {
 
         // Use PromiEvent to get real broadcasting → confirming transition
         assertSigningGenerationCurrent(signingGeneration);
+        if (IS_V3_PROFILE) await qrlStore.assertNetworkReady(web3);
+        assertSigningGenerationCurrent(signingGeneration);
         const promiEvent = web3.sendSignedTransaction(signedTx.rawTransaction);
 
         await waitForDAppBroadcastSettlement(promiEvent, {
+          onUnknown: reportUnknownTransaction,
           onTransactionHash: (hash) => {
             // Tx has been broadcast and accepted by the node
             setCurrentTxProgress("confirming", hash);
@@ -690,6 +696,8 @@ const DAppApprovalModalContent = observer(() => {
         }
         try {
           assertSigningGenerationCurrent(signingGeneration);
+          if (IS_V3_PROFILE) await qrlStore.assertNetworkReady();
+          assertSigningGenerationCurrent(signingGeneration);
           const result = signMessage(messageHex, unlocked.hexSeed);
           if (!isExactQrlAccount(result.signer, activeAddress)) {
             throw new Error(
@@ -792,6 +800,8 @@ const DAppApprovalModalContent = observer(() => {
           return;
         }
         try {
+          assertSigningGenerationCurrent(signingGeneration);
+          if (IS_V3_PROFILE) await qrlStore.assertNetworkReady();
           assertSigningGenerationCurrent(signingGeneration);
           const result = signTypedData(payload, unlocked.hexSeed);
           if (!isExactQrlAccount(result.signer, activeAddress)) {
@@ -943,7 +953,7 @@ const DAppApprovalModalContent = observer(() => {
     method === "qrl_sendTransaction" || method === "qrl_signTransaction";
 
   const isTxInProgress = txProgress !== "idle";
-  const isTxTerminal = txProgress === "confirmed" || txProgress === "failed";
+  const isTxTerminal = txProgress === "confirmed" || txProgress === "failed" || txProgress === "unknown";
 
   // Transaction details for display during progress
   const txParams = isTransaction
@@ -1053,6 +1063,11 @@ const DAppApprovalModalContent = observer(() => {
                     </span>
                   </>
                 )}
+                {txProgress === "unknown" && (
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Confirmation unavailable
+                  </span>
+                )}
               </div>
 
               {/* Tx hash link */}
@@ -1072,9 +1087,12 @@ const DAppApprovalModalContent = observer(() => {
                 <div className="rounded border bg-muted p-4 text-sm space-y-2">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">To</span>
-                    <span className="font-mono text-xs">
-                      {formatAddressShort((txParams["to"] as string) || "")}
-                    </span>
+                    <QrlAddress
+                      address={(txParams["to"] as string) || ""}
+                      mode="full"
+                      className="max-w-[75%] justify-end text-right"
+                      addressClassName="text-xs"
+                    />
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Value</span>
@@ -1086,6 +1104,9 @@ const DAppApprovalModalContent = observer(() => {
               {/* Error message for failed state */}
               {txProgress === "failed" && txError && (
                 <p className="text-sm text-destructive break-all">{txError}</p>
+              )}
+              {txProgress === "unknown" && txError && (
+                <p className="text-sm text-muted-foreground break-all">{txError}</p>
               )}
             </div>
           ) : (

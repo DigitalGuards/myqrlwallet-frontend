@@ -28,6 +28,7 @@ import { isInNativeApp } from "@/utils/nativeApp";
 import { useStore } from "../../../../stores/store";
 import { cn } from "@/utils/cn";
 import { SettingsRow } from "./SettingsList";
+import { QrlAddress } from "@/components/UI/QrlAddress";
 import {
     checkLockout,
     recordFailedAttempt,
@@ -208,7 +209,11 @@ export const ExportWalletFile = observer(() => {
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                             <p className="text-xs text-muted-foreground">
                                 Exports{" "}
-                                <span className="font-data break-all">{activeAddress || "the active account"}</span>{" "}
+                                {activeAddress ? (
+                                    <QrlAddress address={activeAddress} revealable />
+                                ) : (
+                                    "the active account"
+                                )}{" "}
                                 as an encrypted wallet file readable by this wallet and the
                                 MyQRLWallet browser extension. Confirm with your PIN, then set
                                 a strong password for the file itself.

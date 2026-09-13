@@ -29,7 +29,7 @@ import { SocketClient } from "./SocketClient";
 import { RequestHandler } from "./RequestHandler";
 import {
   isExactQrlAccount,
-  Q_ADDRESS_PATTERN,
+  isQrlAccount,
 } from "./accountBinding";
 import { SessionStore } from "./SessionStore";
 import {
@@ -88,7 +88,9 @@ const DAPP_LEAVE_APPROVAL_CAP_MS = 10 * 60 * 1000;
 // stream; requiring the second guards against one-off injected junk.
 const MAX_DECRYPT_FAILURES = 2;
 const TERMINATE_SEND_TIMEOUT_MS = 800;
-const SESSION_LOCK_NAME = "qrlconnect:wallet-owner";
+import { profileStorageKey } from '@/config/runtimeProfile';
+
+const SESSION_LOCK_NAME = profileStorageKey("qrlconnect:wallet-owner");
 const STORE_MAINTENANCE_CHANNEL = "__qrlconnect_store_maintenance__";
 const MAX_BUFFERED_MESSAGES = 50;
 const MAX_CIPHERTEXT_LENGTH = 256 * 1024;
@@ -125,7 +127,7 @@ function requestIdKey(id: string | number): string {
 
 function activeWalletAccount(): string | null {
   const address = store.qrlStore.activeAccount?.accountAddress;
-  return typeof address === "string" && Q_ADDRESS_PATTERN.test(address)
+  return isQrlAccount(address)
     ? address
     : null;
 }
@@ -1120,6 +1122,22 @@ export class DAppConnectService {
             triggerHaptic("warning");
           }
         } else {
+          try {
+            RequestHandler.validateUnrestrictedRequest(method, params);
+          } catch (error) {
+            await this.sendJsonRpcResponse(channelId, {
+              jsonrpc: "2.0",
+              id,
+              error: {
+                code: -32602,
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : "Invalid method parameters",
+              },
+            });
+            return;
+          }
           await this.proxyRpcRequest(channelId, id, method, params);
         }
         break;
@@ -1267,8 +1285,7 @@ export class DAppConnectService {
     if (
       !Array.isArray(result) ||
       result.length !== 1 ||
-      typeof result[0] !== "string" ||
-      !Q_ADDRESS_PATTERN.test(result[0])
+      !isQrlAccount(result[0])
     ) {
       await this.sendJsonRpcResponse(sessionId, {
         jsonrpc: "2.0",

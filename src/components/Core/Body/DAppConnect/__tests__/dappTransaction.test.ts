@@ -11,8 +11,8 @@ describe('reviewed dApp transaction fidelity', () => {
 
   it('copies every reviewed dApp field into the signing object unchanged', () => {
     const reviewed = {
-      from: 'Q0000000000000000000000000000000000000000',
-      to: 'Q1111111111111111111111111111111111111111',
+      from: `Q${'0'.repeat(128)}`,
+      to: `Q${'1'.repeat(128)}`,
       value: '0x0',
       gas: 0,
       data: '0x0102',

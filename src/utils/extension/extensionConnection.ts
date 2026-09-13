@@ -2,6 +2,7 @@ import { QRL_EXTENSION_RDNS } from "@/constants";
 import type { AccountSource } from "@/utils/storage";
 import type { ExtensionProvider } from "@/stores/qrlStore";
 import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
+import { IS_V3_PROFILE, V3_UNSUPPORTED_SIGNER_MESSAGE } from '@/config/runtimeProfile';
 
 // EIP-6963 types (simplified)
 export interface EIP6963ProviderInfo {
@@ -54,6 +55,7 @@ export function dedupeProviders(details: EIP6963ProviderDetail[]): EIP6963Provid
  * applies when nothing announced at all.
  */
 export function discoverQrlProviders(): Promise<EIP6963ProviderDetail[]> {
+  if (IS_V3_PROFILE) return Promise.resolve([]);
   return new Promise((resolve) => {
     const found: EIP6963ProviderDetail[] = [];
     const handleAnnounceProvider = (event: Event) => {
@@ -84,6 +86,7 @@ export async function connectWithProvider(
   setActiveAccount: (address: string, source?: AccountSource) => Promise<void>,
   setExtensionProvider: (provider: ExtensionProvider | null) => void
 ): Promise<string[] | null> {
+  if (IS_V3_PROFILE) throw new Error(V3_UNSUPPORTED_SIGNER_MESSAGE);
   const provider = detail.provider;
 
   try {

@@ -74,14 +74,18 @@ import {
   triggerHaptic,
 } from "@/utils/nativeApp";
 import type { FeeLevel } from "@/stores/qrlStore";
+import type { RecipientSubmission } from "@/hooks/useQrnsRecipient";
+import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
+import { RecipientResolutionStatus } from "@/components/Core/RecipientResolutionStatus";
 import { SEO } from "@/components/SEO/SEO";
 import {
   getOptimalTokenBalance,
-  formatAddress,
   formatAddressShort,
 } from "@/utils/formatting";
+import { QrlAddress } from "@/components/UI/QrlAddress";
 import { fetchBalance, isValidQrlAddress } from "@/utils/web3";
 import { formatUnits, parseUnits } from "@/utils/web3/units";
+import { nativeMaxReserve } from "@/utils/web3/nativeMaxReserve";
 import { BigNumber } from "bignumber.js";
 
 const Transfer = observer(() => {
@@ -116,22 +120,23 @@ const Transfer = observer(() => {
         .object({
           asset: z.string().min(1, "Please select an asset"),
           receiverAddress: z.string().min(1, "Receiver address is required"),
-          amount: z.coerce.number().gt(0, "Amount should be more than 0"),
+          amount: z.string().regex(/^\d*\.?\d+$/, "Enter a decimal amount")
+            .refine((value) => new BigNumber(value).gt(0), "Amount should be more than 0"),
           pin: z.string().optional(),
         })
         .superRefine((fields, ctx) => {
-          // Validate address format
-          if (fields.receiverAddress.trim()) {
-            const address = fields.receiverAddress.trim();
-            if (!isValidQrlAddress(address)) {
-              ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Invalid QRL address format",
-                path: ["receiverAddress"],
-              });
-            }
+          const decimals = fields.asset === "native"
+            ? 18
+            : visibleTokenList.find((token) => token.address === fields.asset)?.decimals ?? 18;
+          try {
+            parseUnits(fields.amount, decimals);
+          } catch {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Enter an amount with at most ${decimals} decimal places`,
+              path: ["amount"],
+            });
           }
-
           // Validate PIN for seed accounts only. Remote signers confirm on their
           // side, and on desktop there is no PIN: the signer session is already
           // unlocked, so the PIN field is hidden and not required.
@@ -145,7 +150,7 @@ const Transfer = observer(() => {
             }
           }
         }),
-    [isUsingRemoteSigner],
+    [isUsingRemoteSigner, visibleTokenList],
   );
 
   // Get initial asset from URL params (for token transfers from home page)
@@ -164,7 +169,15 @@ const Transfer = observer(() => {
   const [amountInputValue, setAmountInputValue] = useState("");
   const [tokenBalance, setTokenBalance] = useState("0");
   const [hasJustCopied, setHasJustCopied] = useState(false);
-  const [nativeGasReserve, setNativeGasReserve] = useState("0");
+  const [nativeFeeQuote, setNativeFeeQuote] = useState<{
+    key: string;
+    provider: typeof qrlStore.qrlInstance;
+    reserve: string;
+  } | null>(null);
+  const [percentageQuote, setPercentageQuote] = useState<{
+    key: string;
+    provider: typeof qrlStore.qrlInstance;
+  } | null>(null);
 
   // QR Scanner state
   const [isScanning, setIsScanning] = useState(false);
@@ -187,7 +200,7 @@ const Transfer = observer(() => {
     defaultValues: {
       asset: initialAsset,
       receiverAddress: prefilledReceiver,
-      amount: 0,
+      amount: "",
       pin: "",
     },
   });
@@ -198,12 +211,18 @@ const Transfer = observer(() => {
     control,
     watch,
     setValue,
+    clearErrors,
     formState: { isSubmitting, isValid },
   } = form;
 
   const selectedAsset = watch("asset");
   const formValues = watch() as z.infer<typeof FormSchema>;
   const isNativeTransfer = selectedAsset === "native";
+  const recipientResolution = useNetworkQrnsRecipient({
+    input: formValues.receiverAddress ?? "",
+    blockchain,
+    accountAddress,
+  });
 
   // Get selected token info
   const selectedToken = !isNativeTransfer
@@ -217,6 +236,8 @@ const Transfer = observer(() => {
 
   // Fetch token balance when asset changes
   useEffect(() => {
+    let cancelled = false;
+    setTokenBalance("0");
     const fetchTokenBalance = async () => {
       if (!isNativeTransfer && selectedAsset && accountAddress) {
         try {
@@ -229,39 +250,63 @@ const Transfer = observer(() => {
           const token = visibleTokenList.find(
             (t) => t.address === selectedAsset,
           );
-          setTokenBalance(formatUnits(balance, token?.decimals || 18));
+          if (!cancelled) setTokenBalance(formatUnits(balance, token?.decimals ?? 18));
         } catch (error) {
           console.error("Error fetching token balance:", error);
-          setTokenBalance("0");
+          if (!cancelled) setTokenBalance("0");
         }
       }
     };
     fetchTokenBalance();
-  }, [selectedAsset, accountAddress, isNativeTransfer, visibleTokenList]);
+    return () => { cancelled = true; };
+  }, [selectedAsset, accountAddress, blockchain, isNativeTransfer, visibleTokenList]);
 
   // Reset amount when asset changes
   useEffect(() => {
     setAmountInputValue("");
     setSliderValue(0);
-    setValue("amount", 0);
+    setValue("amount", "");
   }, [selectedAsset, setValue]);
 
-  // Keep a worst-case gas fee reserve for native transfers so the slider's
-  // "Max" option doesn't pick a value that leaves nothing for gas. Extension
-  // wallets sign with a 53000 gas limit (vs 21000 for the in-app path).
+  const feeQuoteKey = JSON.stringify([
+    blockchain, accountAddress, activeAccountSource, feeLevel, accountBalance,
+    recipientResolution.bindingKey, recipientResolution.address,
+  ]);
+  const feeQuoteProvider = qrlStore.qrlInstance;
+  const feeQuoteRecipient = recipientResolution.status === "success"
+    ? recipientResolution.address : null;
+  const nativeGasReserve = nativeFeeQuote?.key === feeQuoteKey
+    && nativeFeeQuote.provider === feeQuoteProvider ? nativeFeeQuote.reserve : null;
+  const percentageReady = !isNativeTransfer || nativeGasReserve !== null;
+  const stalePercentageAmount = percentageQuote !== null && (
+    !isNativeTransfer || percentageQuote.key !== feeQuoteKey
+    || percentageQuote.provider !== feeQuoteProvider
+  );
+
   useEffect(() => {
-    if (!isNativeTransfer) {
-      setNativeGasReserve("0");
-      return;
-    }
-    const gasLimit = isUsingExtension ? 53000 : 21000;
+    if (!stalePercentageAmount) return;
+    setPercentageQuote(null);
+    setAmountInputValue("");
+    setSliderValue(0);
+    setValue("amount", "", { shouldValidate: true });
+  }, [stalePercentageAmount, setValue]);
+
+  // Bind Max to a current recipient quote. The paired phone owns its fee policy.
+  useEffect(() => {
+    setNativeFeeQuote(null);
+    if (!isNativeTransfer || isUsingMobile || !feeQuoteRecipient || !accountAddress) return;
     let cancelled = false;
     (async () => {
       try {
-        const fee = await estimateNativeTransferFee(feeLevel, gasLimit);
-        if (!cancelled) setNativeGasReserve(fee);
+        const reserve = await nativeMaxReserve(accountBalance, (value) => {
+          if (cancelled) throw new Error("Fee quote superseded");
+          return estimateNativeTransferFee(feeLevel, {
+            from: accountAddress, to: feeQuoteRecipient, value,
+          });
+        });
+        if (!cancelled) setNativeFeeQuote({ key: feeQuoteKey, provider: feeQuoteProvider, reserve });
       } catch {
-        if (!cancelled) setNativeGasReserve("0");
+        // Manual amounts remain available; a missing quote cannot enable Max.
       }
     })();
     return () => {
@@ -269,15 +314,20 @@ const Transfer = observer(() => {
     };
   }, [
     isNativeTransfer,
-    isUsingExtension,
+    isUsingMobile,
     feeLevel,
     estimateNativeTransferFee,
     accountAddress,
+    accountBalance,
+    feeQuoteKey,
+    feeQuoteProvider,
+    feeQuoteRecipient,
   ]);
 
   // Balance available for the transfer amount itself (subtracting gas reserve for native).
   const maxSendableBalance = useMemo(() => {
     if (!isNativeTransfer) return accountBalance;
+    if (nativeGasReserve === null) return "0";
     const balanceBn = new BigNumber(accountBalance || "0");
     const reserveBn = new BigNumber(nativeGasReserve || "0");
     const sendable = balanceBn.minus(reserveBn);
@@ -383,13 +433,40 @@ const Transfer = observer(() => {
     }
   };
 
+  function revalidateRecipient(
+    submission: RecipientSubmission,
+  ): string | null {
+    const recipientAddress =
+      recipientResolution.revalidateSubmission(submission);
+    if (!recipientAddress) {
+      control.setError("receiverAddress", {
+        message:
+          "Recipient resolution changed. Verify the recipient again before signing.",
+      });
+    }
+    return recipientAddress;
+  }
+
   async function onSubmit(formData: z.infer<typeof FormSchema>) {
+    if (stalePercentageAmount) return;
+    const recipientSubmission = recipientResolution.captureSubmission(
+      formData.receiverAddress,
+    );
+    if (!recipientSubmission) {
+      control.setError("receiverAddress", {
+        message:
+          recipientResolution.message ??
+          "Enter a valid QIP-55 address or a resolved QNS name.",
+      });
+      return;
+    }
+
     setSubmittedAmount(formData.amount.toString());
     setSubmittedAssetSymbol(
       isNativeTransfer ? NATIVE_TOKEN.symbol : selectedToken?.symbol || "",
     );
     if (isNativeTransfer) {
-      await handleNativeTransfer(formData);
+      await handleNativeTransfer(formData, recipientSubmission);
     } else {
       // Token transfers work through the mobile-app pairing (the relay
       // carries contract calls) but not through extension wallets yet.
@@ -400,20 +477,25 @@ const Transfer = observer(() => {
         });
         return;
       }
-      await handleTokenTransfer(formData);
+      await handleTokenTransfer(formData, recipientSubmission);
     }
   }
 
-  async function handleNativeTransfer(formData: z.infer<typeof FormSchema>) {
+  async function handleNativeTransfer(
+    formData: z.infer<typeof FormSchema>,
+    recipientSubmission: RecipientSubmission,
+  ) {
     const valueEther = formData.amount.toString();
 
     if (isDesktop) {
       // Desktop: no PIN, no seed in the renderer. The store routes through the
       // signer (build + confirm + sign + broadcast); the mnemonic arg is unused.
       try {
+        const recipientAddress = revalidateRecipient(recipientSubmission);
+        if (!recipientAddress) return;
         await signAndSendTransaction(
           accountAddress,
-          formData.receiverAddress,
+          recipientAddress,
           valueEther,
           "",
           feeLevel,
@@ -426,8 +508,10 @@ const Transfer = observer(() => {
         });
       }
     } else if (isUsingRemoteSigner) {
+      const recipientAddress = revalidateRecipient(recipientSubmission);
+      if (!recipientAddress) return;
       await sendTransactionViaProvider(
-        formData.receiverAddress,
+        recipientAddress,
         valueEther,
         feeLevel,
       );
@@ -468,7 +552,7 @@ const Transfer = observer(() => {
         }
 
         // Verify decrypted mnemonic matches the expected account address.
-        // MLDSA87 derivation runs in the crypto worker — keeps the
+        // MLDSA87 derivation runs in the crypto worker, keeping the
         // Transfer modal animating smoothly during the 50–300 ms check.
         const qrlInstance = qrlStore.qrlInstance;
         if (!qrlInstance) {
@@ -493,9 +577,11 @@ const Transfer = observer(() => {
           throw new Error("Wallet changed while preparing the transaction");
         }
 
+        const recipientAddress = revalidateRecipient(recipientSubmission);
+        if (!recipientAddress) return;
         await signAndSendTransaction(
           accountAddress,
-          formData.receiverAddress,
+          recipientAddress,
           valueEther,
           mnemonicPhrases,
           feeLevel,
@@ -510,7 +596,10 @@ const Transfer = observer(() => {
     }
   }
 
-  async function handleTokenTransfer(formData: z.infer<typeof FormSchema>) {
+  async function handleTokenTransfer(
+    formData: z.infer<typeof FormSchema>,
+    recipientSubmission: RecipientSubmission,
+  ) {
     if (!selectedToken) return;
 
     if (isUsingMobile) {
@@ -523,11 +612,13 @@ const Transfer = observer(() => {
         formData.amount.toString(),
         selectedToken.decimals,
       ).toString();
+      const recipientAddress = revalidateRecipient(recipientSubmission);
+      if (!recipientAddress) return;
       const sent = await sendTokenToStore(
         selectedToken,
         rawAmount,
         "",
-        formData.receiverAddress,
+        recipientAddress,
       );
       if (sent) {
         resetForm();
@@ -540,6 +631,8 @@ const Transfer = observer(() => {
       // Desktop: no PIN, no seed in the renderer. The store builds the transfer
       // calldata and routes through the signer; the mnemonic arg is unused.
       try {
+        const recipientAddress = revalidateRecipient(recipientSubmission);
+        if (!recipientAddress) return;
         const rawAmount = parseUnits(
           formData.amount.toString(),
           selectedToken.decimals,
@@ -548,7 +641,7 @@ const Transfer = observer(() => {
           selectedToken,
           rawAmount,
           "",
-          formData.receiverAddress,
+          recipientAddress,
         );
         resetForm();
         window.scrollTo(0, 0);
@@ -617,11 +710,13 @@ const Transfer = observer(() => {
         formData.amount.toString(),
         selectedToken.decimals,
       ).toString();
+      const recipientAddress = revalidateRecipient(recipientSubmission);
+      if (!recipientAddress) return;
       await sendTokenToStore(
         selectedToken,
         rawAmount,
         mnemonic,
-        formData.receiverAddress,
+        recipientAddress,
       );
       resetForm();
       window.scrollTo(0, 0);
@@ -633,7 +728,7 @@ const Transfer = observer(() => {
   }
 
   const resetForm = () => {
-    reset({ asset: selectedAsset, receiverAddress: "", amount: 0, pin: "" });
+    reset({ asset: selectedAsset, receiverAddress: "", amount: "", pin: "" });
     setSliderValue(0);
     setAmountInputValue("");
   };
@@ -645,25 +740,23 @@ const Transfer = observer(() => {
   };
 
   const applyPercentage = (percentage: number) => {
+    if (!percentageReady) return;
+    setPercentageQuote(isNativeTransfer ? { key: feeQuoteKey, provider: feeQuoteProvider } : null);
     setSliderValue(percentage);
     const sendableBn = new BigNumber(maxSendableBalance || "0");
     if (sendableBn.isZero()) {
       setAmountInputValue("");
-      setValue("amount", 0);
+      setValue("amount", "");
       return;
     }
-    // For 100% use the raw max so rounding can't push the amount above the
-    // gas-adjusted balance. Below 100% round down to 6 decimals for display.
-    const formattedAmount =
-      percentage === 100
-        ? sendableBn.toString()
-        : sendableBn
-            .multipliedBy(percentage)
-            .dividedBy(100)
-            .toFixed(6, BigNumber.ROUND_DOWN)
-            .replace(/\.?0+$/, "");
+    const decimals = isNativeTransfer ? 18 : selectedToken?.decimals ?? 18;
+    const formattedAmount = sendableBn
+      .multipliedBy(percentage)
+      .shiftedBy(-2)
+      .decimalPlaces(percentage === 100 ? decimals : Math.min(6, decimals), BigNumber.ROUND_DOWN)
+      .toFixed();
     setAmountInputValue(formattedAmount);
-    setValue("amount", parseFloat(formattedAmount));
+    setValue("amount", formattedAmount, { shouldValidate: true });
   };
 
   const handleSliderChange = (value: number[]) => {
@@ -727,19 +820,21 @@ const Transfer = observer(() => {
                   <div className="mt-4 w-full max-w-md rounded border bg-muted p-4 text-left text-sm space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">From:</span>
-                      <span className="font-mono text-xs">
-                        {formatAddressShort(
-                          transactionStatus.pendingDetails.from,
-                        )}
-                      </span>
+                      <QrlAddress
+                        address={transactionStatus.pendingDetails.from}
+                        mode="full"
+                        className="max-w-[75%] justify-end text-right"
+                        addressClassName="text-xs"
+                      />
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">To:</span>
-                      <span className="font-mono text-xs">
-                        {formatAddressShort(
-                          transactionStatus.pendingDetails.to,
-                        )}
-                      </span>
+                      <QrlAddress
+                        address={transactionStatus.pendingDetails.to}
+                        mode="full"
+                        className="max-w-[75%] justify-end text-right"
+                        addressClassName="text-xs"
+                      />
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Value:</span>
@@ -948,11 +1043,12 @@ const Transfer = observer(() => {
                   {/* From Address */}
                   <div className="flex flex-col gap-2">
                     <Label>From</Label>
-                    <div className="address-fit">
-                      <div className="address-fit-line font-bold text-identity-accent">
-                        {formatAddress(accountAddress)}
-                      </div>
-                    </div>
+                    <QrlAddress
+                      address={accountAddress}
+                      mode="full"
+                      className="w-full"
+                      addressClassName="font-bold text-identity-accent"
+                    />
                     <div className="text-sm text-muted-foreground">
                       Available:{" "}
                       {getOptimalTokenBalance(accountBalance, assetSymbol)}
@@ -987,14 +1083,19 @@ const Transfer = observer(() => {
                     name="receiverAddress"
                     render={({ field }) => (
                       <FormItem>
-                        <Label>Send to</Label>
+                        <Label htmlFor="transfer-recipient">Send to</Label>
                         <FormControl>
                           <div className="relative">
                             <Input
                               {...field}
+                              id="transfer-recipient"
                               value={field.value ?? ""}
+                              onChange={(event) => {
+                                field.onChange(event);
+                                clearErrors("receiverAddress");
+                              }}
                               disabled={isSubmitting || isScanning}
-                              placeholder="Receiver address"
+                              placeholder="QIP-55 address or QNS name"
                               className={isInNativeApp() ? "pr-16" : "pr-10"}
                             />
                             <button
@@ -1038,10 +1139,13 @@ const Transfer = observer(() => {
                         )}
                         {!isScanning && !scanSuccess && (
                           <FormDescription>
-                            Enter the receiver's address, pick a contact
+                            Enter a QIP-55 address or QNS name, or pick a contact
                             {isInNativeApp() ? ", or scan QR" : ""}
                           </FormDescription>
                         )}
+                        <RecipientResolutionStatus
+                          resolution={recipientResolution}
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1076,10 +1180,11 @@ const Transfer = observer(() => {
                               onChange={(e) => {
                                 const value = e.target.value.replace(",", ".");
                                 if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                                  setPercentageQuote(null);
                                   setAmountInputValue(value);
                                   const numValue =
                                     value === "" ? 0 : parseFloat(value) || 0;
-                                  field.onChange(numValue);
+                                  field.onChange(value);
                                   if (
                                     maxSendableBalance &&
                                     parseFloat(maxSendableBalance) > 0
@@ -1113,7 +1218,7 @@ const Transfer = observer(() => {
                             step={1}
                             onValueChange={handleSliderChange}
                             className="w-full"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || !percentageReady}
                           />
 
                           <div className="flex justify-between gap-2">
@@ -1124,13 +1229,20 @@ const Transfer = observer(() => {
                                 variant="outline"
                                 size="sm"
                                 onClick={setPercentage(pct)}
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || !percentageReady}
                                 className="flex-1"
                               >
                                 {pct === 100 ? "Max" : `${pct}%`}
                               </Button>
                             ))}
                           </div>
+                          {isNativeTransfer && !percentageReady && (
+                            <p className="text-xs text-muted-foreground">
+                              {isUsingMobile
+                                ? "Enter an amount manually. Your paired phone calculates the fee."
+                                : "Max requires a current fee quote for the recipient. You can enter an amount manually."}
+                            </p>
+                          )}
                         </div>
 
                         <FormMessage />
@@ -1177,7 +1289,7 @@ const Transfer = observer(() => {
                   {isNativeTransfer && !isUsingMobile && (
                     <GasFeeNotice
                       from={accountAddress}
-                      to={formValues.receiverAddress}
+                      to={recipientResolution.address ?? ""}
                       value={formValues.amount}
                       isSubmitting={isSubmitting}
                       feeLevel={feeLevel}
@@ -1195,7 +1307,7 @@ const Transfer = observer(() => {
                     Cancel
                   </Button>
                   <ShinyButton
-                    disabled={!isValid}
+                    disabled={!isValid || !recipientResolution.address || stalePercentageAmount}
                     processing={isSubmitting}
                     type="submit"
                   >

@@ -41,8 +41,8 @@ import {
 } from "../pinRotation";
 import { deriveCanonicalAddressFromHexSeed } from "../seedIdentity";
 
-const TEST_ADDRESS = `Q${"12".repeat(20)}`;
-const MAIN_ADDRESS = `Q${"34".repeat(20)}`;
+const TEST_ADDRESS = `Q${"12".repeat(64)}`;
+const MAIN_ADDRESS = `Q${"34".repeat(64)}`;
 const TEST_SEED: EncryptedSeedData = {
   address: TEST_ADDRESS,
   encryptedSeed: "old-test",

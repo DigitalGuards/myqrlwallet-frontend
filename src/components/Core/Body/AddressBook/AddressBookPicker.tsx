@@ -14,6 +14,7 @@ import {
 import { ROUTES } from "@/router/router";
 import { formatAddressShort } from "@/utils/formatting";
 import { addEntry, isValidQrlAddress, loadAddressBook } from "@/utils/addressBook";
+import { QrlAddress } from "@/components/UI/QrlAddress";
 
 interface AddressBookPickerProps {
   open: boolean;
@@ -96,9 +97,10 @@ export function AddressBookPicker({
                   }}
                 >
                   <p className="font-semibold truncate">{entry.name}</p>
-                  <p className="text-sm text-muted-foreground font-mono truncate">
-                    {formatAddressShort(entry.address)}
-                  </p>
+                  <QrlAddress
+                    address={entry.address}
+                    className="text-sm text-muted-foreground"
+                  />
                 </button>
               </li>
             ))}

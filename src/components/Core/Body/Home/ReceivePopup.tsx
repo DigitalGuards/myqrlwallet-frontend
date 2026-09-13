@@ -6,6 +6,7 @@ import { Label } from "../../../UI/Label";
 import { QRCodeSVG } from "qrcode.react";
 import { Copy } from "lucide-react";
 import { copyToClipboard } from "@/utils/nativeApp";
+import { QrlAddress } from "@/components/UI/QrlAddress";
 
 interface ReceivePopupProps {
     accountAddress: string;
@@ -54,8 +55,8 @@ export const ReceivePopup = observer(({
                         <div className="w-full">
                             <Label className="block mb-2 text-sm text-muted-foreground">Your Wallet Address</Label>
                             <div className="flex gap-2">
-                                <div className="flex-1 bg-card border border-border rounded p-2 text-sm break-all">
-                                    {accountAddress}
+                                <div className="min-w-0 flex-1 bg-card border border-border rounded p-2 text-sm">
+                                    <QrlAddress address={accountAddress} mode="full" />
                                 </div>
                                 <Button 
                                     variant="outline" 

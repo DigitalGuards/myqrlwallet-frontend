@@ -75,20 +75,13 @@ export async function waitForTransactionReceipt<R>(
   return { status: 'timeout' };
 }
 
-/**
- * Whether a receipt's `status` field indicates success. Mirrors web3's revert
- * check (`transactionReceipt.status === BigInt(0)` means reverted; an absent
- * status counts as success), tolerant of the bigint/number/boolean/hex-string
- * shapes different return formats produce.
- */
+/** Only explicit receipt status values establish execution success or failure. */
+export function receiptExecutionStatus(status: unknown): boolean | undefined {
+  if (status === 1n || status === 1 || status === true || status === '1' || status === '0x1') return true;
+  if (status === 0n || status === 0 || status === false || status === '0' || status === '0x0') return false;
+  return undefined;
+}
+
 export function isReceiptStatusSuccess(status: unknown): boolean {
-  if (status === undefined || status === null) return true;
-  if (typeof status === 'bigint') return status !== BigInt(0);
-  if (typeof status === 'number') return status !== 0;
-  if (typeof status === 'boolean') return status;
-  if (typeof status === 'string') {
-    const parsed = Number.parseInt(status, status.startsWith('0x') ? 16 : 10);
-    return Number.isNaN(parsed) ? true : parsed !== 0;
-  }
-  return true;
+  return receiptExecutionStatus(status) === true;
 }

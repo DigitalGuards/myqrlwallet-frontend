@@ -103,7 +103,7 @@ async function makeStoredSession(): Promise<DAppSession> {
     },
     originatorInfoReceived: true,
     accountAuthorized: true,
-    connectedAccount: "Q0000000000000000000000000000000000000000",
+    connectedAccount: `Q${"0".repeat(128)}`,
     keyExchange,
     relayUrl: "https://relay.example",
     status: SessionStatus.CONNECTED,
@@ -493,8 +493,9 @@ describe("SessionStore v4 migration boundary", () => {
 
   it.each([
     ["empty", ""],
-    ["non-hex", `Q${"zz".repeat(20)}`],
-    ["roadmap-length", `Q${"11".repeat(32)}`],
+    ["non-hex", `Q${"zz".repeat(64)}`],
+    ["legacy-q40", `Q${"11".repeat(20)}`],
+    ["short-q64", `Q${"11".repeat(32)}`],
   ])(
     "rejects a restored session with a %s connected account",
     async (_label, account) => {

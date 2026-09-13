@@ -14,7 +14,7 @@ import type { Web3BaseWalletAccount } from "@theqrl/web3";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { formatAddress } from "@/utils/formatting";
+import { QrlAddress } from "@/components/UI/QrlAddress";
 
 type AccountImportSuccessProps = {
   account?: Web3BaseWalletAccount;
@@ -65,9 +65,12 @@ const AccountImportSuccess = ({
       <CardContent className="space-y-8">
         <div className="flex flex-col gap-2">
           <div>Account public address:</div>
-          <div className="address-fit">
-            <div className="address-fit-line font-bold text-identity-accent">{formatAddress(accountAddress)}</div>
-          </div>
+          <QrlAddress
+            address={accountAddress}
+            mode="full"
+            className="w-full"
+            addressClassName="font-bold text-identity-accent"
+          />
           <div>
             You can share this account public address with anyone. Others need
             it to interact with you.

@@ -51,7 +51,7 @@ import {
   disconnectMobile,
   hasMobileSession,
 } from "@/utils/mobileConnect/mobileConnection";
-import { Q_ADDRESS_PATTERN } from "@/services/dappConnect/accountBinding";
+import { isQrlAccount } from "@/services/dappConnect/accountBinding";
 
 const REQUEST_ID_PATTERN = /^[0-9a-f]{32}$/;
 const CHANNEL_ID_PATTERN =
@@ -403,6 +403,11 @@ const NativeAppBridge: React.FC = () => {
             return;
           }
 
+          if (!isQrlAccount(address)) {
+            logToNative("Rejected malformed QRL address from QR scan");
+            return;
+          }
+
           logToNative("QR result received");
 
           // If there's a registered handler, dispatch to it
@@ -613,7 +618,7 @@ const NativeAppBridge: React.FC = () => {
 
           if (
             typeof address !== "string" ||
-            !Q_ADDRESS_PATTERN.test(address) ||
+            !isQrlAccount(address) ||
             typeof encryptedSeed !== "string" ||
             !encryptedSeed ||
             encryptedSeed.length > 256 * 1024 ||

@@ -96,7 +96,7 @@ describe("native device credential request protocol", () => {
     const encryptedSeed = '{"version":"pin_v5","encryptedData":"abcd"}';
     const ciphertextHash = await hashEncryptedSeed(encryptedSeed);
     const request = notifySeedStored({
-      address: `Q${"12".repeat(20)}`,
+      address: `Q${"12".repeat(64)}`,
       encryptedSeed,
       blockchain: "TEST_NET",
       revision: 9,
@@ -127,7 +127,7 @@ describe("native device credential request protocol", () => {
   it("rejects an acknowledgement for a different seed revision", async () => {
     const { notifySeedStored } = await import("../nativeApp");
     const request = notifySeedStored({
-      address: `Q${"34".repeat(20)}`,
+      address: `Q${"34".repeat(64)}`,
       encryptedSeed: "ciphertext",
       blockchain: "MAIN_NET",
       revision: 3,
