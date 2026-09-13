@@ -1,5 +1,6 @@
 import {
   formatAddress,
+  formatAddressEnds,
   formatAddressFingerprint,
   formatAddressFingerprintsInText,
 } from "../address";
@@ -8,6 +9,12 @@ const Q128 =
   "Qd5812F6Cf4a0f645aa620cd57319a0Ed649dd8f5519A9dde7770ae5b0E49e547985f35eB972A2a07041561aa39c65A3991478f9B1e6749e05277dcf58A9A8B72";
 
 describe("QRL address presentation", () => {
+  it("keeps only the first and last eight payload characters in short labels", () => {
+    expect(formatAddressEnds(Q128)).toBe("Qd5812F6C...8A9A8B72");
+    expect(formatAddressEnds("Z0123456789abcdefFEDCBA9876543210aBcDeF12")).toBe(
+      "Z01234567...aBcDeF12",
+    );
+  });
   it("samples the first, middle, and final eight payload characters of Q128", () => {
     expect(formatAddressFingerprint(Q128)).toBe(
       "Qd5812F6C...e547985f...8A9A8B72",
@@ -42,6 +49,7 @@ describe("QRL address presentation", () => {
     `QD${Q128.slice(2)}`,
   ])("returns unsupported values unchanged", (address) => {
     expect(formatAddressFingerprint(address)).toBe(address);
+    expect(formatAddressEnds(address)).toBe(address);
     expect(formatAddress(address)).toBe(address);
   });
 

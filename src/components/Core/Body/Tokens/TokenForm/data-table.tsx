@@ -74,7 +74,7 @@ export function DataTable<TData, TValue>({
                                 return (
                                     <TableHead
                                         key={header.id}
-                                        className={`${header.column.id === 'name' || header.column.id === 'address'
+                                        className={`px-1.5 sm:px-2 ${header.column.id === 'name' || header.column.id === 'address'
                                                 ? 'hidden md:table-cell'
                                                 : ''
                                             }`}
@@ -101,7 +101,7 @@ export function DataTable<TData, TValue>({
                                 {row.getVisibleCells().map((cell) => (
                                     <TableCell
                                         key={cell.id}
-                                        className={`${cell.column.id === 'name' || cell.column.id === 'address'
+                                        className={`px-1.5 sm:px-2 ${cell.column.id === 'name' || cell.column.id === 'address'
                                                 ? 'hidden md:table-cell'
                                                 : ''
                                             }`}

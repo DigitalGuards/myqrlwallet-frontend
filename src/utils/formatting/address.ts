@@ -7,10 +7,7 @@ const EMBEDDED_QRL_ADDRESS_PATTERN =
   /(^|[^0-9a-fA-F])(Q[0-9a-fA-F]{128}|[QZ][0-9a-fA-F]{40})(?=$|[^0-9a-fA-F])/g;
 
 function isDisplayableQrlAddress(address: string): boolean {
-  return (
-    isValidQrlAddress(address) ||
-    LEGACY_QRL_ADDRESS_PATTERN.test(address)
-  );
+  return isValidQrlAddress(address) || LEGACY_QRL_ADDRESS_PATTERN.test(address);
 }
 
 function splitQrlPrefix(address: string): { prefix: string; payload: string } {
@@ -37,6 +34,13 @@ export const formatAddressFingerprint = (address: string): string => {
     ),
     payload.slice(-ADDRESS_FINGERPRINT_SEGMENT_LENGTH),
   ].join("...");
+};
+
+/** Keeps only the start and end for narrow address columns. */
+export const formatAddressEnds = (address: string): string => {
+  if (!isDisplayableQrlAddress(address)) return address;
+  const { prefix, payload } = splitQrlPrefix(address);
+  return `${prefix}${payload.slice(0, ADDRESS_FINGERPRINT_SEGMENT_LENGTH)}...${payload.slice(-ADDRESS_FINGERPRINT_SEGMENT_LENGTH)}`;
 };
 
 /** Formats the complete address into readable groups that can wrap safely. */

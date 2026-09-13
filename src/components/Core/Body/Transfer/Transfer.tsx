@@ -1038,6 +1038,19 @@ const Transfer = observer(() => {
                     )}
                   />
 
+                  {selectedToken && (
+                    <div className="flex flex-col gap-2">
+                      <Label>Token contract</Label>
+                      <QrlAddress
+                        address={selectedToken.address}
+                        mode="full"
+                        copyable
+                        copyLabel="Copy token contract address"
+                        className="w-full"
+                      />
+                    </div>
+                  )}
+
                   <Separator />
 
                   {/* From Address */}

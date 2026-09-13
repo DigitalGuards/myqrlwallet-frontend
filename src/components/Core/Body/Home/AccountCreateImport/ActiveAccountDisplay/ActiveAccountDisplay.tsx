@@ -7,7 +7,7 @@ import { copyToClipboard } from "@/utils/nativeApp";
 import { SlotBalance } from "./SlotBalance";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 
-export const ActiveAccountDisplay = observer(() => {
+export const ActiveAccountDisplay = observer(({ onShowAddress }: { onShowAddress: () => void }) => {
   const { qrlStore } = useStore();
   const { activeAccount, fetchAccounts, activeAccountBalance, activeAccountBalanceUsd, qrlPrice, qrlPriceChange24h } = qrlStore;
   const { accountAddress } = activeAccount;
@@ -102,7 +102,7 @@ export const ActiveAccountDisplay = observer(() => {
         >
           <QrlAddress
             address={accountAddress}
-            revealable
+            onShowFull={onShowAddress}
             addressClassName="text-identity-accent"
           />
           {copiedItem === 'address' ? (
