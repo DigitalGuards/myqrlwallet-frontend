@@ -6,10 +6,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../../../../UI/Tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../../../../UI/Dialog";
 import { copyToClipboard } from "@/utils/nativeApp";
-import { Copy, Download } from "lucide-react";
+import { Copy, Download, QrCode } from "lucide-react";
 import { useState, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { QrlAddress } from "@/components/UI/QrlAddress";
 
 interface CopyAddressButtonProps {
   accountAddress: string;
@@ -99,7 +108,7 @@ export const CopyAddressButton = ({
   };
 
   return (
-    <span className="group relative">
+    <span className="inline-flex items-center gap-2">
       <TooltipProvider>
         <Tooltip open={isTooltipOpen} onOpenChange={setTooltipOpen} delayDuration={0}>
           <TooltipTrigger asChild>
@@ -108,6 +117,7 @@ export const CopyAddressButton = ({
               variant="outline"
               size="icon"
               onClick={copyAccount}
+              aria-label={copied ? "Address copied" : "Copy address"}
             >
               <Copy size={18} />
             </Button>
@@ -117,41 +127,58 @@ export const CopyAddressButton = ({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <div className="absolute invisible group-hover:visible hover:visible -bottom-[270px] left-1/2 transform -translate-x-1/2 z-50">
-        {/* Invisible bridge to maintain hover when moving from button to popup */}
-        <div className="absolute -top-4 left-0 right-0 h-4" />
-        <div className="bg-card rounded-lg p-4 shadow-lg border border-border">
-        <div className="flex flex-col items-center gap-3">
-          <QRCodeSVG
-            ref={qrRef}
-            value={accountAddress}
-            size={150}
-            bgColor="#ffffff"
-            fgColor="#000000"
-            level="L"
-            includeMargin={false}
-          />
-          <Label className="text-xs text-muted-foreground text-center max-w-[150px] truncate">
-            {accountAddress}
-          </Label>
+      <Dialog>
+        <DialogTrigger asChild>
           <Button
+            className="hover:text-secondary"
             variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={copyQrCode}
+            size="icon"
+            aria-label="Show address QR code"
           >
-            {qrCopied ? (
-              "Copied!"
-            ) : (
-              <>
-                <Download size={14} className="mr-1" />
-                Copy QR
-              </>
-            )}
+            <QrCode size={18} />
           </Button>
-        </div>
-        </div>
-      </div>
+        </DialogTrigger>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Wallet Address</DialogTitle>
+            <DialogDescription>
+              Scan or copy the complete address below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex min-w-0 flex-col items-center gap-4">
+            <QRCodeSVG
+              ref={qrRef}
+              value={accountAddress}
+              size={200}
+              bgColor="#ffffff"
+              fgColor="#000000"
+              level="L"
+              includeMargin
+            />
+            <QrlAddress
+              address={accountAddress}
+              mode="full"
+              copyable
+              className="w-full justify-center text-center text-xs text-muted-foreground"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={copyQrCode}
+            >
+              {qrCopied ? (
+                "Copied!"
+              ) : (
+                <>
+                  <Download size={14} className="mr-1" />
+                  Copy QR
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </span>
   );
 };

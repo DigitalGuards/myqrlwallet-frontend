@@ -20,6 +20,7 @@ import { getOptimalTokenBalance } from "@/utils/formatting";
 import type { TokenInterface } from "@/constants";
 import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
+import { QrlAddress } from "@/components/UI/QrlAddress";
 
 export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
     const { qrlStore, tokenStore } = useStore();
@@ -201,9 +202,10 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
                                                     ({t.symbol || "UNK"})
                                                 </span>
                                             </span>
-                                            <span className="break-all font-mono text-xs text-muted-foreground">
-                                                {t.address}
-                                            </span>
+                                            <QrlAddress
+                                                address={t.address}
+                                                className="text-xs text-muted-foreground"
+                                            />
                                         </Label>
                                     </li>
                                 );

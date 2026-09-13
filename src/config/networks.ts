@@ -1,35 +1,70 @@
+import { IS_V3_PROFILE } from "./runtimeProfile";
+import { v3Deployment } from "./deploymentProfile";
+
 const IS_PRODUCTION = import.meta.env.PROD;
+const v3 = IS_V3_PROFILE ? v3Deployment(import.meta.env) : null;
+export const TOKEN_FACTORY_ADDRESS = IS_V3_PROFILE
+  ? ""
+  : import.meta.env["VITE_CUSTOMERC20FACTORY_ADDRESS"] || "";
 
 const RPC_API_BASE = IS_PRODUCTION
   ? import.meta.env["VITE_RPC_URL_PRODUCTION"] ||
     "https://qrlwallet.com/api/qrl-rpc"
   : import.meta.env["VITE_RPC_URL_DEVELOPMENT"] || "http://localhost:8545";
 
-export const SERVER_URL = IS_PRODUCTION
-  ? import.meta.env["VITE_SERVER_URL_PRODUCTION"] || "https://qrlwallet.com/api"
-  : import.meta.env["VITE_SERVER_URL_DEVELOPMENT"] ||
-    "http://localhost:3000/api";
+export const SERVER_URL =
+  v3?.serverUrl ??
+  (IS_PRODUCTION
+    ? import.meta.env["VITE_SERVER_URL_PRODUCTION"] ||
+      "https://qrlwallet.com/api"
+    : import.meta.env["VITE_SERVER_URL_DEVELOPMENT"] ||
+      "http://localhost:3000/api");
 
 export const EXPLORER_BASE =
-  (IS_PRODUCTION
+  v3?.network.explorer ??
+  ((IS_PRODUCTION
     ? import.meta.env["VITE_EXPLORER_URL_PRODUCTION"]
     : import.meta.env["VITE_EXPLORER_URL_DEVELOPMENT"]) ||
-  "https://zondscan.com";
+    "https://zondscan.com");
 
 export const QRL_PROVIDER = {
+  TEST_NET_V3: v3?.network ?? {
+    id: "TEST_NET_V3",
+    name: "QRL Testnet v3 (Private)",
+    url: "",
+    explorer: "",
+    expectedChainId: "",
+    genesisHash: "",
+    qrns: { expectedChainId: "", registry: "" },
+  },
   TEST_NET: {
     id: "TEST_NET",
     url: `${RPC_API_BASE}/testnet`,
     name: "QRL 2.0 Testnet",
     explorer: EXPLORER_BASE,
+    qrns: {
+      expectedChainId: import.meta.env["VITE_QRNS_CHAIN_ID_TEST_NET"] || "",
+      registry: import.meta.env["VITE_QRNS_REGISTRY_TEST_NET"] || "",
+    },
   },
   MAIN_NET: {
     id: "MAIN_NET",
     url: `${RPC_API_BASE}/mainnet`,
     name: "QRL 2.0 Mainnet",
     explorer: EXPLORER_BASE,
+    qrns: {
+      expectedChainId: import.meta.env["VITE_QRNS_CHAIN_ID_MAIN_NET"] || "",
+      registry: import.meta.env["VITE_QRNS_REGISTRY_MAIN_NET"] || "",
+    },
   },
 };
+
+export const AVAILABLE_NETWORKS = IS_V3_PROFILE
+  ? [QRL_PROVIDER.TEST_NET_V3]
+  : [QRL_PROVIDER.TEST_NET, QRL_PROVIDER.MAIN_NET];
+export const DEFAULT_NETWORK_ID = IS_V3_PROFILE ? "TEST_NET_V3" : "TEST_NET";
+export const isAvailableNetwork = (id: string): boolean =>
+  AVAILABLE_NETWORKS.some((network) => network.id === id);
 
 export const getExplorerAddressUrl = (address: string, blockchain: string) => {
   const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];

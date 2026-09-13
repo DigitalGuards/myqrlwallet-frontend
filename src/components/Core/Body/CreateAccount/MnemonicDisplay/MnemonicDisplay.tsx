@@ -29,6 +29,7 @@ import { WalletEncryptionUtil } from "@/utils/crypto";
 import { HexSeedListing } from "@/components/UI/HexSeedListing/HexSeedListing";
 import { ROUTES } from "@/router/router";
 import { isDesktop } from "@/desktop/bridge";
+import { QrlAddress } from "@/components/UI/QrlAddress";
 
 const MnemonicWordListing = withSuspense(
   lazy(() => import("./MnemonicWordListing/MnemonicWordListing"))
@@ -138,7 +139,12 @@ const MnemonicDisplay = ({
         <CardTitle>Your Recovery Information</CardTitle>
         <CardDescription className="flex flex-col gap-2">
           <span>{cardDescription}</span>
-          <span className="text-primary break-all">{accountAddress}</span>
+          <QrlAddress
+            address={accountAddress || ""}
+            mode="full"
+            className="w-full"
+            addressClassName="text-primary"
+          />
           <span className="flex gap-2">
             <Button
               type="button"

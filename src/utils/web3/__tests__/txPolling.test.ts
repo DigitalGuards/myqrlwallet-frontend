@@ -148,8 +148,11 @@ describe('isReceiptStatusSuccess', () => {
     ['0x0', false],
     ['1', true],
     ['0', false],
-    [undefined, true], // absent status counts as success, like web3
-    [null, true],
+    [undefined, false],
+    [null, false],
+    ['invalid', false],
+    ['1oops', false],
+    [2, false],
   ])('%p -> %p', (status, expected) => {
     expect(isReceiptStatusSuccess(status)).toBe(expected);
   });

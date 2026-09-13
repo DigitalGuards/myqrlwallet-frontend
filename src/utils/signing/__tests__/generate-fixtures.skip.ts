@@ -1,13 +1,8 @@
 /**
- * Fixture generator. Filename ends in `.skip.ts` so Jest's `*.test.ts` glob
- * skips it on normal runs. To regenerate `__fixtures__/canonical.json`:
- *
- *   mv generate-fixtures.skip.ts generate-fixtures.test.ts
- *   npx jest --runInBand src/utils/signing/__tests__/generate-fixtures
- *   mv generate-fixtures.test.ts generate-fixtures.skip.ts
- *
- * Bump SCHEME_VERSION_* in ctx.ts when the spec changes; regenerate here
- * and commit the JSON alongside.
+ * Historical typed-data v1 fixture generator. The checked-in vectors retain
+ * Q+40 address fields for protocol archaeology. QIP-55 addresses do not fit
+ * v1's 32-byte address slot, so this generator stays dormant until the v2
+ * encoding and scheme version are decided across Connect and wallet mirrors.
  */
 
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -111,7 +106,7 @@ function toTypedVector(label: string, payload: TypedDataPayload) {
   };
 }
 
-describe('regenerate fixtures', () => {
+describe.skip('legacy v1 fixture generator', () => {
   it('writes canonical.json', () => {
     const messageVectors = [
       toMessageVector('empty', '0x'),

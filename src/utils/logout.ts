@@ -1,6 +1,7 @@
 import { ROUTES } from "@/router/router";
 import StorageUtil from "./storage/storage";
 import { QRL_PROVIDER } from "@/config";
+import { IS_V3_PROFILE } from "@/config/runtimeProfile";
 import { isInNativeApp } from "./nativeApp";
 import { clearAttemptTracker } from "./crypto/pinAttemptTracker";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
@@ -54,7 +55,9 @@ export const handleLogout = async (navigate: (path: string) => void) => {
 
   try {
     const nativeApp = isInNativeApp();
-    const blockchains = Object.keys(QRL_PROVIDER);
+    const blockchains = IS_V3_PROFILE
+      ? ["TEST_NET_V3"]
+      : Object.keys(QRL_PROVIDER).filter((id) => id !== "TEST_NET_V3");
 
     const clearWalletStorage = async () => {
       for (const blockchain of blockchains) {

@@ -6,23 +6,21 @@ jest.mock('@theqrl/wallet.js', () => ({
     getAddressStr: mockGetAddressStr,
     zeroize: mockZeroize,
   })),
-}));
-
-jest.mock('@theqrl/web3', () => ({
-  utils: { toChecksumAddress: jest.fn((address: string) => address) },
+  toChecksumAddress: jest.fn((address: string) => address),
+  isValidChecksumAddress: jest.fn((address: string) => /^Q[0-9a-fA-F]{128}$/.test(address)),
 }));
 
 import { deriveCanonicalAddressFromHexSeed } from '../seedIdentity';
 
-const ADDRESS = 'Q6153d37Fa4DA7193E6219DCBd2bBe62Fa12905b1';
+const ADDRESS = `Q${'12'.repeat(64)}`;
 
 describe('seed identity derivation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetAddressStr.mockReturnValue(`${ADDRESS}${'a'.repeat(88)}`);
+    mockGetAddressStr.mockReturnValue(ADDRESS);
   });
 
-  it('returns the deployed Q+40 identity and zeroizes the expanded wallet', () => {
+  it('returns the complete QIP-55 identity and zeroizes the expanded wallet', () => {
     expect(deriveCanonicalAddressFromHexSeed('ab'.repeat(51))).toBe(ADDRESS);
     expect(mockZeroize).toHaveBeenCalledTimes(1);
   });

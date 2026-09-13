@@ -8,22 +8,26 @@ import {
   isWalletEpochCurrent,
   type WalletEpoch,
 } from "@/utils/walletEpoch";
+import { normalizeQrlAddress } from "@/utils/web3/address";
+import { IS_V3_PROFILE, profileStorageKey } from '@/config/runtimeProfile';
 
-const ACTIVE_PAGE_IDENTIFIER = "ACTIVE_PAGE";
-const BLOCKCHAIN_SELECTION_IDENTIFIER = "BLOCKCHAIN_SELECTION";
-const BLOCKCHAIN_CREATED_TOKEN = "CREATED_TOKEN";
-const ACTIVE_ACCOUNT_IDENTIFIER = "ACTIVE_ACCOUNT";
-const ACCOUNT_LIST_IDENTIFIER = "ACCOUNT_LIST";
+const ACTIVE_PAGE_IDENTIFIER = profileStorageKey("ACTIVE_PAGE");
+const BLOCKCHAIN_SELECTION_IDENTIFIER = profileStorageKey("BLOCKCHAIN_SELECTION");
+const BLOCKCHAIN_CREATED_TOKEN = profileStorageKey("CREATED_TOKEN");
+const ACTIVE_ACCOUNT_IDENTIFIER = "QIP55_ACTIVE_ACCOUNT";
+const ACCOUNT_LIST_IDENTIFIER = "QIP55_ACCOUNT_LIST";
+const LEGACY_ACTIVE_ACCOUNT_IDENTIFIER = "ACTIVE_ACCOUNT";
+const LEGACY_ACCOUNT_LIST_IDENTIFIER = "ACCOUNT_LIST";
 const TRANSACTION_VALUES_IDENTIFIER = "TRANSACTION_VALUES";
-const TOKEN_LIST_IDENTIFIER = "TOKEN_LIST";
-const HIDDEN_TOKENS_IDENTIFIER = "HIDDEN_TOKENS";
-const NFT_LIST_IDENTIFIER = "NFT_LIST";
-const HIDDEN_NFTS_IDENTIFIER = "HIDDEN_NFTS";
+const TOKEN_LIST_IDENTIFIER = IS_V3_PROFILE ? "TOKEN_LIST_V3" : "TOKEN_LIST";
+const HIDDEN_TOKENS_IDENTIFIER = IS_V3_PROFILE ? "HIDDEN_TOKENS_V3" : "HIDDEN_TOKENS";
+const NFT_LIST_IDENTIFIER = IS_V3_PROFILE ? "NFT_LIST_V3" : "NFT_LIST";
+const HIDDEN_NFTS_IDENTIFIER = IS_V3_PROFILE ? "HIDDEN_NFTS_V3" : "HIDDEN_NFTS";
 const BALANCE_CACHE_IDENTIFIER = "BALANCE_CACHE";
 const STORAGE_VERSION = "v1";
 const MAX_STORAGE_AGE = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
 const MAX_WALLETS = 10; // Maximum number of wallets that can be imported
-const WALLET_SETTINGS_IDENTIFIER = "WALLET_SETTINGS";
+const WALLET_SETTINGS_IDENTIFIER = profileStorageKey("WALLET_SETTINGS");
 const ENCRYPTED_SEEDS_IDENTIFIER = "ENCRYPTED_SEEDS";
 const AUTO_LOCK_TIMEOUT = 15 * 60 * 1000; // 15 minutes default auto-lock timeout
 
@@ -120,6 +124,41 @@ export interface AccountListItem {
   source: AccountSource;
 }
 
+function normalizeAccountListItem(value: unknown): AccountListItem | null {
+  if (typeof value === "string") {
+    const address = normalizeQrlAddress(value);
+    return address ? { address, source: "seed" } : null;
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const address = normalizeQrlAddress(record["address"]);
+  const source = record["source"];
+  if (
+    !address ||
+    (source !== "seed" && source !== "extension" && source !== "mobile")
+  ) {
+    return null;
+  }
+  return { address, source };
+}
+
+function normalizeAccountList(value: unknown): AccountListItem[] {
+  if (!Array.isArray(value)) return [];
+  const normalized: AccountListItem[] = [];
+  const seen = new Set<string>();
+  for (const candidate of value) {
+    const item = normalizeAccountListItem(candidate);
+    if (!item) continue;
+    const key = item.address.toLowerCase();
+    if (seen.has(key)) continue;
+    normalized.push(item);
+    seen.add(key);
+  }
+  return normalized;
+}
+
 /**
  * A utility for storing and retrieving states of different components using localStorage.
  * Data expires after 6 hours.
@@ -206,6 +245,8 @@ class StorageUtil {
    * Call the getBlockChain function to retrieve the stored value.
    */
   static async setBlockChain(selectedBlockchain: string) {
+    if (IS_V3_PROFILE && selectedBlockchain !== 'TEST_NET_V3') throw new Error('Only Testnet v3 is available in this build');
+    if (!IS_V3_PROFILE && selectedBlockchain === 'TEST_NET_V3') throw new Error('Testnet v3 requires its dedicated build');
     this.setItem(BLOCKCHAIN_SELECTION_IDENTIFIER, selectedBlockchain);
   }
 
@@ -325,6 +366,7 @@ class StorageUtil {
   }
 
   static async getBlockChain() {
+    if (IS_V3_PROFILE) return 'TEST_NET_V3' as BlockchainType;
     const DEFAULT_BLOCKCHAIN = QRL_PROVIDER.TEST_NET.id;
     const storedBlockchain = this.getItem<string>(
       BLOCKCHAIN_SELECTION_IDENTIFIER,
@@ -333,7 +375,7 @@ class StorageUtil {
     // QRL_PROVIDER — silently migrate those users to TEST_NET (default until
     // mainnet launch).
     const isValid =
-      storedBlockchain != null &&
+      storedBlockchain != null && storedBlockchain !== 'TEST_NET_V3' &&
       Object.prototype.hasOwnProperty.call(QRL_PROVIDER, storedBlockchain);
     return (isValid ? storedBlockchain : DEFAULT_BLOCKCHAIN) as BlockchainType;
   }
@@ -346,18 +388,23 @@ class StorageUtil {
   static async setActiveAccount(blockchain: string, activeAccount?: string) {
     const blockChainAccountIdentifier = `${blockchain}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
     if (activeAccount) {
-      this.setItem(blockChainAccountIdentifier, activeAccount);
+      const normalizedActiveAccount = normalizeQrlAddress(activeAccount);
+      if (!normalizedActiveAccount) {
+        throw new Error("Active account must be a valid QIP-55 address");
+      }
+      this.setItem(blockChainAccountIdentifier, normalizedActiveAccount);
 
       // Ensure account is in the account list (default source assumed to be 'seed')
       const accountList = await this.getAccountList(blockchain);
       if (
         !accountList.some(
-          (item) => item.address.toLowerCase() === activeAccount.toLowerCase(),
+          (item) =>
+            item.address.toLowerCase() === normalizedActiveAccount.toLowerCase(),
         )
       ) {
         await this.setAccountList(blockchain, [
           ...accountList,
-          { address: activeAccount, source: "seed" },
+          { address: normalizedActiveAccount, source: "seed" },
         ]);
       }
     } else {
@@ -368,12 +415,15 @@ class StorageUtil {
 
   static async getActiveAccount(blockchain: string) {
     const blockChainAccountIdentifier = `${blockchain}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
-    return this.getItem<string>(blockChainAccountIdentifier) ?? "";
+    return normalizeQrlAddress(this.getItem<unknown>(blockChainAccountIdentifier)) ?? "";
   }
 
   static async clearActiveAccount(blockchain: string) {
     const blockChainAccountIdentifier = `${blockchain}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
     localStorage.removeItem(blockChainAccountIdentifier);
+    localStorage.removeItem(
+      `${blockchain}_${LEGACY_ACTIVE_ACCOUNT_IDENTIFIER}`,
+    );
     dispatchStorageEvent(STORAGE_EVENT_ACTIVE_ACCOUNT);
   }
 
@@ -385,13 +435,18 @@ class StorageUtil {
     accountList: AccountListItem[],
   ) {
     const blockChainAccountListIdentifier = `${blockchain}_${ACCOUNT_LIST_IDENTIFIER}`;
-    this.setItem(blockChainAccountListIdentifier, accountList);
+    const normalized = normalizeAccountList(accountList);
+    if (normalized.length !== accountList.length) {
+      throw new Error("Account list contains an invalid QIP-55 account");
+    }
+    this.setItem(blockChainAccountListIdentifier, normalized);
   }
 
   /**
    * Retrieves the stored account list.  Returns an empty array if nothing is stored.
-   * If the data was saved with the old format (an array of strings) it will be
-   * converted on-the-fly to the new format assuming the source is a local seed.
+   * The pre-QIP-55 namespace stays isolated for rollback. Legacy Q+40 and
+   * malformed records found in the QIP-55 namespace also remain stored for an
+   * explicit recovery flow, while the active runtime list excludes them.
    */
   static async getAccountList(blockchain: string): Promise<AccountListItem[]> {
     const blockChainAccountListIdentifier = `${blockchain}_${ACCOUNT_LIST_IDENTIFIER}`;
@@ -401,27 +456,7 @@ class StorageUtil {
       return [];
     }
 
-    // New format: already an array of objects with address + source
-    if (Array.isArray(data) && data.length > 0 && typeof data[0] === "object") {
-      return data as AccountListItem[];
-    }
-
-    // Old format: array of address strings, convert to new structure (default source = 'seed')
-    if (
-      Array.isArray(data) &&
-      (data.length === 0 || typeof data[0] === "string")
-    ) {
-      const converted: AccountListItem[] = (data as string[]).map((addr) => ({
-        address: addr,
-        source: "seed",
-      }));
-      // Persist back in new format so we do the conversion only once
-      await this.setAccountList(blockchain, converted);
-      return converted;
-    }
-
-    // Fallback: unknown structure
-    return [];
+    return normalizeAccountList(data).filter((item) => !IS_V3_PROFILE || item.source === 'seed');
   }
 
   /**
@@ -806,6 +841,7 @@ class StorageUtil {
   static clearAccountList(blockchain: string): void {
     const blockChainAccountListIdentifier = `${blockchain}_${ACCOUNT_LIST_IDENTIFIER}`;
     localStorage.removeItem(blockChainAccountListIdentifier);
+    localStorage.removeItem(`${blockchain}_${LEGACY_ACCOUNT_LIST_IDENTIFIER}`);
   }
 
   /**

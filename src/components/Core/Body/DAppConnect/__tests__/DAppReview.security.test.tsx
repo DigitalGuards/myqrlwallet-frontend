@@ -74,12 +74,12 @@ afterAll(() => {
 
 describe("dApp approval review fidelity", () => {
   it("shows the exact transaction signing account", () => {
-    const from = "QABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD";
+    const from = `Q${"ABCDEF".repeat(21)}AB`;
     const { container } = render(
       <DAppTransactionReview
         params={{
           from,
-          to: "Q1111111111111111111111111111111111111111",
+          to: `Q${"1".repeat(128)}`,
           value: "0x0",
         }}
       />,

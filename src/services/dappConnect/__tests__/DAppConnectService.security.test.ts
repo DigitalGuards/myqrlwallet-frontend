@@ -9,6 +9,10 @@ import {
 } from "@jest/globals";
 import type { RelayMessage } from "../types";
 
+const mockQrlAccount = `Q${"0".repeat(128)}`;
+const mockQrlRecipient = `Q${"1".repeat(128)}`;
+const mockQrlOther = `Q${"2".repeat(128)}`;
+
 interface MockSocketHandlers {
   onMessage: (data: RelayMessage) => void;
   onConnected: () => void;
@@ -101,7 +105,7 @@ jest.mock("@/stores/store", () => ({
   store: {
     qrlStore: {
       activeAccount: {
-        accountAddress: "Q0000000000000000000000000000000000000000",
+        accountAddress: `Q${"0".repeat(128)}`,
       },
       qrlInstance: {
         currentProvider: {
@@ -289,7 +293,7 @@ async function makePairing(
       },
       originatorInfoReceived: true,
       accountAuthorized: true,
-      connectedAccount: "Q0000000000000000000000000000000000000000",
+      connectedAccount: mockQrlAccount,
       keyExchange,
       relayUrl: "https://relay.example",
       status: SessionStatus.CONNECTED,
@@ -458,7 +462,7 @@ beforeEach(() => {
     Object(mockedStore.qrlStore.activeAccount) as {
       accountAddress: string;
     }
-  ).accountAddress = "Q0000000000000000000000000000000000000000";
+  ).accountAddress = mockQrlAccount;
   logSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
   errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -627,7 +631,7 @@ describe("wallet service AEAD checkpointing", () => {
         jsonrpc: "2.0",
         id: 7,
         method: "qrl_signMessage",
-        params: ["Q0000000000000000000000000000000000000000", "0x01"],
+        params: [mockQrlAccount, "0x01"],
       }),
     );
 
@@ -725,7 +729,7 @@ describe("wallet service AEAD checkpointing", () => {
           jsonrpc: "2.0",
           id: 91,
           method: "qrl_signMessage",
-          params: ["Q0000000000000000000000000000000000000000", "0x01"],
+          params: [mockQrlAccount, "0x01"],
         }),
       );
       approveTracked(service, pairing.session.id, 90, "outbound");
@@ -898,7 +902,7 @@ describe("wallet service AEAD checkpointing", () => {
         type: MessageType.JSONRPC,
         id: 2,
         method: "qrl_signMessage",
-        params: ["Q0000000000000000000000000000000000000000", "0x01"],
+        params: [mockQrlAccount, "0x01"],
       }),
     );
     storage.failNextWrite = new Error("quota denied");
@@ -1130,7 +1134,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
       jsonrpc: "2.0",
       id: 11,
       method: "qrl_signMessage",
-      params: ["Q0000000000000000000000000000000000000000", "0x01"],
+      params: [mockQrlAccount, "0x01"],
     });
     await waitFor(() => socket.sent.length === 1);
 
@@ -1153,8 +1157,8 @@ describe("wallet-side direct relay RPC enforcement", () => {
       method: "qrl_sendTransaction",
       params: [
         {
-          from: "Q1111111111111111111111111111111111111111",
-          to: "Q2222222222222222222222222222222222222222",
+          from: mockQrlRecipient,
+          to: mockQrlOther,
           value: "0x0",
         },
       ],
@@ -1169,7 +1173,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
   });
 
   it("rejects an otherwise-valid signer that differs only by hex case", async () => {
-    const canonical = "QABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD";
+    const canonical = `Q${"ABCDEF".repeat(21)}AB`;
     const caseVariant = `Q${canonical.slice(1).toLowerCase()}`;
     (
       Object(mockedStore.qrlStore.activeAccount) as {
@@ -1245,24 +1249,24 @@ describe("wallet-side direct relay RPC enforcement", () => {
       );
     };
     service.approveRequest(pairing.session.id, 14, [
-      "Q0000000000000000000000000000000000000000",
+      mockQrlAccount,
     ]);
     await waitFor(() => socket.sent.length === 2);
 
     expect(authorizationAtRelaySend).toEqual([true, true]);
     expect(SessionStore.get(pairing.session.id)).toMatchObject({
       accountAuthorized: true,
-      connectedAccount: "Q0000000000000000000000000000000000000000",
+      connectedAccount: mockQrlAccount,
     });
     expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
       type: MessageType.WALLET_INFO,
-      accounts: ["Q0000000000000000000000000000000000000000"],
+      accounts: [mockQrlAccount],
       chainId: "0x539",
     });
     expect(await decryptWalletFrame(pairing, socket.sent[1])).toMatchObject({
       type: MessageType.JSONRPC,
       id: 14,
-      result: ["Q0000000000000000000000000000000000000000"],
+      result: [mockQrlAccount],
     });
   });
 
@@ -1372,6 +1376,36 @@ describe("wallet-side direct relay RPC enforcement", () => {
     }
   });
 
+  it("rejects a legacy-width qrl_getLogs topic before provider forwarding", async () => {
+    const pairing = await makePairing("legacy-log-topic");
+    const { observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    await deliverEncrypted(pairing, socket, {
+      type: MessageType.JSONRPC,
+      jsonrpc: "2.0",
+      id: 40,
+      method: "qrl_getLogs",
+      params: [
+        {
+          address: mockQrlAccount,
+          topics: [`0x${"ab".repeat(32)}`],
+        },
+      ],
+    });
+    await waitFor(() => socket.sent.length === 1);
+
+    expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
+      type: MessageType.JSONRPC,
+      id: 40,
+      error: {
+        code: -32602,
+        message: expect.stringContaining("exact 64-byte VM64"),
+      },
+    });
+    expect(observed.pending).toHaveLength(0);
+  });
+
   it("rejects over-budget typed data before it enters the approval queue", async () => {
     const pairing = await makePairing("typed-data-ingress-limit");
     const { observed } = await reconnect(pairing.session);
@@ -1391,7 +1425,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
         jsonrpc: "2.0",
         id: 41,
         method: "qrl_signTypedData",
-        params: ["Q0000000000000000000000000000000000000000", payload],
+        params: [mockQrlAccount, payload],
       }),
     );
     socket.handlers.onMessage({
@@ -1427,8 +1461,8 @@ describe("wallet-side direct relay RPC enforcement", () => {
         method: "qrl_sendTransaction",
         params: [
           {
-            from: "Q0000000000000000000000000000000000000000",
-            to: "Q1111111111111111111111111111111111111111",
+            from: mockQrlAccount,
+            to: mockQrlRecipient,
             value: "0x0",
             data: { crashApprovalReview: true },
           },
@@ -1467,7 +1501,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
         id: 42,
         method: "qrl_signTypedData",
         params: [
-          "Q0000000000000000000000000000000000000000",
+          mockQrlAccount,
           {
             types: {
               QRLDomain: [{ name: "name", type: "string" }],

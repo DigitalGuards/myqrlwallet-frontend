@@ -6,8 +6,11 @@
  * separately, in `fixtures.test.ts`.
  */
 
-import { MLDSA87, newWalletFromExtendedSeed } from "@theqrl/wallet.js";
-import { utils as web3Utils } from "@theqrl/web3";
+import {
+  MLDSA87,
+  newWalletFromExtendedSeed,
+  toChecksumAddress,
+} from "@theqrl/wallet.js";
 import {
   computeMessageDigest,
   computeTypedDataDigest,
@@ -30,11 +33,10 @@ function newEphemeralSeed(): string {
   return hex;
 }
 
-const TYPED_PAYLOAD = (signer: string): TypedDataPayload => ({
+const TYPED_PAYLOAD = (): TypedDataPayload => ({
   types: {
     QRLDomain: [{ name: "name", type: "string" }],
     LoginChallenge: [
-      { name: "account", type: "address" },
       { name: "nonce", type: "bytes32" },
       { name: "issuedAt", type: "uint64" },
     ],
@@ -42,7 +44,6 @@ const TYPED_PAYLOAD = (signer: string): TypedDataPayload => ({
   primaryType: "LoginChallenge",
   domain: { name: "zondscan.com" },
   message: {
-    account: signer,
     nonce: "0x" + "ab".repeat(32),
     issuedAt: "1747699200",
   },
@@ -87,7 +88,7 @@ describe("signMessage / verifyMessage round-trip", () => {
     expect(result.publicKey.startsWith("0x")).toBe(true);
     expect(result.digest.startsWith("0x")).toBe(true);
     expect(result.signer.startsWith("Q")).toBe(true);
-    expect(result.signer).toMatch(/^Q[0-9a-fA-F]{40}$/);
+    expect(result.signer).toMatch(/^Q[0-9a-fA-F]{128}$/);
     expect(result.descriptor).toBe(expectedDescriptor);
 
     const ok = verifyMessage({
@@ -180,9 +181,7 @@ describe("computeTypedDataDigest validation", () => {
   it("rejects QRLDomain.name missing", () => {
     const seed = newEphemeralSeed();
     const wallet = newWalletFromExtendedSeed(seed);
-    const signer = web3Utils.toChecksumAddress(
-      `Q${wallet.getAddressStr().slice(1, 41)}`,
-    );
+    const signer = toChecksumAddress(wallet.getAddressStr());
     wallet.zeroize();
     const bad: TypedDataPayload = {
       types: {
@@ -207,7 +206,7 @@ describe("computeTypedDataDigest validation", () => {
       },
       primaryType: "LoginChallenge",
       domain: { name: "x", custom: "y" },
-      message: { account: "Q" + "0".repeat(40) },
+      message: { account: "Q" + "0".repeat(128) },
     };
     expect(() => computeTypedDataDigest(bad)).toThrow(/reserved set/);
   });
@@ -223,7 +222,7 @@ describe("computeTypedDataDigest validation", () => {
       },
       primaryType: "LoginChallenge",
       domain: { name: "x", chainId: "1" },
-      message: { account: "Q" + "0".repeat(40) },
+      message: { account: "Q" + "0".repeat(128) },
     };
     expect(() => computeTypedDataDigest(bad)).toThrow(/chainId.*uint256/);
   });
@@ -237,7 +236,7 @@ describe("computeTypedDataDigest validation", () => {
       },
       primaryType: "LoginChallenge",
       domain: { name: "x" },
-      message: { account: "Q" + "0".repeat(40) },
+      message: { account: "Q" + "0".repeat(128) },
     };
     expect(() => computeTypedDataDigest(bad)).toThrow(/unused/);
   });
@@ -260,18 +259,16 @@ describe("signTypedData / verifyTypedData round-trip", () => {
   it("signs LoginChallenge and verifies", () => {
     const seed = newEphemeralSeed();
     const wallet = newWalletFromExtendedSeed(seed);
-    const signer = web3Utils.toChecksumAddress(
-      `Q${wallet.getAddressStr().slice(1, 41)}`,
-    );
+    const signer = toChecksumAddress(wallet.getAddressStr());
     const expectedDescriptor = bytesToHex(wallet.getDescriptor().toBytes());
     wallet.zeroize();
 
-    const payload = TYPED_PAYLOAD(signer);
+    const payload = TYPED_PAYLOAD();
     const result = signTypedData(payload, seed, { randomized: false });
 
     expect(result.schemeVersion).toBe(SCHEME_VERSION_TYPED);
     expect(result.signer).toBe(signer);
-    expect(result.signer).toMatch(/^Q[0-9a-fA-F]{40}$/);
+    expect(result.signer).toMatch(/^Q[0-9a-fA-F]{128}$/);
     expect(result.descriptor).toBe(expectedDescriptor);
     expect(result.domain).toEqual({ name: "zondscan.com" });
 
@@ -286,16 +283,10 @@ describe("signTypedData / verifyTypedData round-trip", () => {
 
   it("verify fails if the message changes", () => {
     const seed = newEphemeralSeed();
-    const wallet = newWalletFromExtendedSeed(seed);
-    const signer = web3Utils.toChecksumAddress(
-      `Q${wallet.getAddressStr().slice(1, 41)}`,
-    );
-    wallet.zeroize();
-
-    const payload = TYPED_PAYLOAD(signer);
+    const payload = TYPED_PAYLOAD();
     const result = signTypedData(payload, seed, { randomized: false });
 
-    const tampered = TYPED_PAYLOAD(signer);
+    const tampered = TYPED_PAYLOAD();
     tampered.message["issuedAt"] = "1747699201";
 
     expect(
@@ -309,16 +300,10 @@ describe("signTypedData / verifyTypedData round-trip", () => {
 
   it("verify fails if the domain changes", () => {
     const seed = newEphemeralSeed();
-    const wallet = newWalletFromExtendedSeed(seed);
-    const signer = web3Utils.toChecksumAddress(
-      `Q${wallet.getAddressStr().slice(1, 41)}`,
-    );
-    wallet.zeroize();
-
-    const payload = TYPED_PAYLOAD(signer);
+    const payload = TYPED_PAYLOAD();
     const result = signTypedData(payload, seed, { randomized: false });
 
-    const tampered = TYPED_PAYLOAD(signer);
+    const tampered = TYPED_PAYLOAD();
     tampered.domain = { name: "evil.example" };
 
     expect(

@@ -65,7 +65,7 @@ const FormSchema = z
         }
         return true;
     }, {
-        message: "Invalid recipient address. Must be 41 characters starting with 'Q' followed by 40 hex characters",
+        message: "Invalid recipient address. Use Q followed by 128 hex characters with a valid QIP-55 checksum",
         path: ["recipientAddress"]
     });
 
@@ -435,7 +435,7 @@ export const TokenCreationForm = observer(
                                                 <Input
                                                     {...field}
                                                     disabled={isSubmitting}
-                                                    placeholder="Example: Q20b4fb2929cfBe8b002b8A0c572551F755e54aEF"
+                                                    placeholder="Q followed by 128 hex characters"
                                                     type="text"
                                                 />
                                             </FormControl>

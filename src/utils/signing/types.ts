@@ -9,10 +9,13 @@
  */
 
 import { z } from 'zod';
+import { isValidQrlAddress } from '@/utils/web3/address';
 
 const QAddressSchema = z
   .string()
-  .regex(/^Q[0-9a-fA-F]{40}$/, { message: 'must be Q-prefixed 20-byte hex address' });
+  .refine(isValidQrlAddress, {
+    message: 'must be a valid QIP-55 Q-prefixed 64-byte address',
+  });
 
 const HexBytesSchema = z
   .string()

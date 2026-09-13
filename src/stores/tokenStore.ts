@@ -1,4 +1,5 @@
-import { QRL_PROVIDER } from "@/config";
+import { QRL_PROVIDER, TOKEN_FACTORY_ADDRESS } from "@/config";
+import { IS_V3_PROFILE, profileStorageKey } from '@/config/runtimeProfile';
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { StorageUtil } from "@/utils/storage";
@@ -28,6 +29,15 @@ import type QrlStore from "./qrlStore";
 import type { FeeLevel } from "./qrlStore";
 import { applyFeeLevel } from "./qrlStore";
 import { walletMutations } from "@/utils/nativeWalletMutation";
+import {
+  normalizeQrlVm64Topic,
+  qrlAddressFromIndexedTopic,
+  qrlVm64EventTopicFromHash,
+} from "@/utils/web3/address";
+import {
+  findQrlVm64Log,
+  requestQrlVm64Logs,
+} from "@/utils/web3/vm64Logs";
 
 type CreatingTokenType = {
   name: string;
@@ -72,6 +82,7 @@ class TokenStore {
   // refreshTokenBalances is running. Kept on for ~1.2s after the
   // fetch resolves so the digits settle visibly.
   isRefreshingBalances = false;
+  _balanceRequestId = 0;
 
   constructor(private qrlStore: QrlStore) {
     makeAutoObservable(this, {
@@ -81,6 +92,7 @@ class TokenStore {
       hiddenTokens: observable,
       discoveredTokens: observable.struct,
       isRefreshingBalances: observable,
+      _balanceRequestId: false,
       visibleTokenList: computed,
       pendingDiscoveredTokens: computed,
       setCreatingToken: action.bound,
@@ -180,7 +192,7 @@ class TokenStore {
   // The discovery picker (PR #143) repopulates legitimate holdings on the
   // user's explicit say-so.
   private async migrateLegacyAutoAddedTokens() {
-    const FLAG = "TOKEN_LIST_GATE_MIGRATED_V1";
+    const FLAG = profileStorageKey("TOKEN_LIST_GATE_MIGRATED_V1");
     if (localStorage.getItem(FLAG)) return;
     StorageUtil.clearLegacyGlobalTokenData();
     localStorage.setItem(FLAG, "1");
@@ -194,7 +206,7 @@ class TokenStore {
   // then drop the global key. Deferred (flag not set) until an account is
   // active so we never discard the legacy list before we can re-home it.
   private async migrateGlobalTokenListToAccount() {
-    const FLAG = "TOKEN_LIST_PER_ACCOUNT_MIGRATED_V1";
+    const FLAG = profileStorageKey("TOKEN_LIST_PER_ACCOUNT_MIGRATED_V1");
     if (localStorage.getItem(FLAG)) return;
     const { blockchain, account } = this.scope;
     if (!blockchain || !account) return;
@@ -373,6 +385,22 @@ class TokenStore {
     feeLevel: FeeLevel = "medium",
   ) {
     this.qrlStore.resetTransactionStatus();
+    const signingGeneration = walletMutations.captureGeneration();
+    const assertSigningCurrent = (): void => {
+      if (!walletMutations.isCurrent(signingGeneration)) {
+        throw new Error("Wallet changed while preparing the token transfer");
+      }
+    };
+    if (IS_V3_PROFILE) {
+      try {
+        await this.qrlStore.assertNetworkReady();
+        assertSigningCurrent();
+      }
+      catch (error) {
+        this.qrlStore.transactionStatus = { ...this.qrlStore.transactionStatus, state: 'failed', error: getErrorMessage(error) };
+        return false;
+      }
+    }
 
     // Desktop: build the transfer() calldata purely (no seed), then route the
     // build/sign/broadcast through the isolated signer. `mnemonicPhrases` is
@@ -493,13 +521,6 @@ class TokenStore {
       }
     }
 
-    const signingGeneration = walletMutations.captureGeneration();
-    const assertSigningCurrent = (): void => {
-      if (!walletMutations.isCurrent(signingGeneration)) {
-        throw new Error("Wallet changed while preparing the token transfer");
-      }
-    };
-
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
@@ -507,6 +528,7 @@ class TokenStore {
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       assertSigningCurrent();
       const seed = await deriveHexSeedAsync(mnemonicPhrases);
+      if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady(web3.qrl);
       assertSigningCurrent();
       const acc = web3.qrl.accounts.seedToAccount(seed);
       if (acc.address !== this.qrlStore.activeAccount.accountAddress) {
@@ -535,7 +557,11 @@ class TokenStore {
       };
 
       assertSigningCurrent();
-      const promiEvent = web3.qrl.sendTransaction(txObj, undefined, {
+      if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady(web3.qrl);
+      assertSigningCurrent();
+      const promiEvent = web3.qrl.sendTransaction({ ...txObj,
+        ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+      }, undefined, {
         checkRevertBeforeSending: true,
       });
 
@@ -626,12 +652,13 @@ class TokenStore {
     };
     try {
       this.setCreatingToken(tokenName, true);
+      if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady();
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
       const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
 
-      const contractAddress = import.meta.env['VITE_CUSTOMERC20FACTORY_ADDRESS'] || "";
+      const contractAddress = TOKEN_FACTORY_ADDRESS;
 
       if (!contractAddress) {
         throw new Error(
@@ -671,42 +698,50 @@ class TokenStore {
       };
 
       const receiptHandler = async (data: TransactionReceipt) => {
-        const tokenCreatedEventSignature = web3.utils.keccak256(
-          "TokenCreated(address,address)",
+        const tokenCreatedEventSignature = qrlVm64EventTopicFromHash(
+          web3.utils.keccak256("TokenCreated(address,address)"),
         );
+        if (!tokenCreatedEventSignature) {
+          throw new Error("TokenCreated event signature is not a 32-byte hash");
+        }
 
-        let tokenCreatedLog = data.logs.find(
+        const tokenCreatedLog = data.logs.find(
           (logEntry) =>
-            logEntry.topics?.[0] === tokenCreatedEventSignature &&
+            normalizeQrlVm64Topic(logEntry.topics?.[0]) ===
+              tokenCreatedEventSignature &&
             logEntry.address?.toLowerCase() === contractAddress.toLowerCase(),
         );
+        let tokenAddressTopic: unknown = tokenCreatedLog?.topics?.[1];
 
-        if (!tokenCreatedLog && data.blockNumber) {
+        if (
+          !tokenAddressTopic &&
+          data.blockHash &&
+          data.transactionHash
+        ) {
           try {
-            const logs = await web3.qrl.getPastLogs({
-              fromBlock: data.blockNumber,
-              toBlock: data.blockNumber,
+            const blockHash = web3.utils.bytesToHex(data.blockHash);
+            const txHash = web3.utils
+              .bytesToHex(data.transactionHash)
+              .toLowerCase();
+            const logs = await requestQrlVm64Logs(web3, {
+              blockHash,
               address: contractAddress,
-              topics: [tokenCreatedEventSignature],
+              topic: tokenCreatedEventSignature,
             });
-            const txHash = data.transactionHash
-              ? web3.utils.bytesToHex(data.transactionHash).toLowerCase()
-              : null;
-            const matchingLog = logs.find(
-              (logEntry) =>
-                typeof logEntry !== "string" &&
-                txHash != null &&
-                logEntry.transactionHash?.toLowerCase() === txHash,
-            );
-            if (matchingLog && typeof matchingLog !== "string") {
-              tokenCreatedLog = matchingLog;
+            const matchingLog = findQrlVm64Log(logs, {
+              transactionHash: txHash,
+              address: contractAddress,
+              topic: tokenCreatedEventSignature,
+            });
+            if (matchingLog) {
+              tokenAddressTopic = matchingLog.topics[1];
             }
           } catch (err) {
-            console.error("Failed to fetch logs via getPastLogs:", err);
+            console.error("Failed to fetch logs via qrl_getLogs:", err);
           }
         }
 
-        if (!tokenCreatedLog?.topics?.[1]) {
+        if (!tokenAddressTopic) {
           console.error("Token address not found in transaction receipt or logs");
           this.setCreatingToken(
             "",
@@ -715,8 +750,15 @@ class TokenStore {
           );
           return;
         }
-        const tokenTopic = tokenCreatedLog.topics[1];
-        const erc20TokenAddress = `Q${tokenTopic.toString().slice(-40)}`;
+        const erc20TokenAddress = qrlAddressFromIndexedTopic(tokenAddressTopic);
+        if (!erc20TokenAddress) {
+          this.setCreatingToken(
+            "",
+            false,
+            "Token receipt contains an invalid QIP-55 address topic",
+          );
+          return;
+        }
         const tx = data.transactionHash;
         const blockNumber = Number(data.blockNumber);
         const gasUsed = Number(data.gasUsed);
@@ -809,8 +851,12 @@ class TokenStore {
       };
 
       assertSigningCurrent();
+      if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady(web3.qrl);
+      assertSigningCurrent();
       await web3.qrl
-        .sendTransaction(txObj, undefined, {
+        .sendTransaction({ ...txObj,
+          ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+        }, undefined, {
           checkRevertBeforeSending: true,
         })
         .on("confirmation", confirmationHandler)
@@ -831,6 +877,9 @@ class TokenStore {
   // button toggles the flag, so the digits don't spin on page load.
   async refreshTokenBalances() {
     try {
+      const requestId = ++this._balanceRequestId;
+      const startBlockchain = this.qrlStore.qrlConnection.blockchain;
+      const provider = this.qrlStore.qrlInstance;
       const startAccount = this.qrlStore.activeAccount.accountAddress;
       if (!startAccount) return;
 
@@ -838,9 +887,9 @@ class TokenStore {
       // observable. If the user switches accounts mid-fetch, the
       // observable list will be wiped under us; the snapshot still
       // reflects what we set out to refresh.
-      const snapshot = [...this.tokenList];
-      const selectedBlockChain = await StorageUtil.getBlockChain();
-      const rpcUrl = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url;
+      const startList = this.tokenList;
+      const snapshot = [...startList];
+      const rpcUrl = QRL_PROVIDER[startBlockchain as keyof typeof QRL_PROVIDER].url;
 
       const updatedTokenList = await Promise.all(
         snapshot.map(async (token) => {
@@ -862,7 +911,11 @@ class TokenStore {
       // abandon the result. setTokenList writes to the current scope, so
       // a stale write would land balances computed for the old account
       // under the new account's key.
-      if (this.qrlStore.activeAccount.accountAddress !== startAccount) {
+      if (requestId !== this._balanceRequestId
+        || this.qrlStore.activeAccount.accountAddress !== startAccount
+        || this.qrlStore.qrlConnection.blockchain !== startBlockchain
+        || this.qrlStore.qrlInstance !== provider
+        || this.tokenList !== startList) {
         log(
           "refreshTokenBalances: active account changed mid-refresh, abandoning stale results",
         );

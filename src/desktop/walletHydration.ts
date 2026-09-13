@@ -21,6 +21,7 @@
  */
 
 import type { AccountListItem } from '@/utils/storage';
+import { normalizeQrlAddress } from '@/utils/web3/address';
 
 /**
  * Reconcile the renderer's stored account list against the signer's wallet
@@ -32,22 +33,30 @@ import type { AccountListItem } from '@/utils/storage';
  * address list is authoritative (a successful listWallets disk read). With
  * false the reconcile is add-only, so a degraded source (the single-address
  * getStatus fallback) can never drop wallets it simply did not report.
+ * An authoritative list containing any invalid or legacy address also makes
+ * reconciliation add-only. This preserves renderer recovery rows until every
+ * signer identity can be represented as QIP-55.
  */
 export function reconcileSignerWallets(
   stored: AccountListItem[],
   signerAddresses: string[],
   removeMissing: boolean,
 ): { list: AccountListItem[]; changed: boolean } {
+  const validSignerAddresses = signerAddresses
+    .map((address) => normalizeQrlAddress(address))
+    .filter((address): address is string => address !== null);
+  const signerIdentityInvalid = validSignerAddresses.length !== signerAddresses.length;
   const signerKeys = new Set(
-    signerAddresses.filter((a) => Boolean(a)).map((a) => a.toLowerCase()),
+    validSignerAddresses.map((a) => a.toLowerCase()),
   );
 
   // Drop 'seed' entries the signer no longer knows. stored comes from
   // localStorage unvalidated; tolerate a malformed entry (missing/non-string
-  // address) rather than throwing out the whole reconcile. Such entries are
-  // preserved verbatim, just not matched against.
+  // address) rather than throwing out the whole reconcile. Invalid signer
+  // identities disable this destructive pass, and stored malformed entries
+  // are preserved verbatim.
   const list = stored.filter((entry) => {
-    if (!removeMissing) return true;
+    if (!removeMissing || signerIdentityInvalid) return true;
     if (typeof entry?.address !== 'string') return true;
     if (entry.source !== 'seed') return true;
     return signerKeys.has(entry.address.toLowerCase());
@@ -60,8 +69,7 @@ export function reconcileSignerWallets(
       .map((a) => (typeof a?.address === 'string' ? a.address.toLowerCase() : null))
       .filter((k): k is string => k !== null),
   );
-  for (const address of signerAddresses) {
-    if (!address) continue;
+  for (const address of validSignerAddresses) {
     const key = address.toLowerCase();
     if (!known.has(key)) {
       list.push({ address, source: 'seed' });
@@ -78,7 +86,9 @@ export function reconcileSignerWallets(
  * wallet was removed.
  */
 export function isAddressListed(list: AccountListItem[], address: string): boolean {
-  const key = address.toLowerCase();
+  const normalized = normalizeQrlAddress(address);
+  if (!normalized) return false;
+  const key = normalized.toLowerCase();
   return list.some((a) => typeof a?.address === 'string' && a.address.toLowerCase() === key);
 }
 
@@ -92,13 +102,17 @@ export function pickActiveWallet(
   signerAddresses: string[],
   signerActive: string | null | undefined,
 ): string | undefined {
+  const validSignerAddresses = signerAddresses
+    .map((address) => normalizeQrlAddress(address))
+    .filter((address): address is string => address !== null);
+  const normalizedActive = normalizeQrlAddress(signerActive);
   if (
-    signerActive &&
-    signerAddresses.some((a) => a.toLowerCase() === signerActive.toLowerCase())
+    normalizedActive &&
+    validSignerAddresses.some((a) => a.toLowerCase() === normalizedActive.toLowerCase())
   ) {
-    return signerActive;
+    return normalizedActive;
   }
-  return signerAddresses[0];
+  return validSignerAddresses[0];
 }
 
 /** Canonical-case an address as it appears in the reconciled list (so a strict

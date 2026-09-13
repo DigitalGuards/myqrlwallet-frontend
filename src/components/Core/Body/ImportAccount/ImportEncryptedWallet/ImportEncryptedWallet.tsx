@@ -39,6 +39,10 @@ import { useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isDesktop } from "@/desktop/bridge";
+import {
+  formatAddressFingerprint,
+  formatAddressFingerprintsInText,
+} from "@/utils/formatting";
 
 const FormSchema = z.object({
   password: z
@@ -61,8 +65,8 @@ type ParsedWalletFile =
   | { kind: "keystore"; keystores: EncryptedKeystore[] };
 
 function shortAddress(address: string | undefined, index: number): string {
-  if (!address || address.length < 12) return `Account ${index + 1}`;
-  return `${address.slice(0, 10)}...${address.slice(-8)}`;
+  if (!address) return `Account ${index + 1}`;
+  return formatAddressFingerprint(address);
 }
 
 export const ImportEncryptedWallet = ({
@@ -85,9 +89,16 @@ export const ImportEncryptedWallet = ({
     },
   });
 
-  const { register, handleSubmit, formState: { errors }, setError } = form;
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setError,
+  } = form;
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_WALLET_FILE_BYTES) {
@@ -112,7 +123,10 @@ export const ImportEncryptedWallet = ({
     try {
       const content: unknown = JSON.parse(await file.text());
       if (looksLikeKeystoreBackup(content)) {
-        setParsed({ kind: "keystore", keystores: parseKeystoreBackup(content) });
+        setParsed({
+          kind: "keystore",
+          keystores: parseKeystoreBackup(content),
+        });
         return;
       }
       try {
@@ -154,7 +168,9 @@ export const ImportEncryptedWallet = ({
       return;
     }
 
-    const account = qrlInstance?.accounts.seedToAccount(hexSeed) as ExtendedWalletAccount;
+    const account = qrlInstance?.accounts.seedToAccount(
+      hexSeed,
+    ) as ExtendedWalletAccount;
     if (!account) {
       throw new Error("Failed to import account from wallet");
     }
@@ -163,7 +179,9 @@ export const ImportEncryptedWallet = ({
     if (mnemonic) {
       account.mnemonic = mnemonic;
     } else {
-      console.warn("Mnemonic might be missing from decrypted wallet data. Proceeding with hexSeed only.");
+      console.warn(
+        "Mnemonic might be missing from decrypted wallet data. Proceeding with hexSeed only.",
+      );
     }
 
     onWalletImported(account);
@@ -215,7 +233,7 @@ export const ImportEncryptedWallet = ({
     try {
       const decryptedWallet = await WalletEncryptionUtil.decryptWallet(
         parsed.wallet,
-        formData.password
+        formData.password,
       );
       finishImport(decryptedWallet.hexSeed, decryptedWallet.mnemonic);
     } catch (_error) {
@@ -234,9 +252,11 @@ export const ImportEncryptedWallet = ({
     : undefined;
 
   return (
-    <Card >
+    <Card>
       <CardHeader>
-        <CardTitle className="text-2xl font-bold">Import Encrypted Wallet</CardTitle>
+        <CardTitle className="text-2xl font-bold">
+          Import Encrypted Wallet
+        </CardTitle>
         <CardDescription className="text-muted-foreground">
           Select an encrypted wallet file from this wallet or a backup exported
           by the MyQRLWallet browser extension, then enter its password.
@@ -249,14 +269,26 @@ export const ImportEncryptedWallet = ({
             <div className="flex flex-col items-center justify-center w-full">
               <label
                 htmlFor="walletFile"
-                className="flex flex-col items-center justify-center w-full border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent/50"
+                className="flex min-w-0 w-full flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed cursor-pointer hover:bg-accent/50"
               >
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                <div className="flex min-w-0 w-full flex-col items-center justify-center px-4 pt-5 pb-6">
                   <Upload className="w-8 h-8 mb-2 text-foreground" />
-                  <p className="mb-2 text-sm text-foreground">
-                    {selectedFile ? selectedFile.name : "Click to import wallet file"}
+                  <p
+                    className="mb-2 w-full truncate text-center text-sm text-foreground"
+                    title={selectedFile?.name}
+                    aria-label={
+                      selectedFile
+                        ? `Selected file: ${selectedFile.name}`
+                        : undefined
+                    }
+                  >
+                    {selectedFile
+                      ? formatAddressFingerprintsInText(selectedFile.name)
+                      : "Click to import wallet file"}
                   </p>
-                  <p className="text-xs text-muted-foreground">JSON files only</p>
+                  <p className="text-xs text-muted-foreground">
+                    JSON files only
+                  </p>
                 </div>
                 <Input
                   id="walletFile"
@@ -297,14 +329,16 @@ export const ImportEncryptedWallet = ({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                This backup contains {keystores.length} accounts. Import them one
-                at a time; run the import again for the others.
+                This backup contains {keystores.length} accounts. Import them
+                one at a time; run the import again for the others.
               </p>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-foreground">Password</Label>
+            <Label htmlFor="password" className="text-foreground">
+              Password
+            </Label>
             <Input
               id="password"
               type="password"
@@ -331,7 +365,11 @@ export const ImportEncryptedWallet = ({
           </div>
         </CardContent>
         <CardFooter>
-          <Button className="w-full" type="submit" disabled={isDecrypting || isParsing}>
+          <Button
+            className="w-full"
+            type="submit"
+            disabled={isDecrypting || isParsing}
+          >
             <Upload className="mr-2 h-4 w-4" />
             {isDecrypting ? "Decrypting..." : "Import Wallet"}
           </Button>

@@ -79,6 +79,9 @@ const ChangePinSchema = z.object({
 
 type ChangePinFormValues = z.infer<typeof ChangePinSchema>;
 
+import { IS_V3_PROFILE } from '@/config/runtimeProfile';
+const configuredNetworks = () => IS_V3_PROFILE ? ['TEST_NET_V3'] : Object.keys(QRL_PROVIDER).filter((id) => id !== 'TEST_NET_V3');
+
 const Settings = observer(() => {
     const navigate = useNavigate();
     const [hasEncryptedSeeds, setHasEncryptedSeeds] = useState(false);
@@ -98,7 +101,7 @@ const Settings = observer(() => {
         const checkSeeds = async () => {
             const hasSeeds = (
                 await Promise.all(
-                    Object.keys(QRL_PROVIDER).map(blockchain =>
+                    configuredNetworks().map(blockchain =>
                         StorageUtil.hasEncryptedSeeds(blockchain),
                     ),
                 )
@@ -243,7 +246,7 @@ const Settings = observer(() => {
 
         try {
             await rotateStoredSeedPin({
-                blockchains: Object.keys(QRL_PROVIDER),
+                blockchains: configuredNetworks(),
                 oldPin: data.currentPin,
                 newPin: data.newPin,
             });

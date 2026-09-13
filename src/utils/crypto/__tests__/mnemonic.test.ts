@@ -7,9 +7,8 @@
  * runtime-verify. wallet.js 6 made the `ExtendedSeed` constructor strict (it
  * now hard-throws on any seed that is not exactly 51 bytes with a valid
  * ML-DSA-87 descriptor byte), so these tests pin both the happy-path round-trip
- * and that strictness as a regression guard, and pin that the address derived
- * via web3 `seedToAccount` equals the signing-path slice-math derivation
- * (sign.ts: toChecksumAddress('Q' + getAddressStr().slice(1, 41))).
+ * and that strictness as a regression guard. Address derivation is pinned to
+ * the complete wallet.js QIP-55 identity.
  *
  * cryptoWorkerClient is mocked: it touches `navigator` and a Vite `?worker`
  * import at module load, neither of which exists in jest's node env. The
@@ -22,13 +21,23 @@ jest.mock('../cryptoWorkerClient', () => ({
   CryptoOperationError: class extends Error {},
 }));
 
-import { MLDSA87 } from '@theqrl/wallet.js';
-import Web3, { utils as web3Utils } from '@theqrl/web3';
+import {
+  MLDSA87,
+  newWalletFromExtendedSeed,
+  toChecksumAddress,
+} from '@theqrl/wallet.js';
+import Web3 from '@theqrl/web3';
+import { deriveHexSeedAsync } from '../cryptoWorkerClient';
 import {
   getMnemonicFromHexSeed,
   getHexSeedFromMnemonic,
   getAddressFromMnemonic,
+  getAddressFromMnemonicAsync,
 } from '../mnemonic';
+
+const mockDeriveHexSeedAsync = deriveHexSeedAsync as jest.MockedFunction<
+  typeof deriveHexSeedAsync
+>;
 
 // A pinned, well-formed 51-byte ML-DSA-87 extended seed (descriptor 0x01),
 // taken from the cross-repo signing parity fixture (canonical.json). Used to
@@ -62,24 +71,38 @@ describe('mnemonic.ts under wallet.js 6 + web3 1.0', () => {
     expect(getHexSeedFromMnemonic(mnemonic)).toBe(PINNED_HEX_SEED);
   });
 
-  it('derives the canonical checksummed Q-address, matching the signing-path slice math', () => {
+  it('derives the complete canonical checksummed QIP-55 address', () => {
     const wallet = MLDSA87.newWallet();
     let mnemonic: string;
-    let viaSliceMath: string;
+    let expectedAddress: string;
     try {
       mnemonic = wallet.getMnemonic();
-      // signing path (sign.ts): signer = toChecksumAddress('Q' + getAddressStr().slice(1, 41))
-      viaSliceMath = web3Utils.toChecksumAddress('Q' + wallet.getAddressStr().slice(1, 41));
+      expectedAddress = toChecksumAddress(wallet.getAddressStr());
     } finally {
-      // Wipe key material even if getAddressStr / toChecksumAddress throws.
       wallet.zeroize();
     }
 
     const web3 = new Web3('http://localhost:8545');
-    const viaSeedToAccount = getAddressFromMnemonic(mnemonic, web3.qrl);
+    const derivedAddress = getAddressFromMnemonic(mnemonic, web3.qrl);
 
-    expect(viaSeedToAccount).toBe(viaSliceMath);
-    expect(viaSeedToAccount).toMatch(/^Q[0-9a-fA-F]{40}$/);
+    expect(derivedAddress).toBe(expectedAddress);
+    expect(derivedAddress).toMatch(/^Q[0-9a-fA-F]{128}$/);
+  });
+
+  it('preserves the complete identity through worker-backed mnemonic derivation', async () => {
+    const wallet = newWalletFromExtendedSeed(PINNED_HEX_SEED);
+    let expectedAddress: string;
+    try {
+      expectedAddress = toChecksumAddress(wallet.getAddressStr());
+    } finally {
+      wallet.zeroize();
+    }
+    mockDeriveHexSeedAsync.mockResolvedValueOnce(PINNED_HEX_SEED);
+
+    const web3 = new Web3('http://localhost:8545');
+    await expect(getAddressFromMnemonicAsync('worker mnemonic', web3.qrl)).resolves.toBe(
+      expectedAddress,
+    );
   });
 
   it('wallet.js 6 ExtendedSeed ctor is strict: rejects malformed seeds (regression pin)', () => {
