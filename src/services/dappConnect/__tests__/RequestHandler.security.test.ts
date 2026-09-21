@@ -42,17 +42,17 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
           address: SIGNER,
           topics: [eventTopic, null, [indexedAddress]],
         },
-      ]),
+      ])
     ).not.toThrow();
     expect(() =>
       RequestHandler.validateUnrestrictedRequest('qrl_getLogs', [
         { address: SIGNER, topics: [`0x${'ab'.repeat(32)}`] },
-      ]),
+      ])
     ).toThrow('exact 64-byte VM64');
     expect(() =>
       RequestHandler.validateUnrestrictedRequest('qrl_getLogs', [
         { address: LEGACY_Q40, topics: [eventTopic] },
-      ]),
+      ])
     ).toThrow('QIP-55');
   });
 
@@ -63,14 +63,19 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
         id: 'request-1',
         method: 'qrl_accounts',
         params: [],
-      }),
+      })
     ).toEqual({ id: 'request-1', method: 'qrl_accounts', params: [] });
 
     for (const request of [
       { jsonrpc: '1.0', id: 1, method: 'qrl_accounts', params: [] },
       { jsonrpc: '2.0', id: Number.NaN, method: 'qrl_accounts', params: [] },
       { jsonrpc: '2.0', id: '', method: 'qrl_accounts', params: [] },
-      { jsonrpc: '2.0', id: 'x'.repeat(129), method: 'qrl_accounts', params: [] },
+      {
+        jsonrpc: '2.0',
+        id: 'x'.repeat(129),
+        method: 'qrl_accounts',
+        params: [],
+      },
       { jsonrpc: '2.0', id: 1.5, method: 'qrl_accounts', params: [] },
       {
         jsonrpc: '2.0',
@@ -97,12 +102,10 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
   });
 
   it('accepts only empty qrl_requestAccounts params', () => {
-    expect(() =>
-      RequestHandler.validateRestrictedRequest('qrl_requestAccounts', []),
-    ).not.toThrow();
-    expect(() =>
-      RequestHandler.validateRestrictedRequest('qrl_requestAccounts', [SIGNER]),
-    ).toThrow('does not accept parameters');
+    expect(() => RequestHandler.validateRestrictedRequest('qrl_requestAccounts', [])).not.toThrow();
+    expect(() => RequestHandler.validateRestrictedRequest('qrl_requestAccounts', [SIGNER])).toThrow(
+      'does not accept parameters'
+    );
   });
 
   it('validates typed data recursively even when the dApp bypasses the SDK', () => {
@@ -111,7 +114,7 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
       RequestHandler.validateRestrictedRequest('qrl_signTypedData', [
         SIGNER,
         typedPayload('uint8[]', tooMany),
-      ]),
+      ])
     ).toThrow('exceeds length limit');
   });
 
@@ -121,10 +124,7 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
       displayPrompt: 'Harmless login',
     };
     expect(() =>
-      RequestHandler.validateRestrictedRequest('qrl_signTypedData', [
-        SIGNER,
-        withUnsignedDisplay,
-      ]),
+      RequestHandler.validateRestrictedRequest('qrl_signTypedData', [SIGNER, withUnsignedDisplay])
     ).toThrow(/unknown top-level fields/);
   });
 
@@ -133,17 +133,17 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
       RequestHandler.validateRestrictedRequest('qrl_signTypedData', [
         SIGNER,
         typedPayload('uint16[]', [1, 2]),
-      ]),
+      ])
     ).not.toThrow();
     expect(() =>
-      RequestHandler.validateRestrictedRequest('qrl_signMessage', [SIGNER, '0x0102']),
+      RequestHandler.validateRestrictedRequest('qrl_signMessage', [SIGNER, '0x0102'])
     ).not.toThrow();
   });
 
   it('rejects oversized opaque signing messages before they reach approval UI', () => {
     const oversized = `0x${'aa'.repeat(TYPED_DATA_LIMITS.maxDynamicBytes + 1)}`;
     expect(() =>
-      RequestHandler.validateRestrictedRequest('qrl_signMessage', [SIGNER, oversized]),
+      RequestHandler.validateRestrictedRequest('qrl_signMessage', [SIGNER, oversized])
     ).toThrow('bounded');
   });
 
@@ -156,8 +156,9 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
           value: '0x0',
           gas: '0x5208',
           data: '0x0102',
+          chainId: '0x301825',
         },
-      ]),
+      ])
     ).not.toThrow();
   });
 
@@ -174,10 +175,11 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
     ['unsafe gas quantity', [{ to: RECIPIENT, gas: '0x20000000000000' }]],
     ['non-canonical value', [{ to: RECIPIENT, value: '0x00' }]],
     ['negative value', [{ to: RECIPIENT, value: '-1' }]],
+    ['noncanonical chain', [{ from: SIGNER, to: RECIPIENT, chainId: '0x0301825' }]],
+    ['numeric chain', [{ from: SIGNER, to: RECIPIENT, chainId: 3151909 }]],
+    ['oversized chain', [{ from: SIGNER, to: RECIPIENT, chainId: `0x${'f'.repeat(65)}` }]],
   ])('rejects malformed transaction input: %s', (_name, params) => {
-    expect(() =>
-      RequestHandler.validateRestrictedRequest('qrl_signTransaction', params),
-    ).toThrow();
+    expect(() => RequestHandler.validateRestrictedRequest('qrl_signTransaction', params)).toThrow();
   });
 
   it('rejects oversized transaction data before approval rendering', () => {
@@ -185,7 +187,7 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
     expect(() =>
       RequestHandler.validateRestrictedRequest('qrl_sendTransaction', [
         { from: SIGNER, to: RECIPIENT, data },
-      ]),
+      ])
     ).toThrow('bounded');
   });
 });

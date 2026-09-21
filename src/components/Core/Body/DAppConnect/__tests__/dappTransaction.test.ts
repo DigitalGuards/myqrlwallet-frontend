@@ -1,7 +1,4 @@
-import {
-  buildReviewedDAppTransaction,
-  requestedGasLimit,
-} from '../dappTransaction';
+import { buildReviewedDAppTransaction, requestedGasLimit } from '../dappTransaction';
 
 describe('reviewed dApp transaction fidelity', () => {
   it('preserves an explicitly reviewed numeric zero gas limit', () => {
@@ -16,6 +13,7 @@ describe('reviewed dApp transaction fidelity', () => {
       value: '0x0',
       gas: 0,
       data: '0x0102',
+      chainId: '0x301825',
     };
     const signed = buildReviewedDAppTransaction(reviewed, {
       gas: requestedGasLimit(reviewed) ?? 21000,
@@ -23,7 +21,7 @@ describe('reviewed dApp transaction fidelity', () => {
       gasPriceHex: '0x3b9aca00',
     });
 
-    for (const field of ['from', 'to', 'value', 'gas', 'data'] as const) {
+    for (const field of ['from', 'to', 'value', 'gas', 'data', 'chainId'] as const) {
       expect(signed[field]).toBe(reviewed[field]);
     }
   });

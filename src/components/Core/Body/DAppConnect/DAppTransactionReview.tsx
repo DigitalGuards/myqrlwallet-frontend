@@ -75,6 +75,12 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
           <span>{formatGasLimit(gas)}</span>
         </div>
       )}
+      {params['chainId'] != null && (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Chain ID</span>
+          <span>{String(params['chainId'])}</span>
+        </div>
+      )}
       {data && data !== "0x" && (
         <div>
           <span className="text-muted-foreground">Data</span>
