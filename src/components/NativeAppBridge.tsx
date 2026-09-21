@@ -32,7 +32,7 @@ import {
 } from "@/services/dappConnect/DAppConnectService";
 import { WalletEncryptionUtil } from "@/utils/crypto/walletEncryption";
 import {
-  decryptStoredSeedAsync,
+  verifyStoredSeedPinAsync,
   CryptoOperationError,
   CryptoErrorCode,
 } from "@/utils/crypto";
@@ -256,11 +256,11 @@ async function handleCorrelatedPinVerification(
         }
 
         try {
-          await decryptStoredSeedAsync(
-            blockchain,
+          await verifyStoredSeedPinAsync(
             activeAccount,
             encryptedSeed,
             pin,
+            generation,
           );
           if (!isCurrent()) {
             sendPinVerified(

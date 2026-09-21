@@ -20,7 +20,8 @@ import {
   DeviceCredentialUnavailableError,
 } from './walletEncryption';
 import { isDesktop } from '@/desktop/bridge';
-import { decryptStoredSeedWithPin } from './storedSeed';
+import { decryptStoredSeedWithPin, verifyStoredSeedPin } from './storedSeed';
+import type { WalletMutationToken } from '@/utils/nativeWalletMutation';
 
 /**
  * Defense-in-depth: on desktop the seed never leaves the isolated signer, so
@@ -116,6 +117,23 @@ export async function decryptStoredSeedAsync(
   }
   try {
     return await decryptStoredSeedWithPin(blockchain, address, encryptedData, pin);
+  } catch (error) {
+    throw toCryptoOperationError(error);
+  }
+}
+
+/** Verify a stored PIN without returning seed material or mutating wallet state. */
+export async function verifyStoredSeedPinAsync(
+  address: string,
+  encryptedData: string,
+  pin: string,
+  expectedGeneration: WalletMutationToken,
+): Promise<void> {
+  if (isDesktop) {
+    throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
+  }
+  try {
+    await verifyStoredSeedPin(address, encryptedData, pin, expectedGeneration);
   } catch (error) {
     throw toCryptoOperationError(error);
   }

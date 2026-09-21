@@ -33,6 +33,7 @@ import { useStore } from "../../../../stores/store";
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { walletMutations } from "@/utils/nativeWalletMutation";
+import { DeviceCredentialRecovery } from "./DeviceCredentialRecovery";
 
 // Password must match the signer's policy; same regex the create form uses.
 const passwordValidation = z
@@ -247,6 +248,7 @@ const WebPinSetup = ({
   const { qrlConnection } = qrlStore;
   const { blockchain } = qrlConnection;
   const [isStoringPin, setIsStoringPin] = useState(false);
+  const [needsDeviceRecovery, setNeedsDeviceRecovery] = useState(false);
   const reEnterPinRef = useRef<PinInputHandle>(null);
   const [hasExistingSeeds, setHasExistingSeeds] = useState<boolean | null>(
     null,
@@ -286,6 +288,7 @@ const WebPinSetup = ({
   async function onSubmit(formData: FormValues) {
     try {
       setIsStoringPin(true);
+      setNeedsDeviceRecovery(false);
       const userPin = formData.pin;
       const walletGeneration = walletMutations.captureGeneration();
 
@@ -305,13 +308,16 @@ const WebPinSetup = ({
             userPin,
           );
         } catch (err) {
+          const missingDeviceCredential =
+            err instanceof CryptoOperationError &&
+            err.code === CryptoErrorCode.DEVICE_CREDENTIAL_UNAVAILABLE;
+          setNeedsDeviceRecovery(missingDeviceCredential);
           const message =
             err instanceof CryptoOperationError &&
             err.code === CryptoErrorCode.OUTDATED_FORMAT
               ? "This wallet was saved in an older format and must be re-imported."
-              : err instanceof CryptoOperationError &&
-                  err.code === CryptoErrorCode.DEVICE_CREDENTIAL_UNAVAILABLE
-                ? "This wallet's device security credential is unavailable. Re-import the existing seed."
+              : missingDeviceCredential
+                ? "The device security credential is unavailable. Review the recovery steps below."
                 : "Incorrect PIN. Please try again.";
           setError("pin", { message });
           setIsStoringPin(false);
@@ -436,6 +442,11 @@ const WebPinSetup = ({
               </div>
             </div>
           </CardContent>
+          {needsDeviceRecovery && (
+            <div className="px-6 pb-6">
+              <DeviceCredentialRecovery />
+            </div>
+          )}
           <CardFooter>
             <ShinyButton
               disabled={isSubmitting || !isValid}
