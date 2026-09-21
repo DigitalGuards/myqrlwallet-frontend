@@ -1,0 +1,10 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["6255H2F3DX.com.chiefdg.myqrlwallet"],
+        "components": [{ "/": "/connect" }]
+      }
+    ]
+  }
+}
