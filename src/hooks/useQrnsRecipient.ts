@@ -76,6 +76,7 @@ function makeBindingKey(
   const networkBinding = configuration.available
     ? [
         configuration.config.expectedChainId,
+        configuration.config.genesisHash ?? "",
         configuration.config.registry,
         configuration.config.rpcUrl,
       ]

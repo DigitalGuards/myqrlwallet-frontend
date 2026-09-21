@@ -140,6 +140,62 @@ describe("native QRVM64 QRNS resolution", () => {
     ).rejects.toMatchObject({ code: "network-mismatch" });
   });
 
+  it("preserves the configured genesis in the resolution identity", () => {
+    const config = { ...CONFIG, genesisHash: `0x${"ab".repeat(32)}` };
+    expect(parseQrnsNetworkConfig(config)).toEqual({ available: true, config });
+    expect(
+      parseQrnsNetworkConfig({ ...config, genesisHash: "" }),
+    ).toMatchObject({ available: false });
+    expect(
+      parseQrnsNetworkConfig({ ...config, genesisHash: "0x1234" }),
+    ).toMatchObject({ available: false });
+  });
+
+  it("verifies the configured genesis before querying contract code", async () => {
+    const genesisHash = `0x${"ab".repeat(32)}`;
+    const request = jest.fn(async ({ method }: { method: string }) => {
+      if (method === "qrl_chainId") return CONFIG.expectedChainId;
+      if (method === "qrl_getBlockByNumber")
+        return { number: "0x0", hash: genesisHash };
+      if (method === "qrl_getCode") return "0x01";
+      return encodedAddress(RECIPIENT);
+    });
+    const result = await resolveQrnsRecipient(
+      "alice.qrl",
+      { ...CONFIG, genesisHash },
+      mockProvider(request),
+    );
+    expect(result.address).toBe(RECIPIENT);
+    expect(request.mock.calls.map(([args]) => args.method)).toEqual([
+      "qrl_chainId",
+      "qrl_getBlockByNumber",
+      "qrl_getCode",
+      "qrl_call",
+      "qrl_call",
+    ]);
+  });
+
+  it.each([
+    null,
+    { number: "0x1", hash: `0x${"ab".repeat(32)}` },
+    { number: "0x0", hash: `0x${"cd".repeat(32)}` },
+  ])("rejects the wrong genesis before resolving: %p", async (block) => {
+    const request = jest.fn(async ({ method }: { method: string }) =>
+      method === "qrl_chainId" ? CONFIG.expectedChainId : block,
+    );
+    await expect(
+      resolveQrnsRecipient(
+        "alice.qrl",
+        { ...CONFIG, genesisHash: `0x${"ab".repeat(32)}` },
+        mockProvider(request),
+      ),
+    ).rejects.toMatchObject({ code: "network-mismatch" });
+    expect(request.mock.calls.map(([args]) => args.method)).toEqual([
+      "qrl_chainId",
+      "qrl_getBlockByNumber",
+    ]);
+  });
+
   it.each(["0x", "0x00", "malformed"])(
     "fails closed when the registry has no usable code: %s",
     async (code) => {
