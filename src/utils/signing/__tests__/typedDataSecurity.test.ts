@@ -1,7 +1,8 @@
 import { computeTypedDataDigest, TYPED_DATA_LIMITS } from '../typedData';
 import { SignTypedDataParamsSchema } from '../types';
 
-const SIGNER = 'Q0000000000000000000000000000000000000000';
+const SIGNER = `Q${'0'.repeat(128)}`;
+const LEGACY_Q40 = `Q${'0'.repeat(40)}`;
 
 function payloadWith(fieldType: string, value: unknown): unknown {
   return {
@@ -188,6 +189,18 @@ describe('typed data deterministic resource limits', () => {
         payloadWith('string', '€'.repeat(Math.ceil(TYPED_DATA_LIMITS.maxDynamicBytes / 3) + 1)),
       ),
     ).toThrow('string field exceeds typed data byte limit');
+  });
+
+  it('keeps QIP-55 address fields fail closed in typed-data v1', () => {
+    expect(() => computeTypedDataDigest(payloadWith('address', SIGNER))).toThrow(
+      'qrl_signTypedData v1 does not support QIP-55 address fields',
+    );
+  });
+
+  it('accepts a QIP-55 signer at the request boundary and rejects Q+40', () => {
+    const payload = payloadWith('uint8', 1);
+    expect(SignTypedDataParamsSchema.safeParse([SIGNER, payload]).success).toBe(true);
+    expect(SignTypedDataParamsSchema.safeParse([LEGACY_Q40, payload]).success).toBe(false);
   });
 
   it('rejects unsafe or unbounded identifiers', () => {

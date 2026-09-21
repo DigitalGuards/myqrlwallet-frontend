@@ -1,16 +1,21 @@
 import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
-import { isDesktop, desktopSigner } from "@/desktop/bridge";
+import { isDesktop, desktopSigner, qrlWallet } from "@/desktop/bridge";
 import { decideActiveAccount, reconcileSignerWallets } from "@/desktop/walletHydration";
 import type { AccountListItem, AccountSource } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
 import { getQrlWeb3 } from "@/utils/web3";
 import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
-import { QRL_TX_POLLING_CONFIG } from "@/utils/web3/txPolling";
+import { receiptExecutionStatus, QRL_TX_POLLING_CONFIG } from "@/utils/web3/txPolling";
+import { normalizeQrlAddress } from "@/utils/web3/address";
+import { formatUnits, parseUnits } from "@/utils/web3/units";
 import type { TransactionReceipt, Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { walletMutations } from "@/utils/nativeWalletMutation";
+import { IS_V3_PROFILE, assertSupportedAccountSource, assertV3BrowserContext, V3_UNSUPPORTED_SIGNER_MESSAGE } from '@/config/runtimeProfile';
+import { assertQualifiedV3Provider, qualifyV3Provider } from '@/utils/extension/v3Provider';
+import { verifyNetworkIdentity } from '@/config/deploymentProfile';
 
 type ActiveAccountType = {
   accountAddress: string;
@@ -40,7 +45,7 @@ type PendingTxInfo = {
   lastSeen: number; // Unix timestamp
 }
 
-// Transaction status type — exported so token/NFT stores can write into
+// Transaction status type, exported so token/NFT stores can write into
 // the shared `transactionStatus` slot on this store.
 export type TransactionStatus = {
   // 'timeout' is distinct from 'failed': the tx was broadcast and may still be
@@ -111,15 +116,17 @@ class QrlStore {
   // store re-create left the interval ticking, leaking RPC calls and
   // potentially racing a stale receipt into the current transactionStatus.
   // Excluded from mobx via `_receiptPollerIntervalId: false` in
-  // makeAutoObservable below — it's a non-observable runtime handle.
+  // makeAutoObservable below; it's a non-observable runtime handle.
   _receiptPollerIntervalId: ReturnType<typeof setInterval> | null = null;
+  _balanceRequestId = 0;
+  _initializationRequestId = 0;
 
   // Desktop only: guards one-time registration of the signer lock-state
   // listener that re-hydrates the wallet list on unlock. Non-observable.
   _desktopUnlockListenerBound = false;
 
   // Callbacks wired by Store after construction so token/NFT init can run
-  // *after* QrlStore has a live qrlInstance and network selection — and
+  // *after* QrlStore has a live qrlInstance and network selection, and
   // without QrlStore taking a direct dependency on the other stores.
   onBlockchainReady?: () => Promise<void>;
   onActiveAccountChanged?: (newActiveAccount?: string) => Promise<void>;
@@ -174,14 +181,16 @@ class QrlStore {
       mobileProvider: observable.ref,
       qrlPrice: observable,
       qrlPriceChange24h: observable,
-      // Runtime handles + their cleanup helper — not observable.
+      // Runtime handles + their cleanup helper are non-observable.
       _utils: false,
       _Web3: false,
       _receiptPollerIntervalId: false,
+      _balanceRequestId: false,
+      _initializationRequestId: false,
       _desktopUnlockListenerBound: false,
       cancelReceiptPoller: false,
       hydrateDesktopWalletsFromSigner: false,
-      // Callback hooks injected by Store — not observable.
+      // Callback hooks injected by Store are non-observable.
       onBlockchainReady: false,
       onActiveAccountChanged: false,
       activeAccountBalance: computed,
@@ -234,7 +243,7 @@ class QrlStore {
   }
 
   // Updated reset action. Method body runs inside an action automatically
-  // because makeAutoObservable annotates this as `action.bound` — no
+  // because makeAutoObservable annotates this as `action.bound`, no
   // explicit runInAction needed for the synchronous state write.
   resetTransactionStatus() {
     // Always cancel any in-flight poller first so it can't race a stale
@@ -255,12 +264,22 @@ class QrlStore {
   }
 
   async initializeBlockchain() {
+    const initialization = ++this._initializationRequestId;
+    this._balanceRequestId++;
     // Re-initializing the blockchain (e.g. network switch) invalidates any
-    // in-flight receipt poller bound to the previous provider's RPC — cancel
+    // in-flight receipt poller bound to the previous provider's RPC; cancel
     // it before bringing up the new connection.
     this.cancelReceiptPoller();
     try {
+      assertV3BrowserContext();
+      if (IS_V3_PROFILE) {
+        runInAction(() => {
+          this.qrlInstance = undefined;
+          this.qrlConnection = { ...this.qrlConnection, isConnected: false, isLoading: true };
+        });
+      }
       const selectedBlockChain = await StorageUtil.getBlockChain();
+      if (IS_V3_PROFILE && selectedBlockChain !== 'TEST_NET_V3') throw new Error('Only Testnet v3 is available in this build');
       const { name, url } = QRL_PROVIDER[selectedBlockChain];
 
       runInAction(() => {
@@ -281,13 +300,17 @@ class QrlStore {
       // QRL blocks are ~60s; web3's default 1s receipt polling + 24-confirmation
       // watch fires ~100 RPC calls per tx. QRL_TX_POLLING_CONFIG slows it to ~10.
       const { qrl } = new Web3({ provider: httpProvider, config: QRL_TX_POLLING_CONFIG });
-
+      if (IS_V3_PROFILE) {
+        await verifyNetworkIdentity({ request: (args) => qrl.requestManager.send(args) }, QRL_PROVIDER.TEST_NET_V3);
+      }
+      if (initialization !== this._initializationRequestId) return;
 
       runInAction(() => {
         this.qrlInstance = qrl;
       });
 
       await this.fetchQrlConnection();
+      if (IS_V3_PROFILE && !this.qrlConnection.isConnected) throw new Error('Testnet v3 connection could not be verified');
       // Desktop: reconcile the account list against the signer (source of
       // truth for which wallets exist) BEFORE fetchAccounts reads the list,
       // so a wallet the signer can unlock is never shown as "0 wallets".
@@ -304,30 +327,45 @@ class QrlStore {
       // Log successful initialization
       log("Blockchain initialized successfully");
     } catch (error) {
+      if (IS_V3_PROFILE && initialization === this._initializationRequestId) {
+        runInAction(() => {
+          this.qrlInstance = undefined;
+          this.qrlConnection = { ...this.qrlConnection, isConnected: false, isLoading: false };
+        });
+      }
       console.error('Failed to initialize blockchain:', error);
       log("Error initializing blockchain: " + error);
     }
   }
 
   async selectBlockchain(selectedBlockchain: string) {
+    if (IS_V3_PROFILE && selectedBlockchain !== 'TEST_NET_V3') throw new Error('Only Testnet v3 is available in this build');
     await StorageUtil.setBlockChain(selectedBlockchain);
     await this.initializeBlockchain();
   }
 
   async setActiveAccount(newActiveAccount?: string, source: AccountSource = 'seed') {
+    assertSupportedAccountSource(source);
+    if (source === 'extension') assertQualifiedV3Provider(this.extensionProvider);
     const currentBlockchain = this.qrlConnection.blockchain;
+    const normalizedActiveAccount = newActiveAccount
+      ? normalizeQrlAddress(newActiveAccount) ?? undefined
+      : undefined;
+    if (newActiveAccount && !normalizedActiveAccount) {
+      throw new Error('Active account must be a valid QIP-55 address');
+    }
 
     // Desktop: keep the signer's active wallet in step with the UI selection.
     // Best-effort: a watch-only address is not a desktop wallet ("no such
     // wallet on this device"), and switching to a NON-session wallet makes the
     // desktop lock and raise its native unlock window, which is the intended
     // per-account password UX. Never block the renderer-side switch on it.
-    if (isDesktop && newActiveAccount) {
+    if (isDesktop && normalizedActiveAccount) {
       try {
         const list = await desktopSigner.listWallets();
         const wallets = Array.isArray(list?.wallets) ? list.wallets : [];
-        if (wallets.some((w) => w.address.toLowerCase() === newActiveAccount.toLowerCase())) {
-          await desktopSigner.setActiveWallet(newActiveAccount);
+        if (wallets.some((w) => w.address.toLowerCase() === normalizedActiveAccount.toLowerCase())) {
+          await desktopSigner.setActiveWallet(normalizedActiveAccount);
         }
       } catch (error) {
         console.error('Desktop setActiveWallet failed (continuing with UI switch):', error);
@@ -336,13 +374,13 @@ class QrlStore {
 
     await StorageUtil.setActiveAccount(
       currentBlockchain,
-      newActiveAccount,
+      normalizedActiveAccount,
     );
 
     runInAction(() => {
       this.activeAccount = {
         ...this.activeAccount,
-        accountAddress: newActiveAccount ?? "",
+        accountAddress: normalizedActiveAccount ?? "",
       };
     });
 
@@ -353,14 +391,14 @@ class QrlStore {
       );
       storedAccountList = [...accountListFromStorage];
 
-      if (newActiveAccount) {
-        const existingIndex = storedAccountList.findIndex(item => item.address.toLowerCase() === newActiveAccount.toLowerCase());
+      if (normalizedActiveAccount) {
+        const existingIndex = storedAccountList.findIndex(item => item.address.toLowerCase() === normalizedActiveAccount.toLowerCase());
         if (existingIndex >= 0) {
           // Update source if needed
-          storedAccountList[existingIndex] = { address: newActiveAccount, source };
+          storedAccountList[existingIndex] = { address: normalizedActiveAccount, source };
         } else {
           // Add new account
-          storedAccountList.push({ address: newActiveAccount, source });
+          storedAccountList.push({ address: normalizedActiveAccount, source });
         }
       }
     } finally {
@@ -373,13 +411,20 @@ class QrlStore {
       await this.fetchAccounts(); // Refresh the full list and balances
       // Token-side bookkeeping (clear+re-seed, discover, refresh balances)
       // is now owned by tokenStore.handleActiveAccountChanged.
-      await this.onActiveAccountChanged?.(newActiveAccount);
+      await this.onActiveAccountChanged?.(normalizedActiveAccount);
     }
   }
 
-  async fetchQrlConnection() {
+  async fetchQrlConnection(): Promise<void> {
+    if (IS_V3_PROFILE && !this.qrlInstance) return this.initializeBlockchain();
+    const provider = this.qrlInstance;
     this.qrlConnection = { ...this.qrlConnection, isLoading: true };
     try {
+      if (IS_V3_PROFILE) {
+        assertV3BrowserContext();
+        if (!provider || this.qrlConnection.blockchain !== 'TEST_NET_V3') throw new Error('Testnet v3 network is unavailable');
+        await verifyNetworkIdentity({ request: (args) => provider.requestManager.send(args) }, QRL_PROVIDER.TEST_NET_V3);
+      }
       // Add timeout to prevent hanging on unreachable networks
       const connectionCheckPromise = this.qrlInstance?.net.isListening();
       const timeoutPromise = new Promise<boolean>((_, reject) =>
@@ -390,6 +435,7 @@ class QrlStore {
         connectionCheckPromise,
         timeoutPromise
       ]).then(result => result ?? false).catch(() => false);
+      if (IS_V3_PROFILE && provider !== this.qrlInstance) return;
 
       runInAction(() => {
         this.qrlConnection = {
@@ -539,11 +585,16 @@ class QrlStore {
   }
 
   async fetchAccounts() {
+    const requestId = ++this._balanceRequestId;
+    const blockchain = this.qrlConnection.blockchain;
+    const provider = this.qrlInstance;
+    const isCurrent = () => requestId === this._balanceRequestId
+      && blockchain === this.qrlConnection.blockchain && provider === this.qrlInstance;
     this.qrlAccounts = { ...this.qrlAccounts, isLoading: true };
 
     let storedAccountsList: AccountListItem[] = [];
     const accountListFromStorage = await StorageUtil.getAccountList(
-      this.qrlConnection.blockchain,
+      blockchain,
     );
     storedAccountsList = accountListFromStorage;
     try {
@@ -551,7 +602,7 @@ class QrlStore {
         await Promise.all(
           storedAccountsList.map(async ({ address, source }) => {
             const accountBalance =
-              (await this.qrlInstance?.getBalance(address)) ?? BigInt(0);
+              (await provider?.getBalance(address)) ?? BigInt(0);
             const utils = this._utils ?? (await getQrlWeb3()).utils;
             const convertedAccountBalance = utils.fromPlanck(accountBalance, "quanta");
             return {
@@ -563,7 +614,9 @@ class QrlStore {
         );
       const balanceMap: Record<string, string> = {};
       accountsWithBalance.forEach(a => { balanceMap[a.accountAddress] = a.accountBalance; });
-      await StorageUtil.setBalanceCache(this.qrlConnection.blockchain, balanceMap);
+      if (!isCurrent()) return;
+      await StorageUtil.setBalanceCache(blockchain, balanceMap);
+      if (!isCurrent()) return;
       runInAction(() => {
         this.qrlAccounts = {
           ...this.qrlAccounts,
@@ -571,7 +624,8 @@ class QrlStore {
         };
       });
     } catch (_error) {
-      const cachedBalances = await StorageUtil.getBalanceCache(this.qrlConnection.blockchain);
+      const cachedBalances = await StorageUtil.getBalanceCache(blockchain);
+      if (!isCurrent()) return;
       runInAction(() => {
         this.qrlAccounts = {
           ...this.qrlAccounts,
@@ -584,7 +638,7 @@ class QrlStore {
       });
     } finally {
       runInAction(() => {
-        this.qrlAccounts = { ...this.qrlAccounts, isLoading: false };
+        if (isCurrent()) this.qrlAccounts = { ...this.qrlAccounts, isLoading: false };
       });
     }
   }
@@ -713,21 +767,42 @@ class QrlStore {
     }
   }
 
-  // Worst-case fee reserve for a native QRL transfer at the given fee level.
-  // gasLimit defaults to 21000 (matches signAndSendTransaction); extension
-  // sends via sendTransactionViaProvider use 53000, so callers on that path
-  // must pass it. Mobile-app sends estimate on the phone; 21000 is the
-  // native-transfer floor and serves as the reserve approximation there.
-  // Returns the amount in QRL that must stay in the wallet to cover gas.
+  // Quote the complete transfer with the same gas and fee policy as its signer.
   async estimateNativeTransferFee(
-    feeLevel: FeeLevel = 'medium',
-    gasLimit: number = 21000,
+    feeLevel: FeeLevel,
+    transfer: { from: string; to: string; value: string },
   ): Promise<string> {
-    const baseGasPrice = await this.qrlInstance?.getGasPrice();
-    if (!baseGasPrice) return "0";
-    const { maxFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
-    const utils = this._utils ?? (await getQrlWeb3()).utils;
-    return utils.fromPlanck(BigInt(gasLimit) * maxFeePerGas, "quanta");
+    if (IS_V3_PROFILE) await this.assertNetworkReady();
+    const value = parseUnits(transfer.value, 18);
+    if (value < 0n) throw new Error("Transfer value must be nonnegative");
+    let gas: bigint;
+    let maxFeePerGas: bigint;
+    if (isDesktop) {
+      const quote = await qrlWallet().buildTransaction({
+        from: transfer.from, to: transfer.to, value: value.toString(), feeLevel,
+      });
+      if (quote.gas === undefined || quote.maxFeePerGas === undefined) {
+        throw new Error("Desktop fee quote is unavailable");
+      }
+      gas = BigInt(quote.gas);
+      maxFeePerGas = BigInt(quote.maxFeePerGas);
+    } else {
+      if (this.activeAccountSource === 'mobile') {
+        throw new Error("The paired phone determines its own fee reserve");
+      }
+      const provider = this.qrlInstance;
+      if (!provider) throw new Error("Wallet not connected. Please try again.");
+      const baseGasPrice = await provider.getGasPrice();
+      const fees = applyFeeLevel(BigInt(baseGasPrice), feeLevel);
+      gas = BigInt(await provider.estimateGas({
+        from: transfer.from, to: transfer.to, value: value.toString(), type: '0x2',
+        maxFeePerGas: `0x${fees.maxFeePerGas.toString(16)}`,
+        maxPriorityFeePerGas: `0x${fees.maxPriorityFeePerGas.toString(16)}`,
+      }));
+      maxFeePerGas = fees.maxFeePerGas;
+    }
+    if (gas <= 0n || maxFeePerGas < 0n) throw new Error("Invalid transfer fee quote");
+    return formatUnits(gas * maxFeePerGas, 18);
   }
 
   // Refactored signAndSendTransaction
@@ -740,6 +815,26 @@ class QrlStore {
   ) {
     // Reset status before starting a new transaction
     this.resetTransactionStatus();
+    const signingGeneration = walletMutations.captureGeneration();
+    const signingProvider = this.qrlInstance;
+    const signingBlockchain = this.qrlConnection.blockchain;
+    const assertSigningCurrent = (): void => {
+      if (!walletMutations.isCurrent(signingGeneration)
+        || signingProvider !== this.qrlInstance
+        || signingBlockchain !== this.qrlConnection.blockchain) {
+        throw new Error("Wallet changed while preparing the transaction");
+      }
+    };
+    if (IS_V3_PROFILE) {
+      try {
+        await this.assertNetworkReady();
+        assertSigningCurrent();
+      }
+      catch (error) {
+        this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: getErrorMessage(error) };
+        return;
+      }
+    }
 
     // Desktop: build calldata-free native transfer in main, confirm + sign in
     // the signer, and broadcast, all without any seed material in the renderer.
@@ -783,13 +878,6 @@ class QrlStore {
       return;
     }
 
-    const signingGeneration = walletMutations.captureGeneration();
-    const assertSigningCurrent = (): void => {
-      if (!walletMutations.isCurrent(signingGeneration)) {
-        throw new Error("Wallet changed while preparing the transaction");
-      }
-    };
-
     try {
       // Fetch the next available nonce, including pending transactions
       const nonce = await this.qrlInstance?.getTransactionCount(from, "pending");
@@ -802,13 +890,15 @@ class QrlStore {
       const transactionObject = {
         from,
         to,
+        ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
         value: utils.toPlanck(value, "quanta"),
-        gas: 21000, // Standard gas limit for native transfer
         type: '0x2',
         maxFeePerGas: utils.toHex(maxFeePerGas),
         maxPriorityFeePerGas: utils.toHex(maxPriorityFeePerGas),
         nonce: nonce,
       };
+      const gas = await this.qrlInstance?.estimateGas(transactionObject);
+      if (gas === undefined) throw new Error("Wallet not connected. Please try again.");
       // Run the MLDSA87 derivation in the crypto worker so the 50–300 ms
       // expansion doesn't freeze the main thread mid-Send animation.
       // Subsequent signTransaction call is comparatively cheap.
@@ -816,10 +906,11 @@ class QrlStore {
       const privateKey = await deriveHexSeedAsync(mnemonicPhrases);
 
       // Sign the transaction first to ensure validity before proceeding
+      if (IS_V3_PROFILE) await this.assertNetworkReady();
       assertSigningCurrent();
       const signedTransaction =
         await this.qrlInstance?.accounts.signTransaction(
-          transactionObject,
+          { ...transactionObject, gas },
           privateKey
         );
 
@@ -828,6 +919,7 @@ class QrlStore {
       }
 
       // Send the signed transaction and handle PromiEvents
+      if (IS_V3_PROFILE) await this.assertNetworkReady();
       assertSigningCurrent();
       const promiEvent = this.qrlInstance?.sendSignedTransaction(
         signedTransaction.rawTransaction
@@ -896,6 +988,8 @@ class QrlStore {
 
   // NEW: Action to set or clear the extension provider
   setExtensionProvider(provider: ExtensionProvider | null) {
+    if (provider) assertSupportedAccountSource('extension');
+    if (provider) assertQualifiedV3Provider(provider);
     runInAction(() => {
       this.extensionProvider = provider;
       if (provider) {
@@ -913,6 +1007,7 @@ class QrlStore {
 
   // Set or clear the mobile-app relay provider (owned by utils/mobileConnect).
   setMobileProvider(provider: ExtensionProvider | null) {
+    if (provider) assertSupportedAccountSource('mobile');
     runInAction(() => {
       this.mobileProvider = provider;
       log(provider ? "Mobile provider set." : "Mobile provider cleared.");
@@ -963,6 +1058,8 @@ class QrlStore {
   // --- NEW: Function to poll for transaction receipt ---
   async pollForReceipt(txHash: string) {
     if (!txHash || !this.qrlInstance) return;
+    const provider = this.qrlInstance;
+    const blockchain = this.qrlConnection.blockchain;
 
     const maxAttempts = 60; // Poll for ~5 minutes (60 attempts * 5 seconds)
     const pollInterval = 5000; // 5 seconds
@@ -997,28 +1094,32 @@ class QrlStore {
       // truthy-narrowing holds inside the runInAction closure.
       const receipt = await (async () => {
         try {
-          return (await this.qrlInstance?.getTransactionReceipt(txHash)) ?? null;
+          return (await provider.getTransactionReceipt(txHash)) ?? null;
         } catch (error) {
           log(`Receipt not ready for ${txHash} (attempt ${attempts}): ${getErrorMessage(error)}`);
           return null;
         }
       })();
 
-      if (receipt) {
+      if (provider !== this.qrlInstance || blockchain !== this.qrlConnection.blockchain) return;
+
+      const receiptHash = receipt?.transactionHash != null ? utils.bytesToHex(receipt.transactionHash) : null;
+      const succeeded = receiptExecutionStatus(receipt?.status);
+      if (receipt && receiptHash?.toLowerCase() === txHash.toLowerCase() && succeeded !== undefined) {
         log(`Receipt found for ${txHash}`);
         this.cancelReceiptPoller(); // Stop polling
         runInAction(() => {
           // Double-check state again before updating
           if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-            const txHashString = utils.bytesToHex(receipt.transactionHash);
+            const txHashString = receiptHash;
             this.transactionStatus = {
-              state: 'confirmed',
+              state: succeeded ? 'confirmed' : 'failed',
               txHash: txHashString,
               receipt: receipt,
-              error: null,
+              error: succeeded ? null : 'Transaction execution failed. The transfer was reverted.',
               pendingDetails: null, // Clear pending details
             };
-            log(`Transaction confirmed via polling: ${txHashString}`);
+            log(`Transaction ${succeeded ? 'confirmed' : 'reverted'} via polling: ${txHashString}`);
             this.fetchAccounts(); // Refresh account balance
           } else {
             log(`Receipt found for ${txHash}, but state changed before update.`);
@@ -1054,7 +1155,14 @@ class QrlStore {
 
   // --- Send Transaction via a remote signer (extension or paired mobile app) ---
   async sendTransactionViaProvider(to: string, valueEther: string, feeLevel: FeeLevel = 'medium') {
+    if (IS_V3_PROFILE && this.activeAccountSource !== 'extension') {
+      this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: V3_UNSUPPORTED_SIGNER_MESSAGE };
+      return;
+    }
     const source = this.activeAccountSource;
+    const from = this.activeAccount.accountAddress;
+    const blockchain = this.qrlConnection.blockchain;
+    const rpcProvider = this.qrlInstance;
     const walletName = source === 'mobile' ? 'mobile app' : 'extension';
     const provider = this.remoteProvider;
     if (!provider) {
@@ -1081,6 +1189,7 @@ class QrlStore {
     try {
       // Reset status before starting
       this.resetTransactionStatus();
+      if (IS_V3_PROFILE) await this.assertNetworkReady();
       runInAction(() => {
         this.transactionStatus = { ...this.transactionStatus, state: 'pending' };
       });
@@ -1109,28 +1218,33 @@ class QrlStore {
           value: valueHex,
         }];
       } else {
-        const gasLimit = 53000;
-
         // Fetch current gas price and apply fee level multiplier
         const baseGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(1000000000);
         const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
 
-        const gasHex = "0x" + gasLimit.toString(16);
         const maxPriorityFeeHex = "0x" + maxPriorityFeePerGas.toString(16);
         const maxFeeHex = "0x" + maxFeePerGas.toString(16);
-
-        params = [{
+        const transaction = {
           from: this.activeAccount.accountAddress,
           to: to,
           value: valueHex, // Use manually hexed value from toPlanck("quanta")
-          gas: gasHex,
           maxPriorityFeePerGas: maxPriorityFeeHex,
           maxFeePerGas: maxFeeHex,
-          type: '0x2'
-        }];
+          type: '0x2',
+          ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+        };
+        const gas = await this.qrlInstance?.estimateGas(transaction);
+        if (gas === undefined) throw new Error("Wallet not connected. Please try again.");
+        params = [{ ...transaction, gas: `0x${gas.toString(16)}` }];
       }
 
       log(`Requesting transaction via ${walletName} (18 Decimals): ${JSON.stringify(params)}`);
+      if (IS_V3_PROFILE) await this.assertNetworkReady();
+      if (from !== this.activeAccount.accountAddress || source !== this.activeAccountSource
+        || blockchain !== this.qrlConnection.blockchain || rpcProvider !== this.qrlInstance
+        || provider !== this.remoteProvider) {
+        throw new Error("Wallet changed while preparing the transaction");
+      }
       // The remote wallet shows its own confirmation UI
       const txHash = await provider.request({
         method: 'qrl_sendTransaction',
@@ -1169,6 +1283,33 @@ class QrlStore {
               : (message || `Transaction failed in ${walletName}.`)
         };
       });
+    }
+  }
+  async assertNetworkReady(provider = this.qrlInstance): Promise<void> {
+    if (!IS_V3_PROFILE) return;
+    assertSupportedAccountSource(this.activeAccountSource);
+    const current = this.qrlInstance;
+    const account = this.activeAccount.accountAddress;
+    const source = this.activeAccountSource;
+    if (source === 'extension') assertQualifiedV3Provider(this.extensionProvider);
+    if (!provider || !current || this.qrlConnection.blockchain !== 'TEST_NET_V3' || !this.qrlConnection.isConnected) {
+      throw new Error('Testnet v3 network identity has not been verified');
+    }
+    try {
+      if (source === 'extension') {
+        assertQualifiedV3Provider(this.extensionProvider);
+        const extension = this.extensionProvider;
+        if (!extension) throw new Error('Extension is disconnected');
+        await qualifyV3Provider(extension);
+        if (extension !== this.extensionProvider) throw new Error('Extension changed during identity verification');
+      }
+      await verifyNetworkIdentity({ request: (args) => provider.requestManager.send(args) }, QRL_PROVIDER.TEST_NET_V3);
+      if (current !== this.qrlInstance || this.qrlConnection.blockchain !== 'TEST_NET_V3') throw new Error('Network changed during identity verification');
+      if (account !== this.activeAccount.accountAddress || source !== this.activeAccountSource) throw new Error('Account changed during identity verification');
+      assertSupportedAccountSource(this.activeAccountSource);
+    } catch (error) {
+      runInAction(() => { this.qrlConnection = { ...this.qrlConnection, isConnected: false }; });
+      throw error;
     }
   }
 }

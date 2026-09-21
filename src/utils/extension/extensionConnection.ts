@@ -2,6 +2,9 @@ import { QRL_EXTENSION_RDNS } from "@/constants";
 import type { AccountSource } from "@/utils/storage";
 import type { ExtensionProvider } from "@/stores/qrlStore";
 import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
+import { IS_V3_PROFILE } from '@/config/runtimeProfile';
+import { qualifyV3Provider } from './v3Provider';
+import { isValidQrlAddress } from '@/utils/web3/address';
 
 // EIP-6963 types (simplified)
 export interface EIP6963ProviderInfo {
@@ -87,19 +90,22 @@ export async function connectWithProvider(
   const provider = detail.provider;
 
   try {
+    await qualifyV3Provider(provider);
     console.log(`Attempting to connect to ${detail.info.name} using qrl_requestAccounts...`);
     const accounts = await provider.request<string[]>({ method: 'qrl_requestAccounts' });
 
     if (accounts && accounts.length > 0) {
+      if (IS_V3_PROFILE && !accounts.every(isValidQrlAddress)) {
+        throw new Error('The extension returned an invalid Testnet v3 account');
+      }
       const firstAccount = accounts[0];
       if (!firstAccount) return null; // length > 0 guarantees this; satisfies the index checker
       console.log("Connected to extension with accounts:", accounts);
 
       console.log(`Setting active account to: ${firstAccount}`);
-      await setActiveAccount(firstAccount, 'extension');
-
       console.log("Setting extension provider in store.");
       setExtensionProvider(provider);
+      await setActiveAccount(firstAccount, 'extension');
 
       return accounts;
     } else {

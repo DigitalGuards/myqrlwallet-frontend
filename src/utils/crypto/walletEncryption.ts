@@ -1,6 +1,7 @@
 import type { Web3BaseWalletAccount } from '@theqrl/web3';
 import { isInNativeApp, shareContent } from '@/utils/nativeApp';
 import { isDesktop } from '@/desktop/bridge';
+import { formatAddressFingerprint } from '@/utils/formatting/address';
 import {
   DeviceCredentialUnavailableError,
   getDeviceEncryptionKey,
@@ -477,7 +478,7 @@ export class WalletEncryptionUtil {
     // In native app, use share functionality instead of browser download
     if (isInNativeApp()) {
       shareContent({
-        title: `QRL Wallet - ${walletData.address.substring(0, 10)}...`,
+        title: `QRL Wallet - ${formatAddressFingerprint(walletData.address)}`,
         text: fileContent,
       });
       return;

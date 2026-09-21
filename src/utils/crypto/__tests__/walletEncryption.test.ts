@@ -20,7 +20,7 @@
  */
 
 jest.mock('@/utils/nativeApp', () => ({
-  isInNativeApp: () => false,
+  isInNativeApp: jest.fn(() => false),
   shareContent: jest.fn(),
 }));
 
@@ -43,13 +43,17 @@ import {
   OutdatedWalletFormatError,
   DeviceCredentialUnavailableError,
   type EncryptedWallet,
+  type ExtendedWalletAccount,
   type WalletData,
 } from '../walletEncryption';
 import { getDeviceEncryptionKey } from '../deviceCredential';
+import { isInNativeApp, shareContent } from '@/utils/nativeApp';
 
 const mockGetDeviceEncryptionKey = getDeviceEncryptionKey as jest.MockedFunction<
   typeof getDeviceEncryptionKey
 >;
+const mockIsInNativeApp = isInNativeApp as jest.MockedFunction<typeof isInNativeApp>;
+const mockShareContent = shareContent as jest.MockedFunction<typeof shareContent>;
 
 const MNEMONIC =
   'absorb absurd abuse access accident account accuse achieve acid acoustic acquire across';
@@ -106,6 +110,9 @@ beforeAll(async () => {
 beforeEach(() => {
   mockGetDeviceEncryptionKey.mockReset();
   mockGetDeviceEncryptionKey.mockResolvedValue(deviceKey);
+  mockIsInNativeApp.mockReset();
+  mockIsInNativeApp.mockReturnValue(false);
+  mockShareContent.mockReset();
 });
 
 describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
@@ -237,7 +244,7 @@ describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
 
 describe('WalletEncryptionUtil password wallet file (WebCrypto AES-GCM)', () => {
   const walletData: WalletData = {
-    address: 'Q6153d37Fa4DA7193E6219DCBd2bBe62Fa12905b1',
+    address: `Q${'1'.repeat(128)}`,
     mnemonic: MNEMONIC,
     hexSeed: HEX_SEED,
   };
@@ -286,5 +293,16 @@ describe('WalletEncryptionUtil password wallet file (WebCrypto AES-GCM)', () => 
     ).rejects.toThrow(/Failed to decrypt wallet/);
     expect(importKey).not.toHaveBeenCalled();
     importKey.mockRestore();
+  });
+
+  it('uses the standard fingerprint only in the native share title', async () => {
+    mockIsInNativeApp.mockReturnValue(true);
+
+    await WalletEncryptionUtil.downloadWallet(walletData as ExtendedWalletAccount);
+
+    expect(mockShareContent).toHaveBeenCalledTimes(1);
+    const shared = mockShareContent.mock.calls[0]?.[0];
+    expect(shared?.title).toBe('QRL Wallet - Q11111111...11111111...11111111');
+    expect(JSON.parse(shared?.text ?? '{}').address).toBe(walletData.address);
   });
 });

@@ -2,8 +2,9 @@ import { DAPP_TRANSACTION_LIMITS, RequestHandler } from '../RequestHandler';
 import { TYPED_DATA_LIMITS } from '@/utils/signing';
 import { isExactQrlAccount, Q_ADDRESS_PATTERN } from '../accountBinding';
 
-const SIGNER = 'Q0000000000000000000000000000000000000000';
-const RECIPIENT = 'Q1111111111111111111111111111111111111111';
+const SIGNER = `Q${'0'.repeat(128)}`;
+const RECIPIENT = `Q${'1'.repeat(128)}`;
+const LEGACY_Q40 = `Q${'0'.repeat(40)}`;
 
 function typedPayload(fieldType: string, value: unknown): unknown {
   return {
@@ -30,6 +31,29 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
     expect(RequestHandler.isKnownMethod('wallet_addQrlChain')).toBe(false);
     expect(RequestHandler.isKnownMethod('qrl_newFilter')).toBe(false);
     expect(RequestHandler.isKnownMethod('personal_sign')).toBe(false);
+  });
+
+  it('accepts only QIP-55 addresses and exact VM64 topics for qrl_getLogs', () => {
+    const eventTopic = `0x${'ab'.repeat(32)}${'00'.repeat(32)}`;
+    const indexedAddress = `0x${'cd'.repeat(64)}`;
+    expect(() =>
+      RequestHandler.validateUnrestrictedRequest('qrl_getLogs', [
+        {
+          address: SIGNER,
+          topics: [eventTopic, null, [indexedAddress]],
+        },
+      ]),
+    ).not.toThrow();
+    expect(() =>
+      RequestHandler.validateUnrestrictedRequest('qrl_getLogs', [
+        { address: SIGNER, topics: [`0x${'ab'.repeat(32)}`] },
+      ]),
+    ).toThrow('exact 64-byte VM64');
+    expect(() =>
+      RequestHandler.validateUnrestrictedRequest('qrl_getLogs', [
+        { address: LEGACY_Q40, topics: [eventTopic] },
+      ]),
+    ).toThrow('QIP-55');
   });
 
   it('validates the complete JSON-RPC request envelope', () => {
@@ -63,12 +87,13 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
   });
 
   it('binds QRL accounts with exact string equality', () => {
-    const canonical = 'QABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD';
+    const canonical = `Q${'ABCDEF'.repeat(21)}AB`;
     const caseVariant = `Q${canonical.slice(1).toLowerCase()}`;
 
     expect(isExactQrlAccount(canonical, canonical)).toBe(true);
     expect(isExactQrlAccount(caseVariant, canonical)).toBe(false);
     expect(Q_ADDRESS_PATTERN.test(`q${canonical.slice(1)}`)).toBe(false);
+    expect(isExactQrlAccount(LEGACY_Q40, LEGACY_Q40)).toBe(false);
   });
 
   it('accepts only empty qrl_requestAccounts params', () => {

@@ -1,4 +1,13 @@
-export const Q_ADDRESS_PATTERN = /^Q[0-9a-fA-F]{40}$/;
+import {
+  isValidQrlAddress,
+  QRL_ADDRESS_PATTERN,
+} from "@/utils/web3/address";
+
+export const Q_ADDRESS_PATTERN = QRL_ADDRESS_PATTERN;
+
+export function isQrlAccount(candidate: unknown): candidate is string {
+  return isValidQrlAddress(candidate);
+}
 
 /** QRL Connect account authorization is a byte-for-byte string binding. */
 export function isExactQrlAccount(
@@ -8,8 +17,8 @@ export function isExactQrlAccount(
   return (
     typeof candidate === "string" &&
     typeof expected === "string" &&
-    Q_ADDRESS_PATTERN.test(candidate) &&
-    Q_ADDRESS_PATTERN.test(expected) &&
+    isQrlAccount(candidate) &&
+    isQrlAccount(expected) &&
     candidate === expected
   );
 }

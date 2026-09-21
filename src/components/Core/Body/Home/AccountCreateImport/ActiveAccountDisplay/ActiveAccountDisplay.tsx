@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useStore } from "../../../../../../stores/store";
 import { observer } from "mobx-react-lite";
 import { Copy, Check, RefreshCw } from "lucide-react";
-import { formatBalance, formatAddress } from "@/utils/formatting";
+import { formatBalance } from "@/utils/formatting";
 import { copyToClipboard } from "@/utils/nativeApp";
 import { SlotBalance } from "./SlotBalance";
+import { QrlAddress } from "@/components/UI/QrlAddress";
 
-export const ActiveAccountDisplay = observer(() => {
+export const ActiveAccountDisplay = observer(({ onShowAddress }: { onShowAddress: () => void }) => {
   const { qrlStore } = useStore();
   const { activeAccount, fetchAccounts, activeAccountBalance, activeAccountBalanceUsd, qrlPrice, qrlPriceChange24h } = qrlStore;
   const { accountAddress } = activeAccount;
@@ -96,10 +97,14 @@ export const ActiveAccountDisplay = observer(() => {
       )}
       <div className="flex justify-center">
         <div
-          className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-identity-accent/30 bg-identity-accent/[0.08] px-3 sm:px-4 py-1.5 text-[clamp(0.6rem,2.5vw,0.875rem)] group cursor-pointer backdrop-blur-sm transition-colors hover:border-identity-accent/60"
+          className="active-account-address inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-identity-accent/30 bg-identity-accent/[0.08] px-3 sm:px-4 py-1.5 text-[clamp(0.6rem,2.5vw,0.875rem)] group cursor-pointer backdrop-blur-sm transition-colors hover:border-identity-accent/60"
           onClick={() => handleCopy(accountAddress, 'address')}
         >
-          <span className="font-data text-identity-accent">{formatAddress(accountAddress)}</span>
+          <QrlAddress
+            address={accountAddress}
+            onShowFull={onShowAddress}
+            addressClassName="text-identity-accent"
+          />
           {copiedItem === 'address' ? (
             <Check className="w-3.5 h-3.5 text-success" />
           ) : (

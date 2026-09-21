@@ -3,7 +3,9 @@ import {
   requestNativeDeviceCredential,
 } from '@/utils/nativeApp';
 
-const DATABASE_NAME = 'myqrlwallet-device-credentials';
+import { profileStorageKey } from '@/config/runtimeProfile';
+
+const DATABASE_NAME = profileStorageKey('myqrlwallet-device-credentials');
 const DATABASE_VERSION = 1;
 const STORE_NAME = 'credentials';
 const DEVICE_KEY_ID = 'wallet-seed-device-key-v1';

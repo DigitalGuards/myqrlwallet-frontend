@@ -17,7 +17,10 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { newWalletFromExtendedSeed } from "@theqrl/wallet.js";
+import {
+  newWalletFromExtendedSeed,
+  toChecksumAddress,
+} from "@theqrl/wallet.js";
 import {
   bytesToHex,
   computeMessageDigest,
@@ -29,7 +32,6 @@ import {
   signTypedData,
   typeHash,
   verifyMessage,
-  verifyTypedData,
 } from "..";
 import type { TypedDataPayload } from "..";
 
@@ -86,7 +88,7 @@ describe("canonical fixtures", () => {
     }
   });
 
-  it("typedData encoder agrees with every locked vector", () => {
+  it("preserves legacy type hashes while rejecting Q+40 typed payloads", () => {
     expect(canonical.typedVectors.length).toBeGreaterThan(0);
     for (const v of canonical.typedVectors) {
       expect({
@@ -108,19 +110,10 @@ describe("canonical fixtures", () => {
         domainHash: v.domainHashHex,
       });
 
-      const mh = bytesToHex(
+      expect(() =>
         hashStruct(v.payload.primaryType, v.payload.message, v.payload.types),
-      );
-      expect({ label: v.label, messageHash: mh }).toEqual({
-        label: v.label,
-        messageHash: v.messageHashHex,
-      });
-
-      const final = bytesToHex(computeTypedDataDigest(v.payload));
-      expect({ label: v.label, digest: final }).toEqual({
-        label: v.label,
-        digest: v.digestHex,
-      });
+      ).toThrow(/invalid Q-address/);
+      expect(() => computeTypedDataDigest(v.payload)).toThrow(/invalid Q-address/);
     }
   });
 
@@ -128,6 +121,7 @@ describe("canonical fixtures", () => {
     for (const v of canonical.signingVectors) {
       const wallet = newWalletFromExtendedSeed(v.hexSeed);
       const expectedDescriptor = bytesToHex(wallet.getDescriptor().toBytes());
+      const expectedSigner = toChecksumAddress(wallet.getAddressStr());
       wallet.zeroize();
       if (v.messageHex !== undefined) {
         const got = signMessage(v.messageHex, v.hexSeed, { randomized: false });
@@ -141,7 +135,7 @@ describe("canonical fixtures", () => {
           label: v.label,
           signature: v.signature,
           publicKey: v.publicKey,
-          signer: v.signer,
+          signer: expectedSigner,
           digest: v.digest,
           descriptor: undefined,
           schemeVersion: undefined,
@@ -153,29 +147,12 @@ describe("canonical fixtures", () => {
             messageBytes: v.messageHex,
           }),
         ).toBe(true);
-      } else if (v.payload) {
-        const got = signTypedData(v.payload, v.hexSeed, { randomized: false });
-        expect(got.descriptor).toBe(expectedDescriptor);
-        expect({
-          label: v.label,
-          signature: got.signature,
-          publicKey: got.publicKey,
-          signer: got.signer,
-          digest: got.digest,
-        }).toEqual({
-          label: v.label,
-          signature: v.signature,
-          publicKey: v.publicKey,
-          signer: v.signer,
-          digest: v.digest,
-        });
-        expect(
-          verifyTypedData({
-            signature: got.signature,
-            publicKey: got.publicKey,
-            payload: v.payload,
-          }),
-        ).toBe(true);
+      } else {
+        const payload = v.payload;
+        if (!payload) continue;
+        expect(() =>
+          signTypedData(payload, v.hexSeed, { randomized: false }),
+        ).toThrow(/invalid Q-address/);
       }
     }
   });

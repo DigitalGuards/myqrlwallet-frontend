@@ -1,9 +1,17 @@
+import { profileStorageKey } from "@/config/runtimeProfile";
+
 export type WalletEpoch = string;
 
 export const INITIAL_WALLET_EPOCH: WalletEpoch = "legacy";
-export const WALLET_EPOCH_STORAGE_KEY = "qrlwallet:wallet-epoch-v1";
-const WALLET_EPOCH_CHANNEL_NAME = "qrlwallet:wallet-epoch-v1";
-export const WALLET_MUTATION_LOCK_NAME = "qrlwallet:wallet-mutation-v1";
+export const WALLET_EPOCH_STORAGE_KEY = profileStorageKey(
+  "qrlwallet:wallet-epoch-v1",
+);
+const WALLET_EPOCH_CHANNEL_NAME = profileStorageKey(
+  "qrlwallet:wallet-epoch-v1",
+);
+export const WALLET_MUTATION_LOCK_NAME = profileStorageKey(
+  "qrlwallet:wallet-mutation-v1",
+);
 
 type WalletEpochListener = (epoch: WalletEpoch) => void;
 

@@ -5,38 +5,8 @@ import { useState } from "react"
 import { observer } from "mobx-react-lite"
 import { useStore } from "@/stores/store"
 import { copyToClipboard } from "@/utils/nativeApp"
+import { QrlAddress } from "@/components/UI/QrlAddress"
 import { SlotBalance } from "../../Home/AccountCreateImport/ActiveAccountDisplay/SlotBalance"
-
-// Create a component for the cell to manage its own copy state
-const CopyableAddress = ({ address }: { address: string }) => {
-    const [isCopied, setIsCopied] = useState(false);
-
-    const handleCopy = async (text: string) => {
-        const success = await copyToClipboard(text);
-        if (success) {
-            setIsCopied(true);
-            setTimeout(() => {
-                setIsCopied(false);
-            }, 1500);
-        }
-    };
-
-    const formattedAddress = `${address?.substring(0, 5)}...${address?.substring(address?.length - 5)}`;
-
-    return (
-        <div className="font-medium flex items-center gap-2 group">
-            <span>{formattedAddress}</span>
-            {isCopied ? (
-                <Check className="w-4 h-4 text-success" />
-            ) : (
-                <Copy
-                    className="w-4 h-4 opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity cursor-pointer"
-                    onClick={() => handleCopy(address)}
-                />
-            )}
-        </div>
-    );
-};
 
 const CopyableText = ({ text, className }: { text: string; className?: string }) => {
     const [isCopied, setIsCopied] = useState(false);
@@ -52,7 +22,7 @@ const CopyableText = ({ text, className }: { text: string; className?: string })
     };
 
     return (
-        <div className="flex items-center gap-2 group">
+        <div className="flex flex-wrap items-center gap-2 group">
             <span className={className}>{text}</span>
             {isCopied ? (
                 <Check className="w-4 h-4 text-success" />
@@ -82,7 +52,7 @@ const BalanceCell = observer(({ amount }: { amount: string }) => {
     };
 
     return (
-        <div className="flex items-center gap-2 group">
+        <div className="flex flex-wrap items-center gap-2 group">
             <SlotBalance value={amount} spinning={tokenStore.isRefreshingBalances} />
             {isCopied ? (
                 <Check className="w-4 h-4 text-success" />
@@ -136,7 +106,17 @@ export const columns: ColumnDef<TokenInterface>[] = [
         header: "Token Address",
         cell: ({ row }) => {
             const address: string = row.getValue('address')
-            return <div className="hidden md:block"><CopyableAddress address={address} /></div>;
+            return (
+                <div className="hidden md:block">
+                    <QrlAddress
+                        address={address}
+                        compactFormat="short"
+                        onShowFull={() => row.toggleSelected(true)}
+                        copyable
+                        className="font-medium"
+                    />
+                </div>
+            );
         },
     },
     {

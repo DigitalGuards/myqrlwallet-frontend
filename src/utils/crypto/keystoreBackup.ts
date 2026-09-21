@@ -72,8 +72,8 @@ const KDF_PARAM_BOUNDS = {
   dklen: { min: 32, max: 32 },
 } as const;
 
-// Current extended-seed length (3-byte descriptor + 48-byte seed). Will grow
-// to 64 when the QIP-55 relaunch lands; both sides change together.
+// Extended-seed length remains 3 descriptor bytes plus 48 seed bytes. QIP-55
+// widens the derived address independently of this seed encoding.
 const SEED_BYTES = 51;
 const IV_BYTES = 12;
 const GCM_TAG_BYTES = 16;

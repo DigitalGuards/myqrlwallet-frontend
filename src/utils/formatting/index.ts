@@ -9,5 +9,7 @@ export {
 
 export {
   formatAddress,
+  formatAddressFingerprint,
+  formatAddressFingerprintsInText,
   formatAddressShort,
 } from './address';

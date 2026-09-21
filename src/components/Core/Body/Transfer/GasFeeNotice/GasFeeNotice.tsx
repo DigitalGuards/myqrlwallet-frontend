@@ -16,7 +16,7 @@ const FEE_DISPLAY: Record<FeeLevel, { label: string; multiplier: number }> = {
 type GasFeeNoticeProps = {
   from: string;
   to: string;
-  value: number;
+  value: string;
   isSubmitting: boolean;
   feeLevel: FeeLevel;
   onFeeLevelChange: (level: FeeLevel) => void;

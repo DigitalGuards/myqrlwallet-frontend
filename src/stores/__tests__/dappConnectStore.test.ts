@@ -60,7 +60,7 @@ function makeSession(): DAppSession {
     dappInfo: { name: "Test dApp", url: "https://a.example/", chainId: "0x1" },
     originatorInfoReceived: true,
     accountAuthorized: true,
-    connectedAccount: "Q0000000000000000000000000000000000000000",
+    connectedAccount: `Q${"0".repeat(128)}`,
     keyExchange: {
       protocolVersion: 3,
       cid: "c1",

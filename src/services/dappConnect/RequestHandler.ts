@@ -6,7 +6,8 @@
 
 import type { PendingDAppRequest, DAppInfo, JsonRpcRequest } from './types';
 import { computeTypedDataDigest, TYPED_DATA_LIMITS } from '@/utils/signing';
-import { Q_ADDRESS_PATTERN } from './accountBinding';
+import { isQrlAccount } from './accountBinding';
+import { normalizeQrlVm64Topic } from '@/utils/web3/address';
 
 /**
  * Methods that require user approval.
@@ -84,12 +85,12 @@ function validateTransactionParams(params: unknown): void {
   const unsupported = Object.keys(tx).find(field => !TRANSACTION_FIELDS.has(field));
   if (unsupported) throw new Error(`transaction field is not supported: ${unsupported}`);
 
-  if (typeof tx['from'] !== 'string' || !Q_ADDRESS_PATTERN.test(tx['from'])) {
+  if (!isQrlAccount(tx['from'])) {
     throw new Error('transaction from must be a valid Q-address');
   }
   // Both current signing runtimes require a recipient, so contract creation
   // is deliberately not accepted through this approval surface.
-  if (typeof tx['to'] !== 'string' || !Q_ADDRESS_PATTERN.test(tx['to'])) {
+  if (!isQrlAccount(tx['to'])) {
     throw new Error('transaction to must be a valid Q-address');
   }
   if ('value' in tx) validateRpcQuantity(tx['value'], 'value');
@@ -101,6 +102,45 @@ function validateTransactionParams(params: unknown): void {
       !/^0x(?:[0-9a-fA-F]{2})*$/.test(tx['data']))
   ) {
     throw new Error('transaction data must be bounded 0x-prefixed bytes');
+  }
+}
+
+function isValidVm64TopicSlot(value: unknown): boolean {
+  if (value === null) return true;
+  if (typeof value === 'string') return normalizeQrlVm64Topic(value) !== null;
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(
+      candidate =>
+        candidate === null ||
+        (typeof candidate === 'string' && normalizeQrlVm64Topic(candidate) !== null),
+    )
+  );
+}
+
+function validateGetLogsParams(params: unknown): void {
+  if (!Array.isArray(params) || params.length !== 1) {
+    throw new Error('qrl_getLogs requires exactly one filter object');
+  }
+  const candidate = params[0];
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+    throw new Error('qrl_getLogs requires exactly one filter object');
+  }
+  const filter = candidate as Record<string, unknown>;
+  if ('address' in filter) {
+    const addresses = Array.isArray(filter['address'])
+      ? filter['address']
+      : [filter['address']];
+    if (addresses.length === 0 || !addresses.every(isQrlAccount)) {
+      throw new Error('qrl_getLogs filter address must use QIP-55');
+    }
+  }
+  if (
+    'topics' in filter &&
+    (!Array.isArray(filter['topics']) || !filter['topics'].every(isValidVm64TopicSlot))
+  ) {
+    throw new Error('qrl_getLogs topics must use exact 64-byte VM64 values');
   }
 }
 
@@ -187,7 +227,7 @@ export class RequestHandler {
         throw new Error('qrl_signMessage requires [signer, messageHex]');
       }
       const [signer, messageHex] = params;
-      if (typeof signer !== 'string' || !/^Q[0-9a-fA-F]{40}$/.test(signer)) {
+      if (!isQrlAccount(signer)) {
         throw new Error('qrl_signMessage requires a valid Q-address signer');
       }
       if (
@@ -205,7 +245,7 @@ export class RequestHandler {
         throw new Error('qrl_signTypedData requires [signer, payload]');
       }
       const [signer, payload] = params;
-      if (typeof signer !== 'string' || !/^Q[0-9a-fA-F]{40}$/.test(signer)) {
+      if (!isQrlAccount(signer)) {
         throw new Error('qrl_signTypedData requires a valid Q-address signer');
       }
       // Full recursive validation, including resource budgets, happens while
@@ -228,6 +268,11 @@ export class RequestHandler {
         throw new Error('wallet_switchQrlChain requires a 0x-prefixed chainId');
       }
     }
+  }
+
+  /** Validate width-sensitive read methods before forwarding to the provider. */
+  static validateUnrestrictedRequest(method: string, params: unknown): void {
+    if (method === 'qrl_getLogs') validateGetLogsParams(params);
   }
 
   /**

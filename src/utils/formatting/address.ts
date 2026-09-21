@@ -1,30 +1,77 @@
-/**
- * Formats a QRL address into groups of 6 characters.
- * The Q prefix is included with the first group.
- * Example: Q2019EA08... -> "Q2019E A08f4e 24201B..."
- */
-export const formatAddress = (address: string, groupSize: number = 6): string => {
-  if (!address) return "";
+import { isValidQrlAddress } from "@/utils/web3/address";
 
+const ADDRESS_FINGERPRINT_SEGMENT_LENGTH = 8;
+const ADDRESS_GROUP_LENGTH = 8;
+const LEGACY_QRL_ADDRESS_PATTERN = /^[QZ][0-9a-fA-F]{40}$/;
+const EMBEDDED_QRL_ADDRESS_PATTERN =
+  /(^|[^0-9a-fA-F])(Q[0-9a-fA-F]{128}|[QZ][0-9a-fA-F]{40})(?=$|[^0-9a-fA-F])/g;
+
+function isDisplayableQrlAddress(address: string): boolean {
+  return isValidQrlAddress(address) || LEGACY_QRL_ADDRESS_PATTERN.test(address);
+}
+
+function splitQrlPrefix(address: string): { prefix: string; payload: string } {
+  return { prefix: address.charAt(0), payload: address.slice(1) };
+}
+
+/**
+ * Produces a compact address fingerprint sampled from the beginning, centre,
+ * and end of the complete address payload. Checksum casing is preserved.
+ */
+export const formatAddressFingerprint = (address: string): string => {
+  if (!isDisplayableQrlAddress(address)) return address;
+
+  const { prefix, payload } = splitQrlPrefix(address);
+  const middleStart = Math.floor(
+    (payload.length - ADDRESS_FINGERPRINT_SEGMENT_LENGTH) / 2,
+  );
+
+  return [
+    `${prefix}${payload.slice(0, ADDRESS_FINGERPRINT_SEGMENT_LENGTH)}`,
+    payload.slice(
+      middleStart,
+      middleStart + ADDRESS_FINGERPRINT_SEGMENT_LENGTH,
+    ),
+    payload.slice(-ADDRESS_FINGERPRINT_SEGMENT_LENGTH),
+  ].join("...");
+};
+
+/** Keeps only the start and end for narrow address columns. */
+export const formatAddressEnds = (address: string): string => {
+  if (!isDisplayableQrlAddress(address)) return address;
+  const { prefix, payload } = splitQrlPrefix(address);
+  return `${prefix}${payload.slice(0, ADDRESS_FINGERPRINT_SEGMENT_LENGTH)}...${payload.slice(-ADDRESS_FINGERPRINT_SEGMENT_LENGTH)}`;
+};
+
+/** Formats the complete address into readable groups that can wrap safely. */
+export const formatAddress = (
+  address: string,
+  groupSize: number = ADDRESS_GROUP_LENGTH,
+): string => {
+  if (!isDisplayableQrlAddress(address)) return address;
+  if (!Number.isInteger(groupSize) || groupSize <= 0) return address;
+
+  const { prefix, payload } = splitQrlPrefix(address);
   const groups: string[] = [];
-  for (let i = 0; i < address.length; i += groupSize) {
-    groups.push(address.substring(i, i + groupSize));
+  for (let index = 0; index < payload.length; index += groupSize) {
+    groups.push(payload.slice(index, index + groupSize));
   }
 
+  if (groups.length === 0) return prefix;
+  groups[0] = `${prefix}${groups[0]}`;
   return groups.join(" ");
 };
 
-/**
- * Formats a QRL address for display in a shortened form.
- * Shows first and last groups with ellipsis in between.
- * Example: Z2019EA08...4b924A04892 -> "Z2019E ... 04892"
- */
-export const formatAddressShort = (address: string, groupSize: number = 6): string => {
-  if (!address) return "";
-  if (address.length <= groupSize * 2) return formatAddress(address, groupSize);
+/** Compatibility alias for existing compact-address call sites. */
+export const formatAddressShort = (address: string): string =>
+  formatAddressFingerprint(address);
 
-  const firstGroup = address.substring(0, groupSize);
-  const lastGroup = address.substring(address.length - groupSize);
-
-  return `${firstGroup} ... ${lastGroup}`;
-};
+/** Compacts valid QRL addresses embedded in labels such as wallet filenames. */
+export const formatAddressFingerprintsInText = (value: string): string =>
+  value.replace(
+    EMBEDDED_QRL_ADDRESS_PATTERN,
+    (match, leading: string, address: string) => {
+      const fingerprint = formatAddressFingerprint(address);
+      return fingerprint === address ? match : `${leading}${fingerprint}`;
+    },
+  );

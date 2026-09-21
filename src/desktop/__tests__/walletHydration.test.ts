@@ -16,9 +16,12 @@ import {
 } from '../walletHydration';
 import type { AccountListItem } from '@/utils/storage';
 
-const A = 'Q1111111111111111111111111111111111111111';
-const B = 'Q2222222222222222222222222222222222222222';
-const C = 'Q3333333333333333333333333333333333333333';
+const A = `Q${'1'.repeat(128)}`;
+const B =
+  'Qd5812F6Cf4a0f645aa620cd57319a0Ed649dd8f5519A9dde7770ae5b0E49e547985f35eB972A2a07041561aa39c65A3991478f9B1e6749e05277dcf58A9A8B72';
+const C = `Q${'3'.repeat(128)}`;
+const LEGACY_Q40 = `Q${'4'.repeat(40)}`;
+const uniformLower = (address: string): string => `Q${address.slice(1).toLowerCase()}`;
 
 describe('reconcileSignerWallets', () => {
   it('adds a signer wallet missing from an empty list (the reported bug)', () => {
@@ -86,7 +89,7 @@ describe('reconcileSignerWallets', () => {
 
   it('matches known addresses case-insensitively (no duplicate, no drop)', () => {
     const stored: AccountListItem[] = [{ address: A, source: 'seed' }];
-    const { list, changed } = reconcileSignerWallets(stored, [A.toLowerCase()], true);
+    const { list, changed } = reconcileSignerWallets(stored, [uniformLower(A)], true);
     expect(changed).toBe(false);
     expect(list).toHaveLength(1);
   });
@@ -101,6 +104,13 @@ describe('reconcileSignerWallets', () => {
     const { list, changed } = reconcileSignerWallets([], [''], true);
     expect(changed).toBe(false);
     expect(list).toEqual([]);
+  });
+
+  it('rejects legacy signer identities without deleting renderer recovery rows', () => {
+    const stored: AccountListItem[] = [{ address: A, source: 'seed' }];
+    const { list, changed } = reconcileSignerWallets(stored, [LEGACY_Q40], true);
+    expect(changed).toBe(false);
+    expect(list).toEqual(stored);
   });
 
   it('does not mutate the input array', () => {
@@ -127,7 +137,7 @@ describe('reconcileSignerWallets', () => {
 describe('isAddressListed', () => {
   it('finds an address case-insensitively', () => {
     const list: AccountListItem[] = [{ address: A, source: 'seed' }];
-    expect(isAddressListed(list, A.toLowerCase())).toBe(true);
+    expect(isAddressListed(list, uniformLower(A))).toBe(true);
   });
 
   it('returns false for a removed address and tolerates malformed entries', () => {
@@ -172,8 +182,8 @@ describe('decideActiveAccount', () => {
     // or validateActiveAccount's strict === find misses and clears the active.
     const d = decideActiveAccount({
       list,
-      storedActive: B.toLowerCase(),
-      signerActive: B.toLowerCase(),
+      storedActive: uniformLower(B),
+      signerActive: uniformLower(B),
       signerAddresses: [A, B],
       authoritative: true,
     });
@@ -195,7 +205,7 @@ describe('decideActiveAccount', () => {
     const d = decideActiveAccount({
       list,
       storedActive: A,
-      signerActive: B.toLowerCase(),
+      signerActive: uniformLower(B),
       signerAddresses: [A, B],
       authoritative: true,
     });
@@ -281,7 +291,7 @@ describe('pickActiveWallet', () => {
   });
 
   it('matches the active pointer case-insensitively', () => {
-    expect(pickActiveWallet([A, B], B.toLowerCase())).toBe(B.toLowerCase());
+    expect(pickActiveWallet([A, B], uniformLower(B))).toBe(B);
   });
 
   it('falls back to the first wallet when active is null', () => {

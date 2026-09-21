@@ -26,12 +26,8 @@ jest.mock('@theqrl/wallet.js', () => ({
     getAddressStr: mockGetAddressStr,
     zeroize: mockZeroize,
   })),
-}));
-
-jest.mock('@theqrl/web3', () => ({
-  utils: {
-    toChecksumAddress: jest.fn((address: string) => address),
-  },
+  toChecksumAddress: jest.fn((address: string) => address),
+  isValidChecksumAddress: jest.fn((address: string) => /^Q[0-9a-fA-F]{128}$/.test(address)),
 }));
 
 import { decryptStoredSeedWithPin } from '../storedSeed';
@@ -57,13 +53,13 @@ const mockEncryptSeed = WalletEncryptionUtil.encryptSeedWithPin as jest.MockedFu
 >;
 
 const SEED = { mnemonic: 'word '.repeat(23) + 'word', hexSeed: 'ab'.repeat(48) };
-const ADDRESS = 'Q6153d37Fa4DA7193E6219DCBd2bBe62Fa12905b1';
-const OTHER_ADDRESS = 'QcfEC0CbEe560cbD6ED89580204AF71448F1fb8c5';
+const ADDRESS = `Q${'12'.repeat(64)}`;
+const OTHER_ADDRESS = `Q${'34'.repeat(64)}`;
 
 describe('decryptStoredSeedWithPin migration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetAddressStr.mockReturnValue(`${ADDRESS}${'a'.repeat(88)}`);
+    mockGetAddressStr.mockReturnValue(ADDRESS);
     mockIsInNativeApp.mockReturnValue(false);
     mockDecryptVersioned.mockResolvedValue({ seed: SEED, version: 'pin_v4' });
     mockEncryptSeed.mockResolvedValue('{"version":"pin_v5"}');
@@ -173,7 +169,7 @@ describe('decryptStoredSeedWithPin migration', () => {
 
   it('rejects a valid ciphertext copied into another account slot before migration or backup', async () => {
     mockIsInNativeApp.mockReturnValue(true);
-    mockGetAddressStr.mockReturnValue(`${OTHER_ADDRESS}${'b'.repeat(88)}`);
+    mockGetAddressStr.mockReturnValue(OTHER_ADDRESS);
 
     await expect(
       decryptStoredSeedWithPin('qrl', ADDRESS, 'swapped-valid-blob', '123456'),

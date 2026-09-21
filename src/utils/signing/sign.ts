@@ -6,8 +6,10 @@
  */
 
 import * as mldsa from "@theqrl/mldsa87";
-import { newWalletFromExtendedSeed } from "@theqrl/wallet.js";
-import { utils as web3Utils } from "@theqrl/web3";
+import {
+  newWalletFromExtendedSeed,
+  toChecksumAddress,
+} from "@theqrl/wallet.js";
 import {
   SCHEME_TAG_MSG,
   SCHEME_TAG_TYPED,
@@ -18,13 +20,14 @@ import { computeMessageDigest } from "./messageDigest";
 import { computeTypedDataDigest, type TypedDataPayload } from "./typedData";
 import { bytesToHex, hexToBytes } from "./bytes";
 import { isDesktop } from "@/desktop/bridge";
+import { assertV3BrowserContext } from "@/config/runtimeProfile";
 
 export interface SignWithSchemeParams {
   /** SHAKE256 digest (64 bytes) produced by the per-scheme hasher. */
   digest: Uint8Array;
   /** Per-scheme domain-separation `ctx` (well under FIPS 204's 255-byte cap). */
   ctx: Uint8Array;
-  /** 40-byte hex extended seed (`0x...` or bare hex). */
+  /** 51-byte hex extended seed (`0x...` or bare hex). */
   hexSeed: string;
   /**
    * FIPS 204 §3.4 hedged signing. Default true. Tests force `false` to lock
@@ -73,6 +76,7 @@ export function signWithScheme({
   hexSeed,
   randomized = true,
 }: SignWithSchemeParams): SignWithSchemeResult {
+  assertV3BrowserContext();
   // Defense-in-depth: on desktop ML-DSA-87 signing happens only in the
   // isolated signer. The renderer must never derive the secret key from a
   // hex seed, so fail loudly if any path reaches here.
@@ -88,14 +92,7 @@ export function signWithScheme({
   try {
     const sigBuf = new Uint8Array(mldsa.CryptoBytes);
     mldsa.cryptoSignSignature(sigBuf, digest, wallet.sk, randomized, ctx);
-    // wallet.js v3 getAddressStr() returns the 97-char full identity
-    // (descriptor + ML-DSA-87 pubkey hash); the on-chain Q-address is the
-    // first 20 of those bytes with EIP-55 checksum casing. seedToAccount
-    // exposes the same value but via the nested wallet.js v2.0.2 dep, so we
-    // derive it directly here to avoid the version skew.
-    const signer = web3Utils.toChecksumAddress(
-      `Q${wallet.getAddressStr().slice(1, 41)}`,
-    );
+    const signer = toChecksumAddress(wallet.getAddressStr());
     return {
       signature: sigBuf,
       publicKey: new Uint8Array(wallet.pk),

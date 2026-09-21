@@ -12,11 +12,14 @@ export interface AddressBookEntry {
   createdAt: number;
 }
 
-const STORAGE_KEY = "qrl:addressBook:v1";
+import { profileStorageKey } from '@/config/runtimeProfile';
 
-// Shared validator (Q + 40 hex chars), re-exported for address-book UIs.
+const STORAGE_KEY = profileStorageKey("qrl:addressBook:qip55:v2");
+const LEGACY_STORAGE_KEY = profileStorageKey("qrl:addressBook:v1");
+
+// Shared QIP-55 validator, re-exported for address-book UIs.
 export { isValidQrlAddress } from "./web3/address";
-import { isValidQrlAddress } from "./web3/address";
+import { normalizeQrlAddress } from "./web3/address";
 import { isInNativeApp, notifyContactsUpdated } from "./nativeApp";
 
 const isEntry = (value: unknown): value is AddressBookEntry => {
@@ -36,7 +39,13 @@ export function loadAddressBook(): AddressBookEntry[] {
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isEntry);
+    return parsed
+      .filter(isEntry)
+      .map((entry) => {
+        const address = normalizeQrlAddress(entry.address);
+        return address ? { ...entry, address } : null;
+      })
+      .filter((entry): entry is AddressBookEntry => entry !== null);
   } catch {
     return [];
   }
@@ -62,12 +71,13 @@ export function addEntry(name: string, address: string): AddressBookEntry | stri
   const cleanName = name.trim();
   const cleanAddress = address.trim();
   if (!cleanName) return "Name is required";
-  if (!isValidQrlAddress(cleanAddress)) return "Not a valid QRL address (Q + 40 characters)";
-  if (findByAddress(cleanAddress)) return "This address is already saved";
+  const normalizedAddress = normalizeQrlAddress(cleanAddress);
+  if (!normalizedAddress) return "Not a valid QIP-55 address (Q + 128 hex characters)";
+  if (findByAddress(normalizedAddress)) return "This address is already saved";
   const entry: AddressBookEntry = {
     id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     name: cleanName,
-    address: cleanAddress,
+    address: normalizedAddress,
     createdAt: Date.now(),
   };
   persist([...loadAddressBook(), entry]);
@@ -103,6 +113,7 @@ export function removeEntry(id: string): boolean {
  */
 export function clearAddressBook(): void {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
 }
 
 /**
@@ -112,11 +123,22 @@ export function clearAddressBook(): void {
  */
 export function mergeContacts(incoming: unknown): void {
   if (!Array.isArray(incoming)) return;
-  const valid = incoming.filter(isEntry).filter((e) => isValidQrlAddress(e.address));
+  const valid = incoming
+    .filter(isEntry)
+    .map((entry) => {
+      const address = normalizeQrlAddress(entry.address);
+      return address ? { ...entry, address } : null;
+    })
+    .filter((entry): entry is AddressBookEntry => entry !== null);
   if (valid.length === 0) return;
   const existing = loadAddressBook();
   const known = new Set(existing.map((e) => e.address.toLowerCase()));
-  const additions = valid.filter((e) => !known.has(e.address.toLowerCase()));
+  const additions = valid.filter((entry) => {
+    const key = entry.address.toLowerCase();
+    if (known.has(key)) return false;
+    known.add(key);
+    return true;
+  });
   if (additions.length === 0) return;
   persist([...existing, ...additions]);
 }

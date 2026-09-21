@@ -17,15 +17,14 @@ import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { useStore } from "@/stores/store";
 import { StorageUtil } from "@/utils/storage";
 import { QRL_PROVIDER } from "@/config";
-import {
-  isValidQrlAddress,
-  getAddressValidationError,
-} from "@/utils/web3";
 import { DeviceCredentialUnavailableError, decryptStoredSeedWithPin, getAddressFromMnemonicAsync } from "@/utils/crypto";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import { isDesktop } from "@/desktop/bridge";
 import { NftImage } from "./NftImage";
 import { ROUTES } from "@/router/router";
+import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
+import { RecipientResolutionStatus } from "@/components/Core/RecipientResolutionStatus";
+import { QrlAddress } from "@/components/UI/QrlAddress";
 
 const NftDetail = observer(() => {
   const navigate = useNavigate();
@@ -52,6 +51,12 @@ const NftDetail = observer(() => {
   const [pinError, setPinError] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const blockchain = qrlStore.qrlConnection.blockchain;
+  const recipientResolution = useNetworkQrnsRecipient({
+    input: toAddress,
+    blockchain,
+    accountAddress,
+  });
 
   const txStatus = qrlStore.transactionStatus;
 
@@ -92,11 +97,18 @@ const NftDetail = observer(() => {
     setPinError("");
     setToAddressError("");
 
-    if (!isValidQrlAddress(toAddress)) {
-      setToAddressError(getAddressValidationError(toAddress));
+    const recipientSubmission =
+      recipientResolution.captureSubmission(toAddress);
+    if (!recipientSubmission) {
+      setToAddressError(
+        recipientResolution.message ??
+          "Enter a valid QIP-55 address or a resolved QNS name.",
+      );
       return;
     }
-    if (toAddress.toLowerCase() === accountAddress.toLowerCase()) {
+    if (
+      recipientSubmission.address.toLowerCase() === accountAddress.toLowerCase()
+    ) {
       setToAddressError("Cannot send to your own address.");
       return;
     }
@@ -137,7 +149,21 @@ const NftDetail = observer(() => {
         // Desktop: no PIN, no seed in the renderer. The store builds the
         // safeTransferFrom calldata and routes through the signer; the
         // mnemonic arg is unused.
-        const ok = await nftStore.transferNft(nft, toAddress, "", amountBig);
+        const recipientAddress =
+          recipientResolution.revalidateSubmission(recipientSubmission);
+        if (!recipientAddress) {
+          setToAddressError(
+            "Recipient resolution changed. Verify the recipient again before signing.",
+          );
+          setIsSending(false);
+          return;
+        }
+        const ok = await nftStore.transferNft(
+          nft,
+          recipientAddress,
+          "",
+          amountBig,
+        );
         if (!ok) {
           setSendError(qrlStore.transactionStatus.error ?? "Transfer failed.");
         }
@@ -200,9 +226,18 @@ const NftDetail = observer(() => {
         throw new Error("Wallet changed while preparing the NFT transfer");
       }
 
+      const recipientAddress =
+        recipientResolution.revalidateSubmission(recipientSubmission);
+      if (!recipientAddress) {
+        setToAddressError(
+          "Recipient resolution changed. Verify the recipient again before signing.",
+        );
+        setIsSending(false);
+        return;
+      }
       const ok = await nftStore.transferNft(
         nft,
-        toAddress,
+        recipientAddress,
         mnemonic,
         amountBig,
       );
@@ -260,8 +295,7 @@ const NftDetail = observer(() => {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {nft.contractAddress.slice(0, 6)}…
-                  {nft.contractAddress.slice(-4)}
+                  <QrlAddress address={nft.contractAddress} />
                   <ExternalLink className="h-3 w-3" />
                 </a>
               }
@@ -324,17 +358,18 @@ const NftDetail = observer(() => {
             )}
 
             <div>
-              <Label htmlFor="nft-to">Recipient Address</Label>
+              <Label htmlFor="nft-to">Recipient address or QNS name</Label>
               <Input
                 id="nft-to"
                 value={toAddress}
                 onChange={(e) => {
-                  setToAddress(e.target.value.trim());
+                  setToAddress(e.target.value);
                   setToAddressError("");
                 }}
-                placeholder="Q…"
+                placeholder="QIP-55 address or QNS name"
                 disabled={isSending}
               />
+              <RecipientResolutionStatus resolution={recipientResolution} />
               {toAddressError && (
                 <p className="mt-1 text-xs text-destructive">
                   {toAddressError}
@@ -379,7 +414,9 @@ const NftDetail = observer(() => {
             <Button
               type="submit"
               className="w-full"
-              disabled={isSending || !accountAddress}
+              disabled={
+                isSending || !accountAddress || !recipientResolution.address
+              }
             >
               {isSending ? (
                 <>

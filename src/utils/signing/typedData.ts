@@ -307,7 +307,11 @@ function parseQAddress(addr: string): Uint8Array {
   if (!isValidQrlAddress(addr)) {
     throw new Error(`invalid Q-address: ${String(addr)}`);
   }
-  return hexToBytes('0x' + addr.slice(1).toLowerCase());
+  const bytes = hexToBytes('0x' + addr.slice(1).toLowerCase());
+  if (bytes.length > SLOT) {
+    throw new Error('qrl_signTypedData v1 does not support QIP-55 address fields');
+  }
+  return bytes;
 }
 
 function padLeft32(bytes: Uint8Array): Uint8Array {

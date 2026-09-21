@@ -9,6 +9,7 @@ import type { TransactionReceipt } from "@theqrl/web3";
 import { log } from "@/utils";
 import { getErrorMessage } from "@/utils/errors";
 import { getQrlWeb3 } from "@/utils/web3";
+import { IS_V3_PROFILE } from '@/config/runtimeProfile';
 import { QRL_PROVIDER } from "@/config";
 import { StorageUtil } from "@/utils/storage";
 import { deriveHexSeedAsync } from "@/utils/crypto";
@@ -510,6 +511,22 @@ class NftStore {
     feeLevel: FeeLevel = "medium",
   ): Promise<boolean> {
     this.qrlStore.resetTransactionStatus();
+    const signingGeneration = walletMutations.captureGeneration();
+    const assertSigningCurrent = (): void => {
+      if (!walletMutations.isCurrent(signingGeneration)) {
+        throw new Error("Wallet changed while preparing the NFT transfer");
+      }
+    };
+    if (IS_V3_PROFILE) {
+      try {
+        await this.qrlStore.assertNetworkReady();
+        assertSigningCurrent();
+      }
+      catch (error) {
+        this.qrlStore.transactionStatus = { ...this.qrlStore.transactionStatus, state: 'failed', error: getErrorMessage(error) };
+        return false;
+      }
+    }
 
     // Desktop: build the safeTransferFrom calldata purely (no seed), then
     // route build/sign/broadcast through the signer. `mnemonicPhrases` is
@@ -587,13 +604,6 @@ class NftStore {
       }
     }
 
-    const signingGeneration = walletMutations.captureGeneration();
-    const assertSigningCurrent = (): void => {
-      if (!walletMutations.isCurrent(signingGeneration)) {
-        throw new Error("Wallet changed while preparing the NFT transfer");
-      }
-    };
-
     try {
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } =
@@ -602,6 +612,7 @@ class NftStore {
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       assertSigningCurrent();
       const seed = await deriveHexSeedAsync(mnemonicPhrases);
+      if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady(web3.qrl);
       assertSigningCurrent();
       const acc = web3.qrl.accounts.seedToAccount(seed);
       if (acc.address !== this.qrlStore.activeAccount.accountAddress) {
@@ -671,7 +682,11 @@ class NftStore {
       const finalTx = { ...txObj, gas };
 
       assertSigningCurrent();
-      const promiEvent = web3.qrl.sendTransaction(finalTx, undefined, {
+      if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady(web3.qrl);
+      assertSigningCurrent();
+      const promiEvent = web3.qrl.sendTransaction({ ...finalTx,
+        ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+      }, undefined, {
         checkRevertBeforeSending: true,
       });
 

@@ -20,6 +20,7 @@ export type TxProgressState =
   | "broadcasting"
   | "confirming"
   | "confirmed"
+  | "unknown"
   | "failed";
 
 /**

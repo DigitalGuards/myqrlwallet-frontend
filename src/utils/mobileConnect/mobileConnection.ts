@@ -2,6 +2,8 @@ import type { QRLConnect } from "@qrlwallet/connect";
 import type { ExtensionProvider } from "@/stores/qrlStore";
 import type { AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
+import { isValidQrlAddress } from "@/utils/web3/address";
+import { IS_V3_PROFILE, V3_UNSUPPORTED_SIGNER_MESSAGE } from '@/config/runtimeProfile';
 
 /**
  * dApp-side QRL Connect client: pairs this web wallet with the MyQRLWallet
@@ -86,7 +88,7 @@ function requestMobileAccountOnce(qrl: QRLConnect, store: MobileConnectStore): v
     .then(async (result) => {
       if (!pairingActive || pairingGeneration !== generation) return;
       const address = Array.isArray(result) && result.length === 1 ? result[0] : undefined;
-      if (typeof address !== "string" || !/^Q[0-9a-fA-F]{40}$/.test(address)) {
+      if (!isValidQrlAddress(address)) {
         log("Mobile connect: account approval returned no account");
         return;
       }
@@ -120,6 +122,7 @@ function requestMobileAccountOnce(qrl: QRLConnect, store: MobileConnectStore): v
 
 /** True when the SDK has a stored (unexpired at last write) pairing session. */
 export function hasMobileSession(): boolean {
+  if (IS_V3_PROFILE) return false;
   try {
     return localStorage.getItem(SDK_SESSION_KEY) !== null;
   } catch {
@@ -170,7 +173,7 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
       requestMobileAccountOnce(qrl, store);
       return;
     }
-    if (!/^Q[0-9a-fA-F]{40}$/.test(address)) {
+    if (!isValidQrlAddress(address)) {
       log("Mobile connect: rejected malformed cached account");
       pairingActive = false;
       pairingGeneration += 1;
@@ -190,7 +193,7 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
   qrl.on("accountsChanged", (accounts: string[]) => {
     if (!pairingActive) return;
     const next = accounts.length === 1 ? accounts[0] : undefined;
-    if (!next || !/^Q[0-9a-fA-F]{40}$/.test(next)) {
+    if (!isValidQrlAddress(next)) {
       // Wallet revoked account access: same cleanup as a terminate.
       log("Mobile connect: accounts revoked");
       pairingActive = false;
@@ -233,6 +236,7 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
 
 /** Lazy singleton. The first caller's store gets wired into the events. */
 export async function getMobileConnect(store: MobileConnectStore): Promise<QRLConnect> {
+  if (IS_V3_PROFILE) throw new Error(V3_UNSUPPORTED_SIGNER_MESSAGE);
   if (instance) return instance;
   creating ??= createInstance(store).then((qrl) => {
     instance = qrl;
@@ -302,7 +306,7 @@ export async function cancelMobilePairing(): Promise<void> {
   if (
     qrl &&
     qrl.getAccounts().length === 1 &&
-    /^Q[0-9a-fA-F]{40}$/.test(qrl.getAccounts()[0] ?? "")
+    isValidQrlAddress(qrl.getAccounts()[0])
   ) {
     return;
   }
@@ -327,6 +331,7 @@ export async function cancelMobilePairing(): Promise<void> {
  * auto-reconnect on the next load.
  */
 export async function disconnectMobile(): Promise<void> {
+  if (IS_V3_PROFILE) return;
   pairingActive = false;
   pairingGeneration += 1;
   accountRequestAttempted = true;
@@ -357,6 +362,7 @@ export async function maybeRestoreMobileConnection(
   store: MobileConnectStore,
   hasMobileAccount: boolean,
 ): Promise<void> {
+  if (IS_V3_PROFILE) return;
   if (!hasMobileSession()) return;
   if (!hasMobileAccount) {
     log("Mobile connect: stored SDK session without a mobile account; discarding");

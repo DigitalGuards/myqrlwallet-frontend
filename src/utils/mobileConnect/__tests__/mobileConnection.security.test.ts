@@ -8,6 +8,9 @@ let mockRequestResult: unknown = [];
 let mockRequestError: Error | null = null;
 let mockRequestHook: (() => Promise<unknown>) | null = null;
 let mockHasStoredSession = false;
+const QRL_ACCOUNT = `Q${"0".repeat(128)}`;
+const QRL_OTHER_ACCOUNT = `Q${"1".repeat(128)}`;
+const LEGACY_Q40 = `Q${"0".repeat(40)}`;
 
 class MockConnect {
   private handlers = new Map<string, Set<Handler>>();
@@ -122,7 +125,7 @@ describe("mobile pairing account consent", () => {
     await module.startMobilePairing(store);
     const qrl = mockInstances[0];
     if (!qrl) throw new Error("Expected QRLConnect instance");
-    mockRequestResult = ["Q0000000000000000000000000000000000000000"];
+    mockRequestResult = [QRL_ACCOUNT];
 
     qrl.emit("connect");
     qrl.emit("connect");
@@ -134,7 +137,7 @@ describe("mobile pairing account consent", () => {
       params: [],
     });
     expect(store.adoptMobileAccount).toHaveBeenCalledWith(
-      "Q0000000000000000000000000000000000000000",
+      QRL_ACCOUNT,
     );
   });
 
@@ -168,7 +171,7 @@ describe("mobile pairing account consent", () => {
     mockRequestHook = async () => {
       attempt += 1;
       if (attempt === 1) throw firstError;
-      return ["Q0000000000000000000000000000000000000000"];
+      return [QRL_ACCOUNT];
     };
 
     qrl.emit("connect");
@@ -180,12 +183,12 @@ describe("mobile pairing account consent", () => {
     await flush();
     expect(qrl.request).toHaveBeenCalledTimes(2);
     expect(store.adoptMobileAccount).toHaveBeenCalledWith(
-      "Q0000000000000000000000000000000000000000",
+      QRL_ACCOUNT,
     );
   });
 
   it("does not prompt when an authorized reconnect already has a cached account", async () => {
-    mockInitialAccounts = ["Q0000000000000000000000000000000000000000"];
+    mockInitialAccounts = [QRL_ACCOUNT];
     const store = makeStore();
     const module = await import("../mobileConnection");
     await module.startMobilePairing(store);
@@ -197,7 +200,7 @@ describe("mobile pairing account consent", () => {
 
     expect(qrl.request).not.toHaveBeenCalled();
     expect(store.adoptMobileAccount).toHaveBeenCalledWith(
-      "Q0000000000000000000000000000000000000000",
+      QRL_ACCOUNT,
     );
   });
 
@@ -232,7 +235,7 @@ describe("mobile pairing account consent", () => {
     qrl.emit("connect");
     await flush();
     await module.cancelMobilePairing();
-    resolveRequest(["Q0000000000000000000000000000000000000000"]);
+    resolveRequest([QRL_ACCOUNT]);
     await flush();
 
     expect(store.adoptMobileAccount).not.toHaveBeenCalled();
@@ -246,9 +249,10 @@ describe("mobile pairing account consent", () => {
     if (!qrl) throw new Error("Expected QRLConnect instance");
 
     qrl.emit("accountsChanged", [
-      "Q0000000000000000000000000000000000000000",
-      "Q1111111111111111111111111111111111111111",
+      QRL_ACCOUNT,
+      QRL_OTHER_ACCOUNT,
     ]);
+    qrl.emit("accountsChanged", [LEGACY_Q40]);
     qrl.emit("accountsChanged", ["not-a-qrl-address"]);
     await flush();
 

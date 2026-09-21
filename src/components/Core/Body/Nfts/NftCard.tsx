@@ -6,6 +6,7 @@ import { useStore } from "@/stores/store";
 import { nftKey } from "@/utils/web3/nft";
 import { NftImage } from "./NftImage";
 import { ROUTES } from "@/router/router";
+import { formatAddressFingerprint } from "@/utils/formatting";
 
 interface NftCardProps {
   nft: NFTInterface;
@@ -29,7 +30,7 @@ export function NftCard({ nft }: NftCardProps) {
 
   const subtitle = nft.collectionName
     ? `${nft.collectionName} • #${truncateId(nft.tokenId)}`
-    : `${truncateAddress(nft.contractAddress)} • #${truncateId(nft.tokenId)}`;
+    : `${formatAddressFingerprint(nft.contractAddress)} • #${truncateId(nft.tokenId)}`;
 
   return (
     <div
@@ -75,10 +76,6 @@ export function NftCard({ nft }: NftCardProps) {
       </div>
     </div>
   );
-}
-
-function truncateAddress(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
 function truncateId(id: string) {

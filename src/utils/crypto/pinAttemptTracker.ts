@@ -5,7 +5,9 @@
  * and enforcing lockouts after too many failures.
  */
 
-const STORAGE_KEY = 'pin_attempt_tracker';
+import { profileStorageKey } from '@/config/runtimeProfile';
+
+const STORAGE_KEY = profileStorageKey('pin_attempt_tracker');
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
