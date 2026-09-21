@@ -72,6 +72,6 @@ describe('QIP-55 address validation', () => {
 
   it('reports the exact QIP-55 length and checksum failure', () => {
     expect(getAddressValidationError(LEGACY_Q40)).toContain('/129 characters');
-    expect(getAddressValidationError(INVALID_CHECKSUM)).toContain('checksum');
+    expect(getAddressValidationError(INVALID_CHECKSUM)).toBe('QRL address has an invalid checksum');
   });
 });

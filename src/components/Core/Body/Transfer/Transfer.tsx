@@ -456,7 +456,7 @@ const Transfer = observer(() => {
       control.setError("receiverAddress", {
         message:
           recipientResolution.message ??
-          "Enter a valid QIP-55 address or a resolved QNS name.",
+          "Enter a valid QRL address or a resolved QNS name.",
       });
       return;
     }
@@ -1108,7 +1108,7 @@ const Transfer = observer(() => {
                                 clearErrors("receiverAddress");
                               }}
                               disabled={isSubmitting || isScanning}
-                              placeholder="QIP-55 address or QNS name"
+                              placeholder="QRL address or QNS name"
                               className={isInNativeApp() ? "pr-16" : "pr-10"}
                             />
                             <button
@@ -1152,7 +1152,7 @@ const Transfer = observer(() => {
                         )}
                         {!isScanning && !scanSuccess && (
                           <FormDescription>
-                            Enter a QIP-55 address or QNS name, or pick a contact
+                            Enter a QRL address or QNS name, or pick a contact
                             {isInNativeApp() ? ", or scan QR" : ""}
                           </FormDescription>
                         )}

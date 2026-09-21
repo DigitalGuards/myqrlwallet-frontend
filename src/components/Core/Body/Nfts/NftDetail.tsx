@@ -102,7 +102,7 @@ const NftDetail = observer(() => {
     if (!recipientSubmission) {
       setToAddressError(
         recipientResolution.message ??
-          "Enter a valid QIP-55 address or a resolved QNS name.",
+          "Enter a valid QRL address or a resolved QNS name.",
       );
       return;
     }
@@ -366,7 +366,7 @@ const NftDetail = observer(() => {
                   setToAddress(e.target.value);
                   setToAddressError("");
                 }}
-                placeholder="QIP-55 address or QNS name"
+                placeholder="QRL address or QNS name"
                 disabled={isSending}
               />
               <RecipientResolutionStatus resolution={recipientResolution} />
