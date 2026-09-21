@@ -92,6 +92,26 @@ function Harness({
 }
 
 describe("useQrnsRecipient", () => {
+  it("shows QRL address wording for a malformed recipient without any RPC request", () => {
+    const request: jest.MockedFunction<QrnsRpcProvider["request"]> = jest.fn();
+    const latest = { current: null as UseQrnsRecipientResult | null };
+    const invalid = `q${RECIPIENT_A.slice(1)}`;
+    const view = render(
+      <Harness
+        input={invalid}
+        provider={{ identity: "invalid-recipient", request }}
+        onResult={(result) => {
+          latest.current = result;
+        }}
+      />,
+    );
+    expect(view.getByRole("alert").textContent).toBe(
+      "Recipient is not a valid QRL address.",
+    );
+    expect(latest.current?.captureSubmission(invalid)).toBeNull();
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it("accepts a direct QIP-55 address without any RPC request", async () => {
     const request: jest.MockedFunction<QrnsRpcProvider["request"]> = jest.fn();
     const provider: QrnsRpcProvider = { identity: "direct-test", request };
