@@ -39,6 +39,19 @@ function requiredUrl(env: Record<string, unknown>, key: string): string {
   return value.replace(/\/$/, "");
 }
 
+function optionalContract(env: Record<string, unknown>, key: string): string {
+  const value = env[key];
+  if (value === undefined || value === "") return "";
+  if (
+    typeof value !== "string" ||
+    !/^Q[0-9a-fA-F]{128}$/.test(value) ||
+    /^Q0+$/.test(value)
+  ) {
+    throw new Error(`${key} must be a nonzero 64-byte QRL address`);
+  }
+  return value;
+}
+
 export function v3Deployment(env: Record<string, unknown>) {
   const expectedChainId = canonicalChainId(env["VITE_V3_CHAIN_ID"]);
   const genesisHash = env["VITE_V3_GENESIS_HASH"];
@@ -49,6 +62,8 @@ export function v3Deployment(env: Record<string, unknown>) {
     !/^0x[0-9a-fA-F]{64}$/.test(genesisHash)
   )
     throw new Error("VITE_V3_GENESIS_HASH must be a 32-byte hash");
+  const registry = optionalContract(env, "VITE_V3_QNS_REGISTRY");
+  const tokenFactory = optionalContract(env, "VITE_V3_FACTORY_ADDRESS");
   const network: NetworkConfig = {
     id: "TEST_NET_V3",
     name: "QRL Testnet v3 (Private)",
@@ -56,9 +71,13 @@ export function v3Deployment(env: Record<string, unknown>) {
     explorer: requiredUrl(env, "VITE_V3_EXPLORER_URL"),
     expectedChainId,
     genesisHash: genesisHash.toLowerCase(),
-    qrns: { expectedChainId: "", registry: "" },
+    qrns: { expectedChainId: registry ? expectedChainId : "", registry },
   };
-  return { network, serverUrl: requiredUrl(env, "VITE_V3_SERVER_URL") };
+  return {
+    network,
+    serverUrl: requiredUrl(env, "VITE_V3_SERVER_URL"),
+    tokenFactory,
+  };
 }
 
 export async function verifyNetworkIdentity(

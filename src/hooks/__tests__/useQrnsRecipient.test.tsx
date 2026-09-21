@@ -302,6 +302,45 @@ describe("useQrnsRecipient", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
+  it("invalidates a captured recipient when the configured genesis changes", async () => {
+    const provider: QrnsRpcProvider = {
+      identity: "genesis-binding",
+      request: jest.fn(),
+    };
+    const latest = { current: null as UseQrnsRecipientResult | null };
+    const onResult = (result: UseQrnsRecipientResult) => {
+      latest.current = result;
+    };
+    const configuration: QrnsNetworkConfiguration = {
+      available: true,
+      config: { ...CONFIG, genesisHash: `0x${"ab".repeat(32)}` },
+    };
+    const view = render(
+      <Harness
+        input={RECIPIENT_A}
+        configuration={configuration}
+        provider={provider}
+        onResult={onResult}
+      />,
+    );
+    await waitFor(() => expect(latest.current?.status).toBe("success"));
+    const captured = latest.current?.captureSubmission(RECIPIENT_A);
+    if (!captured) throw new Error("Expected a captured recipient");
+    view.rerender(
+      <Harness
+        input={RECIPIENT_A}
+        configuration={{
+          available: true,
+          config: { ...CONFIG, genesisHash: `0x${"cd".repeat(32)}` },
+        }}
+        provider={provider}
+        onResult={onResult}
+      />,
+    );
+    expect(latest.current?.revalidateSubmission(captured)).toBeNull();
+    expect(provider.request).not.toHaveBeenCalled();
+  });
+
   it("discards a late result from the previously selected network", async () => {
     const oldResolver = deferred<unknown>();
     const oldRequest: jest.MockedFunction<QrnsRpcProvider["request"]> = jest.fn(
