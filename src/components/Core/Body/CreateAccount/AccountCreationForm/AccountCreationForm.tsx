@@ -39,6 +39,7 @@ import {
 import { Separator } from "@/components/UI/Separator";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { walletMutations } from "@/utils/nativeWalletMutation";
+import { DeviceCredentialRecovery } from "../../PinSetup/DeviceCredentialRecovery";
 
 // Password must match WalletEncryptionUtil.validatePassword() requirements
 const passwordValidation = z
@@ -147,6 +148,7 @@ const InnerForm = observer(
     const { qrlStore } = useStore();
     const { qrlInstance } = qrlStore;
     const [isEncrypting, setIsEncrypting] = useState(false);
+    const [needsDeviceRecovery, setNeedsDeviceRecovery] = useState(false);
     const reEnterPinRef = useRef<PinInputHandle>(null);
 
     // Select schema based on whether user has existing seeds. On desktop the
@@ -178,6 +180,7 @@ const InnerForm = observer(
 
     async function onSubmit(formData: FormValues) {
       try {
+        setNeedsDeviceRecovery(false);
         const userPassword = formData.password;
         const userPin = formData.pin;
 
@@ -219,13 +222,16 @@ const InnerForm = observer(
               userPin,
             );
           } catch (err) {
+            const missingDeviceCredential =
+              err instanceof CryptoOperationError &&
+              err.code === CryptoErrorCode.DEVICE_CREDENTIAL_UNAVAILABLE;
+            setNeedsDeviceRecovery(missingDeviceCredential);
             const message =
               err instanceof CryptoOperationError &&
               err.code === CryptoErrorCode.OUTDATED_FORMAT
                 ? "This wallet was saved in an older format and must be re-imported."
-                : err instanceof CryptoOperationError &&
-                    err.code === CryptoErrorCode.DEVICE_CREDENTIAL_UNAVAILABLE
-                  ? "This wallet's device security credential is unavailable. Re-import the existing seed before adding an account."
+                : missingDeviceCredential
+                  ? "The device security credential is unavailable. Review the recovery steps below."
                   : "Incorrect PIN. Please enter your existing wallet PIN.";
             setError("pin", { message });
             return;
@@ -424,6 +430,11 @@ const InnerForm = observer(
                 </>
               )}
             </CardContent>
+            {needsDeviceRecovery && (
+              <div className="px-6 pb-6">
+                <DeviceCredentialRecovery />
+              </div>
+            )}
             <CardFooter className="flex-col gap-4">
               {errors.root && (
                 <p className="text-sm text-destructive w-full">
