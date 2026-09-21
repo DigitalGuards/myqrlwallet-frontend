@@ -21,6 +21,7 @@ const AccountCreateImport = withSuspense(
   lazy(() => import("./AccountCreateImport/AccountCreateImport"))
 );
 import BackgroundVideo from "./BackgroundVideo/BackgroundVideo";
+import DecorativeAccountVideo from "./DecorativeAccountVideo";
 
 const TokenForm = withSuspense(
   lazy(() => import("../Tokens/TokenForm/TokenForm"))
@@ -35,7 +36,6 @@ const Home = observer(() => {
   const { qrlConnection, activeAccount } = qrlStore;
   const { isLoading, isConnected, blockchain } = qrlConnection;
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const activeAccountVideoRef = useRef<HTMLVideoElement | null>(null);
   const [txHistoryOpen, setTxHistoryOpen] = useState(false);
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [showTokensCard, setShowTokensCard] = useState(true);
@@ -66,30 +66,6 @@ const Home = observer(() => {
     // Check if any dialog elements are open in the DOM
     const openDialogs = document.querySelectorAll('div[role="dialog"]');
     return openDialogs.length > 0;
-  };
-
-  // WebKit-based browsers (Safari and Chrome on iOS both) don't reliably
-  // honor the autoPlay attribute on React-managed <video> elements after
-  // a route change. The <video>'s onCanPlay handler below covers the
-  // normal case; this effect is a backup for when the element was
-  // buffered in a previous render (canPlay already fired) and it just
-  // needs a nudge.
-  useEffect(() => {
-    const video = activeAccountVideoRef.current;
-    if (!video || !video.paused) return;
-    video.play().catch(() => {
-      // Autoplay policy may still block playback; fail silently so the
-      // element degrades to a static first frame.
-    });
-  }, [activeAccount.accountAddress, isLoading]);
-
-  const handleVideoCanPlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const video = e.currentTarget;
-    if (!video.paused) return;
-    video.play().catch(() => {
-      // Autoplay policy may still block playback; fail silently so the
-      // element degrades to a static first frame.
-    });
   };
 
   // Set up auto-refresh for balances
@@ -152,22 +128,7 @@ const Home = observer(() => {
             <div className="page-enter flex w-full flex-col gap-4 md:gap-8">
               {activeAccount.accountAddress && (
                 <Card className="w-full relative overflow-hidden surface-ember">
-                  <div className="absolute inset-0 overflow-hidden">
-                    <video
-                      ref={activeAccountVideoRef}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      preload="auto"
-                      disableRemotePlayback
-                      onCanPlay={handleVideoCanPlay}
-                      onLoadedData={handleVideoCanPlay}
-                      className="decorative-video w-full h-full object-cover opacity-30"
-                    >
-                      <source src="qrl-video-dark.mp4" type="video/mp4" />
-                    </video>
-                  </div>
+                  <DecorativeAccountVideo />
                   <div className="relative z-10">
                     <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent">
                       <CardTitle className="text-2xl font-bold">Active account</CardTitle>
