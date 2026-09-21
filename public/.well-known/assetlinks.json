@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.chiefdg.myqrlwallet",
+      "sha256_cert_fingerprints": [
+        "7D:36:FA:5C:AD:74:1E:8F:D2:35:99:B3:23:BC:29:A9:94:91:B6:CD:FA:F7:F1:87:E2:EE:47:E9:24:46:25:7B"
+      ]
+    }
+  }
+]
