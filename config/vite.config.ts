@@ -20,10 +20,14 @@ const assertNoBrowserSeed = (mode: string) => {
   }
   const profile = publicEnv.VITE_WALLET_PROFILE || ''
   if (profile && profile !== 'v3-private') throw new Error('Unknown VITE_WALLET_PROFILE')
-  if (profile === 'v3-private') {
-    v3Deployment(publicEnv)
-  }
-  return { define: { __QRL_WALLET_PROFILE__: JSON.stringify(profile) } }
+  const network = profile === 'v3-private' ? v3Deployment(publicEnv).network : null
+  return { define: {
+    __QRL_WALLET_PROFILE__: JSON.stringify(profile),
+    __QRL_NATIVE_NETWORK__: JSON.stringify(network ? {
+      chainId: network.expectedChainId,
+      genesisHash: network.genesisHash,
+    } : null),
+  } }
 }
 
 export default defineConfig(({ mode }) => ({

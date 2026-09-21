@@ -8,7 +8,7 @@
 /**
  * Message types that can be sent to the native app
  */
-import { IS_V3_PROFILE } from '@/config/runtimeProfile';
+import { IS_V3_PROFILE, isQualifiedV3NativeContext } from '@/config/runtimeProfile';
 
 export type WebToNativeMessageType =
   | 'SCAN_QR'
@@ -111,7 +111,7 @@ export const sendToNative = (
   type: WebToNativeMessageType,
   payload?: Record<string, unknown>
 ): boolean => {
-  if (IS_V3_PROFILE) return false;
+  if (IS_V3_PROFILE && !isQualifiedV3NativeContext()) return false;
   const webView = window.ReactNativeWebView;
 
   if (webView?.postMessage) {
@@ -256,8 +256,9 @@ export const triggerHaptic = (style: 'success' | 'warning' | 'error' | 'light' |
 export const subscribeToNativeMessages = (
   callback: (message: NativeMessage) => void
 ): (() => void) => {
-  if (IS_V3_PROFILE) return () => undefined;
+  if (IS_V3_PROFILE && !isQualifiedV3NativeContext()) return () => undefined;
   const handler = (event: Event) => {
+    if (IS_V3_PROFILE && !isQualifiedV3NativeContext()) return;
     // Verify it's a CustomEvent before accessing detail
     if (!(event instanceof CustomEvent)) {
       console.warn('[NativeApp] Expected CustomEvent but received:', event.type);
