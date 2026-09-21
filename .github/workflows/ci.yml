@@ -95,6 +95,12 @@ jobs:
             VITE_EXPLORER_URL_PRODUCTION=${{ vars.VITE_EXPLORER_URL_PRODUCTION || 'https://zondscan.com' }}
             VITE_CUSTOMERC20FACTORY_ADDRESS=${{ vars.VITE_CUSTOMERC20FACTORY_ADDRESS }}
             VITE_DEPLOYER=${{ vars.VITE_DEPLOYER }}
+            VITE_WALLET_PROFILE=${{ vars.VITE_WALLET_PROFILE }}
+            VITE_V3_RPC_URL=${{ vars.VITE_V3_RPC_URL }}
+            VITE_V3_SERVER_URL=${{ vars.VITE_V3_SERVER_URL }}
+            VITE_V3_EXPLORER_URL=${{ vars.VITE_V3_EXPLORER_URL }}
+            VITE_V3_CHAIN_ID=${{ vars.VITE_V3_CHAIN_ID }}
+            VITE_V3_GENESIS_HASH=${{ vars.VITE_V3_GENESIS_HASH }}
 
   deploy:
     needs: docker

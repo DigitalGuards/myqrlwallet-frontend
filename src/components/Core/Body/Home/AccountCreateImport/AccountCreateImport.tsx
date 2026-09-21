@@ -72,7 +72,6 @@ const AccountCreateImport = observer(() => {
   }, [mobilePairing, hasAdoptedMobileAccount, navigate]);
 
   const finishConnect = async (detail: EIP6963ProviderDetail) => {
-    if (IS_V3_PROFILE) return;
     setPickerProviders(null);
     const accounts = await connectWithProvider(detail, setActiveAccount, setExtensionProvider);
     if (accounts && accounts.length > 0) {
@@ -84,7 +83,6 @@ const AccountCreateImport = observer(() => {
   };
 
   const handleConnectExtension = async () => {
-    if (IS_V3_PROFILE) return;
     // Any QRL wallet extension (MyQRLWallet Extension or the upstream QRL
     // Web3 Wallet) may answer; one match connects directly, several open a
     // picker.
@@ -164,8 +162,6 @@ const AccountCreateImport = observer(() => {
             <>
               <Button
                 className="w-full" type="button" variant="outline" onClick={handleConnectExtension}
-                disabled={IS_V3_PROFILE}
-                aria-describedby={IS_V3_PROFILE ? "unsupported-signers" : undefined}
               >
                 <Link2 className="mr-2 h-4 w-4" />
                 Connect Browser Extension
