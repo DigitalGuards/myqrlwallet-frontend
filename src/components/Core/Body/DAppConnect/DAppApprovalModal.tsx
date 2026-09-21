@@ -43,6 +43,11 @@ import type { TxProgressState } from "@/stores/dappConnectStore";
 import type { ZodError } from "zod";
 import { isDesktop, desktopSigner, buildDappOrigin } from "@/desktop/bridge";
 import { isExactQrlAccount } from "@/services/dappConnect/accountBinding";
+import {
+  assertRequestedTransactionChain,
+  canonicalChainId,
+  readWalletChainId,
+} from "@/services/dappConnect/rpcProvider";
 import { getDAppReceiptStatus, waitForDAppBroadcastSettlement } from "./dappBroadcastSettlement";
 import {
   walletMutations,
@@ -78,31 +83,6 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
-
-function canonicalChainId(value: unknown): string {
-  if (
-    typeof value !== "string" ||
-    value.length > 66 ||
-    !/^0x[0-9a-fA-F]+$/.test(value)
-  ) {
-    throw new Error("Invalid chain id");
-  }
-  return `0x${BigInt(value).toString(16)}`;
-}
-
-async function readWalletChainId(web3: unknown): Promise<string> {
-  if (!web3 || typeof web3 !== "object")
-    throw new Error("Web3 not initialized");
-  const provider = (web3 as { currentProvider?: unknown }).currentProvider;
-  if (!provider || typeof provider !== "object")
-    throw new Error("Web3 provider unavailable");
-  const request = (provider as { request?: unknown }).request;
-  if (typeof request !== "function")
-    throw new Error("Web3 provider does not support request()");
-  return canonicalChainId(
-    await request.call(provider, { method: "qrl_chainId", params: [] }),
-  );
-}
 
 function toUserFacingError(error: string): string {
   const msg = error.toLowerCase();
@@ -362,6 +342,14 @@ const DAppApprovalModalContent = observer(() => {
           return;
         }
 
+        await assertRequestedTransactionChain(
+          (params?.[0] || {}) as Record<string, unknown>,
+          qrlStore.qrlInstance,
+        );
+        if (!isStillCurrent() || qrlStore.activeAccount?.accountAddress !== activeAddress) {
+          throw new Error("Wallet changed while verifying the transaction chain");
+        }
+
         // Desktop: build + confirm + sign in the isolated signer (its own
         // trusted modal), then broadcast for send / return raw for sign. No
         // PIN, no seed in the renderer.
@@ -544,6 +532,7 @@ const DAppApprovalModalContent = observer(() => {
 
         assertSigningGenerationCurrent(signingGeneration);
         if (IS_V3_PROFILE) await qrlStore.assertNetworkReady(web3);
+        await assertRequestedTransactionChain(txParams, web3);
         assertSigningGenerationCurrent(signingGeneration);
         const signedTx = await web3.accounts.signTransaction({ ...txObject,
           ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),

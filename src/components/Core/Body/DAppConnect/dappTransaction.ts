@@ -5,9 +5,7 @@ export interface DAppTransactionBuildContext {
 }
 
 /** Preserve an explicitly reviewed gas value, including numeric zero. */
-export function requestedGasLimit(
-  params: Record<string, unknown>,
-): string | number | undefined {
+export function requestedGasLimit(params: Record<string, unknown>): string | number | undefined {
   if (!Object.prototype.hasOwnProperty.call(params, 'gas')) return undefined;
   const gas = params['gas'];
   return typeof gas === 'string' || typeof gas === 'number' ? gas : undefined;
@@ -20,7 +18,7 @@ export function requestedGasLimit(
  */
 export function buildReviewedDAppTransaction(
   params: Record<string, unknown>,
-  context: DAppTransactionBuildContext,
+  context: DAppTransactionBuildContext
 ): Record<string, unknown> {
   return {
     from: params['from'],
@@ -32,5 +30,6 @@ export function buildReviewedDAppTransaction(
     nonce: context.nonce,
     data: params['data'] ?? '0x',
     type: '0x2',
+    ...(params['chainId'] === undefined ? {} : { chainId: params['chainId'] }),
   };
 }

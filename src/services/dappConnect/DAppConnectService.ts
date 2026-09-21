@@ -27,6 +27,7 @@ import {
 } from "./PQCrypto";
 import { SocketClient } from "./SocketClient";
 import { RequestHandler } from "./RequestHandler";
+import { getRequestProvider, readWalletChainId } from "./rpcProvider";
 import {
   isExactQrlAccount,
   isQrlAccount,
@@ -339,34 +340,10 @@ type ServiceEventHandler = {
   hasPendingApprovalsForChannel?: (channelId: string) => boolean;
 };
 
-interface RpcRequestProvider {
-  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-}
-
 interface PendingRestrictedRequestState {
   method: string;
   /** Authorization snapshot captured when an account-bound request entered. */
   authorizedAccount: string | null;
-}
-
-function getRequestProvider(web3: unknown): RpcRequestProvider | null {
-  if (typeof web3 !== "object" || web3 === null) return null;
-  const provider = (web3 as { currentProvider?: unknown }).currentProvider;
-  if (typeof provider !== "object" || provider === null) return null;
-  if (typeof (provider as { request?: unknown }).request !== "function")
-    return null;
-  return provider as RpcRequestProvider;
-}
-
-function canonicalChainId(value: unknown): string {
-  if (
-    typeof value !== "string" ||
-    value.length > 66 ||
-    !/^0x[0-9a-fA-F]+$/.test(value)
-  ) {
-    throw new Error("Wallet RPC returned an invalid chain id");
-  }
-  return `0x${BigInt(value).toString(16)}`;
 }
 
 export class DAppConnectService {
@@ -1215,13 +1192,7 @@ export class DAppConnectService {
   }
 
   private async currentWalletChainId(): Promise<string> {
-    const web3 = store.qrlStore.qrlInstance;
-    if (!web3) throw new Error("Web3 not initialized");
-    const provider = getRequestProvider(web3);
-    if (!provider) throw new Error("Web3 provider does not support request()");
-    return canonicalChainId(
-      await provider.request({ method: "qrl_chainId", params: [] }),
-    );
+    return readWalletChainId(store.qrlStore.qrlInstance);
   }
 
   private async approveRequestInternal(
