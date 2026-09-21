@@ -20,10 +20,7 @@
 // ---------------------------------------------------------------------------
 
 /** One provisioned desktop wallet (public data only). */
-import {
-  IS_V3_PROFILE,
-  V3_UNSUPPORTED_SIGNER_MESSAGE,
-} from "@/config/runtimeProfile";
+import { assertV3BrowserContext } from "@/config/runtimeProfile";
 
 export interface DesktopWalletInfo {
   address: string;
@@ -127,6 +124,7 @@ export interface CreateWalletResult {
  * satisfies it.
  */
 export interface QrlWalletBridge {
+  readonly addressScheme?: "qip55-64";
   createWallet(args: {
     password: string;
     useKeychain?: boolean;
@@ -212,7 +210,7 @@ export const isDesktop: boolean =
  * fallback.
  */
 export function qrlWallet(): QrlWalletBridge {
-  if (IS_V3_PROFILE) throw new Error(V3_UNSUPPORTED_SIGNER_MESSAGE);
+  assertV3BrowserContext();
   const bridge = typeof window !== "undefined" ? window.qrlWallet : undefined;
   if (!bridge) {
     throw new Error("desktop: window.qrlWallet bridge is not available");

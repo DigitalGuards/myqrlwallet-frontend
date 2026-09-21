@@ -14,6 +14,7 @@ import type { TransactionReceipt, Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import { IS_V3_PROFILE, assertSupportedAccountSource, assertV3BrowserContext, V3_UNSUPPORTED_SIGNER_MESSAGE } from '@/config/runtimeProfile';
+import { assertQualifiedV3Provider, qualifyV3Provider } from '@/utils/extension/v3Provider';
 import { verifyNetworkIdentity } from '@/config/deploymentProfile';
 
 type ActiveAccountType = {
@@ -345,6 +346,7 @@ class QrlStore {
 
   async setActiveAccount(newActiveAccount?: string, source: AccountSource = 'seed') {
     assertSupportedAccountSource(source);
+    if (source === 'extension') assertQualifiedV3Provider(this.extensionProvider);
     const currentBlockchain = this.qrlConnection.blockchain;
     const normalizedActiveAccount = newActiveAccount
       ? normalizeQrlAddress(newActiveAccount) ?? undefined
@@ -987,6 +989,7 @@ class QrlStore {
   // NEW: Action to set or clear the extension provider
   setExtensionProvider(provider: ExtensionProvider | null) {
     if (provider) assertSupportedAccountSource('extension');
+    if (provider) assertQualifiedV3Provider(provider);
     runInAction(() => {
       this.extensionProvider = provider;
       if (provider) {
@@ -1152,7 +1155,7 @@ class QrlStore {
 
   // --- Send Transaction via a remote signer (extension or paired mobile app) ---
   async sendTransactionViaProvider(to: string, valueEther: string, feeLevel: FeeLevel = 'medium') {
-    if (IS_V3_PROFILE) {
+    if (IS_V3_PROFILE && this.activeAccountSource !== 'extension') {
       this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: V3_UNSUPPORTED_SIGNER_MESSAGE };
       return;
     }
@@ -1186,6 +1189,7 @@ class QrlStore {
     try {
       // Reset status before starting
       this.resetTransactionStatus();
+      if (IS_V3_PROFILE) await this.assertNetworkReady();
       runInAction(() => {
         this.transactionStatus = { ...this.transactionStatus, state: 'pending' };
       });
@@ -1226,7 +1230,8 @@ class QrlStore {
           value: valueHex, // Use manually hexed value from toPlanck("quanta")
           maxPriorityFeePerGas: maxPriorityFeeHex,
           maxFeePerGas: maxFeeHex,
-          type: '0x2'
+          type: '0x2',
+          ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
         };
         const gas = await this.qrlInstance?.estimateGas(transaction);
         if (gas === undefined) throw new Error("Wallet not connected. Please try again.");
@@ -1234,6 +1239,7 @@ class QrlStore {
       }
 
       log(`Requesting transaction via ${walletName} (18 Decimals): ${JSON.stringify(params)}`);
+      if (IS_V3_PROFILE) await this.assertNetworkReady();
       if (from !== this.activeAccount.accountAddress || source !== this.activeAccountSource
         || blockchain !== this.qrlConnection.blockchain || rpcProvider !== this.qrlInstance
         || provider !== this.remoteProvider) {
@@ -1285,10 +1291,18 @@ class QrlStore {
     const current = this.qrlInstance;
     const account = this.activeAccount.accountAddress;
     const source = this.activeAccountSource;
+    if (source === 'extension') assertQualifiedV3Provider(this.extensionProvider);
     if (!provider || !current || this.qrlConnection.blockchain !== 'TEST_NET_V3' || !this.qrlConnection.isConnected) {
       throw new Error('Testnet v3 network identity has not been verified');
     }
     try {
+      if (source === 'extension') {
+        assertQualifiedV3Provider(this.extensionProvider);
+        const extension = this.extensionProvider;
+        if (!extension) throw new Error('Extension is disconnected');
+        await qualifyV3Provider(extension);
+        if (extension !== this.extensionProvider) throw new Error('Extension changed during identity verification');
+      }
       await verifyNetworkIdentity({ request: (args) => provider.requestManager.send(args) }, QRL_PROVIDER.TEST_NET_V3);
       if (current !== this.qrlInstance || this.qrlConnection.blockchain !== 'TEST_NET_V3') throw new Error('Network changed during identity verification');
       if (account !== this.activeAccount.accountAddress || source !== this.activeAccountSource) throw new Error('Account changed during identity verification');

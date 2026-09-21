@@ -318,15 +318,19 @@ it("blocks external account adoption and direct external broadcasts", async () =
   expect(store.transactionStatus.error).toMatch(/not yet qualified/);
 });
 
-it("does not discover extensions or reconnect/read old mobile sessions", async () => {
+it("discovers extensions but refuses unqualified connections and old mobile sessions", async () => {
   const { store } = storeFixture();
   localStorage.setItem("@qrlwallet/connect:session", "legacy-pairing");
   const request = jest.fn();
   const announce = jest.spyOn(window, "dispatchEvent");
-  expect(await discoverQrlProviders()).toEqual([]);
-  expect(announce).not.toHaveBeenCalled();
-  await expect(
-    connectWithProvider(
+  const discovered = discoverQrlProviders();
+  jest.advanceTimersByTime(1000);
+  expect(await discovered).toEqual([]);
+  expect(announce).toHaveBeenCalled();
+  jest.spyOn(window, "alert").mockImplementation(() => undefined);
+  jest.spyOn(console, "error").mockImplementation(() => undefined);
+  expect(
+    await connectWithProvider(
       {
         info: { uuid: "x", name: "test", icon: "", rdns: "test" },
         provider: { request },
@@ -334,14 +338,15 @@ it("does not discover extensions or reconnect/read old mobile sessions", async (
       jest.fn(),
       jest.fn(),
     ),
-  ).rejects.toThrow("not yet qualified");
+  ).toBeNull();
   expect(hasMobileSession()).toBe(false);
   await maybeRestoreMobileConnection(store, true);
   await expect(getMobileConnect(store)).rejects.toThrow("not yet qualified");
   expect(localStorage.getItem("@qrlwallet/connect:session")).toBe(
     "legacy-pairing",
   );
-  expect(request).not.toHaveBeenCalled();
+  expect(request).toHaveBeenCalledWith({ method: "qrl_walletCapabilities" });
+  expect(request).not.toHaveBeenCalledWith({ method: "qrl_requestAccounts" });
 });
 
 it("blocks the desktop bridge and rejects native wrapper readiness", async () => {
@@ -355,6 +360,14 @@ it("blocks the desktop bridge and rejects native wrapper readiness", async () =>
   expect(store.qrlConnection.isConnected).toBe(false);
   expect(buildTransaction).not.toHaveBeenCalled();
   delete window.qrlWallet;
+  window.ReactNativeWebView = { postMessage: jest.fn() };
+  expect(isUnsupportedV3Context()).toBe(true);
+});
+
+it("accepts an updated desktop bridge while retaining native mobile rejection", () => {
+  window.qrlWallet = { addressScheme: "qip55-64" } as never;
+  expect(isUnsupportedV3Context()).toBe(false);
+  expect(qrlWallet()).toBe(window.qrlWallet);
   window.ReactNativeWebView = { postMessage: jest.fn() };
   expect(isUnsupportedV3Context()).toBe(true);
 });

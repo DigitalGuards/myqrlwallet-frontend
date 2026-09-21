@@ -213,7 +213,7 @@ it("keeps network settings disabled while the connection is loading", () => {
   expect(mockStore.qrlStore.selectBlockchain).not.toHaveBeenCalled();
 });
 
-it("keeps v3 create/import enabled and external signer controls visibly disabled with a reason", () => {
+it("enables v3 create/import and extension while explaining unavailable mobile pairing", () => {
   selectV3Profile();
   render(<AccountCreateImport />);
   for (const name of ["Create a new account", "Import an existing account"]) {
@@ -232,7 +232,10 @@ it("keeps v3 create/import enabled and external signer controls visibly disabled
       .getByRole("link", { name: "Import an existing account" })
       .getAttribute("href"),
   ).toBe("/import-account");
-  for (const name of ["Connect Browser Extension", "Connect Mobile App"]) {
+  expect(
+    screen.getByRole("button", { name: "Connect Browser Extension" }),
+  ).toHaveProperty("disabled", false);
+  for (const name of ["Connect Mobile App"]) {
     const button = screen.getByRole("button", { name });
     expect(button).toHaveProperty("disabled", true);
     expect(button.getAttribute("aria-describedby")).toBe("unsupported-signers");

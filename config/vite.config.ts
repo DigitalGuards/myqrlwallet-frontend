@@ -22,7 +22,6 @@ const assertNoBrowserSeed = (mode: string) => {
   if (profile && profile !== 'v3-private') throw new Error('Unknown VITE_WALLET_PROFILE')
   if (profile === 'v3-private') {
     v3Deployment(publicEnv)
-    if (process.env.VITE_DESKTOP === '1') throw new Error('The v3 private profile supports browser builds only')
   }
   return { define: { __QRL_WALLET_PROFILE__: JSON.stringify(profile) } }
 }
