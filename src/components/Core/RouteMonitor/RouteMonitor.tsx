@@ -15,6 +15,7 @@ const RouteMonitor = observer(() => {
   const { pathname } = useLocation();
 
   useEffect(() => {
+    if (!isConnected) return;
     (async () => {
       const activePage = await StorageUtil.getActivePage();
       // Desktop retired the web settings page (Settings opens the native
