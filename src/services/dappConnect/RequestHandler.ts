@@ -54,7 +54,7 @@ export const DAPP_TRANSACTION_LIMITS = Object.freeze({
 });
 
 const RPC_QUANTITY_PATTERN = /^0x(?:0|[1-9a-fA-F][0-9a-fA-F]*)$/;
-const TRANSACTION_FIELDS = new Set(['from', 'to', 'value', 'gas', 'data']);
+const TRANSACTION_FIELDS = new Set(['from', 'to', 'value', 'gas', 'data', 'chainId']);
 
 function validateRpcQuantity(value: unknown, field: 'value' | 'gas'): void {
   if (field === 'gas' && typeof value === 'number') {
@@ -82,7 +82,7 @@ function validateTransactionParams(params: unknown): void {
     throw new Error('transaction request requires exactly one transaction object');
   }
   const tx = candidate as Record<string, unknown>;
-  const unsupported = Object.keys(tx).find(field => !TRANSACTION_FIELDS.has(field));
+  const unsupported = Object.keys(tx).find((field) => !TRANSACTION_FIELDS.has(field));
   if (unsupported) throw new Error(`transaction field is not supported: ${unsupported}`);
 
   if (!isQrlAccount(tx['from'])) {
@@ -95,6 +95,13 @@ function validateTransactionParams(params: unknown): void {
   }
   if ('value' in tx) validateRpcQuantity(tx['value'], 'value');
   if ('gas' in tx) validateRpcQuantity(tx['gas'], 'gas');
+  if (
+    'chainId' in tx &&
+    (typeof tx['chainId'] !== 'string' ||
+      tx['chainId'].length > 66 ||
+      !RPC_QUANTITY_PATTERN.test(tx['chainId']))
+  )
+    throw new Error('transaction chainId must be a bounded canonical 0x quantity');
   if (
     'data' in tx &&
     (typeof tx['data'] !== 'string' ||
@@ -112,9 +119,9 @@ function isValidVm64TopicSlot(value: unknown): boolean {
     Array.isArray(value) &&
     value.length > 0 &&
     value.every(
-      candidate =>
+      (candidate) =>
         candidate === null ||
-        (typeof candidate === 'string' && normalizeQrlVm64Topic(candidate) !== null),
+        (typeof candidate === 'string' && normalizeQrlVm64Topic(candidate) !== null)
     )
   );
 }
@@ -129,9 +136,7 @@ function validateGetLogsParams(params: unknown): void {
   }
   const filter = candidate as Record<string, unknown>;
   if ('address' in filter) {
-    const addresses = Array.isArray(filter['address'])
-      ? filter['address']
-      : [filter['address']];
+    const addresses = Array.isArray(filter['address']) ? filter['address'] : [filter['address']];
     if (addresses.length === 0 || !addresses.every(isQrlAccount)) {
       throw new Error('qrl_getLogs filter address must use QIP-55');
     }
