@@ -317,8 +317,11 @@ describe("Transfer QRNS recipient flow", () => {
       });
 
       const view = render(<Transfer />);
+      expect(
+        view.getByText(/Enter a QRL address or QNS name, or pick a contact/),
+      ).toBeTruthy();
       fireEvent.change(
-        view.getByPlaceholderText("QIP-55 address or QNS name"),
+        view.getByPlaceholderText("QRL address or QNS name"),
         { target: { value: "alice.qrl" } },
       );
       if (amount === "max") {

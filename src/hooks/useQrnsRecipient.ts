@@ -112,7 +112,7 @@ function prepareRecipient(
   if (looksLikeMalformedQrlAddress(input)) {
     return {
       kind: "error",
-      message: "Recipient is not a valid QIP-55 address.",
+      message: "Recipient is not a valid QRL address.",
     };
   }
 

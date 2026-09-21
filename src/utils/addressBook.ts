@@ -72,7 +72,7 @@ export function addEntry(name: string, address: string): AddressBookEntry | stri
   const cleanAddress = address.trim();
   if (!cleanName) return "Name is required";
   const normalizedAddress = normalizeQrlAddress(cleanAddress);
-  if (!normalizedAddress) return "Not a valid QIP-55 address (Q + 128 hex characters)";
+  if (!normalizedAddress) return "Not a valid QRL address (Q + 128 hex characters)";
   if (findByAddress(normalizedAddress)) return "This address is already saved";
   const entry: AddressBookEntry = {
     id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,

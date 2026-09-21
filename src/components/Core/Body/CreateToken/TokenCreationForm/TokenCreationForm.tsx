@@ -65,7 +65,7 @@ const FormSchema = z
         }
         return true;
     }, {
-        message: "Invalid recipient address. Use Q followed by 128 hex characters with a valid QIP-55 checksum",
+        message: "Invalid recipient address. Use Q followed by 128 hex characters with a valid checksum",
         path: ["recipientAddress"]
     });
 

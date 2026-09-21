@@ -11,7 +11,7 @@ interface SEOProps {
 }
 
 const SITE_NAME = "MyQRLWallet";
-const DEFAULT_TITLE = "MyQRLWallet: Web Wallet for QRL, the Post-Quantum Blockchain";
+const DEFAULT_TITLE = "MyQRLWallet | Web Wallet for QRL, the Post-Quantum Blockchain";
 const DEFAULT_DESCRIPTION =
   "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.";
 const DEFAULT_IMAGE = "https://qrlwallet.com/og-image.png";

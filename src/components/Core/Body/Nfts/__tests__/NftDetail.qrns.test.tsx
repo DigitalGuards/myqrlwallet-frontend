@@ -116,6 +116,7 @@ describe("NftDetail QRNS recipient flow", () => {
       jest.mocked(useNetworkQrnsRecipient).mockReturnValue(resolvedRecipient());
 
       const view = render(<NftDetail />);
+      expect(view.getByPlaceholderText("QRL address or QNS name")).toBeTruthy();
       fireEvent.change(view.getByLabelText("Recipient address or QNS name"), {
         target: { value: "alice.qrl" },
       });

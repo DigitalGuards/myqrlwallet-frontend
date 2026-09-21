@@ -99,5 +99,5 @@ export const getAddressValidationError = (address: string): string => {
     return "Address contains invalid characters (only 0-9, a-f, A-F allowed after 'Q')";
   }
 
-  return 'Address has an invalid QIP-55 checksum';
+  return 'QRL address has an invalid checksum';
 };

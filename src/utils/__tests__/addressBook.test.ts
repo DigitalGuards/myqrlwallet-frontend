@@ -38,7 +38,7 @@ describe("QIP-55 address-book persistence", () => {
 
   it("rejects Q+40 contacts", () => {
     expect(addEntry("Legacy", LEGACY_Q40)).toBe(
-      "Not a valid QIP-55 address (Q + 128 hex characters)",
+      "Not a valid QRL address (Q + 128 hex characters)",
     );
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
