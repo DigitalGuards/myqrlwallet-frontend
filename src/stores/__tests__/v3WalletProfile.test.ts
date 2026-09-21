@@ -32,6 +32,8 @@ jest.mock("@/utils/nativeApp", () => ({ isInNativeApp: () => false }));
 jest.mock("@/utils/web3", () => ({ getQrlWeb3: jest.fn() }));
 
 import QrlStore from "../qrlStore";
+import type { ExtensionProvider } from "../qrlStore";
+import { qualifyV3Provider } from "@/utils/extension/v3Provider";
 import StorageUtil from "@/utils/storage/storage";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import {
@@ -317,6 +319,68 @@ it("blocks external account adoption and direct external broadcasts", async () =
   expect(provider.request).not.toHaveBeenCalled();
   expect(store.transactionStatus.error).toMatch(/not yet qualified/);
 });
+
+it.each([false, true])(
+  "rechecks a qualified extension before send when its chain changes: %s",
+  async (changeChain) => {
+    jest.spyOn(console, "error").mockImplementation(() => undefined);
+    jest
+      .spyOn(QrlStore.prototype, "fetchPendingTxDetails")
+      .mockResolvedValue(undefined);
+    jest
+      .spyOn(QrlStore.prototype, "pollForReceipt")
+      .mockResolvedValue(undefined);
+    const { store, rpc } = storeFixture();
+    await store.initializeBlockchain();
+    let chain = "0x301825";
+    const request = jest.fn(
+      async ({ method }: { method: string }): Promise<unknown> => {
+        if (method === "qrl_walletCapabilities")
+          return {
+            addressScheme: "qip55-64",
+            chainId: "0x301825",
+            genesisHash: HASH,
+          };
+        if (method === "qrl_chainId") return chain;
+        if (method === "qrl_getBlockByNumber")
+          return { number: "0x0", hash: HASH };
+        if (method === "qrl_sendTransaction") return HASH;
+        throw new Error("Unexpected extension request");
+      },
+    );
+    const provider = { request } as ExtensionProvider;
+    await qualifyV3Provider(provider);
+    store.setExtensionProvider(provider);
+    store.qrlAccounts.accounts = [
+      { accountAddress: ACCOUNT, accountBalance: "1", source: "extension" },
+    ];
+    rpc.estimateGas.mockImplementation(async () => {
+      if (changeChain) chain = "0x539";
+      return 21000n;
+    });
+    await store.sendTransactionViaProvider(ACCOUNT, "1");
+    const sends = request.mock.calls.filter(
+      ([args]) => args.method === "qrl_sendTransaction",
+    );
+    expect(sends).toHaveLength(changeChain ? 0 : 1);
+    if (changeChain) {
+      expect(store.transactionStatus.error).toMatch(/chain identity mismatch/);
+    } else {
+      expect(request).toHaveBeenCalledWith({
+        method: "qrl_sendTransaction",
+        params: [
+          expect.objectContaining({
+            from: ACCOUNT,
+            to: ACCOUNT,
+            chainId: "0x301825",
+            gas: "0x5208",
+          }),
+        ],
+      });
+      expect(store.transactionStatus.txHash).toBe(HASH);
+    }
+  },
+);
 
 it("discovers extensions but refuses unqualified connections and old mobile sessions", async () => {
   const { store } = storeFixture();
