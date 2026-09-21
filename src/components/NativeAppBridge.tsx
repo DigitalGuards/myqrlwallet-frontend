@@ -41,7 +41,7 @@ import { clearDeviceCredential } from "@/utils/crypto/deviceCredential";
 import { ROUTES } from "@/router/router";
 import StorageUtil from "@/utils/storage/storage";
 import { clearAddressBook, mergeContacts } from "@/utils/addressBook";
-import { QRL_PROVIDER } from "@/config";
+import { QRL_PROVIDER, AVAILABLE_NETWORKS, isAvailableNetwork } from "@/config";
 import { store } from "@/stores/store";
 import {
   walletMutations,
@@ -137,7 +137,7 @@ async function handleChangePinRequest(
   try {
     const { rotatedSeeds } = await rotateStoredSeedPinWithTargetFallback(
       {
-        blockchains: Object.keys(QRL_PROVIDER),
+        blockchains: AVAILABLE_NETWORKS.map((network) => network.id),
         oldPin,
         newPin,
         backup: (record) => notifySeedStored(record),
@@ -623,7 +623,7 @@ const NativeAppBridge: React.FC = () => {
             !encryptedSeed ||
             encryptedSeed.length > 256 * 1024 ||
             typeof blockchain !== "string" ||
-            !(blockchain in QRL_PROVIDER) ||
+            !isAvailableNetwork(blockchain) ||
             typeof revision !== "number" ||
             !Number.isSafeInteger(revision) ||
             revision < 0 ||

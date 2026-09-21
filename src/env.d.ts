@@ -23,6 +23,7 @@ interface ImportMeta {
  */
 interface ReactNativeWebView {
   postMessage: (message: string) => void;
+  injectedObjectJson?: () => string | null;
 }
 
 declare global {
