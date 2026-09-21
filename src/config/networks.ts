@@ -4,7 +4,7 @@ import { v3Deployment } from "./deploymentProfile";
 const IS_PRODUCTION = import.meta.env.PROD;
 const v3 = IS_V3_PROFILE ? v3Deployment(import.meta.env) : null;
 export const TOKEN_FACTORY_ADDRESS = IS_V3_PROFILE
-  ? ""
+  ? v3?.tokenFactory || ""
   : import.meta.env["VITE_CUSTOMERC20FACTORY_ADDRESS"] || "";
 
 const RPC_API_BASE = IS_PRODUCTION

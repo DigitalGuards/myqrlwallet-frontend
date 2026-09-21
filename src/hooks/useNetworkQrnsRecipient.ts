@@ -32,6 +32,9 @@ export function useNetworkQrnsRecipient({
             rpcUrl: network.url,
             expectedChainId: network.qrns.expectedChainId,
             registry: network.qrns.registry,
+            ...("genesisHash" in network
+              ? { genesisHash: network.genesisHash }
+              : {}),
           }
         : null,
     [blockchain, network],

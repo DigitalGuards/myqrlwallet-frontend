@@ -22,6 +22,7 @@ export interface QrnsNetworkConfig {
   rpcUrl: string;
   expectedChainId: string;
   registry: string;
+  genesisHash?: string;
 }
 
 export interface QrnsNetworkRecord {
@@ -30,6 +31,7 @@ export interface QrnsNetworkRecord {
   rpcUrl: string;
   expectedChainId: string;
   registry: string;
+  genesisHash?: string;
 }
 
 export type QrnsNetworkConfiguration =
@@ -108,7 +110,9 @@ export function parseQrnsNetworkConfig(
     !record.networkName ||
     !record.rpcUrl.trim() ||
     !hasCanonicalChainId ||
-    !hasCanonicalRegistry
+    !hasCanonicalRegistry ||
+    (record.genesisHash !== undefined &&
+      !/^0x[0-9a-f]{64}$/.test(record.genesisHash))
   ) {
     return {
       available: false,
@@ -124,6 +128,9 @@ export function parseQrnsNetworkConfig(
       rpcUrl: record.rpcUrl,
       expectedChainId: canonicalChainId,
       registry: canonicalRegistry,
+      ...(record.genesisHash !== undefined
+        ? { genesisHash: record.genesisHash }
+        : {}),
     },
   };
 }
@@ -235,6 +242,24 @@ export async function verifyQrnsReadiness(
       "network-mismatch",
       `QRNS is unavailable because the RPC chain does not match ${config.networkName}.`,
     );
+  }
+
+  if (config.genesisHash !== undefined) {
+    const block = await provider.request({
+      method: "qrl_getBlockByNumber",
+      params: ["0x0", false],
+    });
+    if (
+      !isRecord(block) ||
+      block["number"] !== "0x0" ||
+      typeof block["hash"] !== "string" ||
+      block["hash"].toLowerCase() !== config.genesisHash
+    ) {
+      throw new QrnsUnavailableError(
+        "network-mismatch",
+        `QRNS is unavailable because the RPC genesis does not match ${config.networkName}.`,
+      );
+    }
   }
 
   const code = await provider.request({

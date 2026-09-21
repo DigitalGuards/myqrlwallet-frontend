@@ -23,7 +23,52 @@ it("requires explicit v3 endpoints and produces an independent identity with dis
     genesisHash: HASH,
     qrns: { expectedChainId: "", registry: "" },
   });
+  expect(result.tokenFactory).toBe("");
 });
+
+it("enables each explicitly configured v3 deployment on its pinned chain", () => {
+  const registry = `Q${"1".repeat(128)}`;
+  const factory = `Q${"2".repeat(128)}`;
+  const result = v3Deployment({
+    ...ENV,
+    VITE_V3_QNS_REGISTRY: registry,
+    VITE_V3_FACTORY_ADDRESS: factory,
+  });
+  expect(result.network.qrns).toEqual({
+    expectedChainId: "0x301825",
+    registry,
+  });
+  expect(result.tokenFactory).toBe(factory);
+});
+
+it("keeps historical deployments isolated from the v3 profile", () => {
+  const result = v3Deployment({
+    ...ENV,
+    VITE_QRNS_CHAIN_ID_TEST_NET: "0x539",
+    VITE_QRNS_REGISTRY_TEST_NET: `Q${"1".repeat(128)}`,
+    VITE_CUSTOMERC20FACTORY_ADDRESS: `Q${"2".repeat(128)}`,
+  });
+  expect(result.network.qrns).toEqual({ expectedChainId: "", registry: "" });
+  expect(result.tokenFactory).toBe("");
+});
+
+describe.each(["VITE_V3_QNS_REGISTRY", "VITE_V3_FACTORY_ADDRESS"])(
+  "%s",
+  (key) => {
+    it.each([
+      null,
+      1,
+      `Q${"1".repeat(40)}`,
+      `0x${"1".repeat(128)}`,
+      `q${"1".repeat(128)}`,
+      `Q${"0".repeat(128)}`,
+      ` Q${"1".repeat(128)}`,
+      `Q${"1".repeat(128)} `,
+    ])("rejects malformed deployment %p", (address) =>
+      expect(() => v3Deployment({ ...ENV, [key]: address })).toThrow(key),
+    );
+  },
+);
 
 it.each(Object.keys(ENV))("fails closed when %s is absent", (key) => {
   expect(() => v3Deployment({ ...ENV, [key]: "" })).toThrow();
