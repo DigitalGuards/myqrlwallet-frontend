@@ -27,6 +27,22 @@ function metaCsp(html: string): string {
 }
 
 describe("production content security policy", () => {
+  it.each([nginxConfig, nginxExample])(
+    "permits same-origin decorative playback while preserving other feature restrictions",
+    (config) => {
+      const policies = [
+        ...config.matchAll(/add_header Permissions-Policy "([^"]+)" always;/g),
+      ];
+      expect(policies.length).toBeGreaterThan(0);
+      for (const policy of policies) {
+        expect(policy[1]).toBe(
+          "accelerometer=(), autoplay=(self), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+        );
+      }
+      expect(config).not.toContain("autoplay=()");
+    },
+  );
+
   it("pins the only inline script and rejects script attributes", () => {
     const hash = inlineJsonLdHash(sourceHtml);
     const policy = metaCsp(sourceHtml);
