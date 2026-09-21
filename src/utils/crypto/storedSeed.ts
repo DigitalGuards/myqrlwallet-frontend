@@ -1,6 +1,9 @@
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
 import StorageUtil from "@/utils/storage/storage";
-import { WalletEncryptionUtil } from "./walletEncryption";
+import {
+  WalletEncryptionUtil,
+  type VersionedSeedDecryption,
+} from "./walletEncryption";
 import {
   walletMutations,
   type WalletMutationToken,
@@ -60,24 +63,12 @@ async function syncCurrentV5Backup(
   }
 }
 
-/**
- * Decrypt a seed fetched from StorageUtil and lazily migrate authenticated
- * pin_v4 ciphertext to the device-bound pin_v5 envelope.
- *
- * Migration is deliberately best-effort after the PIN has already opened the
- * legacy seed. Encryption is completed before a compare-and-swap write, so a
- * device-store/quota failure leaves the exact v4 blob intact and the user can
- * still transact or retry later. New wallets do not use this fallback: their
- * initial pin_v5 encryption fails closed if the device credential is absent.
- */
-export async function decryptStoredSeedWithPin(
-  blockchain: string,
+async function decryptAuthenticatedStoredSeed(
   address: string,
   encryptedSeed: string,
   pin: string,
-  expectedGeneration: WalletMutationToken = walletMutations.captureGeneration(),
-): Promise<{ mnemonic: string; hexSeed: string }> {
-  const walletGeneration = expectedGeneration;
+  walletGeneration: WalletMutationToken,
+): Promise<VersionedSeedDecryption> {
   assertCurrentWalletGeneration(walletGeneration);
   const decrypted = await WalletEncryptionUtil.decryptSeedWithPinVersioned(
     encryptedSeed,
@@ -96,9 +87,56 @@ export async function decryptStoredSeedWithPin(
     decrypted.seed.hexSeed,
   );
   if (decryptedAddress !== address) {
-    throw new Error("Security error: the stored seed does not match this account");
+    throw new Error(
+      "Security error: the stored seed does not match this account",
+    );
   }
   assertCurrentWalletGeneration(walletGeneration);
+  return decrypted;
+}
+
+/**
+ * Prove the PIN and account binding while the native verifier holds the wallet
+ * mutation lock. Authentication performs no migration or native backup writes.
+ */
+export async function verifyStoredSeedPin(
+  address: string,
+  encryptedSeed: string,
+  pin: string,
+  expectedGeneration: WalletMutationToken = walletMutations.captureGeneration(),
+): Promise<void> {
+  await decryptAuthenticatedStoredSeed(
+    address,
+    encryptedSeed,
+    pin,
+    expectedGeneration,
+  );
+}
+
+/**
+ * Decrypt a seed fetched from StorageUtil and lazily migrate authenticated
+ * pin_v4 ciphertext to the device-bound pin_v5 envelope.
+ *
+ * Migration is deliberately best-effort after the PIN has already opened the
+ * legacy seed. Encryption is completed before a compare-and-swap write, so a
+ * device-store/quota failure leaves the exact v4 blob intact and the user can
+ * still transact or retry later. New wallets do not use this fallback: their
+ * initial pin_v5 encryption fails closed if the device credential is absent.
+ */
+export async function decryptStoredSeedWithPin(
+  blockchain: string,
+  address: string,
+  encryptedSeed: string,
+  pin: string,
+  expectedGeneration: WalletMutationToken = walletMutations.captureGeneration(),
+): Promise<{ mnemonic: string; hexSeed: string }> {
+  const walletGeneration = expectedGeneration;
+  const decrypted = await decryptAuthenticatedStoredSeed(
+    address,
+    encryptedSeed,
+    pin,
+    walletGeneration,
+  );
 
   await walletMutations.enqueueWalletMutation(
     async (isCurrent) => {

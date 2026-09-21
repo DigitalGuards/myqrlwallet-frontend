@@ -15,6 +15,7 @@ import { Link } from "react-router";
 import { ROUTES } from "@/router/router";
 import { Button } from "@/components/UI/Button";
 import { isDesktop } from "@/desktop/bridge";
+import { walletMutations } from "@/utils/nativeWalletMutation";
 
 const ImportAccount = observer(() => {
   const { qrlStore } = useStore();
@@ -26,22 +27,27 @@ const ImportAccount = observer(() => {
 
   const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(qrlConnection.blockchain);
 
-  const onAccountImported = async (importedAccount: ExtendedWalletAccount) => {
+  const onAccountImported = (importedAccount: ExtendedWalletAccount) => {
+    if (!isDesktop && (!importedAccount.mnemonic || !importedAccount.hexSeed)) {
+      throw new Error("The imported wallet is missing its recovery seed");
+    }
     window.scrollTo(0, 0);
     setAccount(importedAccount);
-    // On desktop the address is not known until the signer imports the wallet
-    // (in PinSetup). Defer setActiveAccount to onPinSetupComplete.
-    if (!isDesktop) {
-      await setActiveAccount(importedAccount.address);
-    }
     setHasAccountImported(true);
   };
 
-  // On desktop, PinSetup provisions via the signer and returns the address.
+  // Select only after PIN setup and the required native backup acknowledgement.
+  // On desktop, the signer returns the provisioned address.
   const onPinSetupComplete = async (provisionedAddress?: string) => {
+    const generation = walletMutations.captureGeneration();
     if (isDesktop && provisionedAddress) {
       setAccount((prev) => (prev ? { ...prev, address: provisionedAddress } : prev));
       await setActiveAccount(provisionedAddress);
+    } else if (!isDesktop && account?.address) {
+      await setActiveAccount(account.address);
+    }
+    if (!isDesktop && !walletMutations.isCurrent(generation)) {
+      throw new Error("Wallet was cleared during account import");
     }
     setIsPinSetupComplete(true);
   };

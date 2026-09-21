@@ -25,6 +25,7 @@ export {
   encryptSeedAsync,
   decryptSeedAsync,
   decryptStoredSeedAsync,
+  verifyStoredSeedPinAsync,
   reEncryptSeedAsync,
   deriveHexSeedAsync,
   decryptKeystoreAsync,
