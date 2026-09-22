@@ -1,5 +1,5 @@
 import { useStore } from "@/stores/store";
-import type { FeeLevel } from "@/stores/qrlStore";
+import { quoteFees, type FeeLevel } from "@/stores/qrlStore";
 import { utils } from "@theqrl/web3";
 import { cva } from "class-variance-authority";
 import { Loader } from "lucide-react";
@@ -7,10 +7,10 @@ import { useEffect, useState, useRef } from "react";
 import { getOptimalGasFee } from "@/utils/formatting";
 import { cn } from "@/utils/cn";
 
-const FEE_DISPLAY: Record<FeeLevel, { label: string; multiplier: number }> = {
-  low:    { label: "Slow",   multiplier: 1 },
-  medium: { label: "Medium", multiplier: 1.5 },
-  high:   { label: "Fast",   multiplier: 2 },
+const FEE_DISPLAY: Record<FeeLevel, { label: string }> = {
+  low:    { label: "Slow" },
+  medium: { label: "Medium" },
+  high:   { label: "Fast" },
 };
 
 type GasFeeNoticeProps = {
@@ -65,12 +65,15 @@ export const GasFeeNotice = ({
         to,
         value: utils.toPlanck(value, "quanta"),
       };
-      const estimatedTransactionGas =
-        (await qrlInstance?.estimateGas(transaction)) ?? BigInt(0);
-      const gasPrice = (await qrlInstance?.getGasPrice()) ?? BigInt(0);
-      const multiplied = (gasPrice * BigInt(Math.round(FEE_DISPLAY[feeLevel].multiplier * 100))) / BigInt(100);
+      if (!qrlInstance) throw new Error("Wallet not connected");
+      const [estimatedTransactionGas, fees] = await Promise.all([
+        qrlInstance.estimateGas(transaction),
+        quoteFees(qrlInstance, feeLevel),
+      ]);
+      // Quote what the send is expected to cost at the current base fee;
+      // maxFeePerGas is only a ceiling and its unused part is refunded.
       const estimatedGasRaw = utils.fromPlanck(
-        BigInt(estimatedTransactionGas) * multiplied,
+        BigInt(estimatedTransactionGas) * fees.expectedFeePerGas,
         "quanta"
       );
       const estimatedGas = getOptimalGasFee(estimatedGasRaw);
