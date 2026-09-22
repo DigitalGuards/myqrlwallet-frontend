@@ -38,7 +38,7 @@ import {
 import { discoverNFTs } from "@/utils/web3";
 import type QrlStore from "./qrlStore";
 import type TokenStore from "./tokenStore";
-import { applyFeeLevel, type FeeLevel } from "./qrlStore";
+import { quoteFees, type FeeLevel } from "./qrlStore";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 
 class NftStore {
@@ -621,10 +621,8 @@ class NftStore {
       web3.qrl.wallet?.add(seed);
       web3.qrl.transactionConfirmationBlocks = 1;
 
-      const baseGasPrice =
-        (await web3.qrl.getGasPrice()) ?? BigInt(1000000000);
-      const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(
-        baseGasPrice,
+      const { maxFeePerGas, maxPriorityFeePerGas } = await quoteFees(
+        web3.qrl,
         feeLevel,
       );
 

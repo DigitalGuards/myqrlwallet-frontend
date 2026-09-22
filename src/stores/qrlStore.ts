@@ -65,14 +65,67 @@ const FEE_MULTIPLIERS: Record<FeeLevel, { maxFee: bigint; priorityFee: bigint }>
   high:   { maxFee: BigInt(200), priorityFee: BigInt(150) },  // 2x / 1.5x
 };
 
-// Exported so token/NFT stores can share the same fee-multiplier math
-// they used to call when this lived inside qrlStore directly.
-export function applyFeeLevel(baseGasPrice: bigint, level: FeeLevel) {
+// Legacy gasPrice-multiplier math. qrl_gasPrice already includes the base
+// fee, so this overprices the tip; it remains only as the fallback in
+// quoteFees for nodes/proxies that do not serve qrl_maxPriorityFeePerGas.
+function applyFeeLevel(baseGasPrice: bigint, level: FeeLevel) {
   const m = FEE_MULTIPLIERS[level];
   return {
     maxFeePerGas: (baseGasPrice * m.maxFee) / BigInt(100),
     maxPriorityFeePerGas: (baseGasPrice * m.priorityFee) / BigInt(100),
   };
+}
+
+// Multipliers on the node's suggested tip (percent).
+const TIP_MULTIPLIERS: Record<FeeLevel, bigint> = {
+  low: BigInt(100),
+  medium: BigInt(150),
+  high: BigInt(200),
+};
+
+export interface FeeQuote {
+  maxFeePerGas: bigint;
+  maxPriorityFeePerGas: bigint;
+  /** What the sender is expected to pay per gas at the current base fee. */
+  expectedFeePerGas: bigint;
+}
+
+export type FeeMarketProvider = Pick<Web3QRLInterface, "getGasPrice">
+  & Partial<Pick<Web3QRLInterface, "getMaxPriorityFeePerGas" | "getBlock">>;
+
+// EIP-1559 fees for a selector level: the tip scales the node's suggestion,
+// and maxFee = 2 * baseFee + tip leaves headroom for several base-fee rises
+// (unused headroom is refunded). Shared by native, token and NFT sends so
+// every path signs with the policy the fee display quotes.
+export async function quoteFees(
+  provider: FeeMarketProvider,
+  level: FeeLevel,
+): Promise<FeeQuote> {
+  try {
+    if (!provider.getMaxPriorityFeePerGas || !provider.getBlock) {
+      throw new Error("Fee market methods unavailable");
+    }
+    const [suggestedTip, block] = await Promise.all([
+      provider.getMaxPriorityFeePerGas(),
+      provider.getBlock("latest"),
+    ]);
+    const baseFee = block?.baseFeePerGas;
+    if (baseFee === undefined || baseFee === null) {
+      throw new Error("Latest block has no base fee");
+    }
+    const baseFeePerGas = BigInt(baseFee);
+    const maxPriorityFeePerGas =
+      (BigInt(suggestedTip) * TIP_MULTIPLIERS[level]) / BigInt(100);
+    return {
+      maxFeePerGas: BigInt(2) * baseFeePerGas + maxPriorityFeePerGas,
+      maxPriorityFeePerGas,
+      expectedFeePerGas: baseFeePerGas + maxPriorityFeePerGas,
+    };
+  } catch (error) {
+    log(`Fee market quote unavailable, falling back to gasPrice: ${getErrorMessage(error)}`);
+    const legacy = applyFeeLevel(BigInt(await provider.getGasPrice()), level);
+    return { ...legacy, expectedFeePerGas: legacy.maxFeePerGas };
+  }
 }
 
 // EIP-1193 provider surface the wallet relies on. Exported so the extension
@@ -792,8 +845,7 @@ class QrlStore {
       }
       const provider = this.qrlInstance;
       if (!provider) throw new Error("Wallet not connected. Please try again.");
-      const baseGasPrice = await provider.getGasPrice();
-      const fees = applyFeeLevel(BigInt(baseGasPrice), feeLevel);
+      const fees = await quoteFees(provider, feeLevel);
       gas = BigInt(await provider.estimateGas({
         from: transfer.from, to: transfer.to, value: value.toString(), type: '0x2',
         maxFeePerGas: `0x${fees.maxFeePerGas.toString(16)}`,
@@ -882,9 +934,8 @@ class QrlStore {
       // Fetch the next available nonce, including pending transactions
       const nonce = await this.qrlInstance?.getTransactionCount(from, "pending");
 
-      // Fetch current gas price and apply fee level multiplier
-      const baseGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(1000000000);
-      const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
+      if (!this.qrlInstance) throw new Error("Wallet not connected. Please try again.");
+      const { maxFeePerGas, maxPriorityFeePerGas } = await quoteFees(this.qrlInstance, feeLevel);
       const utils = this._utils ?? (await getQrlWeb3()).utils;
 
       const transactionObject = {
@@ -1218,9 +1269,8 @@ class QrlStore {
           value: valueHex,
         }];
       } else {
-        // Fetch current gas price and apply fee level multiplier
-        const baseGasPrice = (await this.qrlInstance?.getGasPrice()) ?? BigInt(1000000000);
-        const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(baseGasPrice, feeLevel);
+        if (!this.qrlInstance) throw new Error("Wallet not connected. Please try again.");
+        const { maxFeePerGas, maxPriorityFeePerGas } = await quoteFees(this.qrlInstance, feeLevel);
 
         const maxPriorityFeeHex = "0x" + maxPriorityFeePerGas.toString(16);
         const maxFeeHex = "0x" + maxFeePerGas.toString(16);
