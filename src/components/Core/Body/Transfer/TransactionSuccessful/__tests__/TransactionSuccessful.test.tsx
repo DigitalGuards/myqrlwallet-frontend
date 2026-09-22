@@ -75,7 +75,7 @@ it("keeps full hashes readable and full explorer destinations", () => {
     screen.getByRole("link", { name: "155778" }).getAttribute("href"),
   ).toBe("https://zondscan.com/block/155778");
   expect(screen.getByText("40,500.0 Quanta")).toBeTruthy();
-  expect(screen.getByText("0.00002625 QRL")).toBeTruthy();
+  expect(screen.getByText("0.00002625 Quanta")).toBeTruthy();
 });
 
 it.each([
