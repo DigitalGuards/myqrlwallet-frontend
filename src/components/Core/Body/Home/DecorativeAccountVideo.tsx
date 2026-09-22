@@ -156,11 +156,6 @@ export default function DecorativeAccountVideo() {
       className="pointer-events-none absolute inset-0 overflow-hidden"
       aria-hidden="true"
     >
-      <img
-        src="/tree.svg"
-        alt=""
-        className="h-full w-full object-cover opacity-10"
-      />
       <div className="absolute inset-0" style={{ opacity: playing ? 1 : 0 }}>
         <video
           ref={videoRef}
