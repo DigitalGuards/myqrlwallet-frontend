@@ -27,7 +27,7 @@ const formatUnits = (value: bigint | string | unknown, decimals: number): string
 import { getOptimalTokenBalance } from "@/utils/formatting";
 import type QrlStore from "./qrlStore";
 import type { FeeLevel } from "./qrlStore";
-import { applyFeeLevel } from "./qrlStore";
+import { quoteFees } from "./qrlStore";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import {
   normalizeQrlVm64Topic,
@@ -536,9 +536,8 @@ class TokenStore {
       }
       web3.qrl.wallet?.add(seed);
       web3.qrl.transactionConfirmationBlocks = 1;
-      const baseGasPrice = (await web3.qrl.getGasPrice()) ?? BigInt(1000000000);
-      const { maxFeePerGas, maxPriorityFeePerGas } = applyFeeLevel(
-        baseGasPrice,
+      const { maxFeePerGas, maxPriorityFeePerGas } = await quoteFees(
+        web3.qrl,
         feeLevel,
       );
       const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
