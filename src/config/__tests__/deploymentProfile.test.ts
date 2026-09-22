@@ -13,6 +13,38 @@ const ENV = {
   VITE_V3_GENESIS_HASH: HASH,
 };
 
+it.each([
+  ["https://v3.zondscan.com", "https://zondscan.com"],
+  ["https://v3.zondscan.com/", "https://zondscan.com"],
+  ["https://V3.ZONDSCAN.COM:443/", "https://zondscan.com"],
+  ["https://v3.zondscan.com/explorer/", "https://zondscan.com/explorer"],
+  ["https://zondscan.com", "https://zondscan.com"],
+  ["https://custom.example/v3/", "https://custom.example/v3"],
+  ["https://v3.zondscan.com.example", "https://v3.zondscan.com.example"],
+  ["https://v3.zondscan.com:8443", "https://v3.zondscan.com:8443"],
+  ["http://127.0.0.1:3000/explorer/", "http://127.0.0.1:3000/explorer"],
+])(
+  "uses the canonical v3 explorer while preserving custom endpoints: %s",
+  (input, expected) => {
+    const result = v3Deployment({ ...ENV, VITE_V3_EXPLORER_URL: input });
+    expect(result.network.explorer).toBe(expected);
+    expect(result.network.url).toBe(ENV.VITE_V3_RPC_URL);
+    expect(result.serverUrl).toBe(ENV.VITE_V3_SERVER_URL);
+    expect(result.network.genesisHash).toBe(HASH);
+  },
+);
+
+it.each([
+  "http://v3.zondscan.com",
+  "https://user:password@v3.zondscan.com",
+  "https://v3.zondscan.com/?token=secret",
+  "https://v3.zondscan.com/#fragment",
+  " https://v3.zondscan.com",
+  "https://v3.zondscan.com ",
+])("validates the explorer before canonicalizing it: %s", (url) => {
+  expect(() => v3Deployment({ ...ENV, VITE_V3_EXPLORER_URL: url })).toThrow();
+});
+
 it("requires explicit v3 endpoints and produces an independent identity with disabled contracts", () => {
   const result = v3Deployment(ENV);
   expect(result.network).toMatchObject({

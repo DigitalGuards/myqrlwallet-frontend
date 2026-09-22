@@ -7,8 +7,8 @@ import {
   CardTitle,
 } from "@/components/UI/Card";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { StringUtil, getOptimalTokenBalance } from "@/utils/formatting";
-import type { TransactionReceipt} from "@theqrl/web3";
+import { getOptimalTokenBalance } from "@/utils/formatting";
+import type { TransactionReceipt } from "@theqrl/web3";
 import { utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
 import { Check, CheckCircle2, Copy, ExternalLink } from "lucide-react";
@@ -40,35 +40,46 @@ export const TransactionSuccessful = ({
     effectiveGasPrice,
   } = transactionReceipt;
 
-  const { copiedItem, copyToClipboard } = useCopyToClipboard<"txHash" | "blockHash">();
+  const { copiedItem, copyToClipboard } = useCopyToClipboard<
+    "txHash" | "blockHash"
+  >();
 
-  const explorerUrl = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER]?.explorer || "https://zondscan.com";
+  const explorerUrl =
+    QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER]?.explorer ||
+    "https://zondscan.com";
 
   const gasInQrl = new BigNumber(
-    utils.fromPlanck(BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0), "quanta")
+    utils.fromPlanck(
+      BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0),
+      "quanta",
+    ),
   )
     .dp(8, BigNumber.ROUND_DOWN)
     .toString()
     .replace(/\.?0+$/, "");
 
-  const formattedAmount = amount ? getOptimalTokenBalance(amount, assetSymbol) : null;
+  const formattedAmount = amount
+    ? getOptimalTokenBalance(amount, assetSymbol)
+    : null;
 
   return (
-    <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-      <div className="relative w-full max-w-2xl px-2 md:px-4">
+    <div className="flex min-w-0 w-full items-start justify-center py-2 md:py-8">
+      <div className="relative min-w-0 w-full max-w-2xl px-2 md:px-4">
         <img
           className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
           src="/tree.svg"
           alt="Background Tree"
         />
-        <Card className="w-full border-l-4 border-l-success">
-          <CardHeader className="bg-gradient-to-r from-success/10 to-transparent">
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-success" />
-              Transaction Completed
+        <Card className="min-w-0 w-full border-l-4 border-l-success">
+          <CardHeader className="bg-gradient-to-r from-success/10 to-transparent px-4 sm:px-6">
+            <CardTitle className="flex items-center gap-2 text-xl leading-tight sm:text-2xl">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
+              <span className="min-w-0 [overflow-wrap:anywhere]">
+                Transaction Completed
+              </span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-8 pt-6">
+          <CardContent className="space-y-6 px-4 pt-6 sm:px-6">
             {formattedAmount && (
               <div className="flex flex-col gap-2">
                 <div>Amount</div>
@@ -79,62 +90,91 @@ export const TransactionSuccessful = ({
             )}
             <div className="flex flex-col gap-2">
               <div>Transaction Hash</div>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <a
                   href={`${explorerUrl}/tx/${transactionHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-secondary hover:text-secondary/80"
+                  aria-label={`View transaction ${transactionHash} on explorer`}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-secondary hover:text-secondary/80"
                 >
-                  <span className="font-bold">
-                    {StringUtil.getSplitAddress(transactionHash.toString())}
+                  <span className="min-w-0 break-all font-mono text-sm font-medium leading-relaxed">
+                    {transactionHash.toString()}
                   </span>
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink
+                    className="h-4 w-4 shrink-0"
+                    aria-hidden="true"
+                  />
                 </a>
-                <button
-                  onClick={() => copyToClipboard(transactionHash.toString(), "txHash")}
-                  className="text-secondary hover:text-secondary/80"
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={
+                    copiedItem === "txHash"
+                      ? "Transaction hash copied"
+                      : "Copy transaction hash"
+                  }
+                  onClick={() =>
+                    copyToClipboard(transactionHash.toString(), "txHash")
+                  }
+                  className="shrink-0 text-secondary hover:text-secondary/80"
                 >
                   {copiedItem === "txHash" ? (
                     <Check className="h-4 w-4 text-success" />
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
-                </button>
+                </Button>
               </div>
             </div>
             <div className="flex flex-col gap-2">
               <div>Block hash</div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-secondary">
-                  {StringUtil.getSplitAddress(blockHash.toString())}
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="min-w-0 flex-1 break-all font-mono text-sm font-medium leading-relaxed text-secondary">
+                  {blockHash.toString()}
                 </span>
-                <button
-                  onClick={() => copyToClipboard(blockHash.toString(), "blockHash")}
-                  className="text-secondary hover:text-secondary/80"
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={
+                    copiedItem === "blockHash"
+                      ? "Block hash copied"
+                      : "Copy block hash"
+                  }
+                  onClick={() =>
+                    copyToClipboard(blockHash.toString(), "blockHash")
+                  }
+                  className="shrink-0 text-secondary hover:text-secondary/80"
                 >
                   {copiedItem === "blockHash" ? (
                     <Check className="h-4 w-4 text-success" />
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
-                </button>
+                </Button>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-8">
-              <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div className="flex min-w-0 flex-col gap-2">
                 <div>Block number</div>
                 <a
                   href={`${explorerUrl}/block/${blockNumber}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 font-bold text-secondary hover:text-secondary/80"
+                  className="flex min-w-0 items-center gap-2 font-bold text-secondary hover:text-secondary/80"
                 >
-                  {blockNumber.toString()}
-                  <ExternalLink className="h-4 w-4" />
+                  <span className="min-w-0 break-all">
+                    {blockNumber.toString()}
+                  </span>
+                  <ExternalLink
+                    className="h-4 w-4 shrink-0"
+                    aria-hidden="true"
+                  />
                 </a>
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex min-w-0 flex-col gap-2">
                 <div>Gas used</div>
                 <div className="font-bold text-secondary break-all">
                   {gasInQrl} QRL
@@ -142,9 +182,8 @@ export const TransactionSuccessful = ({
               </div>
             </div>
           </CardContent>
-          <CardFooter className="grid grid-cols-2 gap-4">
-            <span />
-            <Button className="w-full" type="button" onClick={onDone}>
+          <CardFooter className="justify-end px-4 sm:px-6">
+            <Button className="w-full sm:w-1/2" type="button" onClick={onDone}>
               <Check className="mr-2 h-4 w-4" />
               Done
             </Button>
