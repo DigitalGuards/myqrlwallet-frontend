@@ -102,7 +102,10 @@ it("starts silent inline media, reveals only actual playback, and keeps decorati
   expect(video.preload).toBe("none");
   expect(video.tabIndex).toBe(-1);
   expect(container.firstElementChild?.getAttribute("aria-hidden")).toBe("true");
-  expect(container.querySelector("img")?.getAttribute("alt")).toBe("");
+  expect(container.querySelector("img")).toBeNull();
+  expect(video.querySelector("source")?.getAttribute("src")).toBe(
+    "/qrl-video-dark.mp4",
+  );
   expect(media.style.opacity).toBe("0");
   await flush();
   expect(media.style.opacity).toBe("0");
