@@ -1,5 +1,6 @@
 import { observer } from "mobx-react-lite";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Loader2, Plus, RefreshCw, Sparkles } from "lucide-react";
 import {
   Card,
@@ -23,19 +24,62 @@ import { formatAddressFingerprint } from "@/utils/formatting";
 import { NftCard } from "./NftCard";
 import { NftCollectionRow } from "./NftCollectionRow";
 import { AddNftModal } from "./AddNftModal";
+import {
+  NFT_COLLECTION_PARAM,
+  openedFromCollectionList,
+  type NftNavState,
+} from "./nftNavigation";
 
 const NftGallery = observer(() => {
   const { qrlStore, nftStore } = useStore();
   const { accountAddress: activeAccountAddress } = qrlStore.activeAccount;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   // Lowercased contract address of the collection being browsed, or null
-  // for the collection list. Derived lookup below tolerates a collection
-  // that disappears under it (last token transferred away, account
-  // switch) by falling back to the list.
-  const [openCollectionKey, setOpenCollectionKey] = useState<string | null>(
-    null,
-  );
+  // for the collection list. It lives in the URL so the drill-down is
+  // addressable: an NFT detail page can navigate back into it, and the
+  // browser Back button steps out of it. The derived lookup below
+  // tolerates a collection that disappears under it (last token
+  // transferred away, account switch) by falling back to the list.
+  const openCollectionKey =
+    searchParams.get(NFT_COLLECTION_PARAM)?.toLowerCase() || null;
+
+  const openCollectionByKey = (key: string) => {
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        next.set(NFT_COLLECTION_PARAM, key);
+        return next;
+      },
+      { state: { nftCollectionFromList: true } satisfies NftNavState },
+    );
+  };
+
+  const closeCollection = (replace: boolean) => {
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        next.delete(NFT_COLLECTION_PARAM);
+        return next;
+      },
+      { replace },
+    );
+  };
+
+  // Pop the pushed entry when the list is one step back, so the in-app
+  // Back button and the browser Back button land in the same place. A
+  // drill-down reached by deep link, or by a detail page's fallback
+  // navigation, has no such entry, so drop the parameter in place.
+  const onBackToCollections = () => {
+    if (openedFromCollectionList(location.state)) {
+      void navigate(-1);
+      return;
+    }
+    closeCollection(true);
+  };
 
   // Refresh ownership/balances on mount so a stale list gets corrected
   // when the wallet has been used elsewhere since the last visit, then
@@ -52,10 +96,23 @@ const NftGallery = observer(() => {
   // Populate the discovery cache so the empty-state can say "Explorer
   // found N collections" and the AddNftModal can offer a picker. Does
   // NOT auto-merge into nftList: the user has to explicitly pick.
+  //
+  // The same effect closes an open drill-down, because the collection
+  // belongs to the account that was active when it was opened. That is
+  // for an actual account switch only: on first mount the parameter is
+  // what a deep link asked for, so clearing it there would defeat the
+  // link.
+  const lastAccountRef = useRef(activeAccountAddress);
   useEffect(() => {
     if (!activeAccountAddress) return;
-    setOpenCollectionKey(null);
+    if (lastAccountRef.current !== activeAccountAddress) {
+      lastAccountRef.current = activeAccountAddress;
+      if (openCollectionKey) closeCollection(true);
+    }
     void nftStore.discoverNftsForReview(activeAccountAddress);
+    // Deliberately keyed on the account alone: re-running this on every
+    // URL change would repeat the discovery fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAccountAddress, nftStore]);
 
   const onRefresh = async () => {
@@ -89,7 +146,7 @@ const NftGallery = observer(() => {
               size="icon"
               className="h-8 w-8 shrink-0"
               aria-label="Back to collections"
-              onClick={() => setOpenCollectionKey(null)}
+              onClick={onBackToCollections}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -165,7 +222,7 @@ const NftGallery = observer(() => {
               <NftCollectionRow
                 key={collection.key}
                 collection={collection}
-                onOpen={(picked) => setOpenCollectionKey(picked.key)}
+                onOpen={(picked) => openCollectionByKey(picked.key)}
               />
             ))}
           </div>

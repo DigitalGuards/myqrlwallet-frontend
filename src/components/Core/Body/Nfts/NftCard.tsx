@@ -7,6 +7,7 @@ import { nftKey } from "@/utils/web3/nft";
 import { NftImage } from "./NftImage";
 import { ROUTES } from "@/router/router";
 import { formatAddressFingerprint } from "@/utils/formatting";
+import { nftDetailPath, type NftNavState } from "./nftNavigation";
 
 interface NftCardProps {
   nft: NFTInterface;
@@ -23,8 +24,12 @@ export function NftCard({ nft }: NftCardProps) {
   };
 
   const onOpen = () => {
-    navigate(
-      `${ROUTES.NFT_DETAIL.replace(":contractAddress", nft.contractAddress).replace(":tokenId", nft.tokenId)}`,
+    // Record that the previous history entry is this NFT's collection
+    // view, so the detail page's Back button pops back into it instead of
+    // guessing a route.
+    void navigate(
+      nftDetailPath(ROUTES.NFT_DETAIL, nft.contractAddress, nft.tokenId),
+      { state: { nftDetailFromCollection: true } satisfies NftNavState },
     );
   };
 

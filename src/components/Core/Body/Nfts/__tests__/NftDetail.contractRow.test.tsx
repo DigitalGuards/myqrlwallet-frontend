@@ -13,6 +13,7 @@ import NftDetail from "../NftDetail";
 jest.mock("react-router", () => ({
   useNavigate: jest.fn(() => jest.fn()),
   useParams: jest.fn(),
+  useLocation: jest.fn(() => ({ pathname: "/", search: "", state: null })),
 }));
 jest.mock("@/stores/store", () => ({ useStore: jest.fn() }));
 jest.mock("@/utils", () => ({

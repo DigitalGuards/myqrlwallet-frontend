@@ -19,6 +19,10 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '/.dapp-example-cache/'],
+  // Suites are named `*.test.*` / `*.spec.*` only, so a `__tests__`
+  // directory can also hold shared helpers (e.g. the NFT tests' fake
+  // router history) without jest collecting them as empty suites.
+  testMatch: ['**/?(*.)+(spec|test).[jt]s?(x)'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'json'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

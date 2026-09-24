@@ -4,7 +4,7 @@
  * collection's tokens, the way the browser extension's NFT collections
  * list does.
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import type { NFTInterface } from "@/constants";
 import { groupNftsByCollection } from "@/utils/web3/nftCollections";
 import { useStore } from "@/stores/store";
@@ -16,7 +16,14 @@ jest.mock("@/utils", () => ({
     values.filter((value) => typeof value === "string").join(" "),
   log: jest.fn(),
 }));
-jest.mock("react-router", () => ({ useNavigate: () => jest.fn() }));
+// Drill-down navigation (URL parameter, Back, browser history) has its
+// own suite: NftCollectionNavigation.test.tsx. Here the router is a
+// static stub showing the collection list.
+jest.mock("react-router", () => ({
+  useNavigate: () => jest.fn(),
+  useLocation: () => ({ pathname: "/", search: "", state: null }),
+  useSearchParams: () => [new URLSearchParams(), jest.fn()],
+}));
 jest.mock("@/router/router", () => ({
   ROUTES: { NFT_DETAIL: "/nft/:contractAddress/:tokenId" },
 }));
@@ -77,19 +84,6 @@ it("lists collections with item counts, standard, and short contract address", (
   expect(screen.getByText(/3 items · ERC-1155 · Q1222c573/)).toBeTruthy();
   // No token row is rendered at the collection level.
   expect(screen.queryByText("Punk #1")).toBeNull();
-});
-
-it("drills into one collection and back", () => {
-  mountWith(ownedNfts);
-
-  fireEvent.click(screen.getByText("Devnet Punks"));
-  expect(screen.getAllByText("Punk #1").length).toBeGreaterThan(0);
-  expect(screen.getAllByText("Punk #2").length).toBeGreaterThan(0);
-  expect(screen.getByText("2 items")).toBeTruthy();
-
-  fireEvent.click(screen.getByLabelText("Back to collections"));
-  expect(screen.queryAllByText("Punk #1")).toHaveLength(0);
-  expect(screen.getByText("2 collections")).toBeTruthy();
 });
 
 it("counts collections, not tokens, in the discovery empty state", () => {
