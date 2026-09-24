@@ -2,6 +2,8 @@ import { isValidQrlAddress } from "@/utils/web3/address";
 
 const ADDRESS_FINGERPRINT_SEGMENT_LENGTH = 8;
 const ADDRESS_GROUP_LENGTH = 8;
+/** Reveal grouping shared with the browser extension's full-address view. */
+export const ADDRESS_DISCLOSURE_GROUP_LENGTH = 5;
 const LEGACY_QRL_ADDRESS_PATTERN = /^[QZ][0-9a-fA-F]{40}$/;
 const EMBEDDED_QRL_ADDRESS_PATTERN =
   /(^|[^0-9a-fA-F])(Q[0-9a-fA-F]{128}|[QZ][0-9a-fA-F]{40})(?=$|[^0-9a-fA-F])/g;
@@ -60,6 +62,28 @@ export const formatAddress = (
   if (groups.length === 0) return prefix;
   groups[0] = `${prefix}${groups[0]}`;
   return groups.join(" ");
+};
+
+/**
+ * Splits an address into its prefix and fixed-length body groups. Mirrors the
+ * browser extension's grouping so the wallet surfaces read identically. The
+ * raw value is never altered, only how it is chunked for display.
+ */
+export const splitAddressGroups = (
+  address: string,
+  groupSize: number = ADDRESS_DISCLOSURE_GROUP_LENGTH,
+): { prefix: string; groups: string[] } => {
+  if (!isDisplayableQrlAddress(address)) return { prefix: "", groups: [address] };
+  if (!Number.isInteger(groupSize) || groupSize <= 0)
+    return { prefix: "", groups: [address] };
+
+  const { prefix, payload } = splitQrlPrefix(address);
+  const groups: string[] = [];
+  for (let index = 0; index < payload.length; index += groupSize) {
+    groups.push(payload.slice(index, index + groupSize));
+  }
+
+  return { prefix, groups };
 };
 
 /** Compatibility alias for existing compact-address call sites. */
