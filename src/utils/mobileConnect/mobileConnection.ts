@@ -3,7 +3,8 @@ import type { ExtensionProvider } from "@/stores/qrlStore";
 import type { AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
 import { isValidQrlAddress } from "@/utils/web3/address";
-import { IS_V3_PROFILE, V3_UNSUPPORTED_SIGNER_MESSAGE } from '@/config/runtimeProfile';
+import { IS_V3_PROFILE } from '@/config/runtimeProfile';
+import { qualifyV3MobileProvider, V3_MOBILE_UNRESPONSIVE_MESSAGE } from '@/utils/extension/v3Provider';
 
 /**
  * dApp-side QRL Connect client: pairs this web wallet with the MyQRLWallet
@@ -64,6 +65,59 @@ function asExtensionProvider(qrl: QRLConnect): ExtensionProvider {
   return adapter;
 }
 
+// Local status messages (qualification failures) for the pairing dialog, in
+// addition to the SDK's own statusChanged events.
+const statusListeners = new Set<(status: string) => void>();
+
+function emitStatus(status: string): void {
+  for (const listener of statusListeners) listener(status);
+}
+
+function endPairing(store: MobileConnectStore): void {
+  pairingActive = false;
+  pairingGeneration += 1;
+  store.setMobileProvider(null);
+  void store.removeMobileAccounts().catch((error: unknown) => {
+    console.error("Mobile connect: failed to remove accounts:", error);
+  });
+}
+
+/**
+ * Publish the paired phone as the store's mobile provider. On Testnet v3 the
+ * phone must first prove it is on the configured network (chain id and
+ * genesis hash through the pairing); an app that cannot is disconnected and
+ * the reason is shown in the pairing dialog. Resolves false when the pairing
+ * was superseded or rejected.
+ */
+async function publishProvider(
+  qrl: QRLConnect,
+  store: MobileConnectStore,
+  generation: number,
+): Promise<boolean> {
+  const provider = asExtensionProvider(qrl);
+  if (IS_V3_PROFILE) {
+    try {
+      await qualifyV3MobileProvider(provider);
+    } catch (error) {
+      if (!pairingActive || pairingGeneration !== generation) return false;
+      const message = error instanceof Error ? error.message : String(error);
+      log(`Mobile connect: ${message}`);
+      if (message === V3_MOBILE_UNRESPONSIVE_MESSAGE) {
+        // Unreachable phone: keep the pairing. The next 'connect' retries.
+        emitStatus(message);
+        return false;
+      }
+      endPairing(store);
+      emitStatus(message);
+      void qrl.disconnect().catch(() => undefined);
+      return false;
+    }
+    if (!pairingActive || pairingGeneration !== generation) return false;
+  }
+  store.setMobileProvider(provider);
+  return true;
+}
+
 function isExplicitAccountRejection(error: unknown): boolean {
   if (error && typeof error === "object") {
     const record = error as Record<string, unknown>;
@@ -92,7 +146,7 @@ function requestMobileAccountOnce(qrl: QRLConnect, store: MobileConnectStore): v
         log("Mobile connect: account approval returned no account");
         return;
       }
-      store.setMobileProvider(asExtensionProvider(qrl));
+      if (!(await publishProvider(qrl, store, generation))) return;
       await store.adoptMobileAccount(address);
       if (!pairingActive || pairingGeneration !== generation) {
         store.setMobileProvider(null);
@@ -122,7 +176,6 @@ function requestMobileAccountOnce(qrl: QRLConnect, store: MobileConnectStore): v
 
 /** True when the SDK has a stored (unexpired at last write) pairing session. */
 export function hasMobileSession(): boolean {
-  if (IS_V3_PROFILE) return false;
   try {
     return localStorage.getItem(SDK_SESSION_KEY) !== null;
   } catch {
@@ -130,9 +183,40 @@ export function hasMobileSession(): boolean {
   }
 }
 
+/** After 'connect': adopt the single cached account or request one. */
+function adoptConnectedAccount(qrl: QRLConnect, store: MobileConnectStore): void {
+  const accounts = qrl.getAccounts();
+  if (accounts.length > 1) {
+    log("Mobile connect: rejected multiple cached accounts");
+    endPairing(store);
+    return;
+  }
+  const address = accounts.length === 1 ? accounts[0] : undefined;
+  if (!address) {
+    log("Mobile connect: relay connected, awaiting accounts");
+    requestMobileAccountOnce(qrl, store);
+    return;
+  }
+  if (!isValidQrlAddress(address)) {
+    log("Mobile connect: rejected malformed cached account");
+    endPairing(store);
+    return;
+  }
+  accountRequestAttempted = true;
+  log(`Mobile connect: paired with ${address}`);
+  void store.adoptMobileAccount(address).catch((error: unknown) => {
+    console.error("Mobile connect: failed to adopt paired account:", error);
+  });
+}
+
 async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
   const { QRLConnect } = await import("@qrlwallet/connect");
+  const v3ChainId = IS_V3_PROFILE
+    ? (await import("@/config")).QRL_PROVIDER.TEST_NET_V3.expectedChainId
+    : undefined;
   const qrl = new QRLConnect({
+    // Testnet v3 pairings are bound to the configured chain.
+    ...(v3ChainId ? { chainId: v3ChainId } : {}),
     dappMetadata: {
       name: "MyQRLWallet Web",
       url: window.location.origin,
@@ -149,44 +233,15 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
   // The SDK emits 'connect' (relay status CONNECTED) and 'accountsChanged'
   // independently and in no guaranteed order: 'connect' can fire while
   // getAccounts() is still empty, with the address arriving via a later
-  // 'accountsChanged'. So BOTH handlers publish the provider, and the
-  // provider is set eagerly, never gated on account adoption completing:
-  // otherwise a mobile account can be active with a null provider and every
-  // send fails with "Mobile app wallet not connected".
+  // 'accountsChanged'. So BOTH handlers publish the provider, before account
+  // adoption, so a mobile account is never active with a null provider (every
+  // send would fail with "Mobile app wallet not connected"). On Testnet v3,
+  // publishing waits for the phone to pass network qualification.
   qrl.on("connect", () => {
     if (!pairingActive) return;
-    store.setMobileProvider(asExtensionProvider(qrl));
-    const accounts = qrl.getAccounts();
-    if (accounts.length > 1) {
-      log("Mobile connect: rejected multiple cached accounts");
-      pairingActive = false;
-      pairingGeneration += 1;
-      store.setMobileProvider(null);
-      void store.removeMobileAccounts().catch((error: unknown) => {
-        console.error("Mobile connect: failed to remove accounts:", error);
-      });
-      return;
-    }
-    const address = accounts.length === 1 ? accounts[0] : undefined;
-    if (!address) {
-      log("Mobile connect: relay connected, awaiting accounts");
-      requestMobileAccountOnce(qrl, store);
-      return;
-    }
-    if (!isValidQrlAddress(address)) {
-      log("Mobile connect: rejected malformed cached account");
-      pairingActive = false;
-      pairingGeneration += 1;
-      store.setMobileProvider(null);
-      void store.removeMobileAccounts().catch((error: unknown) => {
-        console.error("Mobile connect: failed to remove accounts:", error);
-      });
-      return;
-    }
-    accountRequestAttempted = true;
-    log(`Mobile connect: paired with ${address}`);
-    void store.adoptMobileAccount(address).catch((error: unknown) => {
-      console.error("Mobile connect: failed to adopt paired account:", error);
+    const generation = pairingGeneration;
+    void publishProvider(qrl, store, generation).then((published) => {
+      if (published) adoptConnectedAccount(qrl, store);
     });
   });
 
@@ -196,18 +251,16 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
     if (!isValidQrlAddress(next)) {
       // Wallet revoked account access: same cleanup as a terminate.
       log("Mobile connect: accounts revoked");
-      pairingActive = false;
-      pairingGeneration += 1;
-      store.setMobileProvider(null);
-      void store.removeMobileAccounts().catch((error: unknown) => {
-        console.error("Mobile connect: failed to remove accounts:", error);
-      });
+      endPairing(store);
       return;
     }
     log(`Mobile connect: account changed to ${next}`);
-    store.setMobileProvider(asExtensionProvider(qrl));
-    void store.adoptMobileAccount(next).catch((error: unknown) => {
-      console.error("Mobile connect: failed to adopt changed account:", error);
+    const generation = pairingGeneration;
+    void publishProvider(qrl, store, generation).then((published) => {
+      if (!published) return;
+      void store.adoptMobileAccount(next).catch((error: unknown) => {
+        console.error("Mobile connect: failed to adopt changed account:", error);
+      });
     });
   });
 
@@ -236,7 +289,6 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
 
 /** Lazy singleton. The first caller's store gets wired into the events. */
 export async function getMobileConnect(store: MobileConnectStore): Promise<QRLConnect> {
-  if (IS_V3_PROFILE) throw new Error(V3_UNSUPPORTED_SIGNER_MESSAGE);
   if (instance) return instance;
   creating ??= createInstance(store).then((qrl) => {
     instance = qrl;
@@ -252,11 +304,17 @@ export async function getMobileConnect(store: MobileConnectStore): Promise<QRLCo
  * which guarantees creation).
  */
 export function subscribeMobileStatus(cb: (status: string) => void): () => void {
+  statusListeners.add(cb);
   const qrl = instance;
-  if (!qrl) return () => undefined;
+  if (!qrl) {
+    return () => {
+      statusListeners.delete(cb);
+    };
+  }
   const handler = (status: unknown) => cb(String(status));
   qrl.on("statusChanged", handler);
   return () => {
+    statusListeners.delete(cb);
     qrl.off("statusChanged", handler);
   };
 }
@@ -331,7 +389,6 @@ export async function cancelMobilePairing(): Promise<void> {
  * auto-reconnect on the next load.
  */
 export async function disconnectMobile(): Promise<void> {
-  if (IS_V3_PROFILE) return;
   pairingActive = false;
   pairingGeneration += 1;
   accountRequestAttempted = true;
@@ -362,7 +419,6 @@ export async function maybeRestoreMobileConnection(
   store: MobileConnectStore,
   hasMobileAccount: boolean,
 ): Promise<void> {
-  if (IS_V3_PROFILE) return;
   if (!hasMobileSession()) return;
   if (!hasMobileAccount) {
     log("Mobile connect: stored SDK session without a mobile account; discarding");
@@ -390,8 +446,9 @@ export async function maybeRestoreMobileConnection(
     await store.removeMobileAccounts();
     return;
   }
-  // Provider is usable immediately; requests made before the socket resumes
-  // are buffered/relayed by the SDK. The 'connect' event re-confirms the
-  // account when the handshake completes.
-  store.setMobileProvider(asExtensionProvider(qrl));
+  // Outside Testnet v3 the provider is usable immediately; requests made
+  // before the socket resumes are buffered/relayed by the SDK. On Testnet v3
+  // the phone must first requalify, which needs it online: the 'connect'
+  // event publishes the provider through qualification when it rejoins.
+  if (!IS_V3_PROFILE) store.setMobileProvider(asExtensionProvider(qrl));
 }

@@ -111,6 +111,51 @@ describe("QrlAddress", () => {
     expect(onShowFull).not.toHaveBeenCalled();
   });
 
+  it("links the address out while keeping copy as a separate control", async () => {
+    const view = render(
+      <QrlAddress
+        address={ADDRESS}
+        href={`https://explorer.invalid/address/${ADDRESS}`}
+        linkLabel="View contract on the explorer"
+        copyable
+        copyLabel="Copy contract address"
+      />,
+    );
+
+    const link = view.getByRole("link", {
+      name: (name: string) =>
+        name.includes(ADDRESS) &&
+        name.includes("View contract on the explorer"),
+    });
+    expect(link.getAttribute("href")).toBe(
+      `https://explorer.invalid/address/${ADDRESS}`,
+    );
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link.getAttribute("title")).toBe(ADDRESS);
+    expect(link.className).toContain("min-w-0");
+
+    const copy = view.getByRole("button", { name: "Copy contract address" });
+    expect(link.contains(copy)).toBe(false);
+
+    fireEvent.click(copy);
+    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith(ADDRESS));
+  });
+
+  it("names an unlabelled explorer link after the address it opens", () => {
+    const view = render(
+      <QrlAddress
+        address={ADDRESS}
+        href={`https://explorer.invalid/address/${ADDRESS}`}
+      />,
+    );
+
+    const link = view.getByRole("link", {
+      name: (name: string) =>
+        name.includes(ADDRESS) && name.includes("opens in a new tab"),
+    });
+    expect(link.getAttribute("aria-label")).toBeNull();
+  });
+
   it("uses wrapping full-address styles without the obsolete fit-to-one-line class", () => {
     const view = render(<QrlAddress address={ADDRESS} mode="full" />);
     const address = view.getByLabelText(`QRL address ${ADDRESS}`);

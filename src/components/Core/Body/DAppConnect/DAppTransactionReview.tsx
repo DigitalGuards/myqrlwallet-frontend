@@ -67,12 +67,12 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
       </div>
       <div className="flex justify-between">
         <span className="text-muted-foreground">Value</span>
-        <span className="font-semibold">{displayValue}</span>
+        <span className="font-numeric font-semibold">{displayValue}</span>
       </div>
       {gas != null && (
         <div className="flex justify-between">
           <span className="text-muted-foreground">Gas Limit</span>
-          <span>{formatGasLimit(gas)}</span>
+          <span className="font-numeric">{formatGasLimit(gas)}</span>
         </div>
       )}
       {params['chainId'] != null && (

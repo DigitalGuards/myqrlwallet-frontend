@@ -120,7 +120,7 @@ export const GasFeeNotice = ({
           ) : gasFee.error ? (
             <span className="text-destructive">{gasFee.error}</span>
           ) : (
-            <span className="font-mono text-foreground">≈ {gasFee.estimatedGas}</span>
+            <span className="font-numeric text-foreground">≈ {gasFee.estimatedGas}</span>
           )}
         </div>
         <div className="grid grid-cols-3 gap-2">

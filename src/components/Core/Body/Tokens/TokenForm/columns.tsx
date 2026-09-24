@@ -52,7 +52,7 @@ const BalanceCell = observer(({ amount }: { amount: string }) => {
     };
 
     return (
-        <div className="flex flex-wrap items-center gap-2 group">
+        <div className="flex flex-wrap items-center gap-2 group font-numeric">
             <SlotBalance value={amount} spinning={tokenStore.isRefreshingBalances} />
             {isCopied ? (
                 <Check className="w-4 h-4 text-success" />

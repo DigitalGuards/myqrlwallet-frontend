@@ -119,6 +119,110 @@ export async function fetchNftCollectionInfo(
 }
 
 /**
+ * Transport-level failures that say nothing about the contract: the RPC
+ * was unreachable, slow, rate limited or returned a gateway error. A
+ * contract-level failure (revert, empty return data that will not decode)
+ * is a real answer and is deliberately absent from this list.
+ */
+const TRANSIENT_RPC_ERROR_PATTERN =
+  /(failed to fetch|fetch failed|network\s*error|load failed|timeout|timed out|etimedout|econnrefused|econnreset|enotfound|eai_again|epipe|socket hang up|socket disconnected|connection (?:refused|reset|closed|error|terminated)|request aborted|the operation was aborted|invalid json rpc response|invalid response|service unavailable|bad gateway|gateway time-?out|too many requests|internal server error|rate limit)/i;
+
+const TRANSIENT_RPC_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+/**
+ * True when an RPC call failed for a reason that may resolve on its own.
+ * Callers use it to keep a failed read out of a negative cache, so a
+ * blip does not become a permanent "this contract has no name".
+ * Unwraps `cause` / `innerError` chains because @theqrl/web3 nests the
+ * original transport error inside its own error classes.
+ */
+export function isTransientRpcError(error: unknown): boolean {
+  const seen = new Set<unknown>();
+  let current: unknown = error;
+  for (let depth = 0; current && depth < 8; depth += 1) {
+    if (seen.has(current)) break;
+    seen.add(current);
+    if (typeof current === "string") {
+      if (TRANSIENT_RPC_ERROR_PATTERN.test(current)) return true;
+      break;
+    }
+    if (typeof current !== "object") break;
+    const candidate = current as {
+      name?: unknown;
+      message?: unknown;
+      code?: unknown;
+      statusCode?: unknown;
+      status?: unknown;
+      cause?: unknown;
+      innerError?: unknown;
+    };
+    for (const field of [candidate.name, candidate.message, candidate.code]) {
+      if (typeof field === "string" && TRANSIENT_RPC_ERROR_PATTERN.test(field)) {
+        return true;
+      }
+    }
+    for (const field of [candidate.statusCode, candidate.status]) {
+      if (typeof field === "number" && TRANSIENT_RPC_STATUS.has(field)) {
+        return true;
+      }
+    }
+    current = candidate.cause ?? candidate.innerError;
+  }
+  return false;
+}
+
+export interface CollectionNameSymbol {
+  name?: string;
+  symbol?: string;
+  /**
+   * True when the node answered both reads, whether with a value or with
+   * a revert. False when at least one read failed in transport, so the
+   * empty result is unknown rather than "this contract has no name".
+   */
+  definitive: boolean;
+}
+
+/**
+ * Best-effort collection name()/symbol() read for any NFT contract.
+ * Both are optional metadata extensions: ERC-721 implementations may
+ * omit them and ERC-1155 has no such thing in the standard, so a revert
+ * is expected and resolves to an empty result. Used as the fallback for
+ * collections the explorer index carries no metadata for.
+ *
+ * Transport failures are reported through `definitive: false` so the
+ * caller can retry them later instead of caching a permanent negative.
+ */
+export async function fetchCollectionNameSymbol(
+  contractAddress: string,
+  rpcUrl: string,
+): Promise<CollectionNameSymbol> {
+  const { default: Web3 } = await getQrlWeb3();
+  const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
+  const methods = contractMethods<Erc721Methods>(
+    web3,
+    erc721ABI,
+    contractAddress,
+  );
+
+  let name: string | undefined;
+  let symbol: string | undefined;
+  let definitive = true;
+  try {
+    name = await methods.name().call();
+  } catch (error) {
+    // Contract exposes no name(), or the node could not be reached.
+    if (isTransientRpcError(error)) definitive = false;
+  }
+  try {
+    symbol = await methods.symbol().call();
+  } catch (error) {
+    // Contract exposes no symbol(), or the node could not be reached.
+    if (isTransientRpcError(error)) definitive = false;
+  }
+  return { name: name || undefined, symbol: symbol || undefined, definitive };
+}
+
+/**
  * For ERC-721 contracts that implement Enumerable, list owned token IDs.
  * Returns null if the contract doesn't support Enumerable; callers
  * must then prompt the user for a tokenId.

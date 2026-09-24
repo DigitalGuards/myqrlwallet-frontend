@@ -7,6 +7,7 @@ import { nftKey } from "@/utils/web3/nft";
 import { NftImage } from "./NftImage";
 import { ROUTES } from "@/router/router";
 import { formatAddressFingerprint } from "@/utils/formatting";
+import { nftDetailPath, type NftNavState } from "./nftNavigation";
 
 interface NftCardProps {
   nft: NFTInterface;
@@ -23,8 +24,12 @@ export function NftCard({ nft }: NftCardProps) {
   };
 
   const onOpen = () => {
-    navigate(
-      `${ROUTES.NFT_DETAIL.replace(":contractAddress", nft.contractAddress).replace(":tokenId", nft.tokenId)}`,
+    // Record that the previous history entry is this NFT's collection
+    // view, so the detail page's Back button pops back into it instead of
+    // guessing a route.
+    void navigate(
+      nftDetailPath(ROUTES.NFT_DETAIL, nft.contractAddress, nft.tokenId),
+      { state: { nftDetailFromCollection: true } satisfies NftNavState },
     );
   };
 
@@ -63,7 +68,7 @@ export function NftCard({ nft }: NftCardProps) {
           <EyeOff className="h-4 w-4" />
         </Button>
         {nft.standard === "ERC1155" && nft.balance && BigInt(nft.balance) > 1n && (
-          <span className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 text-xs font-medium backdrop-blur-sm">
+          <span className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 font-numeric text-xs font-medium backdrop-blur-sm">
             ×{nft.balance}
           </span>
         )}

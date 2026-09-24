@@ -1085,7 +1085,7 @@ const DAppApprovalModalContent = observer(() => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Value</span>
-                    <span className="font-semibold">{txDisplayValue}</span>
+                    <span className="font-numeric font-semibold">{txDisplayValue}</span>
                   </div>
                 </div>
               )}

@@ -456,7 +456,7 @@ class StorageUtil {
       return [];
     }
 
-    return normalizeAccountList(data).filter((item) => !IS_V3_PROFILE || item.source !== 'mobile');
+    return normalizeAccountList(data);
   }
 
   /**

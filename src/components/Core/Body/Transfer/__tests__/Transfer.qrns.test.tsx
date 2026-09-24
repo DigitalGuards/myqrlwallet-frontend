@@ -325,7 +325,17 @@ describe("Transfer QRNS recipient flow", () => {
         { target: { value: "alice.qrl" } },
       );
       if (amount === "max") {
-        await waitFor(() => expect(view.getByText("Available: 1000")).toBeTruthy());
+        // The amount sits in its own span for the numeric font, so match the
+        // row by its combined text.
+        await waitFor(() =>
+          expect(
+            view.getByText(
+              (_content, element) =>
+                element?.textContent?.replace(/\s+/g, " ").trim() ===
+                "Available: 1000",
+            ),
+          ).toBeTruthy(),
+        );
         fireEvent.click(view.getByRole("button", { name: "Max" }));
         expect((view.getByPlaceholderText("Enter amount") as HTMLInputElement).value).toBe("1000");
       } else {

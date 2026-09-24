@@ -838,7 +838,7 @@ const Transfer = observer(() => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Value:</span>
-                      <span>
+                      <span className="font-numeric">
                         {isNativeTransfer
                           ? `${utils.fromPlanck(BigInt(transactionStatus.pendingDetails.value), "quanta")} ${NATIVE_TOKEN.symbol}`
                           : `${getOptimalTokenBalance(formValues.amount.toString())} ${assetSymbol}`}
@@ -846,7 +846,7 @@ const Transfer = observer(() => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Gas Price:</span>
-                      <span>
+                      <span className="font-numeric">
                         {utils.fromPlanck(
                           BigInt(transactionStatus.pendingDetails.gasPrice),
                           "shor",
@@ -856,7 +856,7 @@ const Transfer = observer(() => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Gas Limit:</span>
-                      <span>
+                      <span className="font-numeric">
                         {parseInt(
                           transactionStatus.pendingDetails.gas,
                           16,
@@ -865,7 +865,7 @@ const Transfer = observer(() => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Nonce:</span>
-                      <span>
+                      <span className="font-numeric">
                         {parseInt(transactionStatus.pendingDetails.nonce, 16)}
                       </span>
                     </div>
@@ -1064,7 +1064,9 @@ const Transfer = observer(() => {
                     />
                     <div className="text-sm text-muted-foreground">
                       Available:{" "}
-                      {getOptimalTokenBalance(accountBalance, assetSymbol)}
+                      <span className="font-numeric">
+                        {getOptimalTokenBalance(accountBalance, assetSymbol)}
+                      </span>
                     </div>
                     <div className="flex gap-4">
                       <Button
@@ -1219,7 +1221,7 @@ const Transfer = observer(() => {
                         <div className="mt-4 space-y-4">
                           <div className="flex justify-between">
                             <Label>Percentage of balance</Label>
-                            <span className="text-sm text-muted-foreground">
+                            <span className="font-numeric text-sm text-muted-foreground">
                               {sliderValue}%
                             </span>
                           </div>

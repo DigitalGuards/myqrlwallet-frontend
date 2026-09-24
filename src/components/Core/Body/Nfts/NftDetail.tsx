@@ -1,7 +1,7 @@
 import { observer } from "mobx-react-lite";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ExternalLink, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Loader2, Send } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -22,12 +22,15 @@ import { walletMutations } from "@/utils/nativeWalletMutation";
 import { isDesktop } from "@/desktop/bridge";
 import { NftImage } from "./NftImage";
 import { ROUTES } from "@/router/router";
+import { nftCollectionPath, openedFromCollectionView } from "./nftNavigation";
 import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
 import { RecipientResolutionStatus } from "@/components/Core/RecipientResolutionStatus";
 import { QrlAddress } from "@/components/UI/QrlAddress";
+import { cn } from "@/utils/cn";
 
 const NftDetail = observer(() => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { contractAddress = "", tokenId = "" } = useParams();
   const { qrlStore, nftStore } = useStore();
   const { accountAddress } = qrlStore.activeAccount;
@@ -43,6 +46,35 @@ const NftDetail = observer(() => {
       ),
     [nftStore.nftList, contractAddress, tokenId],
   );
+
+  // The wallet still lists this contract, so the gallery can open its
+  // collection view. A token the wallet never held (or one just sent
+  // away) has no collection to return to, which leaves the home page.
+  const walletHoldsCollection = useMemo(
+    () =>
+      nftStore.nftList.some(
+        (n) =>
+          n.contractAddress.toLowerCase() === contractAddress.toLowerCase(),
+      ),
+    [nftStore.nftList, contractAddress],
+  );
+
+  // Back pops the pushed entry when this page was opened from its
+  // collection view, so the in-app Back button matches the browser Back
+  // button. A deep link has nothing to pop, so it navigates to the
+  // collection view (replacing this entry, which leaves no dead end).
+  const onBack = () => {
+    if (openedFromCollectionView(location.state)) {
+      void navigate(-1);
+      return;
+    }
+    void navigate(
+      walletHoldsCollection
+        ? nftCollectionPath(ROUTES.HOME, contractAddress)
+        : ROUTES.HOME,
+      { replace: true },
+    );
+  };
 
   const [toAddress, setToAddress] = useState("");
   const [toAddressError, setToAddressError] = useState("");
@@ -73,7 +105,7 @@ const NftDetail = observer(() => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate(ROUTES.HOME)}
+          onClick={onBack}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
@@ -258,7 +290,7 @@ const NftDetail = observer(() => {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => navigate(ROUTES.HOME)}
+        onClick={onBack}
         className="mb-4"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -271,13 +303,13 @@ const NftDetail = observer(() => {
           alt={nft.name ?? `Token #${nft.tokenId}`}
           className="aspect-square w-full rounded-lg"
         />
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
-            <CardTitle className="text-2xl">
+            <CardTitle className="break-words text-2xl [overflow-wrap:anywhere]">
               {nft.name ?? `Token #${nft.tokenId}`}
             </CardTitle>
             {nft.collectionName && (
-              <p className="text-sm text-muted-foreground">
+              <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
                 {nft.collectionName}
                 {nft.collectionSymbol ? ` (${nft.collectionSymbol})` : ""}
               </p>
@@ -289,19 +321,19 @@ const NftDetail = observer(() => {
             <Row
               label="Contract"
               value={
-                <a
-                  className="inline-flex items-center gap-1 text-identity-accent underline"
+                <QrlAddress
+                  address={nft.contractAddress}
                   href={`${explorerUrl}/address/${nft.contractAddress}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <QrlAddress address={nft.contractAddress} />
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                  linkLabel="View contract on the explorer"
+                  copyable
+                  copyLabel="Copy contract address"
+                  className="justify-end"
+                  addressClassName="whitespace-normal [overflow-wrap:anywhere]"
+                />
               }
             />
             {nft.standard === "ERC1155" && nft.balance && (
-              <Row label="Balance" value={nft.balance} />
+              <Row label="Balance" value={nft.balance} numeric />
             )}
             {nft.description && (
               <>
@@ -310,7 +342,7 @@ const NftDetail = observer(() => {
                   <div className="text-xs font-medium uppercase text-muted-foreground">
                     Description
                   </div>
-                  <p className="mt-1 whitespace-pre-wrap text-sm">
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">
                     {nft.description}
                   </p>
                 </div>
@@ -441,15 +473,27 @@ function Row({
   label,
   value,
   mono,
+  numeric,
 }: {
   label: string;
   value: React.ReactNode;
   mono?: boolean;
+  numeric?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <div className="text-xs uppercase text-muted-foreground">{label}</div>
-      <div className={mono ? "font-mono text-sm" : "text-sm"}>{value}</div>
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <div className="shrink-0 text-xs uppercase text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "min-w-0 max-w-full grow text-right [overflow-wrap:anywhere]",
+          mono ? "font-mono text-sm" : "text-sm",
+          numeric && "font-numeric",
+        )}
+      >
+        {value}
+      </div>
     </div>
   );
 }

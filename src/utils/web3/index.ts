@@ -25,6 +25,17 @@ export {
   discoverNFTs,
 } from './nftDiscovery';
 
+export {
+  MAX_DISCOVERED_TOKENS_PER_COLLECTION,
+  collectionDisplayName,
+  collectionStandardLabel,
+  collectionsMissingNames,
+  groupDiscoveredNftsByCollection,
+  groupNftsByCollection,
+  type CollectionNameOverride,
+  type NftCollectionGroup,
+} from './nftCollections';
+
 export { getQrlWeb3 } from './web3Lazy';
 export {
   findQrlVm64Log,

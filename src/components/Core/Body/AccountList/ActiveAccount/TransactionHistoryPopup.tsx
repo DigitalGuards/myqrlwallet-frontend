@@ -199,11 +199,11 @@ export const TransactionHistoryPopup = observer(
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className={`text-sm font-data ${amountClass}`}>
+                        <div className={`text-sm font-numeric ${amountClass}`}>
                           {sign}
                           {amountText}
                         </div>
-                        <div className="text-xs text-muted-foreground font-data">
+                        <div className="text-xs text-muted-foreground font-numeric">
                           Quanta
                         </div>
                       </div>

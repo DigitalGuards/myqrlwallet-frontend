@@ -58,3 +58,62 @@ export async function qualifyV3Provider(
   await verifyNetworkIdentity(provider, network);
   qualifiedProviders.add(provider);
 }
+
+const qualifiedMobileProviders = new WeakMap<ExtensionProvider, number>();
+
+/** A successful network check is reused this long before re-verifying. */
+export const V3_MOBILE_QUALIFICATION_TTL_MS = 60_000;
+
+export const V3_UNQUALIFIED_MOBILE_MESSAGE =
+  "This MyQRLWallet app is not yet qualified for Testnet v3. Update the app and pair again.";
+
+export const V3_MOBILE_UNRESPONSIVE_MESSAGE =
+  "Your phone did not respond. Open MyQRLWallet on your phone and try again.";
+
+export function isQualifiedV3MobileProvider(
+  provider: ExtensionProvider | null,
+): boolean {
+  return !IS_V3_PROFILE || (!!provider && qualifiedMobileProviders.has(provider));
+}
+
+export function assertQualifiedV3MobileProvider(
+  provider: ExtensionProvider | null,
+): void {
+  if (!isQualifiedV3MobileProvider(provider)) {
+    throw new Error(V3_UNQUALIFIED_MOBILE_MESSAGE);
+  }
+}
+
+/**
+ * Qualify a paired mobile wallet for Testnet v3. The chain id and the genesis
+ * block are both requested through the pairing, so the genesis hash is read
+ * from the phone's own node: a wallet on another network cannot pass.
+ * Callers still validate the paired account as a 64-byte QIP-55 address.
+ * This is the phone's own attestation over the encrypted pairing: it keeps
+ * outdated or misconfigured apps out, and every transaction still carries
+ * the pinned chain id for the phone to sign.
+ *
+ * A timeout means the phone was unreachable (backgrounded, asleep). It keeps
+ * any earlier qualification and throws V3_MOBILE_UNRESPONSIVE_MESSAGE; only a
+ * definitive chain or genesis mismatch revokes it.
+ */
+export async function qualifyV3MobileProvider(
+  provider: ExtensionProvider,
+): Promise<void> {
+  if (!IS_V3_PROFILE) return;
+  const verifiedAt = qualifiedMobileProviders.get(provider);
+  if (verifiedAt !== undefined && Date.now() - verifiedAt < V3_MOBILE_QUALIFICATION_TTL_MS) {
+    return;
+  }
+  const { QRL_PROVIDER } = await import("@/config");
+  try {
+    await verifyNetworkIdentity(provider, QRL_PROVIDER.TEST_NET_V3);
+  } catch (error) {
+    if (error instanceof Error && /timed out/i.test(error.message)) {
+      throw new Error(V3_MOBILE_UNRESPONSIVE_MESSAGE);
+    }
+    qualifiedMobileProviders.delete(provider);
+    throw new Error(V3_UNQUALIFIED_MOBILE_MESSAGE);
+  }
+  qualifiedMobileProviders.set(provider, Date.now());
+}
