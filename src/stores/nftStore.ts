@@ -44,6 +44,7 @@ import {
   type Erc1155Methods,
 } from "@/utils/web3/contractFactory";
 import { discoverNFTs } from "@/utils/web3";
+import { isValidQrlAddress } from "@/utils/web3/address";
 import type QrlStore from "./qrlStore";
 import type TokenStore from "./tokenStore";
 import { quoteFees, type FeeLevel } from "./qrlStore";
@@ -77,10 +78,22 @@ class NftStore {
   // metadata does not survive a network switch.
   private collectionInfoBlockchain: string | null = null;
 
+  // Contracts whose name()/symbol() read failed in transport (RPC down,
+  // timeout, gateway error), keyed like collectionInfo and holding the
+  // failure timestamp. These are NOT negative cache entries: the answer
+  // is unknown, so the lookup is retried once the cooldown lapses.
+  private collectionNameRetryAt: Record<string, number> = {};
+
   // Per-run cap on on-chain name()/symbol() lookups: each costs two RPC
   // round trips, and a wallet holding many nameless collections must not
   // turn one discovery pass into a request storm.
   private static readonly MAX_COLLECTION_NAME_LOOKUPS = 8;
+
+  // How long a transport failure suppresses a retry of the same
+  // contract. Short enough that a recovered node is picked up on the
+  // next picker open, long enough that a dead node is not re-probed on
+  // every mount.
+  private static readonly COLLECTION_NAME_RETRY_COOLDOWN_MS = 60_000;
 
   // Single-flight refresh tracking. A call made while a run for the SAME
   // scope is in flight coalesces into it (React StrictMode double-mounts
@@ -95,6 +108,15 @@ class NftStore {
   private metadataRefresh: {
     scope: { blockchain: string; account: string };
     done: Promise<void>;
+  } | null = null;
+
+  // Single-flight for the discovery pass. The gallery and the Add NFT
+  // modal both kick it on mount (and React StrictMode double-mounts
+  // each), so without this the per-run lookup cap would be multiplied by
+  // however many callers happen to be mounted.
+  private discoveryRun: {
+    scope: { blockchain: string; account: string };
+    done: Promise<NFTInterface[]>;
   } | null = null;
 
   constructor(
@@ -803,6 +825,12 @@ class NftStore {
    * pendingDiscoveredNfts to render an "Add NFT" picker; the user then
    * calls addDiscoveredNfts(picks). Returns the discovered list so
    * callers can render counts inline.
+   *
+   * Single-flight per (blockchain, address): a call made while a run for
+   * the same pair is in flight shares that run's promise, so two mounted
+   * callers cannot double the explorer fetch or the capped name()
+   * lookups. A call for a different pair chains behind the in-flight run
+   * so it still executes against the new state.
    */
   async discoverNftsForReview(address: string): Promise<NFTInterface[]> {
     const blockchain = this.qrlStore.qrlConnection.blockchain;
@@ -810,6 +838,29 @@ class NftStore {
       log("Cannot discover NFTs: no blockchain selected");
       return [];
     }
+    const scope = { blockchain, account: address };
+    const current = this.discoveryRun;
+    if (current && NftStore.scopesEqual(current.scope, scope)) {
+      return current.done;
+    }
+    const done = (async () => {
+      if (current) await current.done.catch(() => undefined);
+      return this.runDiscoveryForReview(address, blockchain);
+    })();
+    const entry = {
+      scope,
+      done: done.finally(() => {
+        if (this.discoveryRun === entry) this.discoveryRun = null;
+      }),
+    };
+    this.discoveryRun = entry;
+    return entry.done;
+  }
+
+  private async runDiscoveryForReview(
+    address: string,
+    blockchain: string,
+  ): Promise<NFTInterface[]> {
     // Synchronously reset before the await so any picker that observes
     // pendingDiscoveredNfts while the fetch is in flight sees an empty
     // list, not a stale one from a prior account or connection.
@@ -914,7 +965,12 @@ class NftStore {
    * Fills `collectionInfo` with on-chain name()/symbol() for collections
    * the explorer indexed without metadata. Capped per run because each
    * lookup is two RPC round trips, and negatively cached so a contract
-   * that exposes neither is asked exactly once per network.
+   * that answers with neither is asked exactly once per network.
+   *
+   * A transport failure is not an answer, so it is kept out of the
+   * negative cache and retried after COLLECTION_NAME_RETRY_COOLDOWN_MS.
+   * Contract addresses come from the explorer, so each one is checked
+   * against the QIP-55 rules before it can reach eth_call.
    */
   async resolveCollectionNames(): Promise<void> {
     const { blockchain, account } = this.scope;
@@ -929,14 +985,35 @@ class NftStore {
         this.collectionInfo = {};
         this.collectionInfoBlockchain = blockchain;
       });
+      runInAction(() => {
+        this.collectionNameRetryAt = {};
+      });
     }
 
+    const now = Date.now();
     const candidates = new Map<string, NftCollectionGroup>();
     for (const group of collectionsMissingNames([
       ...this.nftCollections,
       ...this.pendingDiscoveredNftCollections,
     ])) {
       if (this.collectionInfo[group.key] !== undefined) continue;
+      // Explorer-supplied address: never hand an unvalidated string to
+      // eth_call. An address that fails QIP-55 validation cannot be a
+      // contract on this chain, so drop it before it consumes a slot of
+      // the per-run lookup cap.
+      if (!isValidQrlAddress(group.contractAddress)) {
+        log(
+          `resolveCollectionNames: skipping invalid contract address ${group.key}`,
+        );
+        continue;
+      }
+      const failedAt = this.collectionNameRetryAt[group.key];
+      if (
+        failedAt !== undefined &&
+        now - failedAt < NftStore.COLLECTION_NAME_RETRY_COOLDOWN_MS
+      ) {
+        continue;
+      }
       if (!candidates.has(group.key)) candidates.set(group.key, group);
     }
     const lookups = [...candidates.values()].slice(
@@ -947,21 +1024,40 @@ class NftStore {
 
     for (const group of lookups) {
       let resolved: CollectionNameOverride = {};
+      // Definitive means the node answered, with a value or a revert.
+      // Anything else leaves the contract unknown and retryable.
+      let definitive = false;
       try {
-        resolved = await fetchCollectionNameSymbol(
+        const result = await fetchCollectionNameSymbol(
           group.contractAddress,
           rpcUrl,
         );
+        resolved = { name: result.name, symbol: result.symbol };
+        definitive = result.definitive;
       } catch (error) {
-        // A dead RPC must not break the picker: cache the empty result
-        // for this run and let a later discovery pass retry after the
-        // network-scoped reset.
+        // A dead RPC must not break the picker, and must not be recorded
+        // as "this contract has no name" either.
         log(`resolveCollectionNames failed for ${group.key}: ${error}`);
       }
       const live = this.scope;
       if (live.blockchain !== blockchain || live.account !== account) return;
+      // A partial read still carries information and stops the group
+      // qualifying as a candidate, so cache whatever came back.
+      const gotValue = Boolean(resolved.name || resolved.symbol);
       runInAction(() => {
-        this.collectionInfo = { ...this.collectionInfo, [group.key]: resolved };
+        if (definitive || gotValue) {
+          const { [group.key]: _cleared, ...rest } = this.collectionNameRetryAt;
+          this.collectionNameRetryAt = rest;
+          this.collectionInfo = {
+            ...this.collectionInfo,
+            [group.key]: resolved,
+          };
+        } else {
+          this.collectionNameRetryAt = {
+            ...this.collectionNameRetryAt,
+            [group.key]: Date.now(),
+          };
+        }
       });
     }
   }
