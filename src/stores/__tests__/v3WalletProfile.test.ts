@@ -34,8 +34,11 @@ jest.mock("@/utils/web3", () => ({ getQrlWeb3: jest.fn() }));
 import QrlStore from "../qrlStore";
 import type { ExtensionProvider } from "../qrlStore";
 import {
+  isQualifiedV3MobileProvider,
   qualifyV3MobileProvider,
   qualifyV3Provider,
+  V3_MOBILE_QUALIFICATION_TTL_MS,
+  V3_MOBILE_UNRESPONSIVE_MESSAGE,
   V3_UNQUALIFIED_MOBILE_MESSAGE,
 } from "@/utils/extension/v3Provider";
 import StorageUtil from "@/utils/storage/storage";
@@ -489,4 +492,40 @@ it("does not send native messages or register native restore listeners", () => {
   );
   expect(listener).not.toHaveBeenCalled();
   unsubscribe();
+});
+
+it("reuses a recent mobile qualification and keeps it through a timeout", async () => {
+  let now = 1_000_000;
+  const clock = jest.spyOn(Date, "now").mockImplementation(() => now);
+  try {
+    let mode: "ok" | "timeout" | "mismatch" = "ok";
+    const calls: string[] = [];
+    const phone: ExtensionProvider = {
+      request: async <T = unknown>(args: { method: string; params?: unknown[] | object }): Promise<T> => {
+        calls.push(args.method);
+        if (mode === "timeout") throw new Error("Network identity verification timed out");
+        const answer: unknown =
+          args.method === "qrl_chainId"
+            ? "0x301825"
+            : { number: "0x0", hash: mode === "ok" ? HASH : `0x${"cd".repeat(32)}` };
+        return answer as T;
+      },
+    };
+    await qualifyV3MobileProvider(phone);
+    expect(isQualifiedV3MobileProvider(phone)).toBe(true);
+    const afterFirst = calls.length;
+    await qualifyV3MobileProvider(phone);
+    expect(calls.length).toBe(afterFirst);
+
+    now += V3_MOBILE_QUALIFICATION_TTL_MS + 1;
+    mode = "timeout";
+    await expect(qualifyV3MobileProvider(phone)).rejects.toThrow(V3_MOBILE_UNRESPONSIVE_MESSAGE);
+    expect(isQualifiedV3MobileProvider(phone)).toBe(true);
+
+    mode = "mismatch";
+    await expect(qualifyV3MobileProvider(phone)).rejects.toThrow(V3_UNQUALIFIED_MOBILE_MESSAGE);
+    expect(isQualifiedV3MobileProvider(phone)).toBe(false);
+  } finally {
+    clock.mockRestore();
+  }
 });

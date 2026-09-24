@@ -4,7 +4,7 @@ import type { AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
 import { isValidQrlAddress } from "@/utils/web3/address";
 import { IS_V3_PROFILE } from '@/config/runtimeProfile';
-import { qualifyV3MobileProvider } from '@/utils/extension/v3Provider';
+import { qualifyV3MobileProvider, V3_MOBILE_UNRESPONSIVE_MESSAGE } from '@/utils/extension/v3Provider';
 
 /**
  * dApp-side QRL Connect client: pairs this web wallet with the MyQRLWallet
@@ -102,6 +102,11 @@ async function publishProvider(
       if (!pairingActive || pairingGeneration !== generation) return false;
       const message = error instanceof Error ? error.message : String(error);
       log(`Mobile connect: ${message}`);
+      if (message === V3_MOBILE_UNRESPONSIVE_MESSAGE) {
+        // Unreachable phone: keep the pairing. The next 'connect' retries.
+        emitStatus(message);
+        return false;
+      }
       endPairing(store);
       emitStatus(message);
       void qrl.disconnect().catch(() => undefined);
@@ -441,8 +446,9 @@ export async function maybeRestoreMobileConnection(
     await store.removeMobileAccounts();
     return;
   }
-  // Provider is usable immediately; requests made before the socket resumes
-  // are buffered/relayed by the SDK. The 'connect' event re-confirms the
-  // account when the handshake completes.
-  store.setMobileProvider(asExtensionProvider(qrl));
+  // Outside Testnet v3 the provider is usable immediately; requests made
+  // before the socket resumes are buffered/relayed by the SDK. On Testnet v3
+  // the phone must first requalify, which needs it online: the 'connect'
+  // event publishes the provider through qualification when it rejoins.
+  if (!IS_V3_PROFILE) store.setMobileProvider(asExtensionProvider(qrl));
 }
