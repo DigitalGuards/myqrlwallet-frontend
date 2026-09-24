@@ -55,11 +55,11 @@ export default function MobileNav() {
                             )}
                             onClick={() => navigateTo(item.path, navigate)}
                         >
-                            {/* Ember tick above the active tab, mirroring the desktop rail edge */}
+                            {/* Sky-blue tick above the active tab, mirroring the desktop rail edge */}
                             <span
                                 aria-hidden
                                 className={cn(
-                                    "absolute -top-[13px] h-0.5 w-8 rounded-full bg-primary shadow-[0_0_8px_hsl(24_96%_55%/0.8)] transition-opacity",
+                                    "absolute -top-[13px] h-0.5 w-8 rounded-full bg-primary shadow-[0_0_8px_hsl(199_78%_55%/0.8)] transition-opacity",
                                     active ? "opacity-100" : "opacity-0",
                                 )}
                             />
