@@ -24,12 +24,20 @@ import {
 import { erc721ABI } from "@/abi/ERC721ABI";
 import { erc1155ABI } from "@/abi/ERC1155ABI";
 import {
+  fetchCollectionNameSymbol,
   fetchErc1155Balance,
   fetchNftMetadata,
   fetchTokenUri,
   isErc721Owner,
   nftKey,
 } from "@/utils/web3/nft";
+import {
+  collectionsMissingNames,
+  groupDiscoveredNftsByCollection,
+  groupNftsByCollection,
+  type CollectionNameOverride,
+  type NftCollectionGroup,
+} from "@/utils/web3/nftCollections";
 import {
   contractMethods,
   type Erc721Methods,
@@ -50,6 +58,11 @@ class NftStore {
   // spam-airdropped NFT can't land in the gallery without an explicit
   // user pick.
   discoveredNfts: NFTInterface[] = [];
+  // Collection name/symbol read from chain for contracts the explorer
+  // indexes without metadata, keyed by lowercased contract address. An
+  // empty entry is a negative cache: the contract exposes neither
+  // name() nor symbol(), so the lookup is never repeated.
+  collectionInfo: Record<string, CollectionNameOverride> = {};
 
   // Scope that the CURRENT nftList belongs to. Written wherever the list
   // is (re)loaded or persisted. The refresh loops compare it against the
@@ -59,6 +72,15 @@ class NftStore {
   // handleActiveAccountChanged swaps the list, so comparing the live
   // account alone is not enough.)
   private nftListScope: { blockchain: string; account: string } | null = null;
+
+  // Network the collectionInfo cache was built against. Contract
+  // metadata does not survive a network switch.
+  private collectionInfoBlockchain: string | null = null;
+
+  // Per-run cap on on-chain name()/symbol() lookups: each costs two RPC
+  // round trips, and a wallet holding many nameless collections must not
+  // turn one discovery pass into a request storm.
+  private static readonly MAX_COLLECTION_NAME_LOOKUPS = 8;
 
   // Single-flight refresh tracking. A call made while a run for the SAME
   // scope is in flight coalesces into it (React StrictMode double-mounts
@@ -86,8 +108,12 @@ class NftStore {
       nftList: observable.struct,
       hiddenNfts: observable,
       discoveredNfts: observable.struct,
+      collectionInfo: observable.struct,
       visibleNftList: computed,
       pendingDiscoveredNfts: computed,
+      nftCollections: computed,
+      pendingDiscoveredNftCollections: computed,
+      addDiscoveredCollections: action.bound,
       initialize: action.bound,
       handleActiveAccountChanged: action.bound,
       addNft: action.bound,
@@ -130,6 +156,25 @@ class NftStore {
     return this.discoveredNfts.filter(
       (n) =>
         !visible.has(nftKey(n.contractAddress, n.tokenId).toLowerCase()),
+    );
+  }
+
+  // Gallery view: the visible NFTs grouped by collection, so the wallet
+  // renders collections first and the tokens one level down, matching
+  // the browser extension's NFT collections list.
+  get nftCollections(): NftCollectionGroup[] {
+    return groupNftsByCollection(this.visibleNftList, {
+      overrides: this.collectionInfo,
+    });
+  }
+
+  // Picker view: the explorer's collections minus what the gallery
+  // already shows, capped per collection so one pick can never fan out
+  // into an unbounded ownership re-check loop.
+  get pendingDiscoveredNftCollections(): NftCollectionGroup[] {
+    return groupDiscoveredNftsByCollection(
+      this.pendingDiscoveredNfts,
+      this.collectionInfo,
     );
   }
 
@@ -777,6 +822,10 @@ class NftStore {
         this.discoveredNfts = discovered;
       });
       log(`NFT discovery for review: ${discovered.length} NFTs on ${address}`);
+      // Name the collections the explorer indexes without metadata, so
+      // the picker and the gallery read "Devnet Punks" where the
+      // contract exposes name() instead of falling back to the address.
+      await this.resolveCollectionNames();
       return discovered;
     } catch (error) {
       console.error("discoverNftsForReview:", error);
@@ -847,6 +896,74 @@ class NftStore {
     log(
       `addDiscoveredNfts: added ${additions.length}, unhid ${unhides.length}`,
     );
+  }
+
+  /**
+   * Adds every owned token of the picked collections, mirroring the
+   * extension's collection-level import. Token lists come from the
+   * capped discovery groups, so a hostile explorer response cannot turn
+   * one pick into an unbounded write.
+   */
+  async addDiscoveredCollections(collections: NftCollectionGroup[]) {
+    const picks = collections.flatMap((collection) => collection.tokens);
+    if (picks.length === 0) return;
+    await this.addDiscoveredNfts(picks);
+  }
+
+  /**
+   * Fills `collectionInfo` with on-chain name()/symbol() for collections
+   * the explorer indexed without metadata. Capped per run because each
+   * lookup is two RPC round trips, and negatively cached so a contract
+   * that exposes neither is asked exactly once per network.
+   */
+  async resolveCollectionNames(): Promise<void> {
+    const { blockchain, account } = this.scope;
+    if (!blockchain) return;
+    const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
+    const rpcUrl = provider?.url;
+    if (!rpcUrl) return;
+
+    // Contract metadata is per network. A switch invalidates the cache.
+    if (this.collectionInfoBlockchain !== blockchain) {
+      runInAction(() => {
+        this.collectionInfo = {};
+        this.collectionInfoBlockchain = blockchain;
+      });
+    }
+
+    const candidates = new Map<string, NftCollectionGroup>();
+    for (const group of collectionsMissingNames([
+      ...this.nftCollections,
+      ...this.pendingDiscoveredNftCollections,
+    ])) {
+      if (this.collectionInfo[group.key] !== undefined) continue;
+      if (!candidates.has(group.key)) candidates.set(group.key, group);
+    }
+    const lookups = [...candidates.values()].slice(
+      0,
+      NftStore.MAX_COLLECTION_NAME_LOOKUPS,
+    );
+    if (lookups.length === 0) return;
+
+    for (const group of lookups) {
+      let resolved: CollectionNameOverride = {};
+      try {
+        resolved = await fetchCollectionNameSymbol(
+          group.contractAddress,
+          rpcUrl,
+        );
+      } catch (error) {
+        // A dead RPC must not break the picker: cache the empty result
+        // for this run and let a later discovery pass retry after the
+        // network-scoped reset.
+        log(`resolveCollectionNames failed for ${group.key}: ${error}`);
+      }
+      const live = this.scope;
+      if (live.blockchain !== blockchain || live.account !== account) return;
+      runInAction(() => {
+        this.collectionInfo = { ...this.collectionInfo, [group.key]: resolved };
+      });
+    }
   }
 
   clearDiscoveredNfts() {

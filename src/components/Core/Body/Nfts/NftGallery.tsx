@@ -1,6 +1,6 @@
 import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
-import { Loader2, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, RefreshCw, Sparkles } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -15,7 +15,13 @@ import {
   TooltipTrigger,
 } from "@/components/UI/Tooltip";
 import { useStore } from "@/stores/store";
+import {
+  collectionDisplayName,
+  collectionStandardLabel,
+} from "@/utils/web3/nftCollections";
+import { formatAddressFingerprint } from "@/utils/formatting";
 import { NftCard } from "./NftCard";
+import { NftCollectionRow } from "./NftCollectionRow";
 import { AddNftModal } from "./AddNftModal";
 
 const NftGallery = observer(() => {
@@ -23,6 +29,13 @@ const NftGallery = observer(() => {
   const { accountAddress: activeAccountAddress } = qrlStore.activeAccount;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // Lowercased contract address of the collection being browsed, or null
+  // for the collection list. Derived lookup below tolerates a collection
+  // that disappears under it (last token transferred away, account
+  // switch) by falling back to the list.
+  const [openCollectionKey, setOpenCollectionKey] = useState<string | null>(
+    null,
+  );
 
   // Refresh ownership/balances on mount so a stale list gets corrected
   // when the wallet has been used elsewhere since the last visit, then
@@ -37,10 +50,11 @@ const NftGallery = observer(() => {
   }, [nftStore]);
 
   // Populate the discovery cache so the empty-state can say "Explorer
-  // found N NFTs" and the AddNftModal can offer a picker. Does NOT
-  // auto-merge into nftList: the user has to explicitly pick.
+  // found N collections" and the AddNftModal can offer a picker. Does
+  // NOT auto-merge into nftList: the user has to explicitly pick.
   useEffect(() => {
     if (!activeAccountAddress) return;
+    setOpenCollectionKey(null);
     void nftStore.discoverNftsForReview(activeAccountAddress);
   }, [activeAccountAddress, nftStore]);
 
@@ -56,16 +70,36 @@ const NftGallery = observer(() => {
     }
   };
 
-  const nfts = nftStore.visibleNftList;
+  const collections = nftStore.nftCollections;
+  const openCollection =
+    collections.find((collection) => collection.key === openCollectionKey) ??
+    null;
+
+  const headerCount = openCollection
+    ? `${openCollection.tokenCount} item${openCollection.tokenCount === 1 ? "" : "s"}`
+    : `${collections.length} collection${collections.length === 1 ? "" : "s"}`;
 
   return (
     <Card >
       <CardHeader className="flex flex-row items-center justify-between">
-        <div className="flex items-center gap-3">
-          <CardTitle className="text-2xl font-bold">NFTs</CardTitle>
-          {nfts.length > 0 && (
-            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-              {nfts.length} item{nfts.length === 1 ? "" : "s"}
+        <div className="flex min-w-0 items-center gap-3">
+          {openCollection && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              aria-label="Back to collections"
+              onClick={() => setOpenCollectionKey(null)}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          )}
+          <CardTitle className="truncate text-2xl font-bold">
+            {openCollection ? collectionDisplayName(openCollection) : "NFTs"}
+          </CardTitle>
+          {collections.length > 0 && (
+            <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+              {headerCount}
             </span>
           )}
         </div>
@@ -103,17 +137,35 @@ const NftGallery = observer(() => {
         </div>
       </CardHeader>
       <CardContent>
-        {nfts.length === 0 ? (
+        {openCollection ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-muted-foreground">
+              {collectionStandardLabel(openCollection.standard)} ·{" "}
+              {formatAddressFingerprint(openCollection.contractAddress)}
+            </p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              {openCollection.tokens.map((nft) => (
+                <NftCard
+                  key={`${nft.contractAddress.toLowerCase()}:${nft.tokenId}`}
+                  nft={nft}
+                />
+              ))}
+            </div>
+          </div>
+        ) : collections.length === 0 ? (
           <EmptyState
             onAdd={() => setIsAddOpen(true)}
-            discoveredCount={nftStore.pendingDiscoveredNfts.length}
+            discoveredCollectionCount={
+              nftStore.pendingDiscoveredNftCollections.length
+            }
           />
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {nfts.map((nft) => (
-              <NftCard
-                key={`${nft.contractAddress.toLowerCase()}:${nft.tokenId}`}
-                nft={nft}
+          <div className="flex flex-col gap-2">
+            {collections.map((collection) => (
+              <NftCollectionRow
+                key={collection.key}
+                collection={collection}
+                onOpen={(picked) => setOpenCollectionKey(picked.key)}
               />
             ))}
           </div>
@@ -126,19 +178,20 @@ const NftGallery = observer(() => {
 
 function EmptyState({
   onAdd,
-  discoveredCount,
+  discoveredCollectionCount,
 }: {
   onAdd: () => void;
-  discoveredCount: number;
+  discoveredCollectionCount: number;
 }) {
   return (
     <div className="flex flex-col items-center gap-2 py-4 text-center">
-      {discoveredCount > 0 ? (
+      {discoveredCollectionCount > 0 ? (
         <div className="flex items-center gap-2 text-sm">
           <Sparkles className="h-4 w-4 text-muted-foreground/70" />
           Explorer found this address to own{" "}
-          <span className="font-medium">{discoveredCount}</span> NFT
-          {discoveredCount === 1 ? "" : "s"}.
+          <span className="font-medium">{discoveredCollectionCount}</span> NFT
+          collection
+          {discoveredCollectionCount === 1 ? "" : "s"}.
         </div>
       ) : (
         <div>
@@ -150,7 +203,7 @@ function EmptyState({
       )}
       <Button variant="outline" size="sm" onClick={onAdd}>
         <Plus className="mr-2 h-4 w-4" />
-        {discoveredCount > 0 ? "Review and add" : "Add NFT"}
+        {discoveredCollectionCount > 0 ? "Review and add" : "Add NFT"}
       </Button>
     </div>
   );

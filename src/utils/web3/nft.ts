@@ -119,6 +119,40 @@ export async function fetchNftCollectionInfo(
 }
 
 /**
+ * Best-effort collection name()/symbol() read for any NFT contract.
+ * Both are optional metadata extensions: ERC-721 implementations may
+ * omit them and ERC-1155 has no such thing in the standard, so a revert
+ * is expected and resolves to an empty result. Used as the fallback for
+ * collections the explorer index carries no metadata for.
+ */
+export async function fetchCollectionNameSymbol(
+  contractAddress: string,
+  rpcUrl: string,
+): Promise<{ name?: string; symbol?: string }> {
+  const { default: Web3 } = await getQrlWeb3();
+  const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
+  const methods = contractMethods<Erc721Methods>(
+    web3,
+    erc721ABI,
+    contractAddress,
+  );
+
+  let name: string | undefined;
+  let symbol: string | undefined;
+  try {
+    name = await methods.name().call();
+  } catch {
+    // Contract exposes no name(); leave undefined.
+  }
+  try {
+    symbol = await methods.symbol().call();
+  } catch {
+    // Contract exposes no symbol(); leave undefined.
+  }
+  return { name: name || undefined, symbol: symbol || undefined };
+}
+
+/**
  * For ERC-721 contracts that implement Enumerable, list owned token IDs.
  * Returns null if the contract doesn't support Enumerable; callers
  * must then prompt the user for a tokenId.
