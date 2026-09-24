@@ -33,7 +33,14 @@ jest.mock("@/utils/web3", () => ({ getQrlWeb3: jest.fn() }));
 
 import QrlStore from "../qrlStore";
 import type { ExtensionProvider } from "../qrlStore";
-import { qualifyV3Provider } from "@/utils/extension/v3Provider";
+import {
+  isQualifiedV3MobileProvider,
+  qualifyV3MobileProvider,
+  qualifyV3Provider,
+  V3_MOBILE_QUALIFICATION_TTL_MS,
+  V3_MOBILE_UNRESPONSIVE_MESSAGE,
+  V3_UNQUALIFIED_MOBILE_MESSAGE,
+} from "@/utils/extension/v3Provider";
 import StorageUtil from "@/utils/storage/storage";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import {
@@ -44,11 +51,6 @@ import {
   connectWithProvider,
   discoverQrlProviders,
 } from "@/utils/extension/extensionConnection";
-import {
-  hasMobileSession,
-  maybeRestoreMobileConnection,
-  getMobileConnect,
-} from "@/utils/mobileConnect/mobileConnection";
 import { qrlWallet } from "@/desktop/bridge";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 
@@ -154,7 +156,7 @@ it("preserves legacy account/seed records while creating and clearing v3 records
     expect(localStorage.getItem(key)).toBe(value);
 });
 
-it("excludes stale external accounts without rewriting their records", async () => {
+it("keeps a paired mobile account but refuses it until the phone requalifies", async () => {
   const key = "TEST_NET_V3_QIP55_ACCOUNT_LIST";
   const value = JSON.stringify({
     value: [{ address: ACCOUNT, source: "mobile" }],
@@ -162,8 +164,14 @@ it("excludes stale external accounts without rewriting their records", async () 
     version: "v1",
   });
   localStorage.setItem(key, value);
-  expect(await StorageUtil.getAccountList("TEST_NET_V3")).toEqual([]);
+  expect(await StorageUtil.getAccountList("TEST_NET_V3")).toEqual([
+    { address: ACCOUNT, source: "mobile" },
+  ]);
   expect(localStorage.getItem(key)).toBe(value);
+  const { store } = storeFixture();
+  await expect(store.setActiveAccount(ACCOUNT, "mobile")).rejects.toThrow(
+    V3_UNQUALIFIED_MOBILE_MESSAGE,
+  );
 });
 
 it("marks v3 ready only after chain and genesis verification", async () => {
@@ -382,9 +390,7 @@ it.each([false, true])(
   },
 );
 
-it("discovers extensions but refuses unqualified connections and old mobile sessions", async () => {
-  const { store } = storeFixture();
-  localStorage.setItem("@qrlwallet/connect:session", "legacy-pairing");
+it("discovers extensions but refuses unqualified connections", async () => {
   const request = jest.fn();
   const announce = jest.spyOn(window, "dispatchEvent");
   const discovered = discoverQrlProviders();
@@ -403,14 +409,48 @@ it("discovers extensions but refuses unqualified connections and old mobile sess
       jest.fn(),
     ),
   ).toBeNull();
-  expect(hasMobileSession()).toBe(false);
-  await maybeRestoreMobileConnection(store, true);
-  await expect(getMobileConnect(store)).rejects.toThrow("not yet qualified");
-  expect(localStorage.getItem("@qrlwallet/connect:session")).toBe(
-    "legacy-pairing",
-  );
   expect(request).toHaveBeenCalledWith({ method: "qrl_walletCapabilities" });
   expect(request).not.toHaveBeenCalledWith({ method: "qrl_requestAccounts" });
+});
+
+function pairedPhone(genesisHash = HASH, chainId = "0x301825") {
+  const calls: unknown[] = [];
+  const provider: ExtensionProvider = {
+    request: async <T = unknown>(args: { method: string; params?: unknown[] | object }): Promise<T> => {
+      calls.push(args);
+      const answer: unknown =
+        args.method === "qrl_chainId"
+          ? chainId
+          : args.method === "qrl_getBlockByNumber"
+            ? { number: "0x0", hash: genesisHash }
+            : undefined;
+      if (answer === undefined) throw new Error(`unexpected ${args.method}`);
+      return answer as T;
+    },
+  };
+  return { provider, calls };
+}
+
+it("accepts a paired phone that proves the v3 network through the pairing", async () => {
+  const { store } = storeFixture();
+  const { provider: phone, calls } = pairedPhone();
+  expect(() => store.setMobileProvider(phone)).toThrow(V3_UNQUALIFIED_MOBILE_MESSAGE);
+  await qualifyV3MobileProvider(phone);
+  expect(() => store.setMobileProvider(phone)).not.toThrow();
+  expect(store.mobileProvider).toBe(phone);
+  expect(calls).toContainEqual({ method: "qrl_getBlockByNumber", params: ["0x0", false] });
+});
+
+it.each([
+  ["another genesis", pairedPhone(`0x${"cd".repeat(32)}`).provider],
+  ["another chain", pairedPhone(HASH, "0x539").provider],
+])("refuses a paired phone on %s", async (_name, phone) => {
+  const { store } = storeFixture();
+  await expect(qualifyV3MobileProvider(phone)).rejects.toThrow(V3_UNQUALIFIED_MOBILE_MESSAGE);
+  expect(() => store.setMobileProvider(phone)).toThrow(V3_UNQUALIFIED_MOBILE_MESSAGE);
+  await expect(store.setActiveAccount(ACCOUNT, "mobile")).rejects.toThrow(
+    V3_UNQUALIFIED_MOBILE_MESSAGE,
+  );
 });
 
 it("blocks the desktop bridge and rejects native wrapper readiness", async () => {
@@ -452,4 +492,40 @@ it("does not send native messages or register native restore listeners", () => {
   );
   expect(listener).not.toHaveBeenCalled();
   unsubscribe();
+});
+
+it("reuses a recent mobile qualification and keeps it through a timeout", async () => {
+  let now = 1_000_000;
+  const clock = jest.spyOn(Date, "now").mockImplementation(() => now);
+  try {
+    let mode: "ok" | "timeout" | "mismatch" = "ok";
+    const calls: string[] = [];
+    const phone: ExtensionProvider = {
+      request: async <T = unknown>(args: { method: string; params?: unknown[] | object }): Promise<T> => {
+        calls.push(args.method);
+        if (mode === "timeout") throw new Error("Network identity verification timed out");
+        const answer: unknown =
+          args.method === "qrl_chainId"
+            ? "0x301825"
+            : { number: "0x0", hash: mode === "ok" ? HASH : `0x${"cd".repeat(32)}` };
+        return answer as T;
+      },
+    };
+    await qualifyV3MobileProvider(phone);
+    expect(isQualifiedV3MobileProvider(phone)).toBe(true);
+    const afterFirst = calls.length;
+    await qualifyV3MobileProvider(phone);
+    expect(calls.length).toBe(afterFirst);
+
+    now += V3_MOBILE_QUALIFICATION_TTL_MS + 1;
+    mode = "timeout";
+    await expect(qualifyV3MobileProvider(phone)).rejects.toThrow(V3_MOBILE_UNRESPONSIVE_MESSAGE);
+    expect(isQualifiedV3MobileProvider(phone)).toBe(true);
+
+    mode = "mismatch";
+    await expect(qualifyV3MobileProvider(phone)).rejects.toThrow(V3_UNQUALIFIED_MOBILE_MESSAGE);
+    expect(isQualifiedV3MobileProvider(phone)).toBe(false);
+  } finally {
+    clock.mockRestore();
+  }
 });

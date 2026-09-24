@@ -9,7 +9,7 @@ export const IS_V3_PROFILE =
   __QRL_WALLET_PROFILE__ === "v3-private";
 
 export const V3_UNSUPPORTED_SIGNER_MESSAGE =
-  "Testnet v3 supports this web wallet and updated MyQRLWallet mobile, desktop and extension releases. Paired mobile wallets and older native apps are not yet qualified.";
+  "Testnet v3 supports this web wallet and updated MyQRLWallet mobile, desktop and extension releases. Older native apps are not yet qualified.";
 
 /** Compatibility metadata only. Native document binding and authentication still apply. */
 export function isQualifiedV3NativeContext(): boolean {
@@ -82,6 +82,11 @@ export function assertV3BrowserContext(): void {
 
 export function assertSupportedAccountSource(source: string): void {
   assertV3BrowserContext();
-  if (IS_V3_PROFILE && source !== "seed" && source !== "extension")
+  if (
+    IS_V3_PROFILE &&
+    source !== "seed" &&
+    source !== "extension" &&
+    source !== "mobile"
+  )
     throw new Error(V3_UNSUPPORTED_SIGNER_MESSAGE);
 }
