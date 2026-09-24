@@ -20,6 +20,11 @@ import { verifyNetworkIdentity } from '@/config/deploymentProfile';
 type ActiveAccountType = {
   accountAddress: string;
   lastSeen: number; // Unix timestamp
+  // Signer that owns `accountAddress`, carried alongside it so the two are
+  // always written together. `qrlAccounts.accounts` can be empty or stale
+  // while a balance refresh is in flight, and a missing entry there used to
+  // degrade the active account to 'seed'.
+  source: AccountSource;
 };
 
 type QrlAccountType = {
@@ -147,7 +152,7 @@ class QrlStore {
     blockchain: "",
   };
   qrlAccounts: QrlAccountsType = { accounts: [], isLoading: false };
-  activeAccount: ActiveAccountType = { accountAddress: "", lastSeen: 0 };
+  activeAccount: ActiveAccountType = { accountAddress: "", lastSeen: 0, source: 'seed' };
   // Updated initial state
   transactionStatus: TransactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
   extensionProvider: ExtensionProvider | null = null; // NEW: Store the extension provider
@@ -198,12 +203,22 @@ class QrlStore {
   }
 
   // 2) Source of the currently active account ('seed' by default if not found)
+  //
+  // The balance list is the first choice because `fetchAccounts` keeps it in
+  // step with the persisted list. It can legitimately be EMPTY though: a
+  // superseded `fetchAccounts` returns without writing it, which is the state
+  // right after an import or an unlock re-hydration. Falling straight through
+  // to 'seed' there would route an extension- or mobile-owned account down the
+  // local-seed signing path for the width of that window, so the source that
+  // `setActiveAccount`/`validateActiveAccount` recorded next to the address is
+  // used instead.
   get activeAccountSource(): AccountSource {
     const currentAddr = this.activeAccount.accountAddress.toLowerCase();
+    if (!currentAddr) return 'seed';
     return (
       this.qrlAccounts.accounts.find(
         (account) => account.accountAddress.toLowerCase() === currentAddr,
-      )?.source ?? 'seed'
+      )?.source ?? this.activeAccount.source
     );
   }
 
@@ -434,6 +449,10 @@ class QrlStore {
       this.activeAccount = {
         ...this.activeAccount,
         accountAddress: normalizedActiveAccount ?? "",
+        // Carry the caller's source with the address: `fetchAccounts` below
+        // has not run yet, so `qrlAccounts.accounts` still describes the
+        // previous selection.
+        source: normalizedActiveAccount ? source : 'seed',
       };
     });
 
@@ -696,16 +715,43 @@ class QrlStore {
     }
   }
 
+  /**
+   * Confirm the stored active account still names a known account, and mirror
+   * it into the `activeAccount` observable the Home screen gates on.
+   *
+   * The check runs against the PERSISTED account list, which is the same
+   * source `fetchAccounts` reads. It deliberately does NOT use
+   * `qrlAccounts.accounts`: that observable is only written by the winner of
+   * `fetchAccounts`' `_balanceRequestId` race, so a superseded call resolves
+   * without refreshing it. Two refresh paths run concurrently right after a
+   * desktop import (the explicit `setActiveAccount`, and the re-hydration the
+   * signer's unlock event fires), so the loser's early return used to leave an
+   * empty `accounts` array here, the lookup missed, and this method cleared
+   * the freshly imported account: the wallet was on disk and in the stored
+   * list, yet the app fell back to the empty "Let's start" screen.
+   *
+   * Address comparison is case-insensitive and adopts the list's canonical
+   * casing, so a casing drift between the two keys cannot clear a live
+   * account either.
+   */
   async validateActiveAccount() {
     try {
       const storedActiveAccount = await StorageUtil.getActiveAccount(
         this.qrlConnection.blockchain,
       );
 
-      const confirmedExistingActiveAccount =
-        this.qrlAccounts.accounts.find(
-          (account) => account.accountAddress === storedActiveAccount,
-        )?.accountAddress ?? "";
+      const storedAccountList = await StorageUtil.getAccountList(
+        this.qrlConnection.blockchain,
+      );
+      const storedActiveKey = storedActiveAccount.toLowerCase();
+      const confirmedEntry = storedActiveKey
+        ? storedAccountList.find(
+            (item) =>
+              typeof item?.address === "string" &&
+              item.address.toLowerCase() === storedActiveKey,
+          )
+        : undefined;
+      const confirmedExistingActiveAccount = confirmedEntry?.address ?? "";
 
       if (!confirmedExistingActiveAccount) {
         await StorageUtil.clearActiveAccount(this.qrlConnection.blockchain);
@@ -714,6 +760,11 @@ class QrlStore {
       this.activeAccount = {
         ...this.activeAccount,
         accountAddress: confirmedExistingActiveAccount,
+        // Adopt the source from the SAME list entry that confirmed the
+        // address. Without it the account would read as 'seed' until the next
+        // `fetchAccounts` lands, and an extension- or mobile-owned account
+        // would briefly offer the local PIN + seed signing path.
+        source: confirmedEntry?.source ?? 'seed',
       };
 
       // Only log if we actually have an active account
@@ -857,6 +908,32 @@ class QrlStore {
     return formatUnits(gas * maxFeePerGas, 18);
   }
 
+  /**
+   * Refuse to sign locally for an address the persisted account list attributes
+   * to a remote signer.
+   *
+   * The UI branches on `activeAccountSource`, which is derived from in-memory
+   * state that can lag a storage write. This check reads the list itself, so it
+   * holds even inside a refresh window, and it runs before any seed material is
+   * derived or sent.
+   */
+  async assertLocalSeedAccount(address: string): Promise<void> {
+    const storedAccountList = await StorageUtil.getAccountList(
+      this.qrlConnection.blockchain,
+    );
+    const key = address.toLowerCase();
+    const entry = storedAccountList.find(
+      (item) =>
+        typeof item?.address === "string" && item.address.toLowerCase() === key,
+    );
+    if (!entry || entry.source === 'seed') return;
+    throw new Error(
+      entry.source === 'mobile'
+        ? "This account is signed by the paired mobile app. Confirm the transfer there."
+        : "This account is signed by the extension wallet. Confirm the transfer there.",
+    );
+  }
+
   // Refactored signAndSendTransaction
   async signAndSendTransaction(
     from: string,
@@ -931,6 +1008,10 @@ class QrlStore {
     }
 
     try {
+      // Last line of defence before local seed signing: the stored list, not
+      // the possibly-stale in-memory account list, decides who owns `from`.
+      await this.assertLocalSeedAccount(from);
+
       // Fetch the next available nonce, including pending transactions
       const nonce = await this.qrlInstance?.getTransactionCount(from, "pending");
 
