@@ -696,16 +696,43 @@ class QrlStore {
     }
   }
 
+  /**
+   * Confirm the stored active account still names a known account, and mirror
+   * it into the `activeAccount` observable the Home screen gates on.
+   *
+   * The check runs against the PERSISTED account list, which is the same
+   * source `fetchAccounts` reads. It deliberately does NOT use
+   * `qrlAccounts.accounts`: that observable is only written by the winner of
+   * `fetchAccounts`' `_balanceRequestId` race, so a superseded call resolves
+   * without refreshing it. Two refresh paths run concurrently right after a
+   * desktop import (the explicit `setActiveAccount`, and the re-hydration the
+   * signer's unlock event fires), so the loser's early return used to leave an
+   * empty `accounts` array here, the lookup missed, and this method cleared
+   * the freshly imported account: the wallet was on disk and in the stored
+   * list, yet the app fell back to the empty "Let's start" screen.
+   *
+   * Address comparison is case-insensitive and adopts the list's canonical
+   * casing, so a casing drift between the two keys cannot clear a live
+   * account either.
+   */
   async validateActiveAccount() {
     try {
       const storedActiveAccount = await StorageUtil.getActiveAccount(
         this.qrlConnection.blockchain,
       );
 
+      const storedAccountList = await StorageUtil.getAccountList(
+        this.qrlConnection.blockchain,
+      );
+      const storedActiveKey = storedActiveAccount.toLowerCase();
       const confirmedExistingActiveAccount =
-        this.qrlAccounts.accounts.find(
-          (account) => account.accountAddress === storedActiveAccount,
-        )?.accountAddress ?? "";
+        (storedActiveKey
+          ? storedAccountList.find(
+              (item) =>
+                typeof item?.address === "string" &&
+                item.address.toLowerCase() === storedActiveKey,
+            )?.address
+          : undefined) ?? "";
 
       if (!confirmedExistingActiveAccount) {
         await StorageUtil.clearActiveAccount(this.qrlConnection.blockchain);
