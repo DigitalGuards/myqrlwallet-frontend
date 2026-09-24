@@ -95,67 +95,73 @@
 
 /* CSS Custom Properties for theming.
 
-   "Obsidian & Ember": one deep warm-ink surface family, one ember-orange
-   action color (the QRL brand), champagne reserved for identity and
-   informational states, and layered glow + grain atmosphere behind
-   everything. All three shells (web, mobile WebView, Electron renderer)
-   inherit from here. */
+   "QRL Blue": one deep navy surface family, QRL's sky blue as the single
+   action color, a pale ice blue reserved for identity and informational
+   states, and layered glow + grain atmosphere behind everything. All three
+   shells (web, mobile WebView, Electron renderer) inherit from here. */
 @layer base {
   :root {
-    --background: 235 15% 4%;
-    --foreground: 36 20% 95%;
+    --background: 222 45% 6%;
+    --foreground: 210 30% 96%;
 
-    --card: 235 13% 7%;
-    --card-foreground: 36 20% 95%;
+    --card: 222 38% 9%;
+    --card-foreground: 210 30% 96%;
 
-    --popover: 235 14% 6%;
-    --popover-foreground: 36 20% 95%;
+    --popover: 222 40% 7%;
+    --popover-foreground: 210 30% 96%;
 
-    /* Ember: the single action color */
-    --primary: 24 96% 55%;
-    --primary-foreground: 24 90% 6%;
+    /* QRL sky blue: the single action color */
+    --primary: 199 78% 55%;
+    --primary-foreground: 205 80% 8%;
 
-    /* QRL Orange kept as the brand accent token (rails, edges, badges) */
-    --secondary: 25 95% 53%;
-    --secondary-foreground: 24 90% 6%;
+    /* Brand accent token (rails, edges, badges), a sibling of primary */
+    --secondary: 200 82% 52%;
+    --secondary-foreground: 205 80% 8%;
 
-    /* Champagne: the identity color (addresses, account markers) and
-       informational states. Orange acts, champagne identifies. */
-    --identity-accent: 38 45% 76%;
-    --identity-accent-foreground: 38 60% 8%;
+    /* Ice blue: the identity color (addresses, account markers) and
+       informational states. Sky blue acts, ice blue identifies. */
+    --identity-accent: 196 60% 78%;
+    --identity-accent-foreground: 205 60% 8%;
 
     --success: 152 55% 48%;
     --success-foreground: 152 80% 8%;
 
-    --muted: 235 10% 12%;
-    --muted-foreground: 234 8% 64%;
+    --muted: 222 30% 13%;
+    --muted-foreground: 215 15% 66%;
 
-    --accent: 235 11% 13%;
-    --accent-foreground: 36 20% 95%;
+    --accent: 222 30% 14%;
+    --accent-foreground: 210 30% 96%;
 
-    --destructive: 0 68% 46%;
-    --destructive-foreground: 0 0% 98%;
+    /* Lifted off the palette base (0 70% 55%) so 12px destructive text and
+       destructive text on a /15 tint both clear WCAG AA. The paired
+       foreground is a deep maroon, matching how primary pairs a dark
+       foreground with a bright accent. */
+    --destructive: 0 72% 64%;
+    --destructive-foreground: 0 60% 10%;
 
-    --border: 235 10% 15%;
-    --input: 235 10% 17%;
-    --ring: 24 96% 55%;
+    --border: 220 30% 17%;
+    --input: 220 30% 20%;
+    --ring: 199 78% 55%;
 
     --radius: 0.75rem;
 
-    --chart-1: 24 96% 55%;
-    --chart-2: 190 90% 58%;
-    --chart-3: 40 95% 60%;
-    --chart-4: 168 60% 45%;
-    --chart-5: 340 70% 58%;
+    /* Top edge of the hero-card gradient. */
+    --hero-top: 205 55% 16%;
 
-    --sidebar-background: 236 16% 3.5%;
-    --sidebar-foreground: 36 20% 95%;
-    --sidebar-primary: 24 96% 55%;
-    --sidebar-primary-foreground: 24 90% 6%;
-    --sidebar-accent: 235 11% 10%;
-    --sidebar-accent-foreground: 36 20% 95%;
-    --sidebar-border: 235 10% 12%;
-    --sidebar-ring: 24 96% 55%;
+    --chart-1: 199 78% 55%;
+    --chart-2: 168 60% 50%;
+    --chart-3: 196 60% 78%;
+    --chart-4: 262 65% 68%;
+    --chart-5: 330 65% 62%;
+
+    --sidebar-background: 222 45% 5%;
+    --sidebar-foreground: 210 30% 96%;
+    --sidebar-primary: 199 78% 55%;
+    --sidebar-primary-foreground: 205 80% 8%;
+    --sidebar-accent: 222 33% 11%;
+    --sidebar-accent-foreground: 210 30% 96%;
+    --sidebar-border: 220 30% 15%;
+    --sidebar-ring: 199 78% 55%;
   }
 
   /* Customized scrollbar */
@@ -201,16 +207,16 @@
   }
 
   /* Body - not the scroll container. Carries the fixed atmosphere layers
-     (ember glow top, faint cyan glow bottom, grain) as multiple backgrounds;
+     (sky-blue glow top, faint ice glow bottom, grain) as multiple backgrounds;
      safe because body itself never scrolls (#root does). */
   body {
     @apply text-foreground;
     background-color: hsl(var(--background));
     background-image:
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"),
-      radial-gradient(52rem 34rem at 12% -8%, hsl(24 96% 55% / 0.09), transparent 62%),
-      radial-gradient(44rem 30rem at 108% 112%, hsl(190 90% 58% / 0.05), transparent 60%),
-      radial-gradient(60rem 44rem at 50% 120%, hsl(236 40% 12% / 0.5), transparent 70%);
+      radial-gradient(52rem 34rem at 12% -8%, hsl(199 78% 55% / 0.09), transparent 62%),
+      radial-gradient(44rem 30rem at 108% 112%, hsl(196 60% 78% / 0.05), transparent 60%),
+      radial-gradient(60rem 44rem at 50% 120%, hsl(222 45% 12% / 0.5), transparent 70%);
     background-attachment: fixed;
     font-family: var(--font-sans);
     font-feature-settings: "ss01" on;
@@ -310,18 +316,20 @@
     border: 1px solid hsl(var(--foreground) / 0.08);
     box-shadow:
       0 1px 0 hsl(var(--foreground) / 0.05) inset,
-      0 18px 40px -24px hsl(235 30% 2% / 0.9);
+      0 18px 40px -24px hsl(222 50% 2% / 0.9);
   }
 
-  /* Ember edge treatment for "hero" cards (active account, approvals). */
+  /* Lifted edge treatment for "hero" cards (active account, approvals).
+     Utility name kept from the previous theme so in-flight branches keep
+     applying cleanly; the values are now QRL Blue. */
   .surface-ember {
     background:
-      linear-gradient(180deg, hsl(var(--primary) / 0.07), transparent 46%),
+      linear-gradient(180deg, hsl(var(--hero-top) / 0.85), transparent 46%),
       hsl(var(--card) / 0.86);
     border: 1px solid hsl(var(--primary) / 0.22);
     box-shadow:
       0 1px 0 hsl(var(--primary) / 0.14) inset,
-      0 18px 44px -22px hsl(24 96% 40% / 0.28);
+      0 18px 44px -22px hsl(199 78% 40% / 0.28);
   }
 }
 
