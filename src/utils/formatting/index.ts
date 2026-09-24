@@ -8,8 +8,10 @@ export {
 } from './balance';
 
 export {
+  ADDRESS_DISCLOSURE_GROUP_LENGTH,
   formatAddress,
   formatAddressFingerprint,
   formatAddressFingerprintsInText,
   formatAddressShort,
+  splitAddressGroups,
 } from './address';
