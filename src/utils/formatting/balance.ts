@@ -85,6 +85,27 @@ export const getOptimalTokenBalance = (
     }
 };
 
+/**
+ * Display rule for a native account balance, shared with the browser
+ * extension (myqrlwallet-extension `src/functions/formatBalance.ts`). Both
+ * surfaces must render the same account at the same width, so keep the two
+ * in step.
+ *
+ * The rule:
+ *   1. Thousands are grouped with commas.
+ *   2. A balance of 1 or more shows exactly `decimals` (default 2) fraction
+ *      digits, padded with zeros: 40500 renders as "40,500.00".
+ *   3. A balance below 1 gets up to 6 fraction digits so 0.249 is not
+ *      truncated to 0.24, then trailing zeros beyond the 2nd digit are
+ *      dropped: 0.240000 renders as "0.24", 0.249000 as "0.249".
+ *   4. A non-zero balance that still rounds to zero at 6 digits falls back to
+ *      its first 4 significant digits, so dust never reads as "0.00".
+ *   5. Truncation is always toward zero, so no balance is ever shown larger
+ *      than it is.
+ *
+ * Token balances keep `getOptimalTokenBalance`, which trims trailing zeros,
+ * because token decimals vary.
+ */
 export const formatBalance = (
     balance: string | number,
     decimals: number = 2,

@@ -83,7 +83,7 @@ export const TransactionSuccessful = ({
             {formattedAmount && (
               <div className="flex flex-col gap-2">
                 <div>Amount</div>
-                <div className="font-bold text-secondary break-all">
+                <div className="font-numeric font-bold text-secondary break-all">
                   {formattedAmount}
                 </div>
               </div>
@@ -163,7 +163,7 @@ export const TransactionSuccessful = ({
                   href={`${explorerUrl}/block/${blockNumber}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex min-w-0 items-center gap-2 font-bold text-secondary hover:text-secondary/80"
+                  className="flex min-w-0 items-center gap-2 font-numeric font-bold text-secondary hover:text-secondary/80"
                 >
                   <span className="min-w-0 break-all">
                     {blockNumber.toString()}
@@ -176,7 +176,7 @@ export const TransactionSuccessful = ({
               </div>
               <div className="flex min-w-0 flex-col gap-2">
                 <div>Gas used</div>
-                <div className="font-bold text-secondary break-all">
+                <div className="font-numeric font-bold text-secondary break-all">
                   {gasInQrl} Quanta
                 </div>
               </div>

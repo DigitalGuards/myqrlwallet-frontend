@@ -14,7 +14,7 @@ export const AccountBalance = observer(({ accountAddress, className }: AccountBa
   const balance = getAccountBalance(accountAddress);
 
   return (
-    <div className={cn("text-sm text-secondary font-data", className)}>
+    <div className={cn("text-sm text-secondary font-numeric", className)}>
       Balance: {formatBalance(balance)} Quanta
     </div>
   );

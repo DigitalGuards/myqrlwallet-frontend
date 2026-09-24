@@ -1,6 +1,6 @@
-/* Self-hosted variable fonts (Sora display / Instrument Sans body /
-   JetBrains Mono data) are imported in main.tsx: importing them here would
-   let the Tailwind postcss pipeline inline the @font-face rules without
+/* Self-hosted variable fonts (Sora display / Instrument Sans body / Inter
+   numeric / JetBrains Mono data) are imported in main.tsx: importing them here
+   would let the Tailwind postcss pipeline inline the @font-face rules without
    rewriting the package-relative woff2 URLs. */
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
@@ -11,6 +11,10 @@
   --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Sora Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace;
+  /* Numeric voice: balances, amounts, fees, counts. Inter matches the
+     extension surface and the wider wallet ecosystem. */
+  --font-numeric: "Inter Variable", "Instrument Sans Variable", ui-sans-serif,
+    system-ui, sans-serif;
 
   /* Border radius */
   --radius-lg: var(--radius);
@@ -257,11 +261,24 @@
 /* Component-layer surfaces: sit below Tailwind utilities so per-card
    overrides (border-l-4, bg-*, etc.) still win. */
 @layer components {
-  /* Data voice: addresses, hashes, balances. */
+  /* Data voice: addresses, hashes, seeds. Anything the user compares
+     character by character stays monospace. */
   .font-data {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
+  }
+
+  /* Numeric voice: every balance, amount, fee, fiat value and count.
+     Inter with fixed-width digits so a changing balance does not jitter.
+     font-feature-settings is set explicitly because body turns on "ss01",
+     which in Inter swaps in alternate digit shapes; "tnum" here replaces
+     that list and keeps the digits plain and tabular. */
+  .font-numeric {
+    font-family: var(--font-numeric);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: normal;
   }
 
   .active-account-address:has([data-address-revealed="true"]) {

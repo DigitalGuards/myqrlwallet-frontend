@@ -186,7 +186,7 @@ const TokenStatus = observer(() => {
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <span className="text-sm text-muted-foreground">Decimals</span>
-                                    <span className="font-medium text-secondary">{decimals}</span>
+                                    <span className="font-numeric font-medium text-secondary">{decimals}</span>
                                 </div>
                             </div>
 
@@ -216,7 +216,7 @@ const TokenStatus = observer(() => {
                                         href={`${explorerUrl}/block/${blockNumber}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center gap-2 font-medium text-secondary hover:text-secondary/80"
+                                        className="flex items-center gap-2 font-numeric font-medium text-secondary hover:text-secondary/80"
                                     >
                                         {blockNumber.toString()}
                                         <ExternalLink className="h-4 w-4" />
@@ -224,7 +224,7 @@ const TokenStatus = observer(() => {
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <span className="text-sm text-muted-foreground">Gas Used</span>
-                                    <span className="font-medium text-secondary">{gasInQrl} Quanta</span>
+                                    <span className="font-numeric font-medium text-secondary">{gasInQrl} Quanta</span>
                                 </div>
                             </div>
                         </CardContent>
