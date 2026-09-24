@@ -1,5 +1,5 @@
 import { observer } from "mobx-react-lite";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Loader2, Send } from "lucide-react";
 import {
@@ -22,6 +22,7 @@ import { walletMutations } from "@/utils/nativeWalletMutation";
 import { isDesktop } from "@/desktop/bridge";
 import { NftImage } from "./NftImage";
 import { ROUTES } from "@/router/router";
+import { nftCollectionPath, openedFromCollectionView } from "./nftNavigation";
 import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
 import { RecipientResolutionStatus } from "@/components/Core/RecipientResolutionStatus";
 import { QrlAddress } from "@/components/UI/QrlAddress";
@@ -29,6 +30,7 @@ import { cn } from "@/utils/cn";
 
 const NftDetail = observer(() => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { contractAddress = "", tokenId = "" } = useParams();
   const { qrlStore, nftStore } = useStore();
   const { accountAddress } = qrlStore.activeAccount;
@@ -44,6 +46,35 @@ const NftDetail = observer(() => {
       ),
     [nftStore.nftList, contractAddress, tokenId],
   );
+
+  // The wallet still lists this contract, so the gallery can open its
+  // collection view. A token the wallet never held (or one just sent
+  // away) has no collection to return to, which leaves the home page.
+  const walletHoldsCollection = useMemo(
+    () =>
+      nftStore.nftList.some(
+        (n) =>
+          n.contractAddress.toLowerCase() === contractAddress.toLowerCase(),
+      ),
+    [nftStore.nftList, contractAddress],
+  );
+
+  // Back pops the pushed entry when this page was opened from its
+  // collection view, so the in-app Back button matches the browser Back
+  // button. A deep link has nothing to pop, so it navigates to the
+  // collection view (replacing this entry, which leaves no dead end).
+  const onBack = () => {
+    if (openedFromCollectionView(location.state)) {
+      void navigate(-1);
+      return;
+    }
+    void navigate(
+      walletHoldsCollection
+        ? nftCollectionPath(ROUTES.HOME, contractAddress)
+        : ROUTES.HOME,
+      { replace: true },
+    );
+  };
 
   const [toAddress, setToAddress] = useState("");
   const [toAddressError, setToAddressError] = useState("");
@@ -74,7 +105,7 @@ const NftDetail = observer(() => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate(ROUTES.HOME)}
+          onClick={onBack}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
@@ -259,7 +290,7 @@ const NftDetail = observer(() => {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => navigate(ROUTES.HOME)}
+        onClick={onBack}
         className="mb-4"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
