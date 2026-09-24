@@ -20,6 +20,10 @@ export interface QrlAddressProps {
   copyLabel?: string;
   /** Renders the address itself as an external link, e.g. to a block explorer. */
   href?: string;
+  /**
+   * Purpose appended to the link's accessible name. It describes where the
+   * link goes; the address stays part of the name.
+   */
   linkLabel?: string;
 }
 
@@ -97,9 +101,14 @@ export function QrlAddress({
           target="_blank"
           rel="noopener noreferrer"
           title={address}
-          aria-label={linkLabel}
         >
           {addressText}
+          {/*
+            The link keeps its name from its contents, so the address stays
+            part of it. The purpose is appended for assistive technology
+            instead of replacing the address with an aria-label.
+          */}
+          <span className="sr-only">{linkLabel ?? "opens in a new tab"}</span>
           <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
         </a>
       ) : (

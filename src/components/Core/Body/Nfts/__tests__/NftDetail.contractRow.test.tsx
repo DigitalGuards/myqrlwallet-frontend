@@ -112,7 +112,9 @@ describe("NftDetail contract row", () => {
     const view = renderDetail();
 
     const link = view.getByRole("link", {
-      name: "View contract on the explorer",
+      name: (name: string) =>
+        name.includes(CONTRACT) &&
+        name.includes("View contract on the explorer"),
     });
     expect(link.getAttribute("href")).toBe(
       `https://explorer.invalid/address/${CONTRACT}`,

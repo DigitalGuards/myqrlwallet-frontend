@@ -123,7 +123,9 @@ describe("QrlAddress", () => {
     );
 
     const link = view.getByRole("link", {
-      name: "View contract on the explorer",
+      name: (name: string) =>
+        name.includes(ADDRESS) &&
+        name.includes("View contract on the explorer"),
     });
     expect(link.getAttribute("href")).toBe(
       `https://explorer.invalid/address/${ADDRESS}`,
@@ -137,6 +139,21 @@ describe("QrlAddress", () => {
 
     fireEvent.click(copy);
     await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith(ADDRESS));
+  });
+
+  it("names an unlabelled explorer link after the address it opens", () => {
+    const view = render(
+      <QrlAddress
+        address={ADDRESS}
+        href={`https://explorer.invalid/address/${ADDRESS}`}
+      />,
+    );
+
+    const link = view.getByRole("link", {
+      name: (name: string) =>
+        name.includes(ADDRESS) && name.includes("opens in a new tab"),
+    });
+    expect(link.getAttribute("aria-label")).toBeNull();
   });
 
   it("uses wrapping full-address styles without the obsolete fit-to-one-line class", () => {
