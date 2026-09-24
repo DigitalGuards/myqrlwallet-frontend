@@ -26,6 +26,14 @@ describe("AddressDisclosure", () => {
     expect(view.queryByTestId("address-disclosure-full")).toBeNull();
   });
 
+  it("keeps the screen-reader twin out of a manual text selection", () => {
+    const view = render(<AddressDisclosure address={ADDRESS} />);
+
+    const twin = view.getByText(ADDRESS);
+    expect(twin.className).toContain("sr-only");
+    expect(twin.className).toContain("select-none");
+  });
+
   it("reveals the complete address in groups of five and collapses again", () => {
     const view = render(<AddressDisclosure address={ADDRESS} />);
 
@@ -39,12 +47,17 @@ describe("AddressDisclosure", () => {
     expect(hide.getAttribute("aria-expanded")).toBe("true");
     expect(hide.getAttribute("aria-controls")).toBe(full.getAttribute("id"));
 
-    const visible = full.querySelector('[aria-hidden="true"]');
-    const tokens = visible?.textContent?.split(" ") ?? [];
+    const revealed = view.getByTestId("address-disclosure-full-text");
+    const tokens = Array.from(revealed.children).map(
+      (group) => group.textContent ?? "",
+    );
     expect(tokens[0]).toBe("Q");
     expect(tokens[1]).toBe("d5812");
     expect(tokens.slice(1).every((group) => group.length <= 5)).toBe(true);
     expect(tokens.join("")).toBe(ADDRESS);
+    // A drag-copy of the revealed address yields the address itself.
+    expect(revealed.textContent).toBe(ADDRESS);
+    expect(full.querySelector(".sr-only")).toBeNull();
 
     fireEvent.click(hide);
     expect(view.queryByTestId("address-disclosure-full")).toBeNull();

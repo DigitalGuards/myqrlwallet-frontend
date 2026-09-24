@@ -55,7 +55,7 @@ export function AddressDisclosure({
   };
 
   const { prefix, groups } = splitAddressGroups(address);
-  const groupedAddress = prefix ? `${prefix} ${groups.join(" ")}` : address;
+  const revealedParts = prefix ? [prefix, ...groups] : groups;
 
   return (
     <div className={cn("min-w-0 max-w-full", className)}>
@@ -67,7 +67,12 @@ export function AddressDisclosure({
           )}
           title={address}
         >
-          <span className="sr-only">{address}</span>
+          {/*
+            The twin carries the exact address for assistive technology. It is
+            unselectable so a drag over the fingerprint copies only what the
+            user can see.
+          */}
+          <span className="sr-only select-none">{address}</span>
           <span aria-hidden="true">{formatAddressFingerprint(address)}</span>
         </span>
         <button
@@ -113,10 +118,25 @@ export function AddressDisclosure({
               "inline-block min-w-0 max-w-full font-data text-xs leading-relaxed break-words [overflow-wrap:anywhere]",
               fullAddressClassName,
             )}
+            data-testid="address-disclosure-full-text"
             title={address}
           >
-            <span className="sr-only">{address}</span>
-            <span aria-hidden="true">{groupedAddress}</span>
+            {/*
+              Groups are spaced with margins instead of space characters, so
+              the rendered text nodes concatenate to the exact address for both
+              assistive technology and a manual drag-copy.
+            */}
+            {revealedParts.map((part, index) => (
+              <span
+                key={`${index}-${part}`}
+                className={cn(
+                  "inline-block",
+                  index < revealedParts.length - 1 && "mr-1",
+                )}
+              >
+                {part}
+              </span>
+            ))}
           </span>
         </div>
       )}

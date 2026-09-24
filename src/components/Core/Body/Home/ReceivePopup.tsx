@@ -27,9 +27,13 @@ export const ReceivePopup = observer(({
                     </div>
 
                     <div className="flex flex-col items-center gap-4">
-                        {/* The white card supplies the quiet zone the scanner needs. */}
-                        <div className="rounded-lg bg-white p-3">
-                            <QRCodeSVG value={accountAddress} size={180} level="L" />
+                        {/*
+                          marginSize draws the 4-module quiet zone the QR spec
+                          requires inside the symbol itself, so it scales with
+                          the encoded address instead of depending on padding.
+                        */}
+                        <div className="rounded-lg bg-white p-2">
+                            <QRCodeSVG value={accountAddress} size={200} level="L" marginSize={4} />
                         </div>
 
                         <AddressDisclosure

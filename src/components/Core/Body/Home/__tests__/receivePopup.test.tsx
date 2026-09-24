@@ -1,6 +1,7 @@
 /** @jest-environment jsdom */
 
 import { cleanup, fireEvent, render } from "@testing-library/react";
+import { QRCodeSVG } from "qrcode.react";
 import { ReceivePopup } from "../ReceivePopup";
 
 const ADDRESS =
@@ -26,6 +27,9 @@ const renderPopup = () =>
     <ReceivePopup accountAddress={ADDRESS} isOpen onClose={jest.fn()} />,
   );
 
+const viewBoxModules = (svg: Element | null): number =>
+  Number(svg?.getAttribute("viewBox")?.split(" ")[2] ?? 0);
+
 it("encodes the plain address in a QR on a light quiet-zone card", () => {
   const view = renderPopup();
 
@@ -33,6 +37,21 @@ it("encodes the plain address in a QR on a light quiet-zone card", () => {
   expect(qr).toBeTruthy();
   expect(qr?.parentElement?.className).toContain("bg-white");
   expect(qr?.parentElement?.className).toContain("rounded-lg");
+});
+
+it("draws at least the four-module quiet zone the QR spec requires", () => {
+  const view = renderPopup();
+  const reference = render(
+    <QRCodeSVG value={ADDRESS} size={200} level="L" marginSize={0} />,
+  );
+
+  const symbolModules = viewBoxModules(
+    reference.container.querySelector("svg"),
+  );
+  const renderedModules = viewBoxModules(view.container.querySelector("svg"));
+
+  expect(symbolModules).toBeGreaterThan(0);
+  expect(renderedModules - symbolModules).toBeGreaterThanOrEqual(8);
 });
 
 it("keeps the address compact until the reveal toggle is used", () => {
@@ -43,7 +62,8 @@ it("keeps the address compact until the reveal toggle is used", () => {
 
   fireEvent.click(view.getByRole("button", { name: "Show full address" }));
 
-  const full = view.getByTestId("address-disclosure-full");
-  const visible = full.querySelector('[aria-hidden="true"]');
-  expect(visible?.textContent?.split(" ").join("")).toBe(ADDRESS);
+  expect(view.getByTestId("address-disclosure-full")).toBeTruthy();
+  expect(
+    view.getByTestId("address-disclosure-full-text").textContent,
+  ).toBe(ADDRESS);
 });
