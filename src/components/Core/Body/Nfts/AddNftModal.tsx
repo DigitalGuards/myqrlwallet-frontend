@@ -24,11 +24,15 @@ import {
   fetchErc1155Balance,
   fetchTokenUri,
   isErc721Owner,
-  nftKey,
   type NftCollectionInfo,
   type NftStandard,
 } from "@/utils/web3/nft";
 import { isValidQrlAddress } from "@/utils/web3";
+import {
+  collectionDisplayName,
+  collectionStandardLabel,
+} from "@/utils/web3/nftCollections";
+import { formatAddressFingerprint } from "@/utils/formatting";
 import type { NFTInterface } from "@/constants";
 
 interface AddNftModalProps {
@@ -39,7 +43,7 @@ interface AddNftModalProps {
 export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
   const { qrlStore, nftStore } = useStore();
   const { accountAddress } = qrlStore.activeAccount;
-  const { pendingDiscoveredNfts } = nftStore;
+  const pendingCollections = nftStore.pendingDiscoveredNftCollections;
 
   const [contractAddress, setContractAddress] = useState("");
   const [tokenId, setTokenId] = useState("");
@@ -74,17 +78,14 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
     void nftStore.discoverNftsForReview(accountAddress);
   }, [isOpen, accountAddress, nftStore]);
 
-  // Lower-cased composite keys for the selection set, matching the
-  // store's dedupe.
+  // Selection is per collection, keyed by lowercased contract address.
   const selectableKeys = useMemo(
-    () =>
-      pendingDiscoveredNfts.map((n) =>
-        nftKey(n.contractAddress, n.tokenId).toLowerCase(),
-      ),
-    [pendingDiscoveredNfts],
+    () => pendingCollections.map((collection) => collection.key),
+    [pendingCollections],
   );
 
-  // Prune selections if a discovered NFT has since been added elsewhere.
+  // Prune selections if a discovered collection has since been added
+  // elsewhere.
   useEffect(() => {
     setSelectedKeys((prev) => {
       const allow = new Set(selectableKeys);
@@ -94,8 +95,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
     });
   }, [selectableKeys]);
 
-  const toggleSelection = (n: NFTInterface) => {
-    const key = nftKey(n.contractAddress, n.tokenId).toLowerCase();
+  const toggleSelection = (key: string) => {
     setSelectedKeys((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -109,10 +109,10 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
     setIsAddingPicks(true);
     setError(null);
     try {
-      const picks = pendingDiscoveredNfts.filter((n) =>
-        selectedKeys.has(nftKey(n.contractAddress, n.tokenId).toLowerCase()),
+      const picks = pendingCollections.filter((collection) =>
+        selectedKeys.has(collection.key),
       );
-      await nftStore.addDiscoveredNfts(picks);
+      await nftStore.addDiscoveredCollections(picks);
       setSelectedKeys(new Set());
       onClose();
     } catch (err) {
@@ -332,40 +332,38 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
           </div>
         )}
 
-        {pendingDiscoveredNfts.length > 0 && (
+        {pendingCollections.length > 0 && (
           <div className="rounded-md border bg-muted/30 p-3">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">
               <Sparkles className="h-4 w-4 text-muted-foreground/70" />
-              Discovered NFTs ({pendingDiscoveredNfts.length})
+              Discovered NFT collections ({pendingCollections.length})
             </div>
             <p className="mb-3 text-xs text-muted-foreground">
-              The explorer sees these on this address. Pick the ones to add;
-              the rest stay off your gallery.
+              The explorer sees these on this address. Pick the collections to
+              add; every token you own in a picked collection lands in the
+              gallery, and the rest stay off it.
             </p>
             <ul className="flex max-h-72 flex-col gap-2 overflow-y-auto">
-              {pendingDiscoveredNfts.map((n) => {
-                const key = nftKey(
-                  n.contractAddress,
-                  n.tokenId,
-                ).toLowerCase();
+              {pendingCollections.map((collection) => {
+                const key = collection.key;
                 const checked = selectedKeys.has(key);
-                const titleLine =
-                  n.name ||
-                  `${n.collectionName || "Unknown collection"} #${n.tokenId}`;
+                const cover = collection.tokens.find(
+                  (token) => token.image,
+                )?.image;
                 return (
                   <li
                     key={key}
                     className="flex items-center gap-3 rounded-md border bg-background p-2"
                   >
                     <Checkbox
-                      id={`discovered-nft-${key}`}
+                      id={`discovered-collection-${key}`}
                       checked={checked}
-                      onCheckedChange={() => toggleSelection(n)}
+                      onCheckedChange={() => toggleSelection(key)}
                       disabled={isAddingPicks}
                     />
-                    {n.image ? (
+                    {cover ? (
                       <img
-                        src={n.image}
+                        src={cover}
                         alt=""
                         className="h-10 w-10 shrink-0 rounded object-cover"
                         loading="lazy"
@@ -376,14 +374,24 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
                       </div>
                     )}
                     <Label
-                      htmlFor={`discovered-nft-${key}`}
-                      className="flex flex-1 cursor-pointer flex-col gap-0.5"
+                      htmlFor={`discovered-collection-${key}`}
+                      className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5"
                     >
-                      <span className="text-sm font-medium">{titleLine}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {n.standard} · #{n.tokenId}
-                        {n.balance && n.standard === "ERC1155"
-                          ? ` · ×${n.balance}`
+                      <span className="truncate text-sm font-medium">
+                        {collectionDisplayName(collection)}
+                        {collection.symbol && collection.name && (
+                          <span className="ml-1 text-muted-foreground">
+                            ({collection.symbol})
+                          </span>
+                        )}
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {collection.tokenCount} item
+                        {collection.tokenCount === 1 ? "" : "s"} ·{" "}
+                        {collectionStandardLabel(collection.standard)} ·{" "}
+                        {formatAddressFingerprint(collection.contractAddress)}
+                        {collection.truncated
+                          ? ` · first ${collection.tokens.length} added`
                           : ""}
                       </span>
                     </Label>
