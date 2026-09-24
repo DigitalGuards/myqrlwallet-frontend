@@ -1,9 +1,16 @@
 /** @jest-environment jsdom */
 
+// Layout C: the home screen no longer carries its own centred logo/wordmark
+// (the mark lives in the sidebar rail on desktop and the Layout top bar on
+// mobile instead) or a network selector pill. This covers what remains of
+// the header row: the native QR-scan affordance and the plain network
+// status label, identically for both runtime profiles.
+
 import { cleanup, render, screen } from "@testing-library/react";
 import Home from "../Home";
 
 let mockV3Profile = false;
+let mockInNativeApp = false;
 
 jest.mock("@/config/runtimeProfile", () => ({
   get IS_V3_PROFILE() {
@@ -39,13 +46,16 @@ jest.mock("@/utils/storage", () => ({
   },
   STORAGE_EVENT_WALLET_SETTINGS: "test:wallet-settings-changed",
 }));
-jest.mock("@/utils/nativeApp", () => ({ isInNativeApp: () => false }));
+jest.mock("@/utils/nativeApp", () => ({
+  isInNativeApp: () => mockInNativeApp,
+  requestQRScan: jest.fn(),
+}));
 jest.mock("@/router/router", () => ({ ROUTES: {} }));
 jest.mock("react-router", () => ({ Link: () => null }));
 jest.mock("@/components/SEO/SEO", () => ({ SEO: () => null }));
 jest.mock("../ConnectionFailed/ConnectionFailed", () => () => null);
 jest.mock("../ConnectionBadge/ConnectionBadge", () => () => (
-  <button>Network</button>
+  <span>Network status</span>
 ));
 jest.mock("../BackgroundVideo/BackgroundVideo", () => () => null);
 jest.mock(
@@ -57,38 +67,37 @@ jest.mock("../../AccountList/ActiveAccount/TransactionHistoryPopup", () => ({
 }));
 jest.mock("../ReceivePopup", () => ({ ReceivePopup: () => null }));
 
+beforeEach(() => {
+  mockV3Profile = false;
+  mockInNativeApp = false;
+});
 afterEach(cleanup);
 
-function headerElements() {
-  const logo = screen.getByRole("img", { name: "MyQRLWallet Logo" });
-  const header = logo.parentElement;
-  const badgeWrapper = screen.getByRole("button", {
-    name: "Network",
-  }).parentElement;
-  if (!header || !badgeWrapper)
-    throw new Error("Expected logo and badge layout containers");
-  return { header, badgeWrapper };
-}
-
-it("places the v3 phone badge below the logo in normal flow and retains the desktop side position", () => {
+it("no longer renders the old centered logo image, in either profile", () => {
+  render(<Home />);
+  expect(screen.queryByRole("img", { name: "MyQRLWallet Logo" })).toBeNull();
   mockV3Profile = true;
   render(<Home />);
-  const { header, badgeWrapper } = headerElements();
-  expect(header.classList.contains("flex-col")).toBe(true);
-  expect(header.classList.contains("gap-2")).toBe(true);
-  expect(header.classList.contains("md:flex-row")).toBe(true);
-  expect(badgeWrapper.classList.contains("absolute")).toBe(false);
-  expect(badgeWrapper.classList.contains("order-1")).toBe(true);
-  expect(badgeWrapper.classList.contains("md:absolute")).toBe(true);
-  expect(badgeWrapper.classList.contains("md:order-none")).toBe(true);
+  expect(screen.queryByRole("img", { name: "MyQRLWallet Logo" })).toBeNull();
 });
 
-it("preserves the default profile's existing centered logo and absolute left badge", () => {
-  mockV3Profile = false;
+it("renders the plain network status label instead of a selector pill", () => {
   render(<Home />);
-  const { header, badgeWrapper } = headerElements();
-  expect(header.className).toBe(
-    "relative flex w-full items-center justify-center px-4",
-  );
-  expect(badgeWrapper.className).toBe("absolute left-4");
+  expect(screen.getByText("Network status")).toBeTruthy();
+});
+
+it("hides the native QR-scan button outside the native app", () => {
+  mockInNativeApp = false;
+  render(<Home />);
+  expect(screen.queryByRole("button", { name: "Scan QR code" })).toBeNull();
+});
+
+it("shows the native QR-scan button inside the native app, identically for both profiles", () => {
+  mockInNativeApp = true;
+  render(<Home />);
+  expect(screen.getByRole("button", { name: "Scan QR code" })).toBeTruthy();
+  cleanup();
+  mockV3Profile = true;
+  render(<Home />);
+  expect(screen.getByRole("button", { name: "Scan QR code" })).toBeTruthy();
 });

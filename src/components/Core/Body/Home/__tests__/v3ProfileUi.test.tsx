@@ -95,6 +95,7 @@ jest.mock("@/router/router", () => ({
     HOME: "/",
     CREATE_ACCOUNT: "/create-account",
     IMPORT_ACCOUNT: "/import-account",
+    SETTINGS: "/settings",
   },
 }));
 jest.mock("react-router", () => ({
@@ -102,12 +103,13 @@ jest.mock("react-router", () => ({
     children,
     to,
     className,
+    ...rest
   }: {
     children: ReactNode;
     to: string;
     className?: string;
-  }) => (
-    <a href={to} className={className}>
+  } & Record<string, unknown>) => (
+    <a href={to} className={className} {...rest}>
       {children}
     </a>
   ),
@@ -134,49 +136,49 @@ function selectV3Profile() {
   mockStore.qrlStore.qrlConnection.qrlNetworkName = mockV3Network.name;
 }
 
-function openNetworkMenu() {
-  const trigger = screen.getByRole("button", { name: /^Network:/ });
-  fireEvent.keyDown(trigger, { key: "ArrowDown" });
-}
+// ConnectionBadge is now a plain, muted status label (no dropdown, no dot).
+// v3 has exactly one configured network, so it renders as plain text; the
+// default profile has two, so the label links through to Settings instead
+// (network switching itself lives entirely in NetworkSettings).
 
-it("shows private v3 on the closed badge and exposes only its configured network", async () => {
+it("renders the v3 network name as plain text with no link, no menu", () => {
   selectV3Profile();
   render(<ConnectionBadge />);
-  expect(
-    screen.getByRole("button", { name: `Network: ${mockV3Network.name}` })
-      .textContent,
-  ).toContain("v3 Private");
+  expect(screen.getByText("TESTNET")).toBeTruthy();
+  expect(screen.getByLabelText(`Network: ${mockV3Network.name}`)).toBeTruthy();
+  expect(screen.queryByRole("link")).toBeNull();
+  expect(screen.queryByRole("button")).toBeNull();
   expect(screen.queryByRole("menuitem")).toBeNull();
-  openNetworkMenu();
-  const item = await screen.findByRole("menuitem", {
-    name: mockV3Network.name,
-  });
-  expect(screen.getAllByRole("menuitem")).toHaveLength(1);
-  fireEvent.click(item);
-  expect(mockStore.qrlStore.selectBlockchain).toHaveBeenCalledWith(
-    "TEST_NET_V3",
-  );
 });
 
-it("preserves both default badge network choices", async () => {
+it("links the default-profile label to Settings, since a second network is configured", () => {
   render(<ConnectionBadge />);
-  expect(screen.queryByText("v3 Private")).toBeNull();
-  openNetworkMenu();
-  const item = await screen.findByRole("menuitem", { name: "QRL Mainnet" });
-  expect(screen.getAllByRole("menuitem")).toHaveLength(2);
-  fireEvent.click(item);
-  expect(mockStore.qrlStore.selectBlockchain).toHaveBeenCalledWith("MAIN_NET");
+  expect(screen.getByText("TESTNET")).toBeTruthy();
+  const link = screen.getByRole("link", {
+    name: "Network: QRL Testnet. Change network in Settings.",
+  });
+  expect(link.getAttribute("href")).toBe("/settings");
 });
 
-it("keeps network menu selection disabled while the connection is loading", async () => {
-  selectV3Profile();
+it("shows MAINNET for the mainnet blockchain", () => {
+  Object.assign(mockStore.qrlStore.qrlConnection, {
+    blockchain: "MAIN_NET",
+    qrlNetworkName: "QRL Mainnet",
+  });
+  render(<ConnectionBadge />);
+  expect(screen.getByText("MAINNET")).toBeTruthy();
+});
+
+it("appends a plain OFFLINE suffix when disconnected, no dot", () => {
+  mockStore.qrlStore.qrlConnection.isConnected = false;
+  render(<ConnectionBadge />);
+  expect(screen.getByText("TESTNET · OFFLINE")).toBeTruthy();
+});
+
+it("appends a plain CONNECTING suffix while loading", () => {
   mockStore.qrlStore.qrlConnection.isLoading = true;
   render(<ConnectionBadge />);
-  openNetworkMenu();
-  const item = await screen.findByRole("menuitem", {
-    name: mockV3Network.name,
-  });
-  expect(item.getAttribute("aria-disabled")).toBe("true");
+  expect(screen.getByText("TESTNET · CONNECTING")).toBeTruthy();
 });
 
 it("renders only the full private v3 label in network settings", () => {

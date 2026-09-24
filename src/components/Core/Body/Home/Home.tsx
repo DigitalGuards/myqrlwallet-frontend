@@ -15,7 +15,6 @@ import { ReceivePopup } from "./ReceivePopup";
 import { isInNativeApp, requestQRScan } from "@/utils/nativeApp";
 import ConnectionBadge from "./ConnectionBadge/ConnectionBadge";
 import { StorageUtil, STORAGE_EVENT_WALLET_SETTINGS } from "@/utils/storage";
-import { IS_V3_PROFILE } from "@/config/runtimeProfile";
 
 const AccountCreateImport = withSuspense(
   lazy(() => import("./AccountCreateImport/AccountCreateImport"))
@@ -103,22 +102,17 @@ const Home = observer(() => {
       />
       <BackgroundVideo />
       <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-2 md:gap-4 md:py-4">
-        <div className={IS_V3_PROFILE
-          ? "relative flex w-full flex-col items-center justify-center gap-2 px-4 md:flex-row md:gap-0"
-          : "relative flex w-full items-center justify-center px-4"}>
-          <div className={IS_V3_PROFILE ? "order-1 md:absolute md:left-4 md:order-none" : "absolute left-4"}>
-            <ConnectionBadge />
-          </div>
-          <img className="h-14 md:h-20" src="/mqrlwallet.png" alt="MyQRLWallet Logo" />
+        <div className="relative flex w-full items-center justify-end px-4 pt-2 md:pt-0">
           {isInNativeApp() && (
             <button
               onClick={() => requestQRScan()}
-              className="absolute right-4 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="absolute left-4 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Scan QR code"
             >
               <ScanLine className="h-6 w-6" />
             </button>
           )}
+          <ConnectionBadge />
         </div>
         {isLoading ? (
           <Loader className="animate-spin text-foreground" size={32} />

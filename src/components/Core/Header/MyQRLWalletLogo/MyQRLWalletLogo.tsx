@@ -1,5 +1,6 @@
 import { ROUTES } from "../../../../router/router";
 import { Link } from "react-router";
+import { QrlMark } from "./QrlMark";
 
 interface MyQRLWalletLogoProps {
   showText?: boolean;
@@ -7,20 +8,25 @@ interface MyQRLWalletLogoProps {
 }
 
 const MyQRLWalletLogo = ({ showText = true, size = 'md' }: MyQRLWalletLogoProps) => {
-  const logoSizes = {
+  const markSizes = {
     sm: 'h-5 w-5',
     md: 'h-8 w-8',
-    lg: 'h-12 w-12'
+    lg: 'h-10 w-10'
+  };
+  const textSizes = {
+    sm: 'text-sm',
+    md: 'text-lg',
+    lg: 'text-xl'
   };
 
   return (
-    <Link to={ROUTES.HOME}>
+    <Link to={ROUTES.HOME} aria-label="MyQRLWallet home">
       <span className="flex items-center gap-2">
-        <img className={logoSizes[size]} src="/icons/theqrlwallet/192.png" alt="QRL Logo" />
+        <QrlMark className={`${markSizes[size]} text-primary`} />
         {showText && (
-          <div className="flex flex-col text-xs font-bold text-secondary font-display tracking-tight">
-            <span className="text-lg">MyQRLwallet</span>
-          </div>
+          <span className={`${textSizes[size]} font-display font-semibold tracking-tight text-foreground`}>
+            MyQRLWallet
+          </span>
         )}
       </span>
     </Link>
