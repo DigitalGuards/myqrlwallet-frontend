@@ -26,7 +26,6 @@ import ExtensionPickerDialog from "./ExtensionPickerDialog";
 import MobilePairingDialog from "./MobilePairingDialog";
 import { isInNativeApp } from "@/utils/nativeApp";
 import { isDesktop } from "@/desktop/bridge";
-import { IS_V3_PROFILE, V3_UNSUPPORTED_SIGNER_MESSAGE } from "@/config/runtimeProfile";
 
 const accountCreateImportClasses = cva("flex gap-8", {
   variants: {
@@ -52,7 +51,7 @@ const AccountCreateImport = observer(() => {
   // The connect options (browser extension, mobile app pairing) are web-only:
   // hidden in the native app (it IS the mobile wallet) and the desktop app
   // (the signer is the wallet). The copy drops their mention there too.
-  const description = (IS_V3_PROFILE || isInNativeApp() || isDesktop)
+  const description = (isInNativeApp() || isDesktop)
     ? "You are connected to the blockchain. Create a new account or import an existing account."
     : "You are connected to the blockchain. Create a new account, import an existing account, or connect a wallet you already use: your browser extension or the MyQRLWallet mobile app.";
 
@@ -102,7 +101,6 @@ const AccountCreateImport = observer(() => {
   };
 
   const openMobilePairing = async (fresh: boolean) => {
-    if (IS_V3_PROFILE) return;
     setMobileConnectError(null);
     try {
       const result = await startMobilePairing(qrlStore, fresh);
@@ -168,17 +166,10 @@ const AccountCreateImport = observer(() => {
               </Button>
               <Button
                 className="w-full" type="button" variant="outline" onClick={handleConnectMobile}
-                disabled={IS_V3_PROFILE}
-                aria-describedby={IS_V3_PROFILE ? "unsupported-signers" : undefined}
               >
                 <Smartphone className="mr-2 h-4 w-4" />
                 Connect Mobile App
               </Button>
-              {IS_V3_PROFILE && (
-                <p id="unsupported-signers" className="text-sm text-muted-foreground">
-                  {V3_UNSUPPORTED_SIGNER_MESSAGE}
-                </p>
-              )}
               {mobileConnectError && (
                 <p className="text-sm text-destructive">{mobileConnectError}</p>
               )}

@@ -213,7 +213,12 @@ it("keeps network settings disabled while the connection is loading", () => {
   expect(mockStore.qrlStore.selectBlockchain).not.toHaveBeenCalled();
 });
 
-it("enables v3 create/import and extension while explaining unavailable mobile pairing", () => {
+it("enables v3 create/import, extension and mobile pairing", async () => {
+  jest.mocked(startMobilePairing).mockResolvedValue({
+    redirected: true,
+    uri: "qrlconnect://test",
+    installHint: null,
+  });
   selectV3Profile();
   render(<AccountCreateImport />);
   for (const name of ["Create a new account", "Import an existing account"]) {
@@ -235,16 +240,15 @@ it("enables v3 create/import and extension while explaining unavailable mobile p
   expect(
     screen.getByRole("button", { name: "Connect Browser Extension" }),
   ).toHaveProperty("disabled", false);
-  for (const name of ["Connect Mobile App"]) {
-    const button = screen.getByRole("button", { name });
-    expect(button).toHaveProperty("disabled", true);
-    expect(button.getAttribute("aria-describedby")).toBe("unsupported-signers");
-    fireEvent.click(button);
-  }
-  expect(screen.getByText(mockUnsupportedMessage)).toBeTruthy();
+  const mobile = screen.getByRole("button", { name: "Connect Mobile App" });
+  expect(mobile).toHaveProperty("disabled", false);
+  expect(screen.queryByText(mockUnsupportedMessage)).toBeNull();
   expect(discoverQrlProviders).not.toHaveBeenCalled();
   expect(connectWithProvider).not.toHaveBeenCalled();
-  expect(startMobilePairing).not.toHaveBeenCalled();
+  fireEvent.click(mobile);
+  await waitFor(() =>
+    expect(startMobilePairing).toHaveBeenCalledWith(mockStore.qrlStore, false),
+  );
 });
 
 it("preserves enabled default-profile extension and mobile connection actions", async () => {

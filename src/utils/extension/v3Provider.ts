@@ -58,3 +58,42 @@ export async function qualifyV3Provider(
   await verifyNetworkIdentity(provider, network);
   qualifiedProviders.add(provider);
 }
+
+const qualifiedMobileProviders = new WeakSet<ExtensionProvider>();
+
+export const V3_UNQUALIFIED_MOBILE_MESSAGE =
+  "This MyQRLWallet app is not yet qualified for Testnet v3. Update the app and pair again.";
+
+export function isQualifiedV3MobileProvider(
+  provider: ExtensionProvider | null,
+): boolean {
+  return !IS_V3_PROFILE || (!!provider && qualifiedMobileProviders.has(provider));
+}
+
+export function assertQualifiedV3MobileProvider(
+  provider: ExtensionProvider | null,
+): void {
+  if (!isQualifiedV3MobileProvider(provider)) {
+    throw new Error(V3_UNQUALIFIED_MOBILE_MESSAGE);
+  }
+}
+
+/**
+ * Qualify a paired mobile wallet for Testnet v3. The chain id and the genesis
+ * block are both requested through the pairing, so the genesis hash is read
+ * from the phone's own node: a wallet on another network cannot pass.
+ * Callers still validate the paired account as a 64-byte QIP-55 address.
+ */
+export async function qualifyV3MobileProvider(
+  provider: ExtensionProvider,
+): Promise<void> {
+  if (!IS_V3_PROFILE) return;
+  qualifiedMobileProviders.delete(provider);
+  const { QRL_PROVIDER } = await import("@/config");
+  try {
+    await verifyNetworkIdentity(provider, QRL_PROVIDER.TEST_NET_V3);
+  } catch {
+    throw new Error(V3_UNQUALIFIED_MOBILE_MESSAGE);
+  }
+  qualifiedMobileProviders.add(provider);
+}

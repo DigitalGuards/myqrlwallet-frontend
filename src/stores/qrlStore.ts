@@ -14,7 +14,7 @@ import type { TransactionReceipt, Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import { IS_V3_PROFILE, assertSupportedAccountSource, assertV3BrowserContext, V3_UNSUPPORTED_SIGNER_MESSAGE } from '@/config/runtimeProfile';
-import { assertQualifiedV3Provider, qualifyV3Provider } from '@/utils/extension/v3Provider';
+import { assertQualifiedV3MobileProvider, assertQualifiedV3Provider, qualifyV3MobileProvider, qualifyV3Provider } from '@/utils/extension/v3Provider';
 import { verifyNetworkIdentity } from '@/config/deploymentProfile';
 
 type ActiveAccountType = {
@@ -415,6 +415,7 @@ class QrlStore {
   async setActiveAccount(newActiveAccount?: string, source: AccountSource = 'seed') {
     assertSupportedAccountSource(source);
     if (source === 'extension') assertQualifiedV3Provider(this.extensionProvider);
+    if (source === 'mobile') assertQualifiedV3MobileProvider(this.mobileProvider);
     const currentBlockchain = this.qrlConnection.blockchain;
     const normalizedActiveAccount = newActiveAccount
       ? normalizeQrlAddress(newActiveAccount) ?? undefined
@@ -1139,7 +1140,10 @@ class QrlStore {
 
   // Set or clear the mobile-app relay provider (owned by utils/mobileConnect).
   setMobileProvider(provider: ExtensionProvider | null) {
-    if (provider) assertSupportedAccountSource('mobile');
+    if (provider) {
+      assertSupportedAccountSource('mobile');
+      assertQualifiedV3MobileProvider(provider);
+    }
     runInAction(() => {
       this.mobileProvider = provider;
       log(provider ? "Mobile provider set." : "Mobile provider cleared.");
@@ -1287,7 +1291,7 @@ class QrlStore {
 
   // --- Send Transaction via a remote signer (extension or paired mobile app) ---
   async sendTransactionViaProvider(to: string, valueEther: string, feeLevel: FeeLevel = 'medium') {
-    if (IS_V3_PROFILE && this.activeAccountSource !== 'extension') {
+    if (IS_V3_PROFILE && this.activeAccountSource !== 'extension' && this.activeAccountSource !== 'mobile') {
       this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: V3_UNSUPPORTED_SIGNER_MESSAGE };
       return;
     }
@@ -1348,6 +1352,8 @@ class QrlStore {
           from: this.activeAccount.accountAddress,
           to: to,
           value: valueHex,
+          // Bind the phone's signature to the pinned Testnet v3 chain.
+          ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
         }];
       } else {
         if (!this.qrlInstance) throw new Error("Wallet not connected. Please try again.");
@@ -1423,10 +1429,17 @@ class QrlStore {
     const account = this.activeAccount.accountAddress;
     const source = this.activeAccountSource;
     if (source === 'extension') assertQualifiedV3Provider(this.extensionProvider);
+    if (source === 'mobile') assertQualifiedV3MobileProvider(this.mobileProvider);
     if (!provider || !current || this.qrlConnection.blockchain !== 'TEST_NET_V3' || !this.qrlConnection.isConnected) {
       throw new Error('Testnet v3 network identity has not been verified');
     }
     try {
+      if (source === 'mobile') {
+        const mobile = this.mobileProvider;
+        if (!mobile) throw new Error('Mobile app wallet is disconnected');
+        await qualifyV3MobileProvider(mobile);
+        if (mobile !== this.mobileProvider) throw new Error('Mobile app wallet changed during identity verification');
+      }
       if (source === 'extension') {
         assertQualifiedV3Provider(this.extensionProvider);
         const extension = this.extensionProvider;
