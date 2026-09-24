@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, ExternalLink } from "lucide-react";
 import { cn } from "@/utils/cn";
 import {
   formatAddress,
@@ -18,6 +18,9 @@ export interface QrlAddressProps {
   className?: string;
   addressClassName?: string;
   copyLabel?: string;
+  /** Renders the address itself as an external link, e.g. to a block explorer. */
+  href?: string;
+  linkLabel?: string;
 }
 
 export function QrlAddress({
@@ -30,6 +33,8 @@ export function QrlAddress({
   className,
   addressClassName,
   copyLabel = "Copy address",
+  href,
+  linkLabel,
 }: QrlAddressProps) {
   const [revealedAddress, setRevealedAddress] = useState<string | null>(null);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
@@ -44,6 +49,35 @@ export function QrlAddress({
     }
   };
 
+  const addressText = (
+    <span
+      className={cn(
+        "min-w-0 max-w-full font-data",
+        isRevealed
+          ? "grid w-full grid-cols-2 gap-x-3 gap-y-1 text-left sm:grid-cols-4 md:grid-cols-8"
+          : isFull
+            ? "inline-flex flex-wrap gap-x-2 gap-y-0.5 whitespace-normal break-words [overflow-wrap:anywhere]"
+            : "whitespace-nowrap",
+        addressClassName,
+      )}
+      aria-label={`QRL address ${address}`}
+      dir="ltr"
+    >
+      {isFull
+        ? addressGroups.map((group, index) => (
+            <span
+              key={`${index}-${group}`}
+              className="inline-block min-w-0 max-w-full"
+            >
+              {group}
+            </span>
+          ))
+        : compactFormat === "short"
+          ? formatAddressEnds(address)
+          : formatAddressFingerprint(address)}
+    </span>
+  );
+
   return (
     <span
       className={cn(
@@ -56,32 +90,21 @@ export function QrlAddress({
       data-address-mode={isFull ? "full" : "compact"}
       data-address-revealed={isRevealed ? "true" : "false"}
     >
-      <span
-        className={cn(
-          "min-w-0 max-w-full font-data",
-          isRevealed
-            ? "grid w-full grid-cols-2 gap-x-3 gap-y-1 text-left sm:grid-cols-4 md:grid-cols-8"
-            : isFull
-              ? "inline-flex flex-wrap gap-x-2 gap-y-0.5 whitespace-normal break-words [overflow-wrap:anywhere]"
-              : "whitespace-nowrap",
-          addressClassName,
-        )}
-        aria-label={`QRL address ${address}`}
-        dir="ltr"
-      >
-        {isFull
-          ? addressGroups.map((group, index) => (
-              <span
-                key={`${index}-${group}`}
-                className="inline-block min-w-0 max-w-full"
-              >
-                {group}
-              </span>
-            ))
-          : compactFormat === "short"
-            ? formatAddressEnds(address)
-            : formatAddressFingerprint(address)}
-      </span>
+      {href ? (
+        <a
+          className="inline-flex min-w-0 max-w-full items-center gap-1 text-identity-accent underline"
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={address}
+          aria-label={linkLabel}
+        >
+          {addressText}
+          <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+        </a>
+      ) : (
+        addressText
+      )}
       {revealable || onShowFull || copyable ? (
         <span
           className={cn(

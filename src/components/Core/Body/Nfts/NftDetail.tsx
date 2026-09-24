@@ -1,7 +1,7 @@
 import { observer } from "mobx-react-lite";
 import { useNavigate, useParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ExternalLink, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Loader2, Send } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -25,6 +25,7 @@ import { ROUTES } from "@/router/router";
 import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
 import { RecipientResolutionStatus } from "@/components/Core/RecipientResolutionStatus";
 import { QrlAddress } from "@/components/UI/QrlAddress";
+import { cn } from "@/utils/cn";
 
 const NftDetail = observer(() => {
   const navigate = useNavigate();
@@ -271,13 +272,13 @@ const NftDetail = observer(() => {
           alt={nft.name ?? `Token #${nft.tokenId}`}
           className="aspect-square w-full rounded-lg"
         />
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
-            <CardTitle className="text-2xl">
+            <CardTitle className="break-words text-2xl [overflow-wrap:anywhere]">
               {nft.name ?? `Token #${nft.tokenId}`}
             </CardTitle>
             {nft.collectionName && (
-              <p className="text-sm text-muted-foreground">
+              <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
                 {nft.collectionName}
                 {nft.collectionSymbol ? ` (${nft.collectionSymbol})` : ""}
               </p>
@@ -289,15 +290,15 @@ const NftDetail = observer(() => {
             <Row
               label="Contract"
               value={
-                <a
-                  className="inline-flex items-center gap-1 text-identity-accent underline"
+                <QrlAddress
+                  address={nft.contractAddress}
                   href={`${explorerUrl}/address/${nft.contractAddress}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <QrlAddress address={nft.contractAddress} />
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                  linkLabel="View contract on the explorer"
+                  copyable
+                  copyLabel="Copy contract address"
+                  className="justify-end"
+                  addressClassName="whitespace-normal [overflow-wrap:anywhere]"
+                />
               }
             />
             {nft.standard === "ERC1155" && nft.balance && (
@@ -310,7 +311,7 @@ const NftDetail = observer(() => {
                   <div className="text-xs font-medium uppercase text-muted-foreground">
                     Description
                   </div>
-                  <p className="mt-1 whitespace-pre-wrap text-sm">
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">
                     {nft.description}
                   </p>
                 </div>
@@ -447,9 +448,18 @@ function Row({
   mono?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <div className="text-xs uppercase text-muted-foreground">{label}</div>
-      <div className={mono ? "font-mono text-sm" : "text-sm"}>{value}</div>
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <div className="shrink-0 text-xs uppercase text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "min-w-0 max-w-full grow text-right [overflow-wrap:anywhere]",
+          mono ? "font-mono text-sm" : "text-sm",
+        )}
+      >
+        {value}
+      </div>
     </div>
   );
 }
