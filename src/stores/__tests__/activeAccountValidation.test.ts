@@ -16,6 +16,8 @@ jest.mock("@/utils/web3", () => ({ getQrlWeb3: jest.fn() }));
 
 import QrlStore from "../qrlStore";
 import StorageUtil from "@/utils/storage/storage";
+import type { AccountSource } from "@/utils/storage/storage";
+import { deriveHexSeedAsync } from "@/utils/crypto";
 
 const ACCOUNT = `Q${"1".repeat(128)}`;
 const BLOCKCHAIN = "TEST_NET";
@@ -28,11 +30,11 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
-async function storeWithStoredAccount() {
+async function storeWithStoredAccount(source: AccountSource = "seed") {
   const store = new QrlStore();
   store.qrlConnection = { ...store.qrlConnection, blockchain: BLOCKCHAIN };
   await StorageUtil.setAccountList(BLOCKCHAIN, [
-    { address: ACCOUNT, source: "seed" },
+    { address: ACCOUNT, source },
   ]);
   await StorageUtil.setActiveAccount(BLOCKCHAIN, ACCOUNT);
   return store;
@@ -49,6 +51,30 @@ it("keeps a freshly provisioned active account when the balance refresh has not 
 
   expect(store.activeAccount.accountAddress).toBe(ACCOUNT);
   expect(await StorageUtil.getActiveAccount(BLOCKCHAIN)).toBe(ACCOUNT);
+});
+
+it("adopts the stored source, so a remote-signer account never reads as seed", async () => {
+  const store = await storeWithStoredAccount("extension");
+  // Same window as above: confirmed from storage while the balance list, which
+  // used to be the only source lookup, is still empty.
+  store.qrlAccounts = { ...store.qrlAccounts, accounts: [] };
+
+  await store.validateActiveAccount();
+
+  expect(store.activeAccount.accountAddress).toBe(ACCOUNT);
+  expect(store.activeAccountSource).toBe("extension");
+});
+
+it("refuses the local seed signing path for a mobile-sourced account", async () => {
+  const store = await storeWithStoredAccount("mobile");
+  store.qrlAccounts = { ...store.qrlAccounts, accounts: [] };
+  await store.validateActiveAccount();
+
+  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "mnemonic words");
+
+  expect(store.transactionStatus.state).toBe("failed");
+  expect(store.transactionStatus.error).toContain("paired mobile app");
+  expect(deriveHexSeedAsync).not.toHaveBeenCalled();
 });
 
 it("clears an active account that is no longer in the stored account list", async () => {

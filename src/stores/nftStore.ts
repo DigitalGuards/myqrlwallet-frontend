@@ -605,6 +605,12 @@ class NftStore {
     }
 
     try {
+      // Last line of defence before local seed signing: the stored account
+      // list, not the possibly-stale in-memory one, decides who owns the
+      // active account.
+      await this.qrlStore.assertLocalSeedAccount(
+        this.qrlStore.activeAccount.accountAddress,
+      );
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } =
         QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];

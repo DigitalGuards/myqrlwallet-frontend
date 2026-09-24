@@ -53,7 +53,14 @@ jest.mock("@/utils/crypto", () => ({
 jest.mock("@/desktop/bridge", () => ({ isDesktop: false, desktopSigner: {} }));
 jest.mock("@/desktop/walletHydration", () => ({}));
 jest.mock("@/utils/storage", () => ({
-  StorageUtil: { getBlockChain: jest.fn(async () => "TEST_NET_V3") },
+  StorageUtil: {
+    getBlockChain: jest.fn(async () => "TEST_NET_V3"),
+    // The local seed signing paths confirm the active account's source
+    // against the persisted list before touching any seed material.
+    getAccountList: jest.fn(async () => [
+      { address: `Q${"1".repeat(128)}`, source: "seed" },
+    ]),
+  },
 }));
 jest.mock("@/utils/web3", () => ({
   getQrlWeb3: jest.fn(async () => ({
