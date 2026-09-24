@@ -259,7 +259,7 @@ const TransactionHistory = observer(() => {
                       {/* Full TxHash for larger screens */}
                       <span className="hidden sm:block">{tx.TxHash}</span>
                     </td>
-                    <td className="py-2 px-4 border-b text-sm sm:text-base">
+                    <td className="py-2 px-4 border-b font-numeric text-sm sm:text-base">
                       {formatBalance(tx.Amount)}
                     </td>
                     <td className="py-2 px-4 border-b text-sm sm:text-base">
@@ -373,15 +373,15 @@ const DetailsModal = ({ transaction }: DetailsModalProps) => {
                 </div>
 
                 <div className="text-muted-foreground font-medium">Amount:</div>
-                <div className="sm:col-span-2">{transaction.Amount}</div>
+                <div className="font-numeric sm:col-span-2">{transaction.Amount}</div>
 
                 <div className="text-muted-foreground font-medium">Fees:</div>
-                <div className="sm:col-span-2">
+                <div className="font-numeric sm:col-span-2">
                   {transaction.PaidFees ?? "Unavailable"}
                 </div>
 
                 <div className="text-muted-foreground font-medium">Block:</div>
-                <div className="sm:col-span-2">{transaction.BlockNumber}</div>
+                <div className="font-numeric sm:col-span-2">{transaction.BlockNumber}</div>
               </div>
             </div>
             <button

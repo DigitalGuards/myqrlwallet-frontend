@@ -46,7 +46,7 @@ export const ActiveAccountDisplay = observer(({ onShowAddress }: { onShowAddress
   return (
     <div className="flex flex-col">
       <div
-        className="flex justify-center text-2xl md:text-3xl font-semibold text-foreground group font-data"
+        className="flex justify-center text-2xl md:text-3xl font-semibold text-foreground group font-numeric"
       >
         {/* The icons hang off the number via absolute positioning so the
             number itself is what gets centered; putting them in the flex
@@ -81,10 +81,10 @@ export const ActiveAccountDisplay = observer(({ onShowAddress }: { onShowAddress
         </div>
       </div>
       <div className="flex justify-center mt-0.5">
-        <span className="font-data text-sm font-medium text-muted-foreground">Quanta</span>
+        <span className="font-numeric text-sm font-medium text-muted-foreground">Quanta</span>
       </div>
       {qrlPrice > 0 && (
-        <div className="flex items-center justify-center gap-2 text-sm mt-1 mb-4 font-data">
+        <div className="flex items-center justify-center gap-2 text-sm mt-1 mb-4 font-numeric">
           <span className="text-muted-foreground">
             ≈ ${activeAccountBalanceUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>

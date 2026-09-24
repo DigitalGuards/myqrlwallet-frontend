@@ -302,7 +302,7 @@ const NftDetail = observer(() => {
               }
             />
             {nft.standard === "ERC1155" && nft.balance && (
-              <Row label="Balance" value={nft.balance} />
+              <Row label="Balance" value={nft.balance} numeric />
             )}
             {nft.description && (
               <>
@@ -442,10 +442,12 @@ function Row({
   label,
   value,
   mono,
+  numeric,
 }: {
   label: string;
   value: React.ReactNode;
   mono?: boolean;
+  numeric?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -456,6 +458,7 @@ function Row({
         className={cn(
           "min-w-0 max-w-full grow text-right [overflow-wrap:anywhere]",
           mono ? "font-mono text-sm" : "text-sm",
+          numeric && "font-numeric",
         )}
       >
         {value}

@@ -89,7 +89,10 @@ export const SlotDigit = ({ target, spinning, delay }: SlotDigitProps) => {
   return (
     <span
       className="inline-block overflow-hidden align-bottom"
-      style={{ height: DIGIT_HEIGHT, width: "0.6em" }}
+      // 1ch is the advance of "0", which under font-variant-numeric:
+      // tabular-nums is the advance of every digit. A fixed em width would
+      // put the spinning column out of step with the static one.
+      style={{ height: DIGIT_HEIGHT, width: "1ch" }}
     >
       <span
         className="inline-flex flex-col"

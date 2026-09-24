@@ -63,7 +63,7 @@ export function NftCard({ nft }: NftCardProps) {
           <EyeOff className="h-4 w-4" />
         </Button>
         {nft.standard === "ERC1155" && nft.balance && BigInt(nft.balance) > 1n && (
-          <span className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 text-xs font-medium backdrop-blur-sm">
+          <span className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 font-numeric text-xs font-medium backdrop-blur-sm">
             ×{nft.balance}
           </span>
         )}
