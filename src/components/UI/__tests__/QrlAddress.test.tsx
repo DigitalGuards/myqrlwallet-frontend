@@ -50,12 +50,14 @@ describe("QrlAddress", () => {
         .getByLabelText(`QRL address ${ADDRESS}`)
         .textContent?.replace(/ /g, ""),
     ).toBe(ADDRESS);
+    // Columns follow the container width, never the viewport, so a
+    // revealed address in a narrow card cannot overlap itself.
     expect(view.getByLabelText(`QRL address ${ADDRESS}`).className).toContain(
-      "grid-cols-2",
+      "grid-cols-[repeat(auto-fill,minmax(min(16ch,100%),1fr))]",
     );
-    expect(view.getByLabelText(`QRL address ${ADDRESS}`).className).toContain(
-      "md:grid-cols-8",
-    );
+    expect(
+      view.getByLabelText(`QRL address ${ADDRESS}`).className,
+    ).not.toMatch(/(sm|md):grid-cols-/);
     expect(
       view.container.querySelector('[data-address-revealed="true"]'),
     ).toBeTruthy();
