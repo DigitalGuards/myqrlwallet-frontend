@@ -57,11 +57,11 @@ export function QrlAddress({
     <span
       className={cn(
         "min-w-0 max-w-full font-data",
-        // Column count follows the container width: each 16-character group
-        // gets a column of at least its own width, so narrow cards wrap to
-        // fewer columns and groups never overlap.
+        // The 16 groups of 8 characters sit in 2, 4 or 8 columns, chosen by
+        // the width of the surrounding card (a container query on the
+        // wrapper below), so every row is full and groups never overlap.
         isRevealed
-          ? "grid w-full grid-cols-[repeat(auto-fill,minmax(min(16ch,100%),1fr))] gap-x-3 gap-y-1 text-left"
+          ? "grid w-full grid-cols-2 gap-x-3 gap-y-1 text-left @sm:grid-cols-4 @2xl:grid-cols-8"
           : isFull
             ? "inline-flex flex-wrap gap-x-2 gap-y-0.5 whitespace-normal break-words [overflow-wrap:anywhere]"
             : "whitespace-nowrap",
@@ -90,7 +90,7 @@ export function QrlAddress({
       className={cn(
         "min-w-0 max-w-full",
         isRevealed
-          ? "flex w-full flex-col items-stretch gap-2"
+          ? "@container flex w-full flex-col items-stretch gap-2"
           : "inline-flex flex-wrap items-center gap-x-2 gap-y-1",
         className,
       )}
