@@ -57,8 +57,11 @@ export function QrlAddress({
     <span
       className={cn(
         "min-w-0 max-w-full font-data",
+        // Column count follows the container width: each 16-character group
+        // gets a column of at least its own width, so narrow cards wrap to
+        // fewer columns and groups never overlap.
         isRevealed
-          ? "grid w-full grid-cols-2 gap-x-3 gap-y-1 text-left sm:grid-cols-4 md:grid-cols-8"
+          ? "grid w-full grid-cols-[repeat(auto-fill,minmax(min(16ch,100%),1fr))] gap-x-3 gap-y-1 text-left"
           : isFull
             ? "inline-flex flex-wrap gap-x-2 gap-y-0.5 whitespace-normal break-words [overflow-wrap:anywhere]"
             : "whitespace-nowrap",
@@ -71,7 +74,7 @@ export function QrlAddress({
         ? addressGroups.map((group, index) => (
             <span
               key={`${index}-${group}`}
-              className="inline-block min-w-0 max-w-full"
+              className="inline-block min-w-0 max-w-full [overflow-wrap:anywhere]"
             >
               {group}
             </span>
