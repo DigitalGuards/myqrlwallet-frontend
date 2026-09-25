@@ -45,7 +45,7 @@ export const OtherAccounts = observer(() => {
           <Card
             key={accountAddress}
             id={accountAddress}
-            className="flex flex-col md:flex-row items-center gap-4 p-4 font-bold text-foreground transition-colors hover:border-primary/30"
+            className="flex flex-col md:flex-row items-center gap-4 md:has-[[data-address-revealed=true]]:flex-col md:has-[[data-address-revealed=true]]:items-stretch p-4 font-bold text-foreground transition-colors hover:border-primary/30"
           >
             <div className="flex w-full flex-col gap-1 md:w-auto md:flex-1 min-w-0">
               <AccountId account={accountAddress} />
