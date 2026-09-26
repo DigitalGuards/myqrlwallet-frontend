@@ -64,13 +64,7 @@ export function v3Deployment(env: Record<string, unknown>) {
     throw new Error("VITE_V3_GENESIS_HASH must be a 32-byte hash");
   const registry = optionalContract(env, "VITE_V3_QNS_REGISTRY");
   const tokenFactory = optionalContract(env, "VITE_V3_FACTORY_ADDRESS");
-  let explorerUrl = requiredUrl(env, "VITE_V3_EXPLORER_URL");
-  const explorer = new URL(explorerUrl);
-  // Existing v3 profiles may still contain the retired explorer alias.
-  if (explorer.origin === "https://v3.zondscan.com") {
-    explorer.hostname = "zondscan.com";
-    explorerUrl = explorer.toString().replace(/\/$/, "");
-  }
+  const explorerUrl = requiredUrl(env, "VITE_V3_EXPLORER_URL");
   const network: NetworkConfig = {
     id: "TEST_NET_V3",
     name: "QRL Testnet v3 (Private)",
