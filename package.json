@@ -7,6 +7,11 @@
   "engines": {
     "node": ">=22.22.0"
   },
+  "overrides": {
+    "@theqrl/mldsa87": "2.2.0",
+    "@theqrl/wallet.js": "$@theqrl/wallet.js",
+    "@theqrl/qrl-cryptography": "0.3.3"
+  },
   "scripts": {
     "dev": "vite --config config/vite.config.ts --host=127.0.0.1",
     "dev:lan": "vite --config config/vite.config.ts --host=0.0.0.0",
@@ -41,7 +46,7 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-table": "^8.21.2",
-    "@theqrl/wallet.js": "^6.2.4",
+    "@theqrl/wallet.js": "^6.3.0",
     "@theqrl/web3": "1.0.3",
     "axios": "^1.18.0",
     "bignumber.js": "^9.3.1",
