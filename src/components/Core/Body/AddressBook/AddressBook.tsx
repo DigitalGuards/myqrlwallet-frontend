@@ -122,7 +122,7 @@ export default function AddressBook() {
                   </div>
                   {/* Below the address on phones: the fingerprint and four
                       icon buttons do not fit on one row there. */}
-                  <div className="-ml-2 flex shrink-0 items-center gap-1 sm:ml-0">
+                  <div className="-ml-2 flex items-center gap-1 sm:ml-0 sm:shrink-0">
                     <Button
                       variant="ghost"
                       size="icon"

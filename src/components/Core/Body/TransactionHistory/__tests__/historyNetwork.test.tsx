@@ -197,3 +197,29 @@ it("cancels popup history when the network changes or the popup closes", async (
   );
   expect(post.mock.calls[1]?.[2]?.signal?.aborted).toBe(true);
 });
+
+it("labels popup counterparties by direction, with contract creation only for outgoing", async () => {
+  post.mockResolvedValueOnce({
+    data: {
+      transactions: [
+        { ...row("in-no-from"), From: "" },
+        { ...row("out-create"), InOut: 0, To: "" },
+      ],
+    },
+  });
+  render(
+    <TransactionHistoryPopup
+      accountAddress="Q1"
+      blockchain="TEST_NET"
+      isOpen
+      onClose={() => undefined}
+    />,
+  );
+  await screen.findByText("Received");
+  const [incoming, outgoing] = screen.getAllByTitle(
+    "View transaction on Explorer",
+  );
+  expect(incoming?.textContent).toContain("From");
+  expect(incoming?.textContent).not.toContain("Contract creation");
+  expect(outgoing?.textContent).toContain("Contract creation");
+});

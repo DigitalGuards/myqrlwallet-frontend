@@ -35,6 +35,18 @@ describe("QrlAddress", () => {
         .textContent?.replace(/ /g, ""),
     ).toBe(ADDRESS);
   });
+  it("lets a compact label wrap only after an ellipsis, never inside a group", () => {
+    const view = render(<QrlAddress address={ADDRESS} />);
+    const label = view.getByLabelText(`QRL address ${ADDRESS}`);
+    expect(label.textContent).toBe("Qd5812F6C...e547985f...8A9A8B72");
+    expect(label.querySelectorAll("wbr")).toHaveLength(2);
+    expect(label.className).not.toContain("whitespace-nowrap");
+    // A label that cannot be shortened keeps a last-resort wrap.
+    view.rerender(<QrlAddress address="not-a-qrl-address" />);
+    const raw = view.getByLabelText("QRL address not-a-qrl-address");
+    expect(raw.querySelectorAll("wbr")).toHaveLength(0);
+    expect(raw.className).toContain("break-words");
+  });
   it("reveals the complete grouped address through a tap and keyboard accessible control", () => {
     const view = render(<QrlAddress address={ADDRESS} revealable />);
 

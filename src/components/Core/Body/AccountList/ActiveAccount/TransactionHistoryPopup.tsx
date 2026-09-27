@@ -5,9 +5,10 @@ import { BigNumber } from "bignumber.js";
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { SERVER_URL } from "@/config";
 import { historyNetwork } from "@/config/runtimeProfile";
-import { formatBalance, formatAddressShort } from "@/utils/formatting";
+import { formatBalance } from "@/utils/formatting";
 import { Card, CardContent } from "../../../../UI/Card";
 import { Button } from "../../../../UI/Button";
+import { QrlAddress } from "../../../../UI/QrlAddress";
 import { getExplorerAddressUrl, getExplorerTxUrl } from "@/config";
 import { openExternalUrl } from "@/utils/nativeApp";
 
@@ -28,29 +29,6 @@ type TransactionHistoryType = {
 };
 
 const DUST_DISPLAY_FLOOR = new BigNumber("0.000001");
-
-/**
- * The start...middle...end fingerprint may wrap only after an ellipsis, so a
- * narrow row never splits one of its groups across two lines.
- */
-const AddressFingerprint = ({ address }: { address: string }) => {
-  const parts = formatAddressShort(address).split("...");
-  return (
-    <span className="[overflow-wrap:normal]">
-      {parts.map((part, index) => (
-        <span key={index}>
-          {part}
-          {index < parts.length - 1 ? (
-            <>
-              ...
-              <wbr />
-            </>
-          ) : null}
-        </span>
-      ))}
-    </span>
-  );
-};
 
 const formatTxAmount = (amount: string): string => {
   const bn = new BigNumber(amount);
@@ -181,7 +159,7 @@ export const TransactionHistoryPopup = observer(
                     : isIncoming
                       ? "text-success"
                       : "text-red-400";
-                  const counterpartyAddress = isIncoming ? tx.From : tx.To;
+                  const counterparty = isIncoming ? tx.From : tx.To;
 
                   return (
                     <button
@@ -207,12 +185,13 @@ export const TransactionHistoryPopup = observer(
                           <div className="text-sm font-medium">
                             {isIncoming ? "Received" : "Sent"}
                           </div>
-                          <div className="text-xs text-muted-foreground font-data">
-                            {counterpartyAddress ? (
+                          <div className="text-xs text-muted-foreground font-data break-words">
+                            {isIncoming || counterparty ? (
                               <>
                                 {isIncoming ? "From " : "To "}
-                                <AddressFingerprint
-                                  address={counterpartyAddress}
+                                <QrlAddress
+                                  address={String(counterparty ?? "")}
+                                  className="inline"
                                 />
                               </>
                             ) : (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { cn } from "@/utils/cn";
 import {
@@ -7,6 +7,18 @@ import {
   formatAddressFingerprint,
 } from "@/utils/formatting/address";
 import { copyToClipboard } from "@/utils/nativeApp";
+
+/**
+ * Compact labels (start...middle...end) may wrap only after an ellipsis, so a
+ * narrow container never splits a group. The parts stay plain text nodes.
+ */
+function breakAfterEllipses(label: string): ReactNode[] {
+  return label
+    .split("...")
+    .flatMap((part, index, parts) =>
+      index < parts.length - 1 ? [`${part}...`, <wbr key={index} />] : [part],
+    );
+}
 
 export interface QrlAddressProps {
   address: string;
@@ -64,7 +76,7 @@ export function QrlAddress({
           ? "grid w-full grid-cols-2 gap-x-3 gap-y-1 text-left @sm:grid-cols-4 @2xl:grid-cols-8"
           : isFull
             ? "inline-flex flex-wrap gap-x-2 gap-y-0.5 whitespace-normal break-words [overflow-wrap:anywhere]"
-            : "whitespace-nowrap",
+            : "break-words",
         addressClassName,
       )}
       aria-label={`QRL address ${address}`}
@@ -79,9 +91,11 @@ export function QrlAddress({
               {group}
             </span>
           ))
-        : compactFormat === "short"
-          ? formatAddressEnds(address)
-          : formatAddressFingerprint(address)}
+        : breakAfterEllipses(
+            compactFormat === "short"
+              ? formatAddressEnds(address)
+              : formatAddressFingerprint(address),
+          )}
     </span>
   );
 
