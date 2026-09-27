@@ -31,9 +31,11 @@ jest.mock("@/config", () => ({
 }));
 jest.mock("@/utils/formatting", () => ({
   formatBalance: (value: string) => value,
-  formatAddressShort: (value: string) => value,
 }));
-jest.mock("@/components/UI/QrlAddress", () => ({ QrlAddress: () => null }));
+jest.mock("@/components/UI/QrlAddress", () => ({
+  QrlAddress: () => null,
+  CompactAddressText: ({ address }: { address: string }) => address,
+}));
 jest.mock("@/utils/nativeApp", () => ({ openExternalUrl: jest.fn() }));
 jest.mock("@/utils", () => ({
   cn: (...values: unknown[]) => values.filter(Boolean).join(" "),
@@ -196,4 +198,34 @@ it("cancels popup history when the network changes or the popup closes", async (
     <TransactionHistoryPopup {...props} blockchain="MAIN_NET" isOpen={false} />,
   );
   expect(post.mock.calls[1]?.[2]?.signal?.aborted).toBe(true);
+});
+
+it("labels popup counterparties by direction, with contract creation only for outgoing", async () => {
+  post.mockResolvedValueOnce({
+    data: {
+      transactions: [
+        { ...row("in"), From: "Qsender" },
+        { ...row("out"), InOut: 0, To: "Qrecipient" },
+        { ...row("in-no-from"), From: "" },
+        { ...row("out-create"), InOut: 0, To: "" },
+      ],
+    },
+  });
+  render(
+    <TransactionHistoryPopup
+      accountAddress="Q1"
+      blockchain="TEST_NET"
+      isOpen
+      onClose={() => undefined}
+    />,
+  );
+  await screen.findAllByText("Received");
+  const rows = screen
+    .getAllByTitle("View transaction on Explorer")
+    .map((button) => button.textContent);
+  expect(rows[0]).toContain("From Qsender");
+  expect(rows[1]).toContain("To Qrecipient");
+  expect(rows[2]).toContain("Unknown sender");
+  expect(rows[2]).not.toContain("From");
+  expect(rows[3]).toContain("Contract creation");
 });

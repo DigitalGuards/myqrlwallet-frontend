@@ -5,9 +5,10 @@ import { BigNumber } from "bignumber.js";
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { SERVER_URL } from "@/config";
 import { historyNetwork } from "@/config/runtimeProfile";
-import { formatBalance, formatAddressShort } from "@/utils/formatting";
+import { formatBalance } from "@/utils/formatting";
 import { Card, CardContent } from "../../../../UI/Card";
 import { Button } from "../../../../UI/Button";
+import { CompactAddressText } from "../../../../UI/QrlAddress";
 import { getExplorerAddressUrl, getExplorerTxUrl } from "@/config";
 import { openExternalUrl } from "@/utils/nativeApp";
 
@@ -158,11 +159,7 @@ export const TransactionHistoryPopup = observer(
                     : isIncoming
                       ? "text-success"
                       : "text-red-400";
-                  const counterparty = isIncoming
-                    ? `From ${formatAddressShort(tx.From)}`
-                    : tx.To
-                      ? `To ${formatAddressShort(tx.To)}`
-                      : "Contract creation";
+                  const counterparty = isIncoming ? tx.From : tx.To;
 
                   return (
                     <button
@@ -189,7 +186,16 @@ export const TransactionHistoryPopup = observer(
                             {isIncoming ? "Received" : "Sent"}
                           </div>
                           <div className="text-xs text-muted-foreground font-data break-words">
-                            {counterparty}
+                            {counterparty ? (
+                              <>
+                                {isIncoming ? "From " : "To "}
+                                <CompactAddressText address={counterparty} />
+                              </>
+                            ) : isIncoming ? (
+                              "Unknown sender"
+                            ) : (
+                              "Contract creation"
+                            )}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {new Date(

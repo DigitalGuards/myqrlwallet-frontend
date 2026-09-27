@@ -10,6 +10,8 @@ export {
 export {
   ADDRESS_DISCLOSURE_GROUP_LENGTH,
   formatAddress,
+  addressEndSegments,
+  addressFingerprintSegments,
   formatAddressFingerprint,
   formatAddressFingerprintsInText,
   formatAddressShort,

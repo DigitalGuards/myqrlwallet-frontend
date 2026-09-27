@@ -1,12 +1,52 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { cn } from "@/utils/cn";
 import {
+  addressEndSegments,
+  addressFingerprintSegments,
   formatAddress,
-  formatAddressEnds,
-  formatAddressFingerprint,
 } from "@/utils/formatting/address";
 import { copyToClipboard } from "@/utils/nativeApp";
+
+/**
+ * Renders compact address segments with a break opportunity after each
+ * ellipsis, so the label wraps between segments first. A segment itself
+ * breaks only when it cannot fit on a line by itself. The segments stay
+ * plain text nodes.
+ */
+function compactAddressParts(
+  address: string,
+  compactFormat: "fingerprint" | "short",
+): ReactNode[] {
+  const segments =
+    compactFormat === "short"
+      ? addressEndSegments(address)
+      : addressFingerprintSegments(address);
+  return segments.flatMap((segment, index) =>
+    index < segments.length - 1
+      ? [`${segment}...`, <wbr key={index} />]
+      : [segment],
+  );
+}
+
+/**
+ * A compact address without controls or its own accessible name, for text
+ * inside another control such as a list row button, whose visible text
+ * names it.
+ */
+export function CompactAddressText({
+  address,
+  compactFormat = "fingerprint",
+}: {
+  address: string;
+  compactFormat?: "fingerprint" | "short";
+}) {
+  return (
+    <span className="font-data [overflow-wrap:anywhere]" dir="ltr">
+      {compactAddressParts(address, compactFormat)}
+    </span>
+  );
+}
 
 export interface QrlAddressProps {
   address: string;
@@ -64,7 +104,7 @@ export function QrlAddress({
           ? "grid w-full grid-cols-2 gap-x-3 gap-y-1 text-left @sm:grid-cols-4 @2xl:grid-cols-8"
           : isFull
             ? "inline-flex flex-wrap gap-x-2 gap-y-0.5 whitespace-normal break-words [overflow-wrap:anywhere]"
-            : "whitespace-nowrap",
+            : "[overflow-wrap:anywhere]",
         addressClassName,
       )}
       aria-label={`QRL address ${address}`}
@@ -79,9 +119,7 @@ export function QrlAddress({
               {group}
             </span>
           ))
-        : compactFormat === "short"
-          ? formatAddressEnds(address)
-          : formatAddressFingerprint(address)}
+        : compactAddressParts(address, compactFormat)}
     </span>
   );
 

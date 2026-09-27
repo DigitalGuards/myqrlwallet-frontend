@@ -130,15 +130,17 @@ const Home = observer(() => {
                       <CardContent>
                         <ActiveAccountDisplay onShowAddress={() => setReceiveOpen(true)} />
                       </CardContent>
-                      <CardFooter className="justify-end gap-2">
+                      {/* Narrow phones wrap Receive onto its own row, so
+                          Transfer stays inside the card. */}
+                      <CardFooter className="flex-wrap justify-end gap-2">
                         <Link className="flex-1" to={ROUTES.TRANSFER}>
-                          <Button className="w-full" type="button">
+                          <Button className="w-full px-3 sm:px-4" type="button">
                             <Send className="mr-2 h-4 w-4" />
                             Transfer
                           </Button>
                         </Link>
                         <Button 
-                          className="flex-1" 
+                          className="flex-1 px-3 sm:px-4" 
                           type="button" 
                           variant="outline"
                           onClick={() => setTxHistoryOpen(true)}
@@ -147,7 +149,7 @@ const Home = observer(() => {
                           History
                         </Button>
                         <Button
-                          className="flex-1"
+                          className="flex-1 px-3 sm:px-4"
                           type="button"
                           variant="secondary"
                           onClick={() => setReceiveOpen(true)}
