@@ -110,7 +110,7 @@ const ImportAccount = observer(() => {
               )
             ) : (
               <Tabs defaultValue="mnemonic" className="w-full">
-                <TabsList className="flex w-full flex-col sm:flex-row gap-2 bg-transparent h-auto p-0">
+                <TabsList className="flex w-full flex-col sm:flex-row gap-2 rounded-none border-0 bg-transparent h-auto p-0">
                   <TabsTrigger
                     value="mnemonic"
                     className="w-full text-sm py-3 px-4 rounded-lg border border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.08] data-[state=active]:border-primary/50 data-[state=active]:bg-primary/10 data-[state=active]:text-primary transition-colors"

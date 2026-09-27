@@ -31,9 +31,11 @@ jest.mock("@/config", () => ({
 }));
 jest.mock("@/utils/formatting", () => ({
   formatBalance: (value: string) => value,
-  formatAddressShort: (value: string) => value,
 }));
-jest.mock("@/components/UI/QrlAddress", () => ({ QrlAddress: () => null }));
+jest.mock("@/components/UI/QrlAddress", () => ({
+  QrlAddress: () => null,
+  CompactAddressText: ({ address }: { address: string }) => address,
+}));
 jest.mock("@/utils/nativeApp", () => ({ openExternalUrl: jest.fn() }));
 jest.mock("@/utils", () => ({
   cn: (...values: unknown[]) => values.filter(Boolean).join(" "),

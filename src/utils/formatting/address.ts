@@ -17,11 +17,12 @@ function splitQrlPrefix(address: string): { prefix: string; payload: string } {
 }
 
 /**
- * Produces a compact address fingerprint sampled from the beginning, centre,
- * and end of the complete address payload. Checksum casing is preserved.
+ * The beginning, centre and end samples of the complete address payload that
+ * a compact fingerprint shows, or the input itself when it is not a QRL
+ * address. Checksum casing is preserved.
  */
-export const formatAddressFingerprint = (address: string): string => {
-  if (!isDisplayableQrlAddress(address)) return address;
+export const addressFingerprintSegments = (address: string): string[] => {
+  if (!isDisplayableQrlAddress(address)) return [address];
 
   const { prefix, payload } = splitQrlPrefix(address);
   const middleStart = Math.floor(
@@ -35,15 +36,26 @@ export const formatAddressFingerprint = (address: string): string => {
       middleStart + ADDRESS_FINGERPRINT_SEGMENT_LENGTH,
     ),
     payload.slice(-ADDRESS_FINGERPRINT_SEGMENT_LENGTH),
-  ].join("...");
+  ];
 };
 
-/** Keeps only the start and end for narrow address columns. */
-export const formatAddressEnds = (address: string): string => {
-  if (!isDisplayableQrlAddress(address)) return address;
+/** The beginning and end samples, for narrow address columns. */
+export const addressEndSegments = (address: string): string[] => {
+  if (!isDisplayableQrlAddress(address)) return [address];
   const { prefix, payload } = splitQrlPrefix(address);
-  return `${prefix}${payload.slice(0, ADDRESS_FINGERPRINT_SEGMENT_LENGTH)}...${payload.slice(-ADDRESS_FINGERPRINT_SEGMENT_LENGTH)}`;
+  return [
+    `${prefix}${payload.slice(0, ADDRESS_FINGERPRINT_SEGMENT_LENGTH)}`,
+    payload.slice(-ADDRESS_FINGERPRINT_SEGMENT_LENGTH),
+  ];
 };
+
+/** Produces a compact start...centre...end address fingerprint. */
+export const formatAddressFingerprint = (address: string): string =>
+  addressFingerprintSegments(address).join("...");
+
+/** Keeps only the start and end for narrow address columns. */
+export const formatAddressEnds = (address: string): string =>
+  addressEndSegments(address).join("...");
 
 /** Formats the complete address into readable groups that can wrap safely. */
 export const formatAddress = (
