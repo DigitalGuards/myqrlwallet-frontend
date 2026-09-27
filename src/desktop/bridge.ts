@@ -119,12 +119,31 @@ export interface CreateWalletResult {
 }
 
 /**
+ * Capability flags the desktop shell advertises for OPTIONAL request fields.
+ *
+ * The desktop IPC schemas are strict: an unknown key is rejected at the
+ * boundary and is not ignored, so a renderer newer than the shell hosting it
+ * must feature-detect before adding a field. Every flag is optional here
+ * because a shell that predates the flag exposes no `features` object at all.
+ *
+ * Packaged desktop builds always ship shell and renderer together (the desktop
+ * builds this frontend checkout into its `out/renderer`), so the skew these
+ * guards cover is a development or hand-assembled pairing.
+ */
+export interface QrlWalletFeatures {
+  /** `buildTransaction` accepts an optional dApp-requested `gas` limit. */
+  readonly dappGasLimit?: boolean;
+}
+
+/**
  * The preload-exposed bridge. Mirrors the signer contract documented in the
  * desktop app. Kept structural (no class) so the preload's plain object
  * satisfies it.
  */
 export interface QrlWalletBridge {
   readonly addressScheme?: "qip55-64";
+  /** Optional-field capability flags; absent on shells that predate them. */
+  readonly features?: QrlWalletFeatures;
   createWallet(args: {
     password: string;
     useKeychain?: boolean;
@@ -163,6 +182,13 @@ export interface QrlWalletBridge {
     value: string;
     feeLevel?: FeeLevelHint;
     data?: string;
+    /**
+     * A dApp-requested gas limit as a canonical positive decimal string. Main
+     * builds with max(this, its own buffered estimate), bounded by the block
+     * gas limit. Send it ONLY when `features.dappGasLimit` is set: an older
+     * shell's strict schema rejects the whole request over the unknown key.
+     */
+    gas?: string;
   }): Promise<UnsignedTransaction>;
   requestSignature(request: SignatureRequest): Promise<SignatureResult>;
   sendRawTransaction(args: {
@@ -260,6 +286,44 @@ export function buildDappOrigin(
 }
 
 // ---------------------------------------------------------------------------
+// Optional-field capability gate
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether this desktop shell's `buildTransaction` understands a dApp-requested
+ * gas limit.
+ *
+ * The desktop IPC schema is strict, so sending `gas` to a shell that predates
+ * the field would make it reject the whole build and strand the dApp request.
+ * A false reading degrades to the shell's own estimate, which is exactly the
+ * behaviour before the field existed.
+ */
+export function supportsDappGasLimit(): boolean {
+  return qrlWallet().features?.dappGasLimit === true;
+}
+
+/**
+ * The `gas` spread for a `buildTransaction` payload: the field when there is a
+ * limit to forward AND this shell understands it, and nothing at all otherwise.
+ * Spreading an empty object keeps the key absent; passing an explicit
+ * `undefined` would still add it, and `.strict()` on the desktop side
+ * inspects keys.
+ */
+function dappGasField(
+  bridge: QrlWalletBridge,
+  gas: string | undefined,
+): { gas?: string } | Record<string, never> {
+  if (gas === undefined) return {};
+  if (bridge.features?.dappGasLimit !== true) {
+    console.warn(
+      "desktop: this shell ignores dApp gas limits (features.dappGasLimit missing); building with its own estimate",
+    );
+    return {};
+  }
+  return { gas };
+}
+
+// ---------------------------------------------------------------------------
 // High-level adapter used by call sites
 // ---------------------------------------------------------------------------
 
@@ -351,6 +415,9 @@ export const desktopSigner = {
       value: string;
       data?: string;
       feeLevel?: FeeLevelHint;
+      /** Canonical positive decimal dApp-requested gas limit; see
+       * {@link supportsDappGasLimit}. */
+      gas?: string;
     },
     origin?: DAppOriginMeta,
   ): Promise<{ transactionHash: string }> {
@@ -361,6 +428,7 @@ export const desktopSigner = {
       value: args.value,
       data: args.data,
       feeLevel: args.feeLevel,
+      ...dappGasField(bridge, args.gas),
     });
     const signed = await bridge.requestSignature({
       kind: "transaction",
@@ -385,6 +453,9 @@ export const desktopSigner = {
       value: string;
       data?: string;
       feeLevel?: FeeLevelHint;
+      /** Canonical positive decimal dApp-requested gas limit; see
+       * {@link supportsDappGasLimit}. */
+      gas?: string;
     },
     origin?: DAppOriginMeta,
   ): Promise<string> {
@@ -395,6 +466,7 @@ export const desktopSigner = {
       value: args.value,
       data: args.data,
       feeLevel: args.feeLevel,
+      ...dappGasField(bridge, args.gas),
     });
     const signed = await bridge.requestSignature({
       kind: "transaction",

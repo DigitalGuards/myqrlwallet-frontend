@@ -55,6 +55,7 @@ import {
 } from "@/utils/nativeWalletMutation";
 import {
   buildReviewedDAppTransaction,
+  desktopGasLimit,
   requestedGasLimit,
 } from "./dappTransaction";
 
@@ -360,6 +361,15 @@ const DAppApprovalModalContent = observer(() => {
           const valueD = txParamsD["value"]
             ? BigInt(txParamsD["value"] as string).toString()
             : "0";
+          // Forward an explicitly requested gas limit, the way the web and
+          // mobile path below does. Some contract flows need headroom the
+          // wallet's own estimate cannot see (QuantaSwap HTLCv3 settlement asks
+          // for estimateGas + 250000, and a settlement that runs out of gas
+          // defers the payout into a credit). Main builds with
+          // max(this, its own buffered estimate), so a too-low request still
+          // cannot produce a failing transaction. Already validated as a
+          // canonical bounded quantity by RequestHandler.
+          const gasD = desktopGasLimit(requestedGasLimit(txParamsD));
           // The receipt wait below can outlive this approval being current (a
           // session disconnect promotes the queue mid-poll); always answer the
           // CAPTURED request, but only paint progress while it is still shown.
@@ -372,6 +382,7 @@ const DAppApprovalModalContent = observer(() => {
                   to: toD,
                   value: valueD,
                   data: dataD,
+                  ...(gasD === undefined ? {} : { gas: gasD }),
                 },
                 dappOrigin,
               );
@@ -390,6 +401,7 @@ const DAppApprovalModalContent = observer(() => {
                   to: toD,
                   value: valueD,
                   data: dataD,
+                  ...(gasD === undefined ? {} : { gas: gasD }),
                 },
                 dappOrigin,
               );
