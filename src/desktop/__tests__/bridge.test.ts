@@ -7,8 +7,14 @@
  * be repaired here, because a rejected signature request strands the dApp.
  */
 
-import { describe, it, expect } from '@jest/globals';
-import { buildDappOrigin } from '../bridge';
+import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import {
+  buildDappOrigin,
+  desktopSigner,
+  supportsDappGasLimit,
+  type QrlWalletBridge,
+} from '../bridge';
+import { desktopTransactionArgs } from '@/components/Core/Body/DAppConnect/dappTransaction';
 
 const CHANNEL = '0199aabb-ccdd-eeff-0011-223344556677';
 
@@ -93,5 +99,144 @@ describe('buildDappOrigin', () => {
       const url = `https://a.example/${'p'.repeat(300)}`;
       expect(buildDappOrigin('d', url, CHANNEL)?.url).toBe('');
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// dApp gas-limit passthrough + the older-shell capability gate
+// ---------------------------------------------------------------------------
+
+interface FakeShell {
+  bridge: QrlWalletBridge;
+  builds: Record<string, unknown>[];
+}
+
+/**
+ * A minimal `window.qrlWallet` stand-in. `supportsGas: false` models a desktop
+ * shell that predates the optional `gas` field: its real IPC schema is strict,
+ * so an unknown key would be rejected at the boundary and the dApp request
+ * would be stranded.
+ */
+function installFakeShell(opts: { supportsGas: boolean }): FakeShell {
+  const builds: Record<string, unknown>[] = [];
+  // Only the three methods these paths touch are implemented, so the stub is
+  // widened from `unknown` once, with no assertion through the full bridge
+  // interface.
+  const stub: unknown = {
+    addressScheme: 'qip55-64',
+    ...(opts.supportsGas ? { features: { dappGasLimit: true } } : {}),
+    buildTransaction: (args: Record<string, unknown>) => {
+      builds.push(args);
+      return Promise.resolve({ ...args, nonce: 1, gas: '120000', chainId: 3151909 });
+    },
+    requestSignature: () =>
+      Promise.resolve({
+        kind: 'transaction' as const,
+        signature: '0xabcd',
+        rawTransaction: '0xabcd',
+        signer: `Q${'a'.repeat(128)}`,
+      }),
+    sendRawTransaction: () => Promise.resolve({ transactionHash: `0x${'1'.repeat(64)}` }),
+  };
+  const bridge = stub as QrlWalletBridge;
+  (globalThis as { window?: unknown }).window = { qrlWallet: bridge };
+  return { bridge, builds };
+}
+
+const TX = {
+  from: `Q${'a'.repeat(128)}`,
+  to: `Q${'b'.repeat(128)}`,
+  value: '0',
+  data: '0xad4c2381',
+};
+
+describe('desktop dApp gas-limit passthrough', () => {
+  afterEach(() => {
+    delete (globalThis as { window?: unknown }).window;
+    jest.restoreAllMocks();
+  });
+
+  it('reports the shell capability from the advertised feature flag', () => {
+    installFakeShell({ supportsGas: true });
+    expect(supportsDappGasLimit()).toBe(true);
+    installFakeShell({ supportsGas: false });
+    expect(supportsDappGasLimit()).toBe(false);
+  });
+
+  it('forwards the requested gas limit to buildTransaction', async () => {
+    const shell = installFakeShell({ supportsGas: true });
+    await desktopSigner.signAndSendTransaction({ ...TX, gas: '350000' });
+    expect(shell.builds).toHaveLength(1);
+    expect(shell.builds[0]).toMatchObject({ gas: '350000', data: '0xad4c2381' });
+  });
+
+  it('forwards the requested gas limit on the sign-only path too', async () => {
+    const shell = installFakeShell({ supportsGas: true });
+    await desktopSigner.signTransactionOnly({ ...TX, gas: '350000' });
+    expect(shell.builds[0]).toMatchObject({ gas: '350000' });
+  });
+
+  it('omits the key entirely when no gas limit was requested', async () => {
+    const shell = installFakeShell({ supportsGas: true });
+    await desktopSigner.signAndSendTransaction(TX);
+    expect(shell.builds[0]).not.toHaveProperty('gas');
+  });
+
+  it('withholds the gas limit from a shell that does not advertise support', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const shell = installFakeShell({ supportsGas: false });
+    const result = await desktopSigner.signAndSendTransaction({ ...TX, gas: '350000' });
+    // The send still completes on the shell's own estimate: a strict-schema
+    // rejection over an unknown key would have stranded the dApp request.
+    expect(result.transactionHash).toBe(`0x${'1'.repeat(64)}`);
+    expect(shell.builds[0]).not.toHaveProperty('gas');
+    expect(warn).toHaveBeenCalled();
+  });
+});
+
+describe('composed desktop approval path', () => {
+  afterEach(() => {
+    delete (globalThis as { window?: unknown }).window;
+    jest.restoreAllMocks();
+  });
+
+  // The approval modal's desktop branch is exactly this composition: take the
+  // dApp's transaction params, bind `from` to the live active account, and hand
+  // the result to one of the two desktop signer calls. Driving it here covers
+  // the data path from raw dApp params to the IPC payload without standing up
+  // the modal's stores and dialog.
+  const DAPP_PARAMS = {
+    from: `Q${'c'.repeat(128)}`, // the dApp's claim, deliberately ignored
+    to: `Q${'b'.repeat(128)}`,
+    value: '0xde0b6b3a7640000',
+    data: '0xad4c2381',
+    gas: '0x55730', // 350000, QuantaSwap HTLCv3 settlement headroom
+  };
+  const ACTIVE = `Q${'a'.repeat(128)}`;
+
+  it('sends the dApp gas limit through qrl_sendTransaction', async () => {
+    const shell = installFakeShell({ supportsGas: true });
+    await desktopSigner.signAndSendTransaction(desktopTransactionArgs(DAPP_PARAMS, ACTIVE));
+    expect(shell.builds[0]).toEqual({
+      from: ACTIVE,
+      to: DAPP_PARAMS.to,
+      value: '1000000000000000000',
+      data: '0xad4c2381',
+      gas: '350000',
+      feeLevel: undefined,
+    });
+  });
+
+  it('sends the same payload through qrl_signTransaction', async () => {
+    const shell = installFakeShell({ supportsGas: true });
+    await desktopSigner.signTransactionOnly(desktopTransactionArgs(DAPP_PARAMS, ACTIVE));
+    expect(shell.builds[0]).toMatchObject({ from: ACTIVE, gas: '350000' });
+  });
+
+  it('sends no gas key when the dApp asked for none', async () => {
+    const shell = installFakeShell({ supportsGas: true });
+    const { gas: _dropped, ...noGas } = DAPP_PARAMS;
+    await desktopSigner.signAndSendTransaction(desktopTransactionArgs(noGas, ACTIVE));
+    expect(shell.builds[0]).not.toHaveProperty('gas');
   });
 });
