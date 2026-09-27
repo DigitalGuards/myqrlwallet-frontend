@@ -55,7 +55,7 @@ import {
 } from "@/utils/nativeWalletMutation";
 import {
   buildReviewedDAppTransaction,
-  desktopGasLimit,
+  desktopTransactionArgs,
   requestedGasLimit,
 } from "./dappTransaction";
 
@@ -356,20 +356,16 @@ const DAppApprovalModalContent = observer(() => {
         // PIN, no seed in the renderer.
         if (isDesktop) {
           const txParamsD = (params?.[0] || {}) as Record<string, unknown>;
-          const toD = txParamsD["to"] as string;
-          const dataD = (txParamsD["data"] as string) || undefined;
-          const valueD = txParamsD["value"]
-            ? BigInt(txParamsD["value"] as string).toString()
-            : "0";
-          // Forward an explicitly requested gas limit, the way the web and
-          // mobile path below does. Some contract flows need headroom the
-          // wallet's own estimate cannot see (QuantaSwap HTLCv3 settlement asks
-          // for estimateGas + 250000, and a settlement that runs out of gas
-          // defers the payout into a credit). Main builds with
-          // max(this, its own buffered estimate), so a too-low request still
-          // cannot produce a failing transaction. Already validated as a
-          // canonical bounded quantity by RequestHandler.
-          const gasD = desktopGasLimit(requestedGasLimit(txParamsD));
+          // One construction for both desktop methods, including the
+          // explicitly requested gas limit that the web and mobile path below
+          // already honours. Some contract flows need headroom the wallet's own
+          // estimate cannot see (QuantaSwap HTLCv3 settlement asks for
+          // estimateGas + 250000, and a settlement that runs out of gas defers
+          // the payout into a credit). Main builds with max(that, its own
+          // buffered estimate), so a too-low request still cannot produce a
+          // failing transaction. `from` is the live active account bound above,
+          // deliberately ignoring the dApp's own `from`.
+          const desktopArgs = desktopTransactionArgs(txParamsD, activeAddress);
           // The receipt wait below can outlive this approval being current (a
           // session disconnect promotes the queue mid-poll); always answer the
           // CAPTURED request, but only paint progress while it is still shown.
@@ -377,13 +373,7 @@ const DAppApprovalModalContent = observer(() => {
             setCurrentTxProgress("signing");
             if (method === "qrl_signTransaction") {
               const rawTx = await desktopSigner.signTransactionOnly(
-                {
-                  from: activeAddress,
-                  to: toD,
-                  value: valueD,
-                  data: dataD,
-                  ...(gasD === undefined ? {} : { gas: gasD }),
-                },
+                desktopArgs,
                 dappOrigin,
               );
               dappConnectStore.approveRequestById(
@@ -396,13 +386,7 @@ const DAppApprovalModalContent = observer(() => {
             setCurrentTxProgress("broadcasting");
             const { transactionHash } =
               await desktopSigner.signAndSendTransaction(
-                {
-                  from: activeAddress,
-                  to: toD,
-                  value: valueD,
-                  data: dataD,
-                  ...(gasD === undefined ? {} : { gas: gasD }),
-                },
+                desktopArgs,
                 dappOrigin,
               );
             // Broadcast succeeded; now wait for the on-chain receipt (web

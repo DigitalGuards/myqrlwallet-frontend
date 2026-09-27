@@ -4,6 +4,7 @@
 
 import { formatQuantaValue } from "@/utils/formatting";
 import { QrlAddress } from "@/components/UI/QrlAddress";
+import { isDesktop } from "@/desktop/bridge";
 
 interface TransactionReviewProps {
   params: Record<string, unknown>;
@@ -71,7 +72,12 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
       </div>
       {gas != null && (
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Gas Limit</span>
+          {/* On desktop the shell resolves max(this value, its own buffered
+              estimate), so the number the dApp asked for is a floor. The web
+              and mobile paths sign the requested limit as given. */}
+          <span className="text-muted-foreground">
+            Gas Limit{isDesktop ? " (minimum)" : ""}
+          </span>
           <span className="font-numeric">{formatGasLimit(gas)}</span>
         </div>
       )}

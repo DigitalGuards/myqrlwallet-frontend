@@ -121,10 +121,12 @@ export interface CreateWalletResult {
 /**
  * Capability flags the desktop shell advertises for OPTIONAL request fields.
  *
- * The desktop IPC schemas are strict: an unknown key is rejected at the
- * boundary and is not ignored, so a renderer newer than the shell hosting it
- * must feature-detect before adding a field. Every flag is optional here
- * because a shell that predates the flag exposes no `features` object at all.
+ * A compatibility hint. The shell's IPC schemas stay the authority on every
+ * value, so this changes what the renderer may SEND and nothing about what the
+ * shell accepts. Those schemas are strict, so an unknown key fails the whole
+ * request, and a renderer newer than the shell hosting it must feature-detect
+ * before adding a field. Every flag is optional here because a shell that
+ * predates the flag exposes no `features` object at all.
  *
  * Packaged desktop builds always ship shell and renderer together (the desktop
  * builds this frontend checkout into its `out/renderer`), so the skew these
