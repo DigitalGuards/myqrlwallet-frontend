@@ -108,8 +108,11 @@ export default function AddressBook() {
           ) : (
             <ul className="flex flex-col divide-y divide-border">
               {entries.map((entry) => (
-                <li key={entry.id} className="flex items-center gap-3 py-3">
-                  <div className="min-w-0 flex-1">
+                <li
+                  key={entry.id}
+                  className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:gap-3"
+                >
+                  <div className="min-w-0 sm:flex-1">
                     <p className="font-semibold truncate">{entry.name}</p>
                     <QrlAddress
                       address={entry.address}
@@ -117,7 +120,9 @@ export default function AddressBook() {
                       className="text-sm text-muted-foreground"
                     />
                   </div>
-                  <div className="flex items-center gap-1">
+                  {/* Below the address on phones: the fingerprint and four
+                      icon buttons do not fit on one row there. */}
+                  <div className="-ml-2 flex shrink-0 items-center gap-1 sm:ml-0">
                     <Button
                       variant="ghost"
                       size="icon"

@@ -29,6 +29,29 @@ type TransactionHistoryType = {
 
 const DUST_DISPLAY_FLOOR = new BigNumber("0.000001");
 
+/**
+ * The start...middle...end fingerprint may wrap only after an ellipsis, so a
+ * narrow row never splits one of its groups across two lines.
+ */
+const AddressFingerprint = ({ address }: { address: string }) => {
+  const parts = formatAddressShort(address).split("...");
+  return (
+    <span className="[overflow-wrap:normal]">
+      {parts.map((part, index) => (
+        <span key={index}>
+          {part}
+          {index < parts.length - 1 ? (
+            <>
+              ...
+              <wbr />
+            </>
+          ) : null}
+        </span>
+      ))}
+    </span>
+  );
+};
+
 const formatTxAmount = (amount: string): string => {
   const bn = new BigNumber(amount);
   if (bn.isNaN() || bn.isZero()) return "0";
@@ -158,11 +181,7 @@ export const TransactionHistoryPopup = observer(
                     : isIncoming
                       ? "text-success"
                       : "text-red-400";
-                  const counterparty = isIncoming
-                    ? `From ${formatAddressShort(tx.From)}`
-                    : tx.To
-                      ? `To ${formatAddressShort(tx.To)}`
-                      : "Contract creation";
+                  const counterpartyAddress = isIncoming ? tx.From : tx.To;
 
                   return (
                     <button
@@ -188,8 +207,17 @@ export const TransactionHistoryPopup = observer(
                           <div className="text-sm font-medium">
                             {isIncoming ? "Received" : "Sent"}
                           </div>
-                          <div className="text-xs text-muted-foreground font-data break-words">
-                            {counterparty}
+                          <div className="text-xs text-muted-foreground font-data">
+                            {counterpartyAddress ? (
+                              <>
+                                {isIncoming ? "From " : "To "}
+                                <AddressFingerprint
+                                  address={counterpartyAddress}
+                                />
+                              </>
+                            ) : (
+                              "Contract creation"
+                            )}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {new Date(
