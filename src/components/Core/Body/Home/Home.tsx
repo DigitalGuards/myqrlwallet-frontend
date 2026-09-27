@@ -130,8 +130,8 @@ const Home = observer(() => {
                       <CardContent>
                         <ActiveAccountDisplay onShowAddress={() => setReceiveOpen(true)} />
                       </CardContent>
-                      {/* Narrow phones wrap Receive onto its own row
-                          instead of pushing Transfer off the card. */}
+                      {/* Narrow phones wrap Receive onto its own row, so
+                          Transfer stays inside the card. */}
                       <CardFooter className="flex-wrap justify-end gap-2">
                         <Link className="flex-1" to={ROUTES.TRANSFER}>
                           <Button className="w-full px-3 sm:px-4" type="button">

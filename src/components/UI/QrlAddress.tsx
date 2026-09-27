@@ -2,22 +2,50 @@ import { useState, type ReactNode } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { cn } from "@/utils/cn";
 import {
+  addressEndSegments,
+  addressFingerprintSegments,
   formatAddress,
-  formatAddressEnds,
-  formatAddressFingerprint,
 } from "@/utils/formatting/address";
 import { copyToClipboard } from "@/utils/nativeApp";
 
 /**
- * Compact labels (start...middle...end) may wrap only after an ellipsis, so a
- * narrow container never splits a group. The parts stay plain text nodes.
+ * Renders compact address segments with a break opportunity after each
+ * ellipsis, so the label wraps between segments first. A segment itself
+ * breaks only when it cannot fit on a line by itself. The segments stay
+ * plain text nodes.
  */
-function breakAfterEllipses(label: string): ReactNode[] {
-  return label
-    .split("...")
-    .flatMap((part, index, parts) =>
-      index < parts.length - 1 ? [`${part}...`, <wbr key={index} />] : [part],
-    );
+function compactAddressParts(
+  address: string,
+  compactFormat: "fingerprint" | "short",
+): ReactNode[] {
+  const segments =
+    compactFormat === "short"
+      ? addressEndSegments(address)
+      : addressFingerprintSegments(address);
+  return segments.flatMap((segment, index) =>
+    index < segments.length - 1
+      ? [`${segment}...`, <wbr key={index} />]
+      : [segment],
+  );
+}
+
+/**
+ * A compact address without controls or its own accessible name, for text
+ * inside another control such as a list row button, whose visible text
+ * names it.
+ */
+export function CompactAddressText({
+  address,
+  compactFormat = "fingerprint",
+}: {
+  address: string;
+  compactFormat?: "fingerprint" | "short";
+}) {
+  return (
+    <span className="font-data [overflow-wrap:anywhere]" dir="ltr">
+      {compactAddressParts(address, compactFormat)}
+    </span>
+  );
 }
 
 export interface QrlAddressProps {
@@ -76,7 +104,7 @@ export function QrlAddress({
           ? "grid w-full grid-cols-2 gap-x-3 gap-y-1 text-left @sm:grid-cols-4 @2xl:grid-cols-8"
           : isFull
             ? "inline-flex flex-wrap gap-x-2 gap-y-0.5 whitespace-normal break-words [overflow-wrap:anywhere]"
-            : "break-words",
+            : "[overflow-wrap:anywhere]",
         addressClassName,
       )}
       aria-label={`QRL address ${address}`}
@@ -91,11 +119,7 @@ export function QrlAddress({
               {group}
             </span>
           ))
-        : breakAfterEllipses(
-            compactFormat === "short"
-              ? formatAddressEnds(address)
-              : formatAddressFingerprint(address),
-          )}
+        : compactAddressParts(address, compactFormat)}
     </span>
   );
 

@@ -31,9 +31,11 @@ jest.mock("@/config", () => ({
 }));
 jest.mock("@/utils/formatting", () => ({
   formatBalance: (value: string) => value,
-  formatAddressShort: (value: string) => value,
 }));
-jest.mock("@/components/UI/QrlAddress", () => ({ QrlAddress: () => null }));
+jest.mock("@/components/UI/QrlAddress", () => ({
+  QrlAddress: () => null,
+  CompactAddressText: ({ address }: { address: string }) => address,
+}));
 jest.mock("@/utils/nativeApp", () => ({ openExternalUrl: jest.fn() }));
 jest.mock("@/utils", () => ({
   cn: (...values: unknown[]) => values.filter(Boolean).join(" "),
@@ -202,6 +204,8 @@ it("labels popup counterparties by direction, with contract creation only for ou
   post.mockResolvedValueOnce({
     data: {
       transactions: [
+        { ...row("in"), From: "Qsender" },
+        { ...row("out"), InOut: 0, To: "Qrecipient" },
         { ...row("in-no-from"), From: "" },
         { ...row("out-create"), InOut: 0, To: "" },
       ],
@@ -215,11 +219,13 @@ it("labels popup counterparties by direction, with contract creation only for ou
       onClose={() => undefined}
     />,
   );
-  await screen.findByText("Received");
-  const [incoming, outgoing] = screen.getAllByTitle(
-    "View transaction on Explorer",
-  );
-  expect(incoming?.textContent).toContain("From");
-  expect(incoming?.textContent).not.toContain("Contract creation");
-  expect(outgoing?.textContent).toContain("Contract creation");
+  await screen.findAllByText("Received");
+  const rows = screen
+    .getAllByTitle("View transaction on Explorer")
+    .map((button) => button.textContent);
+  expect(rows[0]).toContain("From Qsender");
+  expect(rows[1]).toContain("To Qrecipient");
+  expect(rows[2]).toContain("Unknown sender");
+  expect(rows[2]).not.toContain("From");
+  expect(rows[3]).toContain("Contract creation");
 });

@@ -8,7 +8,7 @@ import { historyNetwork } from "@/config/runtimeProfile";
 import { formatBalance } from "@/utils/formatting";
 import { Card, CardContent } from "../../../../UI/Card";
 import { Button } from "../../../../UI/Button";
-import { QrlAddress } from "../../../../UI/QrlAddress";
+import { CompactAddressText } from "../../../../UI/QrlAddress";
 import { getExplorerAddressUrl, getExplorerTxUrl } from "@/config";
 import { openExternalUrl } from "@/utils/nativeApp";
 
@@ -186,14 +186,13 @@ export const TransactionHistoryPopup = observer(
                             {isIncoming ? "Received" : "Sent"}
                           </div>
                           <div className="text-xs text-muted-foreground font-data break-words">
-                            {isIncoming || counterparty ? (
+                            {counterparty ? (
                               <>
                                 {isIncoming ? "From " : "To "}
-                                <QrlAddress
-                                  address={String(counterparty ?? "")}
-                                  className="inline"
-                                />
+                                <CompactAddressText address={counterparty} />
                               </>
+                            ) : isIncoming ? (
+                              "Unknown sender"
                             ) : (
                               "Contract creation"
                             )}
