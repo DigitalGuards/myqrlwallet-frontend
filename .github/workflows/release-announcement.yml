@@ -1,0 +1,28 @@
+name: Release announcement
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to announce
+        required: true
+      dry-run:
+        description: Print the message in the job log instead of posting it
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  discord:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: DigitalGuards/.github/actions/release-discord@fa3556fa4b28b0b45904ce56bd13724bb16ca4e5 # release-discord-v1
+        with:
+          project: MyQRLWallet Web
+          webhook: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+          tag: ${{ inputs.tag }}
+          dry-run: ${{ inputs.dry-run }}
