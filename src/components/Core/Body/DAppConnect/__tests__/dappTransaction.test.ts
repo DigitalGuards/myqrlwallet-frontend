@@ -23,12 +23,26 @@ describe('reviewed dApp transaction fidelity', () => {
     const signed = buildReviewedDAppTransaction(reviewed, {
       gas: requestedGasLimit(reviewed) ?? 21000,
       nonce: 7,
-      gasPriceHex: '0x3b9aca00',
+      maxFeePerGasHex: '0x9502f90e',
+      maxPriorityFeePerGasHex: '0x9502f900',
     });
 
     for (const field of ['from', 'to', 'value', 'gas', 'data', 'chainId'] as const) {
       expect(signed[field]).toBe(reviewed[field]);
     }
+  });
+
+  it('signs with the quoted fee cap and tip as separate fields', () => {
+    const signed = buildReviewedDAppTransaction({ to: `Q${'1'.repeat(128)}` }, {
+      gas: 21000,
+      nonce: 0,
+      maxFeePerGasHex: '0x9502f90e',
+      maxPriorityFeePerGasHex: '0x9502f900',
+    });
+
+    expect(signed['maxFeePerGas']).toBe('0x9502f90e');
+    expect(signed['maxPriorityFeePerGas']).toBe('0x9502f900');
+    expect(signed['type']).toBe('0x2');
   });
 });
 
