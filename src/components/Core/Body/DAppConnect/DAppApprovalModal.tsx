@@ -7,6 +7,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { toJS } from "mobx";
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
+import { quoteFees, type FeeLevel } from "@/stores/qrlStore";
 import { Dialog, DialogContent } from "@/components/UI/Dialog";
 import { Button } from "@/components/UI/Button";
 import DAppTransactionReview from "./DAppTransactionReview";
@@ -84,6 +85,8 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
+// dApp requests carry no fee selector; sign at the send screen's default level.
+const DAPP_FEE_LEVEL: FeeLevel = "medium";
 
 function toUserFacingError(error: string): string {
   const msg = error.toLowerCase();
@@ -496,8 +499,9 @@ const DAppApprovalModalContent = observer(() => {
         }
 
         const nonce = await web3.getTransactionCount(activeAddress, "pending");
-        const gasPrice = await web3.getGasPrice();
-        const gasPriceHex = utils.toHex(gasPrice);
+        // Same fee policy as the send screen: the node's suggested tip plus
+        // base-fee headroom, so a rising base fee cannot strand the tx.
+        const fees = await quoteFees(web3, DAPP_FEE_LEVEL);
         const txData = (txParams["data"] as string) || "0x";
         const txValue = (txParams["value"] as string | undefined) ?? "0x0";
 
@@ -520,7 +524,8 @@ const DAppApprovalModalContent = observer(() => {
         const txObject = buildReviewedDAppTransaction(txParams, {
           gas,
           nonce: Number(nonce),
-          gasPriceHex,
+          maxFeePerGasHex: utils.toHex(fees.maxFeePerGas),
+          maxPriorityFeePerGasHex: utils.toHex(fees.maxPriorityFeePerGas),
         });
 
         // Stage: broadcasting

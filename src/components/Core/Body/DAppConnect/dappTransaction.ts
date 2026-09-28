@@ -1,7 +1,10 @@
 export interface DAppTransactionBuildContext {
   gas: string | number;
   nonce: number;
-  gasPriceHex: string;
+  /** EIP-1559 fee cap per gas, from the wallet's fee quote. */
+  maxFeePerGasHex: string;
+  /** EIP-1559 priority tip per gas, from the wallet's fee quote. */
+  maxPriorityFeePerGasHex: string;
 }
 
 /** Preserve an explicitly reviewed gas value, including numeric zero. */
@@ -105,8 +108,8 @@ export function buildReviewedDAppTransaction(
     to: params['to'],
     value: params['value'] ?? '0x0',
     gas: context.gas,
-    maxFeePerGas: context.gasPriceHex,
-    maxPriorityFeePerGas: context.gasPriceHex,
+    maxFeePerGas: context.maxFeePerGasHex,
+    maxPriorityFeePerGas: context.maxPriorityFeePerGasHex,
     nonce: context.nonce,
     data: params['data'] ?? '0x',
     type: '0x2',
