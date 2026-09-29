@@ -48,6 +48,11 @@ import {
   inlineWorkerSpecifier,
 } from '../src/config/embeddedBuild'
 import { v3Deployment } from '../src/config/deploymentProfile'
+import {
+  EMBEDDED_PROFILE_ENV,
+  assertEmbeddedProfile,
+  type EmbeddedResolvedProfile,
+} from '../src/config/embeddedProfile'
 import { EMBEDDED_FLAG_SCRIPT } from '../src/utils/embeddedRuntime'
 
 const projectRoot = path.resolve(__dirname, '..')
@@ -176,24 +181,69 @@ const inlinePublicAssetLiterals = (): Plugin => {
 }
 
 /**
+ * Compile the embedded document with its own committed production profile.
+ *
+ * The hosted builds read a `.env` on the deployment host. A build from a clean
+ * checkout has none, and the wallet then runs the default v2 profile: a device
+ * test of the first embedded document sent `SEED_STORED` with blockchain
+ * `TEST_NET` while the native app requires `TEST_NET_V3`, and PIN setup failed.
+ * The app-shipped document cannot depend on a file that lives on a server, so
+ * the profile is committed and applied here.
+ *
+ * These are written into `process.env` before the base config runs, because
+ * that is where Vite reads VITE_ variables from when it resolves the
+ * environment, which is also what produces the `__QRL_WALLET_PROFILE__` define
+ * the runtime profile flag reads. An existing value is left alone so a build
+ * can still be pointed somewhere else deliberately; `assertEmbeddedProfile`
+ * then decides whether the result is shippable.
+ */
+const applyEmbeddedProfileEnv = (): void => {
+  for (const [key, value] of Object.entries(EMBEDDED_PROFILE_ENV)) {
+    if (process.env[key] === undefined || process.env[key] === '') {
+      process.env[key] = value
+    }
+  }
+}
+
+/**
  * Every endpoint this build is configured to talk to, so connect-src matches
  * the deployment. A v3-profile build reaches a
  * different RPC, API and explorer, and would otherwise ship a CSP that blocks
  * its own traffic.
  */
-const resolveConnectUrls = (mode: string): string[] => {
+const resolveEmbeddedDeployment = (mode: string) => {
   const env = loadEnv(mode, projectRoot, 'VITE_')
-  if ((env['VITE_WALLET_PROFILE'] ?? '') === 'v3-private') {
+  const isV3Profile = (env['VITE_WALLET_PROFILE'] ?? '') === 'v3-private'
+
+  if (isV3Profile) {
     const deployment = v3Deployment(env)
-    return [deployment.network.url, deployment.serverUrl, deployment.network.explorer]
+    return {
+      profile: {
+        isV3Profile,
+        networkId: deployment.network.id,
+        chainId: deployment.network.expectedChainId ?? '',
+        genesisHash: deployment.network.genesisHash ?? '',
+      },
+      connectUrls: [
+        deployment.network.url,
+        deployment.serverUrl,
+        deployment.network.explorer,
+      ],
+    }
   }
+
   // Same defaults as src/config/networks.ts. The embedded document is always a
   // production build, so the DEVELOPMENT endpoints are deliberately excluded.
-  return [
-    env['VITE_RPC_URL_PRODUCTION'] || 'https://qrlwallet.com/api/qrl-rpc',
-    env['VITE_SERVER_URL_PRODUCTION'] || 'https://qrlwallet.com/api',
-    env['VITE_EXPLORER_URL_PRODUCTION'] || 'https://zondscan.com',
-  ]
+  // assertEmbeddedProfile rejects this branch: it is reached only when the
+  // profile failed to apply, which is the v2 fallback the device test hit.
+  return {
+    profile: { isV3Profile, networkId: '', chainId: '', genesisHash: '' },
+    connectUrls: [
+      env['VITE_RPC_URL_PRODUCTION'] || 'https://qrlwallet.com/api/qrl-rpc',
+      env['VITE_SERVER_URL_PRODUCTION'] || 'https://qrlwallet.com/api',
+      env['VITE_EXPLORER_URL_PRODUCTION'] || 'https://zondscan.com',
+    ],
+  }
 }
 
 /**
@@ -269,8 +319,39 @@ const rewriteEmbeddedHtml = (csp: string): Plugin => ({
  * tell a fetched URL from a label, and erring towards a build failure is what
  * keeps it worth having. Write such labels without the leading slash.
  */
-const assertSelfContained = (html: string, csp: string) => {
+/**
+ * The profile has to be IN the document, not merely resolved while building it.
+ *
+ * `assertEmbeddedProfile` checks what the config resolved. This checks what
+ * actually shipped, which is the failure the device test hit: the build
+ * succeeded and the document ran the default v2 profile because the values
+ * never reached the bundle.
+ */
+const assertProfileInDocument = (
+  html: string,
+  profile: EmbeddedResolvedProfile
+): string[] => {
+  const missing: string[] = []
+  for (const [label, needle] of [
+    ['the v3 profile selector', 'v3-private'],
+    ['the v3 network id', profile.networkId],
+    ['the v3 chain id', profile.chainId],
+    ['the v3 genesis hash', profile.genesisHash],
+  ] as const) {
+    if (needle.length === 0 || !html.includes(needle)) {
+      missing.push(`the document does not carry ${label} (${needle || 'unset'})`)
+    }
+  }
+  return missing
+}
+
+const assertSelfContained = (
+  html: string,
+  csp: string,
+  profile: EmbeddedResolvedProfile
+) => {
   const violations = findEmbeddedHtmlViolations(html)
+  violations.push(...assertProfileInDocument(html, profile))
 
   // findEmbeddedHtmlViolations checks the policy structurally (one meta, no
   // 'self', no 'unsafe-eval', no remote script source). This pins it to the
@@ -314,7 +395,8 @@ const assertSelfContained = (html: string, csp: string) => {
 const emitSingleFile = (
   outDir: string,
   csp: string,
-  connectUrls: string[]
+  connectUrls: string[],
+  profile: EmbeddedResolvedProfile
 ): Plugin => ({
   name: 'embedded-single-file',
   enforce: 'post',
@@ -387,6 +469,7 @@ const emitSingleFile = (
       commit,
       builtAt,
       embedVideo: EMBED_VIDEO,
+      profile,
       connectUrls,
       csp,
       // Hashed over the script text exactly as written between the newlines
@@ -399,7 +482,7 @@ const emitSingleFile = (
       `    <script type="application/json" id="${BUILD_INFO_ID}">${JSON.stringify(buildInfo)}</script>\n`
     )
 
-    assertSelfContained(html, csp)
+    assertSelfContained(html, csp, profile)
 
     fs.writeFileSync(htmlPath, html)
     for (const filePath of consumed) fs.rmSync(filePath)
@@ -430,8 +513,11 @@ const emitSingleFile = (
 })
 
 export default defineConfig(async (env) => {
+  applyEmbeddedProfileEnv()
   const base = await baseConfigFactory(env)
-  const connectUrls = resolveConnectUrls(env.mode)
+  const { profile, connectUrls } = resolveEmbeddedDeployment(env.mode)
+  // Fail here rather than ship a document that quietly runs the wrong network.
+  assertEmbeddedProfile(profile)
   const csp = buildEmbeddedCsp({ connectUrls, relayUrls: EMBEDDED_RELAY_URLS })
 
   const rolldownOptions = {
@@ -457,7 +543,7 @@ export default defineConfig(async (env) => {
       ...((base.plugins ?? []) as PluginOption[]),
       inlinePublicAssetLiterals(),
       rewriteEmbeddedHtml(csp),
-      emitSingleFile(path.join(projectRoot, EMBEDDED_OUT_DIR), csp, connectUrls),
+      emitSingleFile(path.join(projectRoot, EMBEDDED_OUT_DIR), csp, connectUrls, profile),
     ],
     build: {
       ...base.build,

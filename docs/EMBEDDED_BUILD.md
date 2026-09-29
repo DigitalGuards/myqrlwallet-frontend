@@ -43,6 +43,37 @@ rewrite that silently failed would leave `index.html`'s development policy,
 which grants `default-src 'self'`; under the WebView baseUrl `'self'` is
 qrlwallet.com, so that document would let the web server serve script again.
 
+## Configuration: the profile is committed, not read from a server
+
+The hosted builds get their `VITE_*` settings from a `.env` on the deployment
+host. The embedded document is shipped inside the app, so it cannot depend on
+that: a build from a clean checkout has no `.env` and the wallet silently runs
+the default v2 profile. A device test of the first embedded document did
+exactly this, sending `SEED_STORED` with blockchain `TEST_NET` while the native
+app requires `TEST_NET_V3`, so PIN setup failed.
+
+`src/config/embeddedProfile.ts` therefore commits the production profile, and
+`config/vite.config.embedded.ts` applies it before the base config resolves the
+environment. Every value is public configuration the live qrlwallet.com bundle
+already publishes. Keys the application never reads are deliberately absent,
+along with the DEVELOPMENT endpoints, because an unread value inlined into a
+shipped document is published for no reason.
+
+Three things keep it honest:
+
+- `assertEmbeddedProfile` fails the build unless the resolved profile is
+  `v3-private` on `TEST_NET_V3`, chain `0x301825` (3151909), genesis
+  `0xd154...`.
+- a second assertion checks those values are actually **in** the emitted
+  document, which is the failure the device test hit: the build succeeded and
+  the values never reached the bundle.
+- `envExposureGuard` in the base config rejects any `VITE_` key whose name
+  looks like a secret, so nothing sensitive can be added to the profile.
+
+An environment variable set on the command line still wins, so a build can be
+pointed elsewhere deliberately; the assertions then decide whether the result
+is shippable.
+
 ## Reproducibility
 
 The document contains no content hashes and no build-machine state, and the
@@ -51,9 +82,10 @@ HEAD commit's own timestamp. Two builds produce byte-identical HTML when four
 things match: the commit, the installed dependency tree (`npm ci` from the
 committed lockfile), the `VITE_*` environment, and `EMBED_VIDEO`.
 
-The environment matters because Vite inlines `VITE_*` values into the bundle
-and this build also derives `connect-src` from them, so a machine with a local
-`.env` produces different bytes from CI, which has none. The build records
+Since the profile is committed, a clean checkout needs no environment at all
+and CI reproduces a developer's bytes. The environment still matters because a
+machine that overrides a `VITE_*` value produces different bytes. The build
+records
 `connectUrls`, `csp` and `embedVideo` in the build-info block precisely so a
 digest that differs for one of those reasons can be explained from the document
 itself.
@@ -77,7 +109,9 @@ The document carries its own provenance in `<head>`:
 ```html
 <script type="application/json" id="qrl-embedded-build-info">
 {"product":"myqrlwallet-embedded","commit":"...","builtAt":"...",
- "embedVideo":false,"connectUrls":[...],"csp":"...",
+ "embedVideo":false,"profile":{"isV3Profile":true,"networkId":"TEST_NET_V3",
+ "chainId":"0x301825","genesisHash":"0xd154..."},
+ "connectUrls":[...],"csp":"...",
  "appScriptSha256":"...","appScriptBytes":...}
 </script>
 ```
