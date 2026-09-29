@@ -7,6 +7,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { toJS } from "mobx";
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
+import { quoteFees, type FeeLevel } from "@/stores/qrlStore";
 import { Dialog, DialogContent } from "@/components/UI/Dialog";
 import { Button } from "@/components/UI/Button";
 import DAppTransactionReview from "./DAppTransactionReview";
@@ -55,6 +56,7 @@ import {
 } from "@/utils/nativeWalletMutation";
 import {
   buildReviewedDAppTransaction,
+  desktopTransactionArgs,
   requestedGasLimit,
 } from "./dappTransaction";
 
@@ -83,6 +85,8 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
+// dApp requests carry no fee selector; sign at the send screen's default level.
+const DAPP_FEE_LEVEL: FeeLevel = "medium";
 
 function toUserFacingError(error: string): string {
   const msg = error.toLowerCase();
@@ -355,11 +359,16 @@ const DAppApprovalModalContent = observer(() => {
         // PIN, no seed in the renderer.
         if (isDesktop) {
           const txParamsD = (params?.[0] || {}) as Record<string, unknown>;
-          const toD = txParamsD["to"] as string;
-          const dataD = (txParamsD["data"] as string) || undefined;
-          const valueD = txParamsD["value"]
-            ? BigInt(txParamsD["value"] as string).toString()
-            : "0";
+          // One construction for both desktop methods, including the
+          // explicitly requested gas limit that the web and mobile path below
+          // already honours. Some contract flows need headroom the wallet's own
+          // estimate cannot see (QuantaSwap HTLCv3 settlement asks for
+          // estimateGas + 250000, and a settlement that runs out of gas defers
+          // the payout into a credit). Main builds with max(that, its own
+          // buffered estimate), so a too-low request still cannot produce a
+          // failing transaction. `from` is the live active account bound above,
+          // deliberately ignoring the dApp's own `from`.
+          const desktopArgs = desktopTransactionArgs(txParamsD, activeAddress);
           // The receipt wait below can outlive this approval being current (a
           // session disconnect promotes the queue mid-poll); always answer the
           // CAPTURED request, but only paint progress while it is still shown.
@@ -367,12 +376,7 @@ const DAppApprovalModalContent = observer(() => {
             setCurrentTxProgress("signing");
             if (method === "qrl_signTransaction") {
               const rawTx = await desktopSigner.signTransactionOnly(
-                {
-                  from: activeAddress,
-                  to: toD,
-                  value: valueD,
-                  data: dataD,
-                },
+                desktopArgs,
                 dappOrigin,
               );
               dappConnectStore.approveRequestById(
@@ -385,12 +389,7 @@ const DAppApprovalModalContent = observer(() => {
             setCurrentTxProgress("broadcasting");
             const { transactionHash } =
               await desktopSigner.signAndSendTransaction(
-                {
-                  from: activeAddress,
-                  to: toD,
-                  value: valueD,
-                  data: dataD,
-                },
+                desktopArgs,
                 dappOrigin,
               );
             // Broadcast succeeded; now wait for the on-chain receipt (web
@@ -500,8 +499,9 @@ const DAppApprovalModalContent = observer(() => {
         }
 
         const nonce = await web3.getTransactionCount(activeAddress, "pending");
-        const gasPrice = await web3.getGasPrice();
-        const gasPriceHex = utils.toHex(gasPrice);
+        // Same fee policy as the send screen: the node's suggested tip plus
+        // base-fee headroom, so a rising base fee cannot strand the tx.
+        const fees = await quoteFees(web3, DAPP_FEE_LEVEL);
         const txData = (txParams["data"] as string) || "0x";
         const txValue = (txParams["value"] as string | undefined) ?? "0x0";
 
@@ -524,7 +524,8 @@ const DAppApprovalModalContent = observer(() => {
         const txObject = buildReviewedDAppTransaction(txParams, {
           gas,
           nonce: Number(nonce),
-          gasPriceHex,
+          maxFeePerGasHex: utils.toHex(fees.maxFeePerGas),
+          maxPriorityFeePerGasHex: utils.toHex(fees.maxPriorityFeePerGas),
         });
 
         // Stage: broadcasting
