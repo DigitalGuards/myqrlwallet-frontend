@@ -8,42 +8,43 @@ const IS_PRODUCTION = import.meta.env.PROD;
 // object into the public bundle: every VITE_ variable present at build time,
 // including ones this profile never reads. That is how the published
 // qrlwallet.com bundle came to carry VITE_SEED (empty, so nothing leaked, but
-// any value ever placed there would have shipped to every visitor). A dynamic
-// lookup such as `import.meta.env[key]` has the same effect, so the seven keys
-// below are deliberately spelled out.
+// any value ever placed there would have shipped to every visitor). Any
+// bracket lookup has the same effect, even a literal `import.meta.env["KEY"]`
+// on this Vite 8 build, so every key below is read with dot access and
+// declared in src/env.d.ts.
 const v3Env = {
-  VITE_V3_CHAIN_ID: import.meta.env["VITE_V3_CHAIN_ID"],
-  VITE_V3_GENESIS_HASH: import.meta.env["VITE_V3_GENESIS_HASH"],
-  VITE_V3_QNS_REGISTRY: import.meta.env["VITE_V3_QNS_REGISTRY"],
-  VITE_V3_FACTORY_ADDRESS: import.meta.env["VITE_V3_FACTORY_ADDRESS"],
-  VITE_V3_EXPLORER_URL: import.meta.env["VITE_V3_EXPLORER_URL"],
-  VITE_V3_RPC_URL: import.meta.env["VITE_V3_RPC_URL"],
-  VITE_V3_SERVER_URL: import.meta.env["VITE_V3_SERVER_URL"],
+  VITE_V3_CHAIN_ID: import.meta.env.VITE_V3_CHAIN_ID,
+  VITE_V3_GENESIS_HASH: import.meta.env.VITE_V3_GENESIS_HASH,
+  VITE_V3_QNS_REGISTRY: import.meta.env.VITE_V3_QNS_REGISTRY,
+  VITE_V3_FACTORY_ADDRESS: import.meta.env.VITE_V3_FACTORY_ADDRESS,
+  VITE_V3_EXPLORER_URL: import.meta.env.VITE_V3_EXPLORER_URL,
+  VITE_V3_RPC_URL: import.meta.env.VITE_V3_RPC_URL,
+  VITE_V3_SERVER_URL: import.meta.env.VITE_V3_SERVER_URL,
 };
 
 const v3 = IS_V3_PROFILE ? v3Deployment(v3Env) : null;
 export const TOKEN_FACTORY_ADDRESS = IS_V3_PROFILE
   ? v3?.tokenFactory || ""
-  : import.meta.env["VITE_CUSTOMERC20FACTORY_ADDRESS"] || "";
+  : import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
 
 const RPC_API_BASE = IS_PRODUCTION
-  ? import.meta.env["VITE_RPC_URL_PRODUCTION"] ||
+  ? import.meta.env.VITE_RPC_URL_PRODUCTION ||
     "https://qrlwallet.com/api/qrl-rpc"
-  : import.meta.env["VITE_RPC_URL_DEVELOPMENT"] || "http://localhost:8545";
+  : import.meta.env.VITE_RPC_URL_DEVELOPMENT || "http://localhost:8545";
 
 export const SERVER_URL =
   v3?.serverUrl ??
   (IS_PRODUCTION
-    ? import.meta.env["VITE_SERVER_URL_PRODUCTION"] ||
+    ? import.meta.env.VITE_SERVER_URL_PRODUCTION ||
       "https://qrlwallet.com/api"
-    : import.meta.env["VITE_SERVER_URL_DEVELOPMENT"] ||
+    : import.meta.env.VITE_SERVER_URL_DEVELOPMENT ||
       "http://localhost:3000/api");
 
 export const EXPLORER_BASE =
   v3?.network.explorer ??
   ((IS_PRODUCTION
-    ? import.meta.env["VITE_EXPLORER_URL_PRODUCTION"]
-    : import.meta.env["VITE_EXPLORER_URL_DEVELOPMENT"]) ||
+    ? import.meta.env.VITE_EXPLORER_URL_PRODUCTION
+    : import.meta.env.VITE_EXPLORER_URL_DEVELOPMENT) ||
     "https://zondscan.com");
 
 export const QRL_PROVIDER = {
@@ -62,8 +63,8 @@ export const QRL_PROVIDER = {
     name: "QRL 2.0 Testnet",
     explorer: EXPLORER_BASE,
     qrns: {
-      expectedChainId: import.meta.env["VITE_QRNS_CHAIN_ID_TEST_NET"] || "",
-      registry: import.meta.env["VITE_QRNS_REGISTRY_TEST_NET"] || "",
+      expectedChainId: import.meta.env.VITE_QRNS_CHAIN_ID_TEST_NET || "",
+      registry: import.meta.env.VITE_QRNS_REGISTRY_TEST_NET || "",
     },
   },
   MAIN_NET: {
@@ -72,8 +73,8 @@ export const QRL_PROVIDER = {
     name: "QRL 2.0 Mainnet",
     explorer: EXPLORER_BASE,
     qrns: {
-      expectedChainId: import.meta.env["VITE_QRNS_CHAIN_ID_MAIN_NET"] || "",
-      registry: import.meta.env["VITE_QRNS_REGISTRY_MAIN_NET"] || "",
+      expectedChainId: import.meta.env.VITE_QRNS_CHAIN_ID_MAIN_NET || "",
+      registry: import.meta.env.VITE_QRNS_REGISTRY_MAIN_NET || "",
     },
   },
 };
