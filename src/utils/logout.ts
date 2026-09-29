@@ -12,6 +12,35 @@ import {
 import { clearDeviceCredential } from "./crypto/deviceCredential";
 import { dappConnectService } from "@/services/dappConnect/DAppConnectService";
 import { walletMutations } from "./nativeWalletMutation";
+import { isEmbeddedRuntime } from "./embeddedRuntime";
+
+/**
+ * Return to the home route and drop the wallet state still held in memory.
+ *
+ * Web and desktop reload the document, which is the cheapest complete reset.
+ * The app-shipped embedded build cannot: its document was injected into the
+ * WebView as a string under the qrlwallet.com baseUrl and is served by no
+ * origin, so a reload would fetch the live site and replace the audited bundle
+ * that came out of the signed app binary. There the active account is dropped
+ * instead, which is the same in-place reset the native CLEAR_WALLET path
+ * already performs (see src/components/NativeAppBridge.tsx).
+ *
+ * The store is pulled in dynamically to avoid an import cycle: the stores
+ * import the `@/utils` barrel, which re-exports this module. Rolldown reports
+ * the dynamic import as ineffective for chunking, which is expected and fine;
+ * the store is already in the main graph and splitting it was never the point.
+ */
+const finishLogout = async (
+  navigate: (path: string) => void,
+): Promise<void> => {
+  navigate(ROUTES.HOME);
+  if (!isEmbeddedRuntime()) {
+    window.location.reload();
+    return;
+  }
+  const { store } = await import("@/stores/store");
+  await store.qrlStore.setActiveAccount(undefined);
+};
 
 /**
  * A utility function to handle logout by clearing
@@ -45,8 +74,7 @@ export const handleLogout = async (navigate: (path: string) => void) => {
   if (isDesktop) {
     try {
       await secureDesktopLogout();
-      navigate(ROUTES.HOME);
-      window.location.reload();
+      await finishLogout(navigate);
     } catch (error) {
       console.error("Desktop logout did not complete:", error);
     }
@@ -96,15 +124,11 @@ export const handleLogout = async (navigate: (path: string) => void) => {
     // user to re-add every contract. A full wipe (CLEAR_WALLET) does
     // clear them.
 
-    // Navigate to homepage
-    navigate(ROUTES.HOME);
-
-    // Reload the application to reset all state
-    window.location.reload();
+    // Navigate home and reset whatever state is still in memory.
+    await finishLogout(navigate);
   } catch (error) {
     console.error("Error during logout:", error);
-    // Fallback: navigate and reload anyway
-    navigate(ROUTES.HOME);
-    window.location.reload();
+    // Fallback: navigate and reset anyway.
+    await finishLogout(navigate);
   }
 };

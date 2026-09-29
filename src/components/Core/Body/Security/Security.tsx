@@ -5,6 +5,14 @@ import { ROUTES } from "@/router/router";
 const linkClass =
     "text-identity-accent underline underline-offset-2 hover:text-identity-accent/80 transition-colors";
 
+// Both files are served by the live site, never by the application bundle.
+// Root-relative hrefs resolve against whatever origin the document happens to
+// have, which is wrong in the desktop build (file://) and in the app-shipped
+// embedded build (the document is injected under the qrlwallet.com baseUrl and
+// nothing else is served to it). Absolute URLs work in every shell.
+const SECURITY_TXT_URL = "https://qrlwallet.com/.well-known/security.txt";
+const PGP_KEY_URL = "https://qrlwallet.com/pgp-key.txt";
+
 const Security = () => {
     return (
         <div className="min-h-screen">
@@ -31,11 +39,11 @@ const Security = () => {
                     details are published at{" "}
                     <a
                         className={linkClass}
-                        href="/.well-known/security.txt"
+                        href={SECURITY_TXT_URL}
                         target="_blank"
                         rel="noopener noreferrer"
                     >
-                        /.well-known/security.txt
+                        qrlwallet.com/.well-known/security.txt
                     </a>{" "}
                     in line with RFC 9116.
                 </p>
@@ -43,11 +51,11 @@ const Security = () => {
                     For sensitive reports you can encrypt to our PGP key, published at{" "}
                     <a
                         className={linkClass}
-                        href="/pgp-key.txt"
+                        href={PGP_KEY_URL}
                         target="_blank"
                         rel="noopener noreferrer"
                     >
-                        /pgp-key.txt
+                        qrlwallet.com/pgp-key.txt
                     </a>{" "}
                     (fingerprint EAE7 9D7C 2805 9C17 4870 13CB BE48 C074 FFF0 495D).
                 </p>

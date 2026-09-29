@@ -1,10 +1,10 @@
 /**
- * Embedded single-file build (architecture spike).
+ * Embedded single-file build: the wallet the mobile app ships inside itself.
  *
- * Goal: produce ONE self-contained `dist-embedded/index.html` that the mobile
- * app ships inside its own bundle and hands to a WebView via
+ * Goal: produce ONE self-contained `dist-embedded/index.html` that the app
+ * bundles and hands to its WebView via
  * `source={{ html, baseUrl: "https://qrlwallet.com/" }}`. The wallet then runs
- * on the qrlwallet.com origin (so localStorage / IndexedDB / relay CORS keep
+ * on the qrlwallet.com origin (so localStorage, IndexedDB and relay CORS keep
  * working) while every byte of executable code comes from the signed app
  * binary. A compromise of the qrlwallet.com web server can no longer push
  * wallet code to app users.
@@ -19,24 +19,44 @@
  *   - one inline <style> holding the whole stylesheet
  *   - fonts and images as data: URIs
  *   - the crypto Web Worker inlined (Vite `?worker&inline` -> blob worker)
- *   - no <script src=>, no <link href=> to a file, no /assets/ reference
+ *   - no <script src=>, no fetching <link>, no /assets/ reference
+ * `assertSelfContained()` fails the build if any of that stops holding.
+ *
+ * Reproducibility: the output carries no content hashes and no build machine
+ * state, and the recorded build time comes from SOURCE_DATE_EPOCH or, failing
+ * that, the HEAD commit's own timestamp. Two builds of the same commit with
+ * the same dependency tree therefore produce byte-identical HTML, which is
+ * what makes `index.html.sha256` worth pinning in the app.
  *
  * Flags:
- *   EMBED_VIDEO=1  also inline the 1.4 MB decorative home-screen video as a
- *                  data: URI. Off by default: the video is decorative, the
- *                  component already degrades to opacity 0 when its source
- *                  fails, and inlining it nearly doubles the HTML.
+ *   EMBED_VIDEO=1       also inline the 1.4 MB decorative home-screen video as
+ *                       a data: URI. Off by default: the video is decorative,
+ *                       the component already degrades to opacity 0 when its
+ *                       source fails, and inlining it nearly doubles the HTML.
+ *   SOURCE_DATE_EPOCH   Unix seconds recorded as the build time.
  */
-import { defineConfig, type Plugin, type PluginOption } from 'vite'
+import { defineConfig, loadEnv, type Plugin, type PluginOption } from 'vite'
 import path from 'path'
 import fs from 'fs'
+import { createHash } from 'crypto'
+import { execFileSync } from 'child_process'
 import baseConfigFactory from './vite.config'
+import {
+  EMBEDDED_RELAY_URLS,
+  buildEmbeddedCsp,
+  findEmbeddedHtmlViolations,
+  inlineWorkerSpecifier,
+} from '../src/config/embeddedBuild'
+import { v3Deployment } from '../src/config/deploymentProfile'
+import { EMBEDDED_FLAG_SCRIPT } from '../src/utils/embeddedRuntime'
 
 const projectRoot = path.resolve(__dirname, '..')
 const publicDir = path.join(projectRoot, 'public')
 
 const EMBED_VIDEO = process.env.EMBED_VIDEO === '1'
 const EMBEDDED_OUT_DIR = 'dist-embedded'
+const APP_SCRIPT_ID = 'qrl-embedded-app'
+const BUILD_INFO_ID = 'qrl-embedded-build-info'
 
 const MIME_BY_EXT: Record<string, string> = {
   '.svg': 'image/svg+xml',
@@ -61,6 +81,41 @@ const toDataUri = (absolutePath: string): string => {
   return `data:${mime};base64,${bytes.toString('base64')}`
 }
 
+const sha256Hex = (value: string | Buffer): string =>
+  createHash('sha256').update(value).digest('hex')
+
+const git = (args: string[]): string | null => {
+  try {
+    return execFileSync('git', args, { cwd: projectRoot, encoding: 'utf8' }).trim()
+  } catch {
+    return null
+  }
+}
+
+/**
+ * What commit this document was built from, and when.
+ *
+ * The timestamp is taken from SOURCE_DATE_EPOCH when set, otherwise from the
+ * HEAD commit itself, so repeating a build of the same commit repeats the
+ * bytes. A dirty working tree is recorded as such: the build is then not
+ * reproducible from the commit alone, and the output says so.
+ */
+const resolveBuildProvenance = (): { commit: string; builtAt: string } => {
+  const head = git(['rev-parse', 'HEAD'])
+  const dirty = git(['status', '--porcelain']) !== ''
+  const commit = head === null ? 'unknown' : dirty ? `${head}-dirty` : head
+
+  const fromEnv = Number.parseInt(process.env.SOURCE_DATE_EPOCH ?? '', 10)
+  const fromCommit = Number.parseInt(git(['log', '-1', '--format=%ct']) ?? '', 10)
+  const seconds = Number.isFinite(fromEnv)
+    ? fromEnv
+    : Number.isFinite(fromCommit)
+      ? fromCommit
+      : Math.floor(Date.now() / 1000)
+
+  return { commit, builtAt: new Date(seconds * 1000).toISOString() }
+}
+
 /**
  * `src/utils/crypto/cryptoWorkerClient.ts` imports `./cryptoWorker?worker`.
  * Vite's `?worker` emits a separate .js file and constructs the worker from
@@ -73,8 +128,9 @@ const inlineWorkerImports = (): Plugin => ({
   name: 'embedded-inline-worker-imports',
   enforce: 'pre',
   async resolveId(source, importer, options) {
-    if (!source.endsWith('?worker')) return null
-    return this.resolve(`${source}&inline`, importer, options)
+    const inlined = inlineWorkerSpecifier(source)
+    if (inlined === null) return null
+    return this.resolve(inlined, importer, options)
   },
 })
 
@@ -83,7 +139,7 @@ const inlineWorkerImports = (): Plugin => ({
  * absolute path (`"/tree.svg"`, `"/qrl-video-dark.mp4"`) would resolve against
  * the WebView baseUrl and be fetched from the live server. Replace those
  * literals with data: URIs. Each entry is asserted to exist so a renamed asset
- * fails the build instead of silently going remote.
+ * fails the build. A renamed one would otherwise go remote in silence.
  *
  * This is a `transform` hook, so it runs on the source before the minifier
  * rewrites string literals into backticks. Matching minified output instead
@@ -119,42 +175,38 @@ const inlinePublicAssetLiterals = (): Plugin => {
   }
 }
 
-// Remote script sources are impossible here: the only script in the document
-// is the inline one this build writes. 'unsafe-inline' covers it (there is no
-// nonce to hand a static file). 'wasm-unsafe-eval' is required because
-// src/utils/crypto/argon2.ts calls hash-wasm, which does
-// WebAssembly.compile/instantiate; the built bundle contains no eval() and no
-// new Function(), so 'unsafe-eval' is deliberately left out.
-// connect-src: qrlwallet.com serves the RPC proxy, the tx-history/token/NFT/
-// IPFS API and the dApp relay (socket.io: https for polling, wss for the
-// upgrade); zondscan.com is the explorer API.
-const EMBEDDED_CSP = [
-  "default-src 'none'",
-  "script-src 'unsafe-inline' 'wasm-unsafe-eval'",
-  "script-src-attr 'none'",
-  "style-src 'unsafe-inline'",
-  "img-src data: https:",
-  "media-src data: blob:",
-  "font-src data:",
-  "worker-src blob:",
-  "connect-src https://qrlwallet.com wss://qrlwallet.com https://zondscan.com",
-  "object-src 'none'",
-  "frame-src 'none'",
-  "child-src 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-  "manifest-src 'none'",
-].join('; ')
+/**
+ * Every endpoint this build is configured to talk to, so connect-src matches
+ * the deployment. A v3-profile build reaches a
+ * different RPC, API and explorer, and would otherwise ship a CSP that blocks
+ * its own traffic.
+ */
+const resolveConnectUrls = (mode: string): string[] => {
+  const env = loadEnv(mode, projectRoot, 'VITE_')
+  if ((env['VITE_WALLET_PROFILE'] ?? '') === 'v3-private') {
+    const deployment = v3Deployment(env)
+    return [deployment.network.url, deployment.serverUrl, deployment.network.explorer]
+  }
+  // Same defaults as src/config/networks.ts. The embedded document is always a
+  // production build, so the DEVELOPMENT endpoints are deliberately excluded.
+  return [
+    env['VITE_RPC_URL_PRODUCTION'] || 'https://qrlwallet.com/api/qrl-rpc',
+    env['VITE_SERVER_URL_PRODUCTION'] || 'https://qrlwallet.com/api',
+    env['VITE_EXPLORER_URL_PRODUCTION'] || 'https://zondscan.com',
+  ]
+}
 
 /**
  * Rewrite index.html for the embedded target:
  *   - swap the CSP meta for the embedded one
+ *   - set the embedded runtime flag ahead of the app script, so the router
+ *     picks hash routing before the first navigation
  *   - drop every <link> that would fetch from the origin (favicons, manifest,
- *     preloads). They are cosmetic in a WebView and each one is a live request
- *     to the server this spike is trying to stop depending on.
- *   - drop the canonical / dns-prefetch / preconnect hints.
+ *     preloads, dns-prefetch, preconnect, canonical). They are cosmetic in a
+ *     WebView and each one is a live request to the server this build exists
+ *     to stop depending on.
  */
-const rewriteEmbeddedHtml = (): Plugin => ({
+const rewriteEmbeddedHtml = (csp: string): Plugin => ({
   name: 'embedded-rewrite-html',
   enforce: 'post',
   transformIndexHtml: {
@@ -163,20 +215,63 @@ const rewriteEmbeddedHtml = (): Plugin => ({
       return html
         .replace(
           /<meta\s+http-equiv="Content-Security-Policy"[\s\S]*?\/>/,
-          `<meta http-equiv="Content-Security-Policy" content="${EMBEDDED_CSP}" />`
+          `<meta http-equiv="Content-Security-Policy" content="${csp}" />`
         )
-        .replace(/[ \t]*<link\s+rel="(?:icon|apple-touch-icon|manifest|preload|preconnect|dns-prefetch|canonical)"[\s\S]*?\/>\n?/g, '')
+        .replace(
+          /[ \t]*<link\s+rel="(?:icon|apple-touch-icon|manifest|preload|preconnect|dns-prefetch|canonical)"[\s\S]*?\/>\n?/g,
+          ''
+        )
+        .replace('</head>', `  <script>${EMBEDDED_FLAG_SCRIPT}</script>\n  </head>`)
     },
   },
 })
 
 /**
- * Fold every emitted JS and CSS asset into index.html and delete it from the
- * output directory, so `dist-embedded/` contains exactly one file.
+ * Nothing in the emitted document may still reach the network for code or for
+ * an asset, and nothing may still point at a file under public/ by its
+ * root-relative path. Either would quietly reinstate the dependency on the
+ * live web server, which is the whole thing this build removes, so both fail
+ * the build loudly.
  *
- * This runs on disk in `closeBundle` rather than on the rolldown bundle object
- * in `generateBundle`: deleting entries from that object does not remove the
- * files rolldown has already scheduled for writing.
+ * The public-asset scan matches quoted string literals in the minified bundle,
+ * so visible UI text that happens to read like a path (a link labelled
+ * "/pgp-key.txt") also trips it. That is the intended trade: the check cannot
+ * tell a fetched URL from a label, and erring towards a build failure is what
+ * keeps it worth having. Write such labels without the leading slash.
+ */
+const assertSelfContained = (html: string) => {
+  const violations = findEmbeddedHtmlViolations(html)
+
+  const walkPublic = (dir: string, prefix: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const relative = `${prefix}/${entry.name}`
+      if (entry.isDirectory()) {
+        walkPublic(path.join(dir, entry.name), relative)
+        continue
+      }
+      for (const quote of ['"', "'", '`']) {
+        if (html.includes(`${quote}${relative}${quote}`)) {
+          violations.push(`bundle still references the public asset ${relative}`)
+          break
+        }
+      }
+    }
+  }
+  walkPublic(publicDir, '')
+
+  if (violations.length > 0) {
+    throw new Error(`embedded build is not self-contained:\n  ${violations.join('\n  ')}`)
+  }
+}
+
+/**
+ * Fold every emitted JS and CSS asset into index.html, record what was built,
+ * and delete everything else from the output directory, so `dist-embedded/`
+ * contains exactly `index.html` and its `index.html.sha256`.
+ *
+ * This runs on disk in `closeBundle`. Deleting entries from the rolldown bundle
+ * object in `generateBundle` leaves the files rolldown has already scheduled
+ * for writing.
  */
 const emitSingleFile = (outDir: string): Plugin => ({
   name: 'embedded-single-file',
@@ -198,6 +293,7 @@ const emitSingleFile = (outDir: string): Plugin => ({
     // imports are inlined.
     html = html.replace(/[ \t]*<link[^>]*rel="modulepreload"[^>]*>\n?/g, '')
 
+    let appScript = ''
     html = html.replace(
       /[ \t]*<script[^>]*\ssrc="([^"]+)"[^>]*><\/script>/g,
       (match, href: string) => {
@@ -206,9 +302,11 @@ const emitSingleFile = (outDir: string): Plugin => ({
         consumed.add(filePath)
         // `</script>` inside a string literal would end the inline script tag.
         const code = fs.readFileSync(filePath, 'utf8').split('</script').join('<\\/script')
-        return `<script type="module">\n${code}\n</script>`
+        appScript = code
+        return `<script type="module" id="${APP_SCRIPT_ID}">\n${code}\n</script>`
       }
     )
+    if (appScript === '') throw new Error('embedded build: no application script was inlined')
 
     html = html.replace(
       /[ \t]*<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/g,
@@ -216,15 +314,38 @@ const emitSingleFile = (outDir: string): Plugin => ({
         const filePath = resolveHref(href)
         if (!filePath) return match
         consumed.add(filePath)
-        return `<style>\n${fs.readFileSync(filePath, 'utf8')}\n</style>`
+        const css = fs.readFileSync(filePath, 'utf8')
+        // An inline <style> ends at the first `</style`, wherever it appears.
+        if (/<\/style/i.test(css)) {
+          throw new Error('embedded build: stylesheet contains a literal </style')
+        }
+        return `<style>\n${css}\n</style>`
       }
     )
+
+    // Provenance, written last so it covers the script exactly as shipped. An
+    // auditor can rebuild the commit, diff the bytes, and check this block
+    // against the script it can read in the same file.
+    const { commit, builtAt } = resolveBuildProvenance()
+    const buildInfo = {
+      product: 'myqrlwallet-embedded',
+      commit,
+      builtAt,
+      appScriptSha256: sha256Hex(appScript),
+      appScriptBytes: Buffer.byteLength(appScript),
+    }
+    html = html.replace(
+      '</head>',
+      `  <script type="application/json" id="${BUILD_INFO_ID}">${JSON.stringify(buildInfo)}</script>\n  </head>`
+    )
+
+    assertSelfContained(html)
 
     fs.writeFileSync(htmlPath, html)
     for (const filePath of consumed) fs.rmSync(filePath)
 
     // Anything still on disk beside the HTML would be a remote fetch at
-    // runtime. Fail loudly rather than ship a half-embedded build.
+    // runtime. Fail loudly.
     const leftovers: string[] = []
     const walk = (dir: string) => {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -240,11 +361,20 @@ const emitSingleFile = (outDir: string): Plugin => ({
     for (const entry of fs.readdirSync(outDir, { withFileTypes: true })) {
       if (entry.isDirectory()) fs.rmSync(path.join(outDir, entry.name), { recursive: true })
     }
+
+    // The digest the app pins. `sha256sum -c index.html.sha256` verifies it.
+    const digest = sha256Hex(fs.readFileSync(htmlPath))
+    fs.writeFileSync(path.join(outDir, 'index.html.sha256'), `${digest}  index.html\n`)
+    console.log(`\nembedded build: ${commit} @ ${builtAt}\nembedded sha256: ${digest}`)
   },
 })
 
 export default defineConfig(async (env) => {
   const base = await baseConfigFactory(env)
+  const csp = buildEmbeddedCsp({
+    connectUrls: resolveConnectUrls(env.mode),
+    relayUrls: EMBEDDED_RELAY_URLS,
+  })
 
   const rolldownOptions = {
     ...(base.build?.rolldownOptions ?? {}),
@@ -268,7 +398,7 @@ export default defineConfig(async (env) => {
       inlineWorkerImports(),
       ...((base.plugins ?? []) as PluginOption[]),
       inlinePublicAssetLiterals(),
-      rewriteEmbeddedHtml(),
+      rewriteEmbeddedHtml(csp),
       emitSingleFile(path.join(projectRoot, EMBEDDED_OUT_DIR)),
     ],
     build: {

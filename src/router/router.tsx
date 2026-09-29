@@ -2,6 +2,7 @@ import { createBrowserRouter, createHashRouter, Navigate } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { lazy, Suspense } from "react";
 import { Loading } from "@/components/UI/Loading";
+import { isEmbeddedRuntime } from "@/utils/embeddedRuntime";
 
 // Kick off the two chunks needed on every page-load immediately so they
 // download in parallel with the main bundle instead of sequentially.
@@ -66,13 +67,11 @@ const isDesktopShell =
 // The embedded mobile build has the same problem for the opposite reason: the
 // document is injected into the WebView as a string under the
 // https://qrlwallet.com/ baseUrl, so a pushState to /transfer would make a
-// reload fetch that path from the live server. The native shell sets
-// `window.__QRL_EMBEDDED__` before content loads, which keeps every navigation
-// in the fragment and inside the shipped document.
-const isEmbeddedShell =
-  typeof window !== "undefined" &&
-  (window as { __QRL_EMBEDDED__?: unknown }).__QRL_EMBEDDED__ === true;
-const createAppRouter = isDesktopShell || isEmbeddedShell ? createHashRouter : createBrowserRouter;
+// reload fetch that path from the live server. The embedded build writes
+// `window.__QRL_EMBEDDED__` into <head> ahead of this bundle, which keeps
+// every navigation in the fragment and inside the shipped document.
+const createAppRouter =
+  isDesktopShell || isEmbeddedRuntime() ? createHashRouter : createBrowserRouter;
 
 const router = createAppRouter([
   {

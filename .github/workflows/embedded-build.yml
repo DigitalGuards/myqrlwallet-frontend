@@ -1,0 +1,101 @@
+name: Embedded build
+
+# Builds the single-file wallet the mobile app ships inside its own binary
+# (see config/vite.config.embedded.ts). Every PR and every push to a long-lived
+# branch produces the document plus its sha256 as a workflow artifact, and a
+# pushed `embedded-v*` tag attaches both to a GitHub release so the app can pin
+# a release URL together with the digest it expects.
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ['embedded-v*']
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  embedded:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [22.22.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build the embedded wallet
+        run: npm run build:embedded
+
+      # Independent of the build's own guard: reads the artifact from disk and
+      # fails on a remote script, a linked js/css file, a leftover /assets/
+      # reference, or a digest that disagrees with the document.
+      - name: Assert the output is self-contained
+        run: npm run check:embedded
+
+      - name: Verify the recorded digest
+        working-directory: dist-embedded
+        run: sha256sum -c index.html.sha256
+
+      - name: Upload the embedded wallet
+        uses: actions/upload-artifact@v4
+        with:
+          name: myqrlwallet-embedded
+          path: |
+            dist-embedded/index.html
+            dist-embedded/index.html.sha256
+          if-no-files-found: error
+
+  release:
+    needs: embedded
+    if: startsWith(github.ref, 'refs/tags/embedded-v')
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download the embedded wallet
+        uses: actions/download-artifact@v4
+        with:
+          name: myqrlwallet-embedded
+          path: dist-embedded
+
+      - name: Attach both files to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          digest="$(cut -d' ' -f1 dist-embedded/index.html.sha256)"
+          notes="Single-file wallet document for the MyQRLWallet mobile app.
+
+          sha256(index.html) = ${digest}
+
+          The app pins this digest and refuses to load a document that does not
+          match it. The build is reproducible from the commit this tag points
+          at: \`npm ci --legacy-peer-deps && npm run build:embedded\`."
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              dist-embedded/index.html dist-embedded/index.html.sha256 \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" \
+              dist-embedded/index.html dist-embedded/index.html.sha256 \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Embedded wallet $TAG" \
+              --notes "$notes"
+          fi
