@@ -2,7 +2,26 @@ import { IS_V3_PROFILE } from "./runtimeProfile";
 import { v3Deployment } from "./deploymentProfile";
 
 const IS_PRODUCTION = import.meta.env.PROD;
-const v3 = IS_V3_PROFILE ? v3Deployment(import.meta.env) : null;
+
+// Every key is read by name. Handing `import.meta.env` itself to a function
+// makes Vite give up on static replacement and inline the ENTIRE environment
+// object into the public bundle: every VITE_ variable present at build time,
+// including ones this profile never reads. That is how the published
+// qrlwallet.com bundle came to carry VITE_SEED (empty, so nothing leaked, but
+// any value ever placed there would have shipped to every visitor). A dynamic
+// lookup such as `import.meta.env[key]` has the same effect, so the seven keys
+// below are deliberately spelled out.
+const v3Env = {
+  VITE_V3_CHAIN_ID: import.meta.env["VITE_V3_CHAIN_ID"],
+  VITE_V3_GENESIS_HASH: import.meta.env["VITE_V3_GENESIS_HASH"],
+  VITE_V3_QNS_REGISTRY: import.meta.env["VITE_V3_QNS_REGISTRY"],
+  VITE_V3_FACTORY_ADDRESS: import.meta.env["VITE_V3_FACTORY_ADDRESS"],
+  VITE_V3_EXPLORER_URL: import.meta.env["VITE_V3_EXPLORER_URL"],
+  VITE_V3_RPC_URL: import.meta.env["VITE_V3_RPC_URL"],
+  VITE_V3_SERVER_URL: import.meta.env["VITE_V3_SERVER_URL"],
+};
+
+const v3 = IS_V3_PROFILE ? v3Deployment(v3Env) : null;
 export const TOKEN_FACTORY_ADDRESS = IS_V3_PROFILE
   ? v3?.tokenFactory || ""
   : import.meta.env["VITE_CUSTOMERC20FACTORY_ADDRESS"] || "";

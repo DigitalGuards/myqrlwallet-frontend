@@ -5,6 +5,7 @@ import nodePolyfills from 'rollup-plugin-node-polyfills'
 import { createRequire } from 'module'
 import tailwindcss from '@tailwindcss/postcss'
 import { v3Deployment } from '../src/config/deploymentProfile'
+import { findForbiddenEnvKeys, findWholeEnvReferences } from '../src/config/envGuard'
 
 const require = createRequire(import.meta.url)
 const resolveNodePolyfill = (name: string) =>
@@ -30,6 +31,46 @@ const assertNoBrowserSeed = (mode: string) => {
   } }
 }
 
+/**
+ * Refuse to publish the build environment.
+ *
+ * `assertNoBrowserSeed` below already rejects a VITE_SEED that has a value, but
+ * that only covers one key on the machine running Vite. This plugin covers the
+ * mechanism: a bare `import.meta.env` makes Vite inline every VITE_ variable
+ * into the bundle, so a key added later would be published without anyone
+ * touching this file. It runs for the web, desktop and embedded builds, since
+ * they all extend this config.
+ */
+const envExposureGuard = () => ({
+  name: 'env-exposure-guard',
+  enforce: 'pre' as const,
+  transform(code: string, id: string) {
+    if (id.includes('node_modules') || !/\.(tsx?|jsx?)($|\?)/.test(id)) return null
+    const references = findWholeEnvReferences(code)
+    if (references.length > 0) {
+      throw new Error(
+        `${id}: \`import.meta.env\` is used as a whole object (${references.join(', ')}). ` +
+          'Vite then inlines every VITE_ variable into the public bundle. Read each key ' +
+          'by name instead, e.g. import.meta.env["VITE_RPC_URL_PRODUCTION"].'
+      )
+    }
+    return null
+  },
+  generateBundle(_options: unknown, bundle: Record<string, { type: string; code?: string }>) {
+    const found = new Set<string>()
+    for (const chunk of Object.values(bundle)) {
+      if (chunk.type !== 'chunk' || typeof chunk.code !== 'string') continue
+      for (const key of findForbiddenEnvKeys(chunk.code)) found.add(key)
+    }
+    if (found.size > 0) {
+      throw new Error(
+        `The bundle would publish sensitive environment keys: ${[...found].sort().join(', ')}. ` +
+          'Everything inlined into a browser bundle is world-readable.'
+      )
+    }
+  },
+})
+
 export default defineConfig(({ mode }) => ({
   // Run the public-environment assertion before Vite consumes this config.
   ...assertNoBrowserSeed(mode),
@@ -38,6 +79,7 @@ export default defineConfig(({ mode }) => ({
   // (see myqrlwallet-desktop/scripts/build-renderer.sh). Web builds keep '/'.
   base: process.env.VITE_DESKTOP === '1' ? './' : '/',
   plugins: [
+    envExposureGuard(),
     react(),
     // Remove vendor-qrl-crypto from <link rel="modulepreload">: it is a
     // lazy dynamic import so preloading it competes with critical-path
