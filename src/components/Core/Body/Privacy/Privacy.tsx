@@ -15,7 +15,7 @@ const Privacy = () => {
             <main className="container mx-auto max-w-3xl px-4 py-8">
                 <h1 className="text-3xl font-bold mb-4">Privacy Policy</h1>
 
-                <p className="mb-2 text-sm text-muted-foreground">Last updated: 13 July 2026</p>
+                <p className="mb-2 text-sm text-muted-foreground">Last updated: 29 September 2026</p>
 
                 <p className="mb-6">
                     MyQRLWallet is self-custody client software. It is designed to process as little personal
@@ -91,7 +91,39 @@ const Privacy = () => {
                     transaction is then relayed to the public QRL network, where, by the nature of a public
                     blockchain, it and the addresses involved become publicly visible.
                 </p>
-                <h3 className="text-xl font-semibold mt-4 mb-2">3.3 Support communications</h3>
+                <h3 className="text-xl font-semibold mt-4 mb-2">3.3 Direct requests by the browser extension</h3>
+                <p className="mb-2">
+                    The browser extension also makes a few requests directly from your device to services
+                    that we do not operate. Each one reveals your IP address to the service it reaches, and
+                    none of them carries your recovery phrase, your keys or your wallet address unless stated.
+                </p>
+                <ul className="list-disc list-inside mb-4">
+                    <li>
+                        <strong>Phishing protection:</strong> roughly once every 24 hours the extension
+                        downloads a public list of known phishing domains from GitHub
+                        (raw.githubusercontent.com). A copy bundled with the extension is used when the
+                        download fails.
+                    </li>
+                    <li>
+                        <strong>Prices:</strong> while the wallet is unlocked and balance and price display
+                        is switched on, the extension asks CoinGecko (api.coingecko.com) for the current QRL
+                        market price about once a minute. You can switch this off in the extension settings.
+                    </li>
+                    <li>
+                        <strong>NFT content:</strong> NFT metadata and images stored on IPFS are loaded
+                        through our own gateway on qrlwallet.com, with the public ipfs.io gateway as a
+                        fallback. NFT images that their creators host on an ordinary web address are loaded
+                        from that address, so the server chosen by the creator sees your IP address and
+                        which image was requested.
+                    </li>
+                    <li>
+                        <strong>Networks you add:</strong> if you add your own network, or approve a network
+                        that a dApp proposes, the extension sends that network's requests, including the
+                        public addresses you query and the transactions you broadcast there, straight to the
+                        RPC endpoint you chose. Its operator is responsible for that processing.
+                    </li>
+                </ul>
+                <h3 className="text-xl font-semibold mt-4 mb-2">3.4 Support communications</h3>
                 <p className="mb-6">
                     If you choose to contact us, we process the information you provide solely to handle your
                     request.
@@ -138,6 +170,13 @@ const Privacy = () => {
                         its own privacy policy.
                     </li>
                     <li>
+                        <strong>Services the browser extension contacts directly:</strong> GitHub, Inc.
+                        (phishing list), CoinGecko (prices), IPFS gateway operators and the hosts of NFT
+                        images, and the operator of any network endpoint you add (see section 3.3). They
+                        receive your IP address as independent controllers under their own privacy
+                        policies. Each decides for itself how that data is handled.
+                    </li>
+                    <li>
                         <strong>The public QRL network:</strong> broadcast transactions and the addresses they
                         involve become part of the public ledger. This is inherent to any public blockchain and
                         is not controlled by us.
@@ -150,7 +189,9 @@ const Privacy = () => {
                     your IP address and request metadata to a third country. That transfer is covered by the
                     data processing agreement and the appropriate safeguards (Standard Contractual Clauses
                     and/or the EU-US Data Privacy Framework) that apply to our use of Cloudflare. Our origin
-                    servers are located in the European Union.
+                    servers are located in the European Union. The direct requests the browser extension makes
+                    (section 3.3) go from your device to services that may be located outside the European
+                    Union; your device makes those requests directly to the service concerned.
                 </p>
 
                 <h2 className="text-2xl font-semibold mt-6 mb-3">8. Retention</h2>
