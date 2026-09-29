@@ -1,9 +1,10 @@
 /**
  * Build-time guards against publishing the build environment.
  *
- * Vite replaces `import.meta.env.KEY` and `import.meta.env["KEY"]` with the
- * literal value of that one key. It cannot do that for a bare `import.meta.env`
- * or a dynamic `import.meta.env[key]`, so it falls back to inlining the WHOLE
+ * Vite replaces `import.meta.env.KEY` (dot access) with the literal value of
+ * that one key. It cannot do that for a bare `import.meta.env` or any bracket
+ * lookup, including a literal `import.meta.env["KEY"]` (verified on this Vite
+ * 8 / Rolldown build), so it falls back to inlining the WHOLE
  * environment object: every VITE_ variable present at build time, whether or
  * not the code reads it. The published qrlwallet.com bundle carried all of them
  * that way, including `VITE_SEED`. It was empty, so nothing leaked, but the
