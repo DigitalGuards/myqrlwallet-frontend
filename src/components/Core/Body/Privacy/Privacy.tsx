@@ -107,7 +107,9 @@ const Privacy = () => {
                     <li>
                         <strong>Prices:</strong> while the wallet is unlocked and balance and price display
                         is switched on, the extension asks CoinGecko (api.coingecko.com) for the current QRL
-                        market price about once a minute. You can switch this off in the extension settings.
+                        market price about once a minute. When CoinGecko refuses or fails that request, the
+                        extension asks our own ZondScan explorer (section 3.2) for the same price instead, again
+                        without any wallet data. You can switch both off in the extension settings.
                     </li>
                     <li>
                         <strong>NFT content:</strong> NFT metadata and images stored on IPFS are loaded
