@@ -201,6 +201,35 @@ script. `src/utils/embeddedRuntime.ts` is the single place that reads it.
   root-relative hrefs too: under the WebView baseUrl those resolve to the live
   site and are just as much of an escape. `target="_blank"` would otherwise
   open in the same WebView on Android and strand the user.
+- **Upgrade migration.** An install that used to load the hosted wallet keeps
+  that origin's localStorage, because the WebView is handed the same baseUrl.
+  Seeds, PIN state, settings and the address book should survive; pairing
+  sessions should not, since the relay channels and the remote-signer pairing
+  belong to the old document's sockets and keys. When the app's bootstrap sets
+  `window.__QRL_EMBEDDED_MIGRATION__`, `src/utils/embeddedMigration.ts` clears
+
+  | Key | Written by |
+  | --- | --- |
+  | `qrlconnect:sessions` | `src/services/dappConnect/SessionStore.ts` |
+  | `qrlwallet:v3:qrlconnect:sessions` | the same, under the v3 profile prefix |
+  | `@qrlwallet/connect:session` | the `@qrlwallet/connect` SDK, via `src/utils/mobileConnect/` |
+  | `@qrlwallet/connect:session:inflight` | the same |
+
+  and then posts `{"type":"EMBEDDED_MIGRATION_DONE"}` over the bridge. No token
+  field: the app's bootstrap adds the per-load token, and no bridge message
+  type is added to the NativeBridge protocol.
+
+  Nothing else is touched. sessionStorage holds no pairing state (the same
+  names are removed there anyway, which costs nothing). The only IndexedDB
+  database is the device-credential store that wraps the PIN-encrypted seed,
+  so it is deliberately left alone. Without the flag the migration is a no-op.
+
+  It runs at **module-evaluation time**, from `embeddedMigrationBoot.ts`
+  imported above `./App.tsx`. `DAppConnectStore`'s constructor reads the
+  persisted sessions and calls `reconnectAll()` while `App.tsx` is evaluated,
+  and ES modules evaluate every import before any statement in the importing
+  file, so a call in `main.tsx`'s body would run after the sessions had been
+  read and sockets opened. Tests pin both the ordering and the key list.
 - **Logout** drops the active account, the injected PIN and the cached device
   key in place. The saved PIN lockout counter is deliberately kept: clearing it
   would make logging out a way to reset the failed-attempt count.

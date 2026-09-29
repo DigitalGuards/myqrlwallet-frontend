@@ -1,0 +1,220 @@
+/**
+ * @jest-environment jsdom
+ */
+import { readFileSync } from "fs";
+import { join } from "path";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+  EMBEDDED_MIGRATION_DONE_MESSAGE,
+  EMBEDDED_MIGRATION_FLAG,
+  MIGRATION_SESSION_KEYS,
+  resetEmbeddedMigrationForTests,
+  runEmbeddedMigration,
+} from "@/utils/embeddedMigration";
+
+const repoRoot = join(__dirname, "..", "..", "..");
+
+/** Everything the migration must leave exactly as it found it. */
+const PRESERVED: ReadonlyArray<readonly [string, string]> = [
+  // Encrypted seeds and the account list.
+  ["TEST_NET_V3_ENCRYPTED_SEEDS", '{"Q01":"cipher"}'],
+  ["TEST_NET_V3_QIP55_ACCOUNT_LIST", '["Q01"]'],
+  ["TEST_NET_V3_QIP55_ACTIVE_ACCOUNT", "Q01"],
+  // PIN lockout state.
+  ["qrlwallet:v3:pin_attempt_tracker", '{"failures":2}'],
+  // Settings, display preferences and lists.
+  ["qrlwallet:v3:WALLET_SETTINGS", '{"autoLockMinutes":5}'],
+  ["qrlwallet:v3:BLOCKCHAIN_SELECTION", "TEST_NET_V3"],
+  ["TEST_NET_V3_q01_TOKEN_LIST_V3", "[]"],
+  ["TEST_NET_V3_q01_NFT_LIST_V3", "[]"],
+  // Address book.
+  ["qrlwallet:v3:qrl:addressBook:qip55:v2", '[{"name":"a"}]'],
+  // Wallet epoch.
+  ["qrlwallet:v3:qrlwallet:wallet-epoch-v1", "3"],
+];
+
+const postMessage = jest.fn((_message: string) => undefined);
+
+const seedStorage = (): void => {
+  for (const key of MIGRATION_SESSION_KEYS) {
+    localStorage.setItem(key, '[{"id":"session"}]');
+    sessionStorage.setItem(key, '[{"id":"session"}]');
+  }
+  for (const [key, value] of PRESERVED) localStorage.setItem(key, value);
+};
+
+const setFlag = (value: unknown): void => {
+  Object.defineProperty(window, EMBEDDED_MIGRATION_FLAG, {
+    configurable: true,
+    value,
+  });
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  resetEmbeddedMigrationForTests();
+  localStorage.clear();
+  sessionStorage.clear();
+  setFlag(undefined);
+  Object.defineProperty(window, "ReactNativeWebView", {
+    configurable: true,
+    value: { postMessage },
+  });
+  seedStorage();
+});
+
+describe("migration when the app signals an upgrade", () => {
+  it("clears exactly the pairing session keys", () => {
+    setFlag(true);
+    expect(runEmbeddedMigration()).toBe(true);
+
+    for (const key of MIGRATION_SESSION_KEYS) {
+      expect(localStorage.getItem(key)).toBeNull();
+      expect(sessionStorage.getItem(key)).toBeNull();
+    }
+  });
+
+  it("leaves seeds, PIN state, settings and the address book untouched", () => {
+    setFlag(true);
+    runEmbeddedMigration();
+
+    for (const [key, value] of PRESERVED) {
+      expect(localStorage.getItem(key)).toBe(value);
+    }
+    // Nothing beyond the session keys was removed.
+    expect(localStorage.length).toBe(PRESERVED.length);
+  });
+
+  it("tells the app once, with no token field", () => {
+    setFlag(true);
+    runEmbeddedMigration();
+
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    const payload: unknown = JSON.parse(postMessage.mock.calls[0]?.[0] ?? "{}");
+    // The app's bootstrap adds the per-load token, so the page must not.
+    expect(payload).toEqual({ type: EMBEDDED_MIGRATION_DONE_MESSAGE });
+  });
+
+  it("runs at most once per document", () => {
+    setFlag(true);
+    expect(runEmbeddedMigration()).toBe(true);
+    expect(runEmbeddedMigration()).toBe(false);
+    expect(postMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("still reports done when there was nothing to clear", () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    setFlag(true);
+
+    expect(runEmbeddedMigration()).toBe(true);
+    expect(postMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("survives a storage that throws", () => {
+    setFlag(true);
+    const removeItem = jest
+      .spyOn(Storage.prototype, "removeItem")
+      .mockImplementation(() => {
+        throw new Error("storage is blocked");
+      });
+
+    expect(() => runEmbeddedMigration()).not.toThrow();
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    removeItem.mockRestore();
+  });
+});
+
+describe("migration when the app says nothing", () => {
+  it("does nothing without the flag", () => {
+    expect(runEmbeddedMigration()).toBe(false);
+
+    for (const key of MIGRATION_SESSION_KEYS) {
+      expect(localStorage.getItem(key)).not.toBeNull();
+    }
+    expect(postMessage).not.toHaveBeenCalled();
+  });
+
+  it("does nothing for any value other than the boolean true", () => {
+    for (const value of [false, "true", 1, {}, null]) {
+      resetEmbeddedMigrationForTests();
+      setFlag(value);
+      expect(runEmbeddedMigration()).toBe(false);
+    }
+    expect(postMessage).not.toHaveBeenCalled();
+    for (const key of MIGRATION_SESSION_KEYS) {
+      expect(localStorage.getItem(key)).not.toBeNull();
+    }
+  });
+});
+
+describe("the key list matches the modules that write those keys", () => {
+  it("covers the wallet's own dApp-connect session key, both profiles", () => {
+    const sessionStore = readFileSync(
+      join(repoRoot, "src/services/dappConnect/SessionStore.ts"),
+      "utf8",
+    );
+    const key = sessionStore.match(
+      /STORAGE_KEY\s*=\s*profileStorageKey\(\s*["']([^"']+)["']/,
+    );
+    expect(key).not.toBeNull();
+    const bare = key?.[1] ?? "";
+    expect(MIGRATION_SESSION_KEYS).toContain(bare);
+    // src/config/runtimeProfile.ts prefixes the v3 profile.
+    expect(MIGRATION_SESSION_KEYS).toContain(`qrlwallet:v3:${bare}`);
+  });
+
+  it("covers both remote-signer pairing keys", () => {
+    const mobile = readFileSync(
+      join(repoRoot, "src/utils/mobileConnect/mobileConnection.ts"),
+      "utf8",
+    );
+    const sdkKey = mobile.match(
+      /SDK_SESSION_KEY\s*=\s*["']([^"']+)["']/,
+    );
+    expect(sdkKey).not.toBeNull();
+    expect(MIGRATION_SESSION_KEYS).toContain(sdkKey?.[1]);
+    expect(MIGRATION_SESSION_KEYS).toContain(`${sdkKey?.[1]}:inflight`);
+  });
+
+  it("names no key that belongs to seeds, PIN state or settings", () => {
+    for (const key of MIGRATION_SESSION_KEYS) {
+      expect(key).not.toMatch(
+        /SEED|ACCOUNT_LIST|ACTIVE_ACCOUNT|pin_attempt|WALLET_SETTINGS|addressBook|TOKEN_LIST|NFT_LIST/i,
+      );
+    }
+  });
+});
+
+describe("the migration is evaluated before the stores are constructed", () => {
+  it("is imported above ./App.tsx in main.tsx", () => {
+    // DAppConnectStore's constructor reads the persisted sessions and calls
+    // reconnectAll(). ES modules evaluate imports in source order, so the boot
+    // module has to appear before the import that pulls in the stores.
+    const main = readFileSync(join(repoRoot, "src/main.tsx"), "utf8");
+    // Match the import statements themselves; prose mentioning either module
+    // would otherwise decide the comparison.
+    const boot = main.search(
+      /^import\s+["']@\/utils\/embeddedMigrationBoot["']/m,
+    );
+    const app = main.search(/^import\s+App\s+from\s+["']\.\/App\.tsx["']/m);
+    expect(boot).toBeGreaterThan(-1);
+    expect(app).toBeGreaterThan(-1);
+    expect(boot).toBeLessThan(app);
+  });
+
+  it("reaches no module that constructs the stores", () => {
+    const boot = readFileSync(
+      join(repoRoot, "src/utils/embeddedMigrationBoot.ts"),
+      "utf8",
+    );
+    const migration = readFileSync(
+      join(repoRoot, "src/utils/embeddedMigration.ts"),
+      "utf8",
+    );
+    const imports = [...`${boot}\n${migration}`.matchAll(/^import\s.*$/gm)].map(
+      (m) => m[0],
+    );
+    expect(imports).toEqual(['import { runEmbeddedMigration } from "./embeddedMigration";']);
+  });
+});

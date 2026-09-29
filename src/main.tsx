@@ -13,6 +13,13 @@ captureQrlconnectFragment();
 import { installEmbeddedShell } from '@/utils/embeddedShell';
 installEmbeddedShell();
 
+// Must be evaluated before './App.tsx': importing App constructs the MobX
+// stores, and DAppConnectStore's constructor reads the persisted dApp sessions
+// and starts reconnecting. This import clears those sessions first when the
+// app signals an upgrade from the hosted wallet. A statement in this file's
+// body would run after every import had been evaluated, which is too late.
+import '@/utils/embeddedMigrationBoot'
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HelmetProvider } from 'react-helmet-async'
