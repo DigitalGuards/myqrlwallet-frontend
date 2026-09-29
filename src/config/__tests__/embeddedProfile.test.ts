@@ -15,6 +15,19 @@ const shippable = {
   networkId: EMBEDDED_NETWORK_ID,
   chainId: EMBEDDED_CHAIN_ID,
   genesisHash: EMBEDDED_GENESIS_HASH,
+  rpcUrl: EMBEDDED_PROFILE_ENV["VITE_V3_RPC_URL"] ?? "",
+  serverUrl: EMBEDDED_PROFILE_ENV["VITE_V3_SERVER_URL"] ?? "",
+  explorerUrl: EMBEDDED_PROFILE_ENV["VITE_V3_EXPLORER_URL"] ?? "",
+};
+
+const unset = {
+  isV3Profile: false,
+  networkId: "",
+  chainId: "",
+  genesisHash: "",
+  rpcUrl: "",
+  serverUrl: "",
+  explorerUrl: "",
 };
 
 describe("committed embedded profile", () => {
@@ -75,14 +88,7 @@ describe("embedded profile assertion", () => {
   });
 
   it("rejects the v2 fallback the device test hit", () => {
-    expect(() =>
-      assertEmbeddedProfile({
-        isV3Profile: false,
-        networkId: "",
-        chainId: "",
-        genesisHash: "",
-      }),
-    ).toThrow(/default v2 profile/);
+    expect(() => assertEmbeddedProfile(unset)).toThrow(/default v2 profile/);
   });
 
   it("rejects a wrong network, chain id or genesis hash", () => {
@@ -95,6 +101,20 @@ describe("embedded profile assertion", () => {
     expect(() =>
       assertEmbeddedProfile({ ...shippable, genesisHash: `0x${"0".repeat(64)}` }),
     ).toThrow(/genesis hash/);
+  });
+
+  it("rejects an endpoint that was repointed elsewhere", () => {
+    // Chain identity survives an injected VITE_V3_RPC_URL: only pinning the
+    // endpoints catches a document aimed at someone else's node.
+    expect(() =>
+      assertEmbeddedProfile({ ...shippable, rpcUrl: "https://evil.example/rpc" }),
+    ).toThrow(/VITE_V3_RPC_URL resolved to https:\/\/evil\.example\/rpc/);
+    expect(() =>
+      assertEmbeddedProfile({ ...shippable, serverUrl: "https://evil.example" }),
+    ).toThrow(/VITE_V3_SERVER_URL/);
+    expect(() =>
+      assertEmbeddedProfile({ ...shippable, explorerUrl: "" }),
+    ).toThrow(/VITE_V3_EXPLORER_URL resolved to nothing/);
   });
 
   it("compares the genesis hash without regard to case", () => {

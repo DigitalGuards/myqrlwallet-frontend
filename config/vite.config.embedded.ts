@@ -140,6 +140,45 @@ const inlineWorkerImports = (): Plugin => ({
 })
 
 /**
+ * Remove `window.location.reload()` from dependency code.
+ *
+ * Our own reload is compiled out by the `__QRL_EMBEDDED_BUILD__` constant, but
+ * a dependency's is not. React Router keeps one in its route-module loader: if
+ * a lazy module fails to load it reloads the document, which in this build
+ * would fetch the live site over the app-shipped wallet. That path is already
+ * unreachable here (dynamic imports are inlined, so no module can fail to
+ * load, and it belongs to framework mode which this app does not use), and
+ * `window.location.reload` cannot be replaced at run time: it is a
+ * non-configurable own property and `Object.defineProperty` throws. So it is
+ * removed at build time instead, and `assertSelfContained` then requires the
+ * emitted document to contain no reload call whatsoever.
+ */
+const stripDependencyReloads = (): Plugin => {
+  let stripped = 0
+  return {
+    name: 'embedded-strip-dependency-reloads',
+    transform(code, id) {
+      if (!id.includes('node_modules')) return null
+      if (!code.includes('location.reload(')) return null
+      const next = code.replace(
+        /(?:window|globalThis|self)?\.?location\.reload\(\s*\)/g,
+        '(void 0)'
+      )
+      if (next === code) return null
+      stripped += 1
+      return { code: next, map: null }
+    },
+    buildEnd() {
+      if (stripped === 0) {
+        // Not fatal: a dependency upgrade may legitimately remove the call.
+        // Said out loud so it is not mistaken for the plugin silently failing.
+        console.log('embedded build: no dependency reload calls needed stripping')
+      }
+    },
+  }
+}
+
+/**
  * `publicDir` is disabled for this build, so anything referenced by a literal
  * absolute path (`"/tree.svg"`, `"/qrl-video-dark.mp4"`) would resolve against
  * the WebView baseUrl and be fetched from the live server. Replace those
@@ -198,10 +237,30 @@ const inlinePublicAssetLiterals = (): Plugin => {
  * then decides whether the result is shippable.
  */
 const applyEmbeddedProfileEnv = (): void => {
-  for (const [key, value] of Object.entries(EMBEDDED_PROFILE_ENV)) {
-    if (process.env[key] === undefined || process.env[key] === '') {
-      process.env[key] = value
+  // A VITE_ variable already in the environment is a mismatch, not an
+  // override. The document is shipped inside the app, so "build it against
+  // something else" is never what is wanted here, and an injected
+  // VITE_V3_RPC_URL would silently repoint the wallet's RPC.
+  const conflicts: string[] = []
+  for (const key of Object.keys(process.env)) {
+    if (!key.startsWith('VITE_')) continue
+    const expected = EMBEDDED_PROFILE_ENV[key]
+    const actual = process.env[key]
+    if (actual === undefined || actual === '') continue
+    if (expected === undefined) {
+      conflicts.push(`${key} is set but is not part of the embedded profile`)
+    } else if (actual !== expected) {
+      conflicts.push(`${key} is set to a value the embedded profile does not use`)
     }
+  }
+  if (conflicts.length > 0) {
+    throw new Error(
+      `embedded build: the environment would override the shipped profile:\n  ${conflicts.join('\n  ')}\n` +
+        'Unset these and rebuild; the profile lives in src/config/embeddedProfile.ts.'
+    )
+  }
+  for (const [key, value] of Object.entries(EMBEDDED_PROFILE_ENV)) {
+    process.env[key] = value
   }
 }
 
@@ -223,6 +282,9 @@ const resolveEmbeddedDeployment = (mode: string) => {
         networkId: deployment.network.id,
         chainId: deployment.network.expectedChainId ?? '',
         genesisHash: deployment.network.genesisHash ?? '',
+        rpcUrl: deployment.network.url,
+        serverUrl: deployment.serverUrl,
+        explorerUrl: deployment.network.explorer,
       },
       connectUrls: [
         deployment.network.url,
@@ -237,7 +299,15 @@ const resolveEmbeddedDeployment = (mode: string) => {
   // assertEmbeddedProfile rejects this branch: it is reached only when the
   // profile failed to apply, which is the v2 fallback the device test hit.
   return {
-    profile: { isV3Profile, networkId: '', chainId: '', genesisHash: '' },
+    profile: {
+      isV3Profile,
+      networkId: '',
+      chainId: '',
+      genesisHash: '',
+      rpcUrl: '',
+      serverUrl: '',
+      explorerUrl: '',
+    },
     connectUrls: [
       env['VITE_RPC_URL_PRODUCTION'] || 'https://qrlwallet.com/api/qrl-rpc',
       env['VITE_SERVER_URL_PRODUCTION'] || 'https://qrlwallet.com/api',
@@ -286,20 +356,27 @@ const rewriteEmbeddedHtml = (csp: string): Plugin => ({
       // `<link\b[^>]*>` stops at the first `>`, so a tag written without the
       // self-closing slash cannot make the match run on to the next one and
       // delete everything in between. `rel` is matched anywhere in the tag.
+      const stripped = html
+        .replace(
+          /[ \t]*<meta\b[^>]*http-equiv\s*=\s*["']?Content-Security-Policy["']?[^>]*>\n?/gi,
+          ''
+        )
+        .replace(
+          /[ \t]*<link\b(?=[^>]*\brel\s*=\s*["']?(?:icon|apple-touch-icon|manifest|preload|preconnect|dns-prefetch|canonical)\b)[^>]*>\n?/gi,
+          ''
+        )
+      if (/Content-Security-Policy/i.test(stripped)) {
+        throw new Error('embedded build: a Content-Security-Policy meta survived the rewrite')
+      }
+      // The policy goes in FIRST, so it precedes every inline script in the
+      // document. A meta CSP governs only what follows it, so a flag script
+      // placed above it would run unpoliced.
       const rewritten = insertIntoHead(
-        html
-          .replace(
-            /<meta\b[^>]*http-equiv\s*=\s*["']?Content-Security-Policy["']?[^>]*>/i,
-            embeddedMeta
-          )
-          .replace(
-            /[ \t]*<link\b(?=[^>]*\brel\s*=\s*["']?(?:icon|apple-touch-icon|manifest|preload|preconnect|dns-prefetch|canonical)\b)[^>]*>\n?/gi,
-            ''
-          ),
-        `    <script>${EMBEDDED_FLAG_SCRIPT}</script>\n`
+        stripped,
+        `    ${embeddedMeta}\n    <script>${EMBEDDED_FLAG_SCRIPT}</script>\n`
       )
       if (!rewritten.includes(embeddedMeta)) {
-        throw new Error('embedded build: the Content-Security-Policy meta was not replaced')
+        throw new Error('embedded build: the Content-Security-Policy meta was not written')
       }
       return rewritten
     },
@@ -352,6 +429,16 @@ const assertSelfContained = (
 ) => {
   const violations = findEmbeddedHtmlViolations(html)
   violations.push(...assertProfileInDocument(html, profile))
+
+  // Nothing in the shipped document may reload it. Ours is compiled out by
+  // __QRL_EMBEDDED_BUILD__ and dependencies' are stripped above, so any
+  // remaining call is a regression, whoever introduced it.
+  const reloadCalls = (html.match(/location\s*\.\s*reload\s*\(/g) ?? []).length
+  if (reloadCalls > 0) {
+    violations.push(
+      `the document contains ${reloadCalls} location.reload() call(s); a reload would fetch the live site over the shipped wallet`
+    )
+  }
 
   // findEmbeddedHtmlViolations checks the policy structurally (one meta, no
   // 'self', no 'unsafe-eval', no remote script source). This pins it to the
@@ -477,9 +564,11 @@ const emitSingleFile = (
       appScriptSha256: sha256Hex(appScript),
       appScriptBytes: Buffer.byteLength(appScript),
     }
-    html = insertIntoHead(
-      html,
-      `    <script type="application/json" id="${BUILD_INFO_ID}">${JSON.stringify(buildInfo)}</script>\n`
+    // After the CSP meta, which insertIntoHead placed at the top of <head>.
+    html = html.replace(
+      `<script>${EMBEDDED_FLAG_SCRIPT}</script>\n`,
+      `<script>${EMBEDDED_FLAG_SCRIPT}</script>\n` +
+        `    <script type="application/json" id="${BUILD_INFO_ID}">${JSON.stringify(buildInfo)}</script>\n`
     )
 
     assertSelfContained(html, csp, profile)
@@ -535,11 +624,21 @@ export default defineConfig(async (env) => {
   return {
     ...base,
     base: './',
+    // Vite reads .env files from here. The directory holds none, so a stray
+    // .env in the repository root cannot change what the app ships.
+    envDir: path.join(projectRoot, 'config/embedded-env'),
+    define: {
+      ...(base.define ?? {}),
+      // Lets the minifier drop the reload branch in src/utils/embeddedShell.ts
+      // so the emitted document contains no window.location.reload() at all.
+      __QRL_EMBEDDED_BUILD__: 'true',
+    },
     // Nothing from public/ is copied: every runtime reference to it is turned
     // into a data: URI above, and a copied file could only be fetched remotely.
     publicDir: false,
     plugins: [
       inlineWorkerImports(),
+      stripDependencyReloads(),
       ...((base.plugins ?? []) as PluginOption[]),
       inlinePublicAssetLiterals(),
       rewriteEmbeddedHtml(csp),

@@ -12,7 +12,7 @@ import {
 import { clearDeviceCredential } from "./crypto/deviceCredential";
 import { dappConnectService } from "@/services/dappConnect/DAppConnectService";
 import { walletMutations } from "./nativeWalletMutation";
-import { isEmbeddedRuntime } from "./embeddedRuntime";
+import { reloadDocument } from "./embeddedShell";
 
 /**
  * Return to the home route and drop the wallet state still held in memory.
@@ -30,6 +30,11 @@ import { isEmbeddedRuntime } from "./embeddedRuntime";
  * state below alive across an embedded logout, including the plaintext PIN the
  * native app injects for prompt-free signing.
  *
+ * The saved PIN lockout counter is deliberately NOT cleared. The native logout
+ * path keeps it on purpose: clearing it would turn logout into a way to reset
+ * the failed-attempt count and remove the lockout, which is the opposite of
+ * what logging out should do.
+ *
  * `clearDeviceCredential()` is safe to call here: inside the native app it
  * only nulls the in-memory key cache and returns before touching the stored
  * credential, which the native logout path preserves on purpose.
@@ -40,9 +45,8 @@ import { isEmbeddedRuntime } from "./embeddedRuntime";
  * the store is already in the main graph and splitting it was never the point.
  */
 const resetEmbeddedState = async (): Promise<void> => {
-  // Synchronous and unfailing, so the secrets go first.
+  // Synchronous and unfailing, so the secret goes first.
   clearNativeInjectedPin();
-  clearAttemptTracker();
 
   await clearDeviceCredential().catch((error) =>
     console.error("Logout: device key cache clear failed", error),
@@ -57,10 +61,9 @@ const finishLogout = async (
   navigate: (path: string) => void,
 ): Promise<void> => {
   navigate(ROUTES.HOME);
-  if (!isEmbeddedRuntime()) {
-    window.location.reload();
-    return;
-  }
+  // reloadDocument() refuses in the embedded build, where the statement is not
+  // merely unreached: it is removed at build time.
+  if (reloadDocument()) return;
   // Every caller fires this and forgets it, so a rejection here would surface
   // as an unhandled rejection with the user left on a half-logged-out screen.
   // The secrets are already cleared by the time anything below can throw.

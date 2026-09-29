@@ -142,9 +142,18 @@ connect-src https://qrlwallet.com https://zondscan.com wss://qrlwallet.com
 
 Notes:
 
-- `'unsafe-inline'` in `script-src` is how a static file permits its own inline
-  script; there is no nonce to hand a document shipped inside an app binary.
-  The property that matters is that no remote script source is allowed.
+- `'unsafe-inline'` rather than hashes, deliberately. The build knows the hash
+  of every script it writes, but the native app injects its own scripts into
+  this document and one of them carries a **per-load bridge token**, so its
+  content differs on every launch and cannot be hashed at build time. Listing
+  any hash makes the browser ignore `'unsafe-inline'` for scripts, which would
+  block the app's injected scripts and break the bridge. A nonce needs a server
+  to mint it, and there is none. What the policy has to prevent is remote
+  script, and it does: `script-src` has no host source at all. Integrity of the
+  inline code is covered by the document digest the app pins, which covers the
+  whole document rather than one element.
+- The CSP meta is the **first** thing in `<head>`, ahead of every inline
+  script, because a meta policy governs only what follows it.
 - `'wasm-unsafe-eval'` is required by `src/utils/crypto/argon2.ts`, which drives
   hash-wasm. `'unsafe-eval'` is deliberately absent. The bundle does contain
   three `Function(...)` call sites, none of which needs to succeed: a
@@ -175,14 +184,30 @@ script. `src/utils/embeddedRuntime.ts` is the single place that reads it.
 
 - **Routing** uses `createHashRouter`, like the desktop shell. A pushState to
   `/transfer` would make a reload fetch that path from the live server.
-- **Logout** does not call `window.location.reload()`. The document is served
-  by no origin, so a reload would fetch the live site and replace the audited
-  bundle. It drops the active account in place instead, which is the same reset
-  the native `CLEAR_WALLET` path performs.
-- **Links to site files** (`security.txt`, the PGP key) are absolute
-  `https://qrlwallet.com/...` URLs, so they open the live site in a browser.
-  A root-relative link would resolve against a document that has no server
-  behind it.
+- **Nothing reloads the document.** `reloadDocument()` in
+  `src/utils/embeddedShell.ts` is the single choke point, and
+  `__QRL_EMBEDDED_BUILD__` is a build constant, so the minifier removes the
+  reload branch rather than merely leaving it unreached. Dependency reload
+  calls are stripped too (React Router keeps one in its route-module loader),
+  and the build asserts the emitted document contains **no**
+  `location.reload()` at all. The web and desktop bundles still contain theirs.
+
+  `window.location.reload`, `.assign`, `.replace` and `location` itself are
+  non-configurable own properties, so they cannot be replaced at run time:
+  `Object.defineProperty` throws `Cannot redefine property`. This was measured
+  in Chromium, not assumed. A page-side lock on third-party code is therefore
+  not available, and the last line of defence is the **native shell refusing
+  main-frame navigations after the initial load**.
+- **External links go through the native bridge.** A capture-phase click
+  listener, installed only in the embedded runtime, hands every external link
+  to `openExternalUrl`, which sends `OPEN_URL` when the native app is present.
+  One listener covers every link in the app, including ones added later, and
+  root-relative hrefs too: under the WebView baseUrl those resolve to the live
+  site and are just as much of an escape. `target="_blank"` would otherwise
+  open in the same WebView on Android and strand the user.
+- **Logout** drops the active account, the injected PIN and the cached device
+  key in place. The saved PIN lockout counter is deliberately kept: clearing it
+  would make logging out a way to reset the failed-attempt count.
 
 The native bridge is untouched: `window.ReactNativeWebView` postMessage and the
 injected scripts work exactly as they do against the hosted wallet.

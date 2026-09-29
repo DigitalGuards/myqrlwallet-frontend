@@ -23,6 +23,11 @@ const assertNoBrowserSeed = (mode: string) => {
   if (profile && profile !== 'v3-private') throw new Error('Unknown VITE_WALLET_PROFILE')
   const network = profile === 'v3-private' ? v3Deployment(publicEnv).network : null
   return { define: {
+    // False here and overridden to true by config/vite.config.embedded.ts.
+    // It is a constant so the minifier folds it and drops the branches it
+    // guards, which is how the embedded bundle ends up with no
+    // window.location.reload() call rather than merely never reaching one.
+    __QRL_EMBEDDED_BUILD__: 'false',
     __QRL_WALLET_PROFILE__: JSON.stringify(profile),
     __QRL_NATIVE_NETWORK__: JSON.stringify(network ? {
       chainId: network.expectedChainId,

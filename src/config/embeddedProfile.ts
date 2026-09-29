@@ -70,7 +70,21 @@ export interface EmbeddedResolvedProfile {
   readonly networkId: string;
   readonly chainId: string;
   readonly genesisHash: string;
+  /** The RPC endpoint the wallet will actually call. */
+  readonly rpcUrl: string;
+  /** The wallet API base, which also serves the relay and the IPFS proxy. */
+  readonly serverUrl: string;
+  readonly explorerUrl: string;
 }
+
+/** The endpoints a shippable embedded document must be pinned to. */
+const EXPECTED_ENDPOINTS: ReadonlyArray<
+  readonly [keyof EmbeddedResolvedProfile, string]
+> = [
+  ["rpcUrl", "VITE_V3_RPC_URL"],
+  ["serverUrl", "VITE_V3_SERVER_URL"],
+  ["explorerUrl", "VITE_V3_EXPLORER_URL"],
+];
 
 export function assertEmbeddedProfile(resolved: EmbeddedResolvedProfile): void {
   const problems: string[] = [];
@@ -93,6 +107,16 @@ export function assertEmbeddedProfile(resolved: EmbeddedResolvedProfile): void {
     problems.push(
       `the genesis hash is ${resolved.genesisHash}, expected ${EMBEDDED_GENESIS_HASH}`,
     );
+  }
+  // Chain identity alone does not say where the wallet sends its traffic. An
+  // injected VITE_V3_RPC_URL keeps the chain id and genesis intact while
+  // pointing every request at somewhere else, so the endpoints are pinned too.
+  for (const [field, envKey] of EXPECTED_ENDPOINTS) {
+    const expected = EMBEDDED_PROFILE_ENV[envKey];
+    const actual = resolved[field];
+    if (actual !== expected) {
+      problems.push(`${envKey} resolved to ${actual || "nothing"}, expected ${expected}`);
+    }
   }
   if (problems.length > 0) {
     throw new Error(

@@ -35,6 +35,11 @@ jest.mock("@/utils/mobileConnect/mobileConnection", () => ({
 jest.mock("@/services/dappConnect/DAppConnectService", () => ({
   dappConnectService: { clearAllSessions: jest.fn(async () => undefined) },
 }));
+jest.mock("@/utils/embeddedShell", () => ({
+  // The real one returns false in the embedded build, where its reload branch
+  // does not survive minification.
+  reloadDocument: jest.fn(() => false),
+}));
 jest.mock("@/utils/nativeWalletMutation", () => ({
   walletMutations: {
     clear: jest.fn(
@@ -45,7 +50,10 @@ jest.mock("@/utils/nativeWalletMutation", () => ({
     ),
   },
 }));
-jest.mock("@/utils/embeddedRuntime", () => ({ isEmbeddedRuntime: () => true }));
+jest.mock("@/utils/embeddedRuntime", () => ({
+  isEmbeddedRuntime: () => true,
+  IS_EMBEDDED_BUILD: false,
+}));
 
 // jest hoists mock factories above these declarations, so the names it closes
 // over must carry the `mock` prefix it allows.
@@ -62,6 +70,7 @@ jest.mock("@/stores/store", () => ({
   },
 }));
 
+import { reloadDocument } from "@/utils/embeddedShell";
 import { clearNativeInjectedPin } from "@/utils/nativeApp";
 import { clearAttemptTracker } from "@/utils/crypto/pinAttemptTracker";
 import { clearDeviceCredential } from "@/utils/crypto/deviceCredential";
@@ -78,12 +87,19 @@ beforeEach(() => {
 });
 
 describe("embedded logout", () => {
-  it("clears the native-injected PIN and the attempt tracker", async () => {
+  it("clears the native-injected PIN", async () => {
     const navigate = jest.fn();
     await handleLogout(navigate);
 
     expect(pinCleared).toHaveBeenCalledTimes(1);
-    expect(trackerCleared).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the saved PIN lockout counter", async () => {
+    // The native logout path keeps it on purpose. Clearing it would make
+    // logging out a way to reset the failed-attempt count and lift a lockout.
+    await handleLogout(jest.fn());
+
+    expect(trackerCleared).not.toHaveBeenCalled();
   });
 
   it("drops the cached device key and the wallet state in memory", async () => {
@@ -111,6 +127,16 @@ describe("embedded logout", () => {
     // A rejection here would surface as an unhandled rejection: every caller
     // fires handleLogout and forgets it.
     expect(pinCleared).toHaveBeenCalledTimes(1);
-    expect(trackerCleared).toHaveBeenCalledTimes(1);
+    expect(trackerCleared).not.toHaveBeenCalled();
+  });
+
+  it("never reloads the document", async () => {
+    await handleLogout(jest.fn());
+
+    // reloadDocument() is the single choke point, and in the embedded build
+    // its reload branch is removed at build time. The build additionally
+    // asserts the emitted document contains no location.reload() at all.
+    expect(reloadDocument).toHaveBeenCalledTimes(1);
+    expect(reloadDocument).toHaveReturnedWith(false);
   });
 });

@@ -16,6 +16,21 @@
  */
 export const EMBEDDED_GLOBAL_FLAG = "__QRL_EMBEDDED__";
 
+declare const __QRL_EMBEDDED_BUILD__: boolean;
+
+/**
+ * True when this bundle was produced by `npm run build:embedded`.
+ *
+ * Unlike `isEmbeddedRuntime()`, which answers a question about the document at
+ * run time, this is a build constant: the embedded config defines it as `true`
+ * and the base config as `false`, so the minifier folds it and removes the
+ * branches it guards. That is what lets the embedded bundle contain no
+ * `window.location.reload()` call at all rather than merely not reaching one,
+ * which the build then asserts.
+ */
+export const IS_EMBEDDED_BUILD =
+  typeof __QRL_EMBEDDED_BUILD__ !== "undefined" && __QRL_EMBEDDED_BUILD__;
+
 type EmbeddedScope = { [EMBEDDED_GLOBAL_FLAG]?: unknown };
 
 /**

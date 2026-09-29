@@ -48,6 +48,11 @@ jobs:
         working-directory: dist-embedded
         run: sha256sum -c index.html.sha256
 
+      - name: Attest the build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist-embedded/index.html
+
       - name: Upload the embedded wallet
         uses: actions/upload-artifact@v4
         with:
@@ -72,6 +77,30 @@ jobs:
           name: myqrlwallet-embedded
           path: dist-embedded
 
+      # A published document is something the app pins by digest, so the
+      # assets are immutable: a tag that already carries them is a mistake,
+      # and silently replacing them would change what a pinned digest refers
+      # to. Re-releasing means cutting a new tag.
+      - name: Refuse to replace an existing asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "No release for $TAG yet; it will be created."
+            exit 0
+          fi
+          existing="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --json assets --jq '.assets[].name')"
+          for asset in index.html index.html.sha256; do
+            if grep -qx "$asset" <<<"$existing"; then
+              echo "::error::$TAG already has $asset. Released documents are" \
+                   "immutable because the app pins their digest. Cut a new tag."
+              exit 1
+            fi
+          done
+
       - name: Attach both files to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -83,13 +112,15 @@ jobs:
 
           sha256(index.html) = ${digest}
 
-          The app pins this digest and refuses to load a document that does not
-          match it. The build is reproducible from the commit this tag points
-          at: \`npm ci --legacy-peer-deps && npm run build:embedded\`."
+          Pin this digest in the app and verify the document against it before
+          loading. The build is reproducible from the commit this tag points
+          at: \`npm ci --legacy-peer-deps && npm run build:embedded\`.
+
+          These assets are immutable: the workflow refuses to replace them."
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" \
               dist-embedded/index.html dist-embedded/index.html.sha256 \
-              --repo "$GITHUB_REPOSITORY" --clobber
+              --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$TAG" \
               dist-embedded/index.html dist-embedded/index.html.sha256 \

@@ -7,6 +7,12 @@ globalThis.Buffer = Buffer;
 import { captureQrlconnectFragment } from '@/services/dappConnect/fragmentCapture';
 captureQrlconnectFragment();
 
+// Must also run before the router mounts: in the app-shipped embedded build
+// this intercepts external links so they open in the device browser instead of
+// replacing the shipped wallet document. A no-op in every other build.
+import { installEmbeddedShell } from '@/utils/embeddedShell';
+installEmbeddedShell();
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HelmetProvider } from 'react-helmet-async'

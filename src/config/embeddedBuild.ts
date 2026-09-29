@@ -14,11 +14,24 @@
 const STATIC_CSP_DIRECTIVES: readonly string[] = [
   // Nothing loads by default. Every allowance below is deliberate.
   "default-src 'none'",
-  // The only script in the document is the inline one this build writes plus
-  // the one-line <head> flag. There is no nonce to hand a static file shipped
-  // inside an app binary, so 'unsafe-inline' is how an inline script is
-  // permitted. There is no remote script source at all, which is the property
-  // that actually matters here.
+  // 'unsafe-inline' rather than hashes, deliberately.
+  //
+  // This build knows the hash of every script it writes and records the
+  // application script's in the build-info block. Hashes are still the wrong
+  // choice here: the native app injects its own scripts into this document,
+  // and one of them carries a per-load bridge token, so its content differs
+  // on every launch and cannot be hashed at build time. Under CSP, listing
+  // any hash makes the browser IGNORE 'unsafe-inline' for scripts, which
+  // would block the app's injected scripts and break the bridge outright.
+  //
+  // A nonce is equally unavailable: there is no server to mint one for a
+  // static document shipped inside an app binary.
+  //
+  // What the policy actually has to prevent is remote script, and it does:
+  // there is no host source in script-src at all, so nothing off the device
+  // can execute here. Integrity of the inline code is covered by the document
+  // digest the app pins, which is a stronger guarantee than a CSP hash
+  // because it covers the whole document rather than one element.
   //
   // 'wasm-unsafe-eval' is required: src/utils/crypto/argon2.ts drives
   // hash-wasm, which calls WebAssembly.instantiate.
