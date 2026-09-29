@@ -44,6 +44,7 @@ import baseConfigFactory from './vite.config'
 import {
   EMBEDDED_RELAY_URLS,
   buildEmbeddedCsp,
+  executableInlineScripts,
   findEmbeddedHtmlViolations,
   inlineWorkerSpecifier,
 } from '../src/config/embeddedBuild'
@@ -62,6 +63,12 @@ const EMBED_VIDEO = process.env.EMBED_VIDEO === '1'
 const EMBEDDED_OUT_DIR = 'dist-embedded'
 const APP_SCRIPT_ID = 'qrl-embedded-app'
 const BUILD_INFO_ID = 'qrl-embedded-build-info'
+// The policy names a hash of every inline script, and one of those scripts is
+// the application bundle, which does not exist yet when the meta is written.
+// The meta therefore goes in with this marker and is filled in once the
+// document is complete. The marker is long enough that minified code cannot
+// contain it by accident.
+const CSP_PLACEHOLDER = '__QRL_EMBEDDED_CSP_PLACEHOLDER_5f3a9c__'
 
 const MIME_BY_EXT: Record<string, string> = {
   '.svg': 'image/svg+xml',
@@ -88,6 +95,16 @@ const toDataUri = (absolutePath: string): string => {
 
 const sha256Hex = (value: string | Buffer): string =>
   createHash('sha256').update(value).digest('hex')
+
+/**
+ * A CSP source hash for one inline script.
+ *
+ * The digest covers the element's exact text content, which for the inlined
+ * bundle includes the newline after `<script ...>` and the one before
+ * `</script>`. Base64 of the raw digest is what the CSP syntax takes.
+ */
+const cspScriptHash = (content: string): string =>
+  `sha256-${createHash('sha256').update(content, 'utf8').digest('base64')}`
 
 const git = (args: string[]): string | null => {
   try {
@@ -346,13 +363,13 @@ const insertIntoHead = (html: string, markup: string): string => {
  *     WebView and each one is a live request to the server this build exists
  *     to stop depending on.
  */
-const rewriteEmbeddedHtml = (csp: string): Plugin => ({
+const rewriteEmbeddedHtml = (): Plugin => ({
   name: 'embedded-rewrite-html',
   enforce: 'post',
   transformIndexHtml: {
     order: 'post',
     handler(html: string) {
-      const embeddedMeta = `<meta http-equiv="Content-Security-Policy" content="${csp}" />`
+      const embeddedMeta = `<meta http-equiv="Content-Security-Policy" content="${CSP_PLACEHOLDER}" />`
       // `<link\b[^>]*>` stops at the first `>`, so a tag written without the
       // self-closing slash cannot make the match run on to the next one and
       // delete everything in between. `rel` is matched anywhere in the tag.
@@ -481,7 +498,6 @@ const assertSelfContained = (
  */
 const emitSingleFile = (
   outDir: string,
-  csp: string,
   connectUrls: string[],
   profile: EmbeddedResolvedProfile
 ): Plugin => ({
@@ -550,6 +566,22 @@ const emitSingleFile = (
     // does not fix the output: both come from the build environment, and a
     // digest that differs for one of these reasons should be explainable from
     // the document itself.
+    // Hash every inline script the browser will execute, then write the policy
+    // that names exactly those. Done here because the application script is
+    // one of them and only exists once the bundle has been folded in. The
+    // build-info block below is application/json, so it is never executed and
+    // adding it afterwards cannot change this set.
+    const inlineScripts = executableInlineScripts(html)
+    if (inlineScripts.length === 0) {
+      throw new Error('embedded build: no executable inline script was found to hash')
+    }
+    const scriptHashes = inlineScripts.map(cspScriptHash)
+    const csp = buildEmbeddedCsp({
+      connectUrls,
+      relayUrls: EMBEDDED_RELAY_URLS,
+      scriptHashes,
+    })
+
     const { commit, builtAt } = resolveBuildProvenance()
     const buildInfo = {
       product: 'myqrlwallet-embedded',
@@ -559,6 +591,7 @@ const emitSingleFile = (
       profile,
       connectUrls,
       csp,
+      scriptHashes,
       // Hashed over the script text exactly as written between the newlines
       // that follow `<script ...>` and precede `</script>`.
       appScriptSha256: sha256Hex(appScript),
@@ -570,6 +603,14 @@ const emitSingleFile = (
       `<script>${EMBEDDED_FLAG_SCRIPT}</script>\n` +
         `    <script type="application/json" id="${BUILD_INFO_ID}">${JSON.stringify(buildInfo)}</script>\n`
     )
+
+    if (!html.includes(CSP_PLACEHOLDER)) {
+      throw new Error('embedded build: the Content-Security-Policy placeholder went missing')
+    }
+    html = html.replace(CSP_PLACEHOLDER, csp)
+    if (html.includes(CSP_PLACEHOLDER)) {
+      throw new Error('embedded build: the Content-Security-Policy placeholder appears more than once')
+    }
 
     assertSelfContained(html, csp, profile)
 
@@ -607,7 +648,6 @@ export default defineConfig(async (env) => {
   const { profile, connectUrls } = resolveEmbeddedDeployment(env.mode)
   // Fail here rather than ship a document that quietly runs the wrong network.
   assertEmbeddedProfile(profile)
-  const csp = buildEmbeddedCsp({ connectUrls, relayUrls: EMBEDDED_RELAY_URLS })
 
   const rolldownOptions = {
     ...(base.build?.rolldownOptions ?? {}),
@@ -641,8 +681,8 @@ export default defineConfig(async (env) => {
       stripDependencyReloads(),
       ...((base.plugins ?? []) as PluginOption[]),
       inlinePublicAssetLiterals(),
-      rewriteEmbeddedHtml(csp),
-      emitSingleFile(path.join(projectRoot, EMBEDDED_OUT_DIR), csp, connectUrls, profile),
+      rewriteEmbeddedHtml(),
+      emitSingleFile(path.join(projectRoot, EMBEDDED_OUT_DIR), connectUrls, profile),
     ],
     build: {
       ...base.build,

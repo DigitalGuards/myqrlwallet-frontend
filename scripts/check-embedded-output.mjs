@@ -109,9 +109,60 @@ if (cspMetas.length !== 1) {
       failures.push(`the CSP still allows ${forbidden}`);
     }
   }
+  if (/script-src\s[^;"]*'unsafe-inline'/i.test(meta)) {
+    failures.push("the CSP allows 'unsafe-inline' scripts");
+  }
   if (/script-src\s[^;"]*https:/i.test(meta)) {
     failures.push("the CSP allows a remote script source");
   }
+
+  // Recompute a hash for every inline script the browser executes and require
+  // the policy to name exactly those. A stale or missing hash blocks the whole
+  // application, and a hash for a script that is no longer there is dead
+  // policy that hides the fact.
+  const executable = [];
+  for (const element of html.matchAll(
+    /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi,
+  )) {
+    const attributes = element[1] ?? "";
+    if (/\bsrc\s*=/i.test(attributes)) continue;
+    const type = attributes.match(
+      /\btype\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+    );
+    const value = (type?.[1] ?? type?.[2] ?? type?.[3] ?? "")
+      .trim()
+      .toLowerCase();
+    // application/json and application/ld+json are data blocks: never
+    // executed, never covered by script-src, so they need no hash.
+    if (
+      value === "" ||
+      value === "module" ||
+      value === "text/javascript" ||
+      value === "application/javascript"
+    ) {
+      executable.push(element[2] ?? "");
+    }
+  }
+  const expected = executable.map(
+    (content) =>
+      `sha256-${createHash("sha256").update(content, "utf8").digest("base64")}`,
+  );
+  const listed = [...meta.matchAll(/'(sha256-[A-Za-z0-9+/=]+)'/g)].map(
+    (m) => m[1],
+  );
+  for (const hash of expected) {
+    if (!listed.includes(hash)) {
+      failures.push(`the CSP has no hash for one of the inline scripts (${hash})`);
+    }
+  }
+  for (const hash of listed) {
+    if (!expected.includes(hash)) {
+      failures.push(`the CSP lists ${hash}, which matches no inline script`);
+    }
+  }
+  console.log(
+    `inline scripts: ${executable.length} executable, ${listed.length} hashed in the CSP`,
+  );
   console.log(`CSP: ${(meta.match(/content\s*=\s*"([^"]*)"/i) ?? [])[1] ?? "?"}`);
 }
 

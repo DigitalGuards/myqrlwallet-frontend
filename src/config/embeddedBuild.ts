@@ -10,42 +10,63 @@
  * process access, which is what makes it testable.
  */
 
+/**
+ * The CSP `script-src` for a document whose only scripts are inline.
+ *
+ * Every inline script the browser executes is hashed at build time, so the
+ * policy names exactly those and nothing else: no host source, no nonce and
+ * no 'unsafe-inline'. Adding a hash makes a browser ignore 'unsafe-inline'
+ * for scripts anyway, so the two cannot be combined.
+ *
+ * 'wasm-unsafe-eval' is required: src/utils/crypto/argon2.ts drives hash-wasm,
+ * which calls WebAssembly.instantiate. 'unsafe-eval' is deliberately absent.
+ * The bundle contains three `Function(...)` call sites, none of which needs to
+ * succeed: a `Function("return this")` globalThis polyfill a browser never
+ * reaches, a `Function("" + handler)` branch of the setImmediate polyfill
+ * taken only for a string handler, and zod's JIT feature probe, written as
+ * `try { Function(""); } catch { ... }`, which falls back to its interpreted
+ * parser. The probe logs one CSP violation the first time a schema is parsed;
+ * that is the policy working.
+ */
+function scriptSrcDirective(scriptHashes: readonly string[]): string {
+  const sources = scriptHashes.map((hash) => `'${hash}'`).join(" ");
+  return `script-src ${sources} 'wasm-unsafe-eval'`;
+}
+
+/**
+ * The inline scripts a browser will execute, in document order.
+ *
+ * A `<script>` with a `src` is not inline, and a data block such as
+ * `type="application/json"` or `application/ld+json` is never executed, so
+ * `script-src` does not cover it and it needs no hash.
+ */
+export function executableInlineScripts(html: string): string[] {
+  const scripts: string[] = [];
+  for (const element of html.matchAll(
+    /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi,
+  )) {
+    const attributes = element[1] ?? "";
+    if (/\bsrc\s*=/i.test(attributes)) continue;
+    const type = attributes.match(
+      /\btype\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+    );
+    const value = (type?.[1] ?? type?.[2] ?? type?.[3] ?? "")
+      .trim()
+      .toLowerCase();
+    const executed =
+      value === "" ||
+      value === "module" ||
+      value === "text/javascript" ||
+      value === "application/javascript";
+    if (executed) scripts.push(element[2] ?? "");
+  }
+  return scripts;
+}
+
 /** Content-Security-Policy directives that never depend on configuration. */
 const STATIC_CSP_DIRECTIVES: readonly string[] = [
   // Nothing loads by default. Every allowance below is deliberate.
   "default-src 'none'",
-  // 'unsafe-inline' rather than hashes, deliberately.
-  //
-  // This build knows the hash of every script it writes and records the
-  // application script's in the build-info block. Hashes are still the wrong
-  // choice here: the native app injects its own scripts into this document,
-  // and one of them carries a per-load bridge token, so its content differs
-  // on every launch and cannot be hashed at build time. Under CSP, listing
-  // any hash makes the browser IGNORE 'unsafe-inline' for scripts, which
-  // would block the app's injected scripts and break the bridge outright.
-  //
-  // A nonce is equally unavailable: there is no server to mint one for a
-  // static document shipped inside an app binary.
-  //
-  // What the policy actually has to prevent is remote script, and it does:
-  // there is no host source in script-src at all, so nothing off the device
-  // can execute here. Integrity of the inline code is covered by the document
-  // digest the app pins, which is a stronger guarantee than a CSP hash
-  // because it covers the whole document rather than one element.
-  //
-  // 'wasm-unsafe-eval' is required: src/utils/crypto/argon2.ts drives
-  // hash-wasm, which calls WebAssembly.instantiate.
-  //
-  // 'unsafe-eval' is deliberately absent. The bundle does contain three
-  // `Function(...)` call sites, none of which needs to succeed: a
-  // `Function("return this")` globalThis polyfill that a browser never
-  // reaches, a `Function("" + handler)` branch of the setImmediate polyfill
-  // that is only taken for a string handler, and zod's JIT feature probe,
-  // which is written as `try { Function(""); } catch { /* interpret */ }` and
-  // falls back to its interpreted parser when the policy blocks it. The probe
-  // logs one CSP violation the first time a schema is parsed; that is the
-  // policy working.
-  "script-src 'unsafe-inline' 'wasm-unsafe-eval'",
   // Inline event-handler attributes stay banned even though inline <script>
   // blocks are allowed.
   "script-src-attr 'none'",
@@ -115,6 +136,11 @@ export interface EmbeddedCspInput {
   readonly connectUrls: readonly (string | undefined | null)[];
   /** Absolute https URLs of socket.io relays (both transports are allowed). */
   readonly relayUrls: readonly (string | undefined | null)[];
+  /**
+   * `sha256-<base64>` for every inline script the browser executes, computed
+   * over the exact text content of each script element.
+   */
+  readonly scriptHashes: readonly string[];
 }
 
 /**
@@ -144,8 +170,19 @@ export function buildEmbeddedCsp(input: EmbeddedCspInput): string {
       "embedded build: refusing to emit a CSP with an empty connect-src",
     );
   }
+  if (input.scriptHashes.length === 0) {
+    throw new Error(
+      "embedded build: refusing to emit a CSP with no script hash",
+    );
+  }
+  for (const hash of input.scriptHashes) {
+    if (!/^sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2}$/.test(hash)) {
+      throw new Error(`embedded build: ${hash} is not a CSP source hash`);
+    }
+  }
   const sorted = [...connect].sort();
   return [
+    scriptSrcDirective(input.scriptHashes),
     ...STATIC_CSP_DIRECTIVES,
     IMG_SRC_DIRECTIVE,
     `connect-src ${sorted.join(" ")}`,
@@ -210,8 +247,13 @@ export function findEmbeddedCspViolations(html: string): string[] {
       violations.push(`the CSP still allows ${forbidden}`);
     }
   }
-  if (!/script-src\s[^;"]*'unsafe-inline'/i.test(meta)) {
-    violations.push("the CSP has no script-src for the inline application");
+  if (!/script-src\s[^;"]*'sha256-/i.test(meta)) {
+    violations.push("the CSP has no script hash for the inline application");
+  }
+  if (/script-src\s[^;"]*'unsafe-inline'/i.test(meta)) {
+    violations.push(
+      "the CSP allows 'unsafe-inline' scripts, which the hashes would make browsers ignore anyway",
+    );
   }
   if (/script-src\s[^;"]*https:/i.test(meta)) {
     violations.push("the CSP allows a remote script source");

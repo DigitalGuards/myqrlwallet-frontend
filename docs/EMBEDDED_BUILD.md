@@ -127,13 +127,9 @@ without rebuilding and without having to guess the framing.
 The document ships a meta CSP with no remote script source at all:
 
 ```
-default-src 'none';
-script-src 'unsafe-inline' 'wasm-unsafe-eval';
-script-src-attr 'none';
-style-src 'unsafe-inline';
-font-src data:;
-media-src data: blob:;
-worker-src blob:;
+script-src 'sha256-<flag script>' 'sha256-<application script>' 'wasm-unsafe-eval';
+default-src 'none'; script-src-attr 'none'; style-src 'unsafe-inline';
+font-src data:; media-src data: blob:; worker-src blob:;
 object-src 'none'; frame-src 'none'; child-src 'none';
 base-uri 'none'; form-action 'none'; manifest-src 'none';
 img-src data: blob: https:;
@@ -142,27 +138,27 @@ connect-src https://qrlwallet.com https://zondscan.com wss://qrlwallet.com
 
 Notes:
 
-- `'unsafe-inline'` rather than hashes, deliberately. The build knows the hash
-  of every script it writes, but the native app injects its own scripts into
-  this document and one of them carries a **per-load bridge token**, so its
-  content differs on every launch and cannot be hashed at build time. Listing
-  any hash makes the browser ignore `'unsafe-inline'` for scripts, which would
-  block the app's injected scripts and break the bridge. A nonce needs a server
-  to mint it, and there is none. What the policy has to prevent is remote
-  script, and it does: `script-src` has no host source at all. Integrity of the
-  inline code is covered by the document digest the app pins, which covers the
-  whole document rather than one element.
-- The CSP meta is the **first** thing in `<head>`, ahead of every inline
+- `script-src` names a **sha256 of every inline script the browser executes**
+  and nothing else: no host source, no nonce, no `'unsafe-inline'`. The hashes
+  are computed at build time over each script element's exact text content,
+  which for the bundle includes the newline after the opening tag and the one
+  before `</script>`. Adding a hash makes browsers ignore `'unsafe-inline'`
+  for scripts, so the two are never combined.
+- The app's own bootstrap sits **above** the CSP meta and removes itself, so
+  its per-load bridge token never needs a hash. That is what lets this policy
+  drop `'unsafe-inline'`.
+- `<script type="application/json">` and `application/ld+json` are data blocks:
+  never executed, never covered by `script-src`, so they carry no hash. The
+  build and `npm run check:embedded` both enforce that the set of hashes
+  matches the set of executable inline scripts exactly, in both directions: a
+  missing hash blocks the whole application, and a stale one is dead policy.
+- The CSP meta is the **first** element in `<head>`, ahead of every inline
   script, because a meta policy governs only what follows it.
-- `'wasm-unsafe-eval'` is required by `src/utils/crypto/argon2.ts`, which drives
-  hash-wasm. `'unsafe-eval'` is deliberately absent. The bundle does contain
-  three `Function(...)` call sites, none of which needs to succeed: a
-  `Function("return this")` globalThis polyfill a browser never reaches, a
-  `Function("" + handler)` branch of the setImmediate polyfill taken only for a
-  string handler, and zod's JIT feature probe, written as
-  `try { Function(""); } catch { /* interpret */ }`. The probe fails closed and
-  zod falls back to its interpreted parser, logging one CSP violation the first
-  time a schema is parsed. That is the policy working.
+- `'wasm-unsafe-eval'` is required by hash-wasm. `'unsafe-eval'` is absent, so
+  zod's JIT feature probe is blocked and falls back to its interpreted parser.
+  That produces one `script-src :: eval` violation report the first time a
+  schema is parsed, which is the policy working and is unrelated to the inline
+  script hashes.
 - `img-src` allows remote https images because token logos and NFT artwork come
   from URLs the wallet does not control. It is the one deliberately broad
   directive; an image cannot exfiltrate wallet state beyond the URL it is

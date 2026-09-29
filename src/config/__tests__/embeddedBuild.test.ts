@@ -67,6 +67,11 @@ describe("origin helpers", () => {
   });
 });
 
+const HASHES = [
+  "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+  "sha256-RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=",
+];
+
 describe("embedded CSP", () => {
   const csp = buildEmbeddedCsp({
     connectUrls: [
@@ -75,13 +80,45 @@ describe("embedded CSP", () => {
       "https://zondscan.com",
     ],
     relayUrls: EMBEDDED_RELAY_URLS,
+    scriptHashes: HASHES,
   });
 
-  it("allows no remote script source and no eval", () => {
+  it("names a hash for every inline script and nothing else", () => {
     expect(csp).toContain("default-src 'none'");
-    expect(csp).toContain("script-src 'unsafe-inline' 'wasm-unsafe-eval'");
+    expect(csp).toContain(
+      `script-src '${HASHES[0]}' '${HASHES[1]}' 'wasm-unsafe-eval'`,
+    );
+    // A hash makes browsers ignore 'unsafe-inline' for scripts, so the two
+    // cannot be combined and the policy must carry no host source either.
+    expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
     expect(csp).not.toContain("'unsafe-eval';");
     expect(csp).not.toMatch(/script-src[^;]*https:/);
+  });
+
+  it("puts script-src first, so the policy leads with what may execute", () => {
+    expect(csp.startsWith("script-src ")).toBe(true);
+  });
+
+  it("refuses to emit a policy with no script hash", () => {
+    expect(() =>
+      buildEmbeddedCsp({
+        connectUrls: ["https://qrlwallet.com"],
+        relayUrls: [],
+        scriptHashes: [],
+      }),
+    ).toThrow(/no script hash/);
+  });
+
+  it("refuses anything that is not a source hash", () => {
+    for (const bad of ["'unsafe-inline'", "sha256-not base64!", "deadbeef"]) {
+      expect(() =>
+        buildEmbeddedCsp({
+          connectUrls: ["https://qrlwallet.com"],
+          relayUrls: [],
+          scriptHashes: [bad],
+        }),
+      ).toThrow(/is not a CSP source hash/);
+    }
   });
 
   it("covers every endpoint the wallet calls, once each", () => {
@@ -107,7 +144,11 @@ describe("embedded CSP", () => {
 
   it("refuses to emit a policy that would block all traffic", () => {
     expect(() =>
-      buildEmbeddedCsp({ connectUrls: ["/api"], relayUrls: [] }),
+      buildEmbeddedCsp({
+        connectUrls: ["/api"],
+        relayUrls: [],
+        scriptHashes: HASHES,
+      }),
     ).toThrow(/empty connect-src/);
   });
 
@@ -115,6 +156,7 @@ describe("embedded CSP", () => {
     const v3 = buildEmbeddedCsp({
       connectUrls: ["https://rpc-v3.example.com/rpc/testnet"],
       relayUrls: ["https://relay.example.com"],
+      scriptHashes: HASHES,
     });
     expect(v3).toContain(
       "connect-src https://relay.example.com https://rpc-v3.example.com wss://relay.example.com",
@@ -137,7 +179,7 @@ describe("relay allowlist", () => {
 describe("self-contained document scan", () => {
   const clean = [
     "<!doctype html><html><head>",
-    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\' \'wasm-unsafe-eval\'; connect-src https://qrlwallet.com" />',
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src '${HASHES[0]}' 'wasm-unsafe-eval'; connect-src https://qrlwallet.com" />`,
     '<link rel="me" href="https://x.com/DigitalGuards" />',
     "<script>window.__QRL_EMBEDDED__=true</script>",
     '<script type="module" id="qrl-embedded-app">const a=1;</script>',
@@ -243,7 +285,7 @@ describe("CSP enforcement", () => {
     ].join("");
 
   const embedded =
-    "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; connect-src https://qrlwallet.com";
+    `default-src 'none'; script-src '${HASHES[0]}' 'wasm-unsafe-eval'; connect-src https://qrlwallet.com`;
 
   it("accepts the locked-down embedded policy", () => {
     expect(findEmbeddedCspViolations(withCsp(embedded))).toEqual([]);
@@ -269,7 +311,7 @@ describe("CSP enforcement", () => {
     ).toContain("the CSP still allows 'unsafe-eval'");
     expect(
       findEmbeddedCspViolations(
-        withCsp("default-src 'none'; script-src 'unsafe-inline' https://cdn.example"),
+        withCsp(`default-src 'none'; script-src '${HASHES[0]}' https://cdn.example`),
       ).join("\n"),
     ).toContain("remote script source");
     expect(findEmbeddedCspViolations("<html><head></head></html>")).toEqual([
