@@ -2,7 +2,7 @@ import { ROUTES } from "@/router/router";
 import StorageUtil from "./storage/storage";
 import { QRL_PROVIDER } from "@/config";
 import { IS_V3_PROFILE } from "@/config/runtimeProfile";
-import { isInNativeApp } from "./nativeApp";
+import { isInNativeApp, clearNativeInjectedPin } from "./nativeApp";
 import { clearAttemptTracker } from "./crypto/pinAttemptTracker";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import {
@@ -21,15 +21,38 @@ import { isEmbeddedRuntime } from "./embeddedRuntime";
  * The app-shipped embedded build cannot: its document was injected into the
  * WebView as a string under the qrlwallet.com baseUrl and is served by no
  * origin, so a reload would fetch the live site and replace the audited bundle
- * that came out of the signed app binary. There the active account is dropped
- * instead, which is the same in-place reset the native CLEAR_WALLET path
- * already performs (see src/components/NativeAppBridge.tsx).
+ * that came out of the signed app binary.
+ *
+ * Everything the reload used to drop therefore has to be dropped by hand. The
+ * embedded build always runs inside the native app, so `isInNativeApp()` is
+ * true and the caller's `if (!nativeApp)` branch deliberately leaves the
+ * device credential and the attempt tracker alone. That left the module-level
+ * state below alive across an embedded logout, including the plaintext PIN the
+ * native app injects for prompt-free signing.
+ *
+ * `clearDeviceCredential()` is safe to call here: inside the native app it
+ * only nulls the in-memory key cache and returns before touching the stored
+ * credential, which the native logout path preserves on purpose.
  *
  * The store is pulled in dynamically to avoid an import cycle: the stores
  * import the `@/utils` barrel, which re-exports this module. Rolldown reports
  * the dynamic import as ineffective for chunking, which is expected and fine;
  * the store is already in the main graph and splitting it was never the point.
  */
+const resetEmbeddedState = async (): Promise<void> => {
+  // Synchronous and unfailing, so the secrets go first.
+  clearNativeInjectedPin();
+  clearAttemptTracker();
+
+  await clearDeviceCredential().catch((error) =>
+    console.error("Logout: device key cache clear failed", error),
+  );
+
+  const { store } = await import("@/stores/store");
+  store.qrlStore.resetTransactionStatus();
+  await store.qrlStore.setActiveAccount(undefined);
+};
+
 const finishLogout = async (
   navigate: (path: string) => void,
 ): Promise<void> => {
@@ -38,8 +61,14 @@ const finishLogout = async (
     window.location.reload();
     return;
   }
-  const { store } = await import("@/stores/store");
-  await store.qrlStore.setActiveAccount(undefined);
+  // Every caller fires this and forgets it, so a rejection here would surface
+  // as an unhandled rejection with the user left on a half-logged-out screen.
+  // The secrets are already cleared by the time anything below can throw.
+  try {
+    await resetEmbeddedState();
+  } catch (error) {
+    console.error("Logout: embedded state reset did not complete:", error);
+  }
 };
 
 /**

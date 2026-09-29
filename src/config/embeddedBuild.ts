@@ -21,8 +21,17 @@ const STATIC_CSP_DIRECTIVES: readonly string[] = [
   // that actually matters here.
   //
   // 'wasm-unsafe-eval' is required: src/utils/crypto/argon2.ts drives
-  // hash-wasm, which calls WebAssembly.instantiate. 'unsafe-eval' is
-  // deliberately absent; the bundle contains no eval() and no new Function().
+  // hash-wasm, which calls WebAssembly.instantiate.
+  //
+  // 'unsafe-eval' is deliberately absent. The bundle does contain three
+  // `Function(...)` call sites, none of which needs to succeed: a
+  // `Function("return this")` globalThis polyfill that a browser never
+  // reaches, a `Function("" + handler)` branch of the setImmediate polyfill
+  // that is only taken for a string handler, and zod's JIT feature probe,
+  // which is written as `try { Function(""); } catch { /* interpret */ }` and
+  // falls back to its interpreted parser when the policy blocks it. The probe
+  // logs one CSP violation the first time a schema is parsed; that is the
+  // policy working.
   "script-src 'unsafe-inline' 'wasm-unsafe-eval'",
   // Inline event-handler attributes stay banned even though inline <script>
   // blocks are allowed.
@@ -158,6 +167,74 @@ function stripInlineBodies(html: string): string {
 const ALLOWED_URL_SCHEMES = /^(?:https:|data:|mailto:|blob:|#)/i;
 
 /**
+ * Structural checks on the document's Content-Security-Policy.
+ *
+ * These deliberately assert no exact policy string, so they hold for any
+ * deployment profile and catch the failure that matters: the build silently
+ * keeping index.html's development policy, which grants `default-src 'self'`
+ * and localhost. Under the WebView baseUrl `'self'` IS qrlwallet.com, so that
+ * document would let the web server serve script again, which is the single
+ * thing this build exists to prevent.
+ */
+export function findEmbeddedCspViolations(html: string): string[] {
+  const markup = stripInlineBodies(html);
+  const metas = [
+    ...markup.matchAll(
+      /<meta\b[^>]*http-equiv\s*=\s*["']?Content-Security-Policy["']?[^>]*>/gi,
+    ),
+  ].map((match) => match[0]);
+
+  if (metas.length !== 1) {
+    return [`expected exactly one CSP meta, found ${metas.length}`];
+  }
+  const meta = metas[0] ?? "";
+  const violations: string[] = [];
+  if (!/default-src\s+'none'/i.test(meta)) {
+    violations.push("the CSP does not start from default-src 'none'");
+  }
+  for (const forbidden of ["'self'", "'unsafe-eval'", "http://", "ws://"]) {
+    if (meta.includes(forbidden)) {
+      violations.push(`the CSP still allows ${forbidden}`);
+    }
+  }
+  if (!/script-src\s[^;"]*'unsafe-inline'/i.test(meta)) {
+    violations.push("the CSP has no script-src for the inline application");
+  }
+  if (/script-src\s[^;"]*https:/i.test(meta)) {
+    violations.push("the CSP allows a remote script source");
+  }
+  return violations;
+}
+
+/**
+ * The inline stylesheet may reference nothing but data: URIs. A bare
+ * `url(/tree.svg)` is invisible to the markup scan (style bodies are stripped)
+ * and to the public-asset scan (which matches quoted literals), so it gets its
+ * own pass.
+ */
+function findStyleViolations(html: string): string[] {
+  const violations: string[] = [];
+  for (const block of html.matchAll(
+    /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi,
+  )) {
+    const css = block[1] ?? "";
+    if (/@import/i.test(css)) violations.push("the stylesheet uses @import");
+    // A quoted value is consumed whole, so a `url(#id)` reference nested
+    // inside a percent-encoded data: SVG is skipped along with the data URI
+    // that contains it. Matching `[^)]*` instead would stop at that inner
+    // bracket and report the fragment as a remote fetch.
+    for (const reference of css.matchAll(
+      /url\(\s*(?:"([^"]*)"|'([^']*)'|([^"')\s]*))\s*\)/gi,
+    )) {
+      const value = (reference[1] ?? reference[2] ?? reference[3] ?? "").trim();
+      if (value.length === 0 || /^(?:data:|#)/i.test(value)) continue;
+      violations.push(`the stylesheet fetches ${value}`);
+    }
+  }
+  return violations;
+}
+
+/**
  * Every way the emitted document could still reach the network for code or
  * assets. A non-empty result must fail the build: shipping a half-embedded
  * document would silently restore the dependency on the live web server that
@@ -177,10 +254,13 @@ export function findEmbeddedHtmlViolations(html: string): string[] {
     violations.push(`fetching <link>: ${match[0]}`);
   }
 
+  // Unquoted attribute values are matched too. Vite does not minify HTML
+  // today, so nothing produces them, and a scan that only understood quoted
+  // values would wave through `<img src=/tree.svg>` if that ever changed.
   for (const match of markup.matchAll(
-    /\b(?:src|href|srcset|poster)\s*=\s*["']([^"']*)["']/gi,
+    /\b(?:src|href|srcset|poster)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi,
   )) {
-    const value = match[1] ?? "";
+    const value = match[1] ?? match[2] ?? match[3] ?? "";
     if (value.length === 0) continue;
     if (ALLOWED_URL_SCHEMES.test(value)) continue;
     violations.push(`document-relative URL: ${match[0]}`);
@@ -189,6 +269,9 @@ export function findEmbeddedHtmlViolations(html: string): string[] {
   if (markup.includes("/assets/")) {
     violations.push("markup references /assets/");
   }
+
+  violations.push(...findStyleViolations(html));
+  violations.push(...findEmbeddedCspViolations(html));
 
   return violations;
 }

@@ -20,18 +20,16 @@ jobs:
   embedded:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [22.22.x]
-
+    # Deliberately not a matrix: the artifact name below is fixed, so a second
+    # Node version would collide on upload.
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '22.22.x'
           cache: 'npm'
 
       - name: Install dependencies

@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("@/router/router", () => ({ ROUTES: { HOME: "/" } }));
 jest.mock("@/config", () => ({ QRL_PROVIDER: {} }));
-jest.mock("@/utils/nativeApp", () => ({ isInNativeApp: () => false }));
+jest.mock("@/utils/nativeApp", () => ({
+  isInNativeApp: () => false,
+  clearNativeInjectedPin: jest.fn(),
+}));
 jest.mock("@/utils/crypto/pinAttemptTracker", () => ({
   clearAttemptTracker: jest.fn(),
 }));

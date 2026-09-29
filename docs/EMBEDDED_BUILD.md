@@ -33,18 +33,32 @@ The output has no `<script src=>`, no `<link>` that fetches anything, and no
 - favicons, the web manifest, preloads, `dns-prefetch`, `preconnect` and the
   canonical link are stripped; each was a request to the origin
 
-Two checks enforce this. The build itself refuses to emit anything else
-(`config/vite.config.embedded.ts`), and `npm run check:embedded` re-reads the
-artifact from disk afterwards with no shared code
-(`scripts/check-embedded-output.mjs`). CI runs both.
+Two checks enforce this, and both apply the same rule set. The build refuses to
+emit anything else (`config/vite.config.embedded.ts`), and
+`npm run check:embedded` re-reads the artifact from disk afterwards with no
+shared code (`scripts/check-embedded-output.mjs`). CI runs both.
+
+Both also assert the policy below is the one actually in the document. A CSP
+rewrite that silently failed would leave `index.html`'s development policy,
+which grants `default-src 'self'`; under the WebView baseUrl `'self'` is
+qrlwallet.com, so that document would let the web server serve script again.
 
 ## Reproducibility
 
 The document contains no content hashes and no build-machine state, and the
 recorded build time comes from `SOURCE_DATE_EPOCH` when set, otherwise from the
-HEAD commit's own timestamp. Two builds of the same commit with the same
-dependency tree therefore produce byte-identical HTML, so the digest in a
-release can be reproduced from source:
+HEAD commit's own timestamp. Two builds produce byte-identical HTML when four
+things match: the commit, the installed dependency tree (`npm ci` from the
+committed lockfile), the `VITE_*` environment, and `EMBED_VIDEO`.
+
+The environment matters because Vite inlines `VITE_*` values into the bundle
+and this build also derives `connect-src` from them, so a machine with a local
+`.env` produces different bytes from CI, which has none. The build records
+`connectUrls`, `csp` and `embedVideo` in the build-info block precisely so a
+digest that differs for one of those reasons can be explained from the document
+itself.
+
+Given those, the digest in a release reproduces from source:
 
 ```bash
 git checkout <commit>
@@ -63,13 +77,16 @@ The document carries its own provenance in `<head>`:
 ```html
 <script type="application/json" id="qrl-embedded-build-info">
 {"product":"myqrlwallet-embedded","commit":"...","builtAt":"...",
+ "embedVideo":false,"connectUrls":[...],"csp":"...",
  "appScriptSha256":"...","appScriptBytes":...}
 </script>
 ```
 
-`appScriptSha256` is the sha256 of the inline application script exactly as
-shipped, so an auditor can hash the script they can read in the same file and
-compare, without rebuilding.
+`appScriptSha256` covers the inline application script exactly as shipped: the
+text between the newline after `<script type="module" id="qrl-embedded-app">`
+and the newline before `</script>`. `npm run check:embedded` recomputes it from
+the document and fails on a mismatch, so an auditor can verify the block
+without rebuilding and without having to guess the framing.
 
 ## Content-Security-Policy
 
@@ -95,8 +112,14 @@ Notes:
   script; there is no nonce to hand a document shipped inside an app binary.
   The property that matters is that no remote script source is allowed.
 - `'wasm-unsafe-eval'` is required by `src/utils/crypto/argon2.ts`, which drives
-  hash-wasm. `'unsafe-eval'` is deliberately absent: the bundle contains no
-  `eval()` and no `new Function()`.
+  hash-wasm. `'unsafe-eval'` is deliberately absent. The bundle does contain
+  three `Function(...)` call sites, none of which needs to succeed: a
+  `Function("return this")` globalThis polyfill a browser never reaches, a
+  `Function("" + handler)` branch of the setImmediate polyfill taken only for a
+  string handler, and zod's JIT feature probe, written as
+  `try { Function(""); } catch { /* interpret */ }`. The probe fails closed and
+  zod falls back to its interpreted parser, logging one CSP violation the first
+  time a schema is parsed. That is the policy working.
 - `img-src` allows remote https images because token logos and NFT artwork come
   from URLs the wallet does not control. It is the one deliberately broad
   directive; an image cannot exfiltrate wallet state beyond the URL it is

@@ -4,6 +4,7 @@ import { describe, expect, it } from "@jest/globals";
 import {
   EMBEDDED_RELAY_URLS,
   buildEmbeddedCsp,
+  findEmbeddedCspViolations,
   findEmbeddedHtmlViolations,
   inlineWorkerSpecifier,
   toHttpOrigin,
@@ -136,7 +137,7 @@ describe("relay allowlist", () => {
 describe("self-contained document scan", () => {
   const clean = [
     "<!doctype html><html><head>",
-    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'" />',
+    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\' \'wasm-unsafe-eval\'; connect-src https://qrlwallet.com" />',
     '<link rel="me" href="https://x.com/DigitalGuards" />',
     "<script>window.__QRL_EMBEDDED__=true</script>",
     '<script type="module" id="qrl-embedded-app">const a=1;</script>',
@@ -191,5 +192,95 @@ describe("self-contained document scan", () => {
       clean.replace("</body>", "<!-- /assets/index.js --></body>"),
     );
     expect(violations).toContain("markup references /assets/");
+  });
+
+  it("catches an unquoted relative attribute", () => {
+    const violations = findEmbeddedHtmlViolations(
+      clean.replace('<div id="root"></div>', "<img src=/tree.svg>"),
+    );
+    expect(violations.join("\n")).toContain("document-relative URL");
+  });
+
+  it("catches a link written without the self-closing slash", () => {
+    const violations = findEmbeddedHtmlViolations(
+      clean.replace("</head>", '<link rel="icon" href="/favicon.ico"></head>'),
+    );
+    expect(violations.join("\n")).toContain("fetching <link>");
+  });
+
+  it("catches a stylesheet that fetches a file", () => {
+    const violations = findEmbeddedHtmlViolations(
+      clean.replace("body{color:red}", "body{background:url(/tree.svg)}"),
+    );
+    expect(violations).toContain("the stylesheet fetches /tree.svg");
+  });
+
+  it("catches @import in the stylesheet", () => {
+    const violations = findEmbeddedHtmlViolations(
+      clean.replace("body{color:red}", '@import "https://fonts.example/x.css";'),
+    );
+    expect(violations).toContain("the stylesheet uses @import");
+  });
+
+  it("allows a url() reference nested inside a data: SVG", () => {
+    // The repo's noise texture is a percent-encoded SVG whose own markup
+    // contains filter='url(%23n)'. A scan that stopped at that inner bracket
+    // would report the fragment as a remote fetch and fail every build.
+    const nested =
+      "body{background-image:url(\"data:image/svg+xml,%3Csvg%3E%3Crect filter='url(%23n)'/%3E%3C/svg%3E\")}";
+    expect(
+      findEmbeddedHtmlViolations(clean.replace("body{color:red}", nested)),
+    ).toEqual([]);
+  });
+});
+
+describe("CSP enforcement", () => {
+  const withCsp = (content: string) =>
+    [
+      "<html><head>",
+      `<meta http-equiv="Content-Security-Policy" content="${content}" />`,
+      "</head><body></body></html>",
+    ].join("");
+
+  const embedded =
+    "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; connect-src https://qrlwallet.com";
+
+  it("accepts the locked-down embedded policy", () => {
+    expect(findEmbeddedCspViolations(withCsp(embedded))).toEqual([]);
+  });
+
+  it("rejects the development policy index.html ships", () => {
+    // The failure this guard exists for: the CSP rewrite silently not matching
+    // leaves this policy in place, and under the WebView baseUrl 'self' IS
+    // qrlwallet.com, so the web server could serve script again.
+    const indexHtml = readFileSync(join(repoRoot, "index.html"), "utf8");
+    const devCsp = indexHtml.match(
+      /http-equiv="Content-Security-Policy"\s*\n?\s*content="([^"]*)"/,
+    );
+    expect(devCsp).not.toBeNull();
+    const violations = findEmbeddedCspViolations(withCsp(devCsp?.[1] ?? ""));
+    expect(violations).toContain("the CSP still allows 'self'");
+    expect(violations).toContain("the CSP does not start from default-src 'none'");
+  });
+
+  it("rejects unsafe-eval, a remote script source and a missing policy", () => {
+    expect(
+      findEmbeddedCspViolations(withCsp(`${embedded}; script-src 'unsafe-eval'`)),
+    ).toContain("the CSP still allows 'unsafe-eval'");
+    expect(
+      findEmbeddedCspViolations(
+        withCsp("default-src 'none'; script-src 'unsafe-inline' https://cdn.example"),
+      ).join("\n"),
+    ).toContain("remote script source");
+    expect(findEmbeddedCspViolations("<html><head></head></html>")).toEqual([
+      "expected exactly one CSP meta, found 0",
+    ]);
+  });
+
+  it("is reached through the document scan", () => {
+    const violations = findEmbeddedHtmlViolations(
+      "<html><head></head><body></body></html>",
+    );
+    expect(violations).toContain("expected exactly one CSP meta, found 0");
   });
 });

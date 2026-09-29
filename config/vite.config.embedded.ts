@@ -197,10 +197,30 @@ const resolveConnectUrls = (mode: string): string[] => {
 }
 
 /**
+ * Insert markup directly after the document's <head> open tag.
+ *
+ * Everything this build adds to <head> goes in here rather than before
+ * `</head>`. Once the 2.6 MB application script is inlined, the document
+ * contains raw tag-like text inside that script (the minified bundle really
+ * does hold `<body>` and `<link` byte sequences), so anchoring on a closing
+ * tag risks splicing markup into the middle of the code. `<head>` is the
+ * first tag in the document and cannot be preceded by script content.
+ */
+const insertIntoHead = (html: string, markup: string): string => {
+  const index = html.indexOf('<head>')
+  if (index === -1) throw new Error('embedded build: index.html has no <head>')
+  const at = index + '<head>'.length
+  return `${html.slice(0, at)}\n${markup}${html.slice(at)}`
+}
+
+/**
  * Rewrite index.html for the embedded target:
- *   - swap the CSP meta for the embedded one
- *   - set the embedded runtime flag ahead of the app script, so the router
- *     picks hash routing before the first navigation
+ *   - swap the CSP meta for the embedded one, and fail if that did not happen.
+ *     A silent miss would ship index.html's development policy, which grants
+ *     `default-src 'self'`; under the WebView baseUrl `'self'` is
+ *     qrlwallet.com, so the web server could serve script again.
+ *   - set the embedded runtime flag before the app script, so the router picks
+ *     hash routing before the first navigation
  *   - drop every <link> that would fetch from the origin (favicons, manifest,
  *     preloads, dns-prefetch, preconnect, canonical). They are cosmetic in a
  *     WebView and each one is a live request to the server this build exists
@@ -212,16 +232,26 @@ const rewriteEmbeddedHtml = (csp: string): Plugin => ({
   transformIndexHtml: {
     order: 'post',
     handler(html: string) {
-      return html
-        .replace(
-          /<meta\s+http-equiv="Content-Security-Policy"[\s\S]*?\/>/,
-          `<meta http-equiv="Content-Security-Policy" content="${csp}" />`
-        )
-        .replace(
-          /[ \t]*<link\s+rel="(?:icon|apple-touch-icon|manifest|preload|preconnect|dns-prefetch|canonical)"[\s\S]*?\/>\n?/g,
-          ''
-        )
-        .replace('</head>', `  <script>${EMBEDDED_FLAG_SCRIPT}</script>\n  </head>`)
+      const embeddedMeta = `<meta http-equiv="Content-Security-Policy" content="${csp}" />`
+      // `<link\b[^>]*>` stops at the first `>`, so a tag written without the
+      // self-closing slash cannot make the match run on to the next one and
+      // delete everything in between. `rel` is matched anywhere in the tag.
+      const rewritten = insertIntoHead(
+        html
+          .replace(
+            /<meta\b[^>]*http-equiv\s*=\s*["']?Content-Security-Policy["']?[^>]*>/i,
+            embeddedMeta
+          )
+          .replace(
+            /[ \t]*<link\b(?=[^>]*\brel\s*=\s*["']?(?:icon|apple-touch-icon|manifest|preload|preconnect|dns-prefetch|canonical)\b)[^>]*>\n?/gi,
+            ''
+          ),
+        `    <script>${EMBEDDED_FLAG_SCRIPT}</script>\n`
+      )
+      if (!rewritten.includes(embeddedMeta)) {
+        throw new Error('embedded build: the Content-Security-Policy meta was not replaced')
+      }
+      return rewritten
     },
   },
 })
@@ -239,8 +269,16 @@ const rewriteEmbeddedHtml = (csp: string): Plugin => ({
  * tell a fetched URL from a label, and erring towards a build failure is what
  * keeps it worth having. Write such labels without the leading slash.
  */
-const assertSelfContained = (html: string) => {
+const assertSelfContained = (html: string, csp: string) => {
   const violations = findEmbeddedHtmlViolations(html)
+
+  // findEmbeddedHtmlViolations checks the policy structurally (one meta, no
+  // 'self', no 'unsafe-eval', no remote script source). This pins it to the
+  // exact policy this build generated, so a partially rewritten meta cannot
+  // pass by looking plausible.
+  if (!html.includes(`content="${csp}"`)) {
+    violations.push('the emitted CSP is not the policy this build generated')
+  }
 
   const walkPublic = (dir: string, prefix: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -273,7 +311,11 @@ const assertSelfContained = (html: string) => {
  * object in `generateBundle` leaves the files rolldown has already scheduled
  * for writing.
  */
-const emitSingleFile = (outDir: string): Plugin => ({
+const emitSingleFile = (
+  outDir: string,
+  csp: string,
+  connectUrls: string[]
+): Plugin => ({
   name: 'embedded-single-file',
   enforce: 'post',
   closeBundle() {
@@ -293,20 +335,28 @@ const emitSingleFile = (outDir: string): Plugin => ({
     // imports are inlined.
     html = html.replace(/[ \t]*<link[^>]*rel="modulepreload"[^>]*>\n?/g, '')
 
-    let appScript = ''
+    // Exactly one application script is expected. Two would leave
+    // `appScriptSha256` describing only the last one, so the provenance block
+    // would quietly cover a fraction of the shipped code.
+    const inlinedScripts: string[] = []
     html = html.replace(
-      /[ \t]*<script[^>]*\ssrc="([^"]+)"[^>]*><\/script>/g,
+      /[ \t]*<script[^>]*\ssrc\s*=\s*["']([^"']+)["'][^>]*><\/script>/gi,
       (match, href: string) => {
         const filePath = resolveHref(href)
         if (!filePath) return match
         consumed.add(filePath)
         // `</script>` inside a string literal would end the inline script tag.
         const code = fs.readFileSync(filePath, 'utf8').split('</script').join('<\\/script')
-        appScript = code
+        inlinedScripts.push(code)
         return `<script type="module" id="${APP_SCRIPT_ID}">\n${code}\n</script>`
       }
     )
-    if (appScript === '') throw new Error('embedded build: no application script was inlined')
+    if (inlinedScripts.length !== 1) {
+      throw new Error(
+        `embedded build: expected exactly one application script, inlined ${inlinedScripts.length}`
+      )
+    }
+    const appScript = inlinedScripts[0] ?? ''
 
     html = html.replace(
       /[ \t]*<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/g,
@@ -326,20 +376,30 @@ const emitSingleFile = (outDir: string): Plugin => ({
     // Provenance, written last so it covers the script exactly as shipped. An
     // auditor can rebuild the commit, diff the bytes, and check this block
     // against the script it can read in the same file.
+    //
+    // `connectUrls` and `embedVideo` are recorded because the commit alone
+    // does not fix the output: both come from the build environment, and a
+    // digest that differs for one of these reasons should be explainable from
+    // the document itself.
     const { commit, builtAt } = resolveBuildProvenance()
     const buildInfo = {
       product: 'myqrlwallet-embedded',
       commit,
       builtAt,
+      embedVideo: EMBED_VIDEO,
+      connectUrls,
+      csp,
+      // Hashed over the script text exactly as written between the newlines
+      // that follow `<script ...>` and precede `</script>`.
       appScriptSha256: sha256Hex(appScript),
       appScriptBytes: Buffer.byteLength(appScript),
     }
-    html = html.replace(
-      '</head>',
-      `  <script type="application/json" id="${BUILD_INFO_ID}">${JSON.stringify(buildInfo)}</script>\n  </head>`
+    html = insertIntoHead(
+      html,
+      `    <script type="application/json" id="${BUILD_INFO_ID}">${JSON.stringify(buildInfo)}</script>\n`
     )
 
-    assertSelfContained(html)
+    assertSelfContained(html, csp)
 
     fs.writeFileSync(htmlPath, html)
     for (const filePath of consumed) fs.rmSync(filePath)
@@ -371,10 +431,8 @@ const emitSingleFile = (outDir: string): Plugin => ({
 
 export default defineConfig(async (env) => {
   const base = await baseConfigFactory(env)
-  const csp = buildEmbeddedCsp({
-    connectUrls: resolveConnectUrls(env.mode),
-    relayUrls: EMBEDDED_RELAY_URLS,
-  })
+  const connectUrls = resolveConnectUrls(env.mode)
+  const csp = buildEmbeddedCsp({ connectUrls, relayUrls: EMBEDDED_RELAY_URLS })
 
   const rolldownOptions = {
     ...(base.build?.rolldownOptions ?? {}),
@@ -399,7 +457,7 @@ export default defineConfig(async (env) => {
       ...((base.plugins ?? []) as PluginOption[]),
       inlinePublicAssetLiterals(),
       rewriteEmbeddedHtml(csp),
-      emitSingleFile(path.join(projectRoot, EMBEDDED_OUT_DIR)),
+      emitSingleFile(path.join(projectRoot, EMBEDDED_OUT_DIR), csp, connectUrls),
     ],
     build: {
       ...base.build,
