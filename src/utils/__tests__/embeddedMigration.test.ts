@@ -35,6 +35,20 @@ const PRESERVED: ReadonlyArray<readonly [string, string]> = [
 
 const postMessage = jest.fn((_message: string) => undefined);
 
+/** The storage wrapper StorageUtil writes: { value, timestamp, version }. */
+const wrap = (value: unknown): string =>
+  JSON.stringify({ value, timestamp: Date.now(), version: "1" });
+
+const ACCOUNT_LIST_KEY = "TEST_NET_V3_QIP55_ACCOUNT_LIST";
+const LEGACY_ACCOUNT_LIST_KEY = "TEST_NET_ACCOUNT_LIST";
+
+const MIXED_ACCOUNTS = [
+  { address: "Q01", source: "seed" },
+  { address: "Q02", source: "mobile" },
+  { address: "Q03", source: "extension" },
+  "Q04",
+];
+
 const seedStorage = (): void => {
   for (const key of MIGRATION_SESSION_KEYS) {
     localStorage.setItem(key, '[{"id":"session"}]');
@@ -61,6 +75,97 @@ beforeEach(() => {
     value: { postMessage },
   });
   seedStorage();
+});
+
+describe("orphaned remote-signer rows", () => {
+  beforeEach(() => {
+    localStorage.setItem(ACCOUNT_LIST_KEY, wrap(MIXED_ACCOUNTS));
+    localStorage.setItem(
+      LEGACY_ACCOUNT_LIST_KEY,
+      wrap([{ address: "Q05", source: "mobile" }]),
+    );
+  });
+
+  it("removes mobile rows and keeps every other kind", () => {
+    setFlag(true);
+    runEmbeddedMigration();
+
+    const stored: { value: unknown[] } = JSON.parse(
+      localStorage.getItem(ACCOUNT_LIST_KEY) ?? "{}",
+    );
+    expect(stored.value).toEqual([
+      { address: "Q01", source: "seed" },
+      { address: "Q03", source: "extension" },
+      // A bare string is the legacy spelling of a seed account.
+      "Q04",
+    ]);
+  });
+
+  it("covers the pre-QIP-55 account list too", () => {
+    setFlag(true);
+    runEmbeddedMigration();
+
+    const legacy: { value: unknown[] } = JSON.parse(
+      localStorage.getItem(LEGACY_ACCOUNT_LIST_KEY) ?? "{}",
+    );
+    expect(legacy.value).toEqual([]);
+  });
+
+  it("keeps the storage wrapper intact", () => {
+    setFlag(true);
+    runEmbeddedMigration();
+
+    const stored: Record<string, unknown> = JSON.parse(
+      localStorage.getItem(ACCOUNT_LIST_KEY) ?? "{}",
+    );
+    expect(typeof stored["timestamp"]).toBe("number");
+    expect(stored["version"]).toBe("1");
+  });
+
+  it("removes nothing without the flag", () => {
+    expect(runEmbeddedMigration()).toBe(false);
+
+    const stored: { value: unknown[] } = JSON.parse(
+      localStorage.getItem(ACCOUNT_LIST_KEY) ?? "{}",
+    );
+    expect(stored.value).toEqual(MIXED_ACCOUNTS);
+  });
+
+  it("leaves a list with no mobile row byte-identical", () => {
+    const onlyLocal = wrap([{ address: "Q01", source: "seed" }]);
+    localStorage.setItem(ACCOUNT_LIST_KEY, onlyLocal);
+    setFlag(true);
+    runEmbeddedMigration();
+
+    expect(localStorage.getItem(ACCOUNT_LIST_KEY)).toBe(onlyLocal);
+  });
+
+  it("leaves a malformed account list untouched", () => {
+    for (const [key, raw] of [
+      ["TEST_NET_A_ACCOUNT_LIST", "not json"],
+      ["TEST_NET_B_ACCOUNT_LIST", JSON.stringify({ value: "not an array" })],
+      ["TEST_NET_C_ACCOUNT_LIST", JSON.stringify(null)],
+    ] as const) {
+      localStorage.setItem(key, raw);
+    }
+    setFlag(true);
+    runEmbeddedMigration();
+
+    expect(localStorage.getItem("TEST_NET_A_ACCOUNT_LIST")).toBe("not json");
+    expect(localStorage.getItem("TEST_NET_B_ACCOUNT_LIST")).toBe(
+      JSON.stringify({ value: "not an array" }),
+    );
+    expect(localStorage.getItem("TEST_NET_C_ACCOUNT_LIST")).toBe("null");
+  });
+
+  it("does not touch the encrypted seeds beside it", () => {
+    setFlag(true);
+    runEmbeddedMigration();
+
+    expect(localStorage.getItem("TEST_NET_V3_ENCRYPTED_SEEDS")).toBe(
+      '{"Q01":"cipher"}',
+    );
+  });
 });
 
 describe("migration when the app signals an upgrade", () => {

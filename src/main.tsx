@@ -1,3 +1,8 @@
+// First import in the application: zod reads this flag when a schema's parser
+// is built, so it has to be set before any schema is created. See the module
+// for why the JIT path was already unreachable under every deployment's CSP.
+import '@/utils/zodJitless'
+
 import { Buffer } from 'buffer';
 globalThis.Buffer = Buffer;
 

@@ -154,11 +154,15 @@ Notes:
   missing hash blocks the whole application, and a stale one is dead policy.
 - The CSP meta is the **first** element in `<head>`, ahead of every inline
   script, because a meta policy governs only what follows it.
-- `'wasm-unsafe-eval'` is required by hash-wasm. `'unsafe-eval'` is absent, so
-  zod's JIT feature probe is blocked and falls back to its interpreted parser.
-  That produces one `script-src :: eval` violation report the first time a
-  schema is parsed, which is the policy working and is unrelated to the inline
-  script hashes.
+- `'wasm-unsafe-eval'` is required by hash-wasm. `'unsafe-eval'` is absent.
+  zod used to probe for it with `new Function("")` on the first schema parse
+  and fall back to its interpreted parser, which worked but filed a
+  `script-src :: eval` violation report that reads like a finding.
+  `src/utils/zodJitless.ts` sets `jitless`, so the probe is never evaluated:
+  zod reads `jit && allowsEval.value` and the short circuit skips it. The JIT
+  path was already unreachable under every deployment's policy, including the
+  web build's, so this changes no behaviour. A headless load of the built
+  document now reports **zero** CSP violations.
 - `img-src` allows remote https images because token logos and NFT artwork come
   from URLs the wallet does not control. It is the one deliberately broad
   directive; an image cannot exfiltrate wallet state beyond the URL it is
@@ -218,6 +222,15 @@ script. `src/utils/embeddedRuntime.ts` is the single place that reads it.
   and then posts `{"type":"EMBEDDED_MIGRATION_DONE"}` over the bridge. No token
   field: the app's bootstrap adds the per-load token, and no bridge message
   type is added to the NativeBridge protocol.
+
+  It also drops `source: "mobile"` rows from the account list, in every
+  `*_ACCOUNT_LIST` key. Those are phones acting as remote signers over the
+  relay: they hold no seed, and with the session gone they can sign nothing,
+  so they would sit in the list as unusable rows.
+  `maybeRestoreMobileConnection` discards exactly these when it finds a
+  session missing, and clearing the SDK keys means it never gets the chance.
+  Seed, extension and legacy string rows are kept, and the stored
+  `{ value, timestamp, version }` wrapper is preserved.
 
   Nothing else is touched. sessionStorage holds no pairing state (the same
   names are removed there anyway, which costs nothing). The only IndexedDB
