@@ -20,6 +20,14 @@ jobs:
   embedded:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      # Needed by the attestation step below. Without id-token the action
+      # cannot mint an OIDC token and fails with
+      # "Unable to get ACTIONS_ID_TOKEN_REQUEST_URL".
+      id-token: write
+      attestations: write
+
     # Deliberately not a matrix: the artifact name below is fixed, so a second
     # Node version would collide on upload.
     steps:
@@ -48,7 +56,12 @@ jobs:
         working-directory: dist-embedded
         run: sha256sum -c index.html.sha256
 
+      # Only for documents that get published. An attestation ties an artifact
+      # to the workflow run and commit that produced it and is recorded in a
+      # public transparency log; doing that for every PR build would fill the
+      # log with documents nobody can pin.
       - name: Attest the build provenance
+        if: startsWith(github.ref, 'refs/tags/embedded-v')
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: dist-embedded/index.html
