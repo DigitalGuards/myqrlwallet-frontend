@@ -52,6 +52,7 @@ jest.mock("@/utils/nativeApp", () => ({
 }));
 
 import {
+  RelayChannelNotJoinedError,
   SocketClient,
   SocketNotConnectedError,
   _setSocketIoLoaderForTests,
@@ -88,6 +89,20 @@ function ackJoin(response: unknown): boolean {
   for (let index = emits.length - 1; index >= 0; index -= 1) {
     const entry = emits[index];
     if (entry && entry[0] === "join_channel" && entry[2]) {
+      const ack = entry[2];
+      entry[2] = undefined;
+      ack(response);
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Answer the last `message` frame that is still waiting on its ack. */
+function ackMessage(response: unknown): boolean {
+  for (let index = emits.length - 1; index >= 0; index -= 1) {
+    const entry = emits[index];
+    if (entry && entry[0] === "message" && entry[2]) {
       const ack = entry[2];
       entry[2] = undefined;
       ack(response);
@@ -164,6 +179,11 @@ describe("relay channel membership", () => {
     ).rejects.toBeInstanceOf(SocketNotConnectedError);
     expect(emits.some(([event]) => event === "message")).toBe(false);
 
+    // Delivery hangs off onReconnected, so it must not fire on the socket's
+    // `connect`: at that moment the relay has not taken the channel back and a
+    // frame would be refused.
+    expect(events.onReconnected).not.toHaveBeenCalled();
+
     ackJoin(JOIN_OK);
     await settle();
     expect(client.isJoined()).toBe(true);
@@ -233,6 +253,61 @@ describe("relay channel membership", () => {
     // back.
     expect(client.isJoined()).toBe(false);
     expect(client.willReconnect()).toBe(false);
+  });
+
+  it("treats a relay frame refusal as a lost membership and goes back for it", async () => {
+    // The relay's view can disagree with the client's: a relay restart, or a
+    // stale participant it evicted. It decides both membership refusals before
+    // it routes, buffers or sequences anything, so the caller can hold the
+    // frame. Reading the refusal as an ambiguous acknowledgement is what
+    // retired the pairing with a counter already spent.
+    const events = handlers();
+    const client = await pairedClient(events);
+
+    const send = client.sendMessage({
+      id: "channel-1",
+      clientType: "wallet",
+      message: "sealed",
+    });
+    expect(emits.some(([event]) => event === "message")).toBe(true);
+    ackMessage({ success: false, error: "Sender not in channel" });
+
+    // Typed, so the caller holds the frame instead of failing closed.
+    await expect(send).rejects.toBeInstanceOf(RelayChannelNotJoinedError);
+    await expect(send).rejects.toBeInstanceOf(SocketNotConnectedError);
+    expect(client.isJoined()).toBe(false);
+
+    // And it goes and gets the channel back on its own, because a successful
+    // rejoin is the only thing that puts the parked frame back on the wire.
+    await settle();
+    expect(joinCount()).toBe(1);
+    expect(client.willReconnect()).toBe(true);
+
+    ackJoin(JOIN_OK);
+    await settle();
+    expect(client.isJoined()).toBe(true);
+    expect(events.onReconnected).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps failing closed on an acknowledgement that may have been delivered", async () => {
+    // A replay rejection can mean an earlier copy did land, and the relay
+    // decides "Counterparty transport unavailable" after routing. Neither is
+    // safe to retry, so both stay ordinary errors and the caller tombstones.
+    const client = await pairedClient(handlers());
+
+    for (const error of [
+      "Duplicate or out-of-order message (replay rejected)",
+      "Counterparty transport unavailable",
+    ]) {
+      const send = client.sendMessage({
+        id: "channel-1",
+        clientType: "wallet",
+        message: "sealed",
+      });
+      ackMessage({ success: false, error });
+      await expect(send).rejects.not.toBeInstanceOf(SocketNotConnectedError);
+      expect(client.isJoined()).toBe(true);
+    }
   });
 
   it("drops membership on leave and on close", async () => {

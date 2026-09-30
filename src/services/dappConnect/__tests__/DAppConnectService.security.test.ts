@@ -63,6 +63,8 @@ let mockJoinResult: MockJoinResult = {
   terminated: false,
 };
 let mockBeforeSendHook: (() => Promise<void>) | null = null;
+/** The relay answers the frame with a pre-delivery refusal. */
+let mockRelayRefusesFrame = false;
 let mockSendHook: ((data: RelayMessage) => Promise<void>) | null = null;
 let mockLeaveHook: (() => Promise<boolean>) | null = null;
 let mockCloseHook: (() => Promise<boolean>) | null = null;
@@ -72,13 +74,22 @@ let mockCloseHook: (() => Promise<boolean>) | null = null;
 // instanceof check meaningful in these tests.
 jest.mock("../SocketClient", () => {
   class MockSocketNotConnectedError extends Error {
-    constructor() {
-      super("Socket not connected");
+    constructor(message = "Socket not connected") {
+      super(message);
       this.name = "SocketNotConnectedError";
+    }
+  }
+  // A subclass in the real module too, so the service's single instanceof
+  // check covers both and a membership refusal is held rather than tombstoned.
+  class MockRelayChannelNotJoinedError extends MockSocketNotConnectedError {
+    constructor(message = "Relay channel not joined") {
+      super(message);
+      this.name = "RelayChannelNotJoinedError";
     }
   }
   return {
   SocketNotConnectedError: MockSocketNotConnectedError,
+  RelayChannelNotJoinedError: MockRelayChannelNotJoinedError,
   SocketClient: class {
     relayUrl: string;
     handlers: MockSocketHandlers;
@@ -146,6 +157,13 @@ jest.mock("../SocketClient", () => {
       // dying between the checkpoint and the send: nothing is emitted and
       // nothing is recorded as sent.
       if (mockBeforeSendHook) await mockBeforeSendHook();
+      // The relay's own view refuses the frame before delivering or buffering
+      // it. The real client turns that acknowledgement into this typed error
+      // and drops its membership claim.
+      if (mockRelayRefusesFrame) {
+        this.joined = false;
+        throw new MockRelayChannelNotJoinedError("Sender not in channel");
+      }
       // Mirrors the real client: a socket known to be down rejects before
       // anything is emitted, and nothing is recorded as sent. Without this
       // neither the old fail-closed behaviour nor a drop between the
@@ -552,6 +570,7 @@ beforeEach(() => {
   };
   mockSendHook = null;
   mockBeforeSendHook = null;
+  mockRelayRefusesFrame = false;
   mockLeaveHook = null;
   mockCloseHook = null;
   (
@@ -565,6 +584,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   mockSendHook = null;
+  mockRelayRefusesFrame = false;
   mockLeaveHook = null;
   mockCloseHook = null;
   await Promise.all(services.map((service) => service.disconnectAll()));
@@ -1206,6 +1226,66 @@ describe("wallet service AEAD checkpointing", () => {
     expect(
       await decryptWalletFrame(pairing, socket.sent[0]),
     ).toMatchObject({ id: 1, result: "0xhash" });
+  });
+
+  it("parks rather than tombstones when the relay refuses the frame", async () => {
+    // The client believed it was in the channel and the relay disagreed: a
+    // relay restart, or a stale participant it evicted. The refusal is decided
+    // before anything is routed, buffered or sequenced, so the sealed frame is
+    // parked and goes out unchanged once the channel is back. Reading that
+    // acknowledgement as ambiguous is what retired the pairing mid-approval,
+    // with a counter already spent and the dApp told nothing.
+    const pairing = await makePairing("relay-refuses-frame");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    const sealedBefore =
+      SessionStore.get(pairing.session.id)?.keyExchange.sendSeq ?? -1;
+
+    mockRelayRefusesFrame = true;
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await settle();
+
+    // No delivery, and no teardown of any kind.
+    expect(socket.sent).toHaveLength(0);
+    expect(socket.closeCalls).toBe(0);
+    expect(socket.leaveCalls).toBe(0);
+    expect(SessionStore.get(pairing.session.id)).not.toBeNull();
+
+    const held = (
+      Object(service) as {
+        connections: Map<
+          string,
+          {
+            pendingRetransmit: unknown;
+            offlineOutbox: unknown[];
+            cryptoUsable: boolean;
+          }
+        >;
+      }
+    ).connections.get(pairing.session.id);
+    // Sealed, so its counter is spent and checkpointed: the frame is parked and
+    // the plaintext is NOT also queued, or the dApp would get it twice.
+    expect(held?.cryptoUsable).toBe(true);
+    expect(held?.pendingRetransmit).not.toBeNull();
+    expect(held?.offlineOutbox).toHaveLength(0);
+    expect(
+      SessionStore.get(pairing.session.id)?.keyExchange.sendSeq,
+    ).toBeGreaterThan(sealedBefore);
+
+    // The rejoin the client kicked off lands.
+    mockRelayRefusesFrame = false;
+    socket.joined = true;
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length === 1);
+
+    // Exactly one answer, at the counter it was sealed with, so the dApp's
+    // stream stays contiguous.
+    expect(
+      await decryptWalletFrame(pairing, socket.sent[0]),
+    ).toMatchObject({ id: 1, result: "0xhash" });
+    await settle();
+    expect(socket.sent).toHaveLength(1);
   });
 
   it("delivers an answer exactly once when the socket drops between the checkpoint and the send", async () => {

@@ -132,6 +132,40 @@ export class SocketNotConnectedError extends Error {
   }
 }
 
+/**
+ * The socket is up and the relay does not have it in the channel.
+ *
+ * A subclass, so every caller that already treats SocketNotConnectedError as
+ * "nothing left this process, hold it" keeps working unchanged, while a caller
+ * that wants to tell the two apart can.
+ */
+export class RelayChannelNotJoinedError extends SocketNotConnectedError {
+  constructor(message = 'Relay channel not joined') {
+    super(message);
+    this.name = 'RelayChannelNotJoinedError';
+  }
+}
+
+/**
+ * Relay acknowledgement errors that are refusals BEFORE anything is delivered
+ * or buffered, and that a rejoin can clear.
+ *
+ * `channelManager.routeMessage` returns both of these before it touches any
+ * channel state: the channel lookup and the participant lookup come first, so
+ * no message was routed, none was buffered, and no replay sequence was
+ * recorded. Re-sending the identical sealed bytes at the same counter is
+ * therefore correct, and the peer's AEAD stream stays contiguous.
+ *
+ * Nothing else is on this list on purpose. A replay rejection may mean an
+ * earlier copy did land, and "Counterparty transport unavailable" is raised
+ * after routing has already been decided, so both stay ambiguous and keep
+ * failing closed.
+ */
+const MEMBERSHIP_REFUSALS = new Set([
+  'Sender not in channel',
+  'Channel not found',
+]);
+
 /** Retries after a server-initiated disconnect, and the first delay. */
 const MANUAL_RECONNECT_ATTEMPTS = 4;
 const MANUAL_RECONNECT_BASE_MS = 1_000;
@@ -413,6 +447,21 @@ export class SocketClient {
     }, delay);
   }
 
+  /**
+   * The relay says this socket is not in the channel after all.
+   *
+   * Drops the local membership claim and starts a fresh rejoin, with a fresh
+   * budget, because this is a new episode rather than a continuation of one
+   * the retries already gave up on. Callers hold their message meanwhile, and
+   * the successful rejoin delivers it.
+   */
+  private loseMembership(): void {
+    this.joined = false;
+    if (this.rejoinInFlight || this.rejoinTimer !== null) return;
+    this.rejoinAttempts = 0;
+    this.attemptRejoin();
+  }
+
   private cancelRejoinRetry(): void {
     if (this.rejoinTimer !== null) {
       clearTimeout(this.rejoinTimer);
@@ -527,7 +576,7 @@ export class SocketClient {
         // non-member with "Sender not in channel", and the caller reads that
         // rejected acknowledgement as ambiguous and retires the pairing. Refuse
         // here instead, before any emit, so the message is simply held.
-        reject(new SocketNotConnectedError('Relay channel not joined'));
+        reject(new RelayChannelNotJoinedError());
         return;
       }
       let settled = false;
@@ -553,6 +602,16 @@ export class SocketClient {
               response['error'].length <= MAX_RELAY_ERROR_LENGTH
                 ? response['error']
                 : 'Failed to send';
+            if (MEMBERSHIP_REFUSALS.has(message)) {
+              // The relay's own view says this socket is not in the channel,
+              // and it refused before delivering or buffering anything. The
+              // client's view was stale, so correct it here and go get the
+              // channel back: a successful rejoin is what puts the sealed
+              // frame and anything held back on the wire.
+              this.loseMembership();
+              finish(new RelayChannelNotJoinedError(message));
+              return;
+            }
             finish(new Error(message));
           }
         });

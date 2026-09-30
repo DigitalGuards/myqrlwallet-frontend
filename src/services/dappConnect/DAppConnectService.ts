@@ -2570,10 +2570,15 @@ export class DAppConnectService {
   /**
    * Put one sealed frame on the wire.
    *
-   * A socket known to be down before anything was emitted is unambiguous: the
-   * frame is kept for retransmission and the caller is told to hold. Every
-   * other failure is a rejected or missing acknowledgement, which the relay
-   * may still have accepted, so it stays fail-closed.
+   * Two failures are unambiguous, and both keep the frame for retransmission
+   * and tell the caller to hold: a socket known to be down before anything was
+   * emitted, and a relay refusal that names a pre-delivery reason. The relay
+   * decides both of its membership refusals before it routes, buffers or
+   * records a sequence number, so the same sealed bytes go out again at the
+   * same counter and the peer's stream stays contiguous.
+   *
+   * Every other failure is a rejected or missing acknowledgement, which the
+   * relay may still have accepted, so it stays fail-closed.
    */
   private async emitFrame(
     channelId: string,
@@ -2587,6 +2592,8 @@ export class DAppConnectService {
         message: encrypted,
       });
     } catch (err) {
+      // RelayChannelNotJoinedError is a subclass, so a membership refusal
+      // lands here too.
       if (err instanceof SocketNotConnectedError) {
         conn.pendingRetransmit = { encrypted };
         throw err;
