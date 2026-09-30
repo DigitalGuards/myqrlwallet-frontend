@@ -122,6 +122,47 @@ describe('waitForTransactionReceipt', () => {
     expect(getReceipt).toHaveBeenCalledTimes(1);
   });
 
+  it('stops when the caller says its reason to watch has gone', async () => {
+    // The dApp approval modal watches an unknown broadcast outcome. Closing
+    // the modal, disconnecting the session or logging out ends any reason to
+    // keep polling, and without this it kept asking the node for seven
+    // minutes on a phone that had already moved on.
+    const getReceipt = jest.fn<Promise<typeof RECEIPT | null>, [string]>().mockResolvedValue(null);
+    let watching = true;
+
+    const resultPromise = waitForTransactionReceipt(getReceipt, HASH, {
+      intervalMs: 1000,
+      timeoutMs: 600_000,
+      cancelled: () => !watching,
+    });
+
+    await jest.advanceTimersByTimeAsync(3000);
+    expect(getReceipt).toHaveBeenCalledTimes(3);
+
+    watching = false;
+    await jest.advanceTimersByTimeAsync(1000);
+    await expect(resultPromise).resolves.toEqual({ status: 'timeout' });
+
+    // Nothing further is asked of the node, even though the window had
+    // almost ten minutes left to run.
+    const callsAtCancellation = getReceipt.mock.calls.length;
+    await jest.advanceTimersByTimeAsync(600_000);
+    expect(getReceipt).toHaveBeenCalledTimes(callsAtCancellation);
+  });
+
+  it('never polls at all when the caller is already gone', async () => {
+    const getReceipt = jest.fn<Promise<typeof RECEIPT | null>, [string]>().mockResolvedValue(null);
+
+    const resultPromise = waitForTransactionReceipt(getReceipt, HASH, {
+      intervalMs: 1000,
+      timeoutMs: 60_000,
+      cancelled: () => true,
+    });
+
+    await expect(resultPromise).resolves.toEqual({ status: 'timeout' });
+    expect(getReceipt).not.toHaveBeenCalled();
+  });
+
   it('polls at least once even when timeoutMs < intervalMs', async () => {
     const getReceipt = jest.fn<Promise<typeof RECEIPT>, [string]>().mockResolvedValue(RECEIPT);
 

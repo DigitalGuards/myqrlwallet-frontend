@@ -101,13 +101,40 @@ type SocketEventHandler = {
   onConnected: () => void;
   onDisconnected: (reason: string) => void;
   onReconnected: () => void;
+  /**
+   * The relay disconnected this socket and it will not come back. Anything
+   * held for the channel is undeliverable, so the session should be retired.
+   */
+  onReconnectAbandoned?: () => void;
   onParticipantsChanged: (data: ParticipantChange) => void;
   /** The relay reported a terminated (tombstoned) channel on (re)join. */
   onTerminated?: () => void;
 };
 
+/**
+ * The socket was known to be down before anything was emitted.
+ *
+ * Distinct from every other send failure: a rejected or missing relay
+ * acknowledgement is ambiguous, because the relay may have accepted the frame
+ * without the wallet seeing the ack, while this one cannot have been seen by
+ * anyone.
+ */
+export class SocketNotConnectedError extends Error {
+  constructor() {
+    super('Socket not connected');
+    this.name = 'SocketNotConnectedError';
+  }
+}
+
+/** Retries after a server-initiated disconnect, and the first delay. */
+const MANUAL_RECONNECT_ATTEMPTS = 4;
+const MANUAL_RECONNECT_BASE_MS = 1_000;
+
 export class SocketClient {
   private socket: Socket | null = null;
+  /** Manual retries after a server-initiated disconnect. */
+  private manualReconnectAttempts = 0;
+  private manualReconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private connectedAt: number | null = null;
   private relayUrl: string;
   private channelId: string | null = null;
@@ -186,6 +213,15 @@ export class SocketClient {
 
     socket.on('connect', () => {
       this.connectedAt = Date.now();
+      // The budget is NOT reset here. The relay refuses inside its own
+      // connection handler, so a refused socket still sees `connect` first:
+      // resetting on connect made the budget unreachable and turned the
+      // give-up path into an endless 1 Hz retry loop against a relay that was
+      // shedding load. It is reset after a successful rejoin instead.
+      if (this.manualReconnectTimer !== null) {
+        clearTimeout(this.manualReconnectTimer);
+        this.manualReconnectTimer = null;
+      }
       logToNative(`[SocketClient] connected via ${this.transportName()}`);
       this.handlers.onConnected();
 
@@ -206,6 +242,9 @@ export class SocketClient {
             for (const msg of bufferedMessages) {
               this.handlers.onMessage(msg as RelayMessage);
             }
+            // A completed rejoin is the first moment the relay has actually
+            // taken this channel back, so the retry budget is refilled here.
+            this.manualReconnectAttempts = 0;
             this.handlers.onReconnected();
           })
           .catch((err) => {
@@ -237,6 +276,7 @@ export class SocketClient {
           `visible=${visible}; online=${online}`
       );
       this.handlers.onDisconnected(reason);
+      this.scheduleManualReconnect(reason);
     });
 
     socket.on('message', (data: RelayMessage) => {
@@ -379,7 +419,10 @@ export class SocketClient {
   sendMessage(data: RelayMessage): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.socket?.connected) {
-        reject(new Error('Socket not connected'));
+        // Raised before any emit, so nothing left this process. The caller can
+        // treat it as unambiguous and keep the message, which a rejected or
+        // missing acknowledgement never allows.
+        reject(new SocketNotConnectedError());
         return;
       }
       let settled = false;
@@ -473,6 +516,12 @@ export class SocketClient {
 
   disconnect(): void {
     this.lifecycleGeneration += 1;
+    // An explicit disconnect ends any manual retry: this socket is done.
+    if (this.manualReconnectTimer !== null) {
+      clearTimeout(this.manualReconnectTimer);
+      this.manualReconnectTimer = null;
+    }
+    this.manualReconnectAttempts = 0;
     for (const cancel of [...this.pendingConnectCancellations]) cancel();
     this.pendingConnectCancellations.clear();
     this.connectPromise = null;
@@ -490,5 +539,62 @@ export class SocketClient {
 
   isConnected(): boolean {
     return this.socket?.connected ?? false;
+  }
+
+  /**
+   * Whether this socket can still come back on its own or through the retry
+   * below. False once a server-initiated disconnect has exhausted its retries,
+   * which is the signal that anything held for this channel will never be
+   * delivered and the session should be retired rather than left waiting.
+   */
+  willReconnect(): boolean {
+    if (this.socket?.connected) return true;
+    if (this.socket?.active) return true;
+    return this.manualReconnectTimer !== null;
+  }
+
+  /**
+   * Come back after a server-initiated disconnect.
+   *
+   * socket.io gives up permanently on `io server disconnect`: Socket.ondisconnect
+   * destroys the manager, `socket.active` goes false, and nothing retries. The
+   * relay uses exactly that for its rate limits, its per-IP and global caps and
+   * its backpressure paths, so an ordinary phone behind carrier NAT can hit it.
+   * Without a retry the channel sits in RECONNECTING until the page reloads,
+   * and anything held for it is never delivered.
+   *
+   * Bounded, because a relay that keeps refusing is telling the truth. When the
+   * retries run out the handler is told, so the session can be retired cleanly
+   * instead of becoming a ghost.
+   */
+  private scheduleManualReconnect(reason: string): void {
+    if (reason !== 'io server disconnect') return;
+    if (this.manualReconnectTimer !== null) return;
+
+    if (this.manualReconnectAttempts >= MANUAL_RECONNECT_ATTEMPTS) {
+      console.warn(
+        `[SocketClient] relay refused ${this.manualReconnectAttempts} reconnects; giving up`
+      );
+      this.manualReconnectAttempts = 0;
+      this.handlers.onReconnectAbandoned?.();
+      return;
+    }
+
+    // Exponential, with jitter: many phones behind one carrier NAT hit the
+    // relay's per-IP connect limit together, and a fixed interval would have
+    // them all retry in lockstep and keep tripping it.
+    const backoff =
+      MANUAL_RECONNECT_BASE_MS * Math.pow(2, this.manualReconnectAttempts);
+    const delay = Math.round(backoff * (0.5 + Math.random()));
+    this.manualReconnectAttempts += 1;
+    this.manualReconnectTimer = setTimeout(() => {
+      this.manualReconnectTimer = null;
+      try {
+        this.socket?.connect();
+      } catch (err) {
+        console.warn('[SocketClient] manual reconnect failed:', err);
+        this.scheduleManualReconnect(reason);
+      }
+    }, delay);
   }
 }
