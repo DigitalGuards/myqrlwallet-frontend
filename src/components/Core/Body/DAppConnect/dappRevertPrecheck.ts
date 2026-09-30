@@ -17,6 +17,8 @@
  * clear revert lets the transaction proceed.
  */
 
+import { ContractExecutionError, Eip838ExecutionError } from "@theqrl/web3";
+
 /**
  * The subset of the provider this needs.
  *
@@ -64,8 +66,11 @@ export class TransactionWouldRevertError extends Error {
 export const REVERT_PRECHECK_TIMEOUT_MS = 8_000;
 
 /**
- * Phrases a node uses when execution reverted, as opposed to a request it
- * could not serve. Anything unrecognised is treated as "could not answer".
+ * Phrases a node uses when execution failed, for the errors the client passes
+ * through as text. Anything unrecognised is treated as "could not answer".
+ *
+ * These only cover `InvalidResponseError`, which carries the node's own
+ * message. A genuine revert arrives as something else entirely; see below.
  */
 const REVERT_MARKERS = [
   "revert",
@@ -89,6 +94,23 @@ function revertReason(error: unknown): string | null {
   // timeout as "revert pre-check timed out", which the scan below then read
   // as a revert and used to block a send on a slow node.
   if (error instanceof PrecheckTimeoutError) return null;
+
+  // How a real revert actually arrives. @theqrl/web3 wraps a node revert
+  // (JSON-RPC code 3, or -32000 "execution reverted") in a
+  // ContractExecutionError whose own message is the generic "Error happened
+  // while trying to execute a function inside a smart contract". The revert
+  // text is only on the inner Eip838ExecutionError. Scanning the outer
+  // message for the word "revert" therefore matched nothing, and every real
+  // revert was waved through as "the node could not answer".
+  if (error instanceof ContractExecutionError) {
+    const inner = error.innerError;
+    if (inner instanceof Eip838ExecutionError) {
+      const detail = inner.message.split(/execution reverted:?/i).pop()?.trim() ?? "";
+      return detail || inner.message.trim() || "the call reverted";
+    }
+    return error.message.trim() || "the call reverted";
+  }
+
   const message =
     error instanceof Error ? error.message : typeof error === "string" ? error : "";
   if (!message) return null;

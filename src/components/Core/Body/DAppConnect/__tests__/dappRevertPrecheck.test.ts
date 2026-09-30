@@ -1,11 +1,25 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { Web3 } from "@theqrl/web3";
 import {
   TransactionWouldRevertError,
   asOptionalString,
   assertTransactionWouldNotRevert,
 } from "../dappRevertPrecheck";
 
-const tx = { from: "Q01", to: "Q02", value: "0x0", data: "0xdead", gas: "0x5208" };
+const tx = { from: `Q${"1".repeat(128)}`, to: `Q${"2".repeat(128)}`, value: "0x0", data: "0xdead", gas: "0x5208" };
+
+/** A real Web3 whose node answers qrl_call with one JSON-RPC error. */
+function nodeAnswering(error: { code: number; message: string; data?: string }) {
+  return new Web3({
+    provider: {
+      request: async ({ method }: { method: string }) => {
+        if (method === "qrl_call") return { jsonrpc: "2.0", id: 1, error };
+        return { jsonrpc: "2.0", id: 1, result: null };
+      },
+      supportsSubscriptions: () => false,
+    },
+  });
+}
 
 describe("revert pre-check", () => {
   it("passes a call that returns", async () => {
@@ -32,21 +46,50 @@ describe("revert pre-check", () => {
   });
 
   it("stops a transaction the node says reverts", async () => {
-    const call = jest.fn(async () => {
-      throw new Error("execution reverted: ERC20: transfer amount exceeds balance");
+    // Driven through the real client, because @theqrl/web3 does not surface a
+    // revert as an Error whose message says "revert". It wraps it in a
+    // ContractExecutionError whose own message is generic, with the revert
+    // text only on the inner Eip838ExecutionError. A hand-made
+    // `new Error("execution reverted: ...")` hides that entirely, and the
+    // first version of this check passed such a test while letting every real
+    // revert through.
+    const web3 = nodeAnswering({
+      code: 3,
+      message: "execution reverted: ERC20: transfer amount exceeds balance",
+      data: "0x08c379a0",
     });
-    await expect(assertTransactionWouldNotRevert({ call }, tx)).rejects.toThrow(
-      TransactionWouldRevertError,
-    );
+    await expect(
+      assertTransactionWouldNotRevert(web3.qrl, tx),
+    ).rejects.toThrow(TransactionWouldRevertError);
   });
 
   it("carries the node's reason, so the user sees why", async () => {
-    const call = jest.fn(async () => {
-      throw new Error("execution reverted: ERC20: transfer amount exceeds balance");
+    const web3 = nodeAnswering({
+      code: 3,
+      message: "execution reverted: ERC20: transfer amount exceeds balance",
     });
-    await expect(assertTransactionWouldNotRevert({ call }, tx)).rejects.toThrow(
-      /ERC20: transfer amount exceeds balance/,
-    );
+    await expect(
+      assertTransactionWouldNotRevert(web3.qrl, tx),
+    ).rejects.toThrow(/ERC20: transfer amount exceeds balance/);
+  });
+
+  it("stops a bare execution-reverted with no reason string", async () => {
+    const web3 = nodeAnswering({ code: -32000, message: "execution reverted" });
+    await expect(
+      assertTransactionWouldNotRevert(web3.qrl, tx),
+    ).rejects.toThrow(TransactionWouldRevertError);
+  });
+
+  it("lets a node that does not serve the method through", async () => {
+    // InvalidResponseError, which is what "could not answer" really looks
+    // like through the client.
+    const web3 = nodeAnswering({
+      code: -32601,
+      message: "the method qrl_call does not exist/is not available",
+    });
+    await expect(
+      assertTransactionWouldNotRevert(web3.qrl, tx),
+    ).resolves.toBeUndefined();
   });
 
   it("lets the send proceed when the node simply could not answer", async () => {

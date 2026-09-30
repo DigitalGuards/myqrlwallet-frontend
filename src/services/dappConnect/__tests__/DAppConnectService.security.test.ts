@@ -18,6 +18,8 @@ interface MockSocketHandlers {
   onConnected: () => void;
   onDisconnected: (reason: string) => void;
   onReconnected: () => void;
+  /** The relay disconnected this socket and it will not come back. */
+  onReconnectAbandoned?: () => void;
   onParticipantsChanged: (data: { event: string; clientType?: string }) => void;
   onTerminated?: () => void;
 }
@@ -30,6 +32,8 @@ interface MockJoinResult {
 
 interface MockSocketInstance {
   relayUrl: string;
+  /** Mirrors SocketClient.willReconnect; false models a relay that gave up. */
+  canReconnect: boolean;
   handlers: MockSocketHandlers;
   sent: RelayMessage[];
   /** Mirrors SocketClient.isConnected, which the service checks before sealing. */
@@ -60,7 +64,18 @@ let mockSendHook: ((data: RelayMessage) => Promise<void>) | null = null;
 let mockLeaveHook: (() => Promise<boolean>) | null = null;
 let mockCloseHook: (() => Promise<boolean>) | null = null;
 
-jest.mock("../SocketClient", () => ({
+// The whole module is replaced, so the error class is declared inside the
+// factory: the service imports it from this mock, which is what makes its
+// instanceof check meaningful in these tests.
+jest.mock("../SocketClient", () => {
+  class MockSocketNotConnectedError extends Error {
+    constructor() {
+      super("Socket not connected");
+      this.name = "SocketNotConnectedError";
+    }
+  }
+  return {
+  SocketNotConnectedError: MockSocketNotConnectedError,
   SocketClient: class {
     relayUrl: string;
     handlers: MockSocketHandlers;
@@ -88,6 +103,16 @@ jest.mock("../SocketClient", () => ({
       return this.connected;
     }
 
+    /**
+     * Mirrors SocketClient.willReconnect. Tests that model a relay which has
+     * given up for good set this to false.
+     */
+    canReconnect = true;
+
+    willReconnect(): boolean {
+      return this.connected || this.canReconnect;
+    }
+
     async connect(): Promise<void> {
       this.connectCalls++;
       this.connected = true;
@@ -102,6 +127,11 @@ jest.mock("../SocketClient", () => ({
     }
 
     async sendMessage(data: RelayMessage): Promise<void> {
+      // Mirrors the real client: a socket known to be down rejects before
+      // anything is emitted, and nothing is recorded as sent. Without this
+      // neither the old fail-closed behaviour nor a drop between the
+      // checkpoint and the send could be reproduced here.
+      if (!this.connected) throw new MockSocketNotConnectedError();
       this.sent.push(data);
       if (mockSendHook) await mockSendHook(data);
     }
@@ -120,9 +150,11 @@ jest.mock("../SocketClient", () => ({
 
     disconnect(): void {
       this.disconnectCalls++;
+      this.connected = false;
     }
   },
-}));
+  };
+});
 
 jest.mock("@/stores/store", () => ({
   store: {
@@ -330,6 +362,19 @@ function firstSocket(): MockSocketInstance {
   const socket = mockSocketClientInstances[0];
   if (!socket) throw new Error("Expected a SocketClient instance");
   return socket;
+}
+
+/**
+ * Let every queued microtask and timer callback run.
+ *
+ * `waitFor(() => true)` returns immediately and waits for nothing, so a test
+ * that used it to "let the service settle" asserted against state the service
+ * had not reached yet.
+ */
+async function settle(turns = 20): Promise<void> {
+  for (let turn = 0; turn < turns; turn++) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
 }
 
 async function waitFor(predicate: () => boolean): Promise<void> {
@@ -953,7 +998,7 @@ describe("wallet service AEAD checkpointing", () => {
     socket.connected = false;
 
     approveTracked(service, pairing.session.id, 1, "0xhash");
-    await waitFor(() => true);
+    await settle();
 
     expect(socket.sent).toHaveLength(0);
     // The session survives: no tombstone, no teardown.
@@ -983,7 +1028,7 @@ describe("wallet service AEAD checkpointing", () => {
 
     socket.connected = false;
     approveTracked(service, pairing.session.id, 1, "0xfirst");
-    await waitFor(() => true);
+    await settle();
     socket.connected = true;
     socket.handlers.onReconnected?.();
     await waitFor(() => socket.sent.length === 1);
@@ -1010,9 +1055,9 @@ describe("wallet service AEAD checkpointing", () => {
     socket.connected = false;
 
     approveTracked(service, pairing.session.id, 1, "0xone");
-    await waitFor(() => true);
+    await settle();
     approveTracked(service, pairing.session.id, 2, "0xtwo");
-    await waitFor(() => true);
+    await settle();
 
     socket.connected = true;
     socket.handlers.onReconnected?.();
@@ -1026,6 +1071,149 @@ describe("wallet service AEAD checkpointing", () => {
       results.push(decoded["result"]);
     }
     expect(results).toEqual(["0xone", "0xtwo"]);
+  });
+
+  it("holds an answer when the socket drops after the reachability check", async () => {
+    // Check-then-act: the check happens when the message is enqueued, the
+    // seal happens later inside the serialized task. A WebView that
+    // backgrounds in between resumes with the socket already closed, and
+    // sealing then spends a counter on a frame nobody sees.
+    const pairing = await makePairing("drop-after-check");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    mockSendHook = async () => {
+      // The drop lands while the task is in flight.
+      socket.connected = false;
+    };
+
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await settle();
+    mockSendHook = null;
+
+    // The pairing survives: no tombstone, no teardown, session still stored.
+    expect(socket.closeCalls).toBe(0);
+    expect(SessionStore.get(pairing.session.id)).not.toBeNull();
+
+    socket.connected = true;
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length >= 1);
+    expect(SessionStore.get(pairing.session.id)).not.toBeNull();
+  });
+
+  it("refuses to hold for a socket that will never reconnect", async () => {
+    // The relay force-disconnects on its rate limits and caps, and socket.io
+    // never retries a server-initiated disconnect. Queueing for such a socket
+    // would leave a ghost session absorbing answers until the 5 minute TTL.
+    const pairing = await makePairing("no-reconnect");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    socket.connected = false;
+    socket.canReconnect = false;
+
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await settle();
+
+    // Nothing was held for a socket that cannot come back.
+    expect(socket.sent).toHaveLength(0);
+
+    // And when the client gives up, the session is retired rather than left
+    // in RECONNECTING absorbing answers nobody will receive.
+    socket.handlers.onReconnectAbandoned?.();
+    await waitFor(() => SessionStore.get(pairing.session.id) === null);
+  });
+
+  it("answers an account request that was approved while the relay was away", async () => {
+    // WALLET_INFO and the JSON-RPC answer both have to reach the dApp. The
+    // first version stopped after holding WALLET_INFO, so the request was
+    // never answered and native never saw DAPP_CONNECTED.
+    const pairing = await makePairing("accounts-offline");
+    pairing.session.accountAuthorized = false;
+    pairing.session.connectedAccount = "";
+    const { service, observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    await deliverEncrypted(pairing, socket, {
+      type: MessageType.JSONRPC,
+      jsonrpc: "2.0",
+      id: 21,
+      method: "qrl_requestAccounts",
+      params: [],
+    });
+    await waitFor(() => observed.pending.length === 1);
+
+    socket.connected = false;
+    service.approveRequest(pairing.session.id, 21, [mockQrlAccount]);
+    await settle();
+    expect(socket.sent).toHaveLength(0);
+
+    socket.connected = true;
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length === 2);
+
+    // WALLET_INFO first, then the answer the dApp is actually waiting on.
+    expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
+      type: MessageType.WALLET_INFO,
+    });
+    expect(await decryptWalletFrame(pairing, socket.sent[1])).toMatchObject({
+      id: 21,
+      result: [mockQrlAccount],
+    });
+  });
+
+  it("keeps the rest of the queue, in order, when a flush meets a second drop", async () => {
+    const pairing = await makePairing("partial-flush");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    socket.connected = false;
+
+    approveTracked(service, pairing.session.id, 1, "0xone");
+    await settle();
+    approveTracked(service, pairing.session.id, 2, "0xtwo");
+    await settle();
+    approveTracked(service, pairing.session.id, 3, "0xthree");
+    await settle();
+
+    // The relay drops again right after the first delivery.
+    socket.connected = true;
+    mockSendHook = async () => {
+      socket.connected = false;
+      mockSendHook = null;
+    };
+    socket.handlers.onReconnected?.();
+    await settle();
+
+    socket.connected = true;
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length === 3);
+
+    const results: unknown[] = [];
+    for (const frame of socket.sent) {
+      const decoded = JSON.parse(
+        await pairing.dapp.decryptMessage(relayCiphertext(frame)),
+      ) as Record<string, unknown>;
+      results.push(decoded["result"]);
+    }
+    // Nothing after the first undelivered entry was lost.
+    expect(results).toEqual(["0xone", "0xtwo", "0xthree"]);
+  });
+
+  it("does not hold a goodbye for a connection that is being destroyed", async () => {
+    // A TERMINATE queued while offline would be delivered later through a
+    // connection restored for the same channel, which is a different
+    // connection lifetime.
+    const pairing = await makePairing("terminate-offline");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    socket.connected = false;
+
+    await service.disconnectSession(pairing.session.id, true).catch(() => undefined);
+    await settle();
+
+    socket.connected = true;
+    socket.handlers.onReconnected?.();
+    await settle();
+
+    expect(socket.sent).toHaveLength(0);
   });
 
   it("still fails closed when a send was emitted and the relay did not answer", async () => {

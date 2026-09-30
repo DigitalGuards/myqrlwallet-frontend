@@ -55,6 +55,7 @@ import {
   type WalletMutationToken,
 } from "@/utils/nativeWalletMutation";
 import {
+  TransactionWouldRevertError,
   asOptionalString,
   assertTransactionWouldNotRevert,
 } from "./dappRevertPrecheck";
@@ -178,6 +179,12 @@ const DAppApprovalModalContent = observer(() => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  /**
+   * Guards a second approve in the same tick. `loading` is React state and
+   * does not update until the next render, so Enter pressed twice quickly
+   * would start two signs and two broadcasts.
+   */
+  const approveInFlightRef = useRef(false);
 
   // When the current approval changes (a queued request gets promoted after
   // the previous one is answered), briefly ignore dismissals: a double-click
@@ -194,6 +201,11 @@ const DAppApprovalModalContent = observer(() => {
 
   const handleApprove = useCallback(async () => {
     if (!currentApproval) return;
+    // Synchronous, because `loading` is React state and does not update until
+    // the next render: a second Enter in the same tick would otherwise start a
+    // second sign and broadcast, and pay twice.
+    if (approveInFlightRef.current) return;
+    approveInFlightRef.current = true;
 
     setError("");
     setLoading(true);
@@ -600,7 +612,16 @@ const DAppApprovalModalContent = observer(() => {
         assertSigningGenerationCurrent(signingGeneration);
         if (IS_V3_PROFILE) await qrlStore.assertNetworkReady(web3);
         assertSigningGenerationCurrent(signingGeneration);
-        const promiEvent = web3.sendSignedTransaction(signedTx.rawTransaction);
+        // web3 runs its own revert check before sending, at `latest`, and
+        // blocks the broadcast on any JSON-RPC error including "method does
+        // not exist". That made the advisory pending-block check above
+        // decorative and the gate that actually decided sit at the wrong
+        // block. One gate now: the one above.
+        const promiEvent = web3.sendSignedTransaction(
+          signedTx.rawTransaction,
+          undefined,
+          { checkRevertBeforeSending: false },
+        );
 
         await waitForDAppBroadcastSettlement(promiEvent, {
           onUnknown: reportUnknownTransaction,
@@ -611,6 +632,10 @@ const DAppApprovalModalContent = observer(() => {
             answerDApp(hash);
           },
           onSuccess: (hash) => {
+            // Normally a no-op, because the hash already answered. It is the
+            // backstop for a missed or non-string transactionHash event,
+            // which would otherwise leave the request unanswered for good.
+            answerDApp(hash);
             setCurrentTxProgress("confirmed", hash);
             if (isStillCurrent()) {
               setPin("");
@@ -854,7 +879,11 @@ const DAppApprovalModalContent = observer(() => {
       // Log the raw cause (bridges to Metro) before toUserFacingError flattens
       // it for display.
       console.log("[DAppConnect] approval error:", errMsg);
-      const userError = toUserFacingError(errMsg);
+      // A revert the wallet caught before signing is a specific, useful
+      // answer. Flattening it to "Transaction failed" and code 4001 told the
+      // user nothing and told the dApp the user had rejected the request.
+      const revert = err instanceof TransactionWouldRevertError ? err : null;
+      const userError = revert ? revert.message : toUserFacingError(errMsg);
       if (isStillCurrent()) setError(userError);
       const isTxMethod =
         currentApproval.method === "qrl_sendTransaction" ||
@@ -870,6 +899,9 @@ const DAppApprovalModalContent = observer(() => {
           approvalSessionId,
           approvalId,
           userError,
+          // JSON-RPC 3 is "execution reverted"; 4001 means the user rejected,
+          // which is a different thing and the dApp acts on it differently.
+          revert ? 3 : undefined,
         );
       } else {
         dappConnectStore.rejectRequestById(
@@ -879,6 +911,7 @@ const DAppApprovalModalContent = observer(() => {
         );
       }
     } finally {
+      approveInFlightRef.current = false;
       if (isStillCurrent()) setLoading(false);
     }
   }, [currentApproval, pin, dappConnectStore, qrlStore]);
@@ -1182,7 +1215,9 @@ const DAppApprovalModalContent = observer(() => {
                       setError("");
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && pin) handleApprove();
+                      if (e.key === "Enter" && pin && !loading) {
+                        void handleApprove();
+                      }
                     }}
                     placeholder="Enter PIN"
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
