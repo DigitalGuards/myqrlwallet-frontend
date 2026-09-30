@@ -100,6 +100,9 @@ const OFFLINE_OUTBOX_TTL_MS = 5 * 60 * 1000;
 
 /** Per channel. A wallet answering more than this while offline is a bug. */
 const OFFLINE_OUTBOX_LIMIT = 16;
+
+/** Slowest cadence at which coming online or returning to the tab may retry. */
+const WAKE_RETRY_MIN_INTERVAL_MS = 30_000;
 const TERMINATE_SEND_TIMEOUT_MS = 800;
 import { profileStorageKey } from '@/config/runtimeProfile';
 
@@ -439,16 +442,54 @@ export class DAppConnectService {
   private walletEpoch = getWalletEpoch();
   private epochTeardown: Promise<void> = Promise.resolve();
   private readonly unsubscribeWalletEpoch: () => void;
+  private readonly unbindWakeRetry: () => void;
+  private lastWakeRetryAt = 0;
 
   constructor() {
     this.unsubscribeWalletEpoch = subscribeWalletEpoch((epoch) => {
       this.handleWalletEpochAdvance(epoch);
     });
+    this.unbindWakeRetry = this.bindWakeRetry();
   }
 
   /** Release only the cross-tab listener; callers should disconnect first. */
   dispose(): void {
     this.unsubscribeWalletEpoch();
+    this.unbindWakeRetry();
+  }
+
+  /**
+   * Retry stored sessions that have no live connection when the machine wakes.
+   *
+   * A session kept after the relay refused reconnection otherwise waits for a
+   * reload, which on desktop and on a pinned browser tab can be days. Coming
+   * back online and returning to the tab are the two moments that refusal is
+   * most likely over. Rate limited, and skipped while every stored session is
+   * already live, so a tab switch costs nothing in the normal case.
+   */
+  private bindWakeRetry(): () => void {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return () => undefined;
+    }
+    const retry = (): void => {
+      if (document.visibilityState === "hidden") return;
+      const offline = SessionStore.getAll().some(
+        (session) => !this.connections.has(session.id),
+      );
+      if (!offline) return;
+      const now = Date.now();
+      if (now - this.lastWakeRetryAt < WAKE_RETRY_MIN_INTERVAL_MS) return;
+      this.lastWakeRetryAt = now;
+      void this.reconnectAll().catch((err: unknown) =>
+        console.error("[DAppConnect] wake retry failed:", err),
+      );
+    };
+    window.addEventListener("online", retry);
+    document.addEventListener("visibilitychange", retry);
+    return () => {
+      window.removeEventListener("online", retry);
+      document.removeEventListener("visibilitychange", retry);
+    };
   }
 
   private isEpochCurrent(epoch: WalletEpoch): boolean {
@@ -1575,6 +1616,11 @@ export class DAppConnectService {
     }
     this.clearDappLeaveTimeout(channelId);
     this.pendingRestrictedMethods.delete(channelId);
+    // Close anything still on screen for this channel. The pairing survives,
+    // the approval does not: approving a send now would broadcast a real
+    // transaction with no way to answer the dApp, and a user who sees no
+    // result sends again and pays twice.
+    this.handlers?.onSessionDisconnected(channelId);
     this.handlers?.onSessionsChanged();
   }
 

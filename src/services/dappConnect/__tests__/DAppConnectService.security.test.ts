@@ -297,6 +297,8 @@ interface Pairing {
 interface ServiceHandlers {
   pending: PendingDAppRequest[];
   checkpointAtDispatch: number[];
+  /** Channels the service told the UI to close its approvals for. */
+  disconnected: string[];
 }
 
 const originalLocalStorage = Object.getOwnPropertyDescriptor(
@@ -444,7 +446,11 @@ async function reconnect(
   session: DAppSession,
 ): Promise<{ service: DAppConnectService; observed: ServiceHandlers }> {
   SessionStore.save(session);
-  const observed: ServiceHandlers = { pending: [], checkpointAtDispatch: [] };
+  const observed: ServiceHandlers = {
+    pending: [],
+    checkpointAtDispatch: [],
+    disconnected: [],
+  };
   const service = new DAppConnectService();
   services.push(service);
   service.setHandlers({
@@ -455,7 +461,9 @@ async function reconnect(
       observed.checkpointAtDispatch.push(checkpoint?.keyExchange.recvSeq ?? -1);
     },
     onSessionConnected: () => undefined,
-    onSessionDisconnected: () => undefined,
+    onSessionDisconnected: (sessionId) => {
+      observed.disconnected.push(sessionId);
+    },
   });
   await service.reconnectAll();
   return { service, observed };
@@ -1256,6 +1264,85 @@ describe("wallet service AEAD checkpointing", () => {
         Object(service) as { connections: Map<string, unknown> }
       ).connections.has(pairing.session.id),
     ).toBe(false);
+  });
+
+  it("keeps a held answer when a direct send parks during the flush", async () => {
+    // Both a held answer and a fresh direct send are in play when the relay
+    // comes back. The direct send seals, checkpoints and then parks, because
+    // the socket dies again in that window. Deciding whether the FLUSH's own
+    // entry was parked by watching pendingRetransmit change identity blamed
+    // the flush for the direct send's frame and dropped the held answer.
+    const pairing = await makePairing("park-during-flush");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    socket.connected = false;
+    approveTracked(service, pairing.session.id, 1, "0xheld");
+    await settle();
+
+    socket.connected = true;
+    const saveThrough = SessionStore.save.bind(SessionStore);
+    let armed = false;
+    const save = jest
+      .spyOn(SessionStore, "save")
+      .mockImplementation((...args: Parameters<typeof SessionStore.save>) => {
+        saveThrough(...args);
+        // The checkpoint of the direct send is the exact moment its counter
+        // is spent; dropping the socket here is what parks its frame.
+        if (armed) {
+          armed = false;
+          socket.connected = false;
+        }
+      });
+
+    approveTracked(service, pairing.session.id, 2, "0xdirect");
+    socket.handlers.onReconnected?.();
+    armed = true;
+    await settle(40);
+    save.mockRestore();
+
+    socket.connected = true;
+    socket.handlers.onReconnected?.();
+    await settle(40);
+
+    const delivered: unknown[] = [];
+    for (const frame of socket.sent) {
+      delivered.push((await decryptWalletFrame(pairing, frame))["result"]);
+    }
+    // The parked frame goes first because its counter is already spent, and
+    // the held answer still arrives.
+    expect(delivered).toEqual(["0xdirect", "0xheld"]);
+  });
+
+  it("closes an open approval when the relay will not take the session back", async () => {
+    // The pairing survives a relay refusal, an approval on screen must not.
+    // Approving a send for a channel with no live socket broadcasts a real
+    // transaction that can never be answered, and a user who sees no result
+    // sends it again and pays twice.
+    const pairing = await makePairing("abandon-with-open-approval");
+    const { observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    await deliverEncrypted(pairing, socket, {
+      type: MessageType.JSONRPC,
+      jsonrpc: "2.0",
+      id: 31,
+      method: "qrl_requestAccounts",
+      params: [],
+    });
+    await waitFor(() => observed.pending.length === 1);
+
+    socket.connected = false;
+    socket.canReconnect = false;
+    socket.handlers.onReconnectAbandoned?.();
+    await settle();
+
+    // The UI is told to drop this channel's approvals, and the pairing is
+    // still stored for a later retry.
+    expect(observed.disconnected).toContain(pairing.session.id);
+    expect(SessionStore.get(pairing.session.id)?.status).toBe(
+      SessionStatus.DISCONNECTED,
+    );
   });
 
   it("retires the pairing when a sealed frame is left undelivered", async () => {
