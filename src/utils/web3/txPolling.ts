@@ -30,6 +30,12 @@ export interface WaitForReceiptOptions {
   intervalMs?: number;
   /** Total polling window in ms. Default: QRL_TX_POLLING_CONFIG.transactionPollingTimeout. */
   timeoutMs?: number;
+  /**
+   * Asked before every poll. Return true to stop early, for a caller whose
+   * reason to watch has gone: a closed modal, a disconnected session, a wallet
+   * that was logged out. Reported as a timeout, since nothing was learned.
+   */
+  cancelled?: () => boolean;
 }
 
 export type WaitForReceiptResult<R> = { status: 'receipt'; receipt: R } | { status: 'timeout' };
@@ -61,7 +67,9 @@ export async function waitForTransactionReceipt<R>(
   const attempts = Math.max(1, Math.floor(timeoutMs / intervalMs));
 
   for (let attempt = 0; attempt < attempts; attempt++) {
+    if (options.cancelled?.()) return { status: 'timeout' };
     await sleep(intervalMs);
+    if (options.cancelled?.()) return { status: 'timeout' };
     try {
       const receipt = await getReceipt(txHash);
       if (receipt) {

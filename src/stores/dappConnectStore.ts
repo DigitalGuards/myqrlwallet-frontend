@@ -234,8 +234,10 @@ class DAppConnectStore {
     sessionId: string,
     id: string | number,
     message?: string,
+    /** JSON-RPC error code. Defaults to 4001, "the user rejected this". */
+    code?: number,
   ): void {
-    dappConnectService.rejectRequest(sessionId, id, message);
+    dappConnectService.rejectRequest(sessionId, id, message, code);
   }
 
   /** Dismiss the current approval after tx progress is done (called from "Done"/"Close" button) */
