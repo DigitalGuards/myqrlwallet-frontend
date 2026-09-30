@@ -36,7 +36,11 @@ export type WebToNativeMessageType =
   | 'DAPP_DISCONNECTED'     // Notify native that a dApp disconnected
   | 'DAPP_DISCONNECT_RESPONSE' // Correlated durable disconnect result
   | 'DAPP_HAPTIC'           // Trigger haptic for dApp approve/reject
-  | 'DAPP_RETURN';          // Bounce back to the dApp after approval (peer redirect)
+  | 'DAPP_RETURN';          // Hand the user back to the dApp after an answered
+                            // request. The app backgrounds its own task on
+                            // Android and does nothing on iOS. An absent
+                            // `reason` in the payload means approval; a
+                            // wallet-initiated disconnect never sends this.
 
 /**
  * Message types that can be received from the native app
@@ -101,6 +105,25 @@ export const isNativeMessageForCurrentDocument = (
 export const isInNativeApp = (): boolean => {
   if (typeof navigator === 'undefined') return false;
   return navigator.userAgent.includes('MyQRLWallet');
+};
+
+/**
+ * Running inside the native app on iOS.
+ *
+ * Android hands the user back to their browser by backgrounding the app's own
+ * task, so the tab they came from returns by itself. iOS has no public
+ * equivalent, so the page has to tell the user to switch back. The WebView user
+ * agent is the platform signal the page already has: the injected capability
+ * object carries no platform field.
+ */
+export const isIOSNativeApp = (): boolean => {
+  if (!isInNativeApp() || typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  // iPadOS 13+ reports a desktop user agent, with touch points as the tell.
+  return (
+    /iPhone|iPad|iPod/.test(ua) ||
+    (ua.includes('Macintosh') && (navigator.maxTouchPoints ?? 0) > 1)
+  );
 };
 
 /**

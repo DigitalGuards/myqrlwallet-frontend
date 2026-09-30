@@ -319,6 +319,17 @@ class DAppConnectStore {
     await dappConnectService.reconnectAll();
   }
 
+  /**
+   * Whether answering this session's request hands the user back to the dApp.
+   *
+   * Android does that by itself, iOS cannot, so the approval result tells an
+   * iOS user to switch back rather than leaving them looking at a finished
+   * approval in the wallet.
+   */
+  returnsToDApp(sessionId: string): boolean {
+    return dappConnectService.returnsToDApp(sessionId);
+  }
+
   /** Number of active sessions */
   get sessionCount(): number {
     return this.activeSessions.length;

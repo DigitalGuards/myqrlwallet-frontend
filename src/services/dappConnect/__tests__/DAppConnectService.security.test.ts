@@ -211,8 +211,16 @@ jest.mock("@/stores/store", () => ({
   },
 }));
 
+/** Flipped by the tests that model the wallet running inside the native app. */
+let mockInNativeApp = false;
+/** Every bridge message the service sent, in order. */
+const mockNativeMessages: Array<{
+  type: string;
+  payload?: Record<string, unknown>;
+}> = [];
+
 jest.mock("@/utils/nativeApp", () => ({
-  isInNativeApp: () => false,
+  isInNativeApp: () => mockInNativeApp,
   parseExternalHttpUrl: (value: string) => {
     try {
       const parsed = new URL(value);
@@ -232,7 +240,10 @@ jest.mock("@/utils/nativeApp", () => ({
       return null;
     }
   },
-  sendToNative: () => false,
+  sendToNative: (type: string, payload?: Record<string, unknown>) => {
+    mockNativeMessages.push({ type, payload });
+    return true;
+  },
   triggerHaptic: () => undefined,
   logToNative: () => false,
 }));
@@ -571,6 +582,8 @@ beforeEach(() => {
   mockSendHook = null;
   mockBeforeSendHook = null;
   mockRelayRefusesFrame = false;
+  mockInNativeApp = false;
+  mockNativeMessages.length = 0;
   mockLeaveHook = null;
   mockCloseHook = null;
   (
@@ -1226,6 +1239,128 @@ describe("wallet service AEAD checkpointing", () => {
     expect(
       await decryptWalletFrame(pairing, socket.sent[0]),
     ).toMatchObject({ id: 1, result: "0xhash" });
+  });
+
+  it("hands the user back to the dApp after an answer, with no reason", async () => {
+    // The app acts on DAPP_RETURN by backgrounding its own task on Android, so
+    // the browser tab the user came from returns by itself. An absent reason
+    // means "the request was answered", which is the only case that sends it.
+    const pairing = await makePairing("return-after-answer");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    mockInNativeApp = true;
+
+    const conn = (
+      Object(service) as {
+        connections: Map<
+          string,
+          {
+            originatedViaDeepLink: boolean;
+            dappInfo: { redirectUrl?: string; name: string; url: string };
+          }
+        >;
+      }
+    ).connections.get(pairing.session.id);
+    if (!conn) throw new Error("expected a live connection");
+    conn.originatedViaDeepLink = true;
+    // dappInfo is frozen once pinned, so replace it rather than mutate it.
+    conn.dappInfo = {
+      ...conn.dappInfo,
+      redirectUrl: "https://dapp.example/callback",
+    };
+    expect(service.returnsToDApp(pairing.session.id)).toBe(true);
+
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await waitFor(() => socket.sent.length === 1);
+    await settle();
+
+    const returns = mockNativeMessages.filter(
+      (message) => message.type === "DAPP_RETURN",
+    );
+    expect(returns).toHaveLength(1);
+    expect(returns[0]?.payload).toEqual({
+      channelId: pairing.session.id,
+      redirectUrl: "https://dapp.example/callback",
+    });
+    expect(returns[0]?.payload).not.toHaveProperty("reason");
+  });
+
+  it("never hands the user back on a wallet-initiated disconnect", async () => {
+    // The dApp learns about a disconnect over the relay. Sending DAPP_RETURN
+    // here would background the wallet on Android, dropping the user out of
+    // the app they are still using, and open the dApp for no reason.
+    const pairing = await makePairing("no-return-on-disconnect");
+    const { service } = await reconnect(pairing.session);
+    mockInNativeApp = true;
+
+    const conn = (
+      Object(service) as {
+        connections: Map<
+          string,
+          {
+            originatedViaDeepLink: boolean;
+            dappInfo: { redirectUrl?: string; name: string; url: string };
+          }
+        >;
+      }
+    ).connections.get(pairing.session.id);
+    if (!conn) throw new Error("expected a live connection");
+    conn.originatedViaDeepLink = true;
+    // dappInfo is frozen once pinned, so replace it rather than mutate it.
+    conn.dappInfo = {
+      ...conn.dappInfo,
+      redirectUrl: "https://dapp.example/callback",
+    };
+
+    await service.disconnectSession(pairing.session.id, true);
+    await settle();
+
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_RETURN"),
+    ).toHaveLength(0);
+    // The native store is still told the session ended.
+    expect(
+      mockNativeMessages.some(
+        (message) => message.type === "DAPP_DISCONNECTED",
+      ),
+    ).toBe(true);
+  });
+
+  it("does not hand the user back for a session from another device", async () => {
+    // A QR-scanned session means the dApp is on a desktop, so opening its URL
+    // on the phone is wrong: it can even be a http://localhost dev server.
+    const pairing = await makePairing("qr-session-no-return");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    mockInNativeApp = true;
+
+    const conn = (
+      Object(service) as {
+        connections: Map<
+          string,
+          {
+            originatedViaDeepLink: boolean;
+            dappInfo: { redirectUrl?: string; name: string; url: string };
+          }
+        >;
+      }
+    ).connections.get(pairing.session.id);
+    if (!conn) throw new Error("expected a live connection");
+    conn.originatedViaDeepLink = false;
+    // dappInfo is frozen once pinned, so replace it rather than mutate it.
+    conn.dappInfo = {
+      ...conn.dappInfo,
+      redirectUrl: "https://dapp.example/callback",
+    };
+    expect(service.returnsToDApp(pairing.session.id)).toBe(false);
+
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await waitFor(() => socket.sent.length === 1);
+    await settle();
+
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_RETURN"),
+    ).toHaveLength(0);
   });
 
   it("parks rather than tombstones when the relay refuses the frame", async () => {

@@ -329,6 +329,15 @@ class FrameParkedError extends Error {
  */
 export type SendOutcome = "sent" | "held" | "failed";
 
+/**
+ * Why the app is being asked to hand the user back to the dApp.
+ *
+ * Absent means an answered request, which is the only case the wallet sends
+ * today. A disconnect must not reach here, so it has a name to make the
+ * distinction explicit if it ever has to.
+ */
+type DAppReturnReason = "disconnect";
+
 interface ActiveConnection {
   socketClient: SocketClient;
   keyExchange: KeyExchange;
@@ -1488,23 +1497,57 @@ export class DAppConnectService {
    * this returns focus to the browser/dApp instead of stranding the user in
    * the wallet. No-op outside the native app or when no redirect was given.
    */
-  private maybeReturnToDApp(channelId: string): void {
-    if (!isInNativeApp()) return;
+  /**
+   * Whether answering a request on this channel hands the user back to the dApp.
+   *
+   * The same predicate as the bounce itself, minus the sending, so the UI can
+   * say what happens next without restating the rules. On Android the app
+   * backgrounds its own task and the browser returns by itself; on iOS there is
+   * no equivalent, so the page has to tell the user.
+   */
+  returnsToDApp(channelId: string): boolean {
+    return this.resolveReturnTarget(channelId) !== null;
+  }
+
+  private resolveReturnTarget(channelId: string): string | null {
+    if (!isInNativeApp()) return null;
     const conn = this.connections.get(channelId);
     // Only bounce back for a same-device deep-link session. A QR-scanned
     // session means the dApp is on another device, so opening its URL on the
     // phone is wrong (e.g. a desktop dApp's http://localhost:5174).
-    if (!conn?.originatedViaDeepLink) return;
+    if (!conn?.originatedViaDeepLink) return null;
     const redirectUrl = conn.dappInfo.redirectUrl;
-    if (!redirectUrl) return;
+    if (!redirectUrl) return null;
     // The redirectUrl is attacker controlled. Only credential-free HTTP(S)
     // navigation may cross the native bridge, and the raw URL is never logged.
     const safeRedirectUrl = parseExternalHttpUrl(redirectUrl);
     if (safeRedirectUrl === null) {
       dlog("Ignoring unsafe dApp redirect URL");
-      return;
+      return null;
     }
-    sendToNative("DAPP_RETURN", { channelId, redirectUrl: safeRedirectUrl });
+    return safeRedirectUrl;
+  }
+
+  /**
+   * Hand the user back to the dApp after their request was answered.
+   *
+   * Only ever after an answer. A wallet-initiated disconnect must not send
+   * this: the dApp learns about it over the relay, and the app now acts on
+   * DAPP_RETURN by backgrounding itself on Android, which would drop the user
+   * out of the wallet they are still using. An absent `reason` means approval,
+   * which is what every caller here is; anything else has to name itself.
+   */
+  private maybeReturnToDApp(
+    channelId: string,
+    reason?: DAppReturnReason,
+  ): void {
+    const safeRedirectUrl = this.resolveReturnTarget(channelId);
+    if (safeRedirectUrl === null) return;
+    sendToNative("DAPP_RETURN", {
+      channelId,
+      redirectUrl: safeRedirectUrl,
+      ...(reason === undefined ? {} : { reason }),
+    });
   }
 
   async disconnectSession(channelId: string, explicit = true): Promise<boolean> {
