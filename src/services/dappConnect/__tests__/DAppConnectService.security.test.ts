@@ -60,6 +60,7 @@ let mockJoinResult: MockJoinResult = {
   channelPublicKey: null,
   terminated: false,
 };
+let mockBeforeSendHook: (() => Promise<void>) | null = null;
 let mockSendHook: ((data: RelayMessage) => Promise<void>) | null = null;
 let mockLeaveHook: (() => Promise<boolean>) | null = null;
 let mockCloseHook: (() => Promise<boolean>) | null = null;
@@ -127,6 +128,10 @@ jest.mock("../SocketClient", () => {
     }
 
     async sendMessage(data: RelayMessage): Promise<void> {
+      // Runs before the connectivity check, so a test can model the socket
+      // dying between the checkpoint and the send: nothing is emitted and
+      // nothing is recorded as sent.
+      if (mockBeforeSendHook) await mockBeforeSendHook();
       // Mirrors the real client: a socket known to be down rejects before
       // anything is emitted, and nothing is recorded as sent. Without this
       // neither the old fail-closed behaviour nor a drop between the
@@ -524,6 +529,7 @@ beforeEach(() => {
     terminated: false,
   };
   mockSendHook = null;
+  mockBeforeSendHook = null;
   mockLeaveHook = null;
   mockCloseHook = null;
   (
@@ -1073,31 +1079,117 @@ describe("wallet service AEAD checkpointing", () => {
     expect(results).toEqual(["0xone", "0xtwo"]);
   });
 
-  it("holds an answer when the socket drops after the reachability check", async () => {
-    // Check-then-act: the check happens when the message is enqueued, the
-    // seal happens later inside the serialized task. A WebView that
-    // backgrounds in between resumes with the socket already closed, and
-    // sealing then spends a counter on a frame nobody sees.
-    const pairing = await makePairing("drop-after-check");
+  it("holds an answer when the socket drops before the seal", async () => {
+    // Check-then-act: the reachability check happens when the message is
+    // enqueued, the seal happens later inside the serialized task. The drop
+    // has to land in that window, so it is applied from the outbound queue
+    // itself, before sendEncryptedNow gets its turn.
+    const pairing = await makePairing("drop-before-seal");
     const { service } = await reconnect(pairing.session);
     const socket = firstSocket();
-    mockSendHook = async () => {
-      // The drop lands while the task is in flight.
-      socket.connected = false;
+
+    const internals = Object(service) as {
+      connections: Map<string, { outboundQueue: Promise<void> }>;
     };
+    const conn = internals.connections.get(pairing.session.id);
+    if (!conn) throw new Error("expected a live connection");
+    // Ahead of this send in the queue: the socket dies while it waits.
+    conn.outboundQueue = conn.outboundQueue.then(() => {
+      socket.connected = false;
+    });
 
     approveTracked(service, pairing.session.id, 1, "0xhash");
     await settle();
-    mockSendHook = null;
 
-    // The pairing survives: no tombstone, no teardown, session still stored.
+    // Nothing sealed, nothing emitted, and above all no tombstone.
+    expect(socket.sent).toHaveLength(0);
     expect(socket.closeCalls).toBe(0);
     expect(SessionStore.get(pairing.session.id)).not.toBeNull();
 
     socket.connected = true;
     socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length === 1);
+    expect(
+      await decryptWalletFrame(pairing, socket.sent[0]),
+    ).toMatchObject({ id: 1, result: "0xhash" });
+  });
+
+  it("delivers an answer exactly once when the socket drops between the checkpoint and the send", async () => {
+    // The frame is sealed and its counter is spent, so it is parked for
+    // retransmission. Queueing the plaintext as well would deliver the same
+    // answer twice, at two different counters.
+    const pairing = await makePairing("drop-after-checkpoint");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    mockBeforeSendHook = async () => {
+      // The relay is gone by the time the frame reaches the wire, before any
+      // emit: sealed and checkpointed, never sent.
+      socket.connected = false;
+      mockBeforeSendHook = null;
+    };
+
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await settle();
+    expect(socket.closeCalls).toBe(0);
+
+    // Sealed and checkpointed, never emitted.
+    expect(socket.sent).toHaveLength(0);
+    {
+      // Sealed and parked, with nothing queued: queueing the plaintext too is
+      // what would deliver this answer twice.
+      const internals = Object(service) as {
+        connections: Map<
+          string,
+          { pendingRetransmit: unknown; offlineOutbox: unknown[] }
+        >;
+      };
+      const held = internals.connections.get(pairing.session.id);
+      expect(held?.pendingRetransmit).not.toBeNull();
+      expect(held?.offlineOutbox).toHaveLength(0);
+    }
+
+    socket.connected = true;
+    socket.handlers.onReconnected?.();
     await waitFor(() => socket.sent.length >= 1);
-    expect(SessionStore.get(pairing.session.id)).not.toBeNull();
+    await settle();
+
+    const delivered: unknown[] = [];
+    for (const frame of socket.sent) {
+      const decoded = JSON.parse(
+        await pairing.dapp.decryptMessage(relayCiphertext(frame)),
+      ) as Record<string, unknown>;
+      if (decoded["result"] !== undefined) delivered.push(decoded["result"]);
+    }
+    expect(delivered).toEqual(["0xhash"]);
+  });
+
+  it("delivers each held answer once when two reconnects arrive together", async () => {
+    const pairing = await makePairing("double-reconnect");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    socket.connected = false;
+
+    approveTracked(service, pairing.session.id, 1, "0xone");
+    await settle();
+    approveTracked(service, pairing.session.id, 2, "0xtwo");
+    await settle();
+
+    socket.connected = true;
+    // A fast flap: two flush loops would otherwise both peek the head entry.
+    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length >= 2);
+    await settle();
+
+    const delivered: unknown[] = [];
+    for (const frame of socket.sent) {
+      const decoded = JSON.parse(
+        await pairing.dapp.decryptMessage(relayCiphertext(frame)),
+      ) as Record<string, unknown>;
+      delivered.push(decoded["result"]);
+    }
+    expect(delivered).toEqual(["0xone", "0xtwo"]);
   });
 
   it("refuses to hold for a socket that will never reconnect", async () => {
@@ -1115,6 +1207,15 @@ describe("wallet service AEAD checkpointing", () => {
 
     // Nothing was held for a socket that cannot come back.
     expect(socket.sent).toHaveLength(0);
+
+    // And nothing is waiting in the outbox either, which is the difference
+    // between refusing and quietly swallowing the answer.
+    const internals = Object(service) as {
+      connections: Map<string, { offlineOutbox: unknown[] }>;
+    };
+    expect(
+      internals.connections.get(pairing.session.id)?.offlineOutbox,
+    ).toHaveLength(0);
 
     // And when the client gives up, the session is retired rather than left
     // in RECONNECTING absorbing answers nobody will receive.

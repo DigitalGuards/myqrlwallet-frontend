@@ -303,6 +303,20 @@ interface RelayFrame {
 }
 
 /**
+ * This call's message was sealed and then parked for retransmission.
+ *
+ * Distinct from SocketNotConnectedError, which means nothing was sealed. The
+ * difference decides whether the plaintext should also be queued: doing both
+ * delivers the same message twice.
+ */
+class FrameParkedError extends Error {
+  constructor() {
+    super("relay frame parked for retransmission");
+    this.name = "FrameParkedError";
+  }
+}
+
+/**
  * What became of a send.
  *
  * `held` is the one that matters: the message is queued for delivery when the
@@ -333,6 +347,8 @@ interface ActiveConnection {
    * delivered through a later one restored for the same channel.
    */
   offlineOutbox: OfflineOutboxEntry[];
+  /** One flusher at a time; two reconnect events must not race the queue. */
+  flushing: boolean;
   /**
    * One sealed frame whose socket died between the checkpoint and the send.
    * Its counter is already spent and checkpointed, so it must go out first and
@@ -644,6 +660,7 @@ export class DAppConnectService {
       persistenceQueue: Promise.resolve(),
       outboundQueue: Promise.resolve(),
       offlineOutbox: [],
+      flushing: false,
       pendingRetransmit: null,
       cryptoUsable: true,
       relayUrl,
@@ -1784,6 +1801,7 @@ export class DAppConnectService {
             persistenceQueue: Promise.resolve(),
             outboundQueue: Promise.resolve(),
             offlineOutbox: [],
+            flushing: false,
             pendingRetransmit: null,
             cryptoUsable: true,
             relayUrl: reconnectRelayUrl,
@@ -2138,7 +2156,7 @@ export class DAppConnectService {
   private queueUntilReconnected(
     conn: ActiveConnection,
     entry: OfflineOutboxEntry,
-  ): void {
+  ): boolean {
     const now = Date.now();
     conn.offlineOutbox = conn.offlineOutbox.filter(
       (held) => now - held.queuedAt < OFFLINE_OUTBOX_TTL_MS,
@@ -2153,14 +2171,14 @@ export class DAppConnectService {
         console.warn(
           `[DAppConnect] outbox full for ${conn.channelId}; refusing to hold another message`,
         );
-        return;
+        return false;
       }
       const evictable = conn.offlineOutbox.findIndex((held) => !held.isAnswer);
       if (evictable === -1) {
         console.warn(
           `[DAppConnect] outbox full of answers for ${conn.channelId}; refusing to hold another`,
         );
-        return;
+        return false;
       }
       conn.offlineOutbox.splice(evictable, 1);
       console.warn(
@@ -2172,6 +2190,7 @@ export class DAppConnectService {
     dlog(
       `Relay unreachable; holding a message for ${conn.channelId} (${conn.offlineOutbox.length} held)`,
     );
+    return true;
   }
 
   /**
@@ -2184,7 +2203,14 @@ export class DAppConnectService {
    */
   private flushOfflineOutbox(channelId: string): void {
     const conn = this.connections.get(channelId);
-    if (!conn || conn.offlineOutbox.length === 0) return;
+    if (!conn) return;
+    // A parked frame is work too, even with an empty queue.
+    if (conn.offlineOutbox.length === 0 && conn.pendingRetransmit === null) return;
+    // Two reconnect events in quick succession would otherwise start two
+    // loops, both peeking the same head entry before either shifted it, and
+    // deliver every held message twice.
+    if (conn.flushing) return;
+    conn.flushing = true;
 
     const now = Date.now();
     const before = conn.offlineOutbox.length;
@@ -2197,25 +2223,55 @@ export class DAppConnectService {
         `[DAppConnect] dropped ${expired} held message(s) for ${channelId}: the dApp stopped waiting`,
       );
     }
-    if (conn.offlineOutbox.length === 0) return;
+    // A parked frame is still work when everything queued has expired, and
+    // the flushing flag has to be released on the way out either way.
+    if (conn.offlineOutbox.length === 0 && conn.pendingRetransmit === null) {
+      conn.flushing = false;
+      return;
+    }
 
-    dlog(`Delivering ${conn.offlineOutbox.length} held message(s) for ${channelId}`);
+    dlog(
+      `Delivering ${conn.offlineOutbox.length} held message(s)` +
+        `${conn.pendingRetransmit ? " and a parked frame" : ""} for ${channelId}`,
+    );
     void (async () => {
-      while (conn.offlineOutbox.length > 0) {
-        if (this.connections.get(channelId) !== conn) return;
-        const next = conn.offlineOutbox[0];
-        if (next === undefined) return;
-        const outcome = await this.sendEncrypted(channelId, next.message, {
-          isAnswer: next.isAnswer,
-          queuedAt: next.queuedAt,
-          alreadyQueued: true,
-        });
-        if (outcome !== "sent") {
-          // Still unreachable or gone. Everything, including this one, stays
-          // queued in order with its original age.
+      try {
+        // A parked frame is already sealed at a spent counter, so it goes out
+        // first and on its own. Without this it would only ever ride along
+        // with the next message, and an empty queue would strand it.
+        if (conn.pendingRetransmit !== null) {
+          const sent = await this.drainRetransmit(channelId, conn);
+          if (!sent) return;
+        }
+        while (conn.offlineOutbox.length > 0) {
+          if (this.connections.get(channelId) !== conn) return;
+          const next = conn.offlineOutbox[0];
+          if (next === undefined) return;
+          const parkedBefore = conn.pendingRetransmit;
+          const outcome = await this.sendEncrypted(channelId, next.message, {
+            isAnswer: next.isAnswer,
+            queuedAt: next.queuedAt,
+            alreadyQueued: true,
+          });
+          if (outcome === "sent") {
+            if (conn.offlineOutbox[0] === next) conn.offlineOutbox.shift();
+            continue;
+          }
+          // This entry became the parked frame: it is sealed and its counter
+          // is spent, so the plaintext must not be sealed a second time.
+          if (
+            conn.pendingRetransmit !== null &&
+            conn.pendingRetransmit !== parkedBefore &&
+            conn.offlineOutbox[0] === next
+          ) {
+            conn.offlineOutbox.shift();
+          }
+          // Still unreachable or gone. Everything left stays queued in order
+          // with its original age.
           return;
         }
-        if (conn.offlineOutbox[0] === next) conn.offlineOutbox.shift();
+      } finally {
+        conn.flushing = false;
       }
     })();
   }
@@ -2233,6 +2289,40 @@ export class DAppConnectService {
    * reported as an ambiguous relay outcome and tombstone the pairing, having
    * spent a counter on a frame nobody saw.
    */
+  /**
+   * Put the parked frame on the wire, unchanged, ahead of anything else.
+   *
+   * Goes through the outbound queue so it cannot overtake or be overtaken by
+   * a send already in flight. Returns whether it left.
+   */
+  private drainRetransmit(
+    channelId: string,
+    conn: ActiveConnection,
+  ): Promise<boolean> {
+    const task = conn.outboundQueue.then(async () => {
+      const parked = conn.pendingRetransmit;
+      if (parked === null) return;
+      if (this.connections.get(channelId) !== conn || !conn.cryptoUsable) {
+        throw new Error("retransmit: connection is no longer active");
+      }
+      await this.emitFrame(channelId, conn, parked.encrypted);
+      if (conn.pendingRetransmit === parked) conn.pendingRetransmit = null;
+    });
+    conn.outboundQueue = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    return task.then(
+      () => true,
+      (err: unknown) => {
+        if (!(err instanceof SocketNotConnectedError)) {
+          console.error("[DAppConnect] retransmit failed:", err);
+        }
+        return false;
+      },
+    );
+  }
+
   private sendEncrypted(
     channelId: string,
     message: object,
@@ -2250,7 +2340,14 @@ export class DAppConnectService {
       // session would sit in RECONNECTING swallowing answers until a reload.
       if (!conn.socketClient.willReconnect()) return "failed";
       if (!options.alreadyQueued) {
-        this.queueUntilReconnected(conn, { message, queuedAt, isAnswer });
+        const queued = this.queueUntilReconnected(conn, {
+          message,
+          queuedAt,
+          isAnswer,
+        });
+        // A refused message will never be delivered, so saying "held" would
+        // tell the caller it is on its way when nothing is.
+        if (!queued) return "failed";
       }
       return "held";
     };
@@ -2270,6 +2367,12 @@ export class DAppConnectService {
     return task.then(
       () => "sent" as SendOutcome,
       (err: unknown) => {
+        if (err instanceof FrameParkedError) {
+          // This message is already sealed and its counter is spent. The frame
+          // goes out first on reconnect, so queueing the plaintext as well
+          // would deliver the same answer twice.
+          return "held" as SendOutcome;
+        }
         if (err instanceof SocketNotConnectedError) {
           // Raised before any emit, so nothing left this process and no
           // counter was spent. Unambiguous, and safe to hold.
@@ -2339,7 +2442,14 @@ export class DAppConnectService {
       throw new Error("sendEncrypted: connection closed after checkpoint");
     }
 
-    await this.emitFrame(channelId, conn, encrypted);
+    try {
+      await this.emitFrame(channelId, conn, encrypted);
+    } catch (err) {
+      // Parked: sealed, counter spent, waiting to go out unchanged. Reported
+      // as its own class so the caller does not also queue the plaintext.
+      if (err instanceof SocketNotConnectedError) throw new FrameParkedError();
+      throw err;
+    }
   }
 
   /**

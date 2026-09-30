@@ -119,16 +119,16 @@ type SocketEventHandler = {
  * without the wallet seeing the ack, while this one cannot have been seen by
  * anyone.
  */
-/** Retries after a server-initiated disconnect, and the first delay. */
-const MANUAL_RECONNECT_ATTEMPTS = 4;
-const MANUAL_RECONNECT_BASE_MS = 1_000;
-
 export class SocketNotConnectedError extends Error {
   constructor() {
     super('Socket not connected');
     this.name = 'SocketNotConnectedError';
   }
 }
+
+/** Retries after a server-initiated disconnect, and the first delay. */
+const MANUAL_RECONNECT_ATTEMPTS = 4;
+const MANUAL_RECONNECT_BASE_MS = 1_000;
 
 export class SocketClient {
   private socket: Socket | null = null;
@@ -213,9 +213,11 @@ export class SocketClient {
 
     socket.on('connect', () => {
       this.connectedAt = Date.now();
-      // A successful connect retires the manual retry budget, so a later
-      // server-initiated disconnect starts from a full one.
-      this.manualReconnectAttempts = 0;
+      // The budget is NOT reset here. The relay refuses inside its own
+      // connection handler, so a refused socket still sees `connect` first:
+      // resetting on connect made the budget unreachable and turned the
+      // give-up path into an endless 1 Hz retry loop against a relay that was
+      // shedding load. It is reset after a successful rejoin instead.
       if (this.manualReconnectTimer !== null) {
         clearTimeout(this.manualReconnectTimer);
         this.manualReconnectTimer = null;
@@ -240,6 +242,9 @@ export class SocketClient {
             for (const msg of bufferedMessages) {
               this.handlers.onMessage(msg as RelayMessage);
             }
+            // A completed rejoin is the first moment the relay has actually
+            // taken this channel back, so the retry budget is refilled here.
+            this.manualReconnectAttempts = 0;
             this.handlers.onReconnected();
           })
           .catch((err) => {
@@ -575,8 +580,12 @@ export class SocketClient {
       return;
     }
 
-    const delay =
+    // Exponential, with jitter: many phones behind one carrier NAT hit the
+    // relay's per-IP connect limit together, and a fixed interval would have
+    // them all retry in lockstep and keep tripping it.
+    const backoff =
       MANUAL_RECONNECT_BASE_MS * Math.pow(2, this.manualReconnectAttempts);
+    const delay = Math.round(backoff * (0.5 + Math.random()));
     this.manualReconnectAttempts += 1;
     this.manualReconnectTimer = setTimeout(() => {
       this.manualReconnectTimer = null;

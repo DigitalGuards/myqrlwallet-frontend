@@ -280,6 +280,10 @@ const DAppApprovalModalContent = observer(() => {
         const outcome = await waitForTransactionReceipt(
           (candidate) => provider.getTransactionReceipt(candidate),
           hash,
+          // Stop as soon as this approval is no longer the one on screen: a
+          // close, a session disconnect, a logout or a wallet wipe all end any
+          // reason to keep polling, and this otherwise ran for seven minutes.
+          { cancelled: () => !isStillCurrent() },
         );
         if (outcome.status !== "receipt") return;
         const succeeded = getDAppReceiptStatus(outcome.receipt, hash);
@@ -573,12 +577,18 @@ const DAppApprovalModalContent = observer(() => {
         if (explicitGas !== undefined) {
           gas = explicitGas;
         } else if (txData && txData !== "0x") {
-          const estimated = await web3.estimateGas({
-            from: activeAddress,
-            to: txParams["to"] as string,
-            value: txValue,
-            data: txData,
-          });
+          const estimated = await web3.estimateGas(
+            {
+              from: activeAddress,
+              to: txParams["to"] as string,
+              value: txValue,
+              data: txData,
+            },
+            // Same block tag as the revert pre-check. At `latest` a dApp that
+            // sends no gas still had its transaction refused for depending on
+            // one that is only in the mempool.
+            "pending",
+          );
           gas = Math.ceil(Number(estimated) * GAS_ESTIMATE_BUFFER_MULTIPLIER);
         } else {
           gas = 21000;
@@ -1158,7 +1168,7 @@ const DAppApprovalModalContent = observer(() => {
                 )}
                 {txProgress === "unknown" && (
                   <span className="text-sm font-medium text-muted-foreground">
-                    Confirmation unavailable
+                    Outcome unknown, check the explorer
                   </span>
                 )}
               </div>

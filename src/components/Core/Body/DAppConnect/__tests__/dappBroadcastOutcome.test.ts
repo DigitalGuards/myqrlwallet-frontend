@@ -8,11 +8,43 @@
  * fake provider, which is also how this file produces them.
  */
 import { describe, expect, it } from "@jest/globals";
-import { Web3 } from "@theqrl/web3";
+import { createServer } from "node:http";
+import { Web3, HttpProvider } from "@theqrl/web3";
 import { isDefinitiveBroadcastRejection } from "../dappBroadcastOutcome";
 import { waitForDAppBroadcastSettlement } from "../dappBroadcastSettlement";
 
 const LOCAL_HASH = "0xdd5d4abee99b373e36a58f56fdb2715c5917e22a16355fb396fa2ee930bfa1b6";
+
+/** Signed once, lazily, and reused: the bytes only have to be well formed. */
+let rawSigned: string | null = null;
+async function signedTransaction(): Promise<string> {
+  if (rawSigned !== null) return rawSigned;
+  const web3 = new Web3({
+    provider: {
+      request: async () => ({ jsonrpc: "2.0", id: 1, result: null }),
+      supportsSubscriptions: () => false,
+    },
+  });
+  const account = web3.qrl.accounts.create();
+  const signed = await web3.qrl.accounts.signTransaction(
+    {
+      from: account.address,
+      to: `Q${"2".repeat(128)}`,
+      value: "0x0",
+      data: "0xdead",
+      gas: 100000,
+      nonce: 0,
+      maxFeePerGas: "0x3b9aca00",
+      maxPriorityFeePerGas: "0x1",
+      chainId: 3151909,
+      networkId: 3151909,
+      type: 2,
+    },
+    account.seed,
+  );
+  rawSigned = signed.rawTransaction;
+  return rawSigned;
+}
 
 /** Run a broadcast whose node behaves as given, and return the real error. */
 async function broadcastError(
@@ -58,22 +90,81 @@ async function broadcastError(
   }
 }
 
+/**
+ * Run a real broadcast through a real HttpProvider against a local server
+ * that answers exactly once, and return the error the client produced.
+ */
+async function broadcastThroughHttp(answer: {
+  status: number;
+  contentType: string;
+  body: string;
+}): Promise<unknown> {
+  const server = createServer((req, res) => {
+    // The request body has to be drained before answering, or a signed
+    // transaction large enough to fill the socket buffer blocks the write and
+    // the call never returns.
+    req.on("data", () => undefined);
+    req.on("end", () => {
+      res.writeHead(answer.status, { "content-type": answer.contentType });
+      res.end(answer.body);
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  const port = typeof address === "object" && address !== null ? address.port : 0;
+  try {
+    const web3 = new Web3({
+      provider: new HttpProvider(`http://127.0.0.1:${port}`),
+    });
+    const sending = web3.qrl.sendSignedTransaction(await signedTransaction(), undefined, {
+      checkRevertBeforeSending: false,
+    });
+    sending.on("error", () => undefined);
+    try {
+      await sending;
+      throw new Error("expected the broadcast to fail");
+    } catch (error) {
+      return error;
+    }
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}
+
 const nodeError = (message: string, code = -32000) => () => ({
   jsonrpc: "2.0",
   id: 1,
   error: { code, message },
 });
 
+describe("the node refused it, through a real HttpProvider", () => {
+  it("treats an in-band JSON-RPC error on HTTP 200 as definitive", async () => {
+    const error = await broadcastThroughHttp({
+      status: 200,
+      contentType: "application/json",
+      body: '{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"nonce too low"}}',
+    });
+    expect(isDefinitiveBroadcastRejection(error)).toBe(true);
+  });
+});
+
 describe("the node refused it", () => {
   it.each([
     ["nonce too low"],
     ["insufficient funds for gas * price + value"],
-    ["already known"],
     ["replacement transaction underpriced"],
     ["intrinsic gas too low"],
   ])("treats %s as definitive", async (message) => {
     const error = await broadcastError(nodeError(message));
     expect(isDefinitiveBroadcastRejection(error)).toBe(true);
+  });
+
+  it("treats already known as the transaction being in the pool", async () => {
+    // The node is telling us it already holds this transaction, so it is on
+    // its way. The desktop signer treats the same reply as success. Calling
+    // it a rejection is how an endpoint failover turns into a second payment.
+    const error = await broadcastError(nodeError("already known"));
+    expect(isDefinitiveBroadcastRejection(error)).toBe(false);
   });
 
   it("treats a revert at broadcast as definitive", async () => {
@@ -87,9 +178,25 @@ describe("the node refused it", () => {
 });
 
 describe("we never heard back", () => {
+  // Driven through a real HttpProvider against a local server, because the
+  // provider throws a bare ResponseError for ANY non-2xx and for a body it
+  // cannot parse, before any JSON-RPC processing. Hand-built Errors hide
+  // that, and treating those as definitive rejected the very case this
+  // module exists for: the wallet's own backend answers 502 when its upstream
+  // call times out, which is exactly when the node may have accepted the
+  // transaction.
+  it.each([
+    ["the backend's 502 on an upstream timeout", 502, "application/json", '{"error":"RPC upstream timeout"}'],
+    ["a 503 carrying a JSON-RPC envelope", 503, "application/json", '{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"unavailable"}}'],
+    ["a proxy 502 HTML page", 502, "text/html", "<html><body>Bad gateway</body></html>"],
+    ["a proxy 524 HTML page", 524, "text/html", "<html><body>A timeout occurred</body></html>"],
+  ])("treats %s as open", async (_label, status, contentType, body) => {
+    const error = await broadcastThroughHttp({ status, contentType, body });
+    expect(isDefinitiveBroadcastRejection(error)).toBe(false);
+  });
+
   it.each([
     ["a dropped connection", new TypeError("Failed to fetch")],
-    ["a proxy 5xx", new Error("Returned error: Bad Gateway")],
     ["an unrecognised failure", new Error("something else entirely")],
   ])("treats %s as open", (_label, error) => {
     expect(isDefinitiveBroadcastRejection(error)).toBe(false);

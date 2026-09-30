@@ -20,21 +20,28 @@
  * the browser extension does (DigitalGuards/myqrlwallet-extension#65, F2).
  *
  * The classification is by class rather than by message. Measured against
- * @theqrl/web3 1.0.3 with a fake provider:
+ * @theqrl/web3 1.0.3 through a real HttpProvider and a local server:
  *
- *   nonce too low          InvalidResponseError    (extends ResponseError)
- *   insufficient funds     InvalidResponseError
- *   already known          InvalidResponseError
- *   revert at broadcast    ContractExecutionError
- *   fetch failed           TypeError
- *   aborted or timed out   Error, name AbortError
- *   proxy 5xx              Error
+ *   node JSON-RPC error on HTTP 200   InvalidResponseError    definitive
+ *   revert at broadcast               ContractExecutionError  definitive
+ *   backend 500 or 503 with JSON      ResponseError           unknown
+ *   proxy 502 or 524 with an HTML body ResponseError          unknown
+ *   connection reset                  FetchError              unknown
+ *   client timeout                    ConnectionTimeoutError  unknown
  *
- * Every definitive one is the client turning a JSON-RPC error object into a
- * typed error, which only happens when the node replied. Transport failures
- * stay plain.
+ * The distinction is narrower than "the client raised a typed error". The HTTP
+ * provider throws a bare `ResponseError` for ANY non-2xx response, and for a
+ * body it cannot parse, before any JSON-RPC processing happens. The wallet's
+ * own backend returns 502 when its upstream call times out, which is exactly
+ * the moment the node may already have accepted the transaction, and
+ * Cloudflare's 502 and 524 pages arrive the same way. Treating those as
+ * definitive rejected the very case this exists to catch.
+ *
+ * Only an in-band JSON-RPC error, which means an HTTP 2xx carrying an `error`
+ * object, proves the node saw the transaction and refused it. That is
+ * `InvalidResponseError`, and `ContractExecutionError` for a revert.
  */
-import { ContractExecutionError, ResponseError } from "@theqrl/web3";
+import { ContractExecutionError, InvalidResponseError } from "@theqrl/web3";
 
 /**
  * True when the node itself refused the transaction, so it is certainly not
@@ -45,10 +52,31 @@ import { ContractExecutionError, ResponseError } from "@theqrl/web3";
  */
 export function isDefinitiveBroadcastRejection(error: unknown): boolean {
   if (error instanceof ContractExecutionError) return true;
-  // InvalidResponseError and its siblings. The client raises these only from a
-  // JSON-RPC error object, which means the node replied.
-  if (error instanceof ResponseError) return true;
+  // InvalidResponseError only, which the client raises from a JSON-RPC error
+  // object on an HTTP 2xx. A bare ResponseError is any non-2xx or unparseable
+  // body, including the backend's own 502 on an upstream timeout, and says
+  // nothing about whether the node saw the transaction.
+  if (error instanceof InvalidResponseError) {
+    // "already known" means the transaction IS in the pool. The desktop main
+    // process treats the same reply as success for this reason. Refusing it
+    // would reject a request whose transaction is on its way, which is how a
+    // failover between endpoints turns into a second payment.
+    return !isAlreadyKnown(error);
+  }
   return false;
+}
+
+/**
+ * The node is telling us it already has this transaction.
+ *
+ * Matches the desktop main process (`DUPLICATE_TX_RE` in its rpc module), so
+ * the two surfaces agree about what a duplicate means.
+ */
+const DUPLICATE_TX_RE = /already known|known transaction|already exists/i;
+
+export function isAlreadyKnown(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return DUPLICATE_TX_RE.test(message);
 }
 
 /** What the wallet shows when a broadcast outcome cannot be established. */

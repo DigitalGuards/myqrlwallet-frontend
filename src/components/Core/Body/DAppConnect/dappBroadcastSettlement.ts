@@ -1,6 +1,7 @@
 import { receiptExecutionStatus } from '@/utils/web3/txPolling';
 import {
   UNKNOWN_BROADCAST_MESSAGE,
+  isAlreadyKnown,
   isDefinitiveBroadcastRejection,
 } from './dappBroadcastOutcome';
 
@@ -99,6 +100,18 @@ export function waitForDAppBroadcastSettlement(
     });
     const failWithoutHash = (value: unknown): void => {
       const message = value instanceof Error ? value.message : String(value);
+      const localHashForDuplicate = options.localHash;
+      if (localHashForDuplicate && isAlreadyKnown(value)) {
+        // The node already holds this transaction, so it is on its way. The
+        // dApp gets the hash, the same answer the desktop signer gives.
+        settle(() =>
+          callbacks.onUnknown(
+            localHashForDuplicate,
+            'This transaction is already in the network queue. Check the explorer before sending it again.',
+          ),
+        );
+        return;
+      }
       if (isDefinitiveBroadcastRejection(value)) {
         // The node replied with an error, so nothing is in the mempool.
         settle(() => callbacks.onFailure(message));
