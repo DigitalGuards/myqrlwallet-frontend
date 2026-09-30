@@ -255,12 +255,46 @@ const DAppApprovalModalContent = observer(() => {
       if (hash) {
         // A send request can return its broadcast hash while inclusion is unknown.
         answerDApp(hash);
+        // Keep looking. An unknown outcome very often turns into a perfectly
+        // ordinary receipt a slot later, and resolving it here is what stops
+        // the user sending the same transaction twice.
+        void watchUnknownTransaction(hash);
       } else {
         rejectDApp(message);
       }
       if (isStillCurrent()) {
         setPin("");
         setLoading(false);
+      }
+    };
+
+    /**
+     * Poll for the receipt of a transaction whose broadcast outcome was never
+     * established, and move the wallet off "unknown" if it lands. The dApp
+     * already has the hash, so this only updates what the user sees.
+     */
+    const watchUnknownTransaction = async (hash: string): Promise<void> => {
+      const provider = qrlStore.qrlInstance;
+      if (!provider) return;
+      try {
+        const outcome = await waitForTransactionReceipt(
+          (candidate) => provider.getTransactionReceipt(candidate),
+          hash,
+        );
+        if (outcome.status !== "receipt") return;
+        const succeeded = getDAppReceiptStatus(outcome.receipt, hash);
+        if (succeeded === undefined) return;
+        if (!isStillCurrent()) return;
+        setCurrentTxProgress(
+          succeeded ? "confirmed" : "failed",
+          hash,
+          succeeded ? undefined : "Transaction has been reverted by the QRVM",
+        );
+      } catch (error) {
+        console.log(
+          "[DAppConnect] watching an unknown transaction did not complete:",
+          error instanceof Error ? error.message : String(error),
+        );
       }
     };
 
@@ -623,7 +657,9 @@ const DAppApprovalModalContent = observer(() => {
           { checkRevertBeforeSending: false },
         );
 
-        await waitForDAppBroadcastSettlement(promiEvent, {
+        await waitForDAppBroadcastSettlement(
+          promiEvent,
+          {
           onUnknown: reportUnknownTransaction,
           onTransactionHash: (hash) => {
             // The node accepted the broadcast, so the dApp gets its hash now.
@@ -658,7 +694,17 @@ const DAppApprovalModalContent = observer(() => {
               setLoading(false);
             }
           },
-        });
+          },
+          {
+            // Derived from the signed bytes, so it is known before the
+            // broadcast. When the node never answers, this is what the dApp is
+            // given rather than a rejection it would act on by sending again.
+            localHash:
+              typeof signedTx.transactionHash === "string"
+                ? signedTx.transactionHash
+                : undefined,
+          },
+        );
         return;
       }
 

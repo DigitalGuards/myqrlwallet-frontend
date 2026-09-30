@@ -1,4 +1,8 @@
 import { receiptExecutionStatus } from '@/utils/web3/txPolling';
+import {
+  UNKNOWN_BROADCAST_MESSAGE,
+  isDefinitiveBroadcastRejection,
+} from './dappBroadcastOutcome';
 
 export interface DAppBroadcastEventSource {
   on(event: string, listener: (value: unknown) => void): unknown;
@@ -32,9 +36,22 @@ export function getDAppReceiptStatus(receipt: unknown, transactionHash?: string)
  * This adapter owns one-shot settlement so one request can receive exactly one
  * approval or rejection, never both.
  */
+export interface DAppBroadcastSettlementOptions {
+  /**
+   * The hash derived from the signed bytes, known before the broadcast.
+   *
+   * Used when the broadcast fails without the node having answered: the
+   * transaction may be in the mempool, so the dApp gets the real hash and both
+   * sides watch the chain, rather than being told the request failed and
+   * sending it a second time.
+   */
+  localHash?: string | undefined;
+}
+
 export function waitForDAppBroadcastSettlement(
   source: unknown,
   callbacks: DAppBroadcastSettlementCallbacks,
+  options: DAppBroadcastSettlementOptions = {},
 ): Promise<void> {
   if (
     !source ||
@@ -80,13 +97,61 @@ export function waitForDAppBroadcastSettlement(
       }
       settle(() => callbacks.onSuccess(hash));
     });
+    const failWithoutHash = (value: unknown): void => {
+      const message = value instanceof Error ? value.message : String(value);
+      if (isDefinitiveBroadcastRejection(value)) {
+        // The node replied with an error, so nothing is in the mempool.
+        settle(() => callbacks.onFailure(message));
+        return;
+      }
+      const localHash = options.localHash;
+      if (localHash) {
+        // Nobody answered. The transaction may well have been accepted, so
+        // the dApp gets the hash derived from the signed bytes instead of a
+        // rejection it would act on by sending again.
+        settle(() => callbacks.onUnknown(localHash, UNKNOWN_BROADCAST_MESSAGE));
+        return;
+      }
+      settle(() => callbacks.onFailure(message));
+    };
+
     eventSource.on('error', (value) => {
-      const error = value instanceof Error ? value.message : String(value);
       if (broadcastHash) {
         settle(() => callbacks.onUnknown(broadcastHash, 'Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again.'));
         return;
       }
-      settle(() => callbacks.onFailure(error));
+      failWithoutHash(value);
     });
+
+    // A transport failure rejects the PromiEvent without emitting `error`
+    // (measured: fetch failed, abort, a proxy 5xx). Observed here so it
+    // settles through the same one-shot path, and so it is never an unhandled
+    // rejection.
+    if (isPromiseLike(source)) {
+      void source.then(
+        () => undefined,
+        (value: unknown) => {
+          if (settled) return;
+          if (broadcastHash) {
+            settle(() =>
+              callbacks.onUnknown(
+                broadcastHash,
+                'Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again.',
+              ),
+            );
+            return;
+          }
+          failWithoutHash(value);
+        },
+      );
+    }
   });
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === 'function'
+  );
 }
