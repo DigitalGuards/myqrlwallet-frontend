@@ -7,6 +7,7 @@ import { BigNumber } from "bignumber.js";
 import { SERVER_URL } from "@/config";
 import { historyNetwork } from "@/config/runtimeProfile";
 import { formatBalance } from "@/utils/formatting";
+import { useBackDismiss } from "@/utils/useBackDismiss";
 
 type TransactionHistoryType = {
   ID: string;
@@ -311,6 +312,8 @@ type DetailsModalProps = {
 
 const DetailsModal = ({ transaction }: DetailsModalProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  // Android's back button closes this the same way its Close button does.
+  useBackDismiss(isOpen, () => setIsOpen(false));
   return (
     <>
       <button

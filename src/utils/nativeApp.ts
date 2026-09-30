@@ -36,7 +36,10 @@ export type WebToNativeMessageType =
   | 'DAPP_DISCONNECTED'     // Notify native that a dApp disconnected
   | 'DAPP_DISCONNECT_RESPONSE' // Correlated durable disconnect result
   | 'DAPP_HAPTIC'           // Trigger haptic for dApp approve/reject
-  | 'DAPP_RETURN';          // Bounce back to the dApp after approval (peer redirect)
+  | 'DAPP_RETURN'           // Bounce back to the dApp after approval (peer redirect)
+  // Android hardware back, answered by the page (see src/utils/nativeBack.ts)
+  | 'BACK_HANDLED'          // Closed an overlay, or navigated back a route
+  | 'BACK_AT_ROOT';         // Home with nothing open; the app may background
 
 /**
  * Message types that can be received from the native app
@@ -65,7 +68,8 @@ export type NativeToWebMessageType =
   // Display preferences (native settings drives the Home card toggles)
   | 'SET_DISPLAY_PREFS'     // Native sets showTokensCard / showNftsCard in wallet settings
   | 'RESTORE_CONTACTS'      // Native sends the backed-up address book on boot
-  | 'NAVIGATE';             // Native asks the web app to navigate to an in-app route
+  | 'NAVIGATE'              // Native asks the web app to navigate to an in-app route
+  | 'NATIVE_BACK';          // Android hardware back, for the page to resolve
 
 export interface NativeMessage {
   type: NativeToWebMessageType;

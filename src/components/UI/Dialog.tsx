@@ -2,9 +2,33 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
-import { cn } from "../../utils";
+// Imported directly rather than through the `@/utils` barrel: the barrel
+// re-exports logout, which reaches the router, and a UI primitive has no
+// business pulling the whole application in behind it.
+import { cn } from "@/utils/cn";
+import { useBackDismiss } from "@/utils/useBackDismiss";
 
-const Dialog = DialogPrimitive.Root;
+/**
+ * Android's back button closes the topmost open overlay.
+ *
+ * Registered here so every controlled Dialog in the app is covered by one
+ * change. Back calls `onOpenChange(false)`, the same path the X button and
+ * Escape take, so an approval or signing sheet cancels or rejects and can
+ * never approve. An uncontrolled Dialog (no `open` prop) manages its own
+ * state and is left to Radix.
+ */
+const Dialog = ({
+  open,
+  onOpenChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Root>) => {
+  useBackDismiss(open === true, () => {
+    if (onOpenChange === undefined) return false;
+    onOpenChange(false);
+    return true;
+  });
+  return <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} {...props} />;
+};
 
 const DialogTrigger = DialogPrimitive.Trigger;
 

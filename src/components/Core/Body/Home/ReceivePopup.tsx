@@ -3,6 +3,7 @@ import { Card, CardContent } from "../../../UI/Card";
 import { Button } from "../../../UI/Button";
 import { QRCodeSVG } from "qrcode.react";
 import { AddressDisclosure } from "@/components/UI/AddressDisclosure";
+import { useBackDismiss } from "@/utils/useBackDismiss";
 
 interface ReceivePopupProps {
     accountAddress: string;
@@ -15,6 +16,8 @@ export const ReceivePopup = observer(({
     isOpen,
     onClose,
 }: ReceivePopupProps) => {
+    // Android's back button closes this the same way its X button does.
+    useBackDismiss(isOpen, onClose);
     if (!isOpen) return null;
 
     return (

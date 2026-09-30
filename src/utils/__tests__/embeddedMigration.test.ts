@@ -258,14 +258,8 @@ describe("migration when the app signals an upgrade", () => {
       throw new Error("the bridge is gone");
     });
 
-    expect(() => {
-      try {
-        runEmbeddedMigration();
-      } catch (error) {
-        // The boot module catches; assert the shape callers rely on.
-        throw error;
-      }
-    }).toThrow("the bridge is gone");
+    // The boot module is what catches this; see embeddedMigrationBoot.test.ts.
+    expect(() => runEmbeddedMigration()).toThrow("the bridge is gone");
     postMessage.mockReset();
   });
 

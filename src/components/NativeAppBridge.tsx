@@ -25,7 +25,9 @@ import {
   sendPinChanged,
   notifySeedStored,
   hashEncryptedSeed,
+  sendToNative,
 } from "@/utils/nativeApp";
+import { resolveNativeBack } from "@/utils/nativeBack";
 import {
   DAppConnectService,
   dappConnectService,
@@ -560,6 +562,20 @@ const NativeAppBridge: React.FC = () => {
               `Error restoring contacts: ${error instanceof Error ? error.message : String(error)}`,
             );
           }
+          break;
+        }
+
+        case "NATIVE_BACK" as NativeToWebMessageType: {
+          // Android's hardware back, resolved by the page: close the topmost
+          // overlay, else walk the in-memory route stack, else report that
+          // there is nothing left so the app can background itself. Exactly
+          // one answer per request. An overlay closes through its own dismiss
+          // path, so an approval sheet rejects and can never approve.
+          const outcome = resolveNativeBack(
+            (path) => navigate(path),
+            window.location.hash.replace(/^#/, "") || "/",
+          );
+          sendToNative(outcome === "handled" ? "BACK_HANDLED" : "BACK_AT_ROOT");
           break;
         }
 
