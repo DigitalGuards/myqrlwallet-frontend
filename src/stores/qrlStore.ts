@@ -10,6 +10,10 @@ import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
 import { receiptExecutionStatus, QRL_TX_POLLING_CONFIG } from "@/utils/web3/txPolling";
 import { normalizeQrlAddress } from "@/utils/web3/address";
 import { formatUnits, parseUnits } from "@/utils/web3/units";
+import {
+  assertFeeQuoteWithinPolicy,
+  assertQuoteNotAboveApproved,
+} from "@/utils/web3/feePolicy";
 import type { TransactionReceipt, Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { walletMutations } from "@/utils/nativeWalletMutation";
@@ -91,6 +95,12 @@ const TIP_MULTIPLIERS: Record<FeeLevel, bigint> = {
 export interface FeeQuote {
   maxFeePerGas: bigint;
   maxPriorityFeePerGas: bigint;
+  /**
+   * The base fee this quote was built on. Absent when the quote came from the
+   * legacy `qrl_gasPrice` fallback, which does not report one. The fee policy
+   * uses it for its relative checks.
+   */
+  baseFeePerGas?: bigint | undefined;
   /** What the sender is expected to pay per gas at the current base fee. */
   expectedFeePerGas: bigint;
 }
@@ -106,6 +116,7 @@ export async function quoteFees(
   provider: FeeMarketProvider,
   level: FeeLevel,
 ): Promise<FeeQuote> {
+  let quote: FeeQuote;
   try {
     if (!provider.getMaxPriorityFeePerGas || !provider.getBlock) {
       throw new Error("Fee market methods unavailable");
@@ -121,16 +132,24 @@ export async function quoteFees(
     const baseFeePerGas = BigInt(baseFee);
     const maxPriorityFeePerGas =
       (BigInt(suggestedTip) * TIP_MULTIPLIERS[level]) / BigInt(100);
-    return {
+    quote = {
       maxFeePerGas: BigInt(2) * baseFeePerGas + maxPriorityFeePerGas,
       maxPriorityFeePerGas,
+      baseFeePerGas,
       expectedFeePerGas: baseFeePerGas + maxPriorityFeePerGas,
     };
   } catch (error) {
     log(`Fee market quote unavailable, falling back to gasPrice: ${getErrorMessage(error)}`);
     const legacy = applyFeeLevel(BigInt(await provider.getGasPrice()), level);
-    return { ...legacy, expectedFeePerGas: legacy.maxFeePerGas };
+    quote = { ...legacy, expectedFeePerGas: legacy.maxFeePerGas };
   }
+
+  // Outside the try on purpose. Every number above came from the node behind
+  // the RPC proxy, and the fallback is just as server-controlled as the fee
+  // market, so an out-of-policy quote must fail rather than slip into the
+  // fallback and be signed anyway.
+  assertFeeQuoteWithinPolicy(quote);
+  return quote;
 }
 
 // EIP-1193 provider surface the wallet relies on. Exported so the extension
@@ -942,6 +961,12 @@ class QrlStore {
     value: string,
     mnemonicPhrases: string,
     feeLevel: FeeLevel = 'medium',
+    /**
+     * The quote the user was shown. When given, a re-quote at signing time
+     * that is more expensive stops the send instead of signing a fee nobody
+     * agreed to. Omitting it keeps the previous behaviour.
+     */
+    approvedQuote?: FeeQuote,
   ) {
     // Reset status before starting a new transaction
     this.resetTransactionStatus();
@@ -1017,7 +1042,10 @@ class QrlStore {
       const nonce = await this.qrlInstance?.getTransactionCount(from, "pending");
 
       if (!this.qrlInstance) throw new Error("Wallet not connected. Please try again.");
-      const { maxFeePerGas, maxPriorityFeePerGas } = await quoteFees(this.qrlInstance, feeLevel);
+      const signingQuote = await quoteFees(this.qrlInstance, feeLevel);
+      // Sign the fee the user saw, or stop and let them look at the new one.
+      assertQuoteNotAboveApproved(signingQuote, approvedQuote);
+      const { maxFeePerGas, maxPriorityFeePerGas } = signingQuote;
       const utils = this._utils ?? (await getQrlWeb3()).utils;
 
       const transactionObject = {

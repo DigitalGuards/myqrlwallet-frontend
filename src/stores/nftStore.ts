@@ -47,8 +47,9 @@ import { discoverNFTs } from "@/utils/web3";
 import { isValidQrlAddress } from "@/utils/web3/address";
 import type QrlStore from "./qrlStore";
 import type TokenStore from "./tokenStore";
-import { quoteFees, type FeeLevel } from "./qrlStore";
+import { quoteFees, type FeeLevel, type FeeQuote } from "./qrlStore";
 import { walletMutations } from "@/utils/nativeWalletMutation";
+import { assertQuoteNotAboveApproved } from "@/utils/web3/feePolicy";
 
 class NftStore {
   nftList: NFTInterface[] = [];
@@ -576,6 +577,12 @@ class NftStore {
     mnemonicPhrases: string,
     amount: bigint = 1n,
     feeLevel: FeeLevel = "medium",
+    /**
+     * The quote the user was shown. When given, a re-quote at signing time
+     * that is more expensive stops the send. Omitting it keeps the previous
+     * behaviour.
+     */
+    approvedQuote?: FeeQuote,
   ): Promise<boolean> {
     this.qrlStore.resetTransactionStatus();
     const signingGeneration = walletMutations.captureGeneration();
@@ -694,10 +701,11 @@ class NftStore {
       web3.qrl.wallet?.add(seed);
       web3.qrl.transactionConfirmationBlocks = 1;
 
-      const { maxFeePerGas, maxPriorityFeePerGas } = await quoteFees(
-        web3.qrl,
-        feeLevel,
-      );
+      const signingQuote = await quoteFees(web3.qrl, feeLevel);
+      // Sign the fee the user saw. quoteFees already refuses a quote outside
+      // the wallet's safety limits; this refuses one that merely grew.
+      assertQuoteNotAboveApproved(signingQuote, approvedQuote);
+      const { maxFeePerGas, maxPriorityFeePerGas } = signingQuote;
 
       let data: string;
       if (nft.standard === "ERC721") {

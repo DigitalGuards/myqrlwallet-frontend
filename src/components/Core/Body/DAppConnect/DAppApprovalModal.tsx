@@ -7,7 +7,9 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { toJS } from "mobx";
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
-import { quoteFees, type FeeLevel } from "@/stores/qrlStore";
+import { quoteFees, type FeeLevel, type FeeQuote } from "@/stores/qrlStore";
+import type { Web3QRLInterface } from "@theqrl/web3";
+import { assertQuoteNotAboveApproved } from "@/utils/web3/feePolicy";
 import { Dialog, DialogContent } from "@/components/UI/Dialog";
 import { Button } from "@/components/UI/Button";
 import DAppTransactionReview from "./DAppTransactionReview";
@@ -87,6 +89,37 @@ const METHOD_LABELS: Record<string, string> = {
 const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
 // dApp requests carry no fee selector; sign at the send screen's default level.
 const DAPP_FEE_LEVEL: FeeLevel = "medium";
+
+/**
+ * The gas limit a dApp transaction will be signed with.
+ *
+ * Shared by the fee preview and the approve path so the figure shown and the
+ * figure signed come from the same rule.
+ */
+async function resolveDAppGasLimit(
+  web3: Web3QRLInterface,
+  txParams: Record<string, unknown>,
+): Promise<number> {
+  const explicitGas = requestedGasLimit(txParams);
+  if (explicitGas !== undefined) return Number(explicitGas);
+  const data = (txParams["data"] as string) || "0x";
+  if (data && data !== "0x") {
+    const estimated = await web3.estimateGas({
+      from: txParams["from"] as string,
+      to: txParams["to"] as string,
+      value: (txParams["value"] as string | undefined) ?? "0x0",
+      data,
+    });
+    return Math.ceil(Number(estimated) * GAS_ESTIMATE_BUFFER_MULTIPLIER);
+  }
+  return 21000;
+}
+
+/** "Up to N Quanta", the ceiling rather than the expected cost. */
+function formatMaxNetworkFee(gasLimit: number, maxFeePerGas: bigint): string {
+  return formatQuantaValue(BigInt(gasLimit) * maxFeePerGas);
+}
+
 
 function toUserFacingError(error: string): string {
   const msg = error.toLowerCase();
@@ -170,9 +203,17 @@ const DAppApprovalModalContent = observer(() => {
   const { dappConnectStore, qrlStore } = useStore();
   const { currentApproval, approvalModalOpen, txProgress, txHash, txError } =
     dappConnectStore;
+  // The maximum network fee for the transaction under review, quoted before
+  // the user decides. Without it a dApp approval showed no fee at all, so the
+  // user approved a cost they could not see.
+  const [feePreview, setFeePreview] = useState<{
+    quote: FeeQuote;
+    display: string;
+  } | null>(null);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
 
   // When the current approval changes (a queued request gets promoted after
   // the previous one is answered), briefly ignore dismissals: a double-click
@@ -502,6 +543,10 @@ const DAppApprovalModalContent = observer(() => {
         // Same fee policy as the send screen: the node's suggested tip plus
         // base-fee headroom, so a rising base fee cannot strand the tx.
         const fees = await quoteFees(web3, DAPP_FEE_LEVEL);
+        // Sign the fee the approval screen showed. quoteFees already refuses
+        // a quote outside the wallet's safety limits; this refuses one that
+        // merely grew between the preview and the tap.
+        assertQuoteNotAboveApproved(fees, feePreview?.quote);
         const txData = (txParams["data"] as string) || "0x";
         const txValue = (txParams["value"] as string | undefined) ?? "0x0";
 
@@ -857,7 +902,7 @@ const DAppApprovalModalContent = observer(() => {
     } finally {
       if (isStillCurrent()) setLoading(false);
     }
-  }, [currentApproval, pin, dappConnectStore, qrlStore]);
+  }, [currentApproval, pin, dappConnectStore, qrlStore, feePreview?.quote]);
 
   const handleReject = useCallback(() => {
     dappConnectStore.rejectCurrentRequest();
@@ -950,6 +995,44 @@ const DAppApprovalModalContent = observer(() => {
     ? (params?.[0] as Record<string, unknown> | undefined)
     : undefined;
   const txDisplayValue = formatQuantaValue(txParams?.["value"]);
+
+  // Quote the fee for the transaction under review, so the approval screen can
+  // show what it may cost before the user decides. The same quote is handed to
+  // the approve path, which refuses to sign a more expensive one.
+  const reviewedTxParams = txParams ?? null;
+  // The params object identity changes on every render, so the effect keys on
+  // its content instead.
+  const reviewedTxKey = JSON.stringify(reviewedTxParams);
+  useEffect(() => {
+    if (reviewedTxParams === null) {
+      setFeePreview(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const web3 = qrlStore.qrlInstance;
+        if (!web3) return;
+        const quote = await quoteFees(web3, DAPP_FEE_LEVEL);
+        const gasLimit = await resolveDAppGasLimit(web3, reviewedTxParams);
+        if (cancelled) return;
+        setFeePreview({
+          quote,
+          display: formatMaxNetworkFee(gasLimit, quote.maxFeePerGas),
+        });
+      } catch {
+        // A quote the wallet refuses, or a node that will not answer. The
+        // approval screen simply shows no fee, and Approve re-quotes and
+        // fails loudly with the reason.
+        if (!cancelled) setFeePreview(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // reviewedTxParams is covered by reviewedTxKey, which is its content.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewedTxKey, qrlStore.qrlInstance]);
 
   return (
     <Dialog
@@ -1111,6 +1194,7 @@ const DAppApprovalModalContent = observer(() => {
               {isTransaction && params?.[0] != null && (
                 <DAppTransactionReview
                   params={params[0] as Record<string, unknown>}
+                  maxNetworkFee={feePreview?.display}
                 />
               )}
 

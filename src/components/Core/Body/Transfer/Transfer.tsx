@@ -73,7 +73,7 @@ import {
   subscribeToNativeMessages,
   triggerHaptic,
 } from "@/utils/nativeApp";
-import type { FeeLevel } from "@/stores/qrlStore";
+import type { FeeLevel, FeeQuote } from "@/stores/qrlStore";
 import type { RecipientSubmission } from "@/hooks/useQrnsRecipient";
 import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
 import { RecipientResolutionStatus } from "@/components/Core/RecipientResolutionStatus";
@@ -166,6 +166,9 @@ const Transfer = observer(() => {
 
   const [sliderValue, setSliderValue] = useState(0);
   const [feeLevel, setFeeLevel] = useState<FeeLevel>("medium");
+  // The quote behind the fee on screen, handed to signing so it cannot use a
+  // more expensive one without asking again.
+  const [approvedQuote, setApprovedQuote] = useState<FeeQuote | null>(null);
   const [amountInputValue, setAmountInputValue] = useState("");
   const [tokenBalance, setTokenBalance] = useState("0");
   const [hasJustCopied, setHasJustCopied] = useState(false);
@@ -499,6 +502,7 @@ const Transfer = observer(() => {
           valueEther,
           "",
           feeLevel,
+          approvedQuote ?? undefined,
         );
         resetForm();
         window.scrollTo(0, 0);
@@ -585,6 +589,7 @@ const Transfer = observer(() => {
           valueEther,
           mnemonicPhrases,
           feeLevel,
+          approvedQuote ?? undefined,
         );
         resetForm();
         window.scrollTo(0, 0);
@@ -1309,6 +1314,7 @@ const Transfer = observer(() => {
                       isSubmitting={isSubmitting}
                       feeLevel={feeLevel}
                       onFeeLevelChange={setFeeLevel}
+                      onQuote={setApprovedQuote}
                     />
                   )}
                 </CardContent>
