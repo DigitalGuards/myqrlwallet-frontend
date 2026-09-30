@@ -1098,6 +1098,9 @@ describe("wallet service AEAD checkpointing", () => {
       socket.connected = false;
     });
 
+    const sealedBefore =
+      SessionStore.get(pairing.session.id)?.keyExchange.sendSeq;
+
     approveTracked(service, pairing.session.id, 1, "0xhash");
     await settle();
 
@@ -1105,6 +1108,27 @@ describe("wallet service AEAD checkpointing", () => {
     expect(socket.sent).toHaveLength(0);
     expect(socket.closeCalls).toBe(0);
     expect(SessionStore.get(pairing.session.id)).not.toBeNull();
+
+    // The point of the in-task check: no counter was spent. Without it the
+    // message is sealed and checkpointed against a socket that is already
+    // gone, and the answer ends up parked as a sealed frame instead of
+    // waiting in the outbox as plaintext. Both paths deliver the answer on
+    // reconnect, so only this distinguishes them.
+    expect(SessionStore.get(pairing.session.id)?.keyExchange.sendSeq).toBe(
+      sealedBefore,
+    );
+    {
+      const held = (
+        Object(service) as {
+          connections: Map<
+            string,
+            { pendingRetransmit: unknown; offlineOutbox: unknown[] }
+          >;
+        }
+      ).connections.get(pairing.session.id);
+      expect(held?.pendingRetransmit).toBeNull();
+      expect(held?.offlineOutbox).toHaveLength(1);
+    }
 
     socket.connected = true;
     socket.handlers.onReconnected?.();
@@ -1217,8 +1241,48 @@ describe("wallet service AEAD checkpointing", () => {
       internals.connections.get(pairing.session.id)?.offlineOutbox,
     ).toHaveLength(0);
 
-    // And when the client gives up, the session is retired rather than left
-    // in RECONNECTING absorbing answers nobody will receive.
+    // And when the client gives up, the live connection goes away so nothing
+    // more is absorbed, while the pairing itself survives: the relay refuses
+    // for a minute at a time on its own rate limits, and unpairing the user
+    // over that would leave the dApp paired to nothing.
+    socket.handlers.onReconnectAbandoned?.();
+    await waitFor(
+      () =>
+        SessionStore.get(pairing.session.id)?.status ===
+        SessionStatus.DISCONNECTED,
+    );
+    expect(
+      (
+        Object(service) as { connections: Map<string, unknown> }
+      ).connections.has(pairing.session.id),
+    ).toBe(false);
+  });
+
+  it("retires the pairing when a sealed frame is left undelivered", async () => {
+    // The one case where giving up must unpair: a parked frame means its
+    // counter is spent and checkpointed, so storage is ahead of what the dApp
+    // received. Keeping the session would leave a gap in the AEAD stream, and
+    // the peer tears the pairing down two messages later anyway.
+    const pairing = await makePairing("abandon-with-parked-frame");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    mockBeforeSendHook = async () => {
+      // Sealed and checkpointed, then the socket dies before any emit.
+      socket.connected = false;
+      mockBeforeSendHook = null;
+    };
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await settle();
+
+    const parked = (
+      Object(service) as {
+        connections: Map<string, { pendingRetransmit: unknown }>;
+      }
+    ).connections.get(pairing.session.id)?.pendingRetransmit;
+    expect(parked).not.toBeNull();
+
+    socket.canReconnect = false;
     socket.handlers.onReconnectAbandoned?.();
     await waitFor(() => SessionStore.get(pairing.session.id) === null);
   });

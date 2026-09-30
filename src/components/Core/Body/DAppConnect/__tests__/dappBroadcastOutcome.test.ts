@@ -15,6 +15,33 @@ import { waitForDAppBroadcastSettlement } from "../dappBroadcastSettlement";
 
 const LOCAL_HASH = "0xdd5d4abee99b373e36a58f56fdb2715c5917e22a16355fb396fa2ee930bfa1b6";
 
+/**
+ * Bound the receipt poll. sendSignedTransaction otherwise keeps a 750 second
+ * timer alive, which outlives the test run: the suite passes, the process sits
+ * there, and a TransactionSendTimeoutError rejects twelve minutes later and
+ * takes the run down with it.
+ */
+const SHORT_POLLING = {
+  transactionPollingTimeout: 50,
+  transactionPollingInterval: 10,
+};
+
+/** Plausible answers for the reads web3 makes around a send. */
+function healthyResultFor(method: string): unknown {
+  switch (method) {
+    case "qrl_blockNumber":
+      return "0x1";
+    case "qrl_chainId":
+      return "0x301825";
+    case "net_version":
+      return "3151909";
+    case "qrl_getTransactionReceipt":
+      return null;
+    default:
+      return null;
+  }
+}
+
 /** Signed once, lazily, and reused: the bytes only have to be well formed. */
 let rawSigned: string | null = null;
 async function signedTransaction(): Promise<string> {
@@ -53,14 +80,11 @@ async function broadcastError(
   const provider = {
     request: async ({ method }: { method: string }) => {
       if (method === "qrl_sendRawTransaction") return behaviour();
-      if (method === "qrl_chainId") return { jsonrpc: "2.0", id: 1, result: "0x301825" };
-      if (method === "net_version") return { jsonrpc: "2.0", id: 1, result: "3151909" };
-      if (method === "qrl_blockNumber") return { jsonrpc: "2.0", id: 1, result: "0x1" };
-      return { jsonrpc: "2.0", id: 1, result: null };
+      return { jsonrpc: "2.0", id: 1, result: healthyResultFor(method) };
     },
     supportsSubscriptions: () => false,
   };
-  const web3 = new Web3({ provider });
+  const web3 = new Web3({ provider, config: SHORT_POLLING });
   const account = web3.qrl.accounts.create();
   const signed = await web3.qrl.accounts.signTransaction(
     {
@@ -100,11 +124,38 @@ async function broadcastThroughHttp(answer: {
   body: string;
 }): Promise<unknown> {
   const server = createServer((req, res) => {
-    // The request body has to be drained before answering, or a signed
-    // transaction large enough to fill the socket buffer blocks the write and
-    // the call never returns.
-    req.on("data", () => undefined);
+    // The body has to be drained before answering, or a signed transaction
+    // large enough to fill the socket buffer blocks the write.
+    let body = "";
+    req.on("data", (chunk) => {
+      body += String(chunk);
+    });
     req.on("end", () => {
+      // Only the broadcast fails. Failing everything also failed web3's
+      // pre-send qrl_blockNumber read, which it performs outside the
+      // try/finally that clears its 750 second send timer: the suite then
+      // passed, the process sat there, and the timer rejected long after.
+      let method = "";
+      try {
+        const parsed: unknown = JSON.parse(body);
+        if (typeof parsed === "object" && parsed !== null) {
+          const value = (parsed as { method?: unknown }).method;
+          if (typeof value === "string") method = value;
+        }
+      } catch {
+        // An unparseable body cannot be the broadcast.
+      }
+      if (method !== "qrl_sendRawTransaction") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            result: healthyResultFor(method),
+          }),
+        );
+        return;
+      }
       res.writeHead(answer.status, { "content-type": answer.contentType });
       res.end(answer.body);
     });
@@ -115,6 +166,7 @@ async function broadcastThroughHttp(answer: {
   try {
     const web3 = new Web3({
       provider: new HttpProvider(`http://127.0.0.1:${port}`),
+      config: SHORT_POLLING,
     });
     const sending = web3.qrl.sendSignedTransaction(await signedTransaction(), undefined, {
       checkRevertBeforeSending: false,

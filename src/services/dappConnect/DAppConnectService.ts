@@ -610,18 +610,9 @@ export class DAppConnectService {
           SessionStatus.RECONNECTING,
         );
       },
-              onReconnectAbandoned: () => {
-                // The relay refused every retry. Retire the session rather
-                // than leave it in RECONNECTING absorbing answers nobody will
-                // ever receive. No TERMINATE: the socket is already gone.
-                console.warn(
-                  `[DAppConnect] relay will not take channel ${channelId} back; retiring the session`,
-                );
-                void this.teardownSession(channelId, false, false, false, false).catch(
-                  (err) =>
-                    console.error("[DAppConnect] retire after abandon failed:", err),
-                );
-              },
+      onReconnectAbandoned: () => {
+        this.handleReconnectAbandoned(channelId);
+      },
       onReconnected: () => {
         dlog(`Socket reconnected for channel ${channelId}`);
         const conn = this.connections.get(channelId);
@@ -1531,6 +1522,62 @@ export class DAppConnectService {
     }
   }
 
+  /**
+   * The relay would not take this channel back within the retry budget.
+   *
+   * The live connection goes, because nothing can be delivered through it, and
+   * the wallet shows that it will try again later. The stored session stays:
+   * the relay's connect window is a minute and its socket cap can last far
+   * longer behind carrier NAT, so a transient refusal must not unpair the user
+   * and leave the dApp paired to nothing. The next foreground, reload or user
+   * action retries it through reconnectAll.
+   *
+   * The one case that does retire the pairing is a parked sealed frame. Its
+   * counter is spent and checkpointed, so storage is ahead of what the dApp
+   * received. Keeping that session would leave a gap in the stream, which the
+   * peer answers by tearing the pairing down once two more messages arrive.
+   */
+  private handleReconnectAbandoned(channelId: string): void {
+    const conn = this.connections.get(channelId);
+    const storageAhead = conn?.pendingRetransmit != null;
+
+    if (storageAhead) {
+      console.warn(
+        `[DAppConnect] relay will not take ${channelId} back and a sealed frame is undelivered; retiring the pairing`,
+      );
+      void this.teardownSession(channelId, false, false, false, false).catch(
+        (err) => console.error("[DAppConnect] retire after abandon failed:", err),
+      );
+      return;
+    }
+
+    console.warn(
+      `[DAppConnect] relay will not take ${channelId} back for now; keeping the session for a later retry`,
+    );
+    if (conn) {
+      // Anything held was queued for this connection and cannot outlive it.
+      conn.offlineOutbox = [];
+      conn.flushing = false;
+      try {
+        SessionStore.updateStatus(
+          channelId,
+          SessionStatus.DISCONNECTED,
+          conn.walletEpoch,
+        );
+      } catch (err) {
+        console.error(
+          "[DAppConnect] could not record the deferred reconnect:",
+          err,
+        );
+      }
+      conn.socketClient.disconnect();
+      this.connections.delete(channelId);
+    }
+    this.clearDappLeaveTimeout(channelId);
+    this.pendingRestrictedMethods.delete(channelId);
+    this.handlers?.onSessionsChanged();
+  }
+
   private async teardownSession(
     channelId: string,
     explicit: boolean,
@@ -1759,18 +1806,9 @@ export class DAppConnectService {
                 SessionStatus.RECONNECTING,
               );
             },
-              onReconnectAbandoned: () => {
-                // The relay refused every retry. Retire the session rather
-                // than leave it in RECONNECTING absorbing answers nobody will
-                // ever receive. No TERMINATE: the socket is already gone.
-                console.warn(
-                  `[DAppConnect] relay will not take channel ${session.id} back; retiring the session`,
-                );
-                void this.teardownSession(session.id, false, false, false, false).catch(
-                  (err) =>
-                    console.error("[DAppConnect] retire after abandon failed:", err),
-                );
-              },
+            onReconnectAbandoned: () => {
+              this.handleReconnectAbandoned(session.id);
+            },
             onReconnected: () => {
               if (keyExchange.areKeysExchanged()) {
                 this.updateLiveSessionStatus(
@@ -2247,23 +2285,22 @@ export class DAppConnectService {
           if (this.connections.get(channelId) !== conn) return;
           const next = conn.offlineOutbox[0];
           if (next === undefined) return;
-          const parkedBefore = conn.pendingRetransmit;
-          const outcome = await this.sendEncrypted(channelId, next.message, {
-            isAnswer: next.isAnswer,
-            queuedAt: next.queuedAt,
-            alreadyQueued: true,
-          });
+          const { outcome, parked } = await this.sendEncryptedTracked(
+            channelId,
+            next.message,
+            {
+              isAnswer: next.isAnswer,
+              queuedAt: next.queuedAt,
+              alreadyQueued: true,
+            },
+          );
           if (outcome === "sent") {
             if (conn.offlineOutbox[0] === next) conn.offlineOutbox.shift();
             continue;
           }
-          // This entry became the parked frame: it is sealed and its counter
-          // is spent, so the plaintext must not be sealed a second time.
-          if (
-            conn.pendingRetransmit !== null &&
-            conn.pendingRetransmit !== parkedBefore &&
-            conn.offlineOutbox[0] === next
-          ) {
+          // This entry itself became the parked frame: it is sealed and its
+          // counter is spent, so the plaintext must not be sealed again.
+          if (parked && conn.offlineOutbox[0] === next) {
             conn.offlineOutbox.shift();
           }
           // Still unreachable or gone. Everything left stays queued in order
@@ -2276,19 +2313,6 @@ export class DAppConnectService {
     })();
   }
 
-  /**
-   * Encrypt and send a message to the dApp.
-   *
-   * `sent` means the relay acknowledged it. `held` means the relay is
-   * unreachable and the message is queued for delivery when it returns, which
-   * callers must treat as progress. `failed` means it will never be delivered.
-   *
-   * Reachability is checked before the crypto, and again inside the serialized
-   * task just before sealing. Without the second check a socket that dropped
-   * while the task waited its turn would reach SocketClient.sendMessage, be
-   * reported as an ambiguous relay outcome and tombstone the pairing, having
-   * spent a counter on a frame nobody saw.
-   */
   /**
    * Put the parked frame on the wire, unchanged, ahead of anything else.
    *
@@ -2323,13 +2347,47 @@ export class DAppConnectService {
     );
   }
 
+  /**
+   * Encrypt and send a message to the dApp.
+   *
+   * `sent` means the relay acknowledged it. `held` means the relay is
+   * unreachable and the message is queued for delivery when it returns, which
+   * callers must treat as progress. `failed` means it will never be delivered.
+   *
+   * Reachability is checked before the crypto, and again inside the serialized
+   * task just before sealing. Without the second check a socket that dropped
+   * while the task waited its turn would reach SocketClient.sendMessage, be
+   * reported as an ambiguous relay outcome and tombstone the pairing, having
+   * spent a counter on a frame nobody saw.
+   */
   private sendEncrypted(
     channelId: string,
     message: object,
     options: { isAnswer?: boolean; queuedAt?: number; alreadyQueued?: boolean } = {},
   ): Promise<SendOutcome> {
+    return this.sendEncryptedTracked(channelId, message, options).then(
+      (result) => result.outcome,
+    );
+  }
+
+  /**
+   * As sendEncrypted, and it also says whether THIS call's own message ended
+   * up as the parked frame.
+   *
+   * The flush needs that answer about its own entry. Inferring it from
+   * `pendingRetransmit` changing identity was wrong: a direct send parking a
+   * frame at the same moment produced a new object too, and the flush then
+   * shifted an entry that had never been sealed, losing a held answer.
+   */
+  private sendEncryptedTracked(
+    channelId: string,
+    message: object,
+    options: { isAnswer?: boolean; queuedAt?: number; alreadyQueued?: boolean } = {},
+  ): Promise<{ outcome: SendOutcome; parked: boolean }> {
     const conn = this.connections.get(channelId);
-    if (!conn?.cryptoUsable) return Promise.resolve("failed");
+    if (!conn?.cryptoUsable) {
+      return Promise.resolve({ outcome: "failed" as SendOutcome, parked: false });
+    }
 
     const isAnswer = options.isAnswer ?? false;
     const queuedAt = options.queuedAt ?? Date.now();
@@ -2352,7 +2410,9 @@ export class DAppConnectService {
       return "held";
     };
 
-    if (!conn.socketClient.isConnected()) return Promise.resolve(hold());
+    if (!conn.socketClient.isConnected()) {
+      return Promise.resolve({ outcome: hold(), parked: false });
+    }
 
     const task = conn.outboundQueue.then(() =>
       this.sendEncryptedNow(channelId, message, conn),
@@ -2365,21 +2425,21 @@ export class DAppConnectService {
     );
 
     return task.then(
-      () => "sent" as SendOutcome,
+      () => ({ outcome: "sent" as SendOutcome, parked: false }),
       (err: unknown) => {
         if (err instanceof FrameParkedError) {
           // This message is already sealed and its counter is spent. The frame
           // goes out first on reconnect, so queueing the plaintext as well
           // would deliver the same answer twice.
-          return "held" as SendOutcome;
+          return { outcome: "held" as SendOutcome, parked: true };
         }
         if (err instanceof SocketNotConnectedError) {
           // Raised before any emit, so nothing left this process and no
           // counter was spent. Unambiguous, and safe to hold.
-          return hold();
+          return { outcome: hold(), parked: false };
         }
         console.error("[DAppConnect] Failed to send encrypted:", err);
-        return "failed" as SendOutcome;
+        return { outcome: "failed" as SendOutcome, parked: false };
       },
     );
   }

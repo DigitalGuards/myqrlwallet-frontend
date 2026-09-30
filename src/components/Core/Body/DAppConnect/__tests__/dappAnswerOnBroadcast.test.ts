@@ -6,6 +6,8 @@
  * sequences a PromiEvent actually produces decide the outcome.
  */
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { waitForDAppBroadcastSettlement } from "../dappBroadcastSettlement";
 import { createDAppRequestAnswer } from "../dappRequestAnswer";
 
@@ -148,5 +150,25 @@ describe("the one-shot answer", () => {
     answer.reject("no");
     expect(answer.answered).toBe(true);
     expect(approve).not.toHaveBeenCalled();
+  });
+});
+
+describe("watching an unknown broadcast outcome", () => {
+  // Behaviour of the poller itself lives in utils/web3/__tests__/txPolling.
+  // What can only be checked here is that the modal actually hands it a
+  // cancellation, since nothing else stops it polling for seven minutes on a
+  // phone whose user closed the modal long ago.
+  it("hands the receipt poller a cancellation tied to the live approval", () => {
+    const source = readFileSync(
+      join(__dirname, "..", "DAppApprovalModal.tsx"),
+      "utf8",
+    );
+    const watcher = source.slice(
+      source.indexOf("const watchUnknownTransaction"),
+    );
+    const call = watcher.slice(0, watcher.indexOf("};"));
+
+    expect(call).toContain("waitForTransactionReceipt");
+    expect(call).toMatch(/cancelled:\s*\(\)\s*=>\s*!isStillCurrent\(\)/);
   });
 });

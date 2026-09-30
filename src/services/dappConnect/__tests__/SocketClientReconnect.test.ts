@@ -98,27 +98,66 @@ describe("server-initiated disconnects", () => {
     expect(mockConnect.mock.calls.length).toBeLessThanOrEqual(4);
   });
 
-  it("backs off further each time, with jitter", async () => {
+  it("backs off further each time", async () => {
     const events = handlers();
     const client = new SocketClient("https://relay.example", events);
     await started(client);
 
-    // Fake timers first, so the scheduled retry never actually runs; the spy
-    // only needs to record the delay it was asked for.
+    // Fake timers, so each scheduled retry can be run on demand and the spy
+    // records the delay every cycle was asked for.
     jest.useFakeTimers();
     const timeout = jest.spyOn(globalThis, "setTimeout");
 
-    serverDisconnect();
-
-    const scheduled = timeout.mock.calls[0];
-    const first = typeof scheduled?.[1] === "number" ? scheduled[1] : 0;
+    const delays: number[] = [];
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      timeout.mockClear();
+      serverDisconnect();
+      const calls = timeout.mock.calls;
+      const scheduled = calls[calls.length - 1];
+      const delay = typeof scheduled?.[1] === "number" ? scheduled[1] : 0;
+      delays.push(delay);
+      // Run the retry so the next disconnect schedules the following cycle.
+      jest.advanceTimersByTime(delay);
+    }
     timeout.mockRestore();
 
-    // Jitter is half to one and a half of the nominal delay, so the window is
-    // wide rather than a fixed 1 Hz drumbeat that many phones behind one
-    // carrier NAT would keep in lockstep.
-    expect(first).toBeGreaterThanOrEqual(500);
-    expect(first).toBeLessThanOrEqual(1_500);
+    // Each cycle doubles the nominal delay, and jitter only moves it within
+    // half to one and a half of that. A relay that keeps refusing is given
+    // increasing room instead of a fixed 1 Hz drumbeat: by the fourth try the
+    // wait cannot be mistaken for the first.
+    expect(delays[0]).toBeGreaterThanOrEqual(500);
+    expect(delays[0]).toBeLessThanOrEqual(1_500);
+    expect(delays[1]).toBeLessThanOrEqual(3_000);
+    expect(delays[2]).toBeGreaterThanOrEqual(2_000);
+    expect(delays[3]).toBeGreaterThanOrEqual(4_000);
+    expect(delays[3]).toBeLessThanOrEqual(12_000);
+  });
+
+  it("spreads the retry with jitter instead of a fixed delay", async () => {
+    // Same nominal delay, two different random draws: the scheduled waits
+    // have to differ, or every phone behind one carrier NAT retries in
+    // lockstep and keeps tripping the relay's per-IP connect limit together.
+    const delayForRandom = async (value: number): Promise<number> => {
+      listeners.clear();
+      mockSocket.connected = false;
+      mockSocket.active = false;
+      const client = new SocketClient("https://relay.example", handlers());
+      await started(client);
+
+      jest.useFakeTimers();
+      const random = jest.spyOn(Math, "random").mockReturnValue(value);
+      const timeout = jest.spyOn(globalThis, "setTimeout");
+      serverDisconnect();
+      const calls = timeout.mock.calls;
+      const scheduled = calls[calls.length - 1];
+      timeout.mockRestore();
+      random.mockRestore();
+      jest.useRealTimers();
+      return typeof scheduled?.[1] === "number" ? scheduled[1] : 0;
+    };
+
+    expect(await delayForRandom(0)).toBe(500);
+    expect(await delayForRandom(0.999)).toBe(1_499);
   });
 
   it("ignores an ordinary transport drop, which socket.io retries itself", async () => {
