@@ -106,6 +106,12 @@ type SocketEventHandler = {
    * held for the channel is undeliverable, so the session should be retired.
    */
   onReconnectAbandoned?: () => void;
+  /**
+   * The socket is up but the relay would not take the channel back, and the
+   * retries are spent. Nothing can be sent or received on it, so the session
+   * must be retired rather than left looking live.
+   */
+  onRejoinAbandoned?: () => void;
   onParticipantsChanged: (data: ParticipantChange) => void;
   /** The relay reported a terminated (tombstoned) channel on (re)join. */
   onTerminated?: () => void;
@@ -120,8 +126,8 @@ type SocketEventHandler = {
  * anyone.
  */
 export class SocketNotConnectedError extends Error {
-  constructor() {
-    super('Socket not connected');
+  constructor(message = 'Socket not connected') {
+    super(message);
     this.name = 'SocketNotConnectedError';
   }
 }
@@ -130,11 +136,38 @@ export class SocketNotConnectedError extends Error {
 const MANUAL_RECONNECT_ATTEMPTS = 4;
 const MANUAL_RECONNECT_BASE_MS = 1_000;
 
+/**
+ * Retries for a refused rejoin, and the first delay.
+ *
+ * Both refusals the relay actually issues are transient by construction. A
+ * stale wallet participant is held for at most its ping interval plus its ping
+ * timeout, and the join rate limit is a one-minute window. Six attempts from
+ * one second, doubling and capped, span both.
+ */
+const REJOIN_ATTEMPTS = 6;
+const REJOIN_BASE_MS = 1_000;
+const REJOIN_MAX_DELAY_MS = 20_000;
+
 export class SocketClient {
   private socket: Socket | null = null;
   /** Manual retries after a server-initiated disconnect. */
   private manualReconnectAttempts = 0;
   private manualReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * The relay has this socket in the channel.
+   *
+   * Socket-level connectedness is not channel membership: a reconnected socket
+   * is `connected` a whole relay round trip before its rejoin is acknowledged,
+   * and a refused rejoin leaves it connected and never a member. The relay
+   * answers a frame from a non-member with an error, which the caller cannot
+   * tell apart from a genuinely ambiguous acknowledgement, so it spends a
+   * counter and then retires the pairing. Membership is tracked here instead.
+   */
+  private joined = false;
+  private rejoinAttempts = 0;
+  private rejoinTimer: ReturnType<typeof setTimeout> | null = null;
+  /** A rejoin is on the wire and its acknowledgement is still outstanding. */
+  private rejoinInFlight = false;
   private connectedAt: number | null = null;
   private relayUrl: string;
   private channelId: string | null = null;
@@ -228,29 +261,7 @@ export class SocketClient {
       // Auto-rejoin only after the initial join has succeeded. The initial
       // join is driven by the caller via joinChannel(); otherwise we'd race
       // with it here and emit join_channel twice on the first connect.
-      const socket = this.socket;
-      if (this.channelId && this.hasJoinedOnce && socket) {
-        this.emitJoinChannel(socket, this.channelId)
-          .then(({ bufferedMessages, terminated }) => {
-            if (terminated) {
-              // The dApp explicitly closed the channel while we were away.
-              // Don't deliver stale buffered messages or flip back to
-              // CONNECTED; surface the termination so the session is dropped.
-              this.handlers.onTerminated?.();
-              return;
-            }
-            for (const msg of bufferedMessages) {
-              this.handlers.onMessage(msg as RelayMessage);
-            }
-            // A completed rejoin is the first moment the relay has actually
-            // taken this channel back, so the retry budget is refilled here.
-            this.manualReconnectAttempts = 0;
-            this.handlers.onReconnected();
-          })
-          .catch((err) => {
-            console.warn('[SocketClient] Auto-rejoin failed:', err?.message ?? err);
-          });
-      }
+      if (this.channelId && this.hasJoinedOnce) this.attemptRejoin();
     });
 
     socket.on('disconnect', (reason, description) => {
@@ -275,6 +286,10 @@ export class SocketClient {
           `transport=${this.transportName()}; aliveMs=${aliveMs}; ` +
           `visible=${visible}; online=${online}`
       );
+      // Membership dies with the transport. Anything sealed from here on must
+      // be held rather than handed to a socket the relay does not know.
+      this.joined = false;
+      this.cancelRejoinRetry();
       this.handlers.onDisconnected(reason);
       this.scheduleManualReconnect(reason);
     });
@@ -326,6 +341,85 @@ export class SocketClient {
     return task;
   }
 
+  /**
+   * Re-join the channel after the transport came back, retrying a refusal.
+   *
+   * A refused rejoin used to be logged and dropped. That left the socket
+   * connected and permanently outside the channel: `onReconnected` never fired,
+   * so a held or parked answer was never delivered, and any new send was sealed
+   * against a socket the relay would refuse. Both refusals the relay issues are
+   * transient, so they are retried; when the budget is spent the handler is
+   * told so the session can be retired instead of looking live.
+   */
+  private attemptRejoin(): void {
+    const channelId = this.channelId;
+    const socket = this.socket;
+    if (!channelId || !socket || !this.hasJoinedOnce) return;
+    this.cancelRejoinRetry();
+    this.rejoinInFlight = true;
+    this.emitJoinChannel(socket, channelId)
+      .then(({ bufferedMessages, terminated }) => {
+        this.rejoinInFlight = false;
+        if (this.socket !== socket || this.channelId !== channelId) return;
+        if (terminated) {
+          // The dApp explicitly closed the channel while we were away.
+          // Don't deliver stale buffered messages or flip back to
+          // CONNECTED; surface the termination so the session is dropped.
+          this.rejoinAttempts = 0;
+          this.handlers.onTerminated?.();
+          return;
+        }
+        this.joined = true;
+        this.rejoinAttempts = 0;
+        for (const msg of bufferedMessages) {
+          this.handlers.onMessage(msg as RelayMessage);
+        }
+        // A completed rejoin is the first moment the relay has actually
+        // taken this channel back, so the retry budget is refilled here.
+        this.manualReconnectAttempts = 0;
+        this.handlers.onReconnected();
+      })
+      .catch((err: unknown) => {
+        this.rejoinInFlight = false;
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn('[SocketClient] Auto-rejoin failed:', message);
+        logToNative(`[SocketClient] rejoin failed: ${message}`);
+        if (this.socket !== socket || this.channelId !== channelId) return;
+        this.scheduleRejoinRetry();
+      });
+  }
+
+  private scheduleRejoinRetry(): void {
+    if (this.rejoinTimer !== null) return;
+    if (this.rejoinAttempts >= REJOIN_ATTEMPTS) {
+      console.warn(
+        `[SocketClient] relay refused ${this.rejoinAttempts} rejoins; giving up on the channel`
+      );
+      this.rejoinAttempts = 0;
+      this.handlers.onRejoinAbandoned?.();
+      return;
+    }
+    // Jittered, for the same reason the reconnect budget is: many phones
+    // behind one carrier NAT trip the relay's per-IP join limit together.
+    const backoff = Math.min(
+      REJOIN_BASE_MS * Math.pow(2, this.rejoinAttempts),
+      REJOIN_MAX_DELAY_MS
+    );
+    const delay = Math.round(backoff * (0.5 + Math.random()));
+    this.rejoinAttempts += 1;
+    this.rejoinTimer = setTimeout(() => {
+      this.rejoinTimer = null;
+      if (this.socket?.connected) this.attemptRejoin();
+    }, delay);
+  }
+
+  private cancelRejoinRetry(): void {
+    if (this.rejoinTimer !== null) {
+      clearTimeout(this.rejoinTimer);
+      this.rejoinTimer = null;
+    }
+  }
+
   private async joinChannelNow(channelId: string): Promise<JoinChannelResult> {
     this.channelId = channelId;
     const socket = this.socket;
@@ -340,6 +434,9 @@ export class SocketClient {
     }
     const result = await this.emitJoinChannel(socket, channelId);
     this.hasJoinedOnce = true;
+    // A terminated channel routes nothing, so it is not membership.
+    this.joined = !result.terminated;
+    this.rejoinAttempts = 0;
     return result;
   }
 
@@ -425,6 +522,14 @@ export class SocketClient {
         reject(new SocketNotConnectedError());
         return;
       }
+      if (!this.joined) {
+        // Connected and outside the channel: the relay refuses a frame from a
+        // non-member with "Sender not in channel", and the caller reads that
+        // rejected acknowledgement as ambiguous and retires the pairing. Refuse
+        // here instead, before any emit, so the message is simply held.
+        reject(new SocketNotConnectedError('Relay channel not joined'));
+        return;
+      }
       let settled = false;
       const finish = (error?: Error): void => {
         if (settled) return;
@@ -496,6 +601,8 @@ export class SocketClient {
   leaveChannel(): Promise<boolean> {
     const channelId = this.channelId;
     this.channelId = null;
+    this.joined = false;
+    this.cancelRejoinRetry();
     if (!this.socket?.connected || !channelId) return Promise.resolve(false);
     return this.flushEmit('leave_channel', { channelId });
   }
@@ -510,6 +617,8 @@ export class SocketClient {
   closeChannel(channelOverride?: string): Promise<boolean> {
     const channelId = channelOverride ?? this.channelId;
     this.channelId = null;
+    this.joined = false;
+    this.cancelRejoinRetry();
     if (!this.socket?.connected || !channelId) return Promise.resolve(false);
     return this.flushEmit('close_channel', { channelId });
   }
@@ -522,6 +631,10 @@ export class SocketClient {
       this.manualReconnectTimer = null;
     }
     this.manualReconnectAttempts = 0;
+    this.cancelRejoinRetry();
+    this.rejoinAttempts = 0;
+    this.rejoinInFlight = false;
+    this.joined = false;
     for (const cancel of [...this.pendingConnectCancellations]) cancel();
     this.pendingConnectCancellations.clear();
     this.connectPromise = null;
@@ -542,13 +655,32 @@ export class SocketClient {
   }
 
   /**
+   * The relay has this socket in the channel, so a frame handed to it will be
+   * routed or buffered rather than refused. This is the reachability question a
+   * caller about to spend an AEAD counter actually needs answered.
+   */
+  isJoined(): boolean {
+    return (this.socket?.connected ?? false) && this.joined;
+  }
+
+  /**
    * Whether this socket can still come back on its own or through the retry
    * below. False once a server-initiated disconnect has exhausted its retries,
    * which is the signal that anything held for this channel will never be
    * delivered and the session should be retired rather than left waiting.
    */
   willReconnect(): boolean {
-    if (this.socket?.connected) return true;
+    // A connected socket only counts while it is in the channel, has a rejoin
+    // on the wire, or has a retry queued. Connected and permanently refused is
+    // not coming back, and a message handed to it would never be delivered.
+    if (this.socket?.connected) {
+      return (
+        this.joined ||
+        this.rejoinInFlight ||
+        this.rejoinTimer !== null ||
+        this.joinPromise !== null
+      );
+    }
     if (this.socket?.active) return true;
     return this.manualReconnectTimer !== null;
   }

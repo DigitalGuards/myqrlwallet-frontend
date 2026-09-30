@@ -654,6 +654,9 @@ export class DAppConnectService {
       onReconnectAbandoned: () => {
         this.handleReconnectAbandoned(channelId);
       },
+      onRejoinAbandoned: () => {
+        this.handleReconnectAbandoned(channelId);
+      },
       onReconnected: () => {
         dlog(`Socket reconnected for channel ${channelId}`);
         const conn = this.connections.get(channelId);
@@ -1757,7 +1760,7 @@ export class DAppConnectService {
         teardown.sendTerminate &&
         conn.cryptoUsable &&
         conn.keyExchange.areKeysExchanged() &&
-        conn.socketClient.isConnected()
+        conn.socketClient.isJoined()
       ) {
         await Promise.race([
           this.sendEncrypted(channelId, { type: MessageType.TERMINATE }),
@@ -1853,6 +1856,9 @@ export class DAppConnectService {
               );
             },
             onReconnectAbandoned: () => {
+              this.handleReconnectAbandoned(session.id);
+            },
+            onRejoinAbandoned: () => {
               this.handleReconnectAbandoned(session.id);
             },
             onReconnected: () => {
@@ -2456,7 +2462,7 @@ export class DAppConnectService {
       return "held";
     };
 
-    if (!conn.socketClient.isConnected()) {
+    if (!conn.socketClient.isJoined()) {
       return Promise.resolve({ outcome: hold(), parked: false });
     }
 
@@ -2513,7 +2519,10 @@ export class DAppConnectService {
     // time can be minutes old: the task waits its turn behind other sends,
     // and a backgrounded WebView can resume with the socket already closed.
     // Sealing against a dead socket spends a counter on a frame nobody sees.
-    if (!conn.socketClient.isConnected()) {
+    // Membership, not socket-level connectedness: a reconnected socket is
+    // `connected` a full relay round trip before its rejoin is acknowledged,
+    // and the relay refuses a frame from a non-member.
+    if (!conn.socketClient.isJoined()) {
       throw new SocketNotConnectedError();
     }
 

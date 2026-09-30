@@ -34,6 +34,8 @@ interface MockSocketInstance {
   relayUrl: string;
   /** Mirrors SocketClient.willReconnect; false models a relay that gave up. */
   canReconnect: boolean;
+  /** Mirrors SocketClient.isJoined; false models a socket outside the channel. */
+  joined: boolean;
   handlers: MockSocketHandlers;
   sent: RelayMessage[];
   /** Mirrors SocketClient.isConnected, which the service checks before sealing. */
@@ -105,13 +107,24 @@ jest.mock("../SocketClient", () => {
     }
 
     /**
+     * Mirrors SocketClient.isJoined. Socket-level connectedness is not channel
+     * membership, and the service seals against membership: the relay refuses a
+     * frame from a non-member. Tests that model the rejoin window flip this.
+     */
+    joined = true;
+
+    isJoined(): boolean {
+      return this.connected && this.joined;
+    }
+
+    /**
      * Mirrors SocketClient.willReconnect. Tests that model a relay which has
      * given up for good set this to false.
      */
     canReconnect = true;
 
     willReconnect(): boolean {
-      return this.connected || this.canReconnect;
+      return (this.connected && this.joined) || this.canReconnect;
     }
 
     async connect(): Promise<void> {
@@ -121,6 +134,7 @@ jest.mock("../SocketClient", () => {
 
     async joinChannel(channelId: string): Promise<MockJoinResult> {
       this.joinCalls.push(channelId);
+      this.joined = !mockJoinResult.terminated;
       return {
         ...mockJoinResult,
         bufferedMessages: [...mockJoinResult.bufferedMessages],
@@ -1139,6 +1153,54 @@ describe("wallet service AEAD checkpointing", () => {
     }
 
     socket.connected = true;
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length === 1);
+    expect(
+      await decryptWalletFrame(pairing, socket.sent[0]),
+    ).toMatchObject({ id: 1, result: "0xhash" });
+  });
+
+  it("holds an answer while the socket is connected but outside the channel", async () => {
+    // A reconnected socket is connected a whole relay round trip before its
+    // rejoin is acknowledged, and a refused rejoin leaves it connected and
+    // never a member. The relay answers a frame from a non-member with
+    // "Sender not in channel", and a rejected acknowledgement is read as
+    // ambiguous: the pairing was tombstoned with a counter already spent, and
+    // the dApp was told nothing, because a close_channel from a non-member is
+    // refused too. Its request then hung until its own five-minute timeout.
+    const pairing = await makePairing("connected-not-joined");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    const sealedBefore =
+      SessionStore.get(pairing.session.id)?.keyExchange.sendSeq;
+
+    // The rejoin window: the transport is up, the channel is not ours yet.
+    socket.joined = false;
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await settle();
+
+    // Nothing emitted, no counter spent, and above all no tombstone.
+    expect(socket.sent).toHaveLength(0);
+    expect(socket.closeCalls).toBe(0);
+    expect(SessionStore.get(pairing.session.id)).not.toBeNull();
+    expect(SessionStore.get(pairing.session.id)?.keyExchange.sendSeq).toBe(
+      sealedBefore,
+    );
+    {
+      const internals = Object(service) as {
+        connections: Map<
+          string,
+          { pendingRetransmit: unknown; offlineOutbox: unknown[] }
+        >;
+      };
+      const held = internals.connections.get(pairing.session.id);
+      expect(held?.pendingRetransmit).toBeNull();
+      expect(held?.offlineOutbox).toHaveLength(1);
+    }
+
+    // The rejoin lands and the held answer goes out.
+    socket.joined = true;
     socket.handlers.onReconnected?.();
     await waitFor(() => socket.sent.length === 1);
     expect(
