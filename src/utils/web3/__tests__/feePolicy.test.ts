@@ -19,6 +19,118 @@ const ordinary = {
   maxFeePerGas: BigInt(1_500_000_014),
 };
 
+/**
+ * The v3 devnet as measured on 2026-09-30 through the wallet's RPC proxy:
+ * latest baseFeePerGas 0x7, qrl_maxPriorityFeePerGas 0x5e8de4ff. An earlier
+ * floor of 2 Gplanck refused the default fee level and above against exactly
+ * these numbers, so they are pinned here.
+ */
+const LIVE_BASE_FEE = BigInt(7);
+const LIVE_SUGGESTED_TIP = BigInt(1_586_357_503);
+/** src/stores/qrlStore.ts TIP_MULTIPLIERS, in percent. */
+const TIP_MULTIPLIERS = { low: BigInt(100), medium: BigInt(150), high: BigInt(200) };
+
+/** The quote quoteFees builds from a suggestion and a base fee. */
+const walletQuote = (suggestedTip: bigint, baseFeePerGas: bigint, level: keyof typeof TIP_MULTIPLIERS) => {
+  const maxPriorityFeePerGas = (suggestedTip * TIP_MULTIPLIERS[level]) / BigInt(100);
+  return {
+    baseFeePerGas,
+    maxPriorityFeePerGas,
+    maxFeePerGas: BigInt(2) * baseFeePerGas + maxPriorityFeePerGas,
+  };
+};
+
+describe("the live devnet is not refused", () => {
+  it.each(["low", "medium", "high"] as const)(
+    "accepts today's quote at %s",
+    (level) => {
+      const quote = walletQuote(LIVE_SUGGESTED_TIP, LIVE_BASE_FEE, level);
+      expect(feeQuoteViolation(quote)).toBeNull();
+    },
+  );
+
+  it("accepts the medium tip that was signed on device", () => {
+    // 2.379536268 Gplanck, the gas price of the transfer confirmed on chain.
+    const quote = walletQuote(LIVE_SUGGESTED_TIP, LIVE_BASE_FEE, "medium");
+    expect(quote.maxPriorityFeePerGas).toBe(BigInt(2_379_536_254));
+    expect(feeQuoteViolation(quote)).toBeNull();
+  });
+
+  it.each(["low", "medium", "high"] as const)(
+    "still accepts %s if the network's suggestion rises tenfold",
+    (level) => {
+      const quote = walletQuote(LIVE_SUGGESTED_TIP * BigInt(10), LIVE_BASE_FEE, level);
+      expect(feeQuoteViolation(quote)).toBeNull();
+    },
+  );
+
+  it("refuses a suggestion a hundred times today's, which is an attack", () => {
+    const quote = walletQuote(LIVE_SUGGESTED_TIP * BigInt(100), LIVE_BASE_FEE, "medium");
+    expect(feeQuoteViolation(quote)).toMatch(/the allowance at a base fee/);
+  });
+});
+
+describe("the surfaces that share this policy", () => {
+  it("accepts a dApp approval quote, which is always the medium level", () => {
+    // DAppApprovalModal quotes at DAPP_FEE_LEVEL = "medium", both for the fee
+    // shown before the user decides and for the one it signs. That path runs
+    // on web, on the embedded document and on desktop.
+    const quote = walletQuote(LIVE_SUGGESTED_TIP, LIVE_BASE_FEE, "medium");
+    expect(feeQuoteViolation(quote)).toBeNull();
+  });
+
+  it("bounds the legacy gasPrice fallback by the absolute ceilings alone", () => {
+    // applyFeeLevel builds from qrl_gasPrice, which already includes the base
+    // fee and reports none separately, so there is nothing to compare
+    // against. The absolute ceilings are the only bound, deliberately: nodes
+    // that do not serve the fee market would otherwise be refused outright.
+    const legacy = (maxFeePerGas: bigint, maxPriorityFeePerGas: bigint) => ({
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+    });
+
+    // Far above any relative allowance, accepted because no base fee is known.
+    expect(
+      feeQuoteViolation(legacy(BigInt(900) * GPLANCK, BigInt(900) * GPLANCK)),
+    ).toBeNull();
+    // The absolute ceiling still bites.
+    expect(
+      feeQuoteViolation(
+        legacy(
+          ABSOLUTE_MAX_FEE_PER_GAS + BigInt(1),
+          ABSOLUTE_MAX_PRIORITY_FEE_PER_GAS + BigInt(1),
+        ),
+      ),
+    ).toMatch(/exceeds the absolute ceiling/);
+  });
+});
+
+describe("the maximum-fee rule never refuses a quote the tip rule allowed", () => {
+  // allowance = 10 * base + tipAllowance, quote = 2 * base + tip, and the tip
+  // has already been established as within both tip limits. At a very high
+  // base fee the absolute tip ceiling is what binds, which is intended, so the
+  // largest permitted tip is the smaller of the two.
+  it.each([
+    [BigInt(0)],
+    [LIVE_BASE_FEE],
+    [BigInt(120) * GPLANCK],
+    [BigInt(900) * GPLANCK],
+  ])("holds at a base fee of %s", (baseFeePerGas) => {
+    const relative = baseFeePerGas * BigInt(20);
+    const tipAllowance = relative > MIN_TIP_ALLOWANCE ? relative : MIN_TIP_ALLOWANCE;
+    const largestPermittedTip =
+      tipAllowance < ABSOLUTE_MAX_PRIORITY_FEE_PER_GAS
+        ? tipAllowance
+        : ABSOLUTE_MAX_PRIORITY_FEE_PER_GAS;
+    const atTheLimit = {
+      baseFeePerGas,
+      maxPriorityFeePerGas: largestPermittedTip,
+      maxFeePerGas: BigInt(2) * baseFeePerGas + largestPermittedTip,
+    };
+    expect(feeQuoteViolation(atTheLimit)).toBeNull();
+  });
+});
+
 describe("ordinary quotes pass", () => {
   it("accepts a quote shaped like the wallet's own", () => {
     expect(feeQuoteViolation(ordinary)).toBeNull();
@@ -79,7 +191,8 @@ describe("the tip is the lever, so it is bounded", () => {
   });
 
   it("still allows an ordinary tip when the base fee is near zero", () => {
-    // A purely relative rule would refuse every real tip on a quiet chain.
+    // A purely relative rule would refuse every real tip on a quiet chain,
+    // which is exactly the regression this floor exists to prevent.
     expect(
       feeQuoteViolation({
         baseFeePerGas: BigInt(1),
@@ -87,6 +200,16 @@ describe("the tip is the lever, so it is bounded", () => {
         maxFeePerGas: MIN_TIP_ALLOWANCE + BigInt(2),
       }),
     ).toBeNull();
+  });
+
+  it("refuses one planck above the floor when the base fee is near zero", () => {
+    expect(
+      feeQuoteViolation({
+        baseFeePerGas: BigInt(1),
+        maxPriorityFeePerGas: MIN_TIP_ALLOWANCE + BigInt(1),
+        maxFeePerGas: MIN_TIP_ALLOWANCE + BigInt(3),
+      }),
+    ).toMatch(/the allowance at a base fee/);
   });
 
   it("refuses nonsense", () => {

@@ -38,15 +38,32 @@ export const MAX_TIP_OVER_BASE_FEE = BigInt(20);
 
 /**
  * The tip allowance never drops below this, so a chain with a near-zero base
- * fee can still pay an ordinary tip. 2 Gplanck is generous next to the single
- * digits of planck the devnet suggests.
+ * fee can still pay an ordinary tip.
+ *
+ * The base fee and the suggested tip are on completely different scales here,
+ * and conflating them is what made an earlier version of this file refuse
+ * ordinary sends. On the v3 devnet the base fee is single digits of planck
+ * while `qrl_maxPriorityFeePerGas` suggests about 1.59 Gplanck, which
+ * `TIP_MULTIPLIERS` scales to roughly 1.59, 2.38 and 3.17 Gplanck for slow,
+ * medium and fast. A floor of 2 Gplanck therefore refused the default level
+ * and above, on a live network, which is why this is a fixed value with real
+ * headroom rather than a number that looks small.
+ *
+ * 50 Gplanck is about 30 times today's suggestion. The tip is paid per gas
+ * used, so at this floor the worst an unbounded node can extract while the
+ * base fee is near zero is 0.00105 Quanta for a 21,000-gas transfer and about
+ * 0.05 Quanta at a million gas.
  */
-export const MIN_TIP_ALLOWANCE = BigInt(2) * GPLANCK;
+export const MIN_TIP_ALLOWANCE = BigInt(50) * GPLANCK;
 
 /**
  * `quoteFees` asks for `2 * baseFee + tip` so several base-fee rises fit
  * inside the ceiling. 10 leaves room for that headroom to grow without
  * letting the ceiling become a second way to overpay.
+ *
+ * This rule can never be the one that refuses a wallet quote: the allowance is
+ * `10 * baseFee + tipAllowance`, the quote is `2 * baseFee + tip`, and the tip
+ * rule above has already established `tip <= tipAllowance`. A test pins that.
  */
 export const MAX_FEE_OVER_BASE_FEE = BigInt(10);
 
@@ -55,7 +72,14 @@ export const MAX_FEE_OVER_BASE_FEE = BigInt(10);
  * 1,000 Gplanck is 2.1e16 planck and a max fee of 10,000 Gplanck is 2.1e17
  * planck, so a single transaction can never cost more than a fraction of a
  * Quanta however the node answers. They are far above anything this network
- * produces and exist to bound the worst case, not to price transactions.
+ * produces and exist to bound the worst case rather than to price anything.
+ *
+ * These are also the only limits that apply to the legacy `qrl_gasPrice`
+ * fallback, which reports no base fee, so there is nothing to compare against.
+ * That is deliberate: the fallback exists for nodes that do not serve the fee
+ * market, and refusing every such quote would break those networks outright.
+ * The bound it leaves is the absolute ceiling, which at a million gas is about
+ * one Quanta.
  */
 export const ABSOLUTE_MAX_PRIORITY_FEE_PER_GAS = BigInt(1_000) * GPLANCK;
 export const ABSOLUTE_MAX_FEE_PER_GAS = BigInt(10_000) * GPLANCK;
