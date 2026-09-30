@@ -85,8 +85,8 @@ type MigrationScope = { [EMBEDDED_MIGRATION_FLAG]?: unknown };
  * is preserved and only `value` is filtered. Anything that does not parse into
  * that shape is left untouched.
  */
-function pruneRemoteSignerAccounts(storage: Storage | undefined): number {
-  if (storage === undefined) return 0;
+function pruneRemoteSignerAccounts(storage: Storage | undefined): ClearOutcome {
+  if (storage === undefined) return { removed: 0, failed: false };
 
   const keys: string[] = [];
   try {
@@ -95,9 +95,10 @@ function pruneRemoteSignerAccounts(storage: Storage | undefined): number {
       if (key !== null && key.endsWith(ACCOUNT_LIST_SUFFIX)) keys.push(key);
     }
   } catch {
-    return 0;
+    return { removed: 0, failed: true };
   }
 
+  let failed = false;
   let removed = 0;
   for (const key of keys) {
     try {
@@ -117,29 +118,42 @@ function pruneRemoteSignerAccounts(storage: Storage | undefined): number {
       removed += wrapper.value.length - kept.length;
       storage.setItem(key, JSON.stringify({ ...wrapper, value: kept }));
     } catch {
-      // A malformed or unwritable entry is left exactly as it is.
+      // A malformed entry is left exactly as it is. A write that throws is a
+      // real failure, so the migration is not reported as done.
+      failed = true;
     }
   }
-  return removed;
+  return { removed, failed };
 }
 
 let alreadyRun = false;
 
-function clearFrom(storage: Storage | undefined): number {
-  if (storage === undefined) return 0;
+interface ClearOutcome {
+  readonly removed: number;
+  /** True when at least one key could not be read or removed. */
+  readonly failed: boolean;
+}
+
+function clearFrom(storage: Storage | undefined): ClearOutcome {
+  if (storage === undefined) return { removed: 0, failed: false };
   let removed = 0;
+  let failed = false;
   for (const key of MIGRATION_SESSION_KEYS) {
     try {
       if (storage.getItem(key) !== null) removed += 1;
       storage.removeItem(key);
     } catch {
-      // A blocked or full storage must not stop the rest of the cleanup.
+      // A blocked or full storage must not stop the rest of the cleanup, and
+      // must not be reported to the app as a completed migration either.
+      failed = true;
     }
   }
-  return removed;
+  return { removed, failed };
 }
 
 function reportDone(): void {
+  // The bridge is an app-supplied object, so reaching it and calling it are
+  // both outside this module's control.
   const bridge = window.ReactNativeWebView;
   if (typeof bridge?.postMessage !== "function") return;
   // No token field: the app's bootstrap adds the per-load token itself. This
@@ -168,14 +182,39 @@ export function runEmbeddedMigration(): boolean {
   if (scope[EMBEDDED_MIGRATION_FLAG] !== true) return false;
   alreadyRun = true;
 
-  const removed = clearFrom(window.localStorage);
-  // No pairing state lives in sessionStorage today. Removing the same names
-  // costs nothing and keeps this correct if one ever moves there.
-  clearFrom(window.sessionStorage);
-  const orphans = pruneRemoteSignerAccounts(window.localStorage);
-  // IndexedDB holds only the device-credential store, which wraps the
-  // PIN-encrypted seed. Touching it would destroy the wallet, so it is left
-  // alone deliberately. The connect SDK uses no IndexedDB.
+  // `window.localStorage` and `window.sessionStorage` are accessor properties
+  // that throw SecurityError when site data is blocked or unavailable, which
+  // is exactly the kind of document this is. Reading them is therefore inside
+  // the try, along with the work itself.
+  let removed = 0;
+  let orphans = 0;
+  let failed = false;
+  try {
+    const local = clearFrom(window.localStorage);
+    // No pairing state lives in sessionStorage today. Removing the same names
+    // costs nothing and keeps this correct if one ever moves there.
+    const session = clearFrom(window.sessionStorage);
+    const accounts = pruneRemoteSignerAccounts(window.localStorage);
+    // IndexedDB holds only the device-credential store, which wraps the
+    // PIN-encrypted seed. Touching it would destroy the wallet, so it is left
+    // alone deliberately. The connect SDK uses no IndexedDB.
+    removed = local.removed;
+    orphans = accounts.removed;
+    failed = local.failed || session.failed || accounts.failed;
+  } catch (error) {
+    console.error("[embedded] migration could not reach storage", error);
+    failed = true;
+  }
+
+  if (failed) {
+    // Staying silent is the point: the app keeps its pending marker and tries
+    // again on the next launch. Claiming success here would strand a hosted
+    // pairing session in the wallet for good.
+    console.error(
+      "[embedded] migration did not complete, leaving it pending for the next launch",
+    );
+    return false;
+  }
 
   console.info(
     `[embedded] migration from the hosted wallet cleared ${removed} pairing session key(s) ` +
