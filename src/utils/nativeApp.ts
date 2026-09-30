@@ -142,17 +142,27 @@ export const requestQRScan = (): boolean => {
 /**
  * Copy text to clipboard via native app (bridge only)
  */
-export const copyToClipboardNative = (text: string): boolean => {
-  return sendToNative('COPY_TO_CLIPBOARD', { text });
+export const copyToClipboardNative = (text: string, sensitive = false): boolean => {
+  return sendToNative('COPY_TO_CLIPBOARD', { text, sensitive });
 };
 
 /**
  * Copy text to clipboard - uses native bridge when in app, browser API otherwise
  * This is the preferred function to use for clipboard operations
+ *
+ * Pass `sensitive` for a recovery phrase, a hex seed or anything else that
+ * would hand over the wallet. The app marks the clipboard entry sensitive, so
+ * Android keeps it out of the clipboard preview and clipboard history, and
+ * clears it after a minute. Addresses, amounts and transaction hashes are
+ * public and stay unflagged, so an address the user copied to paste somewhere
+ * else does not vanish underneath them.
  */
-export const copyToClipboard = async (text: string): Promise<boolean> => {
+export const copyToClipboard = async (
+  text: string,
+  sensitive = false,
+): Promise<boolean> => {
   if (isInNativeApp()) {
-    const sent = sendToNative('COPY_TO_CLIPBOARD', { text });
+    const sent = sendToNative('COPY_TO_CLIPBOARD', { text, sensitive });
     if (sent) return true;
     // Native bridge unavailable, fall through to browser API
   }

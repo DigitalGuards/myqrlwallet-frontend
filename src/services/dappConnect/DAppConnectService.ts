@@ -26,6 +26,8 @@ import {
   zeroize,
 } from "./PQCrypto";
 import { SocketClient } from "./SocketClient";
+import { IS_EMBEDDED_BUILD } from "@/utils/embeddedRuntime";
+import { EMBEDDED_RELAY_URLS } from "@/config/embeddedBuild";
 import { RequestHandler } from "./RequestHandler";
 import { getRequestProvider, readWalletChainId } from "./rpcProvider";
 import {
@@ -527,6 +529,14 @@ export class DAppConnectService {
     // only cause DoS, not break confidentiality (AEAD + transcript-bound
     // session key stand independent of the relay we connect to).
     const relayUrl = parsed.relayUrl || DEFAULT_RELAY_URL;
+    // The app-shipped document's policy allows only the relays it was built
+    // with, so any other one fails as a bare socket error with nothing to tell
+    // the user. Say what happened instead.
+    if (IS_EMBEDDED_BUILD && !EMBEDDED_RELAY_URLS.some((allowed) => relayUrl.startsWith(allowed))) {
+      throw new Error(
+        "This wallet pairs only through the qrlwallet.com relay. Ask the dApp to use it, or pair from the web wallet.",
+      );
+    }
     const keyExchange = new KeyExchange(undefined, {
       onKeysExchanged: () => this.onKeysExchanged(channelId),
     });

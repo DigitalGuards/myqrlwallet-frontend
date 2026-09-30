@@ -49,6 +49,16 @@ function isInDocumentHref(href: string): boolean {
 }
 
 /**
+ * Schemes the platform handles better than the wallet can.
+ *
+ * `openExternalUrl` accepts https only, so intercepting a `mailto:` or `tel:`
+ * link would cancel the click and then drop it with a warning the production
+ * bundle strips: the link would do nothing at all, with no trace. Leaving them
+ * alone lets the WebView hand them to the mail or dialler app.
+ */
+const PLATFORM_SCHEMES = /^(?:mailto:|tel:|sms:|blob:|data:)/i;
+
+/**
  * Hand an external link to the native browser instead of the WebView.
  *
  * Runs in the capture phase so it wins over React Router's own click handler
@@ -67,6 +77,7 @@ function interceptExternalClick(event: MouseEvent): void {
 
   const href = anchor.getAttribute("href") ?? "";
   if (isInDocumentHref(href)) return;
+  if (PLATFORM_SCHEMES.test(href.trim())) return;
 
   // `anchor.href` is resolved against the document, so a stray relative path
   // is caught here too: under the WebView baseUrl it would resolve to the live
@@ -74,8 +85,10 @@ function interceptExternalClick(event: MouseEvent): void {
   const resolved = anchor.href;
   if (resolved.startsWith(`${window.location.origin}/#`)) return;
 
+  // preventDefault alone stops the navigation. stopPropagation would also
+  // stop React onClick handlers on the anchor or any ancestor, in the embedded
+  // build only, which is a difference nobody would expect.
   event.preventDefault();
-  event.stopPropagation();
   openExternalUrl(resolved);
 }
 

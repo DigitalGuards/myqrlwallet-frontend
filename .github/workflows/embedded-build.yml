@@ -114,6 +114,12 @@ jobs:
             fi
           done
 
+      # download-artifact put these on a fresh runner, so the digest is checked
+      # again here rather than trusted from the job that built them.
+      - name: Verify the downloaded digest
+        working-directory: dist-embedded
+        run: sha256sum -c index.html.sha256
+
       - name: Attach both files to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

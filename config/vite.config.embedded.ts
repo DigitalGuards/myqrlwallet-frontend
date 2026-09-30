@@ -131,11 +131,16 @@ const resolveBuildProvenance = (): { commit: string; builtAt: string } => {
 
   const fromEnv = Number.parseInt(process.env.SOURCE_DATE_EPOCH ?? '', 10)
   const fromCommit = Number.parseInt(git(['log', '-1', '--format=%ct']) ?? '', 10)
-  const seconds = Number.isFinite(fromEnv)
-    ? fromEnv
-    : Number.isFinite(fromCommit)
-      ? fromCommit
-      : Math.floor(Date.now() / 1000)
+  if (!Number.isFinite(fromEnv) && !Number.isFinite(fromCommit)) {
+    // The wall clock would make two builds of the same source differ, and the
+    // whole point of this file is a digest the app pins. Fail instead, and say
+    // how to fix it.
+    throw new Error(
+      'embedded build: no build time available. Run this from a git checkout, ' +
+        'or set SOURCE_DATE_EPOCH to a fixed Unix timestamp.'
+    )
+  }
+  const seconds = Number.isFinite(fromEnv) ? fromEnv : fromCommit
 
   return { commit, builtAt: new Date(seconds * 1000).toISOString() }
 }

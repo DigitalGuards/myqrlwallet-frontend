@@ -127,6 +127,40 @@ describe("external link interception", () => {
     expect(mockOpenExternalUrl).not.toHaveBeenCalled();
   });
 
+  it("leaves mailto, tel and other platform schemes to the platform", () => {
+    installEmbeddedShell();
+    // openExternalUrl accepts https only, so intercepting these would cancel
+    // the click and then drop it: the link would do nothing at all.
+    for (const href of [
+      "mailto:security@digitalguards.nl",
+      "tel:+3100000000",
+      "sms:+3100000000",
+    ]) {
+      expect(clickAnchor(`<a href="${href}">contact</a>`)).toBe(false);
+    }
+    expect(mockOpenExternalUrl).not.toHaveBeenCalled();
+  });
+
+  it("does not stop propagation, so React handlers still run", () => {
+    installEmbeddedShell();
+    const onAncestorClick = jest.fn();
+    document.body.innerHTML =
+      '<div id="ancestor"><a href="https://zondscan.com/">link</a></div>';
+    document.getElementById("ancestor")?.addEventListener("click", () => {
+      onAncestorClick();
+    });
+    const event = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+    });
+    document.querySelector("a")?.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(mockOpenExternalUrl).toHaveBeenCalled();
+    expect(onAncestorClick).toHaveBeenCalledTimes(1);
+  });
+
   it("leaves modified clicks alone", () => {
     installEmbeddedShell();
     document.body.innerHTML = '<a href="https://zondscan.com/">link</a>';
