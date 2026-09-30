@@ -17,14 +17,20 @@ export function shouldPromptReturnToBrowser(input: {
   /** Inside the native app on iOS. */
   isIOSNative: boolean;
   txProgress: TxProgressState;
-  /** Answering this session hands the user back to the dApp. */
-  returnsToDApp: boolean;
+  /**
+   * The answer reached the dApp and the app was asked to hand the user back.
+   *
+   * Not merely "this session would bounce": an answer held for an absent relay
+   * has not arrived, and sending the user back to a dApp that is still waiting
+   * is worse than saying nothing.
+   */
+  handedBackToDApp: boolean;
 }): boolean {
-  if (!input.isIOSNative || !input.returnsToDApp) return false;
+  if (!input.isIOSNative || !input.handedBackToDApp) return false;
   // The dApp is answered when the node accepts the broadcast, which is
   // "confirming". Everything after that is the wallet's own progress, and
-  // "unknown" still means the dApp holds a hash. Before that there is nothing
-  // for the user to go back to, and a failure belongs on screen here.
+  // "unknown" still means the dApp holds a hash. A failure belongs on screen
+  // here.
   return (
     input.txProgress === "confirming" ||
     input.txProgress === "confirmed" ||

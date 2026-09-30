@@ -171,16 +171,45 @@ const MANUAL_RECONNECT_ATTEMPTS = 4;
 const MANUAL_RECONNECT_BASE_MS = 1_000;
 
 /**
- * Retries for a refused rejoin, and the first delay.
+ * Retries for a refused rejoin.
  *
- * Both refusals the relay actually issues are transient by construction. A
- * stale wallet participant is held for at most its ping interval plus its ping
- * timeout, and the join rate limit is a one-minute window. Six attempts from
- * one second, doubling and capped, span both.
+ * Both refusals the relay issues are transient by construction, and the budget
+ * has to outlast the longer of them: a stale wallet participant is held for its
+ * ping interval plus its ping timeout (45 s on the relay's defaults), and the
+ * join rate limit is a fixed one-minute window. Giving up sooner retires a
+ * pairing that was about to work, and on web and desktop the only retry after
+ * that is a reload.
+ *
+ * Six attempts at 5, 10, 20, 30, 30, 30 seconds: 125 s nominal, and at the
+ * narrowest jitter still 93 s, which clears the 60 s window with margin. The
+ * ten-second join acknowledgement timeout is spent on top of each of those. The
+ * attempt count stays at six deliberately: every join counts against the
+ * relay's per-IP limit of 30 a minute, which is shared behind carrier NAT, so
+ * the budget grows by waiting longer rather than by knocking more often.
  */
 const REJOIN_ATTEMPTS = 6;
-const REJOIN_BASE_MS = 1_000;
-const REJOIN_MAX_DELAY_MS = 20_000;
+const REJOIN_BASE_MS = 5_000;
+const REJOIN_MAX_DELAY_MS = 30_000;
+/**
+ * Jitter, as a fraction of the nominal delay.
+ *
+ * Wide enough to break up the lockstep of many phones behind one carrier NAT,
+ * narrow enough that the budget's total span stays predictable: the point of
+ * the budget is to outlast a window measured in seconds.
+ */
+const REJOIN_JITTER_MIN = 0.75;
+const REJOIN_JITTER_SPREAD = 0.5;
+
+/** The shortest total the delays above can add up to, for tests and docs. */
+export const rejoinBudgetFloorMs = (): number => {
+  let total = 0;
+  for (let attempt = 0; attempt < REJOIN_ATTEMPTS; attempt += 1) {
+    total +=
+      Math.min(REJOIN_BASE_MS * Math.pow(2, attempt), REJOIN_MAX_DELAY_MS) *
+      REJOIN_JITTER_MIN;
+  }
+  return total;
+};
 
 export class SocketClient {
   private socket: Socket | null = null;
@@ -202,6 +231,18 @@ export class SocketClient {
   private rejoinTimer: ReturnType<typeof setTimeout> | null = null;
   /** A rejoin is on the wire and its acknowledgement is still outstanding. */
   private rejoinInFlight = false;
+  /**
+   * Which rejoin attempt is the current one.
+   *
+   * socket.io drops the pending acknowledgement of a join that was lost with
+   * its transport, so that join rejects on its own ten-second timeout, long
+   * after a later one succeeded on the new transport. `this.socket` and
+   * `this.channelId` are both unchanged across a socket.io reconnect, so they
+   * cannot tell the two apart: a stale timeout scheduled another rejoin, on a
+   * socket that was already a member, and a run of those spent the relay's join
+   * rate limit until it refused and the wallet abandoned a working channel.
+   */
+  private rejoinGeneration = 0;
   private connectedAt: number | null = null;
   private relayUrl: string;
   private channelId: string | null = null;
@@ -323,6 +364,11 @@ export class SocketClient {
       // Membership dies with the transport. Anything sealed from here on must
       // be held rather than handed to a socket the relay does not know.
       this.joined = false;
+      // The join that went out on this transport will never be acknowledged.
+      // Retire its generation so its timeout, which lands ten seconds later on
+      // whatever connection exists by then, changes nothing.
+      this.rejoinInFlight = false;
+      this.rejoinGeneration += 1;
       this.cancelRejoinRetry();
       this.handlers.onDisconnected(reason);
       this.scheduleManualReconnect(reason);
@@ -389,12 +435,21 @@ export class SocketClient {
     const channelId = this.channelId;
     const socket = this.socket;
     if (!channelId || !socket || !this.hasJoinedOnce) return;
+    // Already a member: there is nothing to ask for, and asking anyway spends
+    // the relay's per-IP join budget and can end in a refusal that retires a
+    // channel this socket is in.
+    if (this.joined) return;
     this.cancelRejoinRetry();
     this.rejoinInFlight = true;
+    const generation = ++this.rejoinGeneration;
+    const isCurrent = (): boolean =>
+      generation === this.rejoinGeneration &&
+      this.socket === socket &&
+      this.channelId === channelId;
     this.emitJoinChannel(socket, channelId)
       .then(({ bufferedMessages, terminated }) => {
+        if (!isCurrent()) return;
         this.rejoinInFlight = false;
-        if (this.socket !== socket || this.channelId !== channelId) return;
         if (terminated) {
           // The dApp explicitly closed the channel while we were away.
           // Don't deliver stale buffered messages or flip back to
@@ -414,11 +469,14 @@ export class SocketClient {
         this.handlers.onReconnected();
       })
       .catch((err: unknown) => {
-        this.rejoinInFlight = false;
         const message = err instanceof Error ? err.message : String(err);
         console.warn('[SocketClient] Auto-rejoin failed:', message);
         logToNative(`[SocketClient] rejoin failed: ${message}`);
-        if (this.socket !== socket || this.channelId !== channelId) return;
+        // A join lost with an earlier transport fails here on its own timeout,
+        // after a later one already succeeded. It is not evidence about the
+        // connection this client is on now, so it schedules nothing.
+        if (!isCurrent()) return;
+        this.rejoinInFlight = false;
         this.scheduleRejoinRetry();
       });
   }
@@ -439,10 +497,14 @@ export class SocketClient {
       REJOIN_BASE_MS * Math.pow(2, this.rejoinAttempts),
       REJOIN_MAX_DELAY_MS
     );
-    const delay = Math.round(backoff * (0.5 + Math.random()));
+    const delay = Math.round(
+      backoff * (REJOIN_JITTER_MIN + REJOIN_JITTER_SPREAD * Math.random())
+    );
     this.rejoinAttempts += 1;
     this.rejoinTimer = setTimeout(() => {
       this.rejoinTimer = null;
+      // attemptRejoin refuses while this socket is already a member, and that
+      // is the case a stale timeout used to walk straight past.
       if (this.socket?.connected) this.attemptRejoin();
     }, delay);
   }
@@ -483,6 +545,9 @@ export class SocketClient {
     }
     const result = await this.emitJoinChannel(socket, channelId);
     this.hasJoinedOnce = true;
+    // An explicit join supersedes any rejoin still on the wire.
+    this.rejoinGeneration += 1;
+    this.rejoinInFlight = false;
     // A terminated channel routes nothing, so it is not membership.
     this.joined = !result.terminated;
     this.rejoinAttempts = 0;
@@ -661,6 +726,11 @@ export class SocketClient {
     const channelId = this.channelId;
     this.channelId = null;
     this.joined = false;
+    // An explicit leave or close outranks a rejoin still on the wire, whose
+    // acknowledgement would otherwise claim membership of a channel the caller
+    // has just given up.
+    this.rejoinGeneration += 1;
+    this.rejoinInFlight = false;
     this.cancelRejoinRetry();
     if (!this.socket?.connected || !channelId) return Promise.resolve(false);
     return this.flushEmit('leave_channel', { channelId });
@@ -677,6 +747,11 @@ export class SocketClient {
     const channelId = channelOverride ?? this.channelId;
     this.channelId = null;
     this.joined = false;
+    // An explicit leave or close outranks a rejoin still on the wire, whose
+    // acknowledgement would otherwise claim membership of a channel the caller
+    // has just given up.
+    this.rejoinGeneration += 1;
+    this.rejoinInFlight = false;
     this.cancelRejoinRetry();
     if (!this.socket?.connected || !channelId) return Promise.resolve(false);
     return this.flushEmit('close_channel', { channelId });
@@ -693,6 +768,7 @@ export class SocketClient {
     this.cancelRejoinRetry();
     this.rejoinAttempts = 0;
     this.rejoinInFlight = false;
+    this.rejoinGeneration += 1;
     this.joined = false;
     for (const cancel of [...this.pendingConnectCancellations]) cancel();
     this.pendingConnectCancellations.clear();

@@ -8,7 +8,11 @@
 /**
  * Message types that can be sent to the native app
  */
-import { IS_V3_PROFILE, isQualifiedV3NativeContext } from '@/config/runtimeProfile';
+import {
+  IS_V3_PROFILE,
+  isQualifiedV3NativeContext,
+  readNativeCapabilities,
+} from '@/config/runtimeProfile';
 
 export type WebToNativeMessageType =
   | 'SCAN_QR'
@@ -38,8 +42,8 @@ export type WebToNativeMessageType =
   | 'DAPP_HAPTIC'           // Trigger haptic for dApp approve/reject
   | 'DAPP_RETURN';          // Hand the user back to the dApp after an answered
                             // request. The app backgrounds its own task on
-                            // Android and does nothing on iOS. An absent
-                            // `reason` in the payload means approval; a
+                            // Android, so the browser tab the user came from
+                            // returns, and does nothing on iOS (app PR #61). A
                             // wallet-initiated disconnect never sends this.
 
 /**
@@ -108,23 +112,43 @@ export const isInNativeApp = (): boolean => {
 };
 
 /**
- * Running inside the native app on iOS.
+ * The platform the native app declares, or null outside it.
  *
- * Android hands the user back to their browser by backgrounding the app's own
- * task, so the tab they came from returns by itself. iOS has no public
- * equivalent, so the page has to tell the user to switch back. The WebView user
- * agent is the platform signal the page already has: the injected capability
- * object carries no platform field.
+ * The app states this on the injected capability object. The user agent cannot
+ * answer it: the WebView sets one hardcoded iPhone string on every platform, so
+ * sniffing it reports iOS on an Android phone. The UA remains a fallback for an
+ * app build from before the field existed, where it is at least right on iOS.
  */
-export const isIOSNativeApp = (): boolean => {
-  if (!isInNativeApp() || typeof navigator === 'undefined') return false;
+export const nativeAppPlatform = (): 'ios' | 'android' | null => {
+  if (!isInNativeApp()) return null;
+  const declared = declaredNativePlatform();
+  if (declared !== null) return declared;
+  if (typeof navigator === 'undefined') return null;
   const ua = navigator.userAgent;
+  if (/Android/.test(ua)) return 'android';
   // iPadOS 13+ reports a desktop user agent, with touch points as the tell.
-  return (
+  if (
     /iPhone|iPad|iPod/.test(ua) ||
     (ua.includes('Macintosh') && (navigator.maxTouchPoints ?? 0) > 1)
-  );
+  ) {
+    return 'ios';
+  }
+  return null;
 };
+
+const declaredNativePlatform = (): 'ios' | 'android' | null => {
+  const platform = readNativeCapabilities()?.['platform'];
+  return platform === 'ios' || platform === 'android' ? platform : null;
+};
+
+/**
+ * Running inside the native app on iOS.
+ *
+ * The app hands a same-device user back to their browser by backgrounding its
+ * own task, which Android can do and iOS cannot, so on iOS the wallet stays in
+ * front and the page has to tell the user to switch back (app PR #61).
+ */
+export const isIOSNativeApp = (): boolean => nativeAppPlatform() === 'ios';
 
 /**
  * Send a message to the native app

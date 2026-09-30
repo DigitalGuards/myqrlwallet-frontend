@@ -56,6 +56,7 @@ import {
   SocketClient,
   SocketNotConnectedError,
   _setSocketIoLoaderForTests,
+  rejoinBudgetFloorMs,
 } from "@/services/dappConnect/SocketClient";
 
 const handlers = () => ({
@@ -308,6 +309,104 @@ describe("relay channel membership", () => {
       await expect(send).rejects.not.toBeInstanceOf(SocketNotConnectedError);
       expect(client.isJoined()).toBe(true);
     }
+  });
+
+  it("ignores a rejoin that was lost with the transport it went out on", async () => {
+    // Two flaps. The first rejoin's acknowledgement dies with its transport, so
+    // socket.io drops it and the promise only rejects on its own ten-second
+    // timeout, by which time a later rejoin has succeeded. Nothing about the
+    // socket identity distinguishes them across a socket.io reconnect, so that
+    // stale timeout used to schedule another rejoin on a socket that was
+    // already a member. A run of those spends the relay's per-IP join budget of
+    // 30 a minute, and the refusal that follows abandoned a working channel:
+    // the live connection was dropped, held answers discarded and the
+    // on-screen approval closed.
+    const events = handlers();
+    const client = await pairedClient(events);
+    jest.useFakeTimers();
+
+    // Flap one: the rejoin goes out and its acknowledgement never comes.
+    mockSocket.connected = false;
+    listeners.get("disconnect")?.("transport close");
+    mockSocket.connected = true;
+    fireConnect();
+    await settle();
+    expect(joinCount()).toBe(1);
+
+    // Flap two, then a rejoin that lands.
+    mockSocket.connected = false;
+    listeners.get("disconnect")?.("transport close");
+    mockSocket.connected = true;
+    fireConnect();
+    await settle();
+    expect(joinCount()).toBe(2);
+    ackJoin(JOIN_OK);
+    await settle();
+    expect(client.isJoined()).toBe(true);
+    expect(events.onReconnected).toHaveBeenCalledTimes(1);
+
+    // Now the first rejoin finally times out.
+    jest.advanceTimersByTime(30_000);
+    await settle();
+
+    // No further joins, and the healthy membership is untouched.
+    expect(joinCount()).toBe(2);
+    expect(client.isJoined()).toBe(true);
+    expect(events.onRejoinAbandoned).not.toHaveBeenCalled();
+    expect(events.onReconnected).toHaveBeenCalledTimes(1);
+
+    // And it stays that way: a timer waking up later still finds a member.
+    jest.advanceTimersByTime(300_000);
+    await settle();
+    expect(joinCount()).toBe(2);
+    expect(client.isJoined()).toBe(true);
+    expect(events.onRejoinAbandoned).not.toHaveBeenCalled();
+  });
+
+  it("keeps retrying for longer than the relay refuses", async () => {
+    // The relay refuses a rejoin for up to 45 s while a stale wallet
+    // participant holds the slot, and for up to 60 s inside its join
+    // rate-limit window. A budget that can expire sooner retires a pairing that
+    // was about to work, and on web and desktop the only retry after that is a
+    // reload. This is the floor at the narrowest jitter, so it holds for every
+    // draw and not merely on average.
+    expect(rejoinBudgetFloorMs()).toBeGreaterThanOrEqual(90_000);
+
+    // Measured end to end, with the jitter pinned at its minimum: the same
+    // floor has to survive the scheduling, not just the arithmetic.
+    const events = handlers();
+    const client = await pairedClient(events);
+    jest.useFakeTimers();
+    const random = jest.spyOn(Math, "random").mockReturnValue(0);
+
+    mockSocket.connected = false;
+    listeners.get("disconnect")?.("transport close");
+    mockSocket.connected = true;
+    fireConnect();
+    await settle();
+
+    let elapsed = 0;
+    let joins = 0;
+    for (let tick = 0; tick < 400; tick += 1) {
+      if (events.onRejoinAbandoned.mock.calls.length > 0) break;
+      if (ackJoin({ success: false, error: "Join rate limit exceeded" })) {
+        joins += 1;
+        await settle();
+        continue;
+      }
+      jest.advanceTimersByTime(1_000);
+      elapsed += 1_000;
+      await settle();
+    }
+    random.mockRestore();
+
+    expect(events.onRejoinAbandoned).toHaveBeenCalledTimes(1);
+    expect(elapsed).toBeGreaterThanOrEqual(90_000);
+    // Low enough not to feed the relay's per-IP limit of 30 joins a minute,
+    // which is shared behind carrier NAT: the budget grows by waiting, not by
+    // knocking more often.
+    expect(joins).toBeLessThanOrEqual(7);
+    expect(client.isJoined()).toBe(false);
   });
 
   it("drops membership on leave and on close", async () => {

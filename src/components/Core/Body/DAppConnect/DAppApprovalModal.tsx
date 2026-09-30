@@ -1060,9 +1060,9 @@ const DAppApprovalModalContent = observer(() => {
   const promptReturnToBrowser = shouldPromptReturnToBrowser({
     isIOSNative: isIOSNativeApp(),
     txProgress,
-    returnsToDApp:
+    handedBackToDApp:
       currentApproval !== null &&
-      dappConnectStore.returnsToDApp(currentApproval.sessionId),
+      dappConnectStore.returnHandedBackSessionId === currentApproval.sessionId,
   });
   const isTxTerminal = txProgress === "confirmed" || txProgress === "failed" || txProgress === "unknown";
 

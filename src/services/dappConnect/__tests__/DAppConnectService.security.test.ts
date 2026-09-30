@@ -342,6 +342,8 @@ interface ServiceHandlers {
   checkpointAtDispatch: number[];
   /** Channels the service told the UI to close its approvals for. */
   disconnected: string[];
+  /** Channels whose answer reached the dApp and asked for a hand-back. */
+  handedBack: string[];
 }
 
 const originalLocalStorage = Object.getOwnPropertyDescriptor(
@@ -493,6 +495,7 @@ async function reconnect(
     pending: [],
     checkpointAtDispatch: [],
     disconnected: [],
+    handedBack: [],
   };
   const service = new DAppConnectService();
   services.push(service);
@@ -506,6 +509,9 @@ async function reconnect(
     onSessionConnected: () => undefined,
     onSessionDisconnected: (sessionId) => {
       observed.disconnected.push(sessionId);
+    },
+    onReturnHandedBack: (sessionId) => {
+      observed.handedBack.push(sessionId);
     },
   });
   await service.reconnectAll();
@@ -1246,7 +1252,7 @@ describe("wallet service AEAD checkpointing", () => {
     // the browser tab the user came from returns by itself. An absent reason
     // means "the request was answered", which is the only case that sends it.
     const pairing = await makePairing("return-after-answer");
-    const { service } = await reconnect(pairing.session);
+    const { service, observed } = await reconnect(pairing.session);
     const socket = firstSocket();
     mockInNativeApp = true;
 
@@ -1268,8 +1274,6 @@ describe("wallet service AEAD checkpointing", () => {
       ...conn.dappInfo,
       redirectUrl: "https://dapp.example/callback",
     };
-    expect(service.returnsToDApp(pairing.session.id)).toBe(true);
-
     approveTracked(service, pairing.session.id, 1, "0xhash");
     await waitFor(() => socket.sent.length === 1);
     await settle();
@@ -1283,6 +1287,58 @@ describe("wallet service AEAD checkpointing", () => {
       redirectUrl: "https://dapp.example/callback",
     });
     expect(returns[0]?.payload).not.toHaveProperty("reason");
+    // And the page is told, which is what lets an iOS approval say so.
+    expect(observed.handedBack).toEqual([pairing.session.id]);
+  });
+
+  it("does not hand the user back while the answer is only held", async () => {
+    // The relay is away, so the answer goes out later. Telling the user to
+    // return to their browser now points them at a dApp that is still waiting.
+    const pairing = await makePairing("no-return-while-held");
+    const { service, observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    mockInNativeApp = true;
+
+    const conn = (
+      Object(service) as {
+        connections: Map<
+          string,
+          {
+            originatedViaDeepLink: boolean;
+            dappInfo: { redirectUrl?: string; name: string; url: string };
+          }
+        >;
+      }
+    ).connections.get(pairing.session.id);
+    if (!conn) throw new Error("expected a live connection");
+    conn.originatedViaDeepLink = true;
+    conn.dappInfo = {
+      ...conn.dappInfo,
+      redirectUrl: "https://dapp.example/callback",
+    };
+
+    socket.connected = false;
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await settle();
+
+    expect(socket.sent).toHaveLength(0);
+    expect(observed.handedBack).toEqual([]);
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_RETURN"),
+    ).toHaveLength(0);
+
+    // Nor later, when the relay returns and the answer goes out. The hand-back
+    // belongs to the moment the user approved; delivery can be minutes later,
+    // and pulling them out of the wallet then is its own surprise. The dApp
+    // gets its answer either way.
+    socket.connected = true;
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length === 1);
+    await settle();
+    expect(observed.handedBack).toEqual([]);
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_RETURN"),
+    ).toHaveLength(0);
   });
 
   it("never hands the user back on a wallet-initiated disconnect", async () => {
@@ -1352,8 +1408,6 @@ describe("wallet service AEAD checkpointing", () => {
       ...conn.dappInfo,
       redirectUrl: "https://dapp.example/callback",
     };
-    expect(service.returnsToDApp(pairing.session.id)).toBe(false);
-
     approveTracked(service, pairing.session.id, 1, "0xhash");
     await waitFor(() => socket.sent.length === 1);
     await settle();

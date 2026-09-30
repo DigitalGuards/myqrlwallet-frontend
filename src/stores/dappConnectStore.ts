@@ -41,6 +41,15 @@ class DAppConnectStore {
   connectionWarnings: Map<string, string> = new Map();
   /** Transaction progress state for approval modal */
   txProgress: TxProgressState = "idle";
+  /**
+   * The session whose answer just reached the dApp, with the app asked to hand
+   * the user back.
+   *
+   * Android returns the browser tab by itself; on iOS nothing does, so the
+   * approval result says so. Set only when the answer was actually sent, so a
+   * user is never told to go back to a dApp that is still waiting.
+   */
+  returnHandedBackSessionId: string | null = null;
   txHash: string | null = null;
   txError: string | null = null;
   /**
@@ -84,6 +93,11 @@ class DAppConnectStore {
       onSessionConnected: (sessionId) => {
         runInAction(() => {
           this.connectionWarnings.delete(sessionId);
+        });
+      },
+      onReturnHandedBack: (sessionId) => {
+        runInAction(() => {
+          this.returnHandedBackSessionId = sessionId;
         });
       },
       onSessionDisconnected: (sessionId) => {
@@ -294,6 +308,8 @@ class DAppConnectStore {
     this.txProgress = "idle";
     this.txHash = null;
     this.txError = null;
+    // Belongs to the approval that just ended, along with its progress.
+    this.returnHandedBackSessionId = null;
   }
 
   /** Whether the approval identified before an await is still current. */
@@ -319,16 +335,7 @@ class DAppConnectStore {
     await dappConnectService.reconnectAll();
   }
 
-  /**
-   * Whether answering this session's request hands the user back to the dApp.
-   *
-   * Android does that by itself, iOS cannot, so the approval result tells an
-   * iOS user to switch back rather than leaving them looking at a finished
-   * approval in the wallet.
-   */
-  returnsToDApp(sessionId: string): boolean {
-    return dappConnectService.returnsToDApp(sessionId);
-  }
+
 
   /** Number of active sessions */
   get sessionCount(): number {

@@ -329,14 +329,6 @@ class FrameParkedError extends Error {
  */
 export type SendOutcome = "sent" | "held" | "failed";
 
-/**
- * Why the app is being asked to hand the user back to the dApp.
- *
- * Absent means an answered request, which is the only case the wallet sends
- * today. A disconnect must not reach here, so it has a name to make the
- * distinction explicit if it ever has to.
- */
-type DAppReturnReason = "disconnect";
 
 interface ActiveConnection {
   socketClient: SocketClient;
@@ -408,6 +400,14 @@ type ServiceEventHandler = {
   onPendingRequest: (request: PendingDAppRequest) => void;
   onSessionConnected: (sessionId: string) => void;
   onSessionDisconnected: (sessionId: string) => void;
+  /**
+   * The answer reached the dApp and the app was asked to hand the user back.
+   *
+   * Only then, so the UI never tells a user to go back to a dApp that is still
+   * waiting: an answer held for an absent relay reaches it later, or not at
+   * all. Optional, so existing wirings and mocks stay valid.
+   */
+  onReturnHandedBack?: (channelId: string) => void;
   /**
    * Whether an approval for this channel is still waiting on the user.
    * Optional so existing wirings/mocks stay valid; when absent the
@@ -1490,25 +1490,6 @@ export class DAppConnectService {
     if (isInNativeApp()) triggerHaptic("error");
   }
 
-  /**
-   * After resolving a restricted request, bounce the user back to the dApp
-   * (WalletConnect-style peer redirect) if it advertised a return URL in
-   * ORIGINATOR_INFO. Native opens the URL; on a same-device deep-link flow
-   * this returns focus to the browser/dApp instead of stranding the user in
-   * the wallet. No-op outside the native app or when no redirect was given.
-   */
-  /**
-   * Whether answering a request on this channel hands the user back to the dApp.
-   *
-   * The same predicate as the bounce itself, minus the sending, so the UI can
-   * say what happens next without restating the rules. On Android the app
-   * backgrounds its own task and the browser returns by itself; on iOS there is
-   * no equivalent, so the page has to tell the user.
-   */
-  returnsToDApp(channelId: string): boolean {
-    return this.resolveReturnTarget(channelId) !== null;
-  }
-
   private resolveReturnTarget(channelId: string): string | null {
     if (!isInNativeApp()) return null;
     const conn = this.connections.get(channelId);
@@ -1520,34 +1501,35 @@ export class DAppConnectService {
     if (!redirectUrl) return null;
     // The redirectUrl is attacker controlled. Only credential-free HTTP(S)
     // navigation may cross the native bridge, and the raw URL is never logged.
-    const safeRedirectUrl = parseExternalHttpUrl(redirectUrl);
-    if (safeRedirectUrl === null) {
-      dlog("Ignoring unsafe dApp redirect URL");
-      return null;
-    }
-    return safeRedirectUrl;
+    // Silent: the UI asks this on every render, and the diagnostic belongs at
+    // the one place where a hand-back was actually due.
+    return parseExternalHttpUrl(redirectUrl);
   }
 
   /**
    * Hand the user back to the dApp after their request was answered.
    *
-   * Only ever after an answer. A wallet-initiated disconnect must not send
-   * this: the dApp learns about it over the relay, and the app now acts on
-   * DAPP_RETURN by backgrounding itself on Android, which would drop the user
-   * out of the wallet they are still using. An absent `reason` means approval,
-   * which is what every caller here is; anything else has to name itself.
+   * Only ever after an answer, which is why the payload needs no reason field.
+   * A wallet-initiated disconnect must not send this: the dApp learns about it
+   * over the relay, and the app acts on DAPP_RETURN by backgrounding itself on
+   * Android (app PR #61), which would drop the user out of the wallet they are
+   * still using. If a non-approval message is ever needed, it has to name
+   * itself in the payload so the app can tell them apart.
    */
-  private maybeReturnToDApp(
-    channelId: string,
-    reason?: DAppReturnReason,
-  ): void {
+  private maybeReturnToDApp(channelId: string): void {
     const safeRedirectUrl = this.resolveReturnTarget(channelId);
-    if (safeRedirectUrl === null) return;
-    sendToNative("DAPP_RETURN", {
-      channelId,
-      redirectUrl: safeRedirectUrl,
-      ...(reason === undefined ? {} : { reason }),
-    });
+    if (safeRedirectUrl === null) {
+      const conn = this.connections.get(channelId);
+      if (isInNativeApp() && conn?.originatedViaDeepLink && conn.dappInfo.redirectUrl) {
+        dlog("Ignoring unsafe dApp redirect URL");
+      }
+      return;
+    }
+    sendToNative("DAPP_RETURN", { channelId, redirectUrl: safeRedirectUrl });
+    // Android brings the browser tab back by itself. On iOS nothing does, so
+    // the page is told that this is the moment to say so, and it is only ever
+    // this moment: the answer is out and the dApp has it.
+    this.handlers?.onReturnHandedBack?.(channelId);
   }
 
   async disconnectSession(channelId: string, explicit = true): Promise<boolean> {
