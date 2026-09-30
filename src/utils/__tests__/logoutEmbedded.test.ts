@@ -9,6 +9,8 @@
  */
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
+const mockTerminateCryptoWorker = jest.fn();
+
 jest.mock("@/router/router", () => ({ ROUTES: { HOME: "/" } }));
 jest.mock("@/config", () => ({ QRL_PROVIDER: {} }));
 jest.mock("@/config/runtimeProfile", () => ({ IS_V3_PROFILE: false }));
@@ -21,6 +23,11 @@ jest.mock("@/utils/nativeApp", () => ({
   // The embedded build always runs inside the native app.
   isInNativeApp: () => true,
   clearNativeInjectedPin: jest.fn(),
+}));
+// cryptoWorkerClient imports the worker module, which jest cannot evaluate
+// (it references `self`). Only the terminator matters here.
+jest.mock("@/utils/crypto/cryptoWorkerClient", () => ({
+  terminateCryptoWorker: () => mockTerminateCryptoWorker(),
 }));
 jest.mock("@/utils/crypto/pinAttemptTracker", () => ({
   clearAttemptTracker: jest.fn(),
@@ -61,14 +68,16 @@ const mockResetTransactionStatus = jest.fn();
 const mockSetActiveAccount = jest.fn(
   async (_address?: string) => undefined,
 );
-jest.mock("@/stores/store", () => ({
-  store: {
-    qrlStore: {
-      resetTransactionStatus: mockResetTransactionStatus,
-      setActiveAccount: mockSetActiveAccount,
-    },
-  },
-}));
+const mockQrlStore: {
+  resetTransactionStatus: () => void;
+  setActiveAccount: (address?: string) => Promise<undefined>;
+  activeAccount: { accountAddress: string; lastSeen: number; source: string };
+} = {
+  resetTransactionStatus: () => mockResetTransactionStatus(),
+  setActiveAccount: (address?: string) => mockSetActiveAccount(address),
+  activeAccount: { accountAddress: "Q01", lastSeen: 1, source: "seed" },
+};
+jest.mock("@/stores/store", () => ({ store: { qrlStore: mockQrlStore } }));
 
 import { reloadDocument } from "@/utils/embeddedShell";
 import { clearNativeInjectedPin } from "@/utils/nativeApp";
@@ -84,6 +93,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   deviceKeyCleared.mockResolvedValue(undefined);
   mockSetActiveAccount.mockResolvedValue(undefined);
+  mockQrlStore.activeAccount = { accountAddress: "Q01", lastSeen: 1, source: "seed" };
 });
 
 describe("embedded logout", () => {
@@ -128,6 +138,27 @@ describe("embedded logout", () => {
     // fires handleLogout and forgets it.
     expect(pinCleared).toHaveBeenCalledTimes(1);
     expect(trackerCleared).not.toHaveBeenCalled();
+  });
+
+  it("tears down the crypto worker pool", async () => {
+    // The reload used to do this unconditionally on web and desktop.
+    await handleLogout(jest.fn());
+
+    expect(mockTerminateCryptoWorker).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops the in-memory account even if the v3 assertion throws", async () => {
+    mockSetActiveAccount.mockRejectedValue(
+      new Error("Testnet v3 supports this web wallet and updated releases"),
+    );
+
+    await expect(handleLogout(jest.fn())).resolves.toBeUndefined();
+
+    expect(mockQrlStore.activeAccount).toEqual({
+      accountAddress: "",
+      lastSeen: 0,
+      source: "seed",
+    });
   });
 
   it("never reloads the document", async () => {

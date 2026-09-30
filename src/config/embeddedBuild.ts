@@ -204,6 +204,46 @@ export function inlineWorkerSpecifier(source: string): string | null {
 }
 
 /**
+ * Rewrite `location.reload()` calls that act on the document's own location.
+ *
+ * Only the global forms are matched. An optional receiver would also match
+ * `iframe.contentWindow.location.reload()` and turn it into
+ * `iframe.contentWindow(void 0)`: still valid syntax, wrong meaning, and the
+ * self-contained scan would pass because the reload really is gone. Anything
+ * with another receiver is left alone and caught by that scan instead.
+ *
+ * The rewritten call texts are returned so the build can name them, which is
+ * what makes a surprising receiver visible rather than silent.
+ */
+const GLOBAL_RELOAD =
+  /(?<![.\w$])(?:(?:window|globalThis|self|document\.defaultView)\s*\.\s*)?location\s*\.\s*reload\s*\([^)]*\)/g;
+
+export function stripGlobalReloadCalls(code: string): {
+  code: string;
+  rewritten: string[];
+} {
+  const rewritten: string[] = [];
+  const next = code.replace(GLOBAL_RELOAD, (match) => {
+    rewritten.push(match.replace(/\s+/g, ""));
+    return "(void 0)";
+  });
+  return { code: next, rewritten };
+}
+
+/**
+ * Every spelling of a reload call left in the emitted document.
+ *
+ * The bracket form `location["reload"]()` is included: the stripper does not
+ * rewrite it, so without this it would reach the document unnoticed.
+ */
+export function findReloadCalls(html: string): string[] {
+  return [
+    ...html.matchAll(/location\s*\.\s*reload\s*\(/g),
+    ...html.matchAll(/location\s*\[\s*(["'`])reload\1\s*\]/g),
+  ].map((match) => match[0]);
+}
+
+/**
  * Remove the bodies of inline <script> and <style> elements so markup scans
  * cannot trip over minified JavaScript that happens to contain tag-like text
  * (React's own error messages build `<link rel=...>` strings, for example).

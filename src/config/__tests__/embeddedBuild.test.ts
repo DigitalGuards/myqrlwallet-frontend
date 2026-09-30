@@ -6,6 +6,8 @@ import {
   buildEmbeddedCsp,
   findEmbeddedCspViolations,
   findEmbeddedHtmlViolations,
+  findReloadCalls,
+  stripGlobalReloadCalls,
   inlineWorkerSpecifier,
   toHttpOrigin,
   toSecureWebSocketOrigin,
@@ -324,5 +326,70 @@ describe("CSP enforcement", () => {
       "<html><head></head><body></body></html>",
     );
     expect(violations).toContain("expected exactly one CSP meta, found 0");
+  });
+});
+
+describe("dependency reload stripping", () => {
+  it("rewrites the global forms", () => {
+    for (const source of [
+      "window.location.reload()",
+      "location.reload()",
+      "globalThis.location.reload()",
+      "self.location.reload()",
+      "window.location.reload(true)",
+      "window . location . reload ( )",
+    ]) {
+      const { code, rewritten } = stripGlobalReloadCalls(source);
+      expect(code).toBe("(void 0)");
+      expect(rewritten).toHaveLength(1);
+    }
+  });
+
+  it("leaves a reload on another object alone", () => {
+    // Rewriting this would produce `iframe.contentWindow(void 0)`: valid
+    // syntax, wrong meaning, and the document scan would pass because the
+    // reload really is gone. The scan catches it instead.
+    for (const source of [
+      "iframe.contentWindow.location.reload()",
+      "frames[0].location.reload()",
+      "other.location.reload()",
+      "myLocation.reload()",
+    ]) {
+      const { code, rewritten } = stripGlobalReloadCalls(source);
+      expect(code).toBe(source);
+      expect(rewritten).toEqual([]);
+    }
+  });
+
+  it("reports what it rewrote, so a surprise is visible in the build log", () => {
+    const { rewritten } = stripGlobalReloadCalls(
+      "if (a) window.location.reload(); else location.reload()",
+    );
+    expect(rewritten).toEqual(["window.location.reload()", "location.reload()"]);
+  });
+});
+
+describe("reload calls left in the document", () => {
+  it("finds the dot form", () => {
+    expect(findReloadCalls("x=window.location.reload()")).toHaveLength(1);
+  });
+
+  it("finds the bracket form the stripper does not rewrite", () => {
+    for (const source of [
+      'window.location["reload"]()',
+      "location['reload']()",
+      "location[`reload`]()",
+      'location [ "reload" ] ()',
+    ]) {
+      expect(findReloadCalls(source)).toHaveLength(1);
+    }
+  });
+
+  it("finds a reload on any receiver, including ones the stripper skips", () => {
+    expect(findReloadCalls("iframe.contentWindow.location.reload()")).toHaveLength(1);
+  });
+
+  it("is quiet on a document with none", () => {
+    expect(findReloadCalls("const reload = () => {}; reloadDocument();")).toEqual([]);
   });
 });

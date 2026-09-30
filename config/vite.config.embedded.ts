@@ -46,6 +46,8 @@ import {
   buildEmbeddedCsp,
   executableInlineScripts,
   findEmbeddedHtmlViolations,
+  findReloadCalls,
+  stripGlobalReloadCalls,
   inlineWorkerSpecifier,
 } from '../src/config/embeddedBuild'
 import { v3Deployment } from '../src/config/deploymentProfile'
@@ -176,13 +178,15 @@ const stripDependencyReloads = (): Plugin => {
     name: 'embedded-strip-dependency-reloads',
     transform(code, id) {
       if (!id.includes('node_modules')) return null
-      if (!code.includes('location.reload(')) return null
-      const next = code.replace(
-        /(?:window|globalThis|self)?\.?location\.reload\(\s*\)/g,
-        '(void 0)'
-      )
+      if (!/location\s*[.[]/.test(code)) return null
+
+      const { code: next, rewritten } = stripGlobalReloadCalls(code)
       if (next === code) return null
-      stripped += 1
+      stripped += rewritten.length
+      // Named in the build log so a surprising receiver is visible in CI.
+      console.log(
+        `embedded build: stripped ${rewritten.length} reload call(s) from ${path.basename(id)}: ${rewritten.join(', ')}`
+      )
       return { code: next, map: null }
     },
     buildEnd() {
@@ -450,10 +454,10 @@ const assertSelfContained = (
   // Nothing in the shipped document may reload it. Ours is compiled out by
   // __QRL_EMBEDDED_BUILD__ and dependencies' are stripped above, so any
   // remaining call is a regression, whoever introduced it.
-  const reloadCalls = (html.match(/location\s*\.\s*reload\s*\(/g) ?? []).length
-  if (reloadCalls > 0) {
+  const reloadCalls = findReloadCalls(html)
+  if (reloadCalls.length > 0) {
     violations.push(
-      `the document contains ${reloadCalls} location.reload() call(s); a reload would fetch the live site over the shipped wallet`
+      `the document contains ${reloadCalls.length} location.reload() call(s) (${reloadCalls.join(', ')}); a reload would fetch the live site over the shipped wallet`
     )
   }
 

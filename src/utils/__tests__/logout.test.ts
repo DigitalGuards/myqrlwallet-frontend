@@ -1,10 +1,17 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
+const mockTerminateCryptoWorker = jest.fn();
+
 jest.mock("@/router/router", () => ({ ROUTES: { HOME: "/" } }));
 jest.mock("@/config", () => ({ QRL_PROVIDER: {} }));
 jest.mock("@/utils/nativeApp", () => ({
   isInNativeApp: () => false,
   clearNativeInjectedPin: jest.fn(),
+}));
+// cryptoWorkerClient imports the worker module, which jest cannot evaluate
+// (it references `self`). Only the terminator matters here.
+jest.mock("@/utils/crypto/cryptoWorkerClient", () => ({
+  terminateCryptoWorker: () => mockTerminateCryptoWorker(),
 }));
 jest.mock("@/utils/crypto/pinAttemptTracker", () => ({
   clearAttemptTracker: jest.fn(),

@@ -4,6 +4,7 @@ import { QRL_PROVIDER } from "@/config";
 import { IS_V3_PROFILE } from "@/config/runtimeProfile";
 import { isInNativeApp, clearNativeInjectedPin } from "./nativeApp";
 import { clearAttemptTracker } from "./crypto/pinAttemptTracker";
+import { terminateCryptoWorker } from "./crypto/cryptoWorkerClient";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import {
   disconnectMobile,
@@ -48,13 +49,29 @@ const resetEmbeddedState = async (): Promise<void> => {
   // Synchronous and unfailing, so the secret goes first.
   clearNativeInjectedPin();
 
+  // The reload used to tear the crypto worker pool down unconditionally.
+  // Without it the workers live on until their 30 s idle timeout, holding
+  // whatever the last job's transferred buffers left on their heap.
+  terminateCryptoWorker();
+
   await clearDeviceCredential().catch((error) =>
     console.error("Logout: device key cache clear failed", error),
   );
 
   const { store } = await import("@/stores/store");
   store.qrlStore.resetTransactionStatus();
-  await store.qrlStore.setActiveAccount(undefined);
+  // setActiveAccount runs the v3 native-context assertion, which throws when
+  // an older app ships a newer document. Dropping the in-memory account is the
+  // whole point here, so a failed assertion must not leave it populated.
+  await store.qrlStore.setActiveAccount(undefined).catch((error) => {
+    console.error("Logout: clearing the active account did not complete", error);
+    // Same empty shape the store starts from (src/stores/qrlStore.ts).
+    store.qrlStore.activeAccount = {
+      accountAddress: "",
+      lastSeen: 0,
+      source: "seed",
+    };
+  });
 };
 
 const finishLogout = async (
