@@ -88,6 +88,18 @@ const DAPP_LEAVE_APPROVAL_CAP_MS = 10 * 60 * 1000;
 // every later open fails. Two consecutive failures cannot happen on a healthy
 // stream; requiring the second guards against one-off injected junk.
 const MAX_DECRYPT_FAILURES = 2;
+
+/**
+ * How long a message held for an unreachable relay stays worth sending.
+ *
+ * The SDK rejects a pending request after five minutes and the relay buffers
+ * for the same window, so a later delivery would answer a promise nobody is
+ * holding any more.
+ */
+const OFFLINE_OUTBOX_TTL_MS = 5 * 60 * 1000;
+
+/** Per channel. A wallet answering more than this while offline is a bug. */
+const OFFLINE_OUTBOX_LIMIT = 16;
 const TERMINATE_SEND_TIMEOUT_MS = 800;
 import { profileStorageKey } from '@/config/runtimeProfile';
 
@@ -366,6 +378,15 @@ export class DAppConnectService {
   >();
   // Consecutive post-handshake AEAD open failures per channel (desync detector).
   private decryptFailures = new Map<string, number>();
+  /**
+   * Messages waiting for the relay to come back, per channel. Plaintext only:
+   * see queueUntilReconnected for why a sealed message must never wait here.
+   */
+  private offlineOutbox = new Map<
+    string,
+    Array<{ message: object; queuedAt: number }>
+  >();
+
   private pendingRestrictedMethods = new Map<
     string,
     Map<string, PendingRestrictedRequestState>
@@ -557,6 +578,7 @@ export class DAppConnectService {
             socketClient,
             SessionStatus.CONNECTED,
           );
+          this.flushOfflineOutbox(channelId);
         } else {
           // Mid-handshake flap: our SYNACK may have died with the old
           // transport, or the dApp's ACK may have been delivered to the
@@ -1450,6 +1472,8 @@ export class DAppConnectService {
     this.clearDappLeaveTimeout(channelId);
     this.decryptFailures.delete(channelId);
     this.pendingRestrictedMethods.delete(channelId);
+    // A torn-down session has no one left to deliver to.
+    this.offlineOutbox.delete(channelId);
 
     // Collapse concurrent teardowns of the same channel to a single run. A
     // per-call flag cannot do this (each invocation has its own), so a user
@@ -1668,6 +1692,7 @@ export class DAppConnectService {
                   socketClient,
                   SessionStatus.CONNECTED,
                 );
+                this.flushOfflineOutbox(session.id);
               }
             },
             onParticipantsChanged: (data) => {
@@ -2029,9 +2054,87 @@ export class DAppConnectService {
    * boolean lets callers (approve/reject) gate the return-to-dApp redirect on
    * a real successful send rather than assuming success.
    */
+  /**
+   * Hold a message until the relay is reachable again.
+   *
+   * Only ever plaintext. Sealing a message consumes a send counter and
+   * checkpoints it to storage before the ciphertext leaves, so a sealed
+   * message parked in memory would leave storage ahead of what the dApp
+   * received: a permanent gap in the AEAD stream, which the peer answers by
+   * tearing the pairing down after two more messages. Queueing before any
+   * counter is touched keeps the stream contiguous, because a counter is only
+   * consumed when there is a socket to hand the result to.
+   *
+   * Bounded by count and by age. The dApp rejects a pending request after five
+   * minutes and the relay buffers for the same window, so a later flush would
+   * answer a promise nobody is holding.
+   */
+  private queueUntilReconnected(channelId: string, message: object): void {
+    const queue = this.offlineOutbox.get(channelId) ?? [];
+    const now = Date.now();
+    const fresh = queue.filter(
+      (entry) => now - entry.queuedAt < OFFLINE_OUTBOX_TTL_MS,
+    );
+    fresh.push({ message, queuedAt: now });
+    while (fresh.length > OFFLINE_OUTBOX_LIMIT) fresh.shift();
+    this.offlineOutbox.set(channelId, fresh);
+    dlog(
+      `Relay unreachable; holding a message for channel ${channelId} (${fresh.length} held)`,
+    );
+  }
+
+  /**
+   * Send what was held while the relay was away, oldest first.
+   *
+   * Each one goes back through the normal path, so it is sealed with the
+   * counter current at that moment and the stream stays contiguous.
+   */
+  private flushOfflineOutbox(channelId: string): void {
+    const queue = this.offlineOutbox.get(channelId);
+    if (!queue || queue.length === 0) return;
+    this.offlineOutbox.delete(channelId);
+
+    const now = Date.now();
+    const deliverable = queue.filter(
+      (entry) => now - entry.queuedAt < OFFLINE_OUTBOX_TTL_MS,
+    );
+    const expired = queue.length - deliverable.length;
+    if (expired > 0) {
+      console.warn(
+        `[DAppConnect] dropped ${expired} held message(s) for ${channelId}: the dApp stopped waiting`,
+      );
+    }
+    if (deliverable.length === 0) return;
+
+    dlog(`Delivering ${deliverable.length} held message(s) for ${channelId}`);
+    void (async () => {
+      for (const entry of deliverable) {
+        const sent = await this.sendEncrypted(channelId, entry.message);
+        if (!sent) {
+          // Still unreachable, or the session is gone. sendEncrypted has
+          // already re-queued it when it is the former.
+          break;
+        }
+      }
+    })();
+  }
+
   private sendEncrypted(channelId: string, message: object): Promise<boolean> {
     const conn = this.connections.get(channelId);
     if (!conn?.cryptoUsable) return Promise.resolve(false);
+
+    // Check reachability BEFORE the crypto. Without this, a send with no
+    // socket reaches SocketClient.sendMessage, which rejects with
+    // "Socket not connected", and that is treated as an ambiguous relay
+    // outcome and tombstones the session. A socket known to be down is not
+    // ambiguous: nothing was emitted and no counter was spent, so the message
+    // can simply wait. This matters most for a transaction answer, which
+    // arrives exactly when the user has switched back to the dApp and the
+    // wallet is backgrounding.
+    if (!conn.socketClient.isConnected()) {
+      this.queueUntilReconnected(channelId, message);
+      return Promise.resolve(false);
+    }
 
     const task = conn.outboundQueue.then(() =>
       this.sendEncryptedNow(channelId, message, conn),

@@ -32,6 +32,8 @@ interface MockSocketInstance {
   relayUrl: string;
   handlers: MockSocketHandlers;
   sent: RelayMessage[];
+  /** Mirrors SocketClient.isConnected, which the service checks before sealing. */
+  connected: boolean;
   connectCalls: number;
   joinCalls: string[];
   leaveCalls: number;
@@ -40,6 +42,15 @@ interface MockSocketInstance {
 }
 
 const mockSocketClientInstances: MockSocketInstance[] = [];
+
+/** The ciphertext a relay frame carries, for the tests that decrypt one. */
+function relayCiphertext(frame: RelayMessage | undefined): string {
+  const message = frame?.message;
+  if (typeof message !== "string") {
+    throw new Error("expected an encrypted relay frame");
+  }
+  return message;
+}
 let mockJoinResult: MockJoinResult = {
   bufferedMessages: [],
   channelPublicKey: null,
@@ -66,8 +77,20 @@ jest.mock("../SocketClient", () => ({
       mockSocketClientInstances.push(this);
     }
 
+    /**
+     * Mirrors SocketClient.isConnected. The service checks reachability
+     * before sealing a message, so the double has to model it; tests that
+     * exercise the offline path flip this.
+     */
+    connected = true;
+
+    isConnected(): boolean {
+      return this.connected;
+    }
+
     async connect(): Promise<void> {
       this.connectCalls++;
+      this.connected = true;
     }
 
     async joinChannel(channelId: string): Promise<MockJoinResult> {
@@ -915,6 +938,111 @@ describe("wallet service AEAD checkpointing", () => {
 
     expect(inboundConnection.observed.pending).toHaveLength(0);
     expect(inboundSocket.disconnectCalls).toBe(1);
+  });
+
+  it("holds an answer when the relay is unreachable and delivers it on reconnect", async () => {
+    // The moment a transaction answer is due is exactly the moment the wallet
+    // is backgrounding: the user approved and switched back to the dApp. A
+    // send with no socket used to reach SocketClient.sendMessage, reject with
+    // "Socket not connected", and be treated as an ambiguous relay outcome,
+    // which tombstoned the pairing. Nothing was emitted and no counter was
+    // spent, so it can simply wait.
+    const pairing = await makePairing("offline-answer");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    socket.connected = false;
+
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await waitFor(() => true);
+
+    expect(socket.sent).toHaveLength(0);
+    // The session survives: no tombstone, no teardown.
+    expect(socket.closeCalls).toBe(0);
+    expect(socket.disconnectCalls).toBe(0);
+    expect(SessionStore.get(pairing.session.id)).not.toBeNull();
+
+    socket.connected = true;
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length === 1);
+
+    const delivered = JSON.parse(
+      await pairing.dapp.decryptMessage(relayCiphertext(socket.sent[0])),
+    ) as Record<string, unknown>;
+    expect(delivered["id"]).toBe(1);
+    expect(delivered["result"]).toBe("0xhash");
+  });
+
+  it("keeps the counter contiguous across a held answer", async () => {
+    // Sealing consumes a send counter and checkpoints it before the
+    // ciphertext leaves. A sealed message waiting in memory would leave
+    // storage ahead of what the dApp received, which is a gap the peer
+    // answers by tearing the pairing down. Only plaintext may wait.
+    const pairing = await makePairing("offline-counter");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    socket.connected = false;
+    approveTracked(service, pairing.session.id, 1, "0xfirst");
+    await waitFor(() => true);
+    socket.connected = true;
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length === 1);
+
+    approveTracked(service, pairing.session.id, 2, "0xsecond");
+    await waitFor(() => socket.sent.length === 2);
+
+    // Both decrypt in order, which is only possible if no counter was burned
+    // while the socket was down.
+    const first = JSON.parse(
+      await pairing.dapp.decryptMessage(relayCiphertext(socket.sent[0])),
+    ) as Record<string, unknown>;
+    const second = JSON.parse(
+      await pairing.dapp.decryptMessage(relayCiphertext(socket.sent[1])),
+    ) as Record<string, unknown>;
+    expect(first["result"]).toBe("0xfirst");
+    expect(second["result"]).toBe("0xsecond");
+  });
+
+  it("delivers held answers oldest first", async () => {
+    const pairing = await makePairing("offline-order");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    socket.connected = false;
+
+    approveTracked(service, pairing.session.id, 1, "0xone");
+    await waitFor(() => true);
+    approveTracked(service, pairing.session.id, 2, "0xtwo");
+    await waitFor(() => true);
+
+    socket.connected = true;
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length === 2);
+
+    const results = [] as unknown[];
+    for (const frame of socket.sent) {
+      const decoded = JSON.parse(
+        await pairing.dapp.decryptMessage(relayCiphertext(frame)),
+      ) as Record<string, unknown>;
+      results.push(decoded["result"]);
+    }
+    expect(results).toEqual(["0xone", "0xtwo"]);
+  });
+
+  it("still fails closed when a send was emitted and the relay did not answer", async () => {
+    // The distinction that matters: a socket known to be down emitted
+    // nothing, while a rejected acknowledgement is genuinely ambiguous and
+    // must still retire the session.
+    const pairing = await makePairing("emitted-ambiguous");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    mockSendHook = async () => {
+      throw new Error("relay ack lost");
+    };
+
+    approveTracked(service, pairing.session.id, 1, "ambiguous");
+    await waitFor(() => socket.closeCalls === 1);
+
+    expect(SessionStore.get(pairing.session.id)).toBeNull();
   });
 
   it("fails closed when the relay send acknowledgement is negative or unknown", async () => {

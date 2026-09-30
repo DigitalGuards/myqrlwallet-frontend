@@ -55,6 +55,11 @@ import {
   type WalletMutationToken,
 } from "@/utils/nativeWalletMutation";
 import {
+  asOptionalString,
+  assertTransactionWouldNotRevert,
+} from "./dappRevertPrecheck";
+import { createDAppRequestAnswer } from "./dappRequestAnswer";
+import {
   buildReviewedDAppTransaction,
   desktopTransactionArgs,
   requestedGasLimit,
@@ -213,13 +218,33 @@ const DAppApprovalModalContent = observer(() => {
         progressError,
       );
 
+    // qrl_sendTransaction owes the dApp one thing: the transaction hash, as
+    // soon as the node accepts the broadcast. Waiting for the receipt made the
+    // answer depend on the wallet still being open a minute later, which on a
+    // phone it is not: the user approves, switches back to the dApp, the
+    // wallet backgrounds and locks, the relay drops, and a transaction that
+    // mined perfectly well is never reported. A user who sees no result sends
+    // again and pays twice.
+    //
+    // Confirmation stays in the wallet as progress, which is a local concern.
+    const dAppRequest = createDAppRequestAnswer({
+      approve: (result) =>
+        dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, result),
+      reject: (message) =>
+        dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, message),
+    });
+    const answerDApp = (hash: string): void => dAppRequest.answer(hash);
+    // Never after an answer: the dApp holds a hash for a transaction that is
+    // on its way, and a later revert is something it observes on chain.
+    const rejectDApp = (message: string): void => dAppRequest.reject(message);
+
     const reportUnknownTransaction = (hash: string, message: string) => {
       setCurrentTxProgress("unknown", hash, message);
       if (hash) {
         // A send request can return its broadcast hash while inclusion is unknown.
-        dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, hash);
+        answerDApp(hash);
       } else {
-        dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, message);
+        rejectDApp(message);
       }
       if (isStillCurrent()) {
         setPin("");
@@ -392,11 +417,12 @@ const DAppApprovalModalContent = observer(() => {
                 desktopArgs,
                 dappOrigin,
               );
-            // Broadcast succeeded; now wait for the on-chain receipt (web
-            // parity: the web path answers the dApp only on the `receipt`
-            // event). The desktop bridge exposes no receipt API, so poll the
-            // renderer's own provider, the same instance the web path uses.
+            // The node accepted the broadcast, so the dApp gets its hash now,
+            // the same as the web path. The receipt poll below only drives the
+            // wallet's own progress display. The desktop bridge exposes no
+            // receipt API, so it polls the renderer's own provider.
             setCurrentTxProgress("confirming", transactionHash);
+            answerDApp(transactionHash);
 
             const web3ForReceipt = qrlStore.qrlInstance;
             if (!web3ForReceipt) {
@@ -417,13 +443,6 @@ const DAppApprovalModalContent = observer(() => {
             }
             if (succeeded) {
               setCurrentTxProgress("confirmed", transactionHash);
-              // Answer even after a promotion: sending into a gone session is
-              // a logged no-op inside the connect service.
-              dappConnectStore.sendApprovalResultById(
-                approvalSessionId,
-                approvalId,
-                transactionHash,
-              );
               return;
             }
 
@@ -433,11 +452,9 @@ const DAppApprovalModalContent = observer(() => {
             console.log("[DAppConnect] desktop tx error:", errMsg);
             const userError = toUserFacingError(errMsg);
             setCurrentTxProgress("failed", undefined, userError);
-            dappConnectStore.sendRejectionResultById(
-              approvalSessionId,
-              approvalId,
-              `Transaction failed: ${userError}`,
-            );
+            // A no-op once the hash was answered: a revert after a successful
+            // broadcast is not a rejected request.
+            rejectDApp(`Transaction failed: ${userError}`);
           }
           return;
         }
@@ -528,6 +545,18 @@ const DAppApprovalModalContent = observer(() => {
           maxPriorityFeePerGasHex: utils.toHex(fees.maxPriorityFeePerGas),
         });
 
+        // Ask the node whether this would revert before spending gas on it.
+        // Answering at broadcast means a doomed transaction would otherwise be
+        // reported as accepted and then burn the fee. Advisory: anything other
+        // than a clear revert lets the send proceed.
+        await assertTransactionWouldNotRevert(web3, {
+          from: asOptionalString(txObject["from"]),
+          to: asOptionalString(txObject["to"]),
+          value: asOptionalString(txObject["value"]),
+          data: asOptionalString(txObject["data"]),
+          gas: asOptionalString(txObject["gas"]),
+        });
+
         // Stage: broadcasting
         setCurrentTxProgress("broadcasting");
 
@@ -576,17 +605,13 @@ const DAppApprovalModalContent = observer(() => {
         await waitForDAppBroadcastSettlement(promiEvent, {
           onUnknown: reportUnknownTransaction,
           onTransactionHash: (hash) => {
-            // Tx has been broadcast and accepted by the node
+            // The node accepted the broadcast, so the dApp gets its hash now.
+            // Everything below this point is the wallet's own progress UI.
             setCurrentTxProgress("confirming", hash);
+            answerDApp(hash);
           },
           onSuccess: (hash) => {
             setCurrentTxProgress("confirmed", hash);
-            // Send result to dApp but keep modal open to show confirmed state
-            dappConnectStore.sendApprovalResultById(
-              approvalSessionId,
-              approvalId,
-              hash,
-            );
             if (isStillCurrent()) {
               setPin("");
               setLoading(false);
@@ -599,11 +624,10 @@ const DAppApprovalModalContent = observer(() => {
             console.log("[DAppConnect] tx broadcast error:", txErrMsg);
             const userError = toUserFacingError(txErrMsg);
             setCurrentTxProgress("failed", undefined, userError);
-            dappConnectStore.sendRejectionResultById(
-              approvalSessionId,
-              approvalId,
-              `Transaction failed: ${userError}`,
-            );
+            // Only a broadcast that never produced a hash is a rejection. A
+            // revert after the node accepted the transaction is not: the dApp
+            // already holds the hash and observes the outcome on chain.
+            rejectDApp(`Transaction failed: ${userError}`);
             if (isStillCurrent()) {
               setPin("");
               setLoading(false);
