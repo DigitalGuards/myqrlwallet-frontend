@@ -331,6 +331,7 @@ class FrameParkedError extends Error {
  */
 export type SendOutcome = "sent" | "held" | "failed";
 
+
 interface ActiveConnection {
   socketClient: SocketClient;
   keyExchange: KeyExchange;
@@ -401,6 +402,14 @@ type ServiceEventHandler = {
   onPendingRequest: (request: PendingDAppRequest) => void;
   onSessionConnected: (sessionId: string) => void;
   onSessionDisconnected: (sessionId: string) => void;
+  /**
+   * The answer reached the dApp and the app was asked to hand the user back.
+   *
+   * Only then, so the UI never tells a user to go back to a dApp that is still
+   * waiting: an answer held for an absent relay reaches it later, or not at
+   * all. Optional, so existing wirings and mocks stay valid.
+   */
+  onReturnHandedBack?: (channelId: string) => void;
   /**
    * Whether an approval for this channel is still waiting on the user.
    * Optional so existing wirings/mocks stay valid; when absent the
@@ -662,6 +671,9 @@ export class DAppConnectService {
         );
       },
       onReconnectAbandoned: () => {
+        this.handleReconnectAbandoned(channelId);
+      },
+      onRejoinAbandoned: () => {
         this.handleReconnectAbandoned(channelId);
       },
       onReconnected: () => {
@@ -1488,30 +1500,46 @@ export class DAppConnectService {
     if (isInNativeApp()) triggerHaptic("error");
   }
 
-  /**
-   * After resolving a restricted request, bounce the user back to the dApp
-   * (WalletConnect-style peer redirect) if it advertised a return URL in
-   * ORIGINATOR_INFO. Native opens the URL; on a same-device deep-link flow
-   * this returns focus to the browser/dApp instead of stranding the user in
-   * the wallet. No-op outside the native app or when no redirect was given.
-   */
-  private maybeReturnToDApp(channelId: string): void {
-    if (!isInNativeApp()) return;
+  private resolveReturnTarget(channelId: string): string | null {
+    if (!isInNativeApp()) return null;
     const conn = this.connections.get(channelId);
     // Only bounce back for a same-device deep-link session. A QR-scanned
     // session means the dApp is on another device, so opening its URL on the
     // phone is wrong (e.g. a desktop dApp's http://localhost:5174).
-    if (!conn?.originatedViaDeepLink) return;
+    if (!conn?.originatedViaDeepLink) return null;
     const redirectUrl = conn.dappInfo.redirectUrl;
-    if (!redirectUrl) return;
+    if (!redirectUrl) return null;
     // The redirectUrl is attacker controlled. Only credential-free HTTP(S)
     // navigation may cross the native bridge, and the raw URL is never logged.
-    const safeRedirectUrl = parseExternalHttpUrl(redirectUrl);
+    // Silent: the UI asks this on every render, and the diagnostic belongs at
+    // the one place where a hand-back was actually due.
+    return parseExternalHttpUrl(redirectUrl);
+  }
+
+  /**
+   * Hand the user back to the dApp after their request was answered.
+   *
+   * Only ever after an answer, which is why the payload needs no reason field.
+   * A wallet-initiated disconnect must not send this: the dApp learns about it
+   * over the relay, and the app acts on DAPP_RETURN by backgrounding itself on
+   * Android (app PR #61), which would drop the user out of the wallet they are
+   * still using. If a non-approval message is ever needed, it has to name
+   * itself in the payload so the app can tell them apart.
+   */
+  private maybeReturnToDApp(channelId: string): void {
+    const safeRedirectUrl = this.resolveReturnTarget(channelId);
     if (safeRedirectUrl === null) {
-      dlog("Ignoring unsafe dApp redirect URL");
+      const conn = this.connections.get(channelId);
+      if (isInNativeApp() && conn?.originatedViaDeepLink && conn.dappInfo.redirectUrl) {
+        dlog("Ignoring unsafe dApp redirect URL");
+      }
       return;
     }
     sendToNative("DAPP_RETURN", { channelId, redirectUrl: safeRedirectUrl });
+    // Android brings the browser tab back by itself. On iOS nothing does, so
+    // the page is told that this is the moment to say so, and it is only ever
+    // this moment: the answer is out and the dApp has it.
+    this.handlers?.onReturnHandedBack?.(channelId);
   }
 
   async disconnectSession(channelId: string, explicit = true): Promise<boolean> {
@@ -1767,7 +1795,7 @@ export class DAppConnectService {
         teardown.sendTerminate &&
         conn.cryptoUsable &&
         conn.keyExchange.areKeysExchanged() &&
-        conn.socketClient.isConnected()
+        conn.socketClient.isJoined()
       ) {
         await Promise.race([
           this.sendEncrypted(channelId, { type: MessageType.TERMINATE }),
@@ -1863,6 +1891,9 @@ export class DAppConnectService {
               );
             },
             onReconnectAbandoned: () => {
+              this.handleReconnectAbandoned(session.id);
+            },
+            onRejoinAbandoned: () => {
               this.handleReconnectAbandoned(session.id);
             },
             onReconnected: () => {
@@ -2466,7 +2497,7 @@ export class DAppConnectService {
       return "held";
     };
 
-    if (!conn.socketClient.isConnected()) {
+    if (!conn.socketClient.isJoined()) {
       return Promise.resolve({ outcome: hold(), parked: false });
     }
 
@@ -2523,7 +2554,10 @@ export class DAppConnectService {
     // time can be minutes old: the task waits its turn behind other sends,
     // and a backgrounded WebView can resume with the socket already closed.
     // Sealing against a dead socket spends a counter on a frame nobody sees.
-    if (!conn.socketClient.isConnected()) {
+    // Membership, not socket-level connectedness: a reconnected socket is
+    // `connected` a full relay round trip before its rejoin is acknowledged,
+    // and the relay refuses a frame from a non-member.
+    if (!conn.socketClient.isJoined()) {
       throw new SocketNotConnectedError();
     }
 
@@ -2571,10 +2605,15 @@ export class DAppConnectService {
   /**
    * Put one sealed frame on the wire.
    *
-   * A socket known to be down before anything was emitted is unambiguous: the
-   * frame is kept for retransmission and the caller is told to hold. Every
-   * other failure is a rejected or missing acknowledgement, which the relay
-   * may still have accepted, so it stays fail-closed.
+   * Two failures are unambiguous, and both keep the frame for retransmission
+   * and tell the caller to hold: a socket known to be down before anything was
+   * emitted, and a relay refusal that names a pre-delivery reason. The relay
+   * decides both of its membership refusals before it routes, buffers or
+   * records a sequence number, so the same sealed bytes go out again at the
+   * same counter and the peer's stream stays contiguous.
+   *
+   * Every other failure is a rejected or missing acknowledgement, which the
+   * relay may still have accepted, so it stays fail-closed.
    */
   private async emitFrame(
     channelId: string,
@@ -2588,6 +2627,8 @@ export class DAppConnectService {
         message: encrypted,
       });
     } catch (err) {
+      // RelayChannelNotJoinedError is a subclass, so a membership refusal
+      // lands here too.
       if (err instanceof SocketNotConnectedError) {
         conn.pendingRetransmit = { encrypted };
         throw err;
