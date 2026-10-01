@@ -13,7 +13,11 @@ import { fetchTokenInfo, fetchBalance, discoverTokens, mergeTokenLists } from "@
 import type { TokenInterface} from "@/constants";
 import { KNOWN_TOKEN_LIST } from "@/constants";
 import { customERC20ABI as CustomERC20ABI } from "@/abi/CustomERC20ABI";
-import { assertQuoteNotAboveApproved } from "@/utils/web3/feePolicy";
+import {
+  assertSignedFeeWithinApproved,
+  FEE_NOT_SHOWN,
+  type ApprovedFeeInput,
+} from "@/utils/web3/feePolicy";
 const formatUnits = (value: bigint | string | unknown, decimals: number): string => {
   let v = BigInt(value as string | bigint);
   const isNegative = v < 0n;
@@ -27,7 +31,7 @@ const formatUnits = (value: bigint | string | unknown, decimals: number): string
 };
 import { getOptimalTokenBalance } from "@/utils/formatting";
 import type QrlStore from "./qrlStore";
-import type { FeeLevel, FeeQuote } from "./qrlStore";
+import type { FeeLevel } from "./qrlStore";
 import { quoteFees } from "./qrlStore";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import {
@@ -385,11 +389,11 @@ class TokenStore {
     toAddress: string,
     feeLevel: FeeLevel = "medium",
     /**
-     * The quote the user was shown. When given, a re-quote at signing time
-     * that is more expensive stops the send. Omitting it keeps the previous
-     * behaviour.
+     * What the user was shown: the quote and the gas limit behind the figure
+     * on screen. Signing holds to that total. The token send screen shows no
+     * network fee yet, so it passes FEE_NOT_SHOWN and says so out loud.
      */
-    approvedQuote?: FeeQuote,
+    approvedFee: ApprovedFeeInput,
   ) {
     this.qrlStore.resetTransactionStatus();
     const signingGeneration = walletMutations.captureGeneration();
@@ -550,15 +554,22 @@ class TokenStore {
       web3.qrl.wallet?.add(seed);
       web3.qrl.transactionConfirmationBlocks = 1;
       const signingQuote = await quoteFees(web3.qrl, feeLevel);
-      // Sign the fee the user saw. quoteFees already refuses a quote outside
-      // the wallet's safety limits; this refuses one that merely grew.
-      assertQuoteNotAboveApproved(signingQuote, approvedQuote);
       const { maxFeePerGas, maxPriorityFeePerGas } = signingQuote;
       const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
       const tx = contract.methods.transfer(toAddress, amount).encodeABI();
       const estimateGas = await contract.methods
         .transfer(toAddress, amount)
         .estimateGas({ from: acc.address });
+      // Sign the fee the user saw, as a total. quoteFees already refuses a
+      // quote outside the wallet's safety limits; this refuses a price that
+      // grew and a gas limit that grew, which are the two halves of the
+      // figure on screen.
+      if (approvedFee !== FEE_NOT_SHOWN) {
+        assertSignedFeeWithinApproved(
+          { quote: signingQuote, gasLimit: BigInt(estimateGas) },
+          approvedFee,
+        );
+      }
       const txObj = {
         type: "0x2",
         gas: estimateGas,

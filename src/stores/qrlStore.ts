@@ -12,7 +12,9 @@ import { normalizeQrlAddress } from "@/utils/web3/address";
 import { formatUnits, parseUnits } from "@/utils/web3/units";
 import {
   assertFeeQuoteWithinPolicy,
-  assertQuoteNotAboveApproved,
+  assertSignedFeeWithinApproved,
+  FEE_NOT_SHOWN,
+  type ApprovedFeeInput,
 } from "@/utils/web3/feePolicy";
 import type { TransactionReceipt, Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
@@ -962,11 +964,12 @@ class QrlStore {
     mnemonicPhrases: string,
     feeLevel: FeeLevel = 'medium',
     /**
-     * The quote the user was shown. When given, a re-quote at signing time
-     * that is more expensive stops the send instead of signing a fee nobody
-     * agreed to. Omitting it keeps the previous behaviour.
+     * What the user was shown: the quote and the gas limit the figure on
+     * screen was computed from. Signing holds to that total, so neither a
+     * dearer re-quote nor a larger gas re-estimate can produce a fee nobody
+     * agreed to. A screen that displays no fee must say so with FEE_NOT_SHOWN.
      */
-    approvedQuote?: FeeQuote,
+    approvedFee: ApprovedFeeInput | undefined,
   ) {
     // Reset status before starting a new transaction
     this.resetTransactionStatus();
@@ -1043,8 +1046,6 @@ class QrlStore {
 
       if (!this.qrlInstance) throw new Error("Wallet not connected. Please try again.");
       const signingQuote = await quoteFees(this.qrlInstance, feeLevel);
-      // Sign the fee the user saw, or stop and let them look at the new one.
-      assertQuoteNotAboveApproved(signingQuote, approvedQuote);
       const { maxFeePerGas, maxPriorityFeePerGas } = signingQuote;
       const utils = this._utils ?? (await getQrlWeb3()).utils;
 
@@ -1060,6 +1061,16 @@ class QrlStore {
       };
       const gas = await this.qrlInstance?.estimateGas(transactionObject);
       if (gas === undefined) throw new Error("Wallet not connected. Please try again.");
+      // Sign the fee the user saw, as a total, or stop and let them look at
+      // the new figure. Checked after the gas estimate, because the displayed
+      // maximum is gas times price and a guard on the price alone leaves the
+      // gas side free to grow.
+      if (approvedFee !== FEE_NOT_SHOWN) {
+        assertSignedFeeWithinApproved(
+          { quote: signingQuote, gasLimit: BigInt(gas) },
+          approvedFee,
+        );
+      }
       // Run the MLDSA87 derivation in the crypto worker so the 50–300 ms
       // expansion doesn't freeze the main thread mid-Send animation.
       // Subsequent signTransaction call is comparatively cheap.

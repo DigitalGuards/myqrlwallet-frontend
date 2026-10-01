@@ -1,5 +1,6 @@
 import { useStore } from "@/stores/store";
-import { quoteFees, type FeeLevel, type FeeQuote } from "@/stores/qrlStore";
+import { quoteFees, type FeeLevel } from "@/stores/qrlStore";
+import type { ApprovedFee } from "@/utils/web3/feePolicy";
 import { utils } from "@theqrl/web3";
 import { cva } from "class-variance-authority";
 import { Loader } from "lucide-react";
@@ -21,10 +22,11 @@ type GasFeeNoticeProps = {
   feeLevel: FeeLevel;
   onFeeLevelChange: (level: FeeLevel) => void;
   /**
-   * The quote behind the figure on screen. The send passes it back so signing
-   * cannot quietly use a more expensive one.
+   * The quote behind the figure on screen, with the gas limit it was computed
+   * with. The send passes both back, so signing can neither use a more
+   * expensive price nor quietly grow the gas side of the same product.
    */
-  onQuote?: (quote: FeeQuote | null) => void;
+  onQuote?: (approved: ApprovedFee | null) => void;
 };
 
 const gasFeeNoticeClasses = cva(
@@ -91,7 +93,10 @@ export const GasFeeNotice = ({
       );
       const estimatedGas = getOptimalGasFee(estimatedGasRaw);
       setGasFee(prev => ({ ...prev, estimatedGas, error: "", isLoading: false }));
-      onQuoteRef.current?.(fees);
+      onQuoteRef.current?.({
+        quote: fees,
+        gasLimit: BigInt(estimatedTransactionGas),
+      });
     } catch (error) {
       onQuoteRef.current?.(null);
       setGasFee(prev => ({ ...prev, error: `${error}`, isLoading: false }));

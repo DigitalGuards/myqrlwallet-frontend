@@ -154,22 +154,98 @@ export class FeeQuoteIncreasedError extends Error {
   }
 }
 
+export class FeeNotApprovedError extends Error {
+  constructor() {
+    super(
+      "The network fee for this transaction could not be shown, so nothing " +
+        "was signed. Try again once the fee appears.",
+    );
+    this.name = "FeeNotApprovedError";
+  }
+}
+
+export class FeeCeilingExceededError extends Error {
+  constructor(
+    readonly approvedTotal: bigint,
+    readonly currentTotal: bigint,
+  ) {
+    super(
+      "This transaction now needs more gas than the fee shown covered, so " +
+        "nothing was signed. Check the new fee and send again.",
+    );
+    this.name = "FeeCeilingExceededError";
+  }
+}
+
+/**
+ * What the user was actually shown, and what it was computed from.
+ *
+ * The displayed figure is a product of two numbers, and guarding only the
+ * price lets the other one move: a re-estimate that asks for ten times the gas
+ * passes a price check unchanged and signs ten times the fee. Both halves
+ * travel together so the total on screen is the thing being enforced.
+ */
+export interface ApprovedFee {
+  /** The quote the figure on screen was computed from. */
+  quote: FeeQuoteLimits;
+  /** The gas limit that figure was computed with. */
+  gasLimit: bigint;
+}
+
 /**
  * Refuse to sign a fee higher than the one the user approved.
  *
  * The fee is re-quoted at signing time, so without this the signed maximum can
  * differ from the figure on screen. A quote that came back cheaper is fine and
  * is signed as quoted.
+ *
+ * Fails closed when there is no approved quote. An absent one used to be read
+ * as "nothing to compare against" and signed whatever came back, so a screen
+ * that never managed to show a fee could still produce a signature.
  */
 export function assertQuoteNotAboveApproved(
   current: FeeQuoteLimits,
   approved: FeeQuoteLimits | undefined,
 ): void {
-  if (approved === undefined) return;
+  if (approved === undefined) throw new FeeNotApprovedError();
   if (current.maxFeePerGas > approved.maxFeePerGas) {
     throw new FeeQuoteIncreasedError(
       approved.maxFeePerGas,
       current.maxFeePerGas,
     );
+  }
+}
+
+/**
+ * A screen that shows no network fee has no figure to hold a signature to.
+ *
+ * Stated explicitly at every call site, so an omitted approval can never be
+ * mistaken for a screen that genuinely displays nothing. The policy bounds in
+ * this file still cap what such a send can cost.
+ */
+export const FEE_NOT_SHOWN = "fee-not-shown";
+export type ApprovedFeeInput = ApprovedFee | typeof FEE_NOT_SHOWN;
+
+/**
+ * Refuse to sign more than the total the user approved.
+ *
+ * The displayed maximum is `gasLimit * maxFeePerGas`, and signing re-estimates
+ * gas, so the price check alone leaves the gas side free to grow. This holds
+ * the product: a cheaper price can absorb a larger gas limit, and anything
+ * above the figure that was on screen stops and asks again.
+ */
+export function assertSignedFeeWithinApproved(
+  signed: { quote: FeeQuoteLimits; gasLimit: bigint },
+  approved: ApprovedFee | undefined,
+): void {
+  assertQuoteNotAboveApproved(signed.quote, approved?.quote);
+  if (approved === undefined) throw new FeeNotApprovedError();
+  if (signed.gasLimit < BigInt(0) || approved.gasLimit < BigInt(0)) {
+    throw new FeeNotApprovedError();
+  }
+  const approvedTotal = approved.gasLimit * approved.quote.maxFeePerGas;
+  const signedTotal = signed.gasLimit * signed.quote.maxFeePerGas;
+  if (signedTotal > approvedTotal) {
+    throw new FeeCeilingExceededError(approvedTotal, signedTotal);
   }
 }
