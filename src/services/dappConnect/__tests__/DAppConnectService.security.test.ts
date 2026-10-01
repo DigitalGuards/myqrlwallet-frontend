@@ -34,6 +34,8 @@ interface MockSocketInstance {
   relayUrl: string;
   /** Mirrors SocketClient.willReconnect; false models a relay that gave up. */
   canReconnect: boolean;
+  /** Mirrors SocketClient.isJoined; false models a socket outside the channel. */
+  joined: boolean;
   handlers: MockSocketHandlers;
   sent: RelayMessage[];
   /** Mirrors SocketClient.isConnected, which the service checks before sealing. */
@@ -61,6 +63,8 @@ let mockJoinResult: MockJoinResult = {
   terminated: false,
 };
 let mockBeforeSendHook: (() => Promise<void>) | null = null;
+/** The relay answers the frame with a pre-delivery refusal. */
+let mockRelayRefusesFrame = false;
 let mockSendHook: ((data: RelayMessage) => Promise<void>) | null = null;
 let mockLeaveHook: (() => Promise<boolean>) | null = null;
 let mockCloseHook: (() => Promise<boolean>) | null = null;
@@ -70,13 +74,22 @@ let mockCloseHook: (() => Promise<boolean>) | null = null;
 // instanceof check meaningful in these tests.
 jest.mock("../SocketClient", () => {
   class MockSocketNotConnectedError extends Error {
-    constructor() {
-      super("Socket not connected");
+    constructor(message = "Socket not connected") {
+      super(message);
       this.name = "SocketNotConnectedError";
+    }
+  }
+  // A subclass in the real module too, so the service's single instanceof
+  // check covers both and a membership refusal is held rather than tombstoned.
+  class MockRelayChannelNotJoinedError extends MockSocketNotConnectedError {
+    constructor(message = "Relay channel not joined") {
+      super(message);
+      this.name = "RelayChannelNotJoinedError";
     }
   }
   return {
   SocketNotConnectedError: MockSocketNotConnectedError,
+  RelayChannelNotJoinedError: MockRelayChannelNotJoinedError,
   SocketClient: class {
     relayUrl: string;
     handlers: MockSocketHandlers;
@@ -105,13 +118,24 @@ jest.mock("../SocketClient", () => {
     }
 
     /**
+     * Mirrors SocketClient.isJoined. Socket-level connectedness is not channel
+     * membership, and the service seals against membership: the relay refuses a
+     * frame from a non-member. Tests that model the rejoin window flip this.
+     */
+    joined = true;
+
+    isJoined(): boolean {
+      return this.connected && this.joined;
+    }
+
+    /**
      * Mirrors SocketClient.willReconnect. Tests that model a relay which has
      * given up for good set this to false.
      */
     canReconnect = true;
 
     willReconnect(): boolean {
-      return this.connected || this.canReconnect;
+      return (this.connected && this.joined) || this.canReconnect;
     }
 
     async connect(): Promise<void> {
@@ -121,6 +145,7 @@ jest.mock("../SocketClient", () => {
 
     async joinChannel(channelId: string): Promise<MockJoinResult> {
       this.joinCalls.push(channelId);
+      this.joined = !mockJoinResult.terminated;
       return {
         ...mockJoinResult,
         bufferedMessages: [...mockJoinResult.bufferedMessages],
@@ -132,6 +157,13 @@ jest.mock("../SocketClient", () => {
       // dying between the checkpoint and the send: nothing is emitted and
       // nothing is recorded as sent.
       if (mockBeforeSendHook) await mockBeforeSendHook();
+      // The relay's own view refuses the frame before delivering or buffering
+      // it. The real client turns that acknowledgement into this typed error
+      // and drops its membership claim.
+      if (mockRelayRefusesFrame) {
+        this.joined = false;
+        throw new MockRelayChannelNotJoinedError("Sender not in channel");
+      }
       // Mirrors the real client: a socket known to be down rejects before
       // anything is emitted, and nothing is recorded as sent. Without this
       // neither the old fail-closed behaviour nor a drop between the
@@ -179,8 +211,16 @@ jest.mock("@/stores/store", () => ({
   },
 }));
 
+/** Flipped by the tests that model the wallet running inside the native app. */
+let mockInNativeApp = false;
+/** Every bridge message the service sent, in order. */
+const mockNativeMessages: Array<{
+  type: string;
+  payload?: Record<string, unknown>;
+}> = [];
+
 jest.mock("@/utils/nativeApp", () => ({
-  isInNativeApp: () => false,
+  isInNativeApp: () => mockInNativeApp,
   parseExternalHttpUrl: (value: string) => {
     try {
       const parsed = new URL(value);
@@ -200,7 +240,10 @@ jest.mock("@/utils/nativeApp", () => ({
       return null;
     }
   },
-  sendToNative: () => false,
+  sendToNative: (type: string, payload?: Record<string, unknown>) => {
+    mockNativeMessages.push({ type, payload });
+    return true;
+  },
   triggerHaptic: () => undefined,
   logToNative: () => false,
 }));
@@ -299,6 +342,8 @@ interface ServiceHandlers {
   checkpointAtDispatch: number[];
   /** Channels the service told the UI to close its approvals for. */
   disconnected: string[];
+  /** Channels whose answer reached the dApp and asked for a hand-back. */
+  handedBack: string[];
 }
 
 const originalLocalStorage = Object.getOwnPropertyDescriptor(
@@ -450,6 +495,7 @@ async function reconnect(
     pending: [],
     checkpointAtDispatch: [],
     disconnected: [],
+    handedBack: [],
   };
   const service = new DAppConnectService();
   services.push(service);
@@ -463,6 +509,9 @@ async function reconnect(
     onSessionConnected: () => undefined,
     onSessionDisconnected: (sessionId) => {
       observed.disconnected.push(sessionId);
+    },
+    onReturnHandedBack: (sessionId) => {
+      observed.handedBack.push(sessionId);
     },
   });
   await service.reconnectAll();
@@ -538,6 +587,9 @@ beforeEach(() => {
   };
   mockSendHook = null;
   mockBeforeSendHook = null;
+  mockRelayRefusesFrame = false;
+  mockInNativeApp = false;
+  mockNativeMessages.length = 0;
   mockLeaveHook = null;
   mockCloseHook = null;
   (
@@ -551,6 +603,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   mockSendHook = null;
+  mockRelayRefusesFrame = false;
   mockLeaveHook = null;
   mockCloseHook = null;
   await Promise.all(services.map((service) => service.disconnectAll()));
@@ -1144,6 +1197,284 @@ describe("wallet service AEAD checkpointing", () => {
     expect(
       await decryptWalletFrame(pairing, socket.sent[0]),
     ).toMatchObject({ id: 1, result: "0xhash" });
+  });
+
+  it("holds an answer while the socket is connected but outside the channel", async () => {
+    // A reconnected socket is connected a whole relay round trip before its
+    // rejoin is acknowledged, and a refused rejoin leaves it connected and
+    // never a member. The relay answers a frame from a non-member with
+    // "Sender not in channel", and a rejected acknowledgement is read as
+    // ambiguous: the pairing was tombstoned with a counter already spent, and
+    // the dApp was told nothing, because a close_channel from a non-member is
+    // refused too. Its request then hung until its own five-minute timeout.
+    const pairing = await makePairing("connected-not-joined");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    const sealedBefore =
+      SessionStore.get(pairing.session.id)?.keyExchange.sendSeq;
+
+    // The rejoin window: the transport is up, the channel is not ours yet.
+    socket.joined = false;
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await settle();
+
+    // Nothing emitted, no counter spent, and above all no tombstone.
+    expect(socket.sent).toHaveLength(0);
+    expect(socket.closeCalls).toBe(0);
+    expect(SessionStore.get(pairing.session.id)).not.toBeNull();
+    expect(SessionStore.get(pairing.session.id)?.keyExchange.sendSeq).toBe(
+      sealedBefore,
+    );
+    {
+      const internals = Object(service) as {
+        connections: Map<
+          string,
+          { pendingRetransmit: unknown; offlineOutbox: unknown[] }
+        >;
+      };
+      const held = internals.connections.get(pairing.session.id);
+      expect(held?.pendingRetransmit).toBeNull();
+      expect(held?.offlineOutbox).toHaveLength(1);
+    }
+
+    // The rejoin lands and the held answer goes out.
+    socket.joined = true;
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length === 1);
+    expect(
+      await decryptWalletFrame(pairing, socket.sent[0]),
+    ).toMatchObject({ id: 1, result: "0xhash" });
+  });
+
+  it("hands the user back to the dApp after an answer, with no reason", async () => {
+    // The app acts on DAPP_RETURN by backgrounding its own task on Android, so
+    // the browser tab the user came from returns by itself. An absent reason
+    // means "the request was answered", which is the only case that sends it.
+    const pairing = await makePairing("return-after-answer");
+    const { service, observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    mockInNativeApp = true;
+
+    const conn = (
+      Object(service) as {
+        connections: Map<
+          string,
+          {
+            originatedViaDeepLink: boolean;
+            dappInfo: { redirectUrl?: string; name: string; url: string };
+          }
+        >;
+      }
+    ).connections.get(pairing.session.id);
+    if (!conn) throw new Error("expected a live connection");
+    conn.originatedViaDeepLink = true;
+    // dappInfo is frozen once pinned, so replace it rather than mutate it.
+    conn.dappInfo = {
+      ...conn.dappInfo,
+      redirectUrl: "https://dapp.example/callback",
+    };
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await waitFor(() => socket.sent.length === 1);
+    await settle();
+
+    const returns = mockNativeMessages.filter(
+      (message) => message.type === "DAPP_RETURN",
+    );
+    expect(returns).toHaveLength(1);
+    expect(returns[0]?.payload).toEqual({
+      channelId: pairing.session.id,
+      redirectUrl: "https://dapp.example/callback",
+    });
+    expect(returns[0]?.payload).not.toHaveProperty("reason");
+    // And the page is told, which is what lets an iOS approval say so.
+    expect(observed.handedBack).toEqual([pairing.session.id]);
+  });
+
+  it("does not hand the user back while the answer is only held", async () => {
+    // The relay is away, so the answer goes out later. Telling the user to
+    // return to their browser now points them at a dApp that is still waiting.
+    const pairing = await makePairing("no-return-while-held");
+    const { service, observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    mockInNativeApp = true;
+
+    const conn = (
+      Object(service) as {
+        connections: Map<
+          string,
+          {
+            originatedViaDeepLink: boolean;
+            dappInfo: { redirectUrl?: string; name: string; url: string };
+          }
+        >;
+      }
+    ).connections.get(pairing.session.id);
+    if (!conn) throw new Error("expected a live connection");
+    conn.originatedViaDeepLink = true;
+    conn.dappInfo = {
+      ...conn.dappInfo,
+      redirectUrl: "https://dapp.example/callback",
+    };
+
+    socket.connected = false;
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await settle();
+
+    expect(socket.sent).toHaveLength(0);
+    expect(observed.handedBack).toEqual([]);
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_RETURN"),
+    ).toHaveLength(0);
+
+    // Nor later, when the relay returns and the answer goes out. The hand-back
+    // belongs to the moment the user approved; delivery can be minutes later,
+    // and pulling them out of the wallet then is its own surprise. The dApp
+    // gets its answer either way.
+    socket.connected = true;
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length === 1);
+    await settle();
+    expect(observed.handedBack).toEqual([]);
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_RETURN"),
+    ).toHaveLength(0);
+  });
+
+  it("never hands the user back on a wallet-initiated disconnect", async () => {
+    // The dApp learns about a disconnect over the relay. Sending DAPP_RETURN
+    // here would background the wallet on Android, dropping the user out of
+    // the app they are still using, and open the dApp for no reason.
+    const pairing = await makePairing("no-return-on-disconnect");
+    const { service } = await reconnect(pairing.session);
+    mockInNativeApp = true;
+
+    const conn = (
+      Object(service) as {
+        connections: Map<
+          string,
+          {
+            originatedViaDeepLink: boolean;
+            dappInfo: { redirectUrl?: string; name: string; url: string };
+          }
+        >;
+      }
+    ).connections.get(pairing.session.id);
+    if (!conn) throw new Error("expected a live connection");
+    conn.originatedViaDeepLink = true;
+    // dappInfo is frozen once pinned, so replace it rather than mutate it.
+    conn.dappInfo = {
+      ...conn.dappInfo,
+      redirectUrl: "https://dapp.example/callback",
+    };
+
+    await service.disconnectSession(pairing.session.id, true);
+    await settle();
+
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_RETURN"),
+    ).toHaveLength(0);
+    // The native store is still told the session ended.
+    expect(
+      mockNativeMessages.some(
+        (message) => message.type === "DAPP_DISCONNECTED",
+      ),
+    ).toBe(true);
+  });
+
+  it("does not hand the user back for a session from another device", async () => {
+    // A QR-scanned session means the dApp is on a desktop, so opening its URL
+    // on the phone is wrong: it can even be a http://localhost dev server.
+    const pairing = await makePairing("qr-session-no-return");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    mockInNativeApp = true;
+
+    const conn = (
+      Object(service) as {
+        connections: Map<
+          string,
+          {
+            originatedViaDeepLink: boolean;
+            dappInfo: { redirectUrl?: string; name: string; url: string };
+          }
+        >;
+      }
+    ).connections.get(pairing.session.id);
+    if (!conn) throw new Error("expected a live connection");
+    conn.originatedViaDeepLink = false;
+    // dappInfo is frozen once pinned, so replace it rather than mutate it.
+    conn.dappInfo = {
+      ...conn.dappInfo,
+      redirectUrl: "https://dapp.example/callback",
+    };
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await waitFor(() => socket.sent.length === 1);
+    await settle();
+
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_RETURN"),
+    ).toHaveLength(0);
+  });
+
+  it("parks rather than tombstones when the relay refuses the frame", async () => {
+    // The client believed it was in the channel and the relay disagreed: a
+    // relay restart, or a stale participant it evicted. The refusal is decided
+    // before anything is routed, buffered or sequenced, so the sealed frame is
+    // parked and goes out unchanged once the channel is back. Reading that
+    // acknowledgement as ambiguous is what retired the pairing mid-approval,
+    // with a counter already spent and the dApp told nothing.
+    const pairing = await makePairing("relay-refuses-frame");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    const sealedBefore =
+      SessionStore.get(pairing.session.id)?.keyExchange.sendSeq ?? -1;
+
+    mockRelayRefusesFrame = true;
+    approveTracked(service, pairing.session.id, 1, "0xhash");
+    await settle();
+
+    // No delivery, and no teardown of any kind.
+    expect(socket.sent).toHaveLength(0);
+    expect(socket.closeCalls).toBe(0);
+    expect(socket.leaveCalls).toBe(0);
+    expect(SessionStore.get(pairing.session.id)).not.toBeNull();
+
+    const held = (
+      Object(service) as {
+        connections: Map<
+          string,
+          {
+            pendingRetransmit: unknown;
+            offlineOutbox: unknown[];
+            cryptoUsable: boolean;
+          }
+        >;
+      }
+    ).connections.get(pairing.session.id);
+    // Sealed, so its counter is spent and checkpointed: the frame is parked and
+    // the plaintext is NOT also queued, or the dApp would get it twice.
+    expect(held?.cryptoUsable).toBe(true);
+    expect(held?.pendingRetransmit).not.toBeNull();
+    expect(held?.offlineOutbox).toHaveLength(0);
+    expect(
+      SessionStore.get(pairing.session.id)?.keyExchange.sendSeq,
+    ).toBeGreaterThan(sealedBefore);
+
+    // The rejoin the client kicked off lands.
+    mockRelayRefusesFrame = false;
+    socket.joined = true;
+    socket.handlers.onReconnected?.();
+    await waitFor(() => socket.sent.length === 1);
+
+    // Exactly one answer, at the counter it was sealed with, so the dApp's
+    // stream stays contiguous.
+    expect(
+      await decryptWalletFrame(pairing, socket.sent[0]),
+    ).toMatchObject({ id: 1, result: "0xhash" });
+    await settle();
+    expect(socket.sent).toHaveLength(1);
   });
 
   it("delivers an answer exactly once when the socket drops between the checkpoint and the send", async () => {

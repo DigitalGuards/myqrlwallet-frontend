@@ -18,7 +18,8 @@ import {
   DeviceCredentialUnavailableError,
   decryptStoredSeedWithPin,
 } from "@/utils/crypto";
-import { getNativeInjectedPin } from "@/utils/nativeApp";
+import { getNativeInjectedPin, isIOSNativeApp } from "@/utils/nativeApp";
+import { shouldPromptReturnToBrowser } from "./returnToBrowserHint";
 import StorageUtil from "@/utils/storage/storage";
 import { getExplorerTxUrl, QRL_PROVIDER } from "@/config";
 import { IS_V3_PROFILE } from '@/config/runtimeProfile';
@@ -1056,6 +1057,13 @@ const DAppApprovalModalContent = observer(() => {
     method === "qrl_sendTransaction" || method === "qrl_signTransaction";
 
   const isTxInProgress = txProgress !== "idle";
+  const promptReturnToBrowser = shouldPromptReturnToBrowser({
+    isIOSNative: isIOSNativeApp(),
+    txProgress,
+    handedBackToDApp:
+      currentApproval !== null &&
+      dappConnectStore.returnHandedBackSessionId === currentApproval.sessionId,
+  });
   const isTxTerminal = txProgress === "confirmed" || txProgress === "failed" || txProgress === "unknown";
 
   // Transaction details for display during progress
@@ -1172,6 +1180,13 @@ const DAppApprovalModalContent = observer(() => {
                   </span>
                 )}
               </div>
+
+              {/* Same-device iOS: nothing brings the browser forward there. */}
+              {promptReturnToBrowser && (
+                <p className="text-sm text-muted-foreground">
+                  Return to your browser to continue.
+                </p>
+              )}
 
               {/* Tx hash link */}
               {txHash && (
