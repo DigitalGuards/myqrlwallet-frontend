@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../../../../UI/Dialog";
-import { copyToClipboard } from "@/utils/nativeApp";
+import { copyToClipboard, isInNativeApp, shareContent } from "@/utils/nativeApp";
 import { Copy, Download, QrCode } from "lucide-react";
 import { useState, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
@@ -90,7 +90,20 @@ export const CopyAddressButton = ({
             setQrCopied(true);
             setTimeout(() => setQrCopied(false), 1500);
           } catch (_err) {
-            // Fallback: download the image as data URL
+            // No image clipboard, which is the usual case in a WebView. The
+            // native share sheet is the path that works there. A detached
+            // <a download> click reaches no download handler in the app, so
+            // reporting success for it told the user the QR was copied when
+            // nothing had happened.
+            if (isInNativeApp()) {
+              shareContent({
+                title: "QRL address",
+                text: accountAddress,
+              });
+              setQrCopied(true);
+              setTimeout(() => setQrCopied(false), 1500);
+              return;
+            }
             const dataUrl = canvas.toDataURL("image/png");
             const a = document.createElement("a");
             a.href = dataUrl;

@@ -1,0 +1,149 @@
+name: Embedded build
+
+# Builds the single-file wallet the mobile app ships inside its own binary
+# (see config/vite.config.embedded.ts). Every PR and every push to a long-lived
+# branch produces the document plus its sha256 as a workflow artifact, and a
+# pushed `embedded-v*` tag attaches both to a GitHub release so the app can pin
+# a release URL together with the digest it expects.
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ['embedded-v*']
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  embedded:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      # Needed by the attestation step below. Without id-token the action
+      # cannot mint an OIDC token and fails with
+      # "Unable to get ACTIONS_ID_TOKEN_REQUEST_URL".
+      id-token: write
+      attestations: write
+
+    # Deliberately not a matrix: the artifact name below is fixed, so a second
+    # Node version would collide on upload.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build the embedded wallet
+        run: npm run build:embedded
+
+      # Independent of the build's own guard: reads the artifact from disk and
+      # fails on a remote script, a linked js/css file, a leftover /assets/
+      # reference, or a digest that disagrees with the document.
+      - name: Assert the output is self-contained
+        run: npm run check:embedded
+
+      - name: Verify the recorded digest
+        working-directory: dist-embedded
+        run: sha256sum -c index.html.sha256
+
+      # Only for documents that get published. An attestation ties an artifact
+      # to the workflow run and commit that produced it and is recorded in a
+      # public transparency log; doing that for every PR build would fill the
+      # log with documents nobody can pin.
+      - name: Attest the build provenance
+        if: startsWith(github.ref, 'refs/tags/embedded-v')
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist-embedded/index.html
+
+      - name: Upload the embedded wallet
+        uses: actions/upload-artifact@v4
+        with:
+          name: myqrlwallet-embedded
+          path: |
+            dist-embedded/index.html
+            dist-embedded/index.html.sha256
+          if-no-files-found: error
+
+  release:
+    needs: embedded
+    if: startsWith(github.ref, 'refs/tags/embedded-v')
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download the embedded wallet
+        uses: actions/download-artifact@v4
+        with:
+          name: myqrlwallet-embedded
+          path: dist-embedded
+
+      # A published document is something the app pins by digest, so the
+      # assets are immutable: a tag that already carries them is a mistake,
+      # and silently replacing them would change what a pinned digest refers
+      # to. Re-releasing means cutting a new tag.
+      - name: Refuse to replace an existing asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "No release for $TAG yet; it will be created."
+            exit 0
+          fi
+          existing="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --json assets --jq '.assets[].name')"
+          for asset in index.html index.html.sha256; do
+            if grep -qx "$asset" <<<"$existing"; then
+              echo "::error::$TAG already has $asset. Released documents are" \
+                   "immutable because the app pins their digest. Cut a new tag."
+              exit 1
+            fi
+          done
+
+      # download-artifact put these on a fresh runner, so the digest is checked
+      # again here rather than trusted from the job that built them.
+      - name: Verify the downloaded digest
+        working-directory: dist-embedded
+        run: sha256sum -c index.html.sha256
+
+      - name: Attach both files to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          digest="$(cut -d' ' -f1 dist-embedded/index.html.sha256)"
+          notes="Single-file wallet document for the MyQRLWallet mobile app.
+
+          sha256(index.html) = ${digest}
+
+          Pin this digest in the app and verify the document against it before
+          loading. The build is reproducible from the commit this tag points
+          at: \`npm ci --legacy-peer-deps && npm run build:embedded\`.
+
+          These assets are immutable: the workflow refuses to replace them."
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              dist-embedded/index.html dist-embedded/index.html.sha256 \
+              --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" \
+              dist-embedded/index.html dist-embedded/index.html.sha256 \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Embedded wallet $TAG" \
+              --notes "$notes"
+          fi

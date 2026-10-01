@@ -27,6 +27,7 @@ import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
 import { RecipientResolutionStatus } from "@/components/Core/RecipientResolutionStatus";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 import { cn } from "@/utils/cn";
+import { FEE_NOT_SHOWN } from "@/utils/web3/feePolicy";
 
 const NftDetail = observer(() => {
   const navigate = useNavigate();
@@ -195,6 +196,11 @@ const NftDetail = observer(() => {
           recipientAddress,
           "",
           amountBig,
+          // The NFT detail screen shows no network fee yet, so there is no
+          // displayed figure to hold the signature to. Said explicitly, so it
+          // reads as a gap to close rather than a forgotten argument.
+          "medium",
+          FEE_NOT_SHOWN,
         );
         if (!ok) {
           setSendError(qrlStore.transactionStatus.error ?? "Transfer failed.");
@@ -272,6 +278,9 @@ const NftDetail = observer(() => {
         recipientAddress,
         mnemonic,
         amountBig,
+        // No network fee is displayed for an NFT transfer yet.
+        "medium",
+        FEE_NOT_SHOWN,
       );
       if (!ok) {
         setSendError(qrlStore.transactionStatus.error ?? "Transfer failed.");

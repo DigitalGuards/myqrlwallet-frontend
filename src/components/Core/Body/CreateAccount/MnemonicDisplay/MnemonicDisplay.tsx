@@ -65,7 +65,9 @@ const MnemonicDisplay = ({
 
   const onCopyMnemonic = async () => {
     if (mnemonic) {
-      const success = await copyToClipboard(mnemonic);
+      // The recovery phrase is the wallet, so the app flags the clipboard
+      // entry and clears it.
+      const success = await copyToClipboard(mnemonic, true);
       if (success) {
         setHasJustCopiedMnemonic(true);
         setTimeout(() => {
@@ -77,7 +79,8 @@ const MnemonicDisplay = ({
 
   const onCopyHexSeed = async () => {
     if (accountHexSeed) {
-      const success = await copyToClipboard(accountHexSeed);
+      // The hex seed is the wallet too.
+      const success = await copyToClipboard(accountHexSeed, true);
       if (success) {
         setHasJustCopiedSeed(true);
         setTimeout(() => {

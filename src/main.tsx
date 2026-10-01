@@ -1,3 +1,8 @@
+// First import in the application: zod reads this flag when a schema's parser
+// is built, so it has to be set before any schema is created. See the module
+// for why the JIT path was already unreachable under every deployment's CSP.
+import '@/utils/zodJitless'
+
 import { Buffer } from 'buffer';
 globalThis.Buffer = Buffer;
 
@@ -6,6 +11,19 @@ globalThis.Buffer = Buffer;
 // in history) before the lazy web ingress loads.
 import { captureQrlconnectFragment } from '@/services/dappConnect/fragmentCapture';
 captureQrlconnectFragment();
+
+// Must also run before the router mounts: in the app-shipped embedded build
+// this intercepts external links so they open in the device browser instead of
+// replacing the shipped wallet document. A no-op in every other build.
+import { installEmbeddedShell } from '@/utils/embeddedShell';
+installEmbeddedShell();
+
+// Must be evaluated before './App.tsx': importing App constructs the MobX
+// stores, and DAppConnectStore's constructor reads the persisted dApp sessions
+// and starts reconnecting. This import clears those sessions first when the
+// app signals an upgrade from the hosted wallet. A statement in this file's
+// body would run after every import had been evaluated, which is too late.
+import '@/utils/embeddedMigrationBoot'
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'

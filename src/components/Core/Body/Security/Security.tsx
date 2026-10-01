@@ -5,6 +5,21 @@ import { ROUTES } from "@/router/router";
 const linkClass =
     "text-identity-accent underline underline-offset-2 hover:text-identity-accent/80 transition-colors";
 
+// Both files are served by the live site, never by the application bundle.
+// Root-relative hrefs resolve against whatever origin the document happens to
+// have, which is wrong in the desktop build (file://) and in the app-shipped
+// embedded build. Absolute URLs work in the browser and on desktop.
+//
+// In the app they do not: the native shell refuses to hand the wallet's own
+// host to an external browser, so both links did nothing there. The addresses
+// are shown as plain text so they can still be read and typed, and the
+// repository's security policy, on a host the app does open, carries the same
+// contact details.
+const SECURITY_TXT_TEXT = "qrlwallet.com/.well-known/security.txt";
+const PGP_KEY_TEXT = "qrlwallet.com/pgp-key.txt";
+const SECURITY_POLICY_URL =
+    "https://github.com/DigitalGuards/myqrlwallet-frontend/security/policy";
+
 const Security = () => {
     return (
         <div className="min-h-screen">
@@ -29,27 +44,25 @@ const Security = () => {
                     reproduce the issue: the affected component and version, a description of the impact, and
                     step-by-step reproduction instructions or a proof of concept. Our machine-readable contact
                     details are published at{" "}
-                    <a
-                        className={linkClass}
-                        href="/.well-known/security.txt"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        /.well-known/security.txt
-                    </a>{" "}
+                    <span className="font-mono text-sm">{SECURITY_TXT_TEXT}</span>{" "}
                     in line with RFC 9116.
                 </p>
                 <p className="mb-6">
                     For sensitive reports you can encrypt to our PGP key, published at{" "}
+                    <span className="font-mono text-sm">{PGP_KEY_TEXT}</span>{" "}
+                    (fingerprint EAE7 9D7C 2805 9C17 4870 13CB BE48 C074 FFF0 495D).
+                </p>
+                <p className="mb-6">
+                    The same contact details are in our{" "}
                     <a
                         className={linkClass}
-                        href="/pgp-key.txt"
+                        href={SECURITY_POLICY_URL}
                         target="_blank"
                         rel="noopener noreferrer"
                     >
-                        /pgp-key.txt
-                    </a>{" "}
-                    (fingerprint EAE7 9D7C 2805 9C17 4870 13CB BE48 C074 FFF0 495D).
+                        repository security policy
+                    </a>
+                    , which opens in a browser from every version of the wallet.
                 </p>
 
                 <h2 className="text-2xl font-semibold mt-6 mb-3">Scope</h2>

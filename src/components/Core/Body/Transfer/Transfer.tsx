@@ -74,6 +74,7 @@ import {
   triggerHaptic,
 } from "@/utils/nativeApp";
 import type { FeeLevel } from "@/stores/qrlStore";
+import { FEE_NOT_SHOWN, type ApprovedFee } from "@/utils/web3/feePolicy";
 import type { RecipientSubmission } from "@/hooks/useQrnsRecipient";
 import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
 import { RecipientResolutionStatus } from "@/components/Core/RecipientResolutionStatus";
@@ -166,6 +167,10 @@ const Transfer = observer(() => {
 
   const [sliderValue, setSliderValue] = useState(0);
   const [feeLevel, setFeeLevel] = useState<FeeLevel>("medium");
+  // The quote behind the fee on screen, with the gas limit it was computed
+  // with, handed to signing so it can use neither a more expensive price nor
+  // more gas than the figure the user saw covered.
+  const [approvedFee, setApprovedFee] = useState<ApprovedFee | null>(null);
   const [amountInputValue, setAmountInputValue] = useState("");
   const [tokenBalance, setTokenBalance] = useState("0");
   const [hasJustCopied, setHasJustCopied] = useState(false);
@@ -499,6 +504,7 @@ const Transfer = observer(() => {
           valueEther,
           "",
           feeLevel,
+          approvedFee ?? undefined,
         );
         resetForm();
         window.scrollTo(0, 0);
@@ -585,6 +591,7 @@ const Transfer = observer(() => {
           valueEther,
           mnemonicPhrases,
           feeLevel,
+          approvedFee ?? undefined,
         );
         resetForm();
         window.scrollTo(0, 0);
@@ -619,6 +626,11 @@ const Transfer = observer(() => {
         rawAmount,
         "",
         recipientAddress,
+        // The token send screen shows no network fee yet, so there is no
+        // displayed figure to hold the signature to. Said explicitly, so it
+        // reads as a gap to close rather than a forgotten argument.
+        "medium",
+        FEE_NOT_SHOWN,
       );
       if (sent) {
         resetForm();
@@ -642,6 +654,9 @@ const Transfer = observer(() => {
           rawAmount,
           "",
           recipientAddress,
+          // No network fee is displayed for a token send yet.
+          "medium",
+          FEE_NOT_SHOWN,
         );
         resetForm();
         window.scrollTo(0, 0);
@@ -717,6 +732,9 @@ const Transfer = observer(() => {
         rawAmount,
         mnemonic,
         recipientAddress,
+        // No network fee is displayed for a token send yet.
+        "medium",
+        FEE_NOT_SHOWN,
       );
       resetForm();
       window.scrollTo(0, 0);
@@ -766,6 +784,17 @@ const Transfer = observer(() => {
   const setPercentage = (percentage: number) => () => {
     applyPercentage(percentage);
   };
+
+  /**
+   * A native send waits for its fee to be on screen.
+   *
+   * Sending while the estimate is loading or failed is sending a cost the
+   * user was never shown, and the signing guard now fails closed on exactly
+   * that. The phone shows its own fee, and on desktop the isolated signer
+   * does, so neither is gated here.
+   */
+  const nativeFeePending =
+    isNativeTransfer && !isUsingMobile && !isDesktop && approvedFee === null;
 
   const assetSymbol = isNativeTransfer
     ? NATIVE_TOKEN.symbol
@@ -1309,6 +1338,7 @@ const Transfer = observer(() => {
                       isSubmitting={isSubmitting}
                       feeLevel={feeLevel}
                       onFeeLevelChange={setFeeLevel}
+                      onQuote={setApprovedFee}
                     />
                   )}
                 </CardContent>
@@ -1322,7 +1352,12 @@ const Transfer = observer(() => {
                     Cancel
                   </Button>
                   <ShinyButton
-                    disabled={!isValid || !recipientResolution.address || stalePercentageAmount}
+                    disabled={
+                      !isValid ||
+                      !recipientResolution.address ||
+                      stalePercentageAmount ||
+                      nativeFeePending
+                    }
                     processing={isSubmitting}
                     type="submit"
                   >

@@ -120,6 +120,9 @@ describe("quoteFees", () => {
     expect(await quoteFees(provider as never, level)).toEqual({
       maxPriorityFeePerGas: tip,
       maxFeePerGas: 20n * gwei + tip,
+      // Carried so the fee policy can bound the tip against real network
+      // conditions (src/utils/web3/feePolicy.ts).
+      baseFeePerGas: 10n * gwei,
       expectedFeePerGas: 10n * gwei + tip,
     });
     expect(provider.getBlock).toHaveBeenCalledWith("latest");

@@ -4,8 +4,29 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
 
 import { cn } from "@/utils/cn"
+import { useBackDismiss } from "@/utils/useBackDismiss"
 
-const Sheet = SheetPrimitive.Root
+/**
+ * Android's back button closes the topmost open overlay.
+ *
+ * Registered here so every controlled Sheet in the app is covered by one
+ * change. Back calls `onOpenChange(false)`, the same path the X button and
+ * Escape take, so an approval or signing sheet cancels or rejects and can
+ * never approve. An uncontrolled Sheet (no `open` prop) manages its own
+ * state and is left to Radix.
+ */
+const Sheet = ({
+  open,
+  onOpenChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof SheetPrimitive.Root>) => {
+  useBackDismiss(open === true, () => {
+    if (onOpenChange === undefined) return false;
+    onOpenChange(false);
+    return true;
+  });
+  return <SheetPrimitive.Root open={open} onOpenChange={onOpenChange} {...props} />;
+};
 
 const SheetTrigger = SheetPrimitive.Trigger
 

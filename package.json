@@ -17,6 +17,8 @@
     "dev:lan": "vite --config config/vite.config.ts --host=0.0.0.0",
     "dev:custom": "vite --config config/vite.config.ts --host",
     "build": "tsc && vite --config config/vite.config.ts build",
+    "build:embedded": "tsc && vite --config config/vite.config.embedded.ts build",
+    "check:embedded": "node scripts/check-embedded-output.mjs",
     "lint": "eslint --config config/eslint.config.js . --report-unused-disable-directives --max-warnings 0",
     "test": "jest",
     "preview": "vite --config config/vite.config.ts preview"
