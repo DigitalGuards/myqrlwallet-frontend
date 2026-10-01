@@ -331,7 +331,6 @@ class FrameParkedError extends Error {
  */
 export type SendOutcome = "sent" | "held" | "failed";
 
-
 interface ActiveConnection {
   socketClient: SocketClient;
   keyExchange: KeyExchange;
