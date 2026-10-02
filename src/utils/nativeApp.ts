@@ -13,6 +13,7 @@ import {
   isQualifiedV3NativeContext,
   readNativeCapabilities,
 } from '@/config/runtimeProfile';
+import { HAS_NATIVE_BRIDGE } from '@/utils/embeddedRuntime';
 
 export type WebToNativeMessageType =
   | 'SCAN_QR'
@@ -108,11 +109,38 @@ export const isNativeMessageForCurrentDocument = (
 };
 
 /**
- * Check if the web app is running inside the native MyQRLWallet app
+ * Check if the web app is running inside the native MyQRLWallet app.
+ *
+ * Only a bundle with the native bridge runs there (`HAS_NATIVE_BRIDGE`): the
+ * embedded build the app ships, or the dev server. The hosted production build
+ * answers false at compile time, so every native path folds away from
+ * qrlwallet.com, and an outdated app that still loads it gets the retired-app
+ * screen (`isRetiredNativeApp`).
  */
 export const isInNativeApp = (): boolean => {
+  if (!HAS_NATIVE_BRIDGE) return false;
   if (typeof navigator === 'undefined') return false;
   return navigator.userAgent.includes('MyQRLWallet');
+};
+
+/**
+ * True when the hosted production build is open inside an app version that loaded
+ * qrlwallet.com over the network. Those versions are retired: the hosted
+ * build carries no native bridge, so running the wallet there would keep a
+ * seed in plain web storage without the app's protection. The page shows an
+ * update screen instead and never starts the wallet.
+ *
+ * The desktop app removes "MyQRLWallet" from its user agent and exposes
+ * `window.qrlWallet`; both are checked so it can never match.
+ */
+export const isRetiredNativeApp = (): boolean => {
+  if (HAS_NATIVE_BRIDGE || typeof window === 'undefined') return false;
+  if (typeof window.ReactNativeWebView?.postMessage === 'function') return true;
+  return (
+    typeof navigator !== 'undefined' &&
+    navigator.userAgent.includes('MyQRLWallet') &&
+    !window.qrlWallet
+  );
 };
 
 /**
@@ -162,6 +190,8 @@ export const sendToNative = (
   type: WebToNativeMessageType,
   payload?: Record<string, unknown>
 ): boolean => {
+  // The hosted build has no native peer; this folds the sender away there.
+  if (!HAS_NATIVE_BRIDGE) return false;
   if (IS_V3_PROFILE && !isQualifiedV3NativeContext()) return false;
   const webView = window.ReactNativeWebView;
 
@@ -317,6 +347,7 @@ export const triggerHaptic = (style: 'success' | 'warning' | 'error' | 'light' |
 export const subscribeToNativeMessages = (
   callback: (message: NativeMessage) => void
 ): (() => void) => {
+  if (!HAS_NATIVE_BRIDGE) return () => undefined;
   if (IS_V3_PROFILE && !isQualifiedV3NativeContext()) return () => undefined;
   const handler = (event: Event) => {
     if (IS_V3_PROFILE && !isQualifiedV3NativeContext()) return;
@@ -416,7 +447,7 @@ export async function hashEncryptedSeed(encryptedSeed: string): Promise<string> 
 }
 
 function ensureSeedBackupListener(): void {
-  if (seedBackupListenerInstalled || typeof window === 'undefined') return;
+  if (!HAS_NATIVE_BRIDGE || seedBackupListenerInstalled || typeof window === 'undefined') return;
 
   window.addEventListener('nativeMessage', (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
@@ -519,7 +550,7 @@ function randomRequestId(): string {
 }
 
 function ensureDeviceCredentialListener(): void {
-  if (deviceCredentialListenerInstalled || typeof window === 'undefined') return;
+  if (!HAS_NATIVE_BRIDGE || deviceCredentialListenerInstalled || typeof window === 'undefined') return;
 
   window.addEventListener('nativeMessage', (event: Event) => {
     if (!(event instanceof CustomEvent)) return;

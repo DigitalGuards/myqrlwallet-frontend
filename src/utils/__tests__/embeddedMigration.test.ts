@@ -338,20 +338,22 @@ describe("the key list matches the modules that write those keys", () => {
 });
 
 describe("the migration is evaluated before the stores are constructed", () => {
-  it("is imported above ./App.tsx in main.tsx", () => {
+  it("is imported before main.tsx loads ./App.tsx", () => {
     // DAppConnectStore's constructor reads the persisted sessions and calls
-    // reconnectAll(). ES modules evaluate imports in source order, so the boot
-    // module has to appear before the import that pulls in the stores.
+    // reconnectAll(). The boot module is a static import, so it is evaluated
+    // before main.tsx's body runs; App is loaded later by a dynamic import in
+    // that body. Neither may become a static import of App above the boot.
     const main = readFileSync(join(repoRoot, "src/main.tsx"), "utf8");
-    // Match the import statements themselves; prose mentioning either module
-    // would otherwise decide the comparison.
+    // Match the statements themselves; prose mentioning either module would
+    // otherwise decide the comparison.
     const boot = main.search(
       /^import\s+["']@\/utils\/embeddedMigrationBoot["']/m,
     );
-    const app = main.search(/^import\s+App\s+from\s+["']\.\/App\.tsx["']/m);
+    const app = main.search(/import\(\s*["']\.\/App\.tsx["']\s*\)/);
     expect(boot).toBeGreaterThan(-1);
     expect(app).toBeGreaterThan(-1);
     expect(boot).toBeLessThan(app);
+    expect(main).not.toMatch(/^import\s+App\s+from/m);
   });
 
   it("reaches no module that constructs the stores", () => {
@@ -366,6 +368,10 @@ describe("the migration is evaluated before the stores are constructed", () => {
     const imports = [...`${boot}\n${migration}`.matchAll(/^import\s.*$/gm)].map(
       (m) => m[0],
     );
-    expect(imports).toEqual(['import { runEmbeddedMigration } from "./embeddedMigration";']);
+    // embeddedRuntime is a leaf module holding only the build constant.
+    expect(imports).toEqual([
+      'import { runEmbeddedMigration } from "./embeddedMigration";',
+      'import { IS_EMBEDDED_BUILD } from "./embeddedRuntime";',
+    ]);
   });
 });

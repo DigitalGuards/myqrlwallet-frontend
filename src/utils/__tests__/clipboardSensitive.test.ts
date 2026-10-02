@@ -10,6 +10,15 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
+// The native bridge exists only in the embedded build, which the app ships.
+jest.mock("@/utils/embeddedRuntime", () => ({
+  ...jest.requireActual<typeof import("@/utils/embeddedRuntime")>(
+    "@/utils/embeddedRuntime",
+  ),
+  IS_EMBEDDED_BUILD: true,
+  HAS_NATIVE_BRIDGE: true,
+}));
+
 const repoRoot = join(__dirname, "..", "..", "..");
 const postMessage = jest.fn((_message: string) => undefined);
 

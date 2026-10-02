@@ -12,7 +12,7 @@ const resolveNodePolyfill = (name: string) =>
   require.resolve(`rollup-plugin-node-polyfills/polyfills/${name}`)
 const localQrlRpcTarget = process.env.LOCAL_QRL_RPC_TARGET
 
-const assertNoBrowserSeed = (mode: string) => {
+const assertNoBrowserSeed = (mode: string, command: string) => {
   const publicEnv = loadEnv(mode, path.resolve(__dirname, '..'), 'VITE_')
   if (publicEnv.VITE_SEED) {
     throw new Error(
@@ -28,6 +28,11 @@ const assertNoBrowserSeed = (mode: string) => {
     // guards, which is how the embedded bundle ends up with no
     // window.location.reload() call rather than merely never reaching one.
     __QRL_EMBEDDED_BUILD__: 'false',
+    // Whether the bundle carries the native app bridge. The hosted production
+    // build does not: only the app-shipped embedded build runs next to the
+    // app. The dev server keeps it so the app's `dev` web source can point at
+    // a local frontend. config/vite.config.embedded.ts overrides it to true.
+    __QRL_NATIVE_BRIDGE__: command === 'serve' ? 'true' : 'false',
     __QRL_WALLET_PROFILE__: JSON.stringify(profile),
     __QRL_NATIVE_NETWORK__: JSON.stringify(network ? {
       chainId: network.expectedChainId,
@@ -76,9 +81,9 @@ const envExposureGuard = () => ({
   },
 })
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode, command }) => ({
   // Run the public-environment assertion before Vite consumes this config.
-  ...assertNoBrowserSeed(mode),
+  ...assertNoBrowserSeed(mode, command),
   // Desktop (Electron) loads the bundle from disk via loadFile (file://), so
   // assets must be referenced relatively. Set VITE_DESKTOP=1 for that build
   // (see myqrlwallet-desktop/scripts/build-renderer.sh). Web builds keep '/'.
