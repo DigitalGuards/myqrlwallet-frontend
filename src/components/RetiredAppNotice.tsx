@@ -12,6 +12,10 @@ const RetiredAppNotice = () => (
       latest version to keep using your wallet.
     </p>
     <p>
+      Opened this page inside another app? Open qrlwallet.com in your regular
+      browser.
+    </p>
+    <p>
       <a href="https://play.google.com/store/apps/details?id=com.chiefdg.myqrlwallet">
         Google Play
       </a>

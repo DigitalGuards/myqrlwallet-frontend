@@ -11,6 +11,7 @@ jest.mock("@/utils/embeddedRuntime", () => ({
     "@/utils/embeddedRuntime",
   ),
   IS_EMBEDDED_BUILD: true,
+  HAS_NATIVE_BRIDGE: true,
 }));
 
 const FIRST_ID = "00112233445566778899aabbccddeeff";

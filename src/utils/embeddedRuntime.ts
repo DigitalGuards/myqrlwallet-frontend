@@ -31,6 +31,22 @@ declare const __QRL_EMBEDDED_BUILD__: boolean;
 export const IS_EMBEDDED_BUILD =
   typeof __QRL_EMBEDDED_BUILD__ !== "undefined" && __QRL_EMBEDDED_BUILD__;
 
+declare const __QRL_NATIVE_BRIDGE__: boolean;
+
+/**
+ * True when this bundle carries the native app bridge.
+ *
+ * The app ships the embedded build in its own binary, so that is the bundle
+ * that runs next to the native app; the dev server also keeps the bridge for
+ * the app's `dev` web source. The hosted production build defines it false,
+ * so the minifier drops every native path from qrlwallet.com, and an outdated
+ * app that still loads the hosted site gets the retired-app screen.
+ */
+export const HAS_NATIVE_BRIDGE =
+  typeof __QRL_NATIVE_BRIDGE__ !== "undefined"
+    ? __QRL_NATIVE_BRIDGE__
+    : IS_EMBEDDED_BUILD;
+
 type EmbeddedScope = { [EMBEDDED_GLOBAL_FLAG]?: unknown };
 
 /**

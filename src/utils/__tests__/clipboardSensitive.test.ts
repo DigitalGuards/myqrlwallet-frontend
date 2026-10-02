@@ -16,6 +16,7 @@ jest.mock("@/utils/embeddedRuntime", () => ({
     "@/utils/embeddedRuntime",
   ),
   IS_EMBEDDED_BUILD: true,
+  HAS_NATIVE_BRIDGE: true,
 }));
 
 const repoRoot = join(__dirname, "..", "..", "..");

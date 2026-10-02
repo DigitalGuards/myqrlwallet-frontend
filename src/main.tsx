@@ -29,8 +29,9 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HelmetProvider } from 'react-helmet-async'
 import { isRetiredNativeApp } from '@/utils/nativeApp'
-import { IS_EMBEDDED_BUILD } from '@/utils/embeddedRuntime'
+import { HAS_NATIVE_BRIDGE } from '@/utils/embeddedRuntime'
 import RetiredAppNotice from '@/components/RetiredAppNotice'
+import WalletLoadFailed from '@/components/WalletLoadFailed'
 // Self-hosted variable fonts (CSP-safe, bundled by Vite): Sora = display,
 // Instrument Sans = body, Inter = numeric (balances/amounts/fees),
 // JetBrains Mono = data (addresses/hashes/seeds). Imported here, outside
@@ -51,17 +52,24 @@ const root = ReactDOM.createRoot(rootElement)
 // An outdated app still loading the hosted site gets an update screen. App is
 // imported only after that check, because importing it constructs the stores,
 // which read persisted sessions and start reconnecting.
-// The constant check lets the embedded build drop the notice entirely.
-if (!IS_EMBEDDED_BUILD && isRetiredNativeApp()) {
+// The constant check lets bundles with the bridge drop the notice entirely.
+if (!HAS_NATIVE_BRIDGE && isRetiredNativeApp()) {
   root.render(<RetiredAppNotice />)
 } else {
-  void import('./App.tsx').then(({ default: App }) => {
-    root.render(
-      <React.StrictMode>
-        <HelmetProvider>
-          <App />
-        </HelmetProvider>
-      </React.StrictMode>,
-    )
-  })
+  import('./App.tsx')
+    .then(({ default: App }) => {
+      root.render(
+        <React.StrictMode>
+          <HelmetProvider>
+            <App />
+          </HelmetProvider>
+        </React.StrictMode>,
+      )
+    })
+    .catch((error: unknown) => {
+      // A chunk that fails to load (for example a deploy replacing hashed
+      // files mid-visit) would otherwise leave a blank page.
+      console.error('[boot] could not load the wallet', error)
+      root.render(<WalletLoadFailed />)
+    })
 }

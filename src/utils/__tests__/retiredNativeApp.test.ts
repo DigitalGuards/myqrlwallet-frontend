@@ -38,6 +38,7 @@ function load(embedded: boolean): typeof import("@/utils/nativeApp") {
         "@/utils/embeddedRuntime",
       ),
       IS_EMBEDDED_BUILD: embedded,
+      HAS_NATIVE_BRIDGE: embedded,
     }));
     module =
       jest.requireActual<typeof import("@/utils/nativeApp")>(
@@ -81,6 +82,27 @@ describe("the hosted build inside an app", () => {
     expect(load(false).isRetiredNativeApp()).toBe(false);
     environment({ userAgent: "Mozilla/5.0 MyQRLWallet/1.3.1", desktop: true });
     expect(load(false).isRetiredNativeApp()).toBe(false);
+  });
+});
+
+describe("the native paths in the hosted build", () => {
+  it("never posts to or listens for an app", () => {
+    environment({
+      userAgent: "Mozilla/5.0 MyQRLWallet/1.4.2",
+      reactNative: true,
+    });
+    const postMessage = jest.fn();
+    const addEventListener = jest.fn();
+    Object.assign(globalThis.window, {
+      ReactNativeWebView: { postMessage },
+      addEventListener,
+    });
+    const native = load(false);
+    expect(native.sendToNative("SCAN_QR")).toBe(false);
+    const unsubscribe = native.subscribeToNativeMessages(() => undefined);
+    unsubscribe();
+    expect(postMessage).not.toHaveBeenCalled();
+    expect(addEventListener).not.toHaveBeenCalled();
   });
 });
 

@@ -8,6 +8,7 @@ jest.mock("@/utils/embeddedRuntime", () => ({
     "@/utils/embeddedRuntime",
   ),
   IS_EMBEDDED_BUILD: true,
+  HAS_NATIVE_BRIDGE: true,
 }));
 jest.mock("@/utils", () => jest.requireActual("@/utils/cn"));
 

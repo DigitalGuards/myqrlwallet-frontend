@@ -19,6 +19,7 @@ jest.mock("@/utils/embeddedRuntime", () => ({
   isEmbeddedRuntime: () => mockState.embedded,
   // The embedded build folds this to true and the minifier drops the reload.
   IS_EMBEDDED_BUILD: true,
+  HAS_NATIVE_BRIDGE: true,
 }));
 
 import {

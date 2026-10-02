@@ -10,6 +10,7 @@ jest.mock("@/utils/embeddedRuntime", () => ({
     "@/utils/embeddedRuntime",
   ),
   IS_EMBEDDED_BUILD: true,
+  HAS_NATIVE_BRIDGE: true,
 }));
 
 const network = { chainId: "0x301825", genesisHash: `0x${"ab".repeat(32)}` };
