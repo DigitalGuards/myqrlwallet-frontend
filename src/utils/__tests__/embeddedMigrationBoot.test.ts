@@ -6,6 +6,14 @@
  */
 import { describe, expect, it, jest } from "@jest/globals";
 
+// The native bridge exists only in the embedded build, which the app ships.
+jest.mock("@/utils/embeddedRuntime", () => ({
+  ...jest.requireActual<typeof import("@/utils/embeddedRuntime")>(
+    "@/utils/embeddedRuntime",
+  ),
+  IS_EMBEDDED_BUILD: true,
+}));
+
 const mockRunEmbeddedMigration = jest.fn(() => true);
 
 jest.mock("@/utils/embeddedMigration", () => ({

@@ -11,6 +11,14 @@ import { afterEach, describe, expect, it } from "@jest/globals";
 import { shouldPromptReturnToBrowser } from "../returnToBrowserHint";
 import { isIOSNativeApp, nativeAppPlatform } from "@/utils/nativeApp";
 
+// The native bridge exists only in the embedded build, which the app ships.
+jest.mock("@/utils/embeddedRuntime", () => ({
+  ...jest.requireActual<typeof import("@/utils/embeddedRuntime")>(
+    "@/utils/embeddedRuntime",
+  ),
+  IS_EMBEDDED_BUILD: true,
+}));
+
 const base = {
   isIOSNative: true,
   txProgress: "confirming" as const,

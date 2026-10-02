@@ -4,6 +4,14 @@ import {
   isUnsupportedV3Context,
 } from "../runtimeProfile";
 
+// The native bridge exists only in the embedded build, which the app ships.
+jest.mock("@/utils/embeddedRuntime", () => ({
+  ...jest.requireActual<typeof import("@/utils/embeddedRuntime")>(
+    "@/utils/embeddedRuntime",
+  ),
+  IS_EMBEDDED_BUILD: true,
+}));
+
 const network = { chainId: "0x301825", genesisHash: `0x${"ab".repeat(32)}` };
 const capabilities = {
   bridgeVersion: 1,

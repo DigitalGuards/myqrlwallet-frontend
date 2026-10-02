@@ -1,6 +1,14 @@
 /** @jest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { DeviceCredentialRecovery } from "../DeviceCredentialRecovery";
+
+// The native bridge exists only in the embedded build, which the app ships.
+jest.mock("@/utils/embeddedRuntime", () => ({
+  ...jest.requireActual<typeof import("@/utils/embeddedRuntime")>(
+    "@/utils/embeddedRuntime",
+  ),
+  IS_EMBEDDED_BUILD: true,
+}));
 jest.mock("@/utils", () => jest.requireActual("@/utils/cn"));
 
 afterEach(() => {

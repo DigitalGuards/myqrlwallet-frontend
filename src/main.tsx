@@ -28,7 +28,9 @@ import '@/utils/embeddedMigrationBoot'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HelmetProvider } from 'react-helmet-async'
-import App from './App.tsx'
+import { isRetiredNativeApp } from '@/utils/nativeApp'
+import { IS_EMBEDDED_BUILD } from '@/utils/embeddedRuntime'
+import RetiredAppNotice from '@/components/RetiredAppNotice'
 // Self-hosted variable fonts (CSP-safe, bundled by Vite): Sora = display,
 // Instrument Sans = body, Inter = numeric (balances/amounts/fees),
 // JetBrains Mono = data (addresses/hashes/seeds). Imported here, outside
@@ -44,10 +46,22 @@ if (!rootElement) {
   throw new Error('Root element #root is missing from index.html')
 }
 
-ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <HelmetProvider>
-      <App />
-    </HelmetProvider>
-  </React.StrictMode>,
-)
+const root = ReactDOM.createRoot(rootElement)
+
+// An outdated app still loading the hosted site gets an update screen. App is
+// imported only after that check, because importing it constructs the stores,
+// which read persisted sessions and start reconnecting.
+// The constant check lets the embedded build drop the notice entirely.
+if (!IS_EMBEDDED_BUILD && isRetiredNativeApp()) {
+  root.render(<RetiredAppNotice />)
+} else {
+  void import('./App.tsx').then(({ default: App }) => {
+    root.render(
+      <React.StrictMode>
+        <HelmetProvider>
+          <App />
+        </HelmetProvider>
+      </React.StrictMode>,
+    )
+  })
+}

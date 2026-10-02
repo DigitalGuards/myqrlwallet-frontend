@@ -5,6 +5,14 @@ import {
   sendPinVerified,
 } from "../nativeApp";
 
+// The native bridge exists only in the embedded build, which the app ships.
+jest.mock("@/utils/embeddedRuntime", () => ({
+  ...jest.requireActual<typeof import("@/utils/embeddedRuntime")>(
+    "@/utils/embeddedRuntime",
+  ),
+  IS_EMBEDDED_BUILD: true,
+}));
+
 const FIRST_ID = "00112233445566778899aabbccddeeff";
 const SECOND_ID = "ffeeddccbbaa99887766554433221100";
 const CHANNEL_ID = "00112233-4455-6677-8899-aabbccddeeff";
