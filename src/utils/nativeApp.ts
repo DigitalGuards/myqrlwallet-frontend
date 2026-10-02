@@ -331,6 +331,27 @@ export const subscribeToNativeMessages = (
 // In-memory store for PIN injected by native app after biometric unlock
 // This is intentionally NOT in localStorage for security - it's cleared on page refresh
 let nativeInjectedPin: string | null = null;
+const nativeInjectedPinListeners = new Set<() => void>();
+
+const notifyNativeInjectedPinListeners = (): void => {
+  for (const listener of nativeInjectedPinListeners) listener();
+};
+
+/**
+ * Subscribe to the injected PIN arriving or being cleared.
+ *
+ * The native app injects the PIN when Device Login finishes, which can happen
+ * while a screen that asks for the PIN is already open. A screen that reads
+ * the PIN only while rendering keeps showing its PIN field until some other
+ * change re-renders it, and then hides the field at the first keystroke.
+ * Screens subscribe so they update the moment the PIN arrives or goes away.
+ */
+export const subscribeNativeInjectedPin = (listener: () => void): (() => void) => {
+  nativeInjectedPinListeners.add(listener);
+  return () => {
+    nativeInjectedPinListeners.delete(listener);
+  };
+};
 
 /**
  * Store a PIN injected by the native app (after biometric unlock)
@@ -338,6 +359,7 @@ let nativeInjectedPin: string | null = null;
  */
 export const setNativeInjectedPin = (pin: string): void => {
   nativeInjectedPin = pin;
+  notifyNativeInjectedPinListeners();
 };
 
 /**
@@ -354,6 +376,7 @@ export const getNativeInjectedPin = (): string | null => {
  */
 export const clearNativeInjectedPin = (): void => {
   nativeInjectedPin = null;
+  notifyNativeInjectedPinListeners();
 };
 
 /**

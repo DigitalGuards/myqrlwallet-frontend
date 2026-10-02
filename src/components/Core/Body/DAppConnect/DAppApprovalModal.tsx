@@ -19,6 +19,7 @@ import {
   decryptStoredSeedWithPin,
 } from "@/utils/crypto";
 import { getNativeInjectedPin, isIOSNativeApp } from "@/utils/nativeApp";
+import { useHasNativeInjectedPin } from "@/hooks/useHasNativeInjectedPin";
 import { shouldPromptReturnToBrowser } from "./returnToBrowserHint";
 import StorageUtil from "@/utils/storage/storage";
 import { getExplorerTxUrl, QRL_PROVIDER } from "@/config";
@@ -180,6 +181,9 @@ const DAppApprovalModalContent = observer(() => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Device Login can finish while this dialog is open; the PIN field must
+  // follow the injected PIN as it arrives or is cleared.
+  const hasNativePin = useHasNativeInjectedPin();
   /**
    * Guards a second approve in the same tick. `loading` is React state and
    * does not update until the next render, so Enter pressed twice quickly
@@ -1052,7 +1056,6 @@ const DAppApprovalModalContent = observer(() => {
     method !== "qrl_requestAccounts" &&
     method !== "wallet_addQrlChain" &&
     method !== "wallet_switchQrlChain";
-  const hasNativePin = !!getNativeInjectedPin();
   const isTransaction =
     method === "qrl_sendTransaction" || method === "qrl_signTransaction";
 
