@@ -442,13 +442,6 @@ export class DAppConnectService {
   >();
   // Consecutive post-handshake AEAD open failures per channel (desync detector).
   private decryptFailures = new Map<string, number>();
-  /**
-   * Channels the relay announced as closed by the counterparty
-   * (participants_changed 'close'). The relay then holds the durable
-   * tombstone and refuses our own close_channel, so an explicit teardown
-   * that loses that race must still count the channel as tombstoned.
-   */
-  private relayClosedChannels = new Set<string>();
   private pendingRestrictedMethods = new Map<
     string,
     Map<string, PendingRestrictedRequestState>
@@ -1762,12 +1755,16 @@ export class DAppConnectService {
             );
           }
         }
-        // A user disconnect sends TERMINATE first; the dApp often answers
-        // with its own close before ours reaches the relay, which then
-        // refuses ours. The channel is tombstoned either way, and treating
-        // that as a failure kept the session and never told the native app.
-        if (!tombstoneConfirmed && this.relayClosedChannels.has(channelId)) {
-          tombstoneConfirmed = true;
+        // The relay refuses close_channel for a channel that is already
+        // closed. A user disconnect sends TERMINATE first and the dApp often
+        // answers with its own close before ours arrives, or the channel was
+        // closed while this socket was away. Treating that refusal as a
+        // failure kept the session and never told the native app, so ask the
+        // relay directly: a fresh join reports an existing tombstone, and
+        // otherwise closes the channel itself.
+        if (teardown.requireTombstone && !tombstoneConfirmed) {
+          const stored = SessionStore.get(channelId);
+          if (stored) tombstoneConfirmed = await this.tombstoneStoredSession(stored);
         }
         if (teardown.requireTombstone && !tombstoneConfirmed) {
           this.ownership.release(channelId);
@@ -1788,7 +1785,6 @@ export class DAppConnectService {
         teardown.success = false;
       }
       this.ownership.release(channelId);
-      this.relayClosedChannels.delete(channelId);
       this.handlers?.onSessionDisconnected(channelId);
       this.handlers?.onSessionsChanged();
 
@@ -2052,6 +2048,11 @@ export class DAppConnectService {
 
   /** End every pairing and invalidate live copies in every same-origin tab. */
   async clearAllSessions(advanceEpoch = true): Promise<void> {
+    // Pairings without a live connection are only removed by clearStale
+    // below; the native dApp list hears about them from here.
+    const offlineIds = SessionStore.getAll()
+      .map((session) => session.id)
+      .filter((id) => !this.connections.has(id));
     const clearEpoch = advanceEpoch ? advanceWalletEpoch() : this.walletEpoch;
     try {
       await this.disconnectAll();
@@ -2059,6 +2060,7 @@ export class DAppConnectService {
     } finally {
       SessionStore.clearStale(clearEpoch);
       this.handlers?.onSessionsChanged();
+      for (const id of offlineIds) this.notifyNativeDisconnected(id, true);
     }
   }
 
@@ -2177,7 +2179,6 @@ export class DAppConnectService {
     // close_channel, so we do not bounce a redundant close back to the relay.
     if (data.event === "close") {
       this.clearDappLeaveTimeout(channelId);
-      this.relayClosedChannels.add(channelId);
       void this.disconnectSession(channelId, false);
       return;
     }

@@ -1013,18 +1013,15 @@ describe("wallet service AEAD checkpointing", () => {
     ]);
   });
 
-  it("completes a user disconnect when the dApp closes the channel first", async () => {
+  it("completes a user disconnect when the dApp closed the channel first", async () => {
     // The user's Disconnect sends TERMINATE; the dApp answers with its own
-    // close_channel, and the relay then refuses ours. The channel is dead and
-    // tombstoned, so the session must go and the native app must be told.
+    // close_channel, and the relay then refuses ours. A fresh join reports
+    // the tombstone, so the session goes and the native app is told.
     const pairing = await makePairing("dapp-closes-first");
     const { service } = await reconnect(pairing.session);
-    const socket = firstSocket();
     mockInNativeApp = true;
-    mockCloseHook = async () => {
-      socket.handlers.onParticipantsChanged({ event: "close", clientType: "dapp" });
-      return false;
-    };
+    mockCloseHook = async () => false;
+    mockJoinResult = { ...mockJoinResult, terminated: true };
 
     await expect(service.disconnectSession(pairing.session.id, true)).resolves.toBe(
       true,
@@ -1032,6 +1029,25 @@ describe("wallet service AEAD checkpointing", () => {
     await settle();
 
     expect(SessionStore.get(pairing.session.id)).toBeNull();
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_DISCONNECTED"),
+    ).toEqual([
+      {
+        type: "DAPP_DISCONNECTED",
+        payload: { channelId: pairing.session.id, explicit: true },
+      },
+    ]);
+  });
+
+  it("tells the native app about offline pairings a logout clears", async () => {
+    const pairing = await makePairing("logout-offline");
+    SessionStore.save(pairing.session);
+    const service = new DAppConnectService();
+    services.push(service);
+    mockInNativeApp = true;
+
+    await service.clearAllSessions();
+
     expect(
       mockNativeMessages.filter((message) => message.type === "DAPP_DISCONNECTED"),
     ).toEqual([
@@ -1059,11 +1075,16 @@ describe("wallet service AEAD checkpointing", () => {
       status: SessionStatus.CONNECTED,
     });
 
+    // The refused close was checked with one fresh socket before the session
+    // was kept: the channel was not tombstoned and that close failed too.
+    expect(mockSocketClientInstances).toHaveLength(2);
+    expect(mockSocketClientInstances[1]?.closeCalls).toBe(1);
+
     mockCloseHook = null;
     await expect(service.disconnectSession(pairing.session.id)).resolves.toBe(
       true,
     );
-    expect(mockSocketClientInstances).toHaveLength(2);
+    expect(mockSocketClientInstances).toHaveLength(3);
     expect(SessionStore.get(pairing.session.id)).toBeNull();
   });
 
