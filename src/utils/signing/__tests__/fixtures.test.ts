@@ -28,6 +28,7 @@ import {
   encodeType,
   hashStruct,
   hexToBytes,
+  SCHEME_VERSION_TYPED,
   signMessage,
   signTypedData,
   typeHash,
@@ -102,8 +103,9 @@ describe("canonical fixtures", () => {
         typeHash: v.typeHashHex,
       });
 
+      // These vectors are v1 history; their address fields would select v2.
       const dh = bytesToHex(
-        hashStruct("QRLDomain", v.payload.domain, v.payload.types),
+        hashStruct("QRLDomain", v.payload.domain, v.payload.types, SCHEME_VERSION_TYPED),
       );
       expect({ label: v.label, domainHash: dh }).toEqual({
         label: v.label,
@@ -111,7 +113,12 @@ describe("canonical fixtures", () => {
       });
 
       expect(() =>
-        hashStruct(v.payload.primaryType, v.payload.message, v.payload.types),
+        hashStruct(
+          v.payload.primaryType,
+          v.payload.message,
+          v.payload.types,
+          SCHEME_VERSION_TYPED,
+        ),
       ).toThrow(/invalid Q-address/);
       expect(() => computeTypedDataDigest(v.payload)).toThrow(/invalid Q-address/);
     }
