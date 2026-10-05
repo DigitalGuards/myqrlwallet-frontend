@@ -1,4 +1,4 @@
-import { computeTypedDataDigest, TYPED_DATA_LIMITS } from '../typedData';
+import { computeTypedDataDigest, TYPED_DATA_LIMITS, typedDataSchemeVersion } from '../typedData';
 import { SignTypedDataParamsSchema } from '../types';
 
 const SIGNER = `Q${'0'.repeat(128)}`;
@@ -191,10 +191,15 @@ describe('typed data deterministic resource limits', () => {
     ).toThrow('string field exceeds typed data byte limit');
   });
 
-  it('keeps QIP-55 address fields fail closed in typed-data v1', () => {
-    expect(() => computeTypedDataDigest(payloadWith('address', SIGNER))).toThrow(
-      'qrl_signTypedData v1 does not support QIP-55 address fields',
+  it('encodes QIP-55 address fields under typed-data v2 and keeps Q+40 rejected', () => {
+    const payload = payloadWith('address', SIGNER);
+    expect(typedDataSchemeVersion(payload)).toBe('QRL-SIGN-TYPED-v2');
+    expect(computeTypedDataDigest(payload)).toHaveLength(64);
+    expect(() => computeTypedDataDigest(payloadWith('address', LEGACY_Q40))).toThrow(
+      'invalid Q-address',
     );
+    // Address-free payloads keep v1.
+    expect(typedDataSchemeVersion(payloadWith('uint8', 1))).toBe('QRL-SIGN-TYPED-v1');
   });
 
   it('accepts a QIP-55 signer at the request boundary and rejects Q+40', () => {

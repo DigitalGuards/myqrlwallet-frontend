@@ -1,5 +1,5 @@
 /**
- * EIP-712-shaped typed-data encoding for `qrl_signTypedData` v1.
+ * EIP-712-shaped typed-data encoding for `qrl_signTypedData`.
  *
  * The shape is borrowed (types/domain/primaryType/message), but the
  * primitives are post-quantum-native:
@@ -11,14 +11,42 @@
  * `hashStruct` are mutually recursive (struct fields trigger hashStruct
  * for nested types). Keeping them together avoids circular imports and
  * matches the algorithm description in docs/POST-QUANTUM-SIGNING-PLAN.md.
+ *
+ * Two schemes share this codec and differ only in the atomic slot size:
+ * - QRL-SIGN-TYPED-v1: 32-byte slots, the original layout.
+ * - QRL-SIGN-TYPED-v2: 64-byte slots, one QRVM word per atomic value, so a
+ *   64-byte QIP-55 address fits one slot. Integers are zero- or
+ *   sign-extended over 512 bits, bool and address are left-padded, bytesN
+ *   is right-padded.
+ * Strings, bytes, arrays, structs and type hashes are 64-byte SHAKE256
+ * digests in both. A payload uses v2 exactly when an `address` type
+ * (including address arrays) is reachable from QRLDomain or the primary
+ * type, so address-free payloads keep their v1 digests and older verifiers
+ * keep working for them. Byte-identical with the SDK's
+ * myqrlwallet-connect/src/signing/typedData.ts.
  */
 
 import { shake256 } from '@noble/hashes/sha3.js';
-import { SCHEME_TAG_TYPED, DIGEST_LEN } from './ctx';
+import {
+  SCHEME_TAG_TYPED,
+  SCHEME_TAG_TYPED_V2,
+  SCHEME_VERSION_TYPED,
+  SCHEME_VERSION_TYPED_V2,
+  DIGEST_LEN,
+  type TypedDataSchemeVersion,
+} from './ctx';
 import { hexToBytes, concatBytes, concatBytesArr } from './bytes';
 import { isValidQrlAddress } from '@/utils/web3/address';
 
-const SLOT = 32;
+const SLOT_BYTES: Readonly<Record<TypedDataSchemeVersion, number>> = Object.freeze({
+  [SCHEME_VERSION_TYPED]: 32,
+  [SCHEME_VERSION_TYPED_V2]: 64,
+});
+
+const SCHEME_TAGS: Readonly<Record<TypedDataSchemeVersion, Uint8Array>> = Object.freeze({
+  [SCHEME_VERSION_TYPED]: SCHEME_TAG_TYPED,
+  [SCHEME_VERSION_TYPED_V2]: SCHEME_TAG_TYPED_V2,
+});
 
 export const TYPED_DATA_LIMITS = Object.freeze({
   maxTypes: 32,
@@ -118,6 +146,15 @@ const UNSAFE_OBJECT_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 interface EncodingBudget {
   remainingValues: number;
+  /** Atomic slot size of the scheme being encoded: 32 (v1) or 64 (v2). */
+  slot: number;
+}
+
+function newBudget(schemeVersion: TypedDataSchemeVersion): EncodingBudget {
+  return {
+    remainingValues: TYPED_DATA_LIMITS.maxEncodedValues,
+    slot: SLOT_BYTES[schemeVersion],
+  };
 }
 
 function consumeValue(budget: EncodingBudget): void {
@@ -303,32 +340,32 @@ export function typeHash(primary: string, types: TypeMap): Uint8Array {
   return shake256(new TextEncoder().encode(encodeType(primary, types)), { dkLen: DIGEST_LEN });
 }
 
-function parseQAddress(addr: string): Uint8Array {
+function parseQAddress(addr: string, slot: number): Uint8Array {
   if (!isValidQrlAddress(addr)) {
     throw new Error(`invalid Q-address: ${String(addr)}`);
   }
   const bytes = hexToBytes('0x' + addr.slice(1).toLowerCase());
-  if (bytes.length > SLOT) {
+  if (bytes.length > slot) {
     throw new Error('qrl_signTypedData v1 does not support QIP-55 address fields');
   }
   return bytes;
 }
 
-function padLeft32(bytes: Uint8Array): Uint8Array {
-  if (bytes.length > SLOT) throw new Error('cannot pad: bytes > 32');
-  const out = new Uint8Array(SLOT);
-  out.set(bytes, SLOT - bytes.length);
+function padLeft(bytes: Uint8Array, slot: number): Uint8Array {
+  if (bytes.length > slot) throw new Error(`cannot pad: bytes > ${slot}`);
+  const out = new Uint8Array(slot);
+  out.set(bytes, slot - bytes.length);
   return out;
 }
 
-function padRight32(bytes: Uint8Array): Uint8Array {
-  if (bytes.length > SLOT) throw new Error('cannot pad: bytes > 32');
-  const out = new Uint8Array(SLOT);
+function padRight(bytes: Uint8Array, slot: number): Uint8Array {
+  if (bytes.length > slot) throw new Error(`cannot pad: bytes > ${slot}`);
+  const out = new Uint8Array(slot);
   out.set(bytes, 0);
   return out;
 }
 
-function bigIntToSlot(value: bigint, width: number, signed: boolean): Uint8Array {
+function bigIntToSlot(value: bigint, width: number, signed: boolean, slot: number): Uint8Array {
   if (signed) {
     const limit = 1n << BigInt(width - 1);
     if (value >= limit || value < -limit) {
@@ -340,11 +377,12 @@ function bigIntToSlot(value: bigint, width: number, signed: boolean): Uint8Array
     if (value >= limit) throw new Error(`uint${width} out of range: ${value}`);
   }
   // Represent in two's complement over the full 32-byte slot.
-  const slotMask = (1n << 256n) - 1n;
-  const repr = value < 0n ? (value + (1n << 256n)) & slotMask : value;
-  const out = new Uint8Array(SLOT);
+  const slotBits = BigInt(slot * 8);
+  const slotMask = (1n << slotBits) - 1n;
+  const repr = value < 0n ? (value + (1n << slotBits)) & slotMask : value;
+  const out = new Uint8Array(slot);
   let v = repr;
-  for (let i = SLOT - 1; i >= 0; i--) {
+  for (let i = slot - 1; i >= 0; i--) {
     out[i] = Number(v & 0xffn);
     v >>= 8n;
   }
@@ -399,13 +437,13 @@ function encodeFieldWithBudget(
       if (typeof value !== 'string') {
         throw new Error(`address field expects string: ${typeof value}`);
       }
-      return padLeft32(parseQAddress(value));
+      return padLeft(parseQAddress(value, budget.slot), budget.slot);
 
     case 'bool':
       if (typeof value !== 'boolean') {
         throw new Error(`bool field expects boolean: ${typeof value}`);
       }
-      return padLeft32(new Uint8Array([value ? 1 : 0]));
+      return padLeft(new Uint8Array([value ? 1 : 0]), budget.slot);
 
     case 'string': {
       if (typeof value !== 'string') {
@@ -431,10 +469,20 @@ function encodeFieldWithBudget(
       return shake256(hexToBytes(value), { dkLen: DIGEST_LEN });
 
     case 'uintN':
-      return bigIntToSlot(parseIntValue(value, `uint${parsed.width}`), parsed.width, false);
+      return bigIntToSlot(
+        parseIntValue(value, `uint${parsed.width}`),
+        parsed.width,
+        false,
+        budget.slot,
+      );
 
     case 'intN':
-      return bigIntToSlot(parseIntValue(value, `int${parsed.width}`), parsed.width, true);
+      return bigIntToSlot(
+        parseIntValue(value, `int${parsed.width}`),
+        parsed.width,
+        true,
+        budget.slot,
+      );
 
     case 'bytesN': {
       if (typeof value !== 'string') {
@@ -447,7 +495,7 @@ function encodeFieldWithBudget(
       if (raw.length !== parsed.width) {
         throw new Error(`bytes${parsed.width} requires ${parsed.width} bytes, got ${raw.length}`);
       }
-      return padRight32(raw);
+      return padRight(raw, budget.slot);
     }
 
     case 'array': {
@@ -468,15 +516,14 @@ function encodeFieldWithBudget(
   }
 }
 
-export function encodeField(type: FieldType, value: unknown, types: TypeMap): Uint8Array {
+export function encodeField(
+  type: FieldType,
+  value: unknown,
+  types: TypeMap,
+  schemeVersion: TypedDataSchemeVersion = SCHEME_VERSION_TYPED,
+): Uint8Array {
   validateTypeMap(types);
-  return encodeFieldWithBudget(
-    type,
-    value,
-    types,
-    { remainingValues: TYPED_DATA_LIMITS.maxEncodedValues },
-    0,
-  );
+  return encodeFieldWithBudget(type, value, types, newBudget(schemeVersion), 0);
 }
 
 function hashStructWithBudget(
@@ -509,15 +556,14 @@ function hashStructWithBudget(
   return shake256(concatBytesArr(parts), { dkLen: DIGEST_LEN });
 }
 
-export function hashStruct(primary: string, data: Message, types: TypeMap): Uint8Array {
+export function hashStruct(
+  primary: string,
+  data: Message,
+  types: TypeMap,
+  schemeVersion: TypedDataSchemeVersion = SCHEME_VERSION_TYPED,
+): Uint8Array {
   validateTypeMap(types);
-  return hashStructWithBudget(
-    primary,
-    data,
-    types,
-    { remainingValues: TYPED_DATA_LIMITS.maxEncodedValues },
-    0,
-  );
+  return hashStructWithBudget(primary, data, types, newBudget(schemeVersion), 0);
 }
 
 /**
@@ -570,14 +616,7 @@ function validatePayloadReachability(primary: string, types: TypeMap): void {
   }
 }
 
-/**
- * Final digest signed for `qrl_signTypedData`:
- *
- *   domainHash  = hashStruct("QRLDomain", domain, types)
- *   messageHash = hashStruct(primaryType, message, types)
- *   digest      = SHAKE256("QRL-SIGN-TYPED-v1" || domainHash || messageHash, 64)
- */
-export function computeTypedDataDigest(payload: unknown): Uint8Array {
+function parseAndValidatePayload(payload: unknown): TypedDataPayload {
   const parsed = parsePayload(payload);
   validateTypeMap(parsed.types);
   assertIdentifier(parsed.primaryType, 'primary type');
@@ -586,7 +625,43 @@ export function computeTypedDataDigest(payload: unknown): Uint8Array {
   }
   validateDomainTypes(parsed.types);
   validatePayloadReachability(parsed.primaryType, parsed.types);
-  const budget = { remainingValues: TYPED_DATA_LIMITS.maxEncodedValues };
+  return parsed;
+}
+
+/** v2 when an address type is reachable from QRLDomain or the primary type. */
+function schemeVersionForTypes(primary: string, types: TypeMap): TypedDataSchemeVersion {
+  for (const root of ['QRLDomain', primary]) {
+    for (const name of collectDependencies(root, types)) {
+      const fields = types[name] ?? [];
+      if (fields.some((f) => baseTypeName(f.type) === 'address')) {
+        return SCHEME_VERSION_TYPED_V2;
+      }
+    }
+  }
+  return SCHEME_VERSION_TYPED;
+}
+
+/**
+ * The scheme a payload is signed and verified under. It follows from the
+ * payload's types alone, so wallet and verifier agree without negotiating.
+ */
+export function typedDataSchemeVersion(payload: unknown): TypedDataSchemeVersion {
+  const parsed = parseAndValidatePayload(payload);
+  return schemeVersionForTypes(parsed.primaryType, parsed.types);
+}
+
+/**
+ * Final digest signed for `qrl_signTypedData`:
+ *
+ *   scheme      = typedDataSchemeVersion(payload)
+ *   domainHash  = hashStruct("QRLDomain", domain, types, scheme)
+ *   messageHash = hashStruct(primaryType, message, types, scheme)
+ *   digest      = SHAKE256(scheme || domainHash || messageHash, 64)
+ */
+export function computeTypedDataDigest(payload: unknown): Uint8Array {
+  const parsed = parseAndValidatePayload(payload);
+  const schemeVersion = schemeVersionForTypes(parsed.primaryType, parsed.types);
+  const budget = newBudget(schemeVersion);
   const domainHash = hashStructWithBudget('QRLDomain', parsed.domain, parsed.types, budget, 0);
   const messageHash = hashStructWithBudget(
     parsed.primaryType,
@@ -595,5 +670,7 @@ export function computeTypedDataDigest(payload: unknown): Uint8Array {
     budget,
     0,
   );
-  return shake256(concatBytes(SCHEME_TAG_TYPED, domainHash, messageHash), { dkLen: DIGEST_LEN });
+  return shake256(concatBytes(SCHEME_TAGS[schemeVersion], domainHash, messageHash), {
+    dkLen: DIGEST_LEN,
+  });
 }
