@@ -1,4 +1,5 @@
 import { MLDSA87 } from "@theqrl/wallet.js";
+import * as sdk from "@qrlwallet/connect";
 import {
   computeTypedDataDigest as sdkTypedDigest,
   isCurrentQrlAddress,
@@ -11,6 +12,8 @@ import {
   computeTypedDataDigest,
   signMessage,
   signTypedData,
+  typedDataSchemeVersion,
+  verifyTypedData,
   type TypedDataPayload,
 } from "..";
 
@@ -76,19 +79,44 @@ it("SDK5 and wallet agree on supported typed payloads and signer binding", () =>
   ).toBe(true);
 });
 
-it.each([40, 128])(
-  "SDK5 and wallet reject unsupported typed address width %s",
-  (width) => {
-    const payload: TypedDataPayload = {
-      types: {
-        QRLDomain: [{ name: "name", type: "string" }],
-        Login: [{ name: "owner", type: "address" }],
-      },
-      domain: { name: "release-test.example" },
-      primaryType: "Login",
-      message: { owner: `Q${"1".repeat(width)}` },
-    };
+function addressPayload(owner: string): TypedDataPayload {
+  return {
+    types: {
+      QRLDomain: [{ name: "name", type: "string" }],
+      Login: [{ name: "owner", type: "address" }],
+    },
+    domain: { name: "release-test.example" },
+    primaryType: "Login",
+    message: { owner },
+  };
+}
+
+it("SDK5 and wallet reject legacy Q+40 typed address fields", () => {
+  const payload = addressPayload(`Q${"1".repeat(40)}`);
+  expect(() => sdkTypedDigest(payload)).toThrow();
+  expect(() => computeTypedDataDigest(payload)).toThrow();
+});
+
+it("wallet signs QIP-55 address fields under typed-data v2, which needs a v2-aware SDK", () => {
+  const payload = addressPayload(`Q${"1".repeat(128)}`);
+  expect(typedDataSchemeVersion(payload)).toBe("QRL-SIGN-TYPED-v2");
+  const signed = signTypedData(payload, ephemeralSeed(), { randomized: false });
+  expect(signed.schemeVersion).toBe("QRL-SIGN-TYPED-v2");
+  expect(verifyTypedData({ ...signed, payload })).toBe(true);
+
+  if ("typedDataSchemeVersion" in sdk) {
+    // A v2-aware SDK agrees on the digest and verifies the wallet response.
+    expect(sdkTypedDigest(payload)).toEqual(computeTypedDataDigest(payload));
+    expect(isQrlSignedTypedDataResult(signed)).toBe(true);
+    expect(
+      verifyTypedDataForSigner({
+        ...signed,
+        expectedSigner: signed.signer,
+        payload,
+      }),
+    ).toBe(true);
+  } else {
+    // SDK 5.0.x predates v2 and rejects the payload outright, as it always has.
     expect(() => sdkTypedDigest(payload)).toThrow();
-    expect(() => computeTypedDataDigest(payload)).toThrow();
-  },
-);
+  }
+});
