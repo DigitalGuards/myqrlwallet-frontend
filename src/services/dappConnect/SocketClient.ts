@@ -21,6 +21,7 @@ const RELAY_PATH = '/relay';
 // drop the unflushed packet and lose the tombstone / leave notification.
 const SEND_FLUSH_TIMEOUT_MS = 600;
 export const RELAY_ACK_TIMEOUT_MS = 10000;
+const PROBE_TIMEOUT_MS = 3000;
 const MAX_BUFFERED_MESSAGES = 50;
 const MAX_CHANNEL_PUBLIC_KEY_B64_LEN = 2048;
 const MAX_RELAY_ERROR_LENGTH = 256;
@@ -31,10 +32,25 @@ type ParticipantChange = {
   clientType: 'dapp';
 };
 
+/** Client types the relay lists for the other members of a channel. */
+export type RelayRoster = ('dapp' | 'wallet')[];
+
 interface JoinChannelResult {
   bufferedMessages: RelayMessage[];
   channelPublicKey: string | null;
   terminated: boolean;
+  /** The other members at join time; null when the relay did not say. */
+  participants: RelayRoster | null;
+}
+
+function parseRoster(value: unknown): RelayRoster | null {
+  if (!Array.isArray(value)) return null;
+  const roster: RelayRoster = [];
+  for (const entry of value) {
+    if (entry !== 'dapp' && entry !== 'wallet') return null;
+    roster.push(entry);
+  }
+  return roster;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -93,6 +109,7 @@ function parseJoinResponse(response: unknown): JoinChannelResult {
     bufferedMessages,
     channelPublicKey: typeof rawPublicKey === 'string' ? rawPublicKey : null,
     terminated: response['terminated'],
+    participants: parseRoster(response['participants']),
   };
 }
 
@@ -100,7 +117,8 @@ type SocketEventHandler = {
   onMessage: (data: RelayMessage) => void;
   onConnected: () => void;
   onDisconnected: (reason: string) => void;
-  onReconnected: () => void;
+  /** `participants` is the relay's roster of the other members, when given. */
+  onReconnected: (participants?: RelayRoster | null) => void;
   /**
    * The relay disconnected this socket and it will not come back. Anything
    * held for the channel is undeliverable, so the session should be retired.
@@ -447,7 +465,7 @@ export class SocketClient {
       this.socket === socket &&
       this.channelId === channelId;
     this.emitJoinChannel(socket, channelId)
-      .then(({ bufferedMessages, terminated }) => {
+      .then(({ bufferedMessages, terminated, participants }) => {
         if (!isCurrent()) return;
         this.rejoinInFlight = false;
         if (terminated) {
@@ -466,7 +484,7 @@ export class SocketClient {
         // A completed rejoin is the first moment the relay has actually
         // taken this channel back, so the retry budget is refilled here.
         this.manualReconnectAttempts = 0;
-        this.handlers.onReconnected();
+        this.handlers.onReconnected(participants);
       })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);
@@ -796,6 +814,42 @@ export class SocketClient {
    */
   isJoined(): boolean {
     return (this.socket?.connected ?? false) && this.joined;
+  }
+
+  /**
+   * Ask the relay whether this socket is demonstrably live right now. A socket
+   * that looks connected after the app was frozen can be a dead transport that
+   * socket.io has not noticed yet; only an acknowledged round trip proves it.
+   * Resolves false for a socket that is down, outside the channel, or silent
+   * for `timeoutMs`.
+   */
+  probe(timeoutMs = PROBE_TIMEOUT_MS): Promise<boolean> {
+    const socket = this.socket;
+    if (!socket?.connected || !this.joined) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(false), timeoutMs);
+      try {
+        socket.emit('ping', (response: unknown) => {
+          clearTimeout(timer);
+          resolve(isRecord(response) && response['type'] === 'pong');
+        });
+      } catch {
+        clearTimeout(timer);
+        resolve(false);
+      }
+    });
+  }
+
+  /**
+   * Drop the current transport and open a new one. The connect handler rejoins
+   * the channel through attemptRejoin, so the existing rejoin backoff and
+   * abandon budget apply and a flapping foreground cannot hammer the relay.
+   */
+  forceReconnect(): void {
+    const socket = this.socket;
+    if (!socket) return;
+    socket.disconnect();
+    socket.connect();
   }
 
   /**
