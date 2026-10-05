@@ -358,7 +358,10 @@ export const subscribeNativeInjectedPin = (listener: () => void): (() => void) =
  * This PIN can be used for transaction signing without prompting the user
  */
 export const setNativeInjectedPin = (pin: string): void => {
-  nativeInjectedPin = pin;
+  // An empty PIN is no PIN: it would hide the PIN field and sign with nothing.
+  const next = pin || null;
+  if (nativeInjectedPin === next) return;
+  nativeInjectedPin = next;
   notifyNativeInjectedPinListeners();
 };
 
@@ -375,6 +378,7 @@ export const getNativeInjectedPin = (): string | null => {
  * Called when wallet is cleared or user wants to re-authenticate
  */
 export const clearNativeInjectedPin = (): void => {
+  if (nativeInjectedPin === null) return;
   nativeInjectedPin = null;
   notifyNativeInjectedPinListeners();
 };

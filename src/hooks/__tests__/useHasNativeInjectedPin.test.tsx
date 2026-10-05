@@ -29,6 +29,20 @@ describe("useHasNativeInjectedPin", () => {
     expect(screen.getByText("pin field")).toBeTruthy();
   });
 
+  it("treats an empty PIN as no PIN and notifies only on a real change", () => {
+    const listener = jest.fn();
+    const unsubscribe = subscribeNativeInjectedPin(listener);
+    setNativeInjectedPin("");
+    expect(listener).not.toHaveBeenCalled();
+    setNativeInjectedPin("135790");
+    setNativeInjectedPin("135790");
+    expect(listener).toHaveBeenCalledTimes(1);
+    clearNativeInjectedPin();
+    clearNativeInjectedPin();
+    expect(listener).toHaveBeenCalledTimes(2);
+    unsubscribe();
+  });
+
   it("stops notifying after unsubscribe", () => {
     const listener = jest.fn();
     const unsubscribe = subscribeNativeInjectedPin(listener);

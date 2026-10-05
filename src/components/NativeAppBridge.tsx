@@ -14,6 +14,7 @@ import {
   type NativeToWebMessageType,
   logToNative,
   setNativeInjectedPin,
+  hasNativeInjectedPin,
   clearNativeInjectedPin,
   clearNativeInjectedPinForAppState,
   confirmWalletCleared,
@@ -158,6 +159,8 @@ async function handleChangePinRequest(
       return;
     }
     logToNative(`PIN changed successfully for ${rotatedSeeds} wallet(s)`);
+    // A Device Login PIN injected before the change no longer decrypts.
+    if (hasNativeInjectedPin()) setNativeInjectedPin(newPin);
     sendPinChanged(requestId, true, newPin);
   } catch (error) {
     console.error("[Bridge] Error changing PIN:", error);

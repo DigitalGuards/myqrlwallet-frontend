@@ -18,7 +18,11 @@ import {
   DeviceCredentialUnavailableError,
   decryptStoredSeedWithPin,
 } from "@/utils/crypto";
-import { getNativeInjectedPin, isIOSNativeApp } from "@/utils/nativeApp";
+import {
+  clearNativeInjectedPin,
+  getNativeInjectedPin,
+  isIOSNativeApp,
+} from "@/utils/nativeApp";
 import { useHasNativeInjectedPin } from "@/hooks/useHasNativeInjectedPin";
 import { shouldPromptReturnToBrowser } from "./returnToBrowserHint";
 import StorageUtil from "@/utils/storage/storage";
@@ -184,6 +188,11 @@ const DAppApprovalModalContent = observer(() => {
   // Device Login can finish while this dialog is open; the PIN field must
   // follow the injected PIN as it arrives or is cleared.
   const hasNativePin = useHasNativeInjectedPin();
+  // Digits typed before Device Login supplied the PIN must not reappear,
+  // still filled in, once the app locks and the field returns.
+  useEffect(() => {
+    setPin("");
+  }, [hasNativePin]);
   /**
    * Guards a second approve in the same tick. `loading` is React state and
    * does not update until the next render, so Enter pressed twice quickly
@@ -514,6 +523,9 @@ const DAppApprovalModalContent = observer(() => {
           return;
         }
 
+        // A Device Login PIN that no longer decrypts (changed since it was
+        // injected) is dropped on "Incorrect PIN" so the PIN field returns.
+        const usedNativePin = Boolean(getNativeInjectedPin());
         const pinToUse = getNativeInjectedPin() || pin;
         // Guard empty PIN *before* entering the 'signing' progress state.
         // Once txProgress leaves 'idle' the modal switches to its terminal
@@ -539,6 +551,7 @@ const DAppApprovalModalContent = observer(() => {
           setError(unlocked.error);
           if (unlocked.error === "Incorrect PIN") {
             // Recoverable: reset to the editable state so the user can retry.
+            if (usedNativePin) clearNativeInjectedPin();
             setPin("");
             if (isStillCurrent()) dappConnectStore.resetTxProgress();
           } else {
@@ -781,6 +794,7 @@ const DAppApprovalModalContent = observer(() => {
           setLoading(false);
           return;
         }
+        const usedNativePin = Boolean(getNativeInjectedPin());
         const pinToUse = getNativeInjectedPin() || pin;
         const signingGeneration = walletMutations.captureGeneration();
         const unlocked = await unlockHexSeed(
@@ -789,7 +803,10 @@ const DAppApprovalModalContent = observer(() => {
           signingGeneration,
         );
         if ("error" in unlocked) {
-          if (unlocked.error === "Incorrect PIN") setPin("");
+          if (unlocked.error === "Incorrect PIN") {
+            if (usedNativePin) clearNativeInjectedPin();
+            setPin("");
+          }
           setError(unlocked.error);
           setLoading(false);
           return;
@@ -897,6 +914,7 @@ const DAppApprovalModalContent = observer(() => {
           setLoading(false);
           return;
         }
+        const usedNativePin = Boolean(getNativeInjectedPin());
         const pinToUse = getNativeInjectedPin() || pin;
         const signingGeneration = walletMutations.captureGeneration();
         const unlocked = await unlockHexSeed(
@@ -905,7 +923,10 @@ const DAppApprovalModalContent = observer(() => {
           signingGeneration,
         );
         if ("error" in unlocked) {
-          if (unlocked.error === "Incorrect PIN") setPin("");
+          if (unlocked.error === "Incorrect PIN") {
+            if (usedNativePin) clearNativeInjectedPin();
+            setPin("");
+          }
           setError(unlocked.error);
           setLoading(false);
           return;
