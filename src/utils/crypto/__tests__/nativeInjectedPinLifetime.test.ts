@@ -23,6 +23,11 @@ jest.mock("@/utils/nativeApp", () => ({
   notifyWebAppReady: jest.fn(),
   logToNative: jest.fn(),
 }));
+let mockCapabilities: Record<string, unknown> | null = null;
+jest.mock("@/config/runtimeProfile", () => ({
+  ...jest.requireActual("@/config/runtimeProfile"),
+  readNativeCapabilities: () => mockCapabilities,
+}));
 jest.mock("@/utils/storage/storage", () => ({ __esModule: true, default: {} }));
 jest.mock("@/utils/crypto/walletEncryption", () => ({
   WalletEncryptionUtil: { validatePin: () => true },
@@ -73,7 +78,11 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
-describe("injected Device Login PIN lifetime", () => {
+describe("injected Device Login PIN lifetime with APP_LOCKED support", () => {
+  beforeEach(() => {
+    mockCapabilities = { appLockedSignal: true };
+  });
+
   it("survives the inactive/active pair around a Face ID prompt", () => {
     appState("inactive");
     appState("active");
@@ -92,4 +101,18 @@ describe("injected Device Login PIN lifetime", () => {
     appState("active");
     expect(getNativeInjectedPin()).toBeNull();
   });
+});
+
+describe("injected Device Login PIN lifetime without APP_LOCKED support", () => {
+  beforeEach(() => {
+    mockCapabilities = { platform: "ios" };
+  });
+
+  it.each(["inactive", "active", "background"])(
+    "is cleared on every APP_STATE (%s), as before",
+    (state) => {
+      appState(state);
+      expect(getNativeInjectedPin()).toBeNull();
+    },
+  );
 });

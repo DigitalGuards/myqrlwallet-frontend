@@ -385,17 +385,28 @@ export const clearNativeInjectedPin = (): void => {
 };
 
 /**
- * Clear the injected PIN on a real lock signal only. Native sends 'background'
- * when the app leaves the foreground, and 'inactive'/'active' around every
- * Face ID prompt and system overlay, none of which lock the wallet. A lock that
- * happens without 'background' is announced by the APP_LOCKED message
- * (handled by the bridge through clearNativeInjectedPin). Native injects a fresh
- * PIN only after Device Login completes following a lock.
+ * Whether the native app declared that it sends APP_LOCKED on every lock. Only
+ * then can the page tell a real lock from the inactive/active pair around a
+ * Face ID prompt. An app that never declares it (older builds, or remote mode
+ * against an older bundle) gets the conservative rule below.
+ */
+export const nativeSignalsAppLocked = (): boolean =>
+  readNativeCapabilities()?.['appLockedSignal'] === true;
+
+/**
+ * Clear the injected PIN for an APP_STATE transition. With APP_LOCKED support
+ * only 'background' is a lock (inactive/active also surround every Face ID
+ * prompt and system overlay, and a lock without 'background' arrives as
+ * APP_LOCKED). Without it every transition clears, so a PIN never survives a
+ * lock the page cannot see. Native injects a fresh PIN only after Device Login
+ * completes following a lock.
  */
 export const clearNativeInjectedPinForAppState = (
   state: 'active' | 'background' | 'inactive',
 ): void => {
-  if (state === 'background') clearNativeInjectedPin();
+  if (state === 'background' || !nativeSignalsAppLocked()) {
+    clearNativeInjectedPin();
+  }
 };
 
 /**
