@@ -48,7 +48,7 @@
     "@tanstack/react-table": "^8.21.2",
     "@theqrl/wallet.js": "^6.3.0",
     "@theqrl/web3": "1.0.3",
-    "axios": "^1.18.0",
+    "axios": "^1.20.0",
     "bignumber.js": "^9.3.1",
     "buffer": "^6.0.3",
     "class-variance-authority": "^0.7.1",
