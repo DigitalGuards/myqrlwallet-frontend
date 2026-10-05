@@ -989,6 +989,30 @@ describe("wallet service AEAD checkpointing", () => {
     expect(SessionStore.get(pairing.session.id)).toBeNull();
   });
 
+  it("tells the native app when a cold persisted session is disconnected", async () => {
+    // The banner's Disconnect on an offline or reconnecting pairing takes
+    // this path. Without the message the app's dApp list kept showing the
+    // pairing as connected.
+    const pairing = await makePairing("cold-native-notify");
+    SessionStore.save(pairing.session);
+    const service = new DAppConnectService();
+    services.push(service);
+    mockInNativeApp = true;
+
+    await expect(service.disconnectSession(pairing.session.id)).resolves.toBe(
+      true,
+    );
+
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_DISCONNECTED"),
+    ).toEqual([
+      {
+        type: "DAPP_DISCONNECTED",
+        payload: { channelId: pairing.session.id, explicit: true },
+      },
+    ]);
+  });
+
   it("keeps a session retryable when a durable close is not acknowledged", async () => {
     const pairing = await makePairing("lost-close-ack");
     const { service } = await reconnect(pairing.session);

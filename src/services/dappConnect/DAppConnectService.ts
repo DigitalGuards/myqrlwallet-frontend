@@ -1532,6 +1532,17 @@ export class DAppConnectService {
     this.handlers?.onReturnHandedBack?.(channelId);
   }
 
+  /**
+   * Tell the native app a pairing is gone so its dApp connections screen
+   * stops listing it. Every path that removes a stored session has to call
+   * this; the native list has no other way to learn about it.
+   */
+  private notifyNativeDisconnected(channelId: string, explicit: boolean): void {
+    if (isInNativeApp()) {
+      sendToNative("DAPP_DISCONNECTED" as never, { channelId, explicit });
+    }
+  }
+
   async disconnectSession(channelId: string, explicit = true): Promise<boolean> {
     if (
       !this.ownership.owns(channelId) &&
@@ -1564,6 +1575,9 @@ export class DAppConnectService {
       this.ownership.release(channelId);
       this.handlers?.onSessionDisconnected(channelId);
       this.handlers?.onSessionsChanged();
+      // An offline pairing removed from the banner: without this the app's
+      // dApp list kept showing it as connected.
+      this.notifyNativeDisconnected(channelId, true);
       return true;
     }
     return this.teardownSession(channelId, explicit, true);
@@ -1763,12 +1777,7 @@ export class DAppConnectService {
       this.handlers?.onSessionDisconnected(channelId);
       this.handlers?.onSessionsChanged();
 
-      if (isInNativeApp()) {
-        sendToNative("DAPP_DISCONNECTED" as never, {
-          channelId,
-          explicit: teardown.explicit,
-        });
-      }
+      this.notifyNativeDisconnected(channelId, teardown.explicit);
       return teardown.success;
     };
 
@@ -1958,6 +1967,7 @@ export class DAppConnectService {
               this.ownership.release(session.id);
             }
             this.handlers?.onSessionDisconnected(session.id);
+            this.notifyNativeDisconnected(session.id, false);
             continue;
           }
 
