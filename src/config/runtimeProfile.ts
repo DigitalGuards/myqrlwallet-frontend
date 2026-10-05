@@ -11,6 +11,38 @@ export const IS_V3_PROFILE =
 export const V3_UNSUPPORTED_SIGNER_MESSAGE =
   "Testnet v3 supports this web wallet and updated MyQRLWallet mobile, desktop and extension releases. Older native apps are not yet qualified.";
 
+/**
+ * The capability object the native app injects, or null outside it.
+ *
+ * Compatibility metadata only, and it is app-supplied, so every field is read
+ * defensively. The single reader, because more than one thing on the page needs
+ * a field out of it.
+ */
+export function readNativeCapabilities(): Record<string, unknown> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const bridge = window.ReactNativeWebView;
+    if (typeof bridge?.postMessage !== "function") return null;
+    const json = bridge.injectedObjectJson?.();
+    if (typeof json !== "string" || json.length > 4096) return null;
+    const injected: unknown = JSON.parse(json);
+    if (!injected || typeof injected !== "object" || Array.isArray(injected))
+      return null;
+    const capabilities = (injected as Record<string, unknown>)[
+      "qrlWalletCapabilities"
+    ];
+    if (
+      !capabilities ||
+      typeof capabilities !== "object" ||
+      Array.isArray(capabilities)
+    )
+      return null;
+    return capabilities as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 /** Compatibility metadata only. Native document binding and authentication still apply. */
 export function isQualifiedV3NativeContext(): boolean {
   if (
@@ -23,23 +55,8 @@ export function isQualifiedV3NativeContext(): boolean {
   try {
     if (window.top !== window || !navigator.userAgent.includes("MyQRLWallet"))
       return false;
-    const bridge = window.ReactNativeWebView;
-    if (typeof bridge?.postMessage !== "function") return false;
-    const json = bridge.injectedObjectJson?.();
-    if (typeof json !== "string" || json.length > 4096) return false;
-    const injected: unknown = JSON.parse(json);
-    if (!injected || typeof injected !== "object" || Array.isArray(injected))
-      return false;
-    const capabilities = (injected as Record<string, unknown>)[
-      "qrlWalletCapabilities"
-    ];
-    if (
-      !capabilities ||
-      typeof capabilities !== "object" ||
-      Array.isArray(capabilities)
-    )
-      return false;
-    const record = capabilities as Record<string, unknown>;
+    const record = readNativeCapabilities();
+    if (record === null) return false;
     return (
       record["bridgeVersion"] === 1 &&
       record["addressScheme"] === "qip55-64" &&

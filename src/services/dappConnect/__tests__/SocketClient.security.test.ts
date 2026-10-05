@@ -67,10 +67,25 @@ describe("wallet relay acknowledgement boundary", () => {
   });
 
   it("bounds a silent send acknowledgement", async () => {
-    mockEmit.mockImplementation(() => undefined);
     const client = makeClient();
     await client.connect();
+    // Membership first: a frame handed to a socket that is not in the channel
+    // is refused before any emit, so there would be no acknowledgement to wait
+    // for and this bound would never be exercised.
+    mockEmit.mockImplementation((...args: unknown[]) => {
+      const ack = args[2];
+      if (typeof ack === "function") {
+        ack({
+          success: true,
+          bufferedMessages: [],
+          channelPublicKey: null,
+          terminated: false,
+        });
+      }
+    });
+    await client.joinChannel(outbound.id);
 
+    mockEmit.mockImplementation(() => undefined);
     const assertion = expect(client.sendMessage(outbound)).rejects.toThrow(
       "Relay send acknowledgement timeout",
     );

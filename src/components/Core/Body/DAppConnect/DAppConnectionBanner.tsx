@@ -15,12 +15,15 @@ const statusDotColors: Record<SessionStatus, string> = {
   [SessionStatus.DISCONNECTED]: '#ef4444',   // red-500
 };
 
+// A stored session with no live socket. The pairing is kept and retried on
+// the next foreground, reload or user action, so the label says so: plain
+// "Disconnected" read as over and done with, and users unpaired by hand.
 const statusLabels: Record<SessionStatus, string> = {
   [SessionStatus.CONNECTED]: 'Connected',
   [SessionStatus.RECONNECTING]: 'Reconnecting...',
   [SessionStatus.CONNECTING]: 'Connecting...',
   [SessionStatus.KEY_EXCHANGE]: 'Exchanging keys...',
-  [SessionStatus.DISCONNECTED]: 'Disconnected',
+  [SessionStatus.DISCONNECTED]: 'Offline, retries later',
 };
 
 const DAppPulsingDot = ({ status }: { status: SessionStatus }) => {

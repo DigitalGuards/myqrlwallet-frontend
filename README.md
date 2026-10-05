@@ -230,6 +230,31 @@ The wallet pairs with web dApps over an E2E-encrypted relay channel driven by [`
 
 See [`src/services/dappConnect/`](src/services/dappConnect/) for the wallet-side service, [`DigitalGuards/myqrlwallet-connect`](https://github.com/DigitalGuards/myqrlwallet-connect) for the SDK consumed by dApps.
 
+**End-to-end harness.** Delivery bugs that only appear when a real relay, a real
+SDK and the wallet service disagree about state are hard to reach from unit
+tests. They can be reproduced in one Node process, with no emulator and no
+network, because all three are plain JavaScript:
+
+1. Create a scratch directory with a `tsconfig.json` that maps `@/*` to this
+   repo's `src/`, and `@/stores/store` plus `@/utils/nativeApp` to local stubs
+   (the service needs an active account and a no-op native bridge, nothing
+   else).
+2. Start the relay in-process from a checkout of `myqrlwallet-backend`
+   (`createRelayServer` in `src/relay/relayServer.ts`) on an ephemeral port.
+3. Install browser shims for `localStorage`, `navigator.locks`, `window` and
+   `document`.
+4. Import the built SDK from a checkout of `myqrlwallet-connect`
+   (`dist/index.mjs`) as the dApp side, and `DAppConnectService` as the wallet
+   side, then drive a pairing over a `qrlconnect://` URI and a
+   `qrl_sendTransaction`.
+5. Assert on whether the SDK's request promise settles, on the stored
+   `keyExchange` counters, and on whether the session survived.
+
+Useful variations, each of which was a real defect: answering inside the rejoin
+window, a relay that refuses the rejoin for a while, and a sealed frame parked
+by a socket that died between its checkpoint and its send. This is not part of
+`npm test`, because it needs checkouts of the other two repositories.
+
 ## Related Projects
 
 - [myqrlwallet-backend](https://github.com/DigitalGuards/myqrlwallet-backend) - API server (RPC proxy, support email, tx history, dApp Connect relay)
