@@ -40,6 +40,16 @@ jobs:
       - name: Run build
         run: npm run build
 
+      # Boot smoke: a dependency bump can lint, test and bundle cleanly and
+      # still brick the app at runtime. This serves dist/ and opens it in a
+      # real browser; it is part of the required check that gates Dependabot
+      # auto-merge on main.
+      - name: Install Chromium for the boot smoke
+        run: npx playwright install --with-deps chromium
+
+      - name: Boot smoke (serve dist, render home and create-account)
+        run: npm run smoke:boot
+
   docker:
     needs: lint-and-build
     runs-on: ubuntu-latest
