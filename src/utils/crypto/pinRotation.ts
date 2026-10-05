@@ -55,6 +55,30 @@ function toBackupRecords(
   );
 }
 
+/**
+ * Send backup records strictly one after another in record order. Returns
+ * false when any record failed. With stopOnFailure the wave ends at the first
+ * failure; without it every record is still attempted.
+ */
+async function sendBackupsInOrder(
+  records: PinRotationBackupRecord[],
+  backup: RotateStoredSeedPinOptions["backup"],
+  assertCurrent: () => void,
+  stopOnFailure: boolean,
+): Promise<boolean> {
+  let allSucceeded = true;
+  for (const record of records) {
+    try {
+      assertCurrent();
+      await backup?.(record);
+    } catch {
+      allSucceeded = false;
+      if (stopOnFailure) break;
+    }
+  }
+  return allSucceeded;
+}
+
 async function rollbackLocalWrites(
   chains: PreparedChain[],
   written: Set<string>,
@@ -195,18 +219,16 @@ export async function rotateStoredSeedPin(
   assertCurrent();
   if (!options.backup) return { rotatedSeeds: totalSeeds };
 
-  const backupResults = await Promise.allSettled(
-    toBackupRecords(prepared, "updated").map((record) =>
-      Promise.resolve().then(() => {
-        assertCurrent();
-        return options.backup?.(record);
-      }),
-    ),
-  );
+  // Native caps concurrent seed writes, so the records go one at a time in
+  // order. A failed record ends the wave: nothing more is written with the new
+  // PIN and the rollback below restores every record.
+  const backupFailed = !(await sendBackupsInOrder(
+    toBackupRecords(prepared, "updated"),
+    options.backup,
+    assertCurrent,
+    true,
+  ));
   assertCurrent();
-  const backupFailed = backupResults.some(
-    (result) => result.status === "rejected",
-  );
   if (!backupFailed) return { rotatedSeeds: totalSeeds };
 
   let localRollbackError: unknown;
@@ -219,17 +241,12 @@ export async function rotateStoredSeedPin(
   // Compensate every native record, not only the requests known to have
   // resolved: a timed-out request may still have committed just before its ACK
   // was lost. The higher rollback revision deterministically wins either way.
-  const rollbackBackupResults = await Promise.allSettled(
-    toBackupRecords(prepared, "rollback").map((record) =>
-      Promise.resolve().then(() => {
-        assertCurrent();
-        return options.backup?.(record);
-      }),
-    ),
-  );
-  const nativeRollbackFailed = rollbackBackupResults.some(
-    (result) => result.status === "rejected",
-  );
+  const nativeRollbackFailed = !(await sendBackupsInOrder(
+    toBackupRecords(prepared, "rollback"),
+    options.backup,
+    assertCurrent,
+    false,
+  ));
 
   if (localRollbackError || nativeRollbackFailed) {
     throw new Error(

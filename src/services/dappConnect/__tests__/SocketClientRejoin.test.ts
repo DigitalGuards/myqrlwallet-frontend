@@ -420,3 +420,66 @@ describe("relay channel membership", () => {
     expect(second.isJoined()).toBe(false);
   });
 });
+
+describe("liveness probe and forced reconnect", () => {
+  const pingEmit = (): Emit | undefined =>
+    emits.find(([event]) => event === "ping");
+
+  it("probe resolves true only when the relay answers the ping", async () => {
+    const client = await pairedClient(handlers());
+    const probing = client.probe();
+    // The mock records `ping`'s acknowledgement in the payload slot.
+    const ack = pingEmit()?.[1];
+    if (typeof ack !== "function") throw new Error("ping sent no ack");
+    ack({ type: "pong", timestamp: 1 });
+    await expect(probing).resolves.toBe(true);
+  });
+
+  it("probe resolves false when the relay stays silent", async () => {
+    const client = await pairedClient(handlers());
+    jest.useFakeTimers();
+    const probing = client.probe(500);
+    jest.advanceTimersByTime(500);
+    await expect(probing).resolves.toBe(false);
+  });
+
+  it("probe resolves false without emitting when the socket is down", async () => {
+    const client = await pairedClient(handlers());
+    mockSocket.connected = false;
+    listeners.get("disconnect")?.("transport close");
+    await expect(client.probe()).resolves.toBe(false);
+    expect(pingEmit()).toBeUndefined();
+  });
+
+  it("forceReconnect drops the transport and the rejoin reports the roster", async () => {
+    const events = handlers();
+    const client = await pairedClient(events);
+
+    client.forceReconnect();
+    expect(mockSocket.disconnect).toHaveBeenCalledTimes(1);
+    expect(mockSocket.connect).toHaveBeenCalledTimes(1);
+
+    mockSocket.connected = false;
+    listeners.get("disconnect")?.("io client disconnect");
+    mockSocket.connected = true;
+    fireConnect();
+    await settle();
+    ackJoin({ ...JOIN_OK, participants: ["dapp"] });
+    await settle();
+    expect(events.onReconnected).toHaveBeenCalledWith(["dapp"]);
+  });
+
+  it("treats a malformed roster as unknown", async () => {
+    const events = handlers();
+    const client = await pairedClient(events);
+    mockSocket.connected = false;
+    listeners.get("disconnect")?.("transport close");
+    mockSocket.connected = true;
+    fireConnect();
+    await settle();
+    ackJoin({ ...JOIN_OK, participants: ["dapp", 7] });
+    await settle();
+    expect(client.isJoined()).toBe(true);
+    expect(events.onReconnected).toHaveBeenCalledWith(null);
+  });
+});

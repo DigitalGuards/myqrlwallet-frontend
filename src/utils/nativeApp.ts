@@ -54,6 +54,7 @@ export type NativeToWebMessageType =
   | 'QR_CANCELLED'          // User closed QR scanner without scanning
   | 'BIOMETRIC_SUCCESS'
   | 'APP_STATE'
+  | 'APP_LOCKED'            // Native authorization was invalidated (a real lock)
   | 'CLIPBOARD_SUCCESS'
   | 'SHARE_SUCCESS'
   | 'ERROR'
@@ -135,6 +136,14 @@ export const nativeAppPlatform = (): 'ios' | 'android' | null => {
   }
   return null;
 };
+
+/**
+ * The native app declared Android, where the WebView keeps running in the
+ * background (its timers stay accurate and relay events are seen live). iOS
+ * suspends the page, and an app that declares nothing is treated like iOS.
+ */
+export const nativeDeclaresAndroid = (): boolean =>
+  declaredNativePlatform() === 'android';
 
 const declaredNativePlatform = (): 'ios' | 'android' | null => {
   const platform = readNativeCapabilities()?.['platform'];
@@ -384,11 +393,28 @@ export const clearNativeInjectedPin = (): void => {
 };
 
 /**
- * Every native lifecycle transition invalidates the WebView's cached PIN.
- * A fresh PIN is injected only after the native app completes Device Login.
+ * Whether the native app declared that it sends APP_LOCKED on every lock. Only
+ * then can the page tell a real lock from the inactive/active pair around a
+ * Face ID prompt. An app that never declares it (older builds, or remote mode
+ * against an older bundle) gets the conservative rule below.
  */
-export const clearNativeInjectedPinForAppState = (): void => {
-  clearNativeInjectedPin();
+export const nativeSignalsAppLocked = (): boolean =>
+  readNativeCapabilities()?.['appLockedSignal'] === true;
+
+/**
+ * Clear the injected PIN for an APP_STATE transition. With APP_LOCKED support
+ * only 'background' is a lock (inactive/active also surround every Face ID
+ * prompt and system overlay, and a lock without 'background' arrives as
+ * APP_LOCKED). Without it every transition clears, so a PIN never survives a
+ * lock the page cannot see. Native injects a fresh PIN only after Device Login
+ * completes following a lock.
+ */
+export const clearNativeInjectedPinForAppState = (
+  state: 'active' | 'background' | 'inactive',
+): void => {
+  if (state === 'background' || !nativeSignalsAppLocked()) {
+    clearNativeInjectedPin();
+  }
 };
 
 /**
