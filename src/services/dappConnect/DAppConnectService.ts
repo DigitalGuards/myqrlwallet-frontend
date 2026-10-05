@@ -1532,6 +1532,17 @@ export class DAppConnectService {
     this.handlers?.onReturnHandedBack?.(channelId);
   }
 
+  /**
+   * Tell the native app a pairing is gone so its dApp connections screen
+   * stops listing it. Every path that removes a stored session has to call
+   * this; the native list has no other way to learn about it.
+   */
+  private notifyNativeDisconnected(channelId: string, explicit: boolean): void {
+    if (isInNativeApp()) {
+      sendToNative("DAPP_DISCONNECTED" as never, { channelId, explicit });
+    }
+  }
+
   async disconnectSession(channelId: string, explicit = true): Promise<boolean> {
     if (
       !this.ownership.owns(channelId) &&
@@ -1564,6 +1575,9 @@ export class DAppConnectService {
       this.ownership.release(channelId);
       this.handlers?.onSessionDisconnected(channelId);
       this.handlers?.onSessionsChanged();
+      // An offline pairing removed from the banner: without this the app's
+      // dApp list kept showing it as connected.
+      this.notifyNativeDisconnected(channelId, true);
       return true;
     }
     return this.teardownSession(channelId, explicit, true);
@@ -1741,6 +1755,17 @@ export class DAppConnectService {
             );
           }
         }
+        // The relay refuses close_channel for a channel that is already
+        // closed. A user disconnect sends TERMINATE first and the dApp often
+        // answers with its own close before ours arrives, or the channel was
+        // closed while this socket was away. Treating that refusal as a
+        // failure kept the session and never told the native app, so ask the
+        // relay directly: a fresh join reports an existing tombstone, and
+        // otherwise closes the channel itself.
+        if (teardown.requireTombstone && !tombstoneConfirmed) {
+          const stored = SessionStore.get(channelId);
+          if (stored) tombstoneConfirmed = await this.tombstoneStoredSession(stored);
+        }
         if (teardown.requireTombstone && !tombstoneConfirmed) {
           this.ownership.release(channelId);
           this.handlers?.onSessionsChanged();
@@ -1763,12 +1788,7 @@ export class DAppConnectService {
       this.handlers?.onSessionDisconnected(channelId);
       this.handlers?.onSessionsChanged();
 
-      if (isInNativeApp()) {
-        sendToNative("DAPP_DISCONNECTED" as never, {
-          channelId,
-          explicit: teardown.explicit,
-        });
-      }
+      this.notifyNativeDisconnected(channelId, teardown.explicit);
       return teardown.success;
     };
 
@@ -1958,6 +1978,7 @@ export class DAppConnectService {
               this.ownership.release(session.id);
             }
             this.handlers?.onSessionDisconnected(session.id);
+            this.notifyNativeDisconnected(session.id, false);
             continue;
           }
 
@@ -2027,6 +2048,11 @@ export class DAppConnectService {
 
   /** End every pairing and invalidate live copies in every same-origin tab. */
   async clearAllSessions(advanceEpoch = true): Promise<void> {
+    // Pairings without a live connection are only removed by clearStale
+    // below; the native dApp list hears about them from here.
+    const offlineIds = SessionStore.getAll()
+      .map((session) => session.id)
+      .filter((id) => !this.connections.has(id));
     const clearEpoch = advanceEpoch ? advanceWalletEpoch() : this.walletEpoch;
     try {
       await this.disconnectAll();
@@ -2034,6 +2060,7 @@ export class DAppConnectService {
     } finally {
       SessionStore.clearStale(clearEpoch);
       this.handlers?.onSessionsChanged();
+      for (const id of offlineIds) this.notifyNativeDisconnected(id, true);
     }
   }
 
