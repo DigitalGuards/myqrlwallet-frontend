@@ -662,6 +662,10 @@ export class DAppConnectService {
       },
       onDisconnected: (reason) => {
         dlog(`Socket disconnected: ${reason}`);
+        // A countdown only means something while this wallet can see the
+        // dApp. The rejoin roster re-arms it; one left running would fire on
+        // resume before that roster arrives and reap a live pairing.
+        this.clearDappLeaveTimeout(channelId);
         this.updateLiveSessionStatus(
           channelId,
           socketClient,
@@ -1910,6 +1914,7 @@ export class DAppConnectService {
             onConnected: () =>
               dlog(`Reconnected to relay for ${session.dappInfo.name}`),
             onDisconnected: () => {
+              this.clearDappLeaveTimeout(session.id);
               this.updateLiveSessionStatus(
                 session.id,
                 socketClient,
@@ -2354,11 +2359,26 @@ export class DAppConnectService {
         return;
       }
       dlog(`dApp absent for ${DAPP_REJOIN_GRACE_MS}ms; disconnecting`);
-      // Fire-and-forget: this is a setTimeout callback, nothing to await into.
-      void this.disconnectSession(channelId, false);
+      // Explicit, so teardown closes the relay channel: a dApp that returns
+      // after this reap is told the channel is terminated and shows
+      // Disconnected, never "unreachable, session kept". Fire-and-forget: this
+      // is a setTimeout callback, nothing to await into.
+      void this.disconnectSession(channelId, true);
     }, DAPP_REJOIN_GRACE_MS);
     this.dappLeaveTimers.set(channelId, timeout);
     dlog(`Scheduled stale-session timeout for channel ${channelId}`);
+  }
+
+  /**
+   * Stop every dApp-leave countdown. The app calls this when it goes to the
+   * background: the JS timers freeze with the app but their wall-clock
+   * deadlines keep running, so on resume they would fire before the rejoin
+   * roster can say whether the dApp is back.
+   */
+  clearAllDappLeaveTimeouts(): void {
+    for (const channelId of [...this.dappLeaveTimers.keys()]) {
+      this.clearDappLeaveTimeout(channelId);
+    }
   }
 
   private clearDappLeaveTimeout(channelId: string): void {

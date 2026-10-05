@@ -2689,6 +2689,7 @@ describe("resume liveness and dApp-leave timers", () => {
   };
 
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -2780,4 +2781,61 @@ describe("resume liveness and dApp-leave timers", () => {
     expect(mockSocketClientInstances).toHaveLength(2);
     expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
   });
+
+  it("clears the leave timer on socket disconnect; a rejoin with the dApp present keeps the session", async () => {
+    const pairing = await makePairing();
+    const { service, observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    jest.useFakeTimers();
+
+    socket.handlers.onReconnected([]);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
+
+    socket.handlers.onDisconnected("transport close");
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(false);
+    await jest.advanceTimersByTimeAsync(90_000);
+
+    socket.handlers.onReconnected(["dapp"]);
+    await jest.advanceTimersByTimeAsync(90_000);
+
+    expect(SessionStore.get(pairing.session.id)).not.toBeNull();
+    expect(observed.disconnected).toEqual([]);
+    expect(socket.closeCalls).toBe(0);
+  });
+
+  it("re-arms at rejoin when the dApp is still absent, then reaps and closes the channel 90 s later", async () => {
+    const pairing = await makePairing();
+    const { service, observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    jest.useFakeTimers();
+
+    socket.handlers.onReconnected([]);
+    socket.handlers.onDisconnected("transport close");
+    await jest.advanceTimersByTimeAsync(90_000);
+    expect(observed.disconnected).toEqual([]);
+
+    socket.handlers.onReconnected([]);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
+    await jest.advanceTimersByTimeAsync(90_000);
+    await jest.advanceTimersByTimeAsync(5_000);
+
+    // close_channel, not a bare leave: a returning dApp is told the channel is
+    // terminated and shows Disconnected.
+    expect(socket.closeCalls).toBe(1);
+    expect(observed.disconnected).toEqual([pairing.session.id]);
+    expect(SessionStore.get(pairing.session.id)).toBeNull();
+  });
+
+  it("clearAllDappLeaveTimeouts stops every countdown", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    jest.useFakeTimers();
+    firstSocket().handlers.onReconnected([]);
+    expect(leaveTimers(service).size).toBe(1);
+
+    service.clearAllDappLeaveTimeouts();
+
+    expect(leaveTimers(service).size).toBe(0);
+  });
 });
+

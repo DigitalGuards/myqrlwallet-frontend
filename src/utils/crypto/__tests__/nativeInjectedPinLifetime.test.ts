@@ -41,7 +41,10 @@ jest.mock("@/utils/crypto/storedSeed", () => ({}));
 jest.mock("@/utils/crypto/pinRotation", () => ({}));
 jest.mock("@/services/dappConnect/DAppConnectService", () => ({
   DAppConnectService: { isConnectionURI: () => false },
-  dappConnectService: { reconnectAll: jest.fn() },
+  dappConnectService: {
+    reconnectAll: jest.fn(),
+    clearAllDappLeaveTimeouts: jest.fn(),
+  },
 }));
 jest.mock("@/router/router", () => ({ ROUTES: {} }));
 jest.mock("@/utils/addressBook", () => ({}));

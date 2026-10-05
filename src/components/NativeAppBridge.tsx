@@ -452,6 +452,11 @@ const NativeAppBridge: React.FC = () => {
           // a lock here; inactive/active also surround every Face ID prompt.
           // A lock without 'background' arrives as APP_LOCKED.
           clearNativeInjectedPinForAppState(state);
+          // Leave countdowns freeze with the app; the next rejoin roster
+          // re-arms them for a dApp that is still absent.
+          if (state === "background") {
+            dappConnectService.clearAllDappLeaveTimeouts();
+          }
           logToNative(`App state changed: ${state}`);
           // Reconnect dApp sessions when app returns to foreground
           if (state === "active") {
