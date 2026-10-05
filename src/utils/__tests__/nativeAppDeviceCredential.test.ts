@@ -160,16 +160,33 @@ describe("native device credential request protocol", () => {
     await expect(request).rejects.toThrow(/different seed backup revision/);
   });
 
-  it("invalidates a native-injected PIN on every app lifecycle transition", async () => {
+  it("keeps a native-injected PIN through inactive/active only when native signals APP_LOCKED", async () => {
     const {
       clearNativeInjectedPinForAppState,
       getNativeInjectedPin,
       setNativeInjectedPin,
     } = await import("../nativeApp");
 
+    // No capability: every transition clears, as before.
+    for (const state of ["inactive", "active", "background"] as const) {
+      setNativeInjectedPin("1234");
+      clearNativeInjectedPinForAppState(state);
+      expect(getNativeInjectedPin()).toBeNull();
+    }
+
+    Object.assign(eventTarget, {
+      ReactNativeWebView: {
+        postMessage,
+        injectedObjectJson: () =>
+          JSON.stringify({ qrlWalletCapabilities: { appLockedSignal: true } }),
+      },
+    });
     setNativeInjectedPin("1234");
+    clearNativeInjectedPinForAppState("inactive");
+    clearNativeInjectedPinForAppState("active");
     expect(getNativeInjectedPin()).toBe("1234");
-    clearNativeInjectedPinForAppState();
+    clearNativeInjectedPinForAppState("background");
     expect(getNativeInjectedPin()).toBeNull();
   });
+
 });
