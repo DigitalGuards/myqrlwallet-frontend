@@ -17,7 +17,7 @@ interface MockSocketHandlers {
   onMessage: (data: RelayMessage) => void;
   onConnected: () => void;
   onDisconnected: (reason: string) => void;
-  onReconnected: () => void;
+  onReconnected: (participants?: ('dapp' | 'wallet')[] | null) => void;
   /** The relay disconnected this socket and it will not come back. */
   onReconnectAbandoned?: () => void;
   onParticipantsChanged: (data: { event: string; clientType?: string }) => void;
@@ -28,9 +28,14 @@ interface MockJoinResult {
   bufferedMessages: unknown[];
   channelPublicKey: string | null;
   terminated: boolean;
+  participants?: ('dapp' | 'wallet')[] | null;
 }
 
 interface MockSocketInstance {
+  /** Whether the relay answers the liveness ping. */
+  probeAnswers: boolean;
+  probeCalls: number;
+  forceReconnectCalls: number;
   relayUrl: string;
   /** Mirrors SocketClient.willReconnect; false models a relay that gave up. */
   canReconnect: boolean;
@@ -133,6 +138,19 @@ jest.mock("../SocketClient", () => {
      * given up for good set this to false.
      */
     canReconnect = true;
+
+    probeAnswers = true;
+    probeCalls = 0;
+    forceReconnectCalls = 0;
+
+    async probe(): Promise<boolean> {
+      this.probeCalls++;
+      return this.connected && this.joined && this.probeAnswers;
+    }
+
+    forceReconnect(): void {
+      this.forceReconnectCalls++;
+    }
 
     willReconnect(): boolean {
       return (this.connected && this.joined) || this.canReconnect;
@@ -2649,5 +2667,117 @@ describe("wallet service reconnect ownership", () => {
       walletEpoch: currentEpoch,
     });
     expect(SessionStore.get(oldPairing.session.id)).toBeNull();
+  });
+});
+
+describe("resume liveness and dApp-leave timers", () => {
+  const leaveTimers = (service: DAppConnectService): Map<string, unknown> =>
+    (Object(service) as { dappLeaveTimers: Map<string, unknown> })
+      .dappLeaveTimers;
+
+  const armLeaveTimer = (socket: MockSocketInstance): void => {
+    socket.handlers.onParticipantsChanged({
+      event: "leave",
+      clientType: "dapp",
+    });
+  };
+
+  const resumeLater = async (service: DAppConnectService): Promise<void> => {
+    // Step past the per-session check interval so the resume is not skipped.
+    jest.spyOn(Date, "now").mockReturnValue(Date.now() + 60_000);
+    await service.reconnectAll();
+  };
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("probes a session already in connections and keeps it when the relay answers", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    armLeaveTimer(socket);
+
+    await resumeLater(service);
+
+    expect(socket.probeCalls).toBe(1);
+    expect(socket.forceReconnectCalls).toBe(0);
+    expect(mockSocketClientInstances).toHaveLength(1);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
+  });
+
+  it("forces a fresh transport when the probe goes unanswered", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    socket.probeAnswers = false;
+    armLeaveTimer(socket);
+
+    await resumeLater(service);
+
+    expect(socket.forceReconnectCalls).toBe(1);
+    expect(mockSocketClientInstances).toHaveLength(1);
+    // The rejoin roster decides the timer, so the stale one is gone.
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(false);
+  });
+
+  it("re-arms the leave timer when the rejoin roster shows the dApp absent, and clears it when present", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    socket.handlers.onReconnected([]);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
+
+    socket.handlers.onReconnected(["dapp"]);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(false);
+
+    // A relay that sends no roster changes nothing.
+    armLeaveTimer(socket);
+    socket.handlers.onReconnected(null);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
+  });
+
+  it("does not probe again inside the check interval (no reconnect storm)", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    socket.probeAnswers = false;
+
+    await service.reconnectAll();
+    await service.reconnectAll();
+    await service.reconnectAll();
+
+    expect(socket.probeCalls).toBeLessThanOrEqual(1);
+    expect(socket.forceReconnectCalls).toBeLessThanOrEqual(1);
+  });
+
+  it("leaves a socket that is already retrying to its own backoff", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    socket.connected = false;
+    socket.canReconnect = true;
+
+    await resumeLater(service);
+
+    expect(socket.probeCalls).toBe(0);
+    expect(socket.forceReconnectCalls).toBe(0);
+    expect(mockSocketClientInstances).toHaveLength(1);
+  });
+
+  it("rebuilds a connection that can never come back and arms the timer from the join roster", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    const dead = firstSocket();
+    dead.connected = false;
+    dead.canReconnect = false;
+    mockJoinResult = { ...mockJoinResult, participants: [] };
+
+    await resumeLater(service);
+
+    expect(dead.disconnectCalls).toBeGreaterThanOrEqual(1);
+    expect(mockSocketClientInstances).toHaveLength(2);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
   });
 });
