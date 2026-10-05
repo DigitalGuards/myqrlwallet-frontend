@@ -5,10 +5,11 @@
  */
 
 import * as mldsa from '@theqrl/mldsa87';
-import { SCHEME_TAG_MSG, SCHEME_TAG_TYPED, SCHEME_TAG_TYPED_V2, SCHEME_VERSION_TYPED_V2 } from './ctx';
+import { SCHEME_TAG_MSG } from './ctx';
 import { computeMessageDigest } from './messageDigest';
 import {
   computeTypedDataDigest,
+  typedDataSchemeTag,
   typedDataSchemeVersion,
   type TypedDataPayload,
 } from './typedData';
@@ -59,8 +60,7 @@ export function verifyTypedData({
     const derived = typedDataSchemeVersion(payload);
     if (schemeVersion !== undefined && schemeVersion !== derived) return false;
     const digest = computeTypedDataDigest(payload);
-    const tag = derived === SCHEME_VERSION_TYPED_V2 ? SCHEME_TAG_TYPED_V2 : SCHEME_TAG_TYPED;
-    return mldsa.cryptoSignVerify(sig, digest, pk, tag);
+    return mldsa.cryptoSignVerify(sig, digest, pk, typedDataSchemeTag(derived));
   } catch {
     return false;
   }

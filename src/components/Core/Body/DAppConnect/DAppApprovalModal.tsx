@@ -34,9 +34,9 @@ import {
   computeTypedDataDigest,
   hexToBytes,
   SCHEME_VERSION_MSG,
-  SCHEME_VERSION_TYPED,
   signMessage,
   signTypedData,
+  typedDataSchemeVersion,
   SignMessageParamsSchema,
   SignTypedDataParamsSchema,
 } from "@/utils/signing";
@@ -861,13 +861,24 @@ const DAppApprovalModalContent = observer(() => {
                 "the desktop signer does not match the requested signer",
               );
             }
+            // The payload's types decide the scheme; a signer answer that
+            // names another one was not made for this payload.
+            const schemeVersion = typedDataSchemeVersion(payload);
+            if (
+              result.schemeVersion !== undefined &&
+              result.schemeVersion !== schemeVersion
+            ) {
+              throw new Error(
+                `the desktop signer used ${result.schemeVersion}, the payload requires ${schemeVersion}`,
+              );
+            }
             dappConnectStore.approveRequestById(approvalSessionId, approvalId, {
               signature: result.signature,
               publicKey: result.publicKey,
               signer: result.signer,
               ...(result.descriptor ? { descriptor: result.descriptor } : {}),
               digest: result.digest,
-              schemeVersion: result.schemeVersion ?? SCHEME_VERSION_TYPED,
+              schemeVersion,
               domain: payload.domain,
             });
           } catch (e) {

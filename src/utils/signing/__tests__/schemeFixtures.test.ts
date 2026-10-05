@@ -1,9 +1,10 @@
 /**
  * Locks the typed-data scheme vectors in canonical.json: the scheme each
  * payload selects, its hashes and digest, and deterministic signatures.
- * The SDK and the extension assert the same file byte for byte, and an
- * independent reference implementation reproduced every digest when the
- * vectors were generated (generateSchemeFixtures.test.ts).
+ * The SDK and the extension assert the same file byte for byte. The
+ * connect SDK's scripts/typed-data-reference.py, which shares no code with
+ * this codec, recomputes every digest, and typedDataSlots.test.ts checks
+ * single slots byte by byte.
  */
 
 import { readFileSync } from "node:fs";
@@ -51,13 +52,20 @@ interface Canonical {
 }
 
 const canonical: Canonical = JSON.parse(
-  readFileSync(join(__dirname, "..", "__fixtures__", "canonical.json"), "utf-8"),
+  readFileSync(
+    join(__dirname, "..", "__fixtures__", "canonical.json"),
+    "utf-8",
+  ),
 );
 
 describe("typed-data scheme vectors", () => {
   it("covers both schemes", () => {
-    const schemes = new Set(canonical.schemeVectors.map((v) => v.schemeVersion));
-    expect(schemes).toEqual(new Set(["QRL-SIGN-TYPED-v1", "QRL-SIGN-TYPED-v2"]));
+    const schemes = new Set(
+      canonical.schemeVectors.map((v) => v.schemeVersion),
+    );
+    expect(schemes).toEqual(
+      new Set(["QRL-SIGN-TYPED-v1", "QRL-SIGN-TYPED-v2"]),
+    );
     expect(canonical.schemeVersionTypedV2).toBe("QRL-SIGN-TYPED-v2");
   });
 
@@ -66,14 +74,25 @@ describe("typed-data scheme vectors", () => {
     (_label, v) => {
       const { payload, schemeVersion } = v;
       expect(typedDataSchemeVersion(payload)).toBe(schemeVersion);
-      expect(encodeType(payload.primaryType, payload.types)).toBe(v.encodeTypeString);
-      expect(bytesToHex(typeHash(payload.primaryType, payload.types))).toBe(v.typeHashHex);
+      expect(encodeType(payload.primaryType, payload.types)).toBe(
+        v.encodeTypeString,
+      );
+      expect(bytesToHex(typeHash(payload.primaryType, payload.types))).toBe(
+        v.typeHashHex,
+      );
       expect(
-        bytesToHex(hashStruct("QRLDomain", payload.domain, payload.types, schemeVersion)),
+        bytesToHex(
+          hashStruct("QRLDomain", payload.domain, payload.types, schemeVersion),
+        ),
       ).toBe(v.domainHashHex);
       expect(
         bytesToHex(
-          hashStruct(payload.primaryType, payload.message, payload.types, schemeVersion),
+          hashStruct(
+            payload.primaryType,
+            payload.message,
+            payload.types,
+            schemeVersion,
+          ),
         ),
       ).toBe(v.messageHashHex);
       expect(bytesToHex(computeTypedDataDigest(payload))).toBe(v.digestHex);
@@ -100,7 +119,9 @@ describe("typed-data scheme vectors", () => {
   it("rejects a response that claims the other scheme", () => {
     for (const v of canonical.schemeSigningVectors) {
       const other =
-        v.schemeVersion === "QRL-SIGN-TYPED-v2" ? "QRL-SIGN-TYPED-v1" : "QRL-SIGN-TYPED-v2";
+        v.schemeVersion === "QRL-SIGN-TYPED-v2"
+          ? "QRL-SIGN-TYPED-v1"
+          : "QRL-SIGN-TYPED-v2";
       expect(
         verifyTypedData({
           signature: v.signature,

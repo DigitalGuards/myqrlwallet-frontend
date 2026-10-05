@@ -516,14 +516,20 @@ function encodeFieldWithBudget(
   }
 }
 
+/**
+ * Encode one field. The scheme defaults to the one `types` selects (v2 when
+ * any struct has an address field), which matches computeTypedDataDigest
+ * when `types` is a payload's full type map.
+ */
 export function encodeField(
   type: FieldType,
   value: unknown,
   types: TypeMap,
-  schemeVersion: TypedDataSchemeVersion = SCHEME_VERSION_TYPED,
+  schemeVersion?: TypedDataSchemeVersion,
 ): Uint8Array {
   validateTypeMap(types);
-  return encodeFieldWithBudget(type, value, types, newBudget(schemeVersion), 0);
+  const scheme = schemeVersion ?? schemeVersionForTypes(types);
+  return encodeFieldWithBudget(type, value, types, newBudget(scheme), 0);
 }
 
 function hashStructWithBudget(
@@ -556,14 +562,20 @@ function hashStructWithBudget(
   return shake256(concatBytesArr(parts), { dkLen: DIGEST_LEN });
 }
 
+/**
+ * Hash one struct. The scheme defaults to the one `types` selects (v2 when
+ * any struct has an address field), which matches computeTypedDataDigest
+ * when `types` is a payload's full type map.
+ */
 export function hashStruct(
   primary: string,
   data: Message,
   types: TypeMap,
-  schemeVersion: TypedDataSchemeVersion = SCHEME_VERSION_TYPED,
+  schemeVersion?: TypedDataSchemeVersion,
 ): Uint8Array {
   validateTypeMap(types);
-  return hashStructWithBudget(primary, data, types, newBudget(schemeVersion), 0);
+  const scheme = schemeVersion ?? schemeVersionForTypes(types);
+  return hashStructWithBudget(primary, data, types, newBudget(scheme), 0);
 }
 
 /**
@@ -628,14 +640,17 @@ function parseAndValidatePayload(payload: unknown): TypedDataPayload {
   return parsed;
 }
 
-/** v2 when an address type is reachable from QRLDomain or the primary type. */
-function schemeVersionForTypes(primary: string, types: TypeMap): TypedDataSchemeVersion {
-  for (const root of ['QRLDomain', primary]) {
-    for (const name of collectDependencies(root, types)) {
-      const fields = types[name] ?? [];
-      if (fields.some((f) => baseTypeName(f.type) === 'address')) {
-        return SCHEME_VERSION_TYPED_V2;
-      }
+/**
+ * v2 when any struct has an `address` field, including address arrays.
+ * Payload validation rejects types unreachable from QRLDomain and the
+ * primary type, so for a payload this is "an address type is reachable".
+ * The scheme belongs to the whole payload: an address-free struct hashes
+ * with 64-byte slots when the domain or another struct has an address.
+ */
+function schemeVersionForTypes(types: TypeMap): TypedDataSchemeVersion {
+  for (const fields of Object.values(types)) {
+    if (fields.some((f) => baseTypeName(f.type) === 'address')) {
+      return SCHEME_VERSION_TYPED_V2;
     }
   }
   return SCHEME_VERSION_TYPED;
@@ -646,8 +661,12 @@ function schemeVersionForTypes(primary: string, types: TypeMap): TypedDataScheme
  * payload's types alone, so wallet and verifier agree without negotiating.
  */
 export function typedDataSchemeVersion(payload: unknown): TypedDataSchemeVersion {
-  const parsed = parseAndValidatePayload(payload);
-  return schemeVersionForTypes(parsed.primaryType, parsed.types);
+  return schemeVersionForTypes(parseAndValidatePayload(payload).types);
+}
+
+/** The digest-preimage and ML-DSA-87 ctx tag of a typed-data scheme. */
+export function typedDataSchemeTag(schemeVersion: TypedDataSchemeVersion): Uint8Array {
+  return SCHEME_TAGS[schemeVersion];
 }
 
 /**
@@ -660,7 +679,7 @@ export function typedDataSchemeVersion(payload: unknown): TypedDataSchemeVersion
  */
 export function computeTypedDataDigest(payload: unknown): Uint8Array {
   const parsed = parseAndValidatePayload(payload);
-  const schemeVersion = schemeVersionForTypes(parsed.primaryType, parsed.types);
+  const schemeVersion = schemeVersionForTypes(parsed.types);
   const budget = newBudget(schemeVersion);
   const domainHash = hashStructWithBudget('QRLDomain', parsed.domain, parsed.types, budget, 0);
   const messageHash = hashStructWithBudget(

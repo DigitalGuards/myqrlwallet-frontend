@@ -109,7 +109,11 @@ it("wallet signs QIP-55 address fields under typed-data v2, which needs a v2-awa
     expect(sdkTypedDigest(payload)).toEqual(computeTypedDataDigest(payload));
     expect(isQrlSignedTypedDataResult(signed)).toBe(true);
     expect(
-      verifyTypedDataForSigner({ ...signed, expectedSigner: signed.signer, payload }),
+      verifyTypedDataForSigner({
+        ...signed,
+        expectedSigner: signed.signer,
+        payload,
+      }),
     ).toBe(true);
   } else {
     // SDK 5.0.x predates v2 and rejects the payload outright, as it always has.

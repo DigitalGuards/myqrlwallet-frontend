@@ -23,6 +23,7 @@ export {
   encodeField,
   computeTypedDataDigest,
   typedDataSchemeVersion,
+  typedDataSchemeTag,
   TYPED_DATA_LIMITS,
   type TypedDataPayload,
   type TypeMap,
