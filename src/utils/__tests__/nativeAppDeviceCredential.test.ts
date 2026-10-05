@@ -151,7 +151,7 @@ describe("native device credential request protocol", () => {
     await expect(request).rejects.toThrow(/different seed backup revision/);
   });
 
-  it("invalidates a native-injected PIN on every app lifecycle transition", async () => {
+  it("invalidates a native-injected PIN on background only", async () => {
     const {
       clearNativeInjectedPinForAppState,
       getNativeInjectedPin,
@@ -160,7 +160,10 @@ describe("native device credential request protocol", () => {
 
     setNativeInjectedPin("1234");
     expect(getNativeInjectedPin()).toBe("1234");
-    clearNativeInjectedPinForAppState();
+    clearNativeInjectedPinForAppState("inactive");
+    clearNativeInjectedPinForAppState("active");
+    expect(getNativeInjectedPin()).toBe("1234");
+    clearNativeInjectedPinForAppState("background");
     expect(getNativeInjectedPin()).toBeNull();
   });
 });

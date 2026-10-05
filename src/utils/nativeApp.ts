@@ -54,6 +54,7 @@ export type NativeToWebMessageType =
   | 'QR_CANCELLED'          // User closed QR scanner without scanning
   | 'BIOMETRIC_SUCCESS'
   | 'APP_STATE'
+  | 'APP_LOCKED'            // Native authorization was invalidated (a real lock)
   | 'CLIPBOARD_SUCCESS'
   | 'SHARE_SUCCESS'
   | 'ERROR'
@@ -384,11 +385,17 @@ export const clearNativeInjectedPin = (): void => {
 };
 
 /**
- * Every native lifecycle transition invalidates the WebView's cached PIN.
- * A fresh PIN is injected only after the native app completes Device Login.
+ * Clear the injected PIN on a real lock signal only. Native sends 'background'
+ * when the app leaves the foreground, and 'inactive'/'active' around every
+ * Face ID prompt and system overlay, none of which lock the wallet. A lock that
+ * happens without 'background' is announced by the APP_LOCKED message
+ * (handled by the bridge through clearNativeInjectedPin). Native injects a fresh
+ * PIN only after Device Login completes following a lock.
  */
-export const clearNativeInjectedPinForAppState = (): void => {
-  clearNativeInjectedPin();
+export const clearNativeInjectedPinForAppState = (
+  state: 'active' | 'background' | 'inactive',
+): void => {
+  if (state === 'background') clearNativeInjectedPin();
 };
 
 /**

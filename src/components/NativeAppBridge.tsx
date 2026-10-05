@@ -448,14 +448,23 @@ const NativeAppBridge: React.FC = () => {
             console.warn("[Bridge] APP_STATE missing or invalid state");
             return;
           }
-          // The old biometric PIN must never survive a lock transition. Clear
-          // on active too, before native can inject a freshly authenticated PIN.
-          clearNativeInjectedPinForAppState();
+          // The injected PIN must never survive a lock. Only 'background' is
+          // a lock here; inactive/active also surround every Face ID prompt.
+          // A lock without 'background' arrives as APP_LOCKED.
+          clearNativeInjectedPinForAppState(state);
           logToNative(`App state changed: ${state}`);
           // Reconnect dApp sessions when app returns to foreground
           if (state === "active") {
             dappConnectService.reconnectAll();
           }
+          break;
+        }
+
+        // Native revoked authorization (iOS inactivity lock, background, or a
+        // document reset): the old Device Login PIN must not survive it.
+        case "APP_LOCKED": {
+          clearNativeInjectedPin();
+          logToNative("App locked");
           break;
         }
 
