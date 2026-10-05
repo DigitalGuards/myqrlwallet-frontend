@@ -126,6 +126,58 @@ describe("cross-network PIN rotation", () => {
     );
   });
 
+  it("sends backups one at a time in record order, rollback included, for 6 records", async () => {
+    const seeds = Array.from({ length: 6 }, (_, i) => ({
+      address: `Q${String(i + 1).repeat(128)}`,
+      encryptedSeed: `old-${i}`,
+      lastAccessed: 10,
+      revision: 1,
+    }));
+    mockGetAll.mockImplementation(async (blockchain) =>
+      blockchain === "TEST_NET" ? seeds.map((seed) => ({ ...seed })) : [],
+    );
+    mockDecrypt.mockImplementation(async (encryptedSeed) => ({
+      mnemonic: `m-${encryptedSeed}`,
+      hexSeed: encryptedSeed,
+    }));
+    mockEncrypt.mockImplementation(async (_m, hexSeed) => `new-${hexSeed}`);
+    mockDeriveAddress.mockImplementation((hexSeed) => {
+      const index = Number(hexSeed.slice(4));
+      return seeds[index]?.address ?? TEST_ADDRESS;
+    });
+
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const order: string[] = [];
+    const backup = jest
+      .fn<Promise<unknown>, [PinRotationBackupRecord]>()
+      .mockImplementation(async (record) => {
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        order.push(record.encryptedSeed);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        inFlight -= 1;
+        // Fail the last forward record to force the rollback wave.
+        if (record.encryptedSeed === "new-old-5") throw new Error("nope");
+        return {};
+      });
+
+    await expect(
+      rotateStoredSeedPin({
+        blockchains: ["TEST_NET"],
+        oldPin: "1234",
+        newPin: "5678",
+        backup,
+      }),
+    ).rejects.toThrow(/old PIN remains active/);
+
+    expect(maxInFlight).toBe(1);
+    expect(order).toEqual([
+      ...seeds.map((_, i) => `new-old-${i}`),
+      ...seeds.map((_, i) => `old-${i}`),
+    ]);
+  });
+
   it("restores old ciphertext under a higher revision when any native ACK fails", async () => {
     const backup = jest
       .fn<Promise<unknown>, [PinRotationBackupRecord]>()
