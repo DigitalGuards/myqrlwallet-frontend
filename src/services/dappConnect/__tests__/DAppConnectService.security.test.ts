@@ -1013,6 +1013,35 @@ describe("wallet service AEAD checkpointing", () => {
     ]);
   });
 
+  it("completes a user disconnect when the dApp closes the channel first", async () => {
+    // The user's Disconnect sends TERMINATE; the dApp answers with its own
+    // close_channel, and the relay then refuses ours. The channel is dead and
+    // tombstoned, so the session must go and the native app must be told.
+    const pairing = await makePairing("dapp-closes-first");
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    mockInNativeApp = true;
+    mockCloseHook = async () => {
+      socket.handlers.onParticipantsChanged({ event: "close", clientType: "dapp" });
+      return false;
+    };
+
+    await expect(service.disconnectSession(pairing.session.id, true)).resolves.toBe(
+      true,
+    );
+    await settle();
+
+    expect(SessionStore.get(pairing.session.id)).toBeNull();
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_DISCONNECTED"),
+    ).toEqual([
+      {
+        type: "DAPP_DISCONNECTED",
+        payload: { channelId: pairing.session.id, explicit: true },
+      },
+    ]);
+  });
+
   it("keeps a session retryable when a durable close is not acknowledged", async () => {
     const pairing = await makePairing("lost-close-ack");
     const { service } = await reconnect(pairing.session);
