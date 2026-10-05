@@ -376,13 +376,38 @@ export const subscribeToNativeMessages = (
 // In-memory store for PIN injected by native app after biometric unlock
 // This is intentionally NOT in localStorage for security - it's cleared on page refresh
 let nativeInjectedPin: string | null = null;
+const nativeInjectedPinListeners = new Set<() => void>();
+
+const notifyNativeInjectedPinListeners = (): void => {
+  for (const listener of nativeInjectedPinListeners) listener();
+};
+
+/**
+ * Subscribe to the injected PIN arriving or being cleared.
+ *
+ * The native app injects the PIN when Device Login finishes, which can happen
+ * while a screen that asks for the PIN is already open. A screen that reads
+ * the PIN only while rendering keeps showing its PIN field until some other
+ * change re-renders it, and then hides the field at the first keystroke.
+ * Screens subscribe so they update the moment the PIN arrives or goes away.
+ */
+export const subscribeNativeInjectedPin = (listener: () => void): (() => void) => {
+  nativeInjectedPinListeners.add(listener);
+  return () => {
+    nativeInjectedPinListeners.delete(listener);
+  };
+};
 
 /**
  * Store a PIN injected by the native app (after biometric unlock)
  * This PIN can be used for transaction signing without prompting the user
  */
 export const setNativeInjectedPin = (pin: string): void => {
-  nativeInjectedPin = pin;
+  // An empty PIN is no PIN: it would hide the PIN field and sign with nothing.
+  const next = pin || null;
+  if (nativeInjectedPin === next) return;
+  nativeInjectedPin = next;
+  notifyNativeInjectedPinListeners();
 };
 
 /**
@@ -398,7 +423,9 @@ export const getNativeInjectedPin = (): string | null => {
  * Called when wallet is cleared or user wants to re-authenticate
  */
 export const clearNativeInjectedPin = (): void => {
+  if (nativeInjectedPin === null) return;
   nativeInjectedPin = null;
+  notifyNativeInjectedPinListeners();
 };
 
 /**

@@ -23,7 +23,12 @@ import {
   DeviceCredentialUnavailableError,
   decryptStoredSeedWithPin,
 } from "@/utils/crypto";
-import { getNativeInjectedPin, isIOSNativeApp } from "@/utils/nativeApp";
+import {
+  clearNativeInjectedPin,
+  getNativeInjectedPin,
+  isIOSNativeApp,
+} from "@/utils/nativeApp";
+import { useHasNativeInjectedPin } from "@/hooks/useHasNativeInjectedPin";
 import { shouldPromptReturnToBrowser } from "./returnToBrowserHint";
 import {
   approvedFeeForRequest,
@@ -44,9 +49,9 @@ import {
   computeTypedDataDigest,
   hexToBytes,
   SCHEME_VERSION_MSG,
-  SCHEME_VERSION_TYPED,
   signMessage,
   signTypedData,
+  typedDataSchemeVersion,
   SignMessageParamsSchema,
   SignTypedDataParamsSchema,
 } from "@/utils/signing";
@@ -235,6 +240,14 @@ const DAppApprovalModalContent = observer(() => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Device Login can finish while this dialog is open; the PIN field must
+  // follow the injected PIN as it arrives or is cleared.
+  const hasNativePin = useHasNativeInjectedPin();
+  // Digits typed before Device Login supplied the PIN must not reappear,
+  // still filled in, once the app locks and the field returns.
+  useEffect(() => {
+    setPin("");
+  }, [hasNativePin]);
   /**
    * Guards a second approve in the same tick. `loading` is React state and
    * does not update until the next render, so Enter pressed twice quickly
@@ -574,6 +587,9 @@ const DAppApprovalModalContent = observer(() => {
           return;
         }
 
+        // A Device Login PIN that no longer decrypts (changed since it was
+        // injected) is dropped on "Incorrect PIN" so the PIN field returns.
+        const usedNativePin = Boolean(getNativeInjectedPin());
         const pinToUse = getNativeInjectedPin() || pin;
         // Guard empty PIN *before* entering the 'signing' progress state.
         // Once txProgress leaves 'idle' the modal switches to its terminal
@@ -599,6 +615,7 @@ const DAppApprovalModalContent = observer(() => {
           setError(unlocked.error);
           if (unlocked.error === "Incorrect PIN") {
             // Recoverable: reset to the editable state so the user can retry.
+            if (usedNativePin) clearNativeInjectedPin();
             setPin("");
             if (isStillCurrent()) dappConnectStore.resetTxProgress();
           } else {
@@ -853,6 +870,7 @@ const DAppApprovalModalContent = observer(() => {
           setLoading(false);
           return;
         }
+        const usedNativePin = Boolean(getNativeInjectedPin());
         const pinToUse = getNativeInjectedPin() || pin;
         const signingGeneration = walletMutations.captureGeneration();
         const unlocked = await unlockHexSeed(
@@ -861,7 +879,10 @@ const DAppApprovalModalContent = observer(() => {
           signingGeneration,
         );
         if ("error" in unlocked) {
-          if (unlocked.error === "Incorrect PIN") setPin("");
+          if (unlocked.error === "Incorrect PIN") {
+            if (usedNativePin) clearNativeInjectedPin();
+            setPin("");
+          }
           setError(unlocked.error);
           setLoading(false);
           return;
@@ -937,13 +958,24 @@ const DAppApprovalModalContent = observer(() => {
                 "the desktop signer does not match the requested signer",
               );
             }
+            // The payload's types decide the scheme; a signer answer that
+            // names another one was not made for this payload.
+            const schemeVersion = typedDataSchemeVersion(payload);
+            if (
+              result.schemeVersion !== undefined &&
+              result.schemeVersion !== schemeVersion
+            ) {
+              throw new Error(
+                `the desktop signer used ${result.schemeVersion}, the payload requires ${schemeVersion}`,
+              );
+            }
             dappConnectStore.approveRequestById(approvalSessionId, approvalId, {
               signature: result.signature,
               publicKey: result.publicKey,
               signer: result.signer,
               ...(result.descriptor ? { descriptor: result.descriptor } : {}),
               digest: result.digest,
-              schemeVersion: result.schemeVersion ?? SCHEME_VERSION_TYPED,
+              schemeVersion,
               domain: payload.domain,
             });
           } catch (e) {
@@ -958,6 +990,7 @@ const DAppApprovalModalContent = observer(() => {
           setLoading(false);
           return;
         }
+        const usedNativePin = Boolean(getNativeInjectedPin());
         const pinToUse = getNativeInjectedPin() || pin;
         const signingGeneration = walletMutations.captureGeneration();
         const unlocked = await unlockHexSeed(
@@ -966,7 +999,10 @@ const DAppApprovalModalContent = observer(() => {
           signingGeneration,
         );
         if ("error" in unlocked) {
-          if (unlocked.error === "Incorrect PIN") setPin("");
+          if (unlocked.error === "Incorrect PIN") {
+            if (usedNativePin) clearNativeInjectedPin();
+            setPin("");
+          }
           setError(unlocked.error);
           setLoading(false);
           return;
@@ -1128,7 +1164,6 @@ const DAppApprovalModalContent = observer(() => {
     method !== "qrl_requestAccounts" &&
     method !== "wallet_addQrlChain" &&
     method !== "wallet_switchQrlChain";
-  const hasNativePin = !!getNativeInjectedPin();
   const isTransaction =
     method === "qrl_sendTransaction" || method === "qrl_signTransaction";
 
