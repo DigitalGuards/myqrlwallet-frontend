@@ -17,6 +17,7 @@ import {
   hasNativeInjectedPin,
   clearNativeInjectedPin,
   clearNativeInjectedPinForAppState,
+  nativeDeclaresAndroid,
   confirmWalletCleared,
   confirmWebDocumentReady,
   notifyWebAppReady,
@@ -452,9 +453,11 @@ const NativeAppBridge: React.FC = () => {
           // a lock here; inactive/active also surround every Face ID prompt.
           // A lock without 'background' arrives as APP_LOCKED.
           clearNativeInjectedPinForAppState(state);
-          // Leave countdowns freeze with the app; the next rejoin roster
-          // re-arms them for a dApp that is still absent.
-          if (state === "background") {
+          // iOS suspends the page, so leave countdowns freeze and go stale;
+          // the next rejoin roster re-arms them for a dApp that is still
+          // absent. Android keeps running and observes relay events live, so
+          // its countdowns stay accurate. An unknown platform clears.
+          if (state === "background" && !nativeDeclaresAndroid()) {
             dappConnectService.clearAllDappLeaveTimeouts();
           }
           logToNative(`App state changed: ${state}`);

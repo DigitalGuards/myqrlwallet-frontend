@@ -137,6 +137,14 @@ export const nativeAppPlatform = (): 'ios' | 'android' | null => {
   return null;
 };
 
+/**
+ * The native app declared Android, where the WebView keeps running in the
+ * background (its timers stay accurate and relay events are seen live). iOS
+ * suspends the page, and an app that declares nothing is treated like iOS.
+ */
+export const nativeDeclaresAndroid = (): boolean =>
+  declaredNativePlatform() === 'android';
+
 const declaredNativePlatform = (): 'ios' | 'android' | null => {
   const platform = readNativeCapabilities()?.['platform'];
   return platform === 'ios' || platform === 'android' ? platform : null;

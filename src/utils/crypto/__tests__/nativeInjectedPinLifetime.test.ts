@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import NativeAppBridge from "@/components/NativeAppBridge";
+import { dappConnectService } from "@/services/dappConnect/DAppConnectService";
 import {
   getNativeInjectedPin,
   setNativeInjectedPin,
@@ -118,4 +119,22 @@ describe("injected Device Login PIN lifetime without APP_LOCKED support", () => 
       expect(getNativeInjectedPin()).toBeNull();
     },
   );
+});
+
+describe("dApp-leave countdowns on background", () => {
+  it.each([
+    ["ios", { platform: "ios" }, true],
+    ["an unknown platform", null, true],
+    ["a capability object without a platform", { appLockedSignal: true }, true],
+    ["android", { platform: "android" }, false],
+  ])("on %s", (_name, capabilities, clears) => {
+    mockCapabilities = capabilities;
+    appState("inactive");
+    appState("active");
+    expect(dappConnectService.clearAllDappLeaveTimeouts).not.toHaveBeenCalled();
+    appState("background");
+    expect(
+      jest.mocked(dappConnectService.clearAllDappLeaveTimeouts),
+    ).toHaveBeenCalledTimes(clears ? 1 : 0);
+  });
 });
