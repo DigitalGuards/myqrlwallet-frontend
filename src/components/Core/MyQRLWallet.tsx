@@ -7,6 +7,7 @@ import { setupActivityTracking, startAutoLockTimer, clearAutoLockTimer } from "@
 import NativeAppBridge from "@/components/NativeAppBridge";
 import { isDesktop } from "@/desktop/bridge";
 import { isInNativeApp } from "@/utils/nativeApp";
+import { HAS_NATIVE_BRIDGE } from "@/utils/embeddedRuntime";
 import Layout from "./Layout/Layout";
 import Body from "./Body/Body";
 
@@ -46,7 +47,8 @@ const MyQRLWallet = observer(() => {
   return (
     <Layout>
       <RouteMonitor />
-      <NativeAppBridge />
+      {/* The native bridge exists only in bundles that carry it (HAS_NATIVE_BRIDGE). */}
+      {HAS_NATIVE_BRIDGE && <NativeAppBridge />}
       {isDesktop && <DesktopDAppBridge />}
       {!isDesktop && !isInNativeApp() && <WebDAppIngress />}
       {!isInNativeApp() && <DAppConnectConsentModal />}

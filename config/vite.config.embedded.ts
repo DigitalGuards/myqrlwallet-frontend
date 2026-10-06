@@ -681,6 +681,7 @@ export default defineConfig(async (env) => {
       // Lets the minifier drop the reload branch in src/utils/embeddedShell.ts
       // so the emitted document contains no window.location.reload() at all.
       __QRL_EMBEDDED_BUILD__: 'true',
+      __QRL_NATIVE_BRIDGE__: 'true',
     },
     // Nothing from public/ is copied: every runtime reference to it is turned
     // into a data: URI above, and a copied file could only be fetched remotely.
