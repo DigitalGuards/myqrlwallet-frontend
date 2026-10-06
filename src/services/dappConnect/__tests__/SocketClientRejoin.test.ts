@@ -363,6 +363,59 @@ describe("relay channel membership", () => {
     expect(events.onRejoinAbandoned).not.toHaveBeenCalled();
   });
 
+  it("ignores a stale rejoin failure even while no membership is held", async () => {
+    // The generation check on its own. The later rejoin is still waiting on its
+    // acknowledgement here, so the socket is not a member and the
+    // already-joined guard cannot help: only the generation tells a failure
+    // from a dead transport apart from one about this connection. Without it
+    // the stale failure schedules a third join while the second is in flight.
+    const events = handlers();
+    const client = await pairedClient(events);
+    jest.useFakeTimers();
+    // Pin the retry delay so the window between the two acknowledgement
+    // timeouts is exact.
+    const random = jest.spyOn(Math, "random").mockReturnValue(0);
+
+    mockSocket.connected = false;
+    listeners.get("disconnect")?.("transport close");
+    mockSocket.connected = true;
+    fireConnect();
+    await settle();
+    expect(joinCount()).toBe(1);
+
+    // Seven seconds later the transport flaps again, so the first join has
+    // three seconds of its ten-second timeout left and the second is fresh.
+    jest.advanceTimersByTime(7_000);
+    await settle();
+    mockSocket.connected = false;
+    listeners.get("disconnect")?.("transport close");
+    mockSocket.connected = true;
+    fireConnect();
+    await settle();
+    expect(joinCount()).toBe(2);
+
+    // The first join times out. Membership is still false, and the second join
+    // is still outstanding.
+    jest.advanceTimersByTime(3_500);
+    await settle();
+    expect(client.isJoined()).toBe(false);
+    expect(joinCount()).toBe(2);
+
+    // Long enough for a retry the stale failure would have scheduled (3.75 s at
+    // this jitter), and still short of the second join's own timeout.
+    jest.advanceTimersByTime(4_000);
+    await settle();
+    expect(joinCount()).toBe(2);
+    expect(events.onRejoinAbandoned).not.toHaveBeenCalled();
+
+    // And the live attempt still completes normally.
+    ackJoin(JOIN_OK);
+    await settle();
+    random.mockRestore();
+    expect(client.isJoined()).toBe(true);
+    expect(events.onReconnected).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps retrying for longer than the relay refuses", async () => {
     // The relay refuses a rejoin for up to 45 s while a stale wallet
     // participant holds the slot, and for up to 60 s inside its join

@@ -18,6 +18,7 @@ import QrlStore from "../qrlStore";
 import StorageUtil from "@/utils/storage/storage";
 import type { AccountSource } from "@/utils/storage/storage";
 import { deriveHexSeedAsync } from "@/utils/crypto";
+import { FEE_NOT_SHOWN } from "@/utils/web3/feePolicy";
 
 const ACCOUNT = `Q${"1".repeat(128)}`;
 const BLOCKCHAIN = "TEST_NET";
@@ -70,7 +71,7 @@ it("refuses the local seed signing path for a mobile-sourced account", async () 
   store.qrlAccounts = { ...store.qrlAccounts, accounts: [] };
   await store.validateActiveAccount();
 
-  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "mnemonic words");
+  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "mnemonic words", "medium", FEE_NOT_SHOWN);
 
   expect(store.transactionStatus.state).toBe("failed");
   expect(store.transactionStatus.error).toContain("paired mobile app");

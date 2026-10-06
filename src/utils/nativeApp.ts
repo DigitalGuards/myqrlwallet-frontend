@@ -40,11 +40,14 @@ export type WebToNativeMessageType =
   | 'DAPP_DISCONNECTED'     // Notify native that a dApp disconnected
   | 'DAPP_DISCONNECT_RESPONSE' // Correlated durable disconnect result
   | 'DAPP_HAPTIC'           // Trigger haptic for dApp approve/reject
-  | 'DAPP_RETURN';          // Hand the user back to the dApp after an answered
+  | 'DAPP_RETURN'           // Hand the user back to the dApp after an answered
                             // request. The app backgrounds its own task on
                             // Android, so the browser tab the user came from
                             // returns, and does nothing on iOS (app PR #61). A
                             // wallet-initiated disconnect never sends this.
+  // Android hardware back, answered by the page (see src/utils/nativeBack.ts)
+  | 'BACK_HANDLED'          // Closed an overlay, or navigated back a route
+  | 'BACK_AT_ROOT';         // Home with nothing open; the app may background
 
 /**
  * Message types that can be received from the native app
@@ -74,7 +77,8 @@ export type NativeToWebMessageType =
   // Display preferences (native settings drives the Home card toggles)
   | 'SET_DISPLAY_PREFS'     // Native sets showTokensCard / showNftsCard in wallet settings
   | 'RESTORE_CONTACTS'      // Native sends the backed-up address book on boot
-  | 'NAVIGATE';             // Native asks the web app to navigate to an in-app route
+  | 'NAVIGATE'              // Native asks the web app to navigate to an in-app route
+  | 'NATIVE_BACK';          // Android hardware back, for the page to resolve
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
@@ -194,17 +198,27 @@ export const requestQRScan = (): boolean => {
 /**
  * Copy text to clipboard via native app (bridge only)
  */
-export const copyToClipboardNative = (text: string): boolean => {
-  return sendToNative('COPY_TO_CLIPBOARD', { text });
+export const copyToClipboardNative = (text: string, sensitive = false): boolean => {
+  return sendToNative('COPY_TO_CLIPBOARD', { text, sensitive });
 };
 
 /**
  * Copy text to clipboard - uses native bridge when in app, browser API otherwise
  * This is the preferred function to use for clipboard operations
+ *
+ * Pass `sensitive` for a recovery phrase, a hex seed or anything else that
+ * would hand over the wallet. The app marks the clipboard entry sensitive, so
+ * Android keeps it out of the clipboard preview and clipboard history, and
+ * clears it after a minute. Addresses, amounts and transaction hashes are
+ * public and stay unflagged, so an address the user copied to paste somewhere
+ * else does not vanish underneath them.
  */
-export const copyToClipboard = async (text: string): Promise<boolean> => {
+export const copyToClipboard = async (
+  text: string,
+  sensitive = false,
+): Promise<boolean> => {
   if (isInNativeApp()) {
-    const sent = sendToNative('COPY_TO_CLIPBOARD', { text });
+    const sent = sendToNative('COPY_TO_CLIPBOARD', { text, sensitive });
     if (sent) return true;
     // Native bridge unavailable, fall through to browser API
   }

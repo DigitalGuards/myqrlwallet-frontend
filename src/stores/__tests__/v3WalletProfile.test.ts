@@ -53,6 +53,7 @@ import {
 } from "@/utils/extension/extensionConnection";
 import { qrlWallet } from "@/desktop/bridge";
 import { walletMutations } from "@/utils/nativeWalletMutation";
+import { FEE_NOT_SHOWN } from "@/utils/web3/feePolicy";
 
 const ACCOUNT = `Q${"1".repeat(128)}`;
 const HASH = `0x${"ab".repeat(32)}`;
@@ -217,7 +218,7 @@ it.each(["chain", "genesis"])(
 it("signs a normal web transfer with the pinned chain and rechecks before broadcast", async () => {
   const { store, rpc } = storeFixture();
   await store.initializeBlockchain();
-  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "public fixture");
+  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "public fixture", "medium", FEE_NOT_SHOWN);
   expect(deriveHexSeedAsync).toHaveBeenCalled();
   expect(rpc.accounts.signTransaction).toHaveBeenCalledWith(
     expect.objectContaining({ chainId: "0x301825", gas: 21000n }),
@@ -231,7 +232,7 @@ it("stops before derivation and signing if the chain changes after initializatio
   const { store, rpc } = storeFixture();
   await store.initializeBlockchain();
   rpc.requestManager.send.mockResolvedValue("0x539");
-  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "public fixture");
+  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "public fixture", "medium", FEE_NOT_SHOWN);
   expect(deriveHexSeedAsync).not.toHaveBeenCalled();
   expect(rpc.accounts.signTransaction).not.toHaveBeenCalled();
   expect(rpc.sendSignedTransaction).not.toHaveBeenCalled();
@@ -269,7 +270,7 @@ it("does not broadcast if wallet generation changes during the final identity ch
     });
     return { rawTransaction: "0x1234" };
   });
-  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "public fixture");
+  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "public fixture", "medium", FEE_NOT_SHOWN);
   expect(rpc.accounts.signTransaction).toHaveBeenCalledTimes(1);
   expect(rpc.sendSignedTransaction).not.toHaveBeenCalled();
   expect(store.transactionStatus.error).toMatch(/Wallet changed/);
@@ -286,7 +287,7 @@ it("does not retain signing authority across a clear during the initial identity
       ? "0x301825"
       : { number: "0x0", hash: HASH };
   });
-  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "public fixture");
+  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "public fixture", "medium", FEE_NOT_SHOWN);
   expect(deriveHexSeedAsync).not.toHaveBeenCalled();
   expect(rpc.accounts.signTransaction).not.toHaveBeenCalled();
   expect(rpc.sendSignedTransaction).not.toHaveBeenCalled();

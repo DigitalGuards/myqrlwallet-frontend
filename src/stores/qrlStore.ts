@@ -10,6 +10,12 @@ import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
 import { receiptExecutionStatus, QRL_TX_POLLING_CONFIG } from "@/utils/web3/txPolling";
 import { normalizeQrlAddress } from "@/utils/web3/address";
 import { formatUnits, parseUnits } from "@/utils/web3/units";
+import {
+  assertFeeQuoteWithinPolicy,
+  assertSignedFeeWithinApproved,
+  FEE_NOT_SHOWN,
+  type ApprovedFeeInput,
+} from "@/utils/web3/feePolicy";
 import type { TransactionReceipt, Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { walletMutations } from "@/utils/nativeWalletMutation";
@@ -91,6 +97,12 @@ const TIP_MULTIPLIERS: Record<FeeLevel, bigint> = {
 export interface FeeQuote {
   maxFeePerGas: bigint;
   maxPriorityFeePerGas: bigint;
+  /**
+   * The base fee this quote was built on. Absent when the quote came from the
+   * legacy `qrl_gasPrice` fallback, which does not report one. The fee policy
+   * uses it for its relative checks.
+   */
+  baseFeePerGas?: bigint | undefined;
   /** What the sender is expected to pay per gas at the current base fee. */
   expectedFeePerGas: bigint;
 }
@@ -106,6 +118,7 @@ export async function quoteFees(
   provider: FeeMarketProvider,
   level: FeeLevel,
 ): Promise<FeeQuote> {
+  let quote: FeeQuote;
   try {
     if (!provider.getMaxPriorityFeePerGas || !provider.getBlock) {
       throw new Error("Fee market methods unavailable");
@@ -121,16 +134,24 @@ export async function quoteFees(
     const baseFeePerGas = BigInt(baseFee);
     const maxPriorityFeePerGas =
       (BigInt(suggestedTip) * TIP_MULTIPLIERS[level]) / BigInt(100);
-    return {
+    quote = {
       maxFeePerGas: BigInt(2) * baseFeePerGas + maxPriorityFeePerGas,
       maxPriorityFeePerGas,
+      baseFeePerGas,
       expectedFeePerGas: baseFeePerGas + maxPriorityFeePerGas,
     };
   } catch (error) {
     log(`Fee market quote unavailable, falling back to gasPrice: ${getErrorMessage(error)}`);
     const legacy = applyFeeLevel(BigInt(await provider.getGasPrice()), level);
-    return { ...legacy, expectedFeePerGas: legacy.maxFeePerGas };
+    quote = { ...legacy, expectedFeePerGas: legacy.maxFeePerGas };
   }
+
+  // Outside the try on purpose. Every number above came from the node behind
+  // the RPC proxy, and the fallback is just as server-controlled as the fee
+  // market, so an out-of-policy quote must fail rather than slip into the
+  // fallback and be signed anyway.
+  assertFeeQuoteWithinPolicy(quote);
+  return quote;
 }
 
 // EIP-1193 provider surface the wallet relies on. Exported so the extension
@@ -942,6 +963,13 @@ class QrlStore {
     value: string,
     mnemonicPhrases: string,
     feeLevel: FeeLevel = 'medium',
+    /**
+     * What the user was shown: the quote and the gas limit the figure on
+     * screen was computed from. Signing holds to that total, so neither a
+     * dearer re-quote nor a larger gas re-estimate can produce a fee nobody
+     * agreed to. A screen that displays no fee must say so with FEE_NOT_SHOWN.
+     */
+    approvedFee: ApprovedFeeInput | undefined,
   ) {
     // Reset status before starting a new transaction
     this.resetTransactionStatus();
@@ -1017,7 +1045,8 @@ class QrlStore {
       const nonce = await this.qrlInstance?.getTransactionCount(from, "pending");
 
       if (!this.qrlInstance) throw new Error("Wallet not connected. Please try again.");
-      const { maxFeePerGas, maxPriorityFeePerGas } = await quoteFees(this.qrlInstance, feeLevel);
+      const signingQuote = await quoteFees(this.qrlInstance, feeLevel);
+      const { maxFeePerGas, maxPriorityFeePerGas } = signingQuote;
       const utils = this._utils ?? (await getQrlWeb3()).utils;
 
       const transactionObject = {
@@ -1032,6 +1061,16 @@ class QrlStore {
       };
       const gas = await this.qrlInstance?.estimateGas(transactionObject);
       if (gas === undefined) throw new Error("Wallet not connected. Please try again.");
+      // Sign the fee the user saw, as a total, or stop and let them look at
+      // the new figure. Checked after the gas estimate, because the displayed
+      // maximum is gas times price and a guard on the price alone leaves the
+      // gas side free to grow.
+      if (approvedFee !== FEE_NOT_SHOWN) {
+        assertSignedFeeWithinApproved(
+          { quote: signingQuote, gasLimit: BigInt(gas) },
+          approvedFee,
+        );
+      }
       // Run the MLDSA87 derivation in the crypto worker so the 50–300 ms
       // expansion doesn't freeze the main thread mid-Send animation.
       // Subsequent signTransaction call is comparatively cheap.

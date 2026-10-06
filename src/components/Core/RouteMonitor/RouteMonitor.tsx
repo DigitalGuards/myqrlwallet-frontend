@@ -1,6 +1,7 @@
 import { ROUTES } from "../../../router/router";
 import { useStore } from "../../../stores/store";
 import { StorageUtil } from "@/utils/storage";
+import { recordRoute } from "@/utils/nativeBack";
 import { isDesktop } from "@/desktop/bridge";
 import { observer } from "mobx-react-lite";
 import { useEffect } from "react";
@@ -34,6 +35,9 @@ const RouteMonitor = observer(() => {
   useEffect(() => {
     window.scrollTo(0, 0);
     StorageUtil.setActivePage(pathname);
+    // The hash router replaces history entries, so Android's back button has
+    // no browser history to walk. This is the stack it walks instead.
+    recordRoute(pathname);
   }, [pathname]);
 
   return null;

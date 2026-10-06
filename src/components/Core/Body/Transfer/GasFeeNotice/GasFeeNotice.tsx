@@ -1,5 +1,6 @@
 import { useStore } from "@/stores/store";
 import { quoteFees, type FeeLevel } from "@/stores/qrlStore";
+import type { ApprovedFee } from "@/utils/web3/feePolicy";
 import { utils } from "@theqrl/web3";
 import { cva } from "class-variance-authority";
 import { Loader } from "lucide-react";
@@ -20,6 +21,12 @@ type GasFeeNoticeProps = {
   isSubmitting: boolean;
   feeLevel: FeeLevel;
   onFeeLevelChange: (level: FeeLevel) => void;
+  /**
+   * The quote behind the figure on screen, with the gas limit it was computed
+   * with. The send passes both back, so signing can neither use a more
+   * expensive price nor quietly grow the gas side of the same product.
+   */
+  onQuote?: (approved: ApprovedFee | null) => void;
 };
 
 const gasFeeNoticeClasses = cva(
@@ -44,6 +51,7 @@ export const GasFeeNotice = ({
   isSubmitting,
   feeLevel,
   onFeeLevelChange,
+  onQuote,
 }: GasFeeNoticeProps) => {
   const { qrlStore } = useStore();
   const { qrlInstance } = qrlStore;
@@ -57,8 +65,15 @@ export const GasFeeNotice = ({
     error: "",
   });
 
+  // Kept in a ref so a new callback identity does not re-run the quote.
+  const onQuoteRef = useRef(onQuote);
+  useEffect(() => {
+    onQuoteRef.current = onQuote;
+  }, [onQuote]);
+
   const fetchGasFee = async () => {
     setGasFee(prev => ({ ...prev, isLoading: true, error: "" }));
+    onQuoteRef.current?.(null);
     try {
       const transaction = {
         from,
@@ -78,7 +93,12 @@ export const GasFeeNotice = ({
       );
       const estimatedGas = getOptimalGasFee(estimatedGasRaw);
       setGasFee(prev => ({ ...prev, estimatedGas, error: "", isLoading: false }));
+      onQuoteRef.current?.({
+        quote: fees,
+        gasLimit: BigInt(estimatedTransactionGas),
+      });
     } catch (error) {
+      onQuoteRef.current?.(null);
       setGasFee(prev => ({ ...prev, error: `${error}`, isLoading: false }));
     }
   };
