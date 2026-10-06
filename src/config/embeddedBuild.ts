@@ -43,7 +43,7 @@ function scriptSrcDirective(scriptHashes: readonly string[]): string {
 export function executableInlineScripts(html: string): string[] {
   const scripts: string[] = [];
   for (const element of html.matchAll(
-    /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi,
+    /<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi,
   )) {
     const attributes = element[1] ?? "";
     if (/\bsrc\s*=/i.test(attributes)) continue;
@@ -250,8 +250,8 @@ export function findReloadCalls(html: string): string[] {
  */
 function stripInlineBodies(html: string): string {
   return html
-    .replace(/(<script\b[^>]*>)[\s\S]*?(<\/script\s*>)/gi, "$1$2")
-    .replace(/(<style\b[^>]*>)[\s\S]*?(<\/style\s*>)/gi, "$1$2");
+    .replace(/(<script\b[^>]*>)[\s\S]*?(<\/script\b[^>]*>)/gi, "$1$2")
+    .replace(/(<style\b[^>]*>)[\s\S]*?(<\/style\b[^>]*>)/gi, "$1$2");
 }
 
 const ALLOWED_URL_SCHEMES = /^(?:https:|data:|mailto:|blob:|#)/i;
@@ -310,7 +310,7 @@ export function findEmbeddedCspViolations(html: string): string[] {
 function findStyleViolations(html: string): string[] {
   const violations: string[] = [];
   for (const block of html.matchAll(
-    /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi,
+    /<style\b[^>]*>([\s\S]*?)<\/style\b[^>]*>/gi,
   )) {
     const css = block[1] ?? "";
     if (/@import/i.test(css)) violations.push("the stylesheet uses @import");
