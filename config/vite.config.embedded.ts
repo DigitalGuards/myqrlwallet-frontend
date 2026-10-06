@@ -534,7 +534,7 @@ const emitSingleFile = (
     // would quietly cover a fraction of the shipped code.
     const inlinedScripts: string[] = []
     html = html.replace(
-      /[ \t]*<script[^>]*\ssrc\s*=\s*["']([^"']+)["'][^>]*><\/script>/gi,
+      /[ \t]*<script[^>]*\ssrc\s*=\s*["']([^"']+)["'][^>]*><\/script\b[^>]*>/gi,
       (match, href: string) => {
         const filePath = resolveHref(href)
         if (!filePath) return match

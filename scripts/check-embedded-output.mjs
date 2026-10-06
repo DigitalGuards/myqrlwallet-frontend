@@ -40,8 +40,8 @@ const failures = [];
 // strings for its error messages), so the bodies of the inline <script> and
 // <style> elements are removed before the markup is scanned.
 const markup = html
-  .replace(/(<script\b[^>]*>)[\s\S]*?(<\/script\s*>)/gi, "$1$2")
-  .replace(/(<style\b[^>]*>)[\s\S]*?(<\/style\s*>)/gi, "$1$2");
+  .replace(/(<script\b[^>]*>)[\s\S]*?(<\/script\b[^>]*>)/gi, "$1$2")
+  .replace(/(<style\b[^>]*>)[\s\S]*?(<\/style\b[^>]*>)/gi, "$1$2");
 
 // 1. no remote script
 if (/<script\b[^>]*\bsrc\s*=/i.test(markup)) {
@@ -77,7 +77,7 @@ if (markup.includes("/assets/")) {
 }
 
 // 5. the inline stylesheet fetches nothing
-for (const style of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
+for (const style of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\b[^>]*>/gi)) {
   const css = style[1] ?? "";
   if (/@import/i.test(css)) failures.push("the stylesheet uses @import");
   // A quoted value is consumed whole, so a `url(#id)` nested inside a
@@ -122,7 +122,7 @@ if (cspMetas.length !== 1) {
   // policy that hides the fact.
   const executable = [];
   for (const element of html.matchAll(
-    /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi,
+    /<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi,
   )) {
     const attributes = element[1] ?? "";
     if (/\bsrc\s*=/i.test(attributes)) continue;

@@ -4,6 +4,7 @@ import { describe, expect, it } from "@jest/globals";
 import {
   EMBEDDED_RELAY_URLS,
   buildEmbeddedCsp,
+  executableInlineScripts,
   findEmbeddedCspViolations,
   findEmbeddedHtmlViolations,
   findReloadCalls,
@@ -391,5 +392,25 @@ describe("reload calls left in the document", () => {
 
   it("is quiet on a document with none", () => {
     expect(findReloadCalls("const reload = () => {}; reloadDocument();")).toEqual([]);
+  });
+});
+
+// Browsers end a script or style element at `</script` followed by any
+// whitespace, `/` or attribute junk up to `>`. A scan that only knew
+// `</script>` and `</script >` would read past `</script foo>` and treat the
+// next element as part of the inline body, hiding it from every check.
+describe("end tags with trailing junk", () => {
+  it("still sees a remote script after an inline one", () => {
+    const html =
+      "<script>boot()</script foo><script src=\"https://cdn.example/x.js\"></script>";
+    expect(findEmbeddedHtmlViolations(html)).toEqual(
+      expect.arrayContaining([expect.stringContaining("<script> with a src attribute")]),
+    );
+  });
+
+  it("splits inline scripts at end tags with whitespace or attributes", () => {
+    const html =
+      "<script>a()</script\t\n bar><script type=\"module\">b()</script ><script>c()</script>";
+    expect(executableInlineScripts(html)).toEqual(["a()", "b()", "c()"]);
   });
 });
