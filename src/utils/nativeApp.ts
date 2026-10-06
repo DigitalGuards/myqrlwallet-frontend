@@ -13,6 +13,7 @@ import {
   isQualifiedV3NativeContext,
   readNativeCapabilities,
 } from '@/config/runtimeProfile';
+import { HAS_NATIVE_BRIDGE } from '@/utils/embeddedRuntime';
 
 export type WebToNativeMessageType =
   | 'SCAN_QR'
@@ -40,11 +41,14 @@ export type WebToNativeMessageType =
   | 'DAPP_DISCONNECTED'     // Notify native that a dApp disconnected
   | 'DAPP_DISCONNECT_RESPONSE' // Correlated durable disconnect result
   | 'DAPP_HAPTIC'           // Trigger haptic for dApp approve/reject
-  | 'DAPP_RETURN';          // Hand the user back to the dApp after an answered
+  | 'DAPP_RETURN'           // Hand the user back to the dApp after an answered
                             // request. The app backgrounds its own task on
                             // Android, so the browser tab the user came from
                             // returns, and does nothing on iOS (app PR #61). A
                             // wallet-initiated disconnect never sends this.
+  // Android hardware back, answered by the page (see src/utils/nativeBack.ts)
+  | 'BACK_HANDLED'          // Closed an overlay, or navigated back a route
+  | 'BACK_AT_ROOT';         // Home with nothing open; the app may background
 
 /**
  * Message types that can be received from the native app
@@ -54,6 +58,7 @@ export type NativeToWebMessageType =
   | 'QR_CANCELLED'          // User closed QR scanner without scanning
   | 'BIOMETRIC_SUCCESS'
   | 'APP_STATE'
+  | 'APP_LOCKED'            // Native authorization was invalidated (a real lock)
   | 'CLIPBOARD_SUCCESS'
   | 'SHARE_SUCCESS'
   | 'ERROR'
@@ -73,7 +78,8 @@ export type NativeToWebMessageType =
   // Display preferences (native settings drives the Home card toggles)
   | 'SET_DISPLAY_PREFS'     // Native sets showTokensCard / showNftsCard in wallet settings
   | 'RESTORE_CONTACTS'      // Native sends the backed-up address book on boot
-  | 'NAVIGATE';             // Native asks the web app to navigate to an in-app route
+  | 'NAVIGATE'              // Native asks the web app to navigate to an in-app route
+  | 'NATIVE_BACK';          // Android hardware back, for the page to resolve
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
@@ -104,11 +110,38 @@ export const isNativeMessageForCurrentDocument = (
 };
 
 /**
- * Check if the web app is running inside the native MyQRLWallet app
+ * Check if the web app is running inside the native MyQRLWallet app.
+ *
+ * Only a bundle with the native bridge runs there (`HAS_NATIVE_BRIDGE`): the
+ * embedded build the app ships, or the dev server. The hosted production build
+ * answers false at compile time, so every native path folds away from
+ * qrlwallet.com, and an outdated app that still loads it gets the retired-app
+ * screen (`isRetiredNativeApp`).
  */
 export const isInNativeApp = (): boolean => {
+  if (!HAS_NATIVE_BRIDGE) return false;
   if (typeof navigator === 'undefined') return false;
   return navigator.userAgent.includes('MyQRLWallet');
+};
+
+/**
+ * True when the hosted production build is open inside an app version that loaded
+ * qrlwallet.com over the network. Those versions are retired: the hosted
+ * build carries no native bridge, so running the wallet there would keep a
+ * seed in plain web storage without the app's protection. The page shows an
+ * update screen instead and never starts the wallet.
+ *
+ * The desktop app removes "MyQRLWallet" from its user agent and exposes
+ * `window.qrlWallet`; both are checked so it can never match.
+ */
+export const isRetiredNativeApp = (): boolean => {
+  if (HAS_NATIVE_BRIDGE || typeof window === 'undefined') return false;
+  if (typeof window.ReactNativeWebView?.postMessage === 'function') return true;
+  return (
+    typeof navigator !== 'undefined' &&
+    navigator.userAgent.includes('MyQRLWallet') &&
+    !window.qrlWallet
+  );
 };
 
 /**
@@ -136,6 +169,14 @@ export const nativeAppPlatform = (): 'ios' | 'android' | null => {
   return null;
 };
 
+/**
+ * The native app declared Android, where the WebView keeps running in the
+ * background (its timers stay accurate and relay events are seen live). iOS
+ * suspends the page, and an app that declares nothing is treated like iOS.
+ */
+export const nativeDeclaresAndroid = (): boolean =>
+  declaredNativePlatform() === 'android';
+
 const declaredNativePlatform = (): 'ios' | 'android' | null => {
   const platform = readNativeCapabilities()?.['platform'];
   return platform === 'ios' || platform === 'android' ? platform : null;
@@ -158,6 +199,8 @@ export const sendToNative = (
   type: WebToNativeMessageType,
   payload?: Record<string, unknown>
 ): boolean => {
+  // The hosted build has no native peer; this folds the sender away there.
+  if (!HAS_NATIVE_BRIDGE) return false;
   if (IS_V3_PROFILE && !isQualifiedV3NativeContext()) return false;
   const webView = window.ReactNativeWebView;
 
@@ -185,17 +228,27 @@ export const requestQRScan = (): boolean => {
 /**
  * Copy text to clipboard via native app (bridge only)
  */
-export const copyToClipboardNative = (text: string): boolean => {
-  return sendToNative('COPY_TO_CLIPBOARD', { text });
+export const copyToClipboardNative = (text: string, sensitive = false): boolean => {
+  return sendToNative('COPY_TO_CLIPBOARD', { text, sensitive });
 };
 
 /**
  * Copy text to clipboard - uses native bridge when in app, browser API otherwise
  * This is the preferred function to use for clipboard operations
+ *
+ * Pass `sensitive` for a recovery phrase, a hex seed or anything else that
+ * would hand over the wallet. The app marks the clipboard entry sensitive, so
+ * Android keeps it out of the clipboard preview and clipboard history, and
+ * clears it after a minute. Addresses, amounts and transaction hashes are
+ * public and stay unflagged, so an address the user copied to paste somewhere
+ * else does not vanish underneath them.
  */
-export const copyToClipboard = async (text: string): Promise<boolean> => {
+export const copyToClipboard = async (
+  text: string,
+  sensitive = false,
+): Promise<boolean> => {
   if (isInNativeApp()) {
-    const sent = sendToNative('COPY_TO_CLIPBOARD', { text });
+    const sent = sendToNative('COPY_TO_CLIPBOARD', { text, sensitive });
     if (sent) return true;
     // Native bridge unavailable, fall through to browser API
   }
@@ -303,6 +356,7 @@ export const triggerHaptic = (style: 'success' | 'warning' | 'error' | 'light' |
 export const subscribeToNativeMessages = (
   callback: (message: NativeMessage) => void
 ): (() => void) => {
+  if (!HAS_NATIVE_BRIDGE) return () => undefined;
   if (IS_V3_PROFILE && !isQualifiedV3NativeContext()) return () => undefined;
   const handler = (event: Event) => {
     if (IS_V3_PROFILE && !isQualifiedV3NativeContext()) return;
@@ -331,13 +385,38 @@ export const subscribeToNativeMessages = (
 // In-memory store for PIN injected by native app after biometric unlock
 // This is intentionally NOT in localStorage for security - it's cleared on page refresh
 let nativeInjectedPin: string | null = null;
+const nativeInjectedPinListeners = new Set<() => void>();
+
+const notifyNativeInjectedPinListeners = (): void => {
+  for (const listener of nativeInjectedPinListeners) listener();
+};
+
+/**
+ * Subscribe to the injected PIN arriving or being cleared.
+ *
+ * The native app injects the PIN when Device Login finishes, which can happen
+ * while a screen that asks for the PIN is already open. A screen that reads
+ * the PIN only while rendering keeps showing its PIN field until some other
+ * change re-renders it, and then hides the field at the first keystroke.
+ * Screens subscribe so they update the moment the PIN arrives or goes away.
+ */
+export const subscribeNativeInjectedPin = (listener: () => void): (() => void) => {
+  nativeInjectedPinListeners.add(listener);
+  return () => {
+    nativeInjectedPinListeners.delete(listener);
+  };
+};
 
 /**
  * Store a PIN injected by the native app (after biometric unlock)
  * This PIN can be used for transaction signing without prompting the user
  */
 export const setNativeInjectedPin = (pin: string): void => {
-  nativeInjectedPin = pin;
+  // An empty PIN is no PIN: it would hide the PIN field and sign with nothing.
+  const next = pin || null;
+  if (nativeInjectedPin === next) return;
+  nativeInjectedPin = next;
+  notifyNativeInjectedPinListeners();
 };
 
 /**
@@ -353,15 +432,34 @@ export const getNativeInjectedPin = (): string | null => {
  * Called when wallet is cleared or user wants to re-authenticate
  */
 export const clearNativeInjectedPin = (): void => {
+  if (nativeInjectedPin === null) return;
   nativeInjectedPin = null;
+  notifyNativeInjectedPinListeners();
 };
 
 /**
- * Every native lifecycle transition invalidates the WebView's cached PIN.
- * A fresh PIN is injected only after the native app completes Device Login.
+ * Whether the native app declared that it sends APP_LOCKED on every lock. Only
+ * then can the page tell a real lock from the inactive/active pair around a
+ * Face ID prompt. An app that never declares it (older builds, or remote mode
+ * against an older bundle) gets the conservative rule below.
  */
-export const clearNativeInjectedPinForAppState = (): void => {
-  clearNativeInjectedPin();
+export const nativeSignalsAppLocked = (): boolean =>
+  readNativeCapabilities()?.['appLockedSignal'] === true;
+
+/**
+ * Clear the injected PIN for an APP_STATE transition. With APP_LOCKED support
+ * only 'background' is a lock (inactive/active also surround every Face ID
+ * prompt and system overlay, and a lock without 'background' arrives as
+ * APP_LOCKED). Without it every transition clears, so a PIN never survives a
+ * lock the page cannot see. Native injects a fresh PIN only after Device Login
+ * completes following a lock.
+ */
+export const clearNativeInjectedPinForAppState = (
+  state: 'active' | 'background' | 'inactive',
+): void => {
+  if (state === 'background' || !nativeSignalsAppLocked()) {
+    clearNativeInjectedPin();
+  }
 };
 
 /**
@@ -402,7 +500,7 @@ export async function hashEncryptedSeed(encryptedSeed: string): Promise<string> 
 }
 
 function ensureSeedBackupListener(): void {
-  if (seedBackupListenerInstalled || typeof window === 'undefined') return;
+  if (!HAS_NATIVE_BRIDGE || seedBackupListenerInstalled || typeof window === 'undefined') return;
 
   window.addEventListener('nativeMessage', (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
@@ -505,7 +603,7 @@ function randomRequestId(): string {
 }
 
 function ensureDeviceCredentialListener(): void {
-  if (deviceCredentialListenerInstalled || typeof window === 'undefined') return;
+  if (!HAS_NATIVE_BRIDGE || deviceCredentialListenerInstalled || typeof window === 'undefined') return;
 
   window.addEventListener('nativeMessage', (event: Event) => {
     if (!(event instanceof CustomEvent)) return;

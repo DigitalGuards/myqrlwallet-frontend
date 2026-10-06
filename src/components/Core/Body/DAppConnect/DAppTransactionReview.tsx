@@ -8,6 +8,12 @@ import { isDesktop } from "@/desktop/bridge";
 
 interface TransactionReviewProps {
   params: Record<string, unknown>;
+  /**
+   * The most this transaction can cost in network fees, quoted by the wallet
+   * before the user decides. Absent while the quote is in flight, or when the
+   * wallet refused it.
+   */
+  maxNetworkFee?: string | undefined;
 }
 
 function formatGasLimit(gas: unknown): string {
@@ -29,6 +35,7 @@ function formatGasLimit(gas: unknown): string {
 
 const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
   params,
+  maxNetworkFee,
 }) => {
   const from = (params["from"] as string) || "Unknown";
   const to = (params["to"] as string) || "Unknown";
@@ -79,6 +86,14 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
             Gas Limit{isDesktop ? " (minimum)" : ""}
           </span>
           <span className="font-numeric">{formatGasLimit(gas)}</span>
+        </div>
+      )}
+      {maxNetworkFee !== undefined && (
+        <div className="flex justify-between">
+          {/* The ceiling, so the user sees the worst case before approving.
+              Unused headroom in the base fee is refunded. */}
+          <span className="text-muted-foreground">Max network fee</span>
+          <span className="font-numeric">{maxNetworkFee}</span>
         </div>
       )}
       {params['chainId'] != null && (

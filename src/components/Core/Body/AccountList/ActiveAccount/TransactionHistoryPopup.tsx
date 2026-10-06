@@ -11,6 +11,7 @@ import { Button } from "../../../../UI/Button";
 import { CompactAddressText } from "../../../../UI/QrlAddress";
 import { getExplorerAddressUrl, getExplorerTxUrl } from "@/config";
 import { openExternalUrl } from "@/utils/nativeApp";
+import { useBackDismiss } from "@/utils/useBackDismiss";
 
 type TransactionHistoryType = {
   ID: string;
@@ -51,6 +52,8 @@ export const TransactionHistoryPopup = observer(
     isOpen,
     onClose,
   }: TransactionHistoryPopupProps) => {
+    // Android's back button closes this the same way its X button does.
+    useBackDismiss(isOpen, onClose);
     const [transactions, setTransactions] = useState<TransactionHistoryType[]>(
       [],
     );

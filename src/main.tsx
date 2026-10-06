@@ -1,3 +1,8 @@
+// First import in the application: zod reads this flag when a schema's parser
+// is built, so it has to be set before any schema is created. See the module
+// for why the JIT path was already unreachable under every deployment's CSP.
+import '@/utils/zodJitless'
+
 import { Buffer } from 'buffer';
 globalThis.Buffer = Buffer;
 
@@ -7,10 +12,26 @@ globalThis.Buffer = Buffer;
 import { captureQrlconnectFragment } from '@/services/dappConnect/fragmentCapture';
 captureQrlconnectFragment();
 
+// Must also run before the router mounts: in the app-shipped embedded build
+// this intercepts external links so they open in the device browser instead of
+// replacing the shipped wallet document. A no-op in every other build.
+import { installEmbeddedShell } from '@/utils/embeddedShell';
+installEmbeddedShell();
+
+// Must be evaluated before './App.tsx': importing App constructs the MobX
+// stores, and DAppConnectStore's constructor reads the persisted dApp sessions
+// and starts reconnecting. This import clears those sessions first when the
+// app signals an upgrade from the hosted wallet. A statement in this file's
+// body would run after every import had been evaluated, which is too late.
+import '@/utils/embeddedMigrationBoot'
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HelmetProvider } from 'react-helmet-async'
-import App from './App.tsx'
+import { isRetiredNativeApp } from '@/utils/nativeApp'
+import { HAS_NATIVE_BRIDGE } from '@/utils/embeddedRuntime'
+import RetiredAppNotice from '@/components/RetiredAppNotice'
+import WalletLoadFailed from '@/components/WalletLoadFailed'
 // Self-hosted variable fonts (CSP-safe, bundled by Vite): Sora = display,
 // Instrument Sans = body, Inter = numeric (balances/amounts/fees),
 // JetBrains Mono = data (addresses/hashes/seeds). Imported here, outside
@@ -26,10 +47,29 @@ if (!rootElement) {
   throw new Error('Root element #root is missing from index.html')
 }
 
-ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <HelmetProvider>
-      <App />
-    </HelmetProvider>
-  </React.StrictMode>,
-)
+const root = ReactDOM.createRoot(rootElement)
+
+// An outdated app still loading the hosted site gets an update screen. App is
+// imported only after that check, because importing it constructs the stores,
+// which read persisted sessions and start reconnecting.
+// The constant check lets bundles with the bridge drop the notice entirely.
+if (!HAS_NATIVE_BRIDGE && isRetiredNativeApp()) {
+  root.render(<RetiredAppNotice />)
+} else {
+  import('./App.tsx')
+    .then(({ default: App }) => {
+      root.render(
+        <React.StrictMode>
+          <HelmetProvider>
+            <App />
+          </HelmetProvider>
+        </React.StrictMode>,
+      )
+    })
+    .catch((error: unknown) => {
+      // A chunk that fails to load (for example a deploy replacing hashed
+      // files mid-visit) would otherwise leave a blank page.
+      console.error('[boot] could not load the wallet', error)
+      root.render(<WalletLoadFailed />)
+    })
+}

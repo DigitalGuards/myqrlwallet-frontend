@@ -8,6 +8,7 @@ import type { UseQrnsRecipientResult } from "@/hooks/useQrnsRecipient";
 import { normalizeQrlAddress } from "@/utils/web3/address";
 import type { NFTInterface } from "@/constants";
 import NftDetail from "../NftDetail";
+import { FEE_NOT_SHOWN } from "@/utils/web3/feePolicy";
 
 jest.mock("react-router", () => ({
   useNavigate: jest.fn(() => jest.fn()),
@@ -136,6 +137,10 @@ describe("NftDetail QRNS recipient flow", () => {
         RESOLVED_RECIPIENT,
         "",
         expectedAmount,
+        "medium",
+        // This screen shows no network fee yet, and says so rather than
+        // leaving the argument off.
+        FEE_NOT_SHOWN,
       );
     },
   );

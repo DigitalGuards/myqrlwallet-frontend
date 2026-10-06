@@ -8,6 +8,7 @@ import { useStore } from "@/stores/store";
 import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
 import type { UseQrnsRecipientResult } from "@/hooks/useQrnsRecipient";
 import Transfer from "../Transfer";
+import { FEE_NOT_SHOWN } from "@/utils/web3/feePolicy";
 
 jest.mock("react-router", () => ({
   useLocation: jest.fn(),
@@ -373,6 +374,10 @@ describe("Transfer QRNS recipient flow", () => {
           raw,
           "",
           RESOLVED_RECIPIENT,
+          "medium",
+          // The token send screen shows no network fee yet, and says so
+          // rather than leaving the argument off.
+          FEE_NOT_SHOWN,
         );
         expect(sendTransactionViaProvider).not.toHaveBeenCalled();
       }

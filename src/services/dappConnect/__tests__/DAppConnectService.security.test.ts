@@ -17,7 +17,7 @@ interface MockSocketHandlers {
   onMessage: (data: RelayMessage) => void;
   onConnected: () => void;
   onDisconnected: (reason: string) => void;
-  onReconnected: () => void;
+  onReconnected: (participants?: ('dapp' | 'wallet')[] | null) => void;
   /** The relay disconnected this socket and it will not come back. */
   onReconnectAbandoned?: () => void;
   onParticipantsChanged: (data: { event: string; clientType?: string }) => void;
@@ -28,9 +28,14 @@ interface MockJoinResult {
   bufferedMessages: unknown[];
   channelPublicKey: string | null;
   terminated: boolean;
+  participants?: ('dapp' | 'wallet')[] | null;
 }
 
 interface MockSocketInstance {
+  /** Whether the relay answers the liveness ping. */
+  probeAnswers: boolean;
+  probeCalls: number;
+  forceReconnectCalls: number;
   relayUrl: string;
   /** Mirrors SocketClient.willReconnect; false models a relay that gave up. */
   canReconnect: boolean;
@@ -133,6 +138,19 @@ jest.mock("../SocketClient", () => {
      * given up for good set this to false.
      */
     canReconnect = true;
+
+    probeAnswers = true;
+    probeCalls = 0;
+    forceReconnectCalls = 0;
+
+    async probe(): Promise<boolean> {
+      this.probeCalls++;
+      return this.connected && this.joined && this.probeAnswers;
+    }
+
+    forceReconnect(): void {
+      this.forceReconnectCalls++;
+    }
 
     willReconnect(): boolean {
       return (this.connected && this.joined) || this.canReconnect;
@@ -989,6 +1007,75 @@ describe("wallet service AEAD checkpointing", () => {
     expect(SessionStore.get(pairing.session.id)).toBeNull();
   });
 
+  it("tells the native app when a cold persisted session is disconnected", async () => {
+    // The banner's Disconnect on an offline or reconnecting pairing takes
+    // this path. Without the message the app's dApp list kept showing the
+    // pairing as connected.
+    const pairing = await makePairing("cold-native-notify");
+    SessionStore.save(pairing.session);
+    const service = new DAppConnectService();
+    services.push(service);
+    mockInNativeApp = true;
+
+    await expect(service.disconnectSession(pairing.session.id)).resolves.toBe(
+      true,
+    );
+
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_DISCONNECTED"),
+    ).toEqual([
+      {
+        type: "DAPP_DISCONNECTED",
+        payload: { channelId: pairing.session.id, explicit: true },
+      },
+    ]);
+  });
+
+  it("completes a user disconnect when the dApp closed the channel first", async () => {
+    // The user's Disconnect sends TERMINATE; the dApp answers with its own
+    // close_channel, and the relay then refuses ours. A fresh join reports
+    // the tombstone, so the session goes and the native app is told.
+    const pairing = await makePairing("dapp-closes-first");
+    const { service } = await reconnect(pairing.session);
+    mockInNativeApp = true;
+    mockCloseHook = async () => false;
+    mockJoinResult = { ...mockJoinResult, terminated: true };
+
+    await expect(service.disconnectSession(pairing.session.id, true)).resolves.toBe(
+      true,
+    );
+    await settle();
+
+    expect(SessionStore.get(pairing.session.id)).toBeNull();
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_DISCONNECTED"),
+    ).toEqual([
+      {
+        type: "DAPP_DISCONNECTED",
+        payload: { channelId: pairing.session.id, explicit: true },
+      },
+    ]);
+  });
+
+  it("tells the native app about offline pairings a logout clears", async () => {
+    const pairing = await makePairing("logout-offline");
+    SessionStore.save(pairing.session);
+    const service = new DAppConnectService();
+    services.push(service);
+    mockInNativeApp = true;
+
+    await service.clearAllSessions();
+
+    expect(
+      mockNativeMessages.filter((message) => message.type === "DAPP_DISCONNECTED"),
+    ).toEqual([
+      {
+        type: "DAPP_DISCONNECTED",
+        payload: { channelId: pairing.session.id, explicit: true },
+      },
+    ]);
+  });
+
   it("keeps a session retryable when a durable close is not acknowledged", async () => {
     const pairing = await makePairing("lost-close-ack");
     const { service } = await reconnect(pairing.session);
@@ -1006,11 +1093,16 @@ describe("wallet service AEAD checkpointing", () => {
       status: SessionStatus.CONNECTED,
     });
 
+    // The refused close was checked with one fresh socket before the session
+    // was kept: the channel was not tombstoned and that close failed too.
+    expect(mockSocketClientInstances).toHaveLength(2);
+    expect(mockSocketClientInstances[1]?.closeCalls).toBe(1);
+
     mockCloseHook = null;
     await expect(service.disconnectSession(pairing.session.id)).resolves.toBe(
       true,
     );
-    expect(mockSocketClientInstances).toHaveLength(2);
+    expect(mockSocketClientInstances).toHaveLength(3);
     expect(SessionStore.get(pairing.session.id)).toBeNull();
   });
 
@@ -2577,3 +2669,173 @@ describe("wallet service reconnect ownership", () => {
     expect(SessionStore.get(oldPairing.session.id)).toBeNull();
   });
 });
+
+describe("resume liveness and dApp-leave timers", () => {
+  const leaveTimers = (service: DAppConnectService): Map<string, unknown> =>
+    (Object(service) as { dappLeaveTimers: Map<string, unknown> })
+      .dappLeaveTimers;
+
+  const armLeaveTimer = (socket: MockSocketInstance): void => {
+    socket.handlers.onParticipantsChanged({
+      event: "leave",
+      clientType: "dapp",
+    });
+  };
+
+  const resumeLater = async (service: DAppConnectService): Promise<void> => {
+    // Step past the per-session check interval so the resume is not skipped.
+    jest.spyOn(Date, "now").mockReturnValue(Date.now() + 60_000);
+    await service.reconnectAll();
+  };
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  it("probes a session already in connections and keeps it when the relay answers", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    armLeaveTimer(socket);
+
+    await resumeLater(service);
+
+    expect(socket.probeCalls).toBe(1);
+    expect(socket.forceReconnectCalls).toBe(0);
+    expect(mockSocketClientInstances).toHaveLength(1);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
+  });
+
+  it("forces a fresh transport when the probe goes unanswered", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    socket.probeAnswers = false;
+    armLeaveTimer(socket);
+
+    await resumeLater(service);
+
+    expect(socket.forceReconnectCalls).toBe(1);
+    expect(mockSocketClientInstances).toHaveLength(1);
+    // The rejoin roster decides the timer, so the stale one is gone.
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(false);
+  });
+
+  it("re-arms the leave timer when the rejoin roster shows the dApp absent, and clears it when present", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    socket.handlers.onReconnected([]);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
+
+    socket.handlers.onReconnected(["dapp"]);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(false);
+
+    // A relay that sends no roster changes nothing.
+    armLeaveTimer(socket);
+    socket.handlers.onReconnected(null);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
+  });
+
+  it("does not probe again inside the check interval (no reconnect storm)", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    socket.probeAnswers = false;
+
+    await service.reconnectAll();
+    await service.reconnectAll();
+    await service.reconnectAll();
+
+    expect(socket.probeCalls).toBeLessThanOrEqual(1);
+    expect(socket.forceReconnectCalls).toBeLessThanOrEqual(1);
+  });
+
+  it("leaves a socket that is already retrying to its own backoff", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    socket.connected = false;
+    socket.canReconnect = true;
+
+    await resumeLater(service);
+
+    expect(socket.probeCalls).toBe(0);
+    expect(socket.forceReconnectCalls).toBe(0);
+    expect(mockSocketClientInstances).toHaveLength(1);
+  });
+
+  it("rebuilds a connection that can never come back and arms the timer from the join roster", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    const dead = firstSocket();
+    dead.connected = false;
+    dead.canReconnect = false;
+    mockJoinResult = { ...mockJoinResult, participants: [] };
+
+    await resumeLater(service);
+
+    expect(dead.disconnectCalls).toBeGreaterThanOrEqual(1);
+    expect(mockSocketClientInstances).toHaveLength(2);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
+  });
+
+  it("clears the leave timer on socket disconnect; a rejoin with the dApp present keeps the session", async () => {
+    const pairing = await makePairing();
+    const { service, observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    jest.useFakeTimers();
+
+    socket.handlers.onReconnected([]);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
+
+    socket.handlers.onDisconnected("transport close");
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(false);
+    await jest.advanceTimersByTimeAsync(90_000);
+
+    socket.handlers.onReconnected(["dapp"]);
+    await jest.advanceTimersByTimeAsync(90_000);
+
+    expect(SessionStore.get(pairing.session.id)).not.toBeNull();
+    expect(observed.disconnected).toEqual([]);
+    expect(socket.closeCalls).toBe(0);
+  });
+
+  it("re-arms at rejoin when the dApp is still absent, then reaps and closes the channel 90 s later", async () => {
+    const pairing = await makePairing();
+    const { service, observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    jest.useFakeTimers();
+
+    socket.handlers.onReconnected([]);
+    socket.handlers.onDisconnected("transport close");
+    await jest.advanceTimersByTimeAsync(90_000);
+    expect(observed.disconnected).toEqual([]);
+
+    socket.handlers.onReconnected([]);
+    expect(leaveTimers(service).has(pairing.session.id)).toBe(true);
+    await jest.advanceTimersByTimeAsync(90_000);
+    await jest.advanceTimersByTimeAsync(5_000);
+
+    // close_channel, not a bare leave: a returning dApp is told the channel is
+    // terminated and shows Disconnected.
+    expect(socket.closeCalls).toBe(1);
+    expect(observed.disconnected).toEqual([pairing.session.id]);
+    expect(SessionStore.get(pairing.session.id)).toBeNull();
+  });
+
+  it("clearAllDappLeaveTimeouts stops every countdown", async () => {
+    const pairing = await makePairing();
+    const { service } = await reconnect(pairing.session);
+    jest.useFakeTimers();
+    firstSocket().handlers.onReconnected([]);
+    expect(leaveTimers(service).size).toBe(1);
+
+    service.clearAllDappLeaveTimeouts();
+
+    expect(leaveTimers(service).size).toBe(0);
+  });
+});
+

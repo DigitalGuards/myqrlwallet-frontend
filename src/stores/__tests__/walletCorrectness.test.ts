@@ -5,6 +5,7 @@ import TokenStore from "../tokenStore";
 import { StorageUtil } from "@/utils/storage";
 import { fetchBalance } from "@/utils/web3";
 import { parseUnits } from "@/utils/web3/units";
+import { FEE_NOT_SHOWN } from "@/utils/web3/feePolicy";
 
 jest.mock("@/config", () => ({
   QRL_PROVIDER: { TEST_NET: { url: "https://old.invalid" }, MAIN_NET: { url: "https://new.invalid" } },
@@ -174,7 +175,7 @@ it.each([21000n, 45000n])("uses the estimated gas %s for an empty-calldata nativ
   const estimateGas = jest.fn(async () => gas);
   store.qrlInstance = { getTransactionCount: jest.fn(async () => 0n), getGasPrice: jest.fn(async () => 1n),
     estimateGas, accounts: { signTransaction: sign }, sendSignedTransaction: jest.fn(() => send) } as never;
-  await store.signAndSendTransaction(ACCOUNT, RECIPIENT, "1", "test mnemonic");
+  await store.signAndSendTransaction(ACCOUNT, RECIPIENT, "1", "test mnemonic", "medium", FEE_NOT_SHOWN);
   expect(estimateGas).toHaveBeenCalledWith(expect.objectContaining({ from: ACCOUNT, to: RECIPIENT, value: "1000000000000000000" }));
   expect(sign).toHaveBeenCalledWith(expect.objectContaining({ gas }), "test-seed");
 });
@@ -184,7 +185,7 @@ it("stops before signing when native transfer gas estimation fails", async () =>
   const sign = jest.fn();
   store.qrlInstance = { getTransactionCount: jest.fn(async () => 0n), getGasPrice: jest.fn(async () => 1n),
     estimateGas: jest.fn(async () => { throw new Error("receiver rejects value"); }), accounts: { signTransaction: sign } } as never;
-  await store.signAndSendTransaction(ACCOUNT, RECIPIENT, "1", "test mnemonic");
+  await store.signAndSendTransaction(ACCOUNT, RECIPIENT, "1", "test mnemonic", "medium", FEE_NOT_SHOWN);
   expect(sign).not.toHaveBeenCalled();
   expect(store.transactionStatus.state).toBe("failed");
 });

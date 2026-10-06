@@ -335,8 +335,6 @@ class DAppConnectStore {
     await dappConnectService.reconnectAll();
   }
 
-
-
   /** Number of active sessions */
   get sessionCount(): number {
     return this.activeSessions.length;

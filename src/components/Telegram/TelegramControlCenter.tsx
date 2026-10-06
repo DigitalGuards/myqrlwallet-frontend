@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import {
   Activity,
   Bell,
@@ -32,6 +33,7 @@ const serverUrl = import.meta.env.PROD
 
 export default function TelegramControlCenter() {
   const [health, setHealth] = useState<HealthState>("loading");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const webApp = getTelegramWebApp();
@@ -42,11 +44,18 @@ export default function TelegramControlCenter() {
       .catch(() => setHealth("degraded"));
   }, []);
 
+  // Inside Telegram the mini app has to hand the route to the Telegram client
+  // as an absolute URL. Everywhere else this is an in-app route, so the router
+  // handles it. Assigning window.location would leave the document under hash
+  // routing (desktop shell, app-shipped embedded build), and in the embedded
+  // build it would fetch the path from the live server.
   const openWallet = (path: string) => {
-    const url = new URL(path, window.location.origin).toString();
     const webApp = getTelegramWebApp();
-    if (webApp) webApp.openLink(url);
-    else window.location.assign(url);
+    if (webApp) {
+      webApp.openLink(new URL(path, window.location.origin).toString());
+      return;
+    }
+    navigate(path);
   };
 
   const statusLabel =

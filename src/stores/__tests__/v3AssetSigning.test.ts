@@ -7,6 +7,7 @@ import NftStore from "../nftStore";
 import type { NFTInterface, TokenInterface } from "@/constants";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import { deriveHexSeedAsync } from "@/utils/crypto";
+import { FEE_NOT_SHOWN } from "@/utils/web3/feePolicy";
 
 const ACCOUNT = `Q${"1".repeat(128)}`;
 const RECIPIENT = `Q${"2".repeat(128)}`;
@@ -116,13 +117,20 @@ function assetFixture(asset: "ERC20" | "ERC721" | "ERC1155") {
   const nfts = new NftStore(store, tokens);
   const send = () => {
     if (asset === "ERC20")
-      return tokens.sendToken(TOKEN, "1", "test mnemonic", RECIPIENT);
+      return tokens.sendToken(
+        TOKEN,
+        "1",
+        "test mnemonic",
+        RECIPIENT,
+        "medium",
+        FEE_NOT_SHOWN,
+      );
     const nft: NFTInterface = {
       contractAddress: CONTRACT,
       tokenId: "1",
       standard: asset,
     };
-    return nfts.transferNft(nft, RECIPIENT, "test mnemonic");
+    return nfts.transferNft(nft, RECIPIENT, "test mnemonic", 1n, "medium", FEE_NOT_SHOWN);
   };
   return { store, ready, send };
 }

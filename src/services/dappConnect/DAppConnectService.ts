@@ -25,7 +25,13 @@ import {
   toBase64,
   zeroize,
 } from "./PQCrypto";
-import { SocketClient, SocketNotConnectedError } from "./SocketClient";
+import {
+  SocketClient,
+  SocketNotConnectedError,
+  type RelayRoster,
+} from "./SocketClient";
+import { IS_EMBEDDED_BUILD } from "@/utils/embeddedRuntime";
+import { EMBEDDED_RELAY_URLS } from "@/config/embeddedBuild";
 import { RequestHandler } from "./RequestHandler";
 import { getRequestProvider, readWalletChainId } from "./rpcProvider";
 import {
@@ -78,6 +84,9 @@ export const DEFAULT_RELAY_URL = "https://qrlwallet.com";
 // back round trip and tore down recoverable sessions; 90s comfortably covers
 // it without leaving a genuinely-gone dApp "active" for long.
 const DAPP_REJOIN_GRACE_MS = 90000;
+// A foreground flap (Face ID prompt, notification shade) fires reconnectAll
+// repeatedly; a session checked this recently is not checked again.
+const RESUME_CHECK_MIN_INTERVAL_MS = 10000;
 // While an approval for the channel is still waiting on the user, the grace
 // period re-arms instead of reaping the session (approving can easily take
 // longer than 90s with FaceID + reading the request). Bounded so a session
@@ -329,7 +338,6 @@ class FrameParkedError extends Error {
  */
 export type SendOutcome = "sent" | "held" | "failed";
 
-
 interface ActiveConnection {
   socketClient: SocketClient;
   keyExchange: KeyExchange;
@@ -426,6 +434,7 @@ export class DAppConnectService {
   private connections = new Map<string, ActiveConnection>();
   private readonly ownership = new SessionOwnership();
   private dappLeaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private lastResumeCheckAt = new Map<string, number>();
   // Channels with an in-flight teardown, so concurrent disconnectSession()
   // calls for the same channel collapse to one run (the per-call guard alone
   // does not dedup across invocations). Value carries the effective `explicit`
@@ -641,6 +650,14 @@ export class DAppConnectService {
     // only cause DoS, not break confidentiality (AEAD + transcript-bound
     // session key stand independent of the relay we connect to).
     const relayUrl = parsed.relayUrl || DEFAULT_RELAY_URL;
+    // The app-shipped document's policy allows only the relays it was built
+    // with, so any other one fails as a bare socket error with nothing to tell
+    // the user. Say what happened instead.
+    if (IS_EMBEDDED_BUILD && !EMBEDDED_RELAY_URLS.some((allowed) => relayUrl.startsWith(allowed))) {
+      throw new Error(
+        "This wallet pairs only through the qrlwallet.com relay. Ask the dApp to use it, or pair from the web wallet.",
+      );
+    }
     const keyExchange = new KeyExchange(undefined, {
       onKeysExchanged: () => this.onKeysExchanged(channelId),
     });
@@ -654,6 +671,10 @@ export class DAppConnectService {
       },
       onDisconnected: (reason) => {
         dlog(`Socket disconnected: ${reason}`);
+        // A countdown only means something while this wallet can see the
+        // dApp. The rejoin roster re-arms it; one left running would fire on
+        // resume before that roster arrives and reap a live pairing.
+        this.clearDappLeaveTimeout(channelId);
         this.updateLiveSessionStatus(
           channelId,
           socketClient,
@@ -666,11 +687,12 @@ export class DAppConnectService {
       onRejoinAbandoned: () => {
         this.handleReconnectAbandoned(channelId);
       },
-      onReconnected: () => {
+      onReconnected: (participants) => {
         dlog(`Socket reconnected for channel ${channelId}`);
         const conn = this.connections.get(channelId);
         if (!conn || conn.socketClient !== socketClient || !conn.cryptoUsable)
           return;
+        this.applyJoinRoster(channelId, participants);
         if (conn.keyExchange.areKeysExchanged()) {
           this.updateLiveSessionStatus(
             channelId,
@@ -1532,6 +1554,17 @@ export class DAppConnectService {
     this.handlers?.onReturnHandedBack?.(channelId);
   }
 
+  /**
+   * Tell the native app a pairing is gone so its dApp connections screen
+   * stops listing it. Every path that removes a stored session has to call
+   * this; the native list has no other way to learn about it.
+   */
+  private notifyNativeDisconnected(channelId: string, explicit: boolean): void {
+    if (isInNativeApp()) {
+      sendToNative("DAPP_DISCONNECTED" as never, { channelId, explicit });
+    }
+  }
+
   async disconnectSession(channelId: string, explicit = true): Promise<boolean> {
     if (
       !this.ownership.owns(channelId) &&
@@ -1564,6 +1597,9 @@ export class DAppConnectService {
       this.ownership.release(channelId);
       this.handlers?.onSessionDisconnected(channelId);
       this.handlers?.onSessionsChanged();
+      // An offline pairing removed from the banner: without this the app's
+      // dApp list kept showing it as connected.
+      this.notifyNativeDisconnected(channelId, true);
       return true;
     }
     return this.teardownSession(channelId, explicit, true);
@@ -1741,6 +1777,17 @@ export class DAppConnectService {
             );
           }
         }
+        // The relay refuses close_channel for a channel that is already
+        // closed. A user disconnect sends TERMINATE first and the dApp often
+        // answers with its own close before ours arrives, or the channel was
+        // closed while this socket was away. Treating that refusal as a
+        // failure kept the session and never told the native app, so ask the
+        // relay directly: a fresh join reports an existing tombstone, and
+        // otherwise closes the channel itself.
+        if (teardown.requireTombstone && !tombstoneConfirmed) {
+          const stored = SessionStore.get(channelId);
+          if (stored) tombstoneConfirmed = await this.tombstoneStoredSession(stored);
+        }
         if (teardown.requireTombstone && !tombstoneConfirmed) {
           this.ownership.release(channelId);
           this.handlers?.onSessionsChanged();
@@ -1763,12 +1810,7 @@ export class DAppConnectService {
       this.handlers?.onSessionDisconnected(channelId);
       this.handlers?.onSessionsChanged();
 
-      if (isInNativeApp()) {
-        sendToNative("DAPP_DISCONNECTED" as never, {
-          channelId,
-          explicit: teardown.explicit,
-        });
-      }
+      this.notifyNativeDisconnected(channelId, teardown.explicit);
       return teardown.success;
     };
 
@@ -1827,9 +1869,6 @@ export class DAppConnectService {
     dlog(`reconnectAll called`);
     const operationEpoch = this.walletEpoch;
     if (!this.isEpochCurrent(operationEpoch)) return;
-    for (const channelId of this.dappLeaveTimers.keys()) {
-      this.clearDappLeaveTimeout(channelId);
-    }
     if (!(await this.ownership.acquire(STORE_MAINTENANCE_CHANNEL))) {
       dlog(
         "Skipping session migration/reconnect; another wallet tab owns QRL Connect",
@@ -1845,10 +1884,20 @@ export class DAppConnectService {
       // while getAll() remains a safe, side-effect-free UI read.
       SessionStore.prune(operationEpoch);
       const sessions = SessionStore.getAll();
+      const storedIds = new Set(sessions.map((session) => session.id));
+      for (const channelId of this.lastResumeCheckAt.keys()) {
+        if (!storedIds.has(channelId)) this.lastResumeCheckAt.delete(channelId);
+      }
       for (const session of sessions) {
         this.assertEpochCurrent(operationEpoch);
-        if (this.connections.has(session.id)) continue;
+        const live = this.connections.get(session.id);
+        if (live && (await this.resumeLiveConnection(live, operationEpoch))) {
+          continue;
+        }
 
+        // A rebuilt connection learns whether the dApp is present from the
+        // join roster below; a stale timer must not outlive the old socket.
+        this.clearDappLeaveTimeout(session.id);
         if (!(await this.ownership.acquire(session.id))) {
           dlog(
             `Skipping stored session ${session.id}; another wallet tab owns it`,
@@ -1874,6 +1923,7 @@ export class DAppConnectService {
             onConnected: () =>
               dlog(`Reconnected to relay for ${session.dappInfo.name}`),
             onDisconnected: () => {
+              this.clearDappLeaveTimeout(session.id);
               this.updateLiveSessionStatus(
                 session.id,
                 socketClient,
@@ -1886,7 +1936,8 @@ export class DAppConnectService {
             onRejoinAbandoned: () => {
               this.handleReconnectAbandoned(session.id);
             },
-            onReconnected: () => {
+            onReconnected: (participants) => {
+              this.applyJoinRoster(session.id, participants);
               if (keyExchange.areKeysExchanged()) {
                 this.updateLiveSessionStatus(
                   session.id,
@@ -1958,12 +2009,14 @@ export class DAppConnectService {
               this.ownership.release(session.id);
             }
             this.handlers?.onSessionDisconnected(session.id);
+            this.notifyNativeDisconnected(session.id, false);
             continue;
           }
 
           for (const msg of bufferedMessages) {
             this.enqueueRelayMessage(session.id, msg);
           }
+          this.applyJoinRoster(session.id, joinResult.participants);
 
           if (keyExchange.areKeysExchanged()) {
             SessionStore.updateStatus(
@@ -2013,6 +2066,79 @@ export class DAppConnectService {
     }
   }
 
+  /**
+   * Decide whether a session already in `connections` survives a resume.
+   * Returns true when the connection is kept (live, or being revived by the
+   * socket's own backoff) and false when it was dropped and must be rebuilt.
+   *
+   * A socket that looks connected after the app was frozen can be a dead
+   * transport, and the dApp may have left or rejoined meanwhile without this
+   * wallet seeing the event. Only an acknowledged probe proves the socket is
+   * live; anything else gets a fresh transport whose rejoin reports the roster.
+   */
+  private async resumeLiveConnection(
+    conn: ActiveConnection,
+    operationEpoch: WalletEpoch,
+  ): Promise<boolean> {
+    const channelId = conn.channelId;
+    const now = Date.now();
+    const lastCheck = this.lastResumeCheckAt.get(channelId);
+    if (
+      lastCheck !== undefined &&
+      now - lastCheck < RESUME_CHECK_MIN_INTERVAL_MS
+    ) {
+      return true;
+    }
+    this.lastResumeCheckAt.set(channelId, now);
+
+    const client = conn.socketClient;
+    if (client.isConnected() && client.isJoined()) {
+      if (await client.probe()) return true;
+      this.assertEpochCurrent(operationEpoch);
+      if (this.connections.get(channelId) !== conn) return true;
+      dlog(`Probe failed for ${channelId}; forcing a fresh transport`);
+      this.clearDappLeaveTimeout(channelId);
+      client.forceReconnect();
+      return true;
+    }
+    if (client.willReconnect() && !client.isConnected()) {
+      // socket.io is already retrying with its own backoff.
+      this.clearDappLeaveTimeout(channelId);
+      return true;
+    }
+    if (client.isConnected()) {
+      // Connected but outside the channel: rejoin on a fresh transport. The
+      // rejoin budget and abandon path bound the retries.
+      this.clearDappLeaveTimeout(channelId);
+      client.forceReconnect();
+      return true;
+    }
+    // Down with nothing scheduled: the connection can never come back.
+    dlog(`Connection for ${channelId} cannot recover; rebuilding`);
+    client.disconnect();
+    this.connections.delete(channelId);
+    return false;
+  }
+
+  /**
+   * Re-derive the dApp-leave timer from the relay's roster after a join. An
+   * absent dApp gets the normal grace (contract 4.5); a present one needs no
+   * timer. A relay that sent no roster leaves the timers as they are.
+   */
+  private applyJoinRoster(
+    channelId: string,
+    participants: RelayRoster | null | undefined,
+  ): void {
+    if (!participants) return;
+    if (participants.includes("dapp")) {
+      this.clearDappLeaveTimeout(channelId);
+      return;
+    }
+    if (!this.dappLeaveTimers.has(channelId)) {
+      this.scheduleDappLeaveTimeout(channelId);
+    }
+  }
+
   async disconnectAll(): Promise<void> {
     dlog(`disconnectAll called with ${this.connections.size} connections`);
     // Snapshot before awaiting — disconnectSession mutates the map.
@@ -2027,6 +2153,11 @@ export class DAppConnectService {
 
   /** End every pairing and invalidate live copies in every same-origin tab. */
   async clearAllSessions(advanceEpoch = true): Promise<void> {
+    // Pairings without a live connection are only removed by clearStale
+    // below; the native dApp list hears about them from here.
+    const offlineIds = SessionStore.getAll()
+      .map((session) => session.id)
+      .filter((id) => !this.connections.has(id));
     const clearEpoch = advanceEpoch ? advanceWalletEpoch() : this.walletEpoch;
     try {
       await this.disconnectAll();
@@ -2034,6 +2165,7 @@ export class DAppConnectService {
     } finally {
       SessionStore.clearStale(clearEpoch);
       this.handlers?.onSessionsChanged();
+      for (const id of offlineIds) this.notifyNativeDisconnected(id, true);
     }
   }
 
@@ -2236,11 +2368,26 @@ export class DAppConnectService {
         return;
       }
       dlog(`dApp absent for ${DAPP_REJOIN_GRACE_MS}ms; disconnecting`);
-      // Fire-and-forget: this is a setTimeout callback, nothing to await into.
-      void this.disconnectSession(channelId, false);
+      // Explicit, so teardown closes the relay channel: a dApp that returns
+      // after this reap is told the channel is terminated and shows
+      // Disconnected, never "unreachable, session kept". Fire-and-forget: this
+      // is a setTimeout callback, nothing to await into.
+      void this.disconnectSession(channelId, true);
     }, DAPP_REJOIN_GRACE_MS);
     this.dappLeaveTimers.set(channelId, timeout);
     dlog(`Scheduled stale-session timeout for channel ${channelId}`);
+  }
+
+  /**
+   * Stop every dApp-leave countdown. The app calls this when it goes to the
+   * background: the JS timers freeze with the app but their wall-clock
+   * deadlines keep running, so on resume they would fire before the rejoin
+   * roster can say whether the dApp is back.
+   */
+  clearAllDappLeaveTimeouts(): void {
+    for (const channelId of [...this.dappLeaveTimers.keys()]) {
+      this.clearDappLeaveTimeout(channelId);
+    }
   }
 
   private clearDappLeaveTimeout(channelId: string): void {

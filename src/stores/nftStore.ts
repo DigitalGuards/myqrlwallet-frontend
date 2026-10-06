@@ -49,6 +49,11 @@ import type QrlStore from "./qrlStore";
 import type TokenStore from "./tokenStore";
 import { quoteFees, type FeeLevel } from "./qrlStore";
 import { walletMutations } from "@/utils/nativeWalletMutation";
+import {
+  assertSignedFeeWithinApproved,
+  FEE_NOT_SHOWN,
+  type ApprovedFeeInput,
+} from "@/utils/web3/feePolicy";
 
 class NftStore {
   nftList: NFTInterface[] = [];
@@ -576,6 +581,12 @@ class NftStore {
     mnemonicPhrases: string,
     amount: bigint = 1n,
     feeLevel: FeeLevel = "medium",
+    /**
+     * What the user was shown: the quote and the gas limit behind the figure
+     * on screen. Signing holds to that total. The NFT detail screen shows no
+     * network fee yet, so it passes FEE_NOT_SHOWN and says so out loud.
+     */
+    approvedFee: ApprovedFeeInput,
   ): Promise<boolean> {
     this.qrlStore.resetTransactionStatus();
     const signingGeneration = walletMutations.captureGeneration();
@@ -694,10 +705,8 @@ class NftStore {
       web3.qrl.wallet?.add(seed);
       web3.qrl.transactionConfirmationBlocks = 1;
 
-      const { maxFeePerGas, maxPriorityFeePerGas } = await quoteFees(
-        web3.qrl,
-        feeLevel,
-      );
+      const signingQuote = await quoteFees(web3.qrl, feeLevel);
+      const { maxFeePerGas, maxPriorityFeePerGas } = signingQuote;
 
       let data: string;
       if (nft.standard === "ERC721") {
@@ -748,6 +757,16 @@ class NftStore {
       } catch (err) {
         log(`estimateGas failed for NFT transfer, using fallback: ${err}`);
         gas = 200_000n;
+      }
+
+      // Sign the fee the user saw, as a total: the price and the gas limit
+      // are the two halves of the figure on screen, and guarding one leaves
+      // the other free to move.
+      if (approvedFee !== FEE_NOT_SHOWN) {
+        assertSignedFeeWithinApproved(
+          { quote: signingQuote, gasLimit: gas },
+          approvedFee,
+        );
       }
 
       const finalTx = { ...txObj, gas };

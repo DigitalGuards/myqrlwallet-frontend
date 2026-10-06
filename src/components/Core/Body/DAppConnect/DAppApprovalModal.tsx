@@ -8,6 +8,11 @@ import { toJS } from "mobx";
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
 import { quoteFees, type FeeLevel } from "@/stores/qrlStore";
+import type { Web3QRLInterface } from "@theqrl/web3";
+import {
+  assertSignedFeeWithinApproved,
+  type ApprovedFee,
+} from "@/utils/web3/feePolicy";
 import { Dialog, DialogContent } from "@/components/UI/Dialog";
 import { Button } from "@/components/UI/Button";
 import DAppTransactionReview from "./DAppTransactionReview";
@@ -18,8 +23,18 @@ import {
   DeviceCredentialUnavailableError,
   decryptStoredSeedWithPin,
 } from "@/utils/crypto";
-import { getNativeInjectedPin, isIOSNativeApp } from "@/utils/nativeApp";
+import {
+  clearNativeInjectedPin,
+  getNativeInjectedPin,
+  isIOSNativeApp,
+} from "@/utils/nativeApp";
+import { useHasNativeInjectedPin } from "@/hooks/useHasNativeInjectedPin";
 import { shouldPromptReturnToBrowser } from "./returnToBrowserHint";
+import {
+  approvedFeeForRequest,
+  isFeeApprovalPending,
+  type FeePreviewState,
+} from "./approvalFeeGate";
 import StorageUtil from "@/utils/storage/storage";
 import { getExplorerTxUrl, QRL_PROVIDER } from "@/config";
 import { IS_V3_PROFILE } from '@/config/runtimeProfile';
@@ -94,6 +109,37 @@ const METHOD_LABELS: Record<string, string> = {
 const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
 // dApp requests carry no fee selector; sign at the send screen's default level.
 const DAPP_FEE_LEVEL: FeeLevel = "medium";
+
+/**
+ * The gas limit a dApp transaction will be signed with.
+ *
+ * Shared by the fee preview and the approve path so the figure shown and the
+ * figure signed come from the same rule.
+ */
+async function resolveDAppGasLimit(
+  web3: Web3QRLInterface,
+  txParams: Record<string, unknown>,
+): Promise<number> {
+  const explicitGas = requestedGasLimit(txParams);
+  if (explicitGas !== undefined) return Number(explicitGas);
+  const data = (txParams["data"] as string) || "0x";
+  if (data && data !== "0x") {
+    const estimated = await web3.estimateGas({
+      from: txParams["from"] as string,
+      to: txParams["to"] as string,
+      value: (txParams["value"] as string | undefined) ?? "0x0",
+      data,
+    });
+    return Math.ceil(Number(estimated) * GAS_ESTIMATE_BUFFER_MULTIPLIER);
+  }
+  return 21000;
+}
+
+/** "Up to N Quanta", the ceiling rather than the expected cost. */
+function formatMaxNetworkFee(gasLimit: number, maxFeePerGas: bigint): string {
+  return formatQuantaValue(BigInt(gasLimit) * maxFeePerGas);
+}
+
 
 function toUserFacingError(error: string): string {
   const msg = error.toLowerCase();
@@ -177,9 +223,31 @@ const DAppApprovalModalContent = observer(() => {
   const { dappConnectStore, qrlStore } = useStore();
   const { currentApproval, approvalModalOpen, txProgress, txHash, txError } =
     dappConnectStore;
+  /**
+   * The maximum network fee for the transaction under review, quoted before
+   * the user decides, with the state of that quote.
+   *
+   * A dApp approval used to show no fee at all, so the user approved a cost
+   * they could not see. A preview that is merely absent is not good enough
+   * either: while it loaded or after it failed, Approve stayed enabled and the
+   * signing guard accepted a missing approved quote, so a later RPC answer
+   * could be signed at a fee that was never on screen. The request key ties a
+   * ready preview to the request it was quoted for.
+   */
+  const [feePreview, setFeePreview] = useState<FeePreviewState | null>(null);
+  /** Bumped by the retry button to re-run a failed preview. */
+  const [feePreviewAttempt, setFeePreviewAttempt] = useState(0);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Device Login can finish while this dialog is open; the PIN field must
+  // follow the injected PIN as it arrives or is cleared.
+  const hasNativePin = useHasNativeInjectedPin();
+  // Digits typed before Device Login supplied the PIN must not reappear,
+  // still filled in, once the app locks and the field returns.
+  useEffect(() => {
+    setPin("");
+  }, [hasNativePin]);
   /**
    * Guards a second approve in the same tick. `loading` is React state and
    * does not update until the next render, so Enter pressed twice quickly
@@ -187,10 +255,19 @@ const DAppApprovalModalContent = observer(() => {
    */
   const approveInFlightRef = useRef(false);
 
+
   // When the current approval changes (a queued request gets promoted after
   // the previous one is answered), briefly ignore dismissals: a double-click
   // on the X must not reject a request the user never saw rendered.
   const approvalShownAtRef = useRef(0);
+  /**
+   * The fee this approval may sign, read at the moment of the tap.
+   *
+   * A ref, so the approve callback never holds a stale copy from the render
+   * where the quote had not arrived yet, and so the quote arriving does not
+   * have to rebuild the callback.
+   */
+  const approvedFeeRef = useRef<ApprovedFee | undefined>(undefined);
   const approvalKey = currentApproval
     ? `${currentApproval.sessionId}:${currentApproval.id}`
     : "";
@@ -510,6 +587,9 @@ const DAppApprovalModalContent = observer(() => {
           return;
         }
 
+        // A Device Login PIN that no longer decrypts (changed since it was
+        // injected) is dropped on "Incorrect PIN" so the PIN field returns.
+        const usedNativePin = Boolean(getNativeInjectedPin());
         const pinToUse = getNativeInjectedPin() || pin;
         // Guard empty PIN *before* entering the 'signing' progress state.
         // Once txProgress leaves 'idle' the modal switches to its terminal
@@ -535,6 +615,7 @@ const DAppApprovalModalContent = observer(() => {
           setError(unlocked.error);
           if (unlocked.error === "Incorrect PIN") {
             // Recoverable: reset to the editable state so the user can retry.
+            if (usedNativePin) clearNativeInjectedPin();
             setPin("");
             if (isStillCurrent()) dappConnectStore.resetTxProgress();
           } else {
@@ -594,6 +675,18 @@ const DAppApprovalModalContent = observer(() => {
         } else {
           gas = 21000;
         }
+
+        // Sign no more than the figure the approval screen showed, as a total.
+        // quoteFees already refuses a quote outside the wallet's safety
+        // limits; this refuses a price that grew between the preview and the
+        // tap, a gas limit that grew after a re-estimate, and an approval with
+        // no displayed fee behind it at all. The displayed maximum is
+        // gas x maxFeePerGas, so guarding only the price let a tenfold gas
+        // increase through at an unchanged price.
+        assertSignedFeeWithinApproved(
+          { quote: fees, gasLimit: BigInt(gas) },
+          approvedFeeRef.current,
+        );
 
         const txObject = buildReviewedDAppTransaction(txParams, {
           gas,
@@ -777,6 +870,7 @@ const DAppApprovalModalContent = observer(() => {
           setLoading(false);
           return;
         }
+        const usedNativePin = Boolean(getNativeInjectedPin());
         const pinToUse = getNativeInjectedPin() || pin;
         const signingGeneration = walletMutations.captureGeneration();
         const unlocked = await unlockHexSeed(
@@ -785,7 +879,10 @@ const DAppApprovalModalContent = observer(() => {
           signingGeneration,
         );
         if ("error" in unlocked) {
-          if (unlocked.error === "Incorrect PIN") setPin("");
+          if (unlocked.error === "Incorrect PIN") {
+            if (usedNativePin) clearNativeInjectedPin();
+            setPin("");
+          }
           setError(unlocked.error);
           setLoading(false);
           return;
@@ -893,6 +990,7 @@ const DAppApprovalModalContent = observer(() => {
           setLoading(false);
           return;
         }
+        const usedNativePin = Boolean(getNativeInjectedPin());
         const pinToUse = getNativeInjectedPin() || pin;
         const signingGeneration = walletMutations.captureGeneration();
         const unlocked = await unlockHexSeed(
@@ -901,7 +999,10 @@ const DAppApprovalModalContent = observer(() => {
           signingGeneration,
         );
         if ("error" in unlocked) {
-          if (unlocked.error === "Incorrect PIN") setPin("");
+          if (unlocked.error === "Incorrect PIN") {
+            if (usedNativePin) clearNativeInjectedPin();
+            setPin("");
+          }
           setError(unlocked.error);
           setLoading(false);
           return;
@@ -1063,7 +1164,6 @@ const DAppApprovalModalContent = observer(() => {
     method !== "qrl_requestAccounts" &&
     method !== "wallet_addQrlChain" &&
     method !== "wallet_switchQrlChain";
-  const hasNativePin = !!getNativeInjectedPin();
   const isTransaction =
     method === "qrl_sendTransaction" || method === "qrl_signTransaction";
 
@@ -1082,6 +1182,70 @@ const DAppApprovalModalContent = observer(() => {
     ? (params?.[0] as Record<string, unknown> | undefined)
     : undefined;
   const txDisplayValue = formatQuantaValue(txParams?.["value"]);
+
+  // Quote the fee for the transaction under review, so the approval screen can
+  // show what it may cost before the user decides. The same quote is handed to
+  // the approve path, which refuses to sign a more expensive one.
+  const reviewedTxParams = txParams ?? null;
+  // The params object identity changes on every render, so the effect keys on
+  // its content instead.
+  const reviewedTxKey = JSON.stringify(reviewedTxParams);
+  const feePreviewKey = `${approvalKey}|${reviewedTxKey}`;
+  useEffect(() => {
+    if (reviewedTxParams === null) {
+      setFeePreview(null);
+      return;
+    }
+    let cancelled = false;
+    setFeePreview({ status: "loading", requestKey: feePreviewKey });
+    void (async () => {
+      try {
+        const web3 = qrlStore.qrlInstance;
+        if (!web3) throw new Error("Wallet not connected");
+        const quote = await quoteFees(web3, DAPP_FEE_LEVEL);
+        const gasLimit = await resolveDAppGasLimit(web3, reviewedTxParams);
+        if (cancelled) return;
+        setFeePreview({
+          status: "ready",
+          requestKey: feePreviewKey,
+          quote,
+          gasLimit: BigInt(gasLimit),
+          display: formatMaxNetworkFee(gasLimit, quote.maxFeePerGas),
+        });
+      } catch {
+        // A quote the wallet refuses, or a node that will not answer. Approve
+        // stays disabled: signing here would mean signing a fee that was never
+        // shown. The user can retry the quote.
+        if (!cancelled) {
+          setFeePreview({ status: "failed", requestKey: feePreviewKey });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // reviewedTxParams is covered by reviewedTxKey, inside feePreviewKey.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feePreviewKey, qrlStore.qrlInstance, feePreviewAttempt]);
+
+  /**
+   * The fee this approval is allowed to sign, or undefined.
+   *
+   * Only a successful quote for THIS request counts. The signing guard fails
+   * closed on undefined, so a stale or failed preview cannot be signed against.
+   */
+  const approvedFee = useMemo<ApprovedFee | undefined>(
+    () => approvedFeeForRequest(feePreview, feePreviewKey),
+    [feePreview, feePreviewKey],
+  );
+  const feeApprovalPending = isFeeApprovalPending({
+    isDesktop,
+    isTransaction,
+    approvedFee,
+  });
+  useEffect(() => {
+    approvedFeeRef.current = approvedFee;
+  }, [approvedFee]);
 
   return (
     <Dialog
@@ -1250,7 +1414,35 @@ const DAppApprovalModalContent = observer(() => {
               {isTransaction && params?.[0] != null && (
                 <DAppTransactionReview
                   params={params[0] as Record<string, unknown>}
+                  maxNetworkFee={
+                    feePreview?.status === "ready"
+                      ? feePreview.display
+                      : undefined
+                  }
                 />
+              )}
+
+              {isTransaction && feePreview?.status === "loading" && (
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader className="h-4 w-4 animate-spin" />
+                  Checking the network fee...
+                </p>
+              )}
+
+              {isTransaction && feePreview?.status === "failed" && (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm text-destructive">
+                    The network fee could not be checked, so this cannot be
+                    approved yet.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFeePreviewAttempt((count) => count + 1)}
+                  >
+                    Retry
+                  </Button>
+                </div>
               )}
 
               {signingPreview?.kind === "message" && (
@@ -1332,7 +1524,18 @@ const DAppApprovalModalContent = observer(() => {
               >
                 Reject
               </Button>
-              <Button onClick={handleApprove} disabled={loading}>
+              <Button
+                onClick={handleApprove}
+                disabled={loading || feeApprovalPending}
+                // A transaction cannot be approved before its fee is on
+                // screen: approving while the quote is loading or failed is
+                // approving a cost the user was never shown.
+                title={
+                  feeApprovalPending
+                    ? "Waiting for the network fee"
+                    : undefined
+                }
+              >
                 {loading ? "Processing..." : "Approve"}
               </Button>
             </div>
