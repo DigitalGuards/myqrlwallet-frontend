@@ -50,6 +50,9 @@ const mockRpc = {
   getGasPrice: async () => 100n,
   estimateGas: jest.fn(async () => 21000n),
   getTransactionReceipt: jest.fn<Promise<unknown>, [string]>(),
+  transactionPollingTimeout: 750000,
+  transactionPollingInterval: 1000,
+  transactionConfirmationBlocks: 24,
   accounts: {
     signTransaction: jest.fn(async () => ({ rawTransaction: "0x01" })),
     seedToAccount: jest.fn(() => ({ address: FROM })),
@@ -193,14 +196,14 @@ beforeEach(() => {
   mockEvents = new Events();
   mockRpc.getTransactionReceipt.mockReset().mockResolvedValue(null);
   mockRpc.estimateGas.mockReset().mockResolvedValue(21000n);
+  mockRpc.transactionPollingTimeout = 750000;
+  mockRpc.transactionPollingInterval = 1000;
+  mockRpc.transactionConfirmationBlocks = 24;
   jest
     .spyOn(QrlStore.prototype, "initializeBlockchain")
     .mockResolvedValue(undefined);
   jest
     .spyOn(QrlStore.prototype, "assertLocalSeedAccount")
-    .mockResolvedValue(undefined);
-  jest
-    .spyOn(QrlStore.prototype, "fetchPendingTxDetails")
     .mockResolvedValue(undefined);
   jest.spyOn(QrlStore.prototype, "fetchAccounts").mockResolvedValue(undefined);
   jest
@@ -283,6 +286,7 @@ describe.each([false, true])("send lifecycle (token=%s)", (token) => {
         expect(transactionHistoryStore.getSnapshot().entries[0]?.state).toBe(
           "confirmed",
         );
+        expect(transactionHistoryStore.getSnapshot().entries).toHaveLength(1);
         expect(states).toEqual(
           signer === "seed"
             ? ["preparing", "pending", "confirmed"]
@@ -374,6 +378,7 @@ describe.each([false, true])("send lifecycle (token=%s)", (token) => {
       it.each([
         [{ code: 4001, message: "User rejected request" }, /declined/],
         [new Error("user rejected signature"), /declined/],
+        [new Error("Request rejected"), /declined/],
         [new Error("Approval request cancelled"), /cancelled/],
         [
           new Error("Request timeout: qrl_sendTransaction (300000ms)"),
@@ -413,6 +418,180 @@ describe.each([false, true])("send lifecycle (token=%s)", (token) => {
     },
   );
 });
+
+describe.each<SendSigner>(["extension", "mobile", "desktop"])(
+  "%s token balances",
+  (signer) => {
+    it("refreshes after broadcast and once after inclusion", async () => {
+      const { store, broadcast } = fixture(signer, true);
+      expect(TokenStore.prototype.refreshTokenBalances).not.toHaveBeenCalled();
+      await broadcast();
+      expect(TokenStore.prototype.refreshTokenBalances).toHaveBeenCalledTimes(
+        1,
+      );
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(TokenStore.prototype.refreshTokenBalances).toHaveBeenCalledTimes(
+        1,
+      );
+      mockRpc.getTransactionReceipt.mockResolvedValue(RECEIPT);
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(store.transactionStatus.state).toBe("confirmed");
+      expect(TokenStore.prototype.refreshTokenBalances).toHaveBeenCalledTimes(
+        2,
+      );
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(TokenStore.prototype.refreshTokenBalances).toHaveBeenCalledTimes(
+        2,
+      );
+    });
+
+    it.each([
+      new Error("Request rejected"),
+      new Error("RPC unavailable"),
+      "bad hash",
+    ])("skips refresh for an unsuccessful send: %p", async (result) => {
+      const { send, requested, approval } = fixture(signer, true);
+      const sending = send();
+      await requested.promise;
+      if (result instanceof Error) approval.reject(result);
+      else
+        approval.resolve(
+          signer === "desktop" ? { transactionHash: result } : result,
+        );
+      await sending;
+      expect(TokenStore.prototype.refreshTokenBalances).not.toHaveBeenCalled();
+    });
+
+    it("discards an in-flight receipt and its refresh after reset", async () => {
+      const { store, broadcast } = fixture(signer, true);
+      await broadcast();
+      const receipt = deferred<unknown>();
+      mockRpc.getTransactionReceipt.mockReturnValue(receipt.promise);
+      await jest.advanceTimersByTimeAsync(5000);
+      store.resetTransactionStatus();
+      receipt.resolve(RECEIPT);
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(store.transactionStatus.state).toBe("idle");
+      expect(TokenStore.prototype.refreshTokenBalances).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockRpc.getTransactionReceipt).toHaveBeenCalledTimes(1);
+      expect(transactionHistoryStore.getSnapshot().entries[0]?.state).toBe(
+        "pending",
+      );
+    });
+  },
+);
+
+it.each([false, true])(
+  "configures seed receipt timing before sending (token=%s)",
+  async (token) => {
+    const { send } = fixture("seed", token);
+    const broadcast = token
+      ? mockRpc.sendTransaction
+      : mockRpc.sendSignedTransaction;
+    broadcast.mockImplementationOnce(() => {
+      expect(mockRpc.transactionPollingTimeout).toBe(300000);
+      expect(mockRpc.transactionPollingInterval).toBe(5000);
+      expect(mockRpc.transactionConfirmationBlocks).toBe(1);
+      return mockEvents;
+    });
+    await send();
+    expect(broadcast).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each([false, true])(
+  "retains one History entry after repeated seed receipt delivery (token=%s)",
+  async (token) => {
+    const { store, broadcast } = fixture("seed", token);
+    await broadcast();
+    mockEvents.emit("receipt", RECEIPT);
+    mockEvents.emit("resolved", RECEIPT);
+    mockEvents.emit("receipt", RECEIPT);
+    expect(store.transactionStatus.state).toBe("confirmed");
+    expect(transactionHistoryStore.getSnapshot().entries).toHaveLength(1);
+    expect(transactionHistoryStore.getSnapshot().entries[0]?.state).toBe(
+      "confirmed",
+    );
+    expect(TokenStore.prototype.refreshTokenBalances).toHaveBeenCalledTimes(
+      token ? 1 : 0,
+    );
+  },
+);
+
+it.each([false, true])(
+  "records a late seed receipt in History after returning to the form (token=%s)",
+  async (token) => {
+    const { store, broadcast } = fixture("seed", token);
+    await broadcast();
+    store.resetTransactionStatus();
+    mockEvents.emit("receipt", RECEIPT);
+    mockEvents.emit("resolved", RECEIPT);
+    expect(store.transactionStatus.state).toBe("idle");
+    expect(transactionHistoryStore.getSnapshot().entries).toHaveLength(1);
+    expect(transactionHistoryStore.getSnapshot().entries[0]?.state).toBe(
+      "confirmed",
+    );
+  },
+);
+
+it.each<SendSigner>(["extension", "mobile", "desktop"])(
+  "keeps a late %s approval in History after reset",
+  async (signer) => {
+    const { store, send, requested, approval } = fixture(signer, false);
+    const sending = send();
+    await requested.promise;
+    store.resetTransactionStatus();
+    approval.resolve(signer === "desktop" ? { transactionHash: HASH } : HASH);
+    await sending;
+    await jest.advanceTimersByTimeAsync(5000);
+    expect(store.transactionStatus.state).toBe("idle");
+    expect(mockRpc.getTransactionReceipt).not.toHaveBeenCalled();
+    expect(transactionHistoryStore.getSnapshot().entries).toHaveLength(1);
+    expect(transactionHistoryStore.getSnapshot().entries[0]?.hash).toBe(HASH);
+  },
+);
+
+it.each([
+  new Error("RPC request rejected"),
+  new Error("Request rejected: insufficient funds"),
+  { code: -32000, message: "Request rejected" },
+  { message: { text: "Request rejected" } },
+  new Error("Unknown failure"),
+])("keeps a technical phone error Failed: %p", async (error) => {
+  const { store, send, requested, approval } = fixture("mobile", true);
+  const sending = send();
+  await requested.promise;
+  approval.reject(error);
+  await sending;
+  expect(store.transactionStatus.state).toBe("failed");
+  expect(transactionHistoryStore.getSnapshot().entries).toHaveLength(0);
+});
+
+it.each<SendSigner>(["seed", "extension", "mobile", "desktop"])(
+  "observes %s broadcasts without fetching pending explorer details",
+  async (signer) => {
+    const fetch = jest.fn<
+      Promise<Response>,
+      [RequestInfo | URL, RequestInit?]
+    >();
+    const previous = Object.getOwnPropertyDescriptor(globalThis, "fetch");
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetch,
+    });
+    try {
+      const { broadcast } = fixture(signer, false);
+      await broadcast();
+      await jest.advanceTimersByTimeAsync(15000);
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      if (previous) Object.defineProperty(globalThis, "fetch", previous);
+      else Reflect.deleteProperty(globalThis, "fetch");
+    }
+  },
+);
 
 it("captures a reverted receipt carried by a PromiEvent error and its reason", async () => {
   const { store, broadcast } = fixture("seed", true);

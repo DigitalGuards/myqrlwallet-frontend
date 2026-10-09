@@ -9,7 +9,7 @@ import { FEE_NOT_SHOWN } from "@/utils/web3/feePolicy";
 
 jest.mock("@/config", () => ({
   QRL_PROVIDER: { TEST_NET: { url: "https://old.invalid" }, MAIN_NET: { url: "https://new.invalid" } },
-  EXPLORER_BASE: "https://explorer.invalid", getPendingTxApiUrl: jest.fn(),
+  EXPLORER_BASE: "https://explorer.invalid",
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({ deriveHexSeedAsync: jest.fn(async () => "test-seed") }));
@@ -58,7 +58,6 @@ beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
   jest.spyOn(QrlStore.prototype, "initializeBlockchain").mockResolvedValue(undefined);
-  jest.spyOn(QrlStore.prototype, "fetchPendingTxDetails").mockResolvedValue(undefined);
   jest.mocked(StorageUtil.getAccountList).mockResolvedValue([{ address: ACCOUNT, source: "seed" }]);
   jest.mocked(StorageUtil.getBalanceCache).mockResolvedValue({});
 });
@@ -68,7 +67,7 @@ it.each([0n, 0, false, "0x0"])("marks a receipt with status %s as execution fail
   const store = makeStore();
   store.qrlInstance = { getTransactionReceipt: jest.fn(async () => ({ ...INCLUSION, transactionHash: HASH, status })),
     getBalance: jest.fn(async () => 1n) } as never;
-  store.transactionStatus = { state: "pending", txHash: HASH, receipt: null, error: null, pendingDetails: null };
+  store.transactionStatus = { state: "pending", txHash: HASH, receipt: null, error: null };
   await store.pollForReceipt(HASH);
   await jest.advanceTimersByTimeAsync(5000);
   expect(store.transactionStatus.state).toBe("failed");
@@ -81,7 +80,7 @@ it("retains pending state through observation failure and confirms a later recei
     .mockResolvedValueOnce({ ...INCLUSION, transactionHash: HASH, status: 1n });
   const store = makeStore();
   store.qrlInstance = { getTransactionReceipt: getReceipt, getBalance: jest.fn(async () => 1n) } as never;
-  store.transactionStatus = { state: "pending", txHash: HASH, receipt: null, error: null, pendingDetails: null };
+  store.transactionStatus = { state: "pending", txHash: HASH, receipt: null, error: null };
   await store.pollForReceipt(HASH);
   await jest.advanceTimersByTimeAsync(5000);
   expect(store.transactionStatus.state).toBe("pending");
@@ -96,7 +95,7 @@ it.each([
 ])("waits for evidence when a receipt is incomplete or mismatched: %p", async (receipt) => {
   const store = makeStore();
   store.qrlInstance = { getTransactionReceipt: jest.fn(async () => receipt) } as never;
-  store.transactionStatus = { state: "pending", txHash: HASH, receipt: null, error: null, pendingDetails: null };
+  store.transactionStatus = { state: "pending", txHash: HASH, receipt: null, error: null };
   await store.pollForReceipt(HASH);
   await jest.advanceTimersByTimeAsync(5000);
   expect(store.transactionStatus.state).toBe("pending");

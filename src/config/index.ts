@@ -8,7 +8,6 @@ export {
   SERVER_URL,
   getExplorerAddressUrl,
   getExplorerTxUrl,
-  getPendingTxApiUrl,
   getTokenDiscoveryApiUrl,
   getNFTDiscoveryApiUrl,
 } from './networks';

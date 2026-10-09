@@ -98,13 +98,6 @@ export const getExplorerTxUrl = (txHash: string, blockchain: string) => {
   return `${provider.explorer}/tx/${txHash}`;
 };
 
-// New function to get the API endpoint for pending transactions
-export const getPendingTxApiUrl = (blockchain: string) => {
-  const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
-  // Append the known API path to the explorer base URL
-  return `${provider.explorer}/api/pending-transactions`;
-};
-
 // Get API endpoint for token discovery by address. Phase 3b on zondscan
 // added a `?standard=` filter; we scope to ERC-20 so this endpoint only
 // returns fungibles. Without the filter the response also includes one

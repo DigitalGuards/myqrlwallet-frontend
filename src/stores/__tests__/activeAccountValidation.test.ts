@@ -4,7 +4,6 @@ jest.mock("@/config", () => ({
     TEST_NET: { id: "TEST_NET", name: "Testnet", url: "https://legacy.invalid" },
   },
   EXPLORER_BASE: "https://explorer.invalid",
-  getPendingTxApiUrl: jest.fn(),
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({ deriveHexSeedAsync: jest.fn() }));

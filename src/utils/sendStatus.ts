@@ -1,5 +1,6 @@
 import type { TransactionReceipt } from "@theqrl/web3";
 import { isRecord } from "@/utils/guards";
+import { isUserRejection } from "@/utils/signerRejection";
 import { historyHash, unsignedQuantity } from "@/utils/transactionHistory";
 import { receiptExecutionStatus } from "@/utils/web3/txPolling";
 
@@ -96,10 +97,7 @@ export function approvalRejection(error: unknown): string | null {
   ) {
     return "The approval request was cancelled.";
   }
-  if (
-    (isRecord(error) && error["code"] === 4001) ||
-    /\b(?:user rejected|rejected by (?:the )?user|user denied)\b/i.test(message)
-  ) {
+  if (isUserRejection(error)) {
     return "The transaction was declined or the approval request was closed in your signer.";
   }
   return null;

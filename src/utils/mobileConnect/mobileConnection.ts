@@ -2,6 +2,7 @@ import type { QRLConnect } from "@qrlwallet/connect";
 import type { ExtensionProvider } from "@/stores/qrlStore";
 import type { AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
+import { isUserRejection } from "@/utils/signerRejection";
 import { isValidQrlAddress } from "@/utils/web3/address";
 import { IS_V3_PROFILE } from '@/config/runtimeProfile';
 import { qualifyV3MobileProvider, V3_MOBILE_UNRESPONSIVE_MESSAGE } from '@/utils/extension/v3Provider';
@@ -116,21 +117,6 @@ async function publishProvider(
   return true;
 }
 
-function isExplicitAccountRejection(error: unknown): boolean {
-  if (error && typeof error === "object") {
-    const record = error as Record<string, unknown>;
-    if (record["code"] === 4001) return true;
-    const message = record["message"];
-    if (
-      typeof message === "string" &&
-      /(?:user rejected|rejected by (?:the )?user|request rejected)/i.test(message)
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function requestMobileAccountOnce(qrl: QRLConnect, store: MobileConnectStore): void {
   if (!pairingActive || accountRequestAttempted || accountRequestInFlight) return;
   accountRequestAttempted = true;
@@ -156,7 +142,7 @@ function requestMobileAccountOnce(qrl: QRLConnect, store: MobileConnectStore): v
       // An explicit 4001 stays terminal for this consent attempt. A 4100 from
       // origin metadata ordering, or a transient relay/transport failure,
       // must be retryable on the next connect opportunity.
-      if (isExplicitAccountRejection(error)) {
+      if (isUserRejection(error)) {
         log("Mobile connect: account request rejected");
       } else {
         accountRequestAttempted = false;

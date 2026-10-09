@@ -141,13 +141,17 @@ describe("mobile pairing account consent", () => {
     );
   });
 
-  it("does not loop an account prompt after rejection", async () => {
+  it.each([
+    new Error("User rejected"),
+    new Error("Request rejected"),
+    Object.assign(new Error("Declined"), { code: 4001 }),
+  ])("does not loop an account prompt after explicit rejection: %p", async (error) => {
     const store = makeStore();
     const module = await import("../mobileConnection");
     await module.startMobilePairing(store);
     const qrl = mockInstances[0];
     if (!qrl) throw new Error("Expected QRLConnect instance");
-    mockRequestError = new Error("User rejected");
+    mockRequestError = error;
 
     qrl.emit("connect");
     await flush();
@@ -161,6 +165,8 @@ describe("mobile pairing account consent", () => {
   it.each([
     ["authorization ordering", Object.assign(new Error("Unauthorized"), { code: 4100 })],
     ["transport failure", new Error("transport disconnected")],
+    ["RPC rejection", new Error("Request rejected: insufficient funds")],
+    ["coded technical rejection", Object.assign(new Error("Request rejected"), { code: -32000 })],
   ])("retries a %s failure on the next connect without duplicate in-flight requests", async (_label, firstError) => {
     const store = makeStore();
     const module = await import("../mobileConnection");

@@ -141,7 +141,7 @@ function nativeQuoteStore(estimateFee: jest.Mock) {
       sendTransactionViaProvider: jest.fn(),
       activeAccountSource: "extension",
       qrlConnection: { blockchain: "TEST_NET" },
-      transactionStatus: { state: "idle", txHash: null, receipt: null, error: null, pendingDetails: null },
+      transactionStatus: { state: "idle", txHash: null, receipt: null, error: null },
       resetTransactionStatus: jest.fn(),
       estimateNativeTransferFee: estimateFee,
     },
@@ -233,7 +233,7 @@ describe("native Max fee composition", () => {
       store.activeAccount.accountAddress = ACCOUNT;
       store._utils = { bytesToHex: (value: string) => value } as never;
       Object.assign(store, { qrlInstance: { getTransactionReceipt: async () => ({ transactionHash: `0x${"a".repeat(64)}`, status: 0n, blockHash: `0x${"b".repeat(64)}`, blockNumber: 42n, gasUsed: 21000n }) } });
-      store.transactionStatus = { state: "pending", txHash: `0x${"a".repeat(64)}`, receipt: null, error: null, pendingDetails: null };
+      store.transactionStatus = { state: "pending", txHash: `0x${"a".repeat(64)}`, receipt: null, error: null };
     });
     jest.mocked(useStore).mockReturnValue({ qrlStore: store, tokenStore: { visibleTokenList: [] } } as never);
     try {
@@ -292,7 +292,6 @@ describe("Transfer QRNS recipient flow", () => {
             txHash: null,
             receipt: null,
             error: null,
-            pendingDetails: null,
           },
           resetTransactionStatus: jest.fn(),
           estimateNativeTransferFee: jest.fn(async () => "0"),
