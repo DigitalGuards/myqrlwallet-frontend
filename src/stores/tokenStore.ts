@@ -135,7 +135,7 @@ class TokenStore {
 
   // Discovered tokens minus the ones the user has already added.
   // The "Add token" picker renders this filtered list so previously-added
-  // entries don't reappear as suggestions, but hidden ones do — a hidden
+  // entries don't reappear as suggestions, but hidden ones do: a hidden
   // token should be re-discoverable so the user can pick it again to
   // unhide. Lowercased comparison because the explorer normalises to
   // Q-prefix lowercase and a user's manual entries might be mixed case.
@@ -192,7 +192,7 @@ class TokenStore {
   // One-shot migration: pre-gate (before PR #142), the wallet auto-merged
   // every token the explorer attributed to the active account into
   // tokenList, and persisted that to localStorage. After the gate, those
-  // legacy entries can't be distinguished from user-curated picks — so we
+  // legacy entries can't be distinguished from user-curated picks, so we
   // wipe the legacy global TOKEN_LIST once on first load post-migration.
   // The discovery picker (PR #143) repopulates legitimate holdings on the
   // user's explicit say-so.
@@ -258,7 +258,7 @@ class TokenStore {
     log(`Switching token list to account: ${newActiveAccount}`);
     // Token storage is per-account-scoped, so an account switch just
     // means reloading from the new scope's key. No cross-account
-    // clearing needed — the old account's list stays under its own key
+    // clearing needed: the old account's list stays under its own key
     // for when the user switches back.
     const blockchain = this.qrlStore.qrlConnection.blockchain;
     const persisted = await StorageUtil.getTokenList(blockchain, newActiveAccount);
@@ -490,7 +490,7 @@ class TokenStore {
             pendingDetails: null,
           };
         });
-        const txHash = await provider.request<string>({
+        const txHash = await provider.request({
           method: "qrl_sendTransaction",
           params: [{ from, to: token.address, data }],
         });
@@ -954,7 +954,7 @@ class TokenStore {
 
   // UI-owned setter for the slot-cascade animation flag. TokenForm
   // turns it on when the user clicks Refresh, off after the animation
-  // tail. The fetch itself doesn't manage this flag — see
+  // tail. The fetch itself doesn't manage this flag; see
   // refreshTokenBalances comment.
   setRefreshingBalances(value: boolean) {
     this.isRefreshingBalances = value;

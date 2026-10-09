@@ -19,7 +19,10 @@ jest.mock("@/utils/storage", () => ({ StorageUtil: {
   getAccountList: jest.fn(), setBalanceCache: jest.fn(), getBalanceCache: jest.fn(), updateTokenList: jest.fn(),
 } }));
 jest.mock("@/utils/web3", () => ({ getQrlWeb3: jest.fn(), fetchBalance: jest.fn() }));
-jest.mock("@/utils/web3/address", () => ({ normalizeQrlAddress: (value: string) => value }));
+jest.mock("@/utils/web3/address", () => ({
+  normalizeQrlAddress: (value: string) => value,
+  isValidQrlAddress: (value: unknown) => typeof value === 'string' && /^Q[0-9a-fA-F]{128}$/.test(value),
+}));
 jest.mock("@/utils/web3/vm64Logs", () => ({}));
 jest.mock("@/utils/nativeWalletMutation", () => ({ walletMutations: {
   captureGeneration: () => 1, isCurrent: () => true,
@@ -100,8 +103,10 @@ it.each([
 it("supplies the full native-transfer estimate to the extension signer", async () => {
   const store = makeStore();
   store.qrlAccounts.accounts = [{ accountAddress: ACCOUNT, accountBalance: "10", source: "extension" }];
-  const request = jest.fn(async () => "0xreceipt");
-  store.extensionProvider = { request } as never;
+  const request = jest.fn(async ({ method }: { method: string }): Promise<unknown> =>
+    method === 'qrl_accounts' ? [ACCOUNT] : '0xreceipt',
+  );
+  store.extensionProvider = { request };
   const estimateGas = jest.fn(async () => 90000n);
   store.qrlInstance = { getGasPrice: jest.fn(async () => 100n), estimateGas } as never;
   await store.sendTransactionViaProvider(RECIPIENT, "0.123456789012345678");
@@ -115,11 +120,12 @@ it("supplies the full native-transfer estimate to the extension signer", async (
 it("does not prompt an extension send when the recipient gas estimate fails", async () => {
   const store = makeStore();
   store.qrlAccounts.accounts = [{ accountAddress: ACCOUNT, accountBalance: "10", source: "extension" }];
-  const request = jest.fn();
-  store.extensionProvider = { request } as never;
+  const request = jest.fn(async () => [ACCOUNT]);
+  store.extensionProvider = { request };
   store.qrlInstance = { getGasPrice: jest.fn(async () => 100n), estimateGas: jest.fn(async () => { throw new Error("receiver reverted"); }) } as never;
   await store.sendTransactionViaProvider(RECIPIENT, "1");
-  expect(request).not.toHaveBeenCalled();
+  expect(request).toHaveBeenCalledWith({ method: 'qrl_accounts' });
+  expect(request).toHaveBeenCalledTimes(1);
   expect(store.transactionStatus.state).toBe("failed");
 });
 

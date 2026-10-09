@@ -22,6 +22,7 @@ import { walletMutations } from "@/utils/nativeWalletMutation";
 import { IS_V3_PROFILE, assertSupportedAccountSource, assertV3BrowserContext, V3_UNSUPPORTED_SIGNER_MESSAGE } from '@/config/runtimeProfile';
 import { assertQualifiedV3MobileProvider, assertQualifiedV3Provider, qualifyV3MobileProvider, qualifyV3Provider } from '@/utils/extension/v3Provider';
 import { verifyNetworkIdentity } from '@/config/deploymentProfile';
+import { extensionAuthorizesAccount, restoreExtensionProvider } from '@/utils/extension/extensionConnection';
 
 type ActiveAccountType = {
   accountAddress: string;
@@ -154,13 +155,12 @@ export async function quoteFees(
   return quote;
 }
 
-// EIP-1193 provider surface the wallet relies on. Exported so the extension
-// connection layer shares one honest type instead of re-declaring `any`.
+// Provider responses cross a wire boundary and require runtime validation.
 export interface ExtensionProvider {
-  request: <T = unknown>(args: {
+  request: (args: {
     method: string;
     params?: unknown[] | object;
-  }) => Promise<T>;
+  }) => Promise<unknown>;
   // Add other methods if needed, e.g., for event handling
 }
 
@@ -199,6 +199,8 @@ class QrlStore {
   _receiptPollerIntervalId: ReturnType<typeof setInterval> | null = null;
   _balanceRequestId = 0;
   _initializationRequestId = 0;
+  _extensionProviderVersion = 0;
+  _extensionRecovery: { address: string; version: number; promise: Promise<ExtensionProvider> } | null = null;
 
   // Desktop only: guards one-time registration of the signer lock-state
   // listener that re-hydrates the wallet list on unlock. Non-observable.
@@ -276,6 +278,8 @@ class QrlStore {
       _receiptPollerIntervalId: false,
       _balanceRequestId: false,
       _initializationRequestId: false,
+      _extensionProviderVersion: false,
+      _extensionRecovery: false,
       _desktopUnlockListenerBound: false,
       cancelReceiptPoller: false,
       hydrateDesktopWalletsFromSigner: false,
@@ -296,6 +300,7 @@ class QrlStore {
       resetTransactionStatus: action.bound,
       fetchPendingTxDetails: action.bound,
       setExtensionProvider: action.bound,
+      ensureExtensionProvider: action.bound,
       setMobileProvider: action.bound,
       adoptMobileAccount: action.bound,
       removeMobileAccounts: action.bound,
@@ -435,7 +440,7 @@ class QrlStore {
 
   async setActiveAccount(newActiveAccount?: string, source: AccountSource = 'seed') {
     assertSupportedAccountSource(source);
-    if (source === 'extension') assertQualifiedV3Provider(this.extensionProvider);
+    if (source === 'extension' && newActiveAccount) await this.ensureExtensionProvider(newActiveAccount);
     if (source === 'mobile') assertQualifiedV3MobileProvider(this.mobileProvider);
     const currentBlockchain = this.qrlConnection.blockchain;
     const normalizedActiveAccount = newActiveAccount
@@ -1162,6 +1167,7 @@ class QrlStore {
   setExtensionProvider(provider: ExtensionProvider | null) {
     if (provider) assertSupportedAccountSource('extension');
     if (provider) assertQualifiedV3Provider(provider);
+    this._extensionProviderVersion += 1;
     runInAction(() => {
       this.extensionProvider = provider;
       if (provider) {
@@ -1175,6 +1181,38 @@ class QrlStore {
         // }
       }
     });
+  }
+
+  // Account metadata survives reloads; the live provider is reacquired on use.
+  async ensureExtensionProvider(address = this.activeAccount.accountAddress): Promise<ExtensionProvider> {
+    assertSupportedAccountSource('extension');
+    if (this.extensionProvider) assertQualifiedV3Provider(this.extensionProvider);
+    const version = this._extensionProviderVersion;
+    const pending = this._extensionRecovery;
+    if (pending?.address === address && pending.version === version) return pending.promise;
+
+    const activeAddress = this.activeAccount.accountAddress;
+    const source = this.activeAccountSource;
+    const blockchain = this.qrlConnection.blockchain;
+    const rpc = this.qrlInstance;
+    const current = this.extensionProvider;
+    const promise = (async () => {
+      const provider = await restoreExtensionProvider(address, current);
+      if (version !== this._extensionProviderVersion || current !== this.extensionProvider
+        || activeAddress !== this.activeAccount.accountAddress || source !== this.activeAccountSource
+        || blockchain !== this.qrlConnection.blockchain || rpc !== this.qrlInstance) {
+        throw new Error('Wallet changed while reconnecting the extension.');
+      }
+      if (!provider) throw new Error('Extension not connected.');
+      if (provider !== current) this.setExtensionProvider(provider);
+      return provider;
+    })();
+    this._extensionRecovery = { address, version, promise };
+    try {
+      return await promise;
+    } finally {
+      if (this._extensionRecovery?.promise === promise) this._extensionRecovery = null;
+    }
   }
 
   // Set or clear the mobile-app relay provider (owned by utils/mobileConnect).
@@ -1339,19 +1377,6 @@ class QrlStore {
     const blockchain = this.qrlConnection.blockchain;
     const rpcProvider = this.qrlInstance;
     const walletName = source === 'mobile' ? 'mobile app' : 'extension';
-    const provider = this.remoteProvider;
-    if (!provider) {
-      console.error("sendTransactionViaProvider called but no provider is set.");
-      log("Error: sendTransactionViaProvider called without provider.");
-      runInAction(() => {
-        this.transactionStatus = {
-          ...this.transactionStatus,
-          state: 'failed',
-          error: source === 'mobile' ? 'Mobile app wallet not connected.' : 'Extension not connected.',
-        };
-      });
-      return;
-    }
     if (!this.activeAccount.accountAddress) {
       console.error("sendTransactionViaProvider called but no active account.");
       log("Error: sendTransactionViaProvider called without active account.");
@@ -1364,10 +1389,14 @@ class QrlStore {
     try {
       // Reset status before starting
       this.resetTransactionStatus();
-      if (IS_V3_PROFILE) await this.assertNetworkReady();
       runInAction(() => {
         this.transactionStatus = { ...this.transactionStatus, state: 'pending' };
       });
+      const provider = source === 'extension' ? await this.ensureExtensionProvider(from) : this.remoteProvider;
+      if (!provider) {
+        throw new Error(source === 'mobile' ? 'Mobile app wallet not connected.' : 'Extension not connected.');
+      }
+      if (IS_V3_PROFILE) await this.assertNetworkReady();
 
       // --- Use 18 decimals via "quanta" unit ---
       const utils = this._utils ?? (await getQrlWeb3()).utils;
@@ -1416,6 +1445,9 @@ class QrlStore {
 
       log(`Requesting transaction via ${walletName} (18 Decimals): ${JSON.stringify(params)}`);
       if (IS_V3_PROFILE) await this.assertNetworkReady();
+      if (source === 'extension' && !await extensionAuthorizesAccount(provider, from)) {
+        throw new Error('Extension not connected.');
+      }
       if (from !== this.activeAccount.accountAddress || source !== this.activeAccountSource
         || blockchain !== this.qrlConnection.blockchain || rpcProvider !== this.qrlInstance
         || provider !== this.remoteProvider) {
@@ -1467,6 +1499,7 @@ class QrlStore {
     const current = this.qrlInstance;
     const account = this.activeAccount.accountAddress;
     const source = this.activeAccountSource;
+    if (source === 'extension' && this.extensionProvider === null) await this.ensureExtensionProvider(account);
     if (source === 'extension') assertQualifiedV3Provider(this.extensionProvider);
     if (source === 'mobile') assertQualifiedV3MobileProvider(this.mobileProvider);
     if (!provider || !current || this.qrlConnection.blockchain !== 'TEST_NET_V3' || !this.qrlConnection.isConnected) {

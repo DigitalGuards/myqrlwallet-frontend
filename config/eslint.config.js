@@ -41,7 +41,7 @@ export default tseslint.config(
       // to the library's own ContractAbi + hand-written method interfaces),
       // so there is no sanctioned `any` escape hatch anywhere in the app.
       '@typescript-eslint/no-explicit-any': 'error',
-      // No `expr!` — prove non-nullness with a guard or resolve a typed value.
+      // Prove non-nullness with a guard or resolve a typed value.
       '@typescript-eslint/no-non-null-assertion': 'error',
       // Pairs with tsconfig `verbatimModuleSyntax`: type-only imports must use
       // `import type` so the emitter never has to guess what is value vs type.
@@ -69,7 +69,7 @@ export default tseslint.config(
       // Wire input is `unknown` narrowed by runtime guards; hand-written
       // assertions are the laundering this rule forbids. `as const` stays legal.
       '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'never' }],
-      // No `x as unknown as T` — double assertions erase the type system.
+      // Double assertions erase the type system.
       // Narrow honestly (e.g. annotate WebCrypto buffers as
       // Uint8Array<ArrayBuffer>, or assert once from `unknown`).
       'no-restricted-syntax': [
@@ -300,8 +300,6 @@ export default tseslint.config(
       'src/utils/embeddedMigration.ts',
       'src/utils/embeddedRuntime.ts',
       'src/utils/errors.ts',
-      'src/utils/extension/extensionConnection.ts',
-      'src/utils/extension/v3Provider.ts',
       'src/utils/formatting/balance.ts',
       'src/utils/formatting/string.ts',
       'src/utils/logout.ts',

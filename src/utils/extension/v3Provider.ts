@@ -6,6 +6,7 @@ import { IS_V3_PROFILE } from "@/config/runtimeProfile";
 import type { ExtensionProvider } from "@/stores/qrlStore";
 
 const qualifiedProviders = new WeakSet<ExtensionProvider>();
+const pendingQualifications = new WeakMap<ExtensionProvider, Promise<void>>();
 
 export function assertQualifiedV3Provider(
   provider: ExtensionProvider | null,
@@ -21,18 +22,40 @@ export async function qualifyV3Provider(
   provider: ExtensionProvider,
 ): Promise<void> {
   if (!IS_V3_PROFILE) return;
-  qualifiedProviders.delete(provider);
+  const pending = pendingQualifications.get(provider);
+  if (pending) return pending;
+
+  // Fee estimation and Send can verify the same recovered provider together.
+  // Keep the last successful qualification until the shared check settles.
+  const verification = verifyV3Provider(provider).then(
+    () => {
+      qualifiedProviders.add(provider);
+    },
+    (error: unknown) => {
+      qualifiedProviders.delete(provider);
+      throw error instanceof Error
+        ? error
+        : new Error("Extension qualification failed");
+    },
+  );
+  pendingQualifications.set(provider, verification);
+  try {
+    await verification;
+  } finally {
+    pendingQualifications.delete(provider);
+  }
+}
+
+async function verifyV3Provider(provider: ExtensionProvider): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let capabilities: unknown;
   try {
     capabilities = await Promise.race([
-      provider.request<unknown>({ method: "qrl_walletCapabilities" }),
+      provider.request({ method: "qrl_walletCapabilities" }),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () =>
-            reject(new Error("Extension capability verification timed out")),
-          10000,
-        );
+        timer = setTimeout(() => {
+          reject(new Error("Extension capability verification timed out"));
+        }, 10000);
       }),
     ]);
   } finally {
@@ -56,7 +79,6 @@ export async function qualifyV3Provider(
     );
   }
   await verifyNetworkIdentity(provider, network);
-  qualifiedProviders.add(provider);
 }
 
 const qualifiedMobileProviders = new WeakMap<ExtensionProvider, number>();
@@ -73,7 +95,9 @@ export const V3_MOBILE_UNRESPONSIVE_MESSAGE =
 export function isQualifiedV3MobileProvider(
   provider: ExtensionProvider | null,
 ): boolean {
-  return !IS_V3_PROFILE || (!!provider && qualifiedMobileProviders.has(provider));
+  return (
+    !IS_V3_PROFILE || (!!provider && qualifiedMobileProviders.has(provider))
+  );
 }
 
 export function assertQualifiedV3MobileProvider(
@@ -102,7 +126,10 @@ export async function qualifyV3MobileProvider(
 ): Promise<void> {
   if (!IS_V3_PROFILE) return;
   const verifiedAt = qualifiedMobileProviders.get(provider);
-  if (verifiedAt !== undefined && Date.now() - verifiedAt < V3_MOBILE_QUALIFICATION_TTL_MS) {
+  if (
+    verifiedAt !== undefined &&
+    Date.now() - verifiedAt < V3_MOBILE_QUALIFICATION_TTL_MS
+  ) {
     return;
   }
   const { QRL_PROVIDER } = await import("@/config");
