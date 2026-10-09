@@ -13,14 +13,13 @@ jest.mock("@/config/runtimeProfile", () => {
   return jest.requireActual("@/config/runtimeProfile");
 });
 jest.mock("axios");
-jest.mock("@/stores/store", () => ({
-  useStore: () => ({
-    qrlStore: {
-      activeAccount: { accountAddress: `Q${"1".repeat(128)}` },
-      qrlConnection: { blockchain: "TEST_NET_V3" },
-    },
-  }),
-}));
+const mockStore = {
+  qrlStore: {
+    activeAccount: { accountAddress: `Q${"1".repeat(128)}` },
+    qrlConnection: { blockchain: "TEST_NET_V3" },
+  },
+};
+jest.mock("@/stores/store", () => ({ useStore: () => mockStore }));
 jest.mock("mobx-react-lite", () => ({
   observer: (component: unknown) => component,
 }));

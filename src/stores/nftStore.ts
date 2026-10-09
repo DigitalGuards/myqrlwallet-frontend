@@ -1,3 +1,5 @@
+import { transactionHistoryStore } from "./transactionHistoryStore";
+import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
 import {
   action,
   computed,
@@ -588,6 +590,11 @@ class NftStore {
      */
     approvedFee: ApprovedFeeInput,
   ): Promise<boolean> {
+    const historyDetails = {
+      to: toAddress,
+      amount: amount.toString(),
+      asset: `NFT #${nft.tokenId}`,
+    };
     this.qrlStore.resetTransactionStatus();
     const signingGeneration = walletMutations.captureGeneration();
     const assertSigningCurrent = (): void => {
@@ -660,6 +667,9 @@ class NftStore {
             error: null,
             pendingDetails: null,
           };
+        });
+        transactionHistoryStore.record({
+          ...historyDetails, blockchain: selectedBlockChain, from, hash: transactionHash,
         });
         log(`Desktop NFT transfer broadcast: ${transactionHash}`);
         this.qrlStore.fetchPendingTxDetails(transactionHash);
@@ -780,6 +790,9 @@ class NftStore {
         checkRevertBeforeSending: true,
       });
 
+      observeHistoryBroadcast(promiEvent, {
+        ...historyDetails, blockchain: selectedBlockChain, from: acc.address,
+      });
       promiEvent
         .on("transactionHash", (hash: string | Uint8Array) => {
           runInAction(() => {

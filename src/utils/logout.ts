@@ -14,6 +14,7 @@ import { clearDeviceCredential } from "./crypto/deviceCredential";
 import { dappConnectService } from "@/services/dappConnect/DAppConnectService";
 import { walletMutations } from "./nativeWalletMutation";
 import { reloadDocument } from "./embeddedShell";
+import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
 
 /**
  * Return to the home route and drop the wallet state still held in memory.
@@ -147,6 +148,7 @@ export const handleLogout = async (navigate: (path: string) => void) => {
           StorageUtil.clearAccountList(blockchain);
         }
       }
+      if (!nativeApp) transactionHistoryStore.clear();
     };
 
     await walletMutations.clear(clearWalletStorage, async () => {

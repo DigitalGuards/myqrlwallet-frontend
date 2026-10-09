@@ -80,7 +80,9 @@ it("sorts loaded amounts numerically and labels unverified historical fees unava
   const firstView = screen.getAllByRole("button", { name: "View" })[0];
   if (!firstView) throw new Error("Expected a transaction details control");
   fireEvent.click(firstView);
-  expect(screen.getByText("Unavailable")).toBeTruthy();
+  expect(screen.getByText("Fees:").nextElementSibling?.textContent).toBe(
+    "Unavailable",
+  );
   expect(post).toHaveBeenCalledTimes(1);
 });
 

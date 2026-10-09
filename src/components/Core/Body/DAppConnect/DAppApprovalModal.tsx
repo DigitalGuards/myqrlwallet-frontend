@@ -1,3 +1,7 @@
+import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
+import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
+import { unsignedQuantity } from "@/utils/transactionHistory";
+import { formatUnits } from "@/utils/web3/units";
 /**
  * DApp Approval Modal - Full approval/rejection UI rendered in WebView.
  * Single source of truth for all dApp request approvals.
@@ -334,7 +338,11 @@ const DAppApprovalModalContent = observer(() => {
       reject: (message) =>
         { dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, message); },
     });
-    const answerDApp = (hash: string): void => { dAppRequest.answer(hash); };
+    let broadcastDetails: Omit<Parameters<typeof transactionHistoryStore.record>[0], "hash"> | undefined;
+    const answerDApp = (hash: string): void => {
+      if (broadcastDetails) transactionHistoryStore.record({ ...broadcastDetails, hash });
+      dAppRequest.answer(hash);
+    };
     // Never after an answer: the dApp holds a hash for a transaction that is
     // on its way, and a later revert is something it observes on chain.
     const rejectDApp = (message: string): void => { dAppRequest.reject(message); };
@@ -375,6 +383,9 @@ const DAppApprovalModalContent = observer(() => {
           { cancelled: () => !isStillCurrent() },
         );
         if (outcome.status !== "receipt") return;
+        if (broadcastDetails) {
+          transactionHistoryStore.settle(broadcastDetails.blockchain, broadcastDetails.from, hash, outcome.receipt);
+        }
         const succeeded = getDAppReceiptStatus(outcome.receipt, hash);
         if (succeeded === undefined) return;
         if (!isStillCurrent()) return;
@@ -517,6 +528,15 @@ const DAppApprovalModalContent = observer(() => {
           throw new Error("Wallet changed while verifying the transaction chain");
         }
 
+        const historyParams = firstParamRecord(params);
+        const historyValue = unsignedQuantity(historyParams["value"] ?? "0");
+        const historyTo = historyParams["to"] ?? "";
+        if (historyValue !== null && typeof historyTo === "string") {
+          broadcastDetails = {
+            blockchain, from: activeAddress, to: historyTo, amount: formatUnits(historyValue),
+          };
+        }
+
         // Desktop: build + confirm + sign in the isolated signer (its own
         // trusted modal), then broadcast for send / return raw for sign. No
         // PIN, no seed in the renderer.
@@ -573,6 +593,9 @@ const DAppApprovalModalContent = observer(() => {
               transactionHash,
             );
 
+            if (outcome.status === "receipt") {
+              transactionHistoryStore.settle(blockchain, activeAddress, transactionHash, outcome.receipt);
+            }
             const succeeded = outcome.status === "receipt"
               ? getDAppReceiptStatus(outcome.receipt, transactionHash) : undefined;
             if (succeeded === undefined) {
@@ -771,6 +794,10 @@ const DAppApprovalModalContent = observer(() => {
           { checkRevertBeforeSending: false },
         );
 
+        if (broadcastDetails) {
+          broadcastDetails = { ...broadcastDetails, nonce };
+          observeHistoryBroadcast(promiEvent, broadcastDetails);
+        }
         await waitForDAppBroadcastSettlement(
           promiEvent,
           {
@@ -1093,7 +1120,7 @@ const DAppApprovalModalContent = observer(() => {
       approveInFlightRef.current = false;
       if (isStillCurrent()) setLoading(false);
     }
-  }, [currentApproval, pin, dappConnectStore, qrlStore]);
+  }, [currentApproval, pin, dappConnectStore, qrlStore, blockchain]);
 
   const handleReject = useCallback(() => {
     dappConnectStore.rejectCurrentRequest();

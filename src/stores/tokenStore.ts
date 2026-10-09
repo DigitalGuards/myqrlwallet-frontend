@@ -1,3 +1,5 @@
+import { transactionHistoryStore } from "./transactionHistoryStore";
+import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
 import { QRL_PROVIDER, TOKEN_FACTORY_ADDRESS } from "@/config";
 import { IS_V3_PROFILE, profileStorageKey } from '@/config/runtimeProfile';
 import { deriveHexSeedAsync } from "@/utils/crypto";
@@ -395,6 +397,11 @@ class TokenStore {
      */
     approvedFee: ApprovedFeeInput,
   ) {
+    const historyDetails = {
+      to: toAddress,
+      amount: formatUnits(amount, token.decimals),
+      asset: token.symbol || "Token",
+    };
     this.qrlStore.resetTransactionStatus();
     const signingGeneration = walletMutations.captureGeneration();
     const assertSigningCurrent = (): void => {
@@ -440,6 +447,9 @@ class TokenStore {
             error: null,
             pendingDetails: null,
           };
+        });
+        transactionHistoryStore.record({
+          ...historyDetails, blockchain: selectedBlockChain, from, hash: transactionHash,
         });
         log(`Desktop token transfer broadcast with hash: ${transactionHash}`);
         this.qrlStore.fetchPendingTxDetails(transactionHash);
@@ -505,6 +515,9 @@ class TokenStore {
             error: null,
             pendingDetails: null,
           };
+        });
+        transactionHistoryStore.record({
+          ...historyDetails, blockchain: selectedBlockChain, from, hash: txHash,
         });
         log(`Mobile token transfer broadcast with hash: ${txHash}`);
         this.qrlStore.fetchPendingTxDetails(txHash);
@@ -589,6 +602,9 @@ class TokenStore {
         checkRevertBeforeSending: true,
       });
 
+      observeHistoryBroadcast(promiEvent, {
+        ...historyDetails, blockchain: selectedBlockChain, from: acc.address,
+      });
       promiEvent
         .on("transactionHash", (hash: string | Uint8Array) => {
           runInAction(() => {
