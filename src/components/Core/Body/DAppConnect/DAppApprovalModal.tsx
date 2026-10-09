@@ -221,19 +221,6 @@ function assertSigningGenerationCurrent(token: WalletMutationToken): void {
   }
 }
 
-function getBorderColor(progress: TxProgressState): string {
-  switch (progress) {
-    case "confirming":
-      return "border-l-primary";
-    case "confirmed":
-      return "border-l-success";
-    case "failed":
-      return "border-l-destructive";
-    default:
-      return "border-l-secondary";
-  }
-}
-
 const DAppApprovalModalContent = observer(() => {
   const { dappConnectStore, qrlStore } = useStore();
   const { currentApproval, approvalModalOpen, txProgress, txHash, txError } =
@@ -1337,10 +1324,8 @@ const DAppApprovalModalContent = observer(() => {
           </div>
         </div>
 
-        {/* Content area with state-based accent border */}
-        <div
-          className={`border-l-4 ${getBorderColor(txProgress)} mx-4 my-3 pl-4 space-y-4`}
-        >
+        {/* Approval details and transaction progress */}
+        <div className="m-6 space-y-4">
           {/* Transaction progress states */}
           {isTxInProgress ? (
             <div className="space-y-4">
@@ -1348,7 +1333,7 @@ const DAppApprovalModalContent = observer(() => {
               <div className="flex items-center gap-3 py-2">
                 {txProgress === "signing" && (
                   <>
-                    <Loader className="h-5 w-5 animate-spin text-secondary" />
+                    <Loader className="h-5 w-5 animate-spin text-primary" />
                     <span className="text-sm font-medium">
                       Signing transaction...
                     </span>
@@ -1356,7 +1341,7 @@ const DAppApprovalModalContent = observer(() => {
                 )}
                 {txProgress === "broadcasting" && (
                   <>
-                    <Loader className="h-5 w-5 animate-spin text-secondary" />
+                    <Loader className="h-5 w-5 animate-spin text-primary" />
                     <span className="text-sm font-medium">
                       Broadcasting to network...
                     </span>

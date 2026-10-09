@@ -1,4 +1,6 @@
 /** @jest-environment jsdom */
+
+jest.mock("@/components/SEO/SEO", () => ({ SEO: () => null }));
 import { cleanup, render, screen } from "@testing-library/react";
 import axios from "axios";
 import { historyNetwork } from "@/config/runtimeProfile";

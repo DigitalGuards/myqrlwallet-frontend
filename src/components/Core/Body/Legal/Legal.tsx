@@ -1,3 +1,5 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
+import { Card } from "@/components/UI/Card";
 import { Link } from "react-router";
 import { SEO } from "@/components/SEO/SEO";
 import { ROUTES } from "@/router/router";
@@ -7,13 +9,12 @@ const linkClass =
 
 const Legal = () => {
     return (
-        <div className="min-h-screen">
+        <PageShell title="Imprint" width="wide">
             <SEO
                 title="Imprint"
                 description="Imprint and legal identification for MyQRLWallet, provided by DigitalGuards (eenmanszaak, Netherlands)."
             />
-            <main className="container mx-auto max-w-3xl px-4 py-8">
-                <h1 className="text-3xl font-bold mb-4">Imprint</h1>
+            <Card className="p-6">
 
                 <p className="mb-2 text-sm text-muted-foreground">Last updated: 13 July 2026</p>
 
@@ -78,8 +79,8 @@ const Legal = () => {
                         </Link>
                     </li>
                 </ul>
-            </main>
-        </div>
+            </Card>
+        </PageShell>
     );
 };
 

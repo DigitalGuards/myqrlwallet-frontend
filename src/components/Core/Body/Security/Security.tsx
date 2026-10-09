@@ -1,3 +1,5 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
+import { Card } from "@/components/UI/Card";
 import { Link } from "react-router";
 import { SEO } from "@/components/SEO/SEO";
 import { ROUTES } from "@/router/router";
@@ -22,13 +24,12 @@ const SECURITY_POLICY_URL =
 
 const Security = () => {
     return (
-        <div className="min-h-screen">
+        <PageShell title="Security and Vulnerability Disclosure Policy" width="wide">
             <SEO
                 title="Security Policy"
                 description="Security and coordinated vulnerability disclosure policy for MyQRLWallet by DigitalGuards, including a safe-harbour statement."
             />
-            <main className="container mx-auto max-w-3xl px-4 py-8">
-                <h1 className="text-3xl font-bold mb-4">Security and Vulnerability Disclosure Policy</h1>
+            <Card className="p-6">
 
                 <p className="mb-2 text-sm text-muted-foreground">Last updated: 13 July 2026</p>
 
@@ -115,8 +116,8 @@ const Security = () => {
                     </Link>
                     .
                 </p>
-            </main>
-        </div>
+            </Card>
+        </PageShell>
     );
 };
 

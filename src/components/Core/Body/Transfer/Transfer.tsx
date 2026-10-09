@@ -1,13 +1,7 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "@/components/UI/Button";
 import { ShinyButton } from "@/components/UI/ShinyButton";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/UI/Card";
+import { Card, CardContent, CardFooter } from "@/components/UI/Card";
 import {
   Form,
   FormControl,
@@ -78,7 +72,6 @@ import { FEE_NOT_SHOWN, type ApprovedFee } from "@/utils/web3/feePolicy";
 import type { RecipientSubmission } from "@/hooks/useQrnsRecipient";
 import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
 import { RecipientResolutionStatus } from "@/components/Core/RecipientResolutionStatus";
-import { SEO } from "@/components/SEO/SEO";
 import {
   getOptimalTokenBalance,
   formatAddressShort,
@@ -391,22 +384,9 @@ const Transfer = observer(() => {
   if (!accountAddress) {
     return (
       <>
-        <SEO title="Transfer" />
-        <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-          <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
-            <img
-              className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
-              src="/tree.svg"
-              alt="Background Tree"
-            />
+        <PageShell title="Transfer" subtitle="Send Quanta or tokens to another wallet" seoTitle="Transfer">
             <Card className="w-full">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold">Transfer</CardTitle>
-                <CardDescription>
-                  Send Quanta or tokens to another wallet
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <div className="flex flex-col items-center justify-center p-8 text-center">
                   <p className="text-muted-foreground mb-4">
                     You need to import an account before making transfers.
@@ -417,8 +397,7 @@ const Transfer = observer(() => {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </PageShell>
       </>
     );
   }
@@ -820,24 +799,11 @@ const Transfer = observer(() => {
   // Main Form
   return (
     <>
-      <SEO title="Transfer" />
-      <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-        <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
-          <img
-            className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
-            src="/tree.svg"
-            alt="Background Tree"
-          />
+      <PageShell title="Transfer" subtitle="Send Quanta or tokens to another wallet" seoTitle="Transfer">
           <Form {...form}>
             <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
               <Card className="w-full">
-                <CardHeader>
-                  <CardTitle className="text-2xl font-bold">Transfer</CardTitle>
-                  <CardDescription>
-                    Send Quanta or tokens to another wallet
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-6 pt-6">
                   {/* Asset Selector */}
                   <FormField
                     control={control}
@@ -1186,8 +1152,7 @@ const Transfer = observer(() => {
               </Card>
             </form>
           </Form>
-        </div>
-      </div>
+        </PageShell>
     </>
   );
 });

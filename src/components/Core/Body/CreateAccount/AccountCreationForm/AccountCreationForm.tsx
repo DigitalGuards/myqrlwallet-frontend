@@ -1,12 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { ShinyButton } from "@/components/UI/ShinyButton";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/UI/Card";
+import { Card, CardContent, CardFooter } from "@/components/UI/Card";
 import {
   Form,
   FormControl,
@@ -308,12 +302,7 @@ const InnerForm = observer(
       <Form {...form}>
         <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
           <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold">
-                Create new account
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-8">
+            <CardContent className="space-y-8 pt-6">
               <div>
                 <h3 className="text-lg font-medium mb-4">Wallet Password</h3>
                 <p className="text-sm text-muted-foreground mb-4">
@@ -488,7 +477,7 @@ export const AccountCreationForm = observer(
     if (hasExistingSeeds === null) {
       return (
         <Card>
-          <CardContent className="flex items-center justify-center py-8">
+          <CardContent className="flex items-center justify-center py-8 pt-6">
             <Loader className="h-6 w-6 animate-spin" />
           </CardContent>
         </Card>

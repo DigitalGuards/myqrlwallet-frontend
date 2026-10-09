@@ -1,5 +1,7 @@
 /** @jest-environment jsdom */
 
+jest.mock("@/components/SEO/SEO", () => ({ SEO: () => null }));
+
 import {
   act,
   cleanup,

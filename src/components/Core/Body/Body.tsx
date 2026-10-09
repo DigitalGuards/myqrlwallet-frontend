@@ -2,7 +2,7 @@ import { Outlet } from "react-router";
 
 const Body = () => {
   return (
-    <div className="mx-auto max-w-screen-xl px-1 md:px-2 py-1 md:py-4 md:min-h-[calc(100vh-16rem)] overflow-visible">
+    <div className="mx-auto w-full max-w-screen-xl md:min-h-[calc(100vh-16rem)] overflow-visible">
       <Outlet />
     </div>
   );
