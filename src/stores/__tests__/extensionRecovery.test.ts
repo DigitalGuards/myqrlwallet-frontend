@@ -14,7 +14,6 @@ jest.mock("@/config", () => ({
     },
   },
   EXPLORER_BASE: "https://explorer.invalid",
-  getPendingTxApiUrl: jest.fn(),
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({ deriveHexSeedAsync: jest.fn() }));
@@ -121,9 +120,6 @@ beforeEach(() => {
     .spyOn(QrlStore.prototype, "initializeBlockchain")
     .mockResolvedValue(undefined);
   jest.spyOn(QrlStore.prototype, "fetchAccounts").mockResolvedValue(undefined);
-  jest
-    .spyOn(QrlStore.prototype, "fetchPendingTxDetails")
-    .mockResolvedValue(undefined);
   jest.spyOn(QrlStore.prototype, "pollForReceipt").mockResolvedValue(undefined);
   jest.spyOn(console, "error").mockImplementation(() => undefined);
   jest.spyOn(console, "warn").mockImplementation(() => undefined);

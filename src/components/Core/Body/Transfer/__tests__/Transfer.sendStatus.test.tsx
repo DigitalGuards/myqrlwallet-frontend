@@ -127,7 +127,6 @@ function idle(): TransactionStatus {
     txHash: null,
     receipt: null,
     error: null,
-    pendingDetails: null,
   };
 }
 function fixture(signer: SendSigner, token: boolean) {
@@ -382,6 +381,66 @@ it("keeps a shared pending status without a hash in preparation", () => {
   );
   expect(screen.getByRole("heading").textContent).toBe("Preparing transaction");
   expect(screen.queryByText(/signed and broadcast/i)).toBeNull();
+  expect(screen.queryByRole("button", { name: "Back to form" })).toBeNull();
+});
+
+describe.each([false, true])("returning during a send (token=%s)", (token) => {
+  it.each(["awaiting-approval", "pending"] as const)(
+    "keeps form values when leaving %s",
+    async (state) => {
+      mockStore = fixture("extension", token);
+      const send = token
+        ? mockStore.tokenStore.sendToken
+        : mockStore.qrlStore.sendTransactionViaProvider;
+      send.mockImplementation(() => {
+        runInAction(() => {
+          mockStore.qrlStore.transactionStatus = {
+            ...idle(),
+            state,
+            txHash: state === "pending" ? HASH : null,
+          };
+        });
+        return new Promise<boolean>(() => undefined);
+      });
+      render(<Transfer />);
+      await act(async () => {
+        fireEvent.change(
+          screen.getByPlaceholderText("QRL address or QNS name"),
+          {
+            target: { value: TO },
+          },
+        );
+        fireEvent.change(screen.getByPlaceholderText("Enter amount"), {
+          target: { value: "1.234567" },
+        });
+      });
+      const submit = screen.getByRole("button", {
+        name: token ? "Send TOK" : "Send Quanta",
+      });
+      await waitFor(() => expect(submit.hasAttribute("disabled")).toBe(false));
+      await act(async () => {
+        fireEvent.click(submit);
+      });
+      expect(screen.getByRole("heading").textContent).toBe(
+        state === "pending" ? "Signed and sent" : "Waiting for approval",
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Back to form" }));
+      });
+      expect(mockStore.qrlStore.transactionStatus.state).toBe("idle");
+      expect(screen.getByDisplayValue(TO)).toBeTruthy();
+      expect(screen.getByDisplayValue("1.234567")).toBeTruthy();
+      expect(
+        screen.getByDisplayValue("1.234567").hasAttribute("disabled"),
+      ).toBe(false);
+      expect(
+        screen
+          .getByRole("button", { name: token ? "Send TOK" : "Send Quanta" })
+          .hasAttribute("disabled"),
+      ).toBe(false);
+      expect(send).toHaveBeenCalledTimes(1);
+    },
+  );
 });
 
 it("clears the form when Done closes an unconfirmed broadcast", async () => {

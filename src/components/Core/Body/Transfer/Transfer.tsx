@@ -729,6 +729,18 @@ const Transfer = observer(() => {
     setAmountInputValue("");
   };
 
+  const backToForm = () => {
+    resetTransactionStatus();
+    // Release form submission state while the signer request may still be open.
+    reset(undefined, {
+      keepValues: true,
+      keepErrors: true,
+      keepDirty: true,
+      keepTouched: true,
+      keepIsValid: true,
+    });
+  };
+
   const cancelTransaction = () => {
     resetForm();
     resetTransactionStatus();
@@ -800,7 +812,7 @@ const Transfer = observer(() => {
       <SendStatus
         status={transactionStatus}
         blockchain={blockchain}
-        onBack={transactionStatus.state === "timeout" ? cancelTransaction : resetTransactionStatus}
+        onBack={transactionStatus.state === "timeout" ? cancelTransaction : backToForm}
       />
     );
   }

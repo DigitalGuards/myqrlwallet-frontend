@@ -5,6 +5,7 @@ import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
 import { encodeTokenTransfer } from "@/utils/web3/tokenTransfer";
+import { SEND_TX_POLLING_CONFIG } from "@/utils/web3/txPolling";
 import { isRecord } from "@/utils/guards";
 import type { TransactionReceipt } from "@theqrl/web3";
 import { getQrlWeb3 } from "@/utils/web3";
@@ -404,6 +405,7 @@ class TokenStore {
       from, to: toAddress, amount: formatUnits(amount, token.decimals),
       asset: token.symbol || 'Token', signer: isDesktop ? 'desktop' : source,
     });
+    const refreshBalances = () => { void this.refreshTokenBalances(); };
     const signingGeneration = walletMutations.captureGeneration();
     const assertSigningCurrent = (): void => {
       if (!walletMutations.isCurrent(signingGeneration)
@@ -432,14 +434,17 @@ class TokenStore {
           from, to: token.address, value: '0', data, feeLevel,
         });
         if (!isRecord(result)) throw new Error('The desktop signer returned an invalid response.');
-        this.qrlStore.recordSendBroadcast(attempt, result['transactionHash']);
-        void this.refreshTokenBalances();
+        this.qrlStore.recordSendBroadcast(attempt, result['transactionHash'], { onReceipt: refreshBalances });
+        refreshBalances();
         return true;
       }
       if (source === 'extension' || source === 'mobile') {
-        return await this.qrlStore.sendTransactionViaProvider(token.address, '0', feeLevel, {
+        const sent = await this.qrlStore.sendTransactionViaProvider(token.address, '0', feeLevel, {
           data, recipient: toAddress, amount: attempt.details.amount, asset: attempt.details.asset,
+          onReceipt: refreshBalances,
         });
+        if (sent) refreshBalances();
+        return sent;
       }
 
       await this.qrlStore.assertLocalSeedAccount(from);
@@ -450,7 +455,7 @@ class TokenStore {
       const acc = web3.qrl.accounts.seedToAccount(seed);
       if (acc.address !== from) throw new Error('The signing seed does not match the active account');
       web3.qrl.wallet?.add(seed);
-      web3.qrl.transactionConfirmationBlocks = 1;
+      Object.assign(web3.qrl, SEND_TX_POLLING_CONFIG);
       const signingQuote = await quoteFees(web3.qrl, feeLevel);
       const { maxFeePerGas, maxPriorityFeePerGas } = signingQuote;
       const estimateGas = await web3.qrl.estimateGas({ from, to: token.address, data });

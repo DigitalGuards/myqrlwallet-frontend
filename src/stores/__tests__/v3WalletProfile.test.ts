@@ -19,7 +19,6 @@ jest.mock("@/config", () => ({
     },
   },
   EXPLORER_BASE: "https://explorer.invalid",
-  getPendingTxApiUrl: jest.fn(),
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({
@@ -334,9 +333,6 @@ it.each([false, true])(
   "rechecks a qualified extension before send when its chain changes: %s",
   async (changeChain) => {
     jest.spyOn(console, "error").mockImplementation(() => undefined);
-    jest
-      .spyOn(QrlStore.prototype, "fetchPendingTxDetails")
-      .mockResolvedValue(undefined);
     jest
       .spyOn(QrlStore.prototype, "pollForReceipt")
       .mockResolvedValue(undefined);

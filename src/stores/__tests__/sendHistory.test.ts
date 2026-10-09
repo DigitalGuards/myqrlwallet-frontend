@@ -118,9 +118,6 @@ beforeEach(() => {
   jest
     .spyOn(QrlStore.prototype, "assertLocalSeedAccount")
     .mockResolvedValue(undefined);
-  jest
-    .spyOn(QrlStore.prototype, "fetchPendingTxDetails")
-    .mockResolvedValue(undefined);
   jest.spyOn(QrlStore.prototype, "fetchAccounts").mockResolvedValue(undefined);
   jest.spyOn(QrlStore.prototype, "pollForReceipt").mockResolvedValue(undefined);
 });

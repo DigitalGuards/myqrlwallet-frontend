@@ -147,8 +147,19 @@ export function SendStatus({
               </div>
             )}
           </CardContent>
-          {!busy && (
-            <CardFooter>
+          {(state === "awaiting-approval" || sent || !busy) && (
+            <CardFooter className="flex-col gap-3">
+              {state === "awaiting-approval" && (
+                <p className="text-sm text-muted-foreground">
+                  Your signer may still complete this request. Check your signer
+                  and History before sending again.
+                </p>
+              )}
+              {sent && (
+                <p className="text-sm text-muted-foreground">
+                  You can follow confirmation in History.
+                </p>
+              )}
               <Button
                 type="button"
                 variant="outline"
