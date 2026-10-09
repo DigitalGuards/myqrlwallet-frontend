@@ -25,6 +25,13 @@ export const QRL_TX_POLLING_CONFIG = {
   transactionPollingTimeout: 7 * 60 * 1000, // ms (7 min, ~7 blocks), NOT seconds
 };
 
+/** Native and token send cards wait up to five minutes for first inclusion. */
+export const SEND_TX_POLLING_CONFIG = {
+  transactionPollingInterval: 5000,
+  transactionConfirmationBlocks: 1,
+  transactionPollingTimeout: 60 * 5000,
+};
+
 export interface WaitForReceiptOptions {
   /** Poll cadence in ms. Default: QRL_TX_POLLING_CONFIG.transactionPollingInterval. */
   intervalMs?: number;

@@ -1,14 +1,7 @@
 import { Checkbox } from "@/components/UI/CheckBox";
 import { Button } from "../../../../UI/Button";
 import { ShinyButton } from "../../../../UI/ShinyButton";
-import {
-    Card,
-    CardContent,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-} from "../../../../UI/Card";
+import { Card, CardContent, CardFooter } from "../../../../UI/Card";
 import {
     Form,
     FormControl,
@@ -155,7 +148,7 @@ export const TokenCreationForm = observer(
                     }
 
                     // Decrypt the seed using the PIN. Keep the worker-derive
-                    // call OUTSIDE this try block — a crash inside the
+                    // call OUTSIDE this try block : a crash inside the
                     // crypto worker is not a wrong-PIN error and shouldn't
                     // be misreported as one.
                     try {
@@ -242,13 +235,7 @@ export const TokenCreationForm = observer(
         if (!activeAccount.accountAddress) {
             return (
                 <Card >
-                    <CardHeader>
-                        <CardTitle className="text-2xl font-bold">Create New Token</CardTitle>
-                        <CardDescription>
-                            Deploy your own QRC20 token on the QRL network
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-6">
                         <div className="flex flex-col items-center justify-center p-8 text-center">
                             <p className="text-muted-foreground mb-4">
                                 You need to import an account before creating tokens.
@@ -266,13 +253,7 @@ export const TokenCreationForm = observer(
             <Form {...form}>
                 <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
                     <Card >
-                        <CardHeader>
-                            <CardTitle className="text-2xl font-bold">Create New QRC20 Token</CardTitle>
-                            <CardDescription>
-                                Deploy your own QRC20 token on the QRL network
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-8">
+                        <CardContent className="space-y-8 pt-6">
                             {formError && (
                                 <div role="alert" className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                                     {formError}

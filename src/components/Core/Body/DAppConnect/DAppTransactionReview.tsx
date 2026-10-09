@@ -33,14 +33,19 @@ function formatGasLimit(gas: unknown): string {
   return "Unknown";
 }
 
+/** Review fields come from validated JSON; anything that is not a string is shown as absent. */
+function stringParam(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
   params,
   maxNetworkFee,
 }) => {
-  const from = (params["from"] as string) || "Unknown";
-  const to = (params["to"] as string) || "Unknown";
-  const value = params["value"] as string | undefined;
-  const data = params["data"] as string | undefined;
+  const from = stringParam(params["from"]) || "Unknown";
+  const to = stringParam(params["to"]) || "Unknown";
+  const value = stringParam(params["value"]);
+  const data = stringParam(params["data"]);
   const gas = params["gas"];
 
   const displayValue = formatQuantaValue(value);
@@ -96,10 +101,10 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
           <span className="font-numeric">{maxNetworkFee}</span>
         </div>
       )}
-      {params['chainId'] != null && (
+      {typeof params['chainId'] === 'string' && (
         <div className="flex justify-between">
           <span className="text-muted-foreground">Chain ID</span>
-          <span>{String(params['chainId'])}</span>
+          <span>{params['chainId']}</span>
         </div>
       )}
       {data && data !== "0x" && (

@@ -1,3 +1,4 @@
+import { accountSetupDescription } from "./accountSetupDescription";
 import { Button } from "../../../../UI/Button";
 import {
   Card,
@@ -39,7 +40,7 @@ const accountCreateImportClasses = cva("flex gap-8", {
   },
 });
 
-const AccountCreateImport = observer(() => {
+const AccountCreateImport = observer(({ showHeading = true }: { showHeading?: boolean }) => {
   const { state } = useLocation();
   const { qrlStore } = useStore();
   const { activeAccount, setActiveAccount, setExtensionProvider } = qrlStore;
@@ -48,12 +49,7 @@ const AccountCreateImport = observer(() => {
 
   const hasActiveAccount = !!accountAddress;
   const hasAccountCreationPreference = !!state?.hasAccountCreationPreference;
-  // The connect options (browser extension, mobile app pairing) are web-only:
-  // hidden in the native app (it IS the mobile wallet) and the desktop app
-  // (the signer is the wallet). The copy drops their mention there too.
-  const description = (isInNativeApp() || isDesktop)
-    ? "You are connected to the blockchain. Create a new account or import an existing account."
-    : "You are connected to the blockchain. Create a new account, import an existing account, or connect a wallet you already use: your browser extension or the MyQRLWallet mobile app.";
+  const description = accountSetupDescription();
 
   const [pickerProviders, setPickerProviders] = useState<EIP6963ProviderDetail[] | null>(null);
   const [mobilePairing, setMobilePairing] = useState<{ uri: string; installHint: string | null } | null>(null);
@@ -133,15 +129,15 @@ const AccountCreateImport = observer(() => {
       className={accountCreateImportClasses({ hasAccountCreationPreference })}
     >
       <Card className="w-full surface-ember">
-        <CardHeader>
+        {showHeading && <CardHeader>
           <CardTitle className="text-2xl font-bold">
             {hasActiveAccount ? "Add accounts" : "Let's start"}
           </CardTitle>
           <CardDescription>
             {description}
           </CardDescription>
-        </CardHeader>
-        <CardFooter className="flex-col gap-4">
+        </CardHeader>}
+        <CardFooter className={`flex-col gap-4 ${showHeading ? "" : "pt-6"}`}>
           <Link className="w-full" to={ROUTES.CREATE_ACCOUNT}>
             <Button className="w-full" type="button">
               <Plus className="mr-2 h-4 w-4" />

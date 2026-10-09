@@ -1,4 +1,6 @@
 /** @jest-environment jsdom */
+
+jest.mock("@/components/SEO/SEO", () => ({ SEO: () => null }));
 /**
  * Back from an NFT detail page returns to the collection the user came
  * from, and the in-app Back buttons stay in step with the browser Back

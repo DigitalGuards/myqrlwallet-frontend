@@ -374,8 +374,8 @@ const originalNavigator = Object.getOwnPropertyDescriptor(
 );
 let storage = new MemoryStorage();
 let services: DAppConnectService[] = [];
-let logSpy: ReturnType<typeof jest.spyOn> | null = null;
-let errorSpy: ReturnType<typeof jest.spyOn> | null = null;
+let logSpy: jest.SpiedFunction<typeof console.log> | null = null;
+let errorSpy: jest.SpiedFunction<typeof console.error> | null = null;
 
 async function makePairing(
   _channelLabel = "security-service-channel",

@@ -1,3 +1,12 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
+import { Card } from "@/components/UI/Card";
+import { createPortal } from "react-dom";
+import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import {
+  historyStatus,
+  parseHistoryResponse,
+} from "@/utils/transactionHistory";
+import type { HistoryRow } from "@/utils/transactionHistory";
 import { observer } from "mobx-react-lite";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 import { useStore } from "../../../../stores/store";
@@ -9,28 +18,20 @@ import { historyNetwork } from "@/config/runtimeProfile";
 import { formatBalance } from "@/utils/formatting";
 import { useBackDismiss } from "@/utils/useBackDismiss";
 
-type TransactionHistoryType = {
-  ID: string;
-  InOut: number;
-  TxType: string;
-  Address: string;
-  From: string;
-  To: string;
-  TxHash: string;
-  TimeStamp: string;
-  Amount: string;
-  PaidFees?: string;
-  BlockNumber: string;
-};
-
 const TransactionHistory = observer(() => {
   const { qrlStore } = useStore();
   const { activeAccount } = qrlStore;
   const blockchain = qrlStore.qrlConnection.blockchain;
   const network = historyNetwork(blockchain);
-  const [transactionHistory, setTransactionHistory] = useState<
-    TransactionHistoryType[]
-  >([]);
+  const [transactionHistory, setTransactionHistory] = useState<HistoryRow[]>(
+    [],
+  );
+  const { transactions: mergedTransactions, storageUnavailable } =
+    useTransactionHistory(
+      blockchain,
+      activeAccount.accountAddress,
+      transactionHistory,
+    );
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState<{
@@ -59,9 +60,7 @@ const TransactionHistory = observer(() => {
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.post<{
-          transactions: TransactionHistoryType[];
-        }>(
+        const response = await axios.post<unknown>(
           `${SERVER_URL}/tx-history`,
           {
             network,
@@ -76,9 +75,7 @@ const TransactionHistory = observer(() => {
           controller.signal.aborted
         )
           return;
-        const newTransactions = response.data.transactions;
-        if (!Array.isArray(newTransactions))
-          throw new Error("Invalid transaction history response");
+        const newTransactions = parseHistoryResponse(response.data);
         setHasMore(newTransactions.length === limit);
         setCurrentPage(page);
 
@@ -129,7 +126,7 @@ const TransactionHistory = observer(() => {
   ]);
 
   const sortedTransactions = useMemo(() => {
-    const sortableTransactions = [...transactionHistory];
+    const sortableTransactions = [...mergedTransactions];
     if (sortConfig !== null) {
       sortableTransactions.sort((a, b) => {
         const comparison =
@@ -142,7 +139,7 @@ const TransactionHistory = observer(() => {
       });
     }
     return sortableTransactions;
-  }, [transactionHistory, sortConfig]);
+  }, [mergedTransactions, sortConfig]);
 
   const filteredTransactions = useMemo(() => {
     return sortedTransactions.filter(
@@ -170,10 +167,8 @@ const TransactionHistory = observer(() => {
   };
 
   return (
-    <div className="page-enter p-4 sm:p-6">
-      <h1 className="text-xl sm:text-2xl font-bold mb-4">
-        Transaction History
-      </h1>
+    <PageShell title="Transaction History" width="wide" seoTitle="Transaction History">
+      <Card className="p-6">
       <div className="mb-4 flex flex-col sm:flex-row justify-between items-center">
         <input
           type="text"
@@ -185,6 +180,12 @@ const TransactionHistory = observer(() => {
           className="border p-2 rounded w-full sm:w-1/3 bg-card mb-4 sm:mb-0"
         />
       </div>
+      {storageUnavailable && (
+        <p role="alert" className="mb-4 text-sm text-red-400">
+          Transaction history could not be saved. Keep this page open until
+          confirmation.
+        </p>
+      )}
       {error && (
         <div role="alert" className="mb-4 text-sm text-red-400">
           {error}
@@ -195,12 +196,14 @@ const TransactionHistory = observer(() => {
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="min-w-full bg-card">
-              <thead>
+            <table className="block w-full bg-card sm:table">
+              <thead className="hidden sm:table-header-group">
                 <tr>
                   <th
                     className="py-2 px-4 border-b cursor-pointer text-left text-sm sm:text-base"
-                    onClick={() => requestSort("TxHash")}
+                    onClick={() => {
+                      requestSort("TxHash");
+                    }}
                   >
                     Hash{" "}
                     {sortConfig?.key === "TxHash"
@@ -211,7 +214,9 @@ const TransactionHistory = observer(() => {
                   </th>
                   <th
                     className="py-2 px-4 border-b cursor-pointer text-left text-sm sm:text-base hidden sm:table-cell"
-                    onClick={() => requestSort("Amount")}
+                    onClick={() => {
+                      requestSort("Amount");
+                    }}
                   >
                     Amount (Quanta){" "}
                     {sortConfig?.key === "Amount"
@@ -222,7 +227,9 @@ const TransactionHistory = observer(() => {
                   </th>
                   <th
                     className="py-2 px-4 border-b cursor-pointer text-left text-sm sm:text-base table-cell sm:hidden"
-                    onClick={() => requestSort("Amount")}
+                    onClick={() => {
+                      requestSort("Amount");
+                    }}
                   >
                     Amount{" "}
                     {sortConfig?.key === "Amount"
@@ -233,7 +240,9 @@ const TransactionHistory = observer(() => {
                   </th>
                   <th
                     className="py-2 px-4 border-b cursor-pointer text-left text-sm sm:text-base"
-                    onClick={() => requestSort("TimeStamp")}
+                    onClick={() => {
+                      requestSort("TimeStamp");
+                    }}
                   >
                     Date{" "}
                     {sortConfig?.key === "TimeStamp"
@@ -247,23 +256,65 @@ const TransactionHistory = observer(() => {
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="block sm:table-row-group">
                 {filteredTransactions.map((tx) => (
-                  <tr key={tx.ID} className="hover:bg-muted">
-                    <td className="py-2 px-4 border-b break-all text-sm sm:text-base">
-                      {/* Truncated TxHash for Mobile */}
-                      <span className="block sm:hidden">
-                        {tx.TxHash.length > 8
-                          ? `${tx.TxHash.slice(0, 8)}...`
-                          : tx.TxHash}
-                      </span>
-                      {/* Full TxHash for larger screens */}
-                      <span className="hidden sm:block">{tx.TxHash}</span>
+                  <tr
+                    key={tx.ID}
+                    className="block border-b hover:bg-muted sm:table-row sm:border-0"
+                  >
+                    <td className="block py-2 px-4 break-all text-sm sm:table-cell sm:border-b sm:text-base">
+                      <button
+                        type="button"
+                        className="block text-xs text-muted-foreground sm:hidden"
+                        onClick={() => {
+                          requestSort("TxHash");
+                        }}
+                        aria-label="Sort by hash"
+                      >
+                        Hash
+                      </button>
+                      <span className="block">{tx.TxHash}</span>
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        Status
+                      </div>
+                      <div className="text-sm">{historyStatus(tx)}</div>
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        {tx.InOut === 1 ? "From" : "To"}
+                      </div>
+                      <QrlAddress
+                        address={tx.InOut === 1 ? tx.From : tx.To}
+                        mode="compact"
+                      />
                     </td>
-                    <td className="py-2 px-4 border-b font-numeric text-sm sm:text-base">
+                    <td className="block py-2 px-4 font-numeric text-sm sm:table-cell sm:border-b sm:text-base">
+                      <button
+                        type="button"
+                        className="block text-xs text-muted-foreground sm:hidden"
+                        onClick={() => {
+                          requestSort("Amount");
+                        }}
+                        aria-label="Sort by amount"
+                      >
+                        Amount ({tx.asset ?? "Quanta"})
+                      </button>
                       {formatBalance(tx.Amount)}
+                      {tx.asset && tx.asset !== "Quanta" && (
+                        <div className="text-xs text-muted-foreground">
+                          {tx.asset}
+                        </div>
+                      )}
                     </td>
-                    <td className="py-2 px-4 border-b text-sm sm:text-base">
+                    <td className="block py-2 px-4 text-sm sm:table-cell sm:border-b sm:text-base">
+                      <button
+                        type="button"
+                        className="block text-xs text-muted-foreground sm:hidden"
+                        onClick={() => {
+                          requestSort("TimeStamp");
+                        }}
+                        aria-label="Sort by date"
+                      >
+                        Date
+                      </button>
                       {/* Short date for mobile */}
                       <span className="block sm:hidden">
                         {new Date(
@@ -277,7 +328,7 @@ const TransactionHistory = observer(() => {
                         ).toLocaleString()}
                       </span>
                     </td>
-                    <td className="py-2 px-4 border-b text-sm sm:text-base">
+                    <td className="block py-2 px-4 text-sm sm:table-cell sm:border-b sm:text-base">
                       <DetailsModal transaction={tx} />
                     </td>
                   </tr>
@@ -302,100 +353,131 @@ const TransactionHistory = observer(() => {
           </div>
         </>
       )}
-    </div>
+    </Card>
+    </PageShell>
   );
 });
 
 type DetailsModalProps = {
-  transaction: TransactionHistoryType;
+  transaction: HistoryRow;
 };
 
 const DetailsModal = ({ transaction }: DetailsModalProps) => {
   const [isOpen, setIsOpen] = useState(false);
   // Android's back button closes this the same way its Close button does.
-  useBackDismiss(isOpen, () => setIsOpen(false));
+  useBackDismiss(isOpen, () => {
+    setIsOpen(false);
+  });
   return (
     <>
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setIsOpen(true);
+        }}
         className="text-secondary underline text-sm sm:text-base"
       >
         View
       </button>
-      {isOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-card p-4 rounded shadow-lg w-full sm:w-1/2">
-            <h2 className="text-xl sm:text-2xl font-bold mb-2">
-              Transaction Details
-            </h2>
-            <div className="space-y-2">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <div className="text-muted-foreground font-medium">ID:</div>
-                <div className="sm:col-span-2 break-all">{transaction.ID}</div>
-
-                <div className="text-muted-foreground font-medium">Type:</div>
-                <div className="sm:col-span-2">
-                  {transaction.InOut} ({transaction.TxType})
-                </div>
-
-                <div className="text-muted-foreground font-medium">
-                  Address:
-                </div>
-                <QrlAddress
-                  address={transaction.Address}
-                  mode="full"
-                  className="sm:col-span-2"
-                />
-
-                <div className="text-muted-foreground font-medium">From:</div>
-                <QrlAddress
-                  address={transaction.From}
-                  mode="full"
-                  className="sm:col-span-2"
-                />
-
-                <div className="text-muted-foreground font-medium">To:</div>
-                <QrlAddress
-                  address={transaction.To}
-                  mode="full"
-                  className="sm:col-span-2"
-                />
-
-                <div className="text-muted-foreground font-medium">
-                  Transaction Hash:
-                </div>
-                <div className="sm:col-span-2 break-all">
-                  {transaction.TxHash}
-                </div>
-
-                <div className="text-muted-foreground font-medium">Time:</div>
-                <div className="sm:col-span-2">
-                  {new Date(
-                    parseInt(transaction.TimeStamp, 16) * 1000,
-                  ).toLocaleString()}
-                </div>
-
-                <div className="text-muted-foreground font-medium">Amount:</div>
-                <div className="font-numeric sm:col-span-2">{transaction.Amount}</div>
-
-                <div className="text-muted-foreground font-medium">Fees:</div>
-                <div className="font-numeric sm:col-span-2">
-                  {transaction.PaidFees ?? "Unavailable"}
-                </div>
-
-                <div className="text-muted-foreground font-medium">Block:</div>
-                <div className="font-numeric sm:col-span-2">{transaction.BlockNumber}</div>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="mt-4 px-3 py-1 rounded-md border border-foreground/10 bg-foreground/[0.06] text-sm sm:text-base transition-colors hover:bg-foreground/10"
+      {isOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Transaction Details"
+              className="bg-card p-4 rounded shadow-lg w-full sm:w-1/2 max-h-[calc(100dvh-2rem)] overflow-y-auto"
             >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+              <h2 className="text-xl sm:text-2xl font-bold mb-2">
+                Transaction Details
+              </h2>
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="text-muted-foreground font-medium">ID:</div>
+                  <div className="sm:col-span-2 break-all">
+                    {transaction.ID}
+                  </div>
+
+                  <div className="text-muted-foreground font-medium">
+                    Status:
+                  </div>
+                  <div className="sm:col-span-2">
+                    {historyStatus(transaction)}
+                  </div>
+
+                  <div className="text-muted-foreground font-medium">Type:</div>
+                  <div className="sm:col-span-2">
+                    {transaction.InOut} ({transaction.TxType})
+                  </div>
+
+                  <div className="text-muted-foreground font-medium">
+                    Address:
+                  </div>
+                  <QrlAddress
+                    address={transaction.Address}
+                    mode="full"
+                    className="sm:col-span-2"
+                  />
+
+                  <div className="text-muted-foreground font-medium">From:</div>
+                  <QrlAddress
+                    address={transaction.From}
+                    mode="full"
+                    className="sm:col-span-2"
+                  />
+
+                  <div className="text-muted-foreground font-medium">To:</div>
+                  <QrlAddress
+                    address={transaction.To}
+                    mode="full"
+                    className="sm:col-span-2"
+                  />
+
+                  <div className="text-muted-foreground font-medium">
+                    Transaction Hash:
+                  </div>
+                  <div className="sm:col-span-2 break-all">
+                    {transaction.TxHash}
+                  </div>
+
+                  <div className="text-muted-foreground font-medium">Time:</div>
+                  <div className="sm:col-span-2">
+                    {new Date(
+                      parseInt(transaction.TimeStamp, 16) * 1000,
+                    ).toLocaleString()}
+                  </div>
+
+                  <div className="text-muted-foreground font-medium">
+                    Amount:
+                  </div>
+                  <div className="font-numeric sm:col-span-2">
+                    {transaction.Amount} {transaction.asset ?? "Quanta"}
+                  </div>
+
+                  <div className="text-muted-foreground font-medium">Fees:</div>
+                  <div className="font-numeric sm:col-span-2">
+                    {transaction.PaidFees ?? "Unavailable"}
+                  </div>
+
+                  <div className="text-muted-foreground font-medium">
+                    Block:
+                  </div>
+                  <div className="font-numeric sm:col-span-2">
+                    {transaction.BlockNumber || "Unavailable"}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                }}
+                className="mt-4 px-3 py-1 rounded-md border border-foreground/10 bg-foreground/[0.06] text-sm sm:text-base transition-colors hover:bg-foreground/10"
+              >
+                Close
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
     </>
   );
 };

@@ -1,12 +1,6 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
 import { useState, useEffect, useRef } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "../../../UI/Card";
+import { Card, CardContent, CardFooter } from "../../../UI/Card";
 import {
   Form,
   FormControl,
@@ -169,72 +163,69 @@ const DesktopPasswordSetup = ({
   }
 
   return (
-    <Form {...form}>
-      <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-        <Card className="border-l-4 border-l-primary">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">
-              Set Wallet Password
-            </CardTitle>
-            <CardDescription>
-              This password unlocks your wallet on this device. The signer
-              encrypts your seed with it; it never leaves your machine.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <FormField
-              control={control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      disabled={isSubmitting || isProvisioning}
-                      placeholder="Password"
-                      type="password"
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Must include uppercase, lowercase, number, and special
-                    character
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name="reEnteredPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      disabled={isSubmitting || isProvisioning}
-                      placeholder="Re-enter the password"
-                      type="password"
-                    />
-                  </FormControl>
-                  <FormDescription>Re-enter the password</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-          <CardFooter>
-            <ShinyButton
-              disabled={isSubmitting || !isValid || isProvisioning}
-              processing={isProvisioning}
-              className="w-full"
-              type="submit"
-            >
-              {isProvisioning ? "Importing..." : "Import Wallet"}
-            </ShinyButton>
-          </CardFooter>
-        </Card>
-      </form>
-    </Form>
+    <PageShell
+      title="Set Wallet Password"
+      subtitle="This password unlocks your wallet on this device. The signer encrypts your seed with it; it never leaves your machine."
+      seoTitle="Import Account"
+    >
+      <Form {...form}>
+        <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+          <Card>
+            <CardContent className="space-y-6 pt-6">
+              <FormField
+                control={control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        disabled={isSubmitting || isProvisioning}
+                        placeholder="Password"
+                        type="password"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Must include uppercase, lowercase, number, and special
+                      character
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
+                name="reEnteredPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        disabled={isSubmitting || isProvisioning}
+                        placeholder="Re-enter the password"
+                        type="password"
+                      />
+                    </FormControl>
+                    <FormDescription>Re-enter the password</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+            <CardFooter>
+              <ShinyButton
+                disabled={isSubmitting || !isValid || isProvisioning}
+                processing={isProvisioning}
+                className="w-full"
+                type="submit"
+              >
+                {isProvisioning ? "Importing..." : "Import Wallet"}
+              </ShinyButton>
+            </CardFooter>
+          </Card>
+        </form>
+      </Form>
+    </PageShell>
   );
 };
 
@@ -370,100 +361,100 @@ const WebPinSetup = ({
   // Show loading state while checking for existing seeds
   if (hasExistingSeeds === null) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader className="h-6 w-6 animate-spin" />
-        </CardContent>
-      </Card>
+      <PageShell title="Secure your wallet" seoTitle="Import Account">
+        <Card>
+          <CardContent className="flex items-center justify-center p-6">
+            <Loader className="h-6 w-6 animate-spin" />
+          </CardContent>
+        </Card>
+      </PageShell>
     );
   }
 
   return (
-    <Form {...form}>
-      <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-        <Card className="border-l-4 border-l-primary">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">
-              {hasExistingSeeds
-                ? "Enter Your Wallet PIN"
-                : "Set Transaction PIN"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            <div>
-              <p className="text-sm text-muted-foreground mb-4">
-                {hasExistingSeeds
-                  ? "Enter your existing PIN to add this wallet. All wallets use the same PIN for security."
-                  : "Set a PIN to use for transactions instead of entering your seed phrase each time. Your seed phrase will be encrypted with this PIN and stored securely."}
-              </p>
-              <div className="space-y-4">
-                <FormField
-                  control={control}
-                  name="pin"
-                  render={({ field }) => (
-                    <PinInput
-                      length={6}
-                      placeholder={
-                        hasExistingSeeds
-                          ? "Enter your existing PIN"
-                          : "Enter PIN (4-6 digits)"
-                      }
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={isSubmitting || isStoringPin}
-                      description={
-                        hasExistingSeeds
-                          ? "Your existing wallet PIN"
-                          : "Enter a 4-6 digit PIN"
-                      }
-                      error={form.formState.errors.pin?.message}
-                      onComplete={() => reEnterPinRef.current?.focus()}
-                    />
-                  )}
-                />
-                {!hasExistingSeeds && (
+    <PageShell
+      title={hasExistingSeeds ? "Enter Your Wallet PIN" : "Set Transaction PIN"}
+      seoTitle="Import Account"
+    >
+      <Form {...form}>
+        <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+          <Card>
+            <CardContent className="space-y-8 pt-6">
+              <div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {hasExistingSeeds
+                    ? "Enter your existing PIN to add this wallet. All wallets use the same PIN for security."
+                    : "Set a PIN to approve transactions. Your seed phrase will be encrypted with this PIN and stored securely."}
+                </p>
+                <div className="space-y-4">
                   <FormField
                     control={control}
-                    name="reEnteredPin"
+                    name="pin"
                     render={({ field }) => (
                       <PinInput
-                        ref={reEnterPinRef}
                         length={6}
-                        placeholder="Re-enter PIN"
-                        value={field.value ?? ""}
+                        placeholder={
+                          hasExistingSeeds
+                            ? "Enter your existing PIN"
+                            : "Enter PIN (4-6 digits)"
+                        }
+                        value={field.value}
                         onChange={field.onChange}
                         disabled={isSubmitting || isStoringPin}
-                        description="Re-enter your PIN"
-                        error={form.formState.errors.reEnteredPin?.message}
+                        description={
+                          hasExistingSeeds
+                            ? "Your existing wallet PIN"
+                            : "Enter a 4-6 digit PIN"
+                        }
+                        error={form.formState.errors.pin?.message}
+                        onComplete={() => reEnterPinRef.current?.focus()}
                       />
                     )}
                   />
-                )}
+                  {!hasExistingSeeds && (
+                    <FormField
+                      control={control}
+                      name="reEnteredPin"
+                      render={({ field }) => (
+                        <PinInput
+                          ref={reEnterPinRef}
+                          length={6}
+                          placeholder="Re-enter PIN"
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          disabled={isSubmitting || isStoringPin}
+                          description="Re-enter your PIN"
+                          error={form.formState.errors.reEnteredPin?.message}
+                        />
+                      )}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-          </CardContent>
-          {needsDeviceRecovery && (
-            <div className="px-6 pb-6">
-              <DeviceCredentialRecovery />
-            </div>
-          )}
-          <CardFooter>
-            <ShinyButton
-              disabled={isSubmitting || !isValid}
-              processing={isStoringPin}
-              className="w-full"
-              type="submit"
-            >
-              {isStoringPin
-                ? "Encrypting..."
-                : hasExistingSeeds
-                  ? "Import Wallet"
-                  : "Set PIN"}
-            </ShinyButton>
-          </CardFooter>
-        </Card>
-      </form>
-    </Form>
+            </CardContent>
+            {needsDeviceRecovery && (
+              <div className="px-6 pb-6">
+                <DeviceCredentialRecovery />
+              </div>
+            )}
+            <CardFooter>
+              <ShinyButton
+                disabled={isSubmitting || !isValid}
+                processing={isStoringPin}
+                className="w-full"
+                type="submit"
+              >
+                {isStoringPin
+                  ? "Encrypting..."
+                  : hasExistingSeeds
+                    ? "Import Wallet"
+                    : "Set PIN"}
+              </ShinyButton>
+            </CardFooter>
+          </Card>
+        </form>
+      </Form>
+    </PageShell>
   );
 };
 

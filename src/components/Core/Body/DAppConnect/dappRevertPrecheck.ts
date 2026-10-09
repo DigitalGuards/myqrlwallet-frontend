@@ -35,6 +35,10 @@ type RevertPrecheckCall = (
   blockNumber?: string,
 ) => Promise<unknown>;
 
+function isRevertPrecheckCall(value: unknown): value is RevertPrecheckCall {
+  return typeof value === "function";
+}
+
 export interface RevertPrecheckTransaction {
   from?: string | undefined;
   to?: string | undefined;
@@ -123,7 +127,7 @@ function revertReason(error: unknown): string | null {
 
 function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new PrecheckTimeoutError()), ms);
+    const timer = setTimeout(() => { reject(new PrecheckTimeoutError()); }, ms);
     work.then(
       (value) => {
         clearTimeout(timer);
@@ -149,8 +153,8 @@ export async function assertTransactionWouldNotRevert(
   timeoutMs: number = REVERT_PRECHECK_TIMEOUT_MS,
 ): Promise<void> {
   const call = provider?.call;
-  if (typeof call !== "function") return;
-  const invoke = call as RevertPrecheckCall;
+  if (!isRevertPrecheckCall(call)) return;
+  const invoke = call;
 
   const request: Record<string, unknown> = {};
   if (transaction.from !== undefined) request["from"] = transaction.from;

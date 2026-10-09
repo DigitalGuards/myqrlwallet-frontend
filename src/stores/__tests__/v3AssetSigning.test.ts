@@ -45,7 +45,6 @@ jest.mock("@/config", () => ({
     },
   },
   EXPLORER_BASE: "https://explorer.example",
-  getPendingTxApiUrl: jest.fn(),
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({

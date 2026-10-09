@@ -1,3 +1,5 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
+import { Card } from "@/components/UI/Card";
 import { Link } from "react-router";
 import { SEO } from "@/components/SEO/SEO";
 import { ROUTES } from "@/router/router";
@@ -7,13 +9,12 @@ const linkClass =
 
 const Terms = () => {
     return (
-        <div className="min-h-screen">
+        <PageShell title="Terms of Use" width="wide">
             <SEO
                 title="Terms of Use"
                 description="Terms of Use for MyQRLWallet, the free and open-source self-custody wallet for QRL 2.0, provided by DigitalGuards."
             />
-            <main className="container mx-auto max-w-3xl px-4 py-8">
-                <h1 className="text-3xl font-bold mb-4">Terms of Use</h1>
+            <Card className="p-6">
 
                 <p className="mb-2 text-sm text-muted-foreground">Last updated: 13 July 2026</p>
 
@@ -339,8 +340,8 @@ const Terms = () => {
                     </Link>{" "}
                     is a plain-language summary for convenience; in case of any conflict, these Terms control.
                 </p>
-            </main>
-        </div>
+            </Card>
+        </PageShell>
     );
 };
 

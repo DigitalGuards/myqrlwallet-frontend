@@ -1,3 +1,5 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
+import { Card } from "@/components/UI/Card";
 import { Link } from "react-router";
 import { SEO } from "@/components/SEO/SEO";
 import { ROUTES } from "@/router/router";
@@ -7,13 +9,12 @@ const linkClass =
 
 const Privacy = () => {
     return (
-        <div className="min-h-screen">
+        <PageShell title="Privacy Policy" width="wide">
             <SEO
                 title="Privacy Policy"
                 description="How DigitalGuards processes personal data in connection with MyQRLWallet, the self-custody wallet for QRL 2.0."
             />
-            <main className="container mx-auto max-w-3xl px-4 py-8">
-                <h1 className="text-3xl font-bold mb-4">Privacy Policy</h1>
+            <Card className="p-6">
 
                 <p className="mb-2 text-sm text-muted-foreground">Last updated: 29 September 2026</p>
 
@@ -255,8 +256,8 @@ const Privacy = () => {
                     </Link>
                     .
                 </p>
-            </main>
-        </div>
+            </Card>
+        </PageShell>
     );
 };
 

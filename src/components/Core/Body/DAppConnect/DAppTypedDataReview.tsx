@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react';
+import { isArray, isRecord } from '@/utils/guards';
 import type { TypedDataPayload } from '@/utils/signing';
 
 interface DAppTypedDataReviewProps {
@@ -25,10 +26,10 @@ function escapeVisualControls(value: string): string {
 
 function normalizeForReview(value: unknown): unknown {
   if (typeof value === 'bigint') return { $bigint: value.toString() };
-  if (Array.isArray(value)) return value.map(normalizeForReview);
-  if (typeof value === 'object' && value !== null) {
+  if (isArray(value)) return value.map(normalizeForReview);
+  if (isRecord(value)) {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
+      Object.entries(value)
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([key, entry]) => [key, normalizeForReview(entry)]),
     );
@@ -54,7 +55,7 @@ function renderValue(value: unknown): React.ReactNode {
   if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
     return <span className="font-mono text-xs">{String(value)}</span>;
   }
-  if (Array.isArray(value)) {
+  if (isArray(value)) {
     return (
       <ul className="space-y-1 border-l border-border pl-2">
         {value.map((item, i) => (
@@ -66,10 +67,10 @@ function renderValue(value: unknown): React.ReactNode {
       </ul>
     );
   }
-  if (typeof value === 'object') {
+  if (isRecord(value)) {
     return (
       <div className="mt-1 space-y-1 border-l border-border pl-2">
-        {Object.entries(value as Record<string, unknown>).map(([k, v]) => (
+        {Object.entries(value).map(([k, v]) => (
           <div key={k} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
             <span className="text-muted-foreground">{k}</span>
             <span className="min-w-0 text-right">{renderValue(v)}</span>
@@ -78,7 +79,7 @@ function renderValue(value: unknown): React.ReactNode {
       </div>
     );
   }
-  return <span className="text-muted-foreground">{String(value)}</span>;
+  return <span className="text-muted-foreground">(unsupported value)</span>;
 }
 
 const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({ payload, digestHex }) => {
@@ -141,7 +142,10 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({ payload, dige
         <details
           className="text-xs"
           open={showDigest}
-          onToggle={(e) => setShowDigest((e.currentTarget as HTMLDetailsElement).open)}
+          onToggle={(e) => {
+            const details = e.currentTarget;
+            if (details instanceof HTMLDetailsElement) setShowDigest(details.open);
+          }}
         >
           <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
             Advanced: 64-byte SHAKE256 digest

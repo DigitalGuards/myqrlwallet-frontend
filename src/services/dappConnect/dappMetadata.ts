@@ -1,3 +1,4 @@
+import { isRecord } from "@/utils/guards";
 import { parseExternalHttpUrl } from "@/utils/nativeApp";
 
 import type { DAppInfo } from "./types";
@@ -59,10 +60,10 @@ function parseChainId(value: unknown): string {
 
 /** Validate and canonicalize authenticated ORIGINATOR_INFO metadata. */
 export function parseDAppInfo(value: unknown): DAppInfo {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+  if (!isRecord(value)) {
     throw new Error("ORIGINATOR_INFO must contain a metadata object");
   }
-  const record = value as Record<string, unknown>;
+  const record = value;
   const name = record["name"];
   const url = record["url"];
   if (

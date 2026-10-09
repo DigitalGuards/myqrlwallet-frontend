@@ -31,7 +31,7 @@ function fixture() {
       throw new Error("Unexpected RPC method");
     },
   );
-  const provider = { request } as ExtensionProvider;
+  const provider: ExtensionProvider = { request };
   return { capabilities, request, provider };
 }
 
@@ -140,9 +140,9 @@ it("rejects legacy addresses even after network qualification", async () => {
 it("times out an unresponsive extension before account access", async () => {
   jest.useFakeTimers();
   try {
-    const provider = {
+    const provider: ExtensionProvider = {
       request: () => new Promise(() => undefined),
-    } as ExtensionProvider;
+    };
     const result = expect(qualifyV3Provider(provider)).rejects.toThrow(
       "timed out",
     );
@@ -153,3 +153,40 @@ it("times out an unresponsive extension before account access", async () => {
     jest.useRealTimers();
   }
 });
+
+it.each([false, true])(
+  "shares concurrent qualification and revokes failed checks: %s",
+  async (fail) => {
+    const { provider, request, capabilities } = fixture();
+    await qualifyV3Provider(provider);
+    request.mockClear();
+    let release: (value: unknown) => void = () => {
+      throw new Error("Missing resolver");
+    };
+    const capabilitiesRead = new Promise<unknown>((resolve) => {
+      release = resolve;
+    });
+    const original = request.getMockImplementation();
+    if (!original) throw new Error("Missing fixture implementation");
+    request.mockImplementation(async (args) =>
+      args.method === "qrl_walletCapabilities"
+        ? capabilitiesRead
+        : original(args),
+    );
+    const first = qualifyV3Provider(provider);
+    const second = qualifyV3Provider(provider);
+    expect(() => assertQualifiedV3Provider(provider)).not.toThrow();
+    release(fail ? {} : capabilities);
+    const results = await Promise.allSettled([first, second]);
+    expect(results.map((result) => result.status)).toEqual(
+      fail ? ["rejected", "rejected"] : ["fulfilled", "fulfilled"],
+    );
+    expect(
+      request.mock.calls.filter(
+        ([args]) => args.method === "qrl_walletCapabilities",
+      ),
+    ).toHaveLength(1);
+    if (fail) expect(() => assertQualifiedV3Provider(provider)).toThrow();
+    else expect(() => assertQualifiedV3Provider(provider)).not.toThrow();
+  },
+);

@@ -82,7 +82,7 @@ const DAppConnectConsentModal = observer(() => {
     try {
       const result = await dappConnectStore.confirmDesktopConnect();
       if (result.success) {
-        navigate('/dapp-sessions');
+        void navigate('/dapp-sessions');
       } else {
         setError(result.error || 'Connection failed');
       }

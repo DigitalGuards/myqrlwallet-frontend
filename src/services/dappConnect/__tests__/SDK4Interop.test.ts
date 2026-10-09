@@ -16,7 +16,7 @@ import {
   parseConnectionURI,
 } from "../qrUri";
 
-function wireClone<T>(value: unknown): T {
+function wireClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 

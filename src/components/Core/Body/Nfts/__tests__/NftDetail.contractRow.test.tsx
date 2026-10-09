@@ -1,5 +1,7 @@
 /** @jest-environment jsdom */
 
+jest.mock("@/components/SEO/SEO", () => ({ SEO: () => null }));
+
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { useParams } from "react-router";
 import { useStore } from "@/stores/store";

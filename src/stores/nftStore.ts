@@ -1,3 +1,5 @@
+import { transactionHistoryStore } from "./transactionHistoryStore";
+import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
 import {
   action,
   computed,
@@ -588,6 +590,11 @@ class NftStore {
      */
     approvedFee: ApprovedFeeInput,
   ): Promise<boolean> {
+    const historyDetails = {
+      to: toAddress,
+      amount: amount.toString(),
+      asset: `NFT #${nft.tokenId}`,
+    };
     this.qrlStore.resetTransactionStatus();
     const signingGeneration = walletMutations.captureGeneration();
     const assertSigningCurrent = (): void => {
@@ -658,11 +665,12 @@ class NftStore {
             txHash: transactionHash,
             receipt: null,
             error: null,
-            pendingDetails: null,
           };
         });
+        transactionHistoryStore.record({
+          ...historyDetails, blockchain: selectedBlockChain, from, hash: transactionHash,
+        });
         log(`Desktop NFT transfer broadcast: ${transactionHash}`);
-        this.qrlStore.fetchPendingTxDetails(transactionHash);
         this.qrlStore.pollForReceipt(transactionHash);
         this.refreshNftBalances();
         return true;
@@ -674,7 +682,6 @@ class NftStore {
             txHash: null,
             receipt: null,
             error: `NFT transfer failed: ${message}`,
-            pendingDetails: null,
           };
         });
         log(`Desktop NFT transfer preparation failed: ${message}`);
@@ -780,6 +787,9 @@ class NftStore {
         checkRevertBeforeSending: true,
       });
 
+      observeHistoryBroadcast(promiEvent, {
+        ...historyDetails, blockchain: selectedBlockChain, from: acc.address,
+      });
       promiEvent
         .on("transactionHash", (hash: string | Uint8Array) => {
           runInAction(() => {
@@ -790,10 +800,8 @@ class NftStore {
               txHash,
               receipt: null,
               error: null,
-              pendingDetails: null,
             };
             log(`NFT transfer pending: ${txHash}`);
-            this.qrlStore.fetchPendingTxDetails(txHash);
           });
         })
         .on("receipt", (receipt: TransactionReceipt) => {
@@ -804,7 +812,6 @@ class NftStore {
               txHash: txHashString,
               receipt,
               error: null,
-              pendingDetails: null,
             };
             log(`NFT transfer confirmed: ${txHashString}`);
             // Refresh ownership state so the transferred NFT drops out
@@ -821,7 +828,6 @@ class NftStore {
               txHash,
               receipt: null,
               error: error.message || "NFT transfer failed",
-              pendingDetails: null,
             };
             log(`NFT transfer failed: ${error.message}`);
           });
@@ -836,7 +842,6 @@ class NftStore {
           txHash: null,
           receipt: null,
           error: `NFT transfer failed: ${message}`,
-          pendingDetails: null,
         };
         log(`NFT transfer preparation failed: ${message}`);
       });

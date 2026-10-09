@@ -1,13 +1,7 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "@/components/UI/Button";
 import { ShinyButton } from "@/components/UI/ShinyButton";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/UI/Card";
+import { Card, CardContent, CardFooter } from "@/components/UI/Card";
 import {
   Form,
   FormControl,
@@ -31,7 +25,6 @@ import { ROUTES } from "@/router/router";
 import { useStore } from "@/stores/store";
 import { StorageUtil } from "@/utils/storage";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { utils } from "@theqrl/web3";
 import {
   Loader,
   Send,
@@ -50,10 +43,11 @@ import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { z } from "zod";
 import { GasFeeNotice } from "./GasFeeNotice/GasFeeNotice";
 import { AddressBookPicker } from "../AddressBook/AddressBookPicker";
+import { SendStatus } from "./SendStatus";
+import { isRecord } from "@/utils/guards";
 import { TransactionSuccessful } from "./TransactionSuccessful/TransactionSuccessful";
 import {
   getExplorerAddressUrl,
-  getExplorerTxUrl,
   QRL_PROVIDER,
 } from "@/config";
 import { Slider } from "@/components/UI/Slider";
@@ -78,7 +72,6 @@ import { FEE_NOT_SHOWN, type ApprovedFee } from "@/utils/web3/feePolicy";
 import type { RecipientSubmission } from "@/hooks/useQrnsRecipient";
 import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
 import { RecipientResolutionStatus } from "@/components/Core/RecipientResolutionStatus";
-import { SEO } from "@/components/SEO/SEO";
 import {
   getOptimalTokenBalance,
   formatAddressShort,
@@ -159,11 +152,9 @@ const Transfer = observer(() => {
 
   // Prefill from the address book page's Send action (navigation state).
   const location = useLocation();
-  const prefilledReceiver =
-    typeof (location.state as { receiverAddress?: unknown } | null)
-      ?.receiverAddress === "string"
-      ? (location.state as { receiverAddress: string }).receiverAddress
-      : "";
+  const navigationState: unknown = location.state;
+  const prefilledReceiver = isRecord(navigationState) && typeof navigationState['receiverAddress'] === 'string'
+    ? navigationState['receiverAddress'] : '';
 
   const [sliderValue, setSliderValue] = useState(0);
   const [feeLevel, setFeeLevel] = useState<FeeLevel>("medium");
@@ -221,7 +212,7 @@ const Transfer = observer(() => {
   } = form;
 
   const selectedAsset = watch("asset");
-  const formValues = watch() as z.infer<typeof FormSchema>;
+  const formValues = watch();
   const isNativeTransfer = selectedAsset === "native";
   const recipientResolution = useNetworkQrnsRecipient({
     input: formValues.receiverAddress ?? "",
@@ -250,7 +241,7 @@ const Transfer = observer(() => {
           const balance = await fetchBalance(
             selectedAsset,
             accountAddress,
-            QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url,
+            QRL_PROVIDER[selectedBlockChain].url,
           );
           const token = visibleTokenList.find(
             (t) => t.address === selectedAsset,
@@ -354,7 +345,8 @@ const Transfer = observer(() => {
 
     const unsubscribe = subscribeToNativeMessages((message) => {
       if (message.type === "QR_RESULT" && message.payload) {
-        const scannedAddress = (message.payload["address"] as string) || "";
+        const scannedValue: unknown = message.payload["address"];
+        const scannedAddress = typeof scannedValue === "string" ? scannedValue : "";
         setIsScanning(false);
 
         // Validate the scanned address
@@ -392,22 +384,9 @@ const Transfer = observer(() => {
   if (!accountAddress) {
     return (
       <>
-        <SEO title="Transfer" />
-        <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-          <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
-            <img
-              className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
-              src="/tree.svg"
-              alt="Background Tree"
-            />
+        <PageShell title="Transfer" subtitle="Send Quanta or tokens to another wallet" seoTitle="Transfer">
             <Card className="w-full">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold">Transfer</CardTitle>
-                <CardDescription>
-                  Send Quanta or tokens to another wallet
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <div className="flex flex-col items-center justify-center p-8 text-center">
                   <p className="text-muted-foreground mb-4">
                     You need to import an account before making transfers.
@@ -418,8 +397,7 @@ const Transfer = observer(() => {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </PageShell>
       </>
     );
   }
@@ -473,15 +451,6 @@ const Transfer = observer(() => {
     if (isNativeTransfer) {
       await handleNativeTransfer(formData, recipientSubmission);
     } else {
-      // Token transfers work through the mobile-app pairing (the relay
-      // carries contract calls) but not through extension wallets yet.
-      if (isUsingExtension) {
-        control.setError("asset", {
-          message:
-            "Token transfers are not yet supported with extension wallets.",
-        });
-        return;
-      }
       await handleTokenTransfer(formData, recipientSubmission);
     }
   }
@@ -506,7 +475,6 @@ const Transfer = observer(() => {
           feeLevel,
           approvedFee ?? undefined,
         );
-        resetForm();
         window.scrollTo(0, 0);
       } catch (error) {
         control.setError("receiverAddress", {
@@ -521,7 +489,6 @@ const Transfer = observer(() => {
         valueEther,
         feeLevel,
       );
-      resetForm();
       window.scrollTo(0, 0);
     } else {
       try {
@@ -593,7 +560,6 @@ const Transfer = observer(() => {
           feeLevel,
           approvedFee ?? undefined,
         );
-        resetForm();
         window.scrollTo(0, 0);
       } catch (error) {
         control.setError("pin", {
@@ -609,12 +575,8 @@ const Transfer = observer(() => {
   ) {
     if (!selectedToken) return;
 
-    if (isUsingMobile) {
-      // Mobile pairing: no PIN, no seed. The store builds the transfer
-      // calldata and the phone signs after its own confirmation screen.
-      // sendToken reports failure via its return value (the failed
-      // transactionStatus screen takes over), so only reset the form on
-      // success: Try Again then returns to the still-filled form.
+    if (isUsingRemoteSigner) {
+      // The signer confirms the transfer in its own approval screen.
       const rawAmount = parseUnits(
         formData.amount.toString(),
         selectedToken.decimals,
@@ -626,14 +588,11 @@ const Transfer = observer(() => {
         rawAmount,
         "",
         recipientAddress,
-        // The token send screen shows no network fee yet, so there is no
-        // displayed figure to hold the signature to. Said explicitly, so it
-        // reads as a gap to close rather than a forgotten argument.
+        // The remote signer displays the network fee for approval.
         "medium",
         FEE_NOT_SHOWN,
       );
       if (sent) {
-        resetForm();
         window.scrollTo(0, 0);
       }
       return;
@@ -658,7 +617,6 @@ const Transfer = observer(() => {
           "medium",
           FEE_NOT_SHOWN,
         );
-        resetForm();
         window.scrollTo(0, 0);
       } catch (error) {
         control.setError("receiverAddress", {
@@ -736,7 +694,6 @@ const Transfer = observer(() => {
         "medium",
         FEE_NOT_SHOWN,
       );
-      resetForm();
       window.scrollTo(0, 0);
     } catch (error) {
       control.setError("pin", {
@@ -749,6 +706,18 @@ const Transfer = observer(() => {
     reset({ asset: selectedAsset, receiverAddress: "", amount: "", pin: "" });
     setSliderValue(0);
     setAmountInputValue("");
+  };
+
+  const backToForm = () => {
+    resetTransactionStatus();
+    // Release form submission state while the signer request may still be open.
+    reset(undefined, {
+      keepValues: true,
+      keepErrors: true,
+      keepDirty: true,
+      keepTouched: true,
+      keepIsValid: true,
+    });
   };
 
   const cancelTransaction = () => {
@@ -805,9 +774,11 @@ const Transfer = observer(() => {
     return (
       <TransactionSuccessful
         transactionReceipt={transactionStatus.receipt}
-        amount={submittedAmount}
-        assetSymbol={submittedAssetSymbol}
+        amount={transactionStatus.details?.amount ?? submittedAmount}
+        assetSymbol={transactionStatus.details?.asset ?? submittedAssetSymbol}
+        blockchain={transactionStatus.details?.blockchain}
         onDone={() => {
+          resetForm();
           resetTransactionStatus();
           navigate(ROUTES.HOME);
         }}
@@ -815,213 +786,24 @@ const Transfer = observer(() => {
     );
   }
 
-  if (transactionStatus.state === "pending") {
+  if (transactionStatus.state !== "idle") {
     return (
-      <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-        <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
-          <Card className="w-full border-l-4 border-l-primary">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Loader className="h-5 w-5 animate-spin" />
-                Transaction Pending
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-8">
-              <div className="flex flex-col items-center gap-4 text-center">
-                <p className="text-muted-foreground">
-                  Your transaction has been submitted and is awaiting
-                  confirmation.
-                </p>
-                {transactionStatus.txHash && (
-                  <a
-                    href={getExplorerTxUrl(
-                      transactionStatus.txHash,
-                      blockchain,
-                    )}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
-                  >
-                    View on Explorer <ExternalLink className="h-4 w-4" />
-                  </a>
-                )}
-                {transactionStatus.pendingDetails && (
-                  <div className="mt-4 w-full max-w-md rounded border bg-muted p-4 text-left text-sm space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">From:</span>
-                      <QrlAddress
-                        address={transactionStatus.pendingDetails.from}
-                        mode="full"
-                        className="max-w-[75%] justify-end text-right"
-                        addressClassName="text-xs"
-                      />
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">To:</span>
-                      <QrlAddress
-                        address={transactionStatus.pendingDetails.to}
-                        mode="full"
-                        className="max-w-[75%] justify-end text-right"
-                        addressClassName="text-xs"
-                      />
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Value:</span>
-                      <span className="font-numeric">
-                        {isNativeTransfer
-                          ? `${utils.fromPlanck(BigInt(transactionStatus.pendingDetails.value), "quanta")} ${NATIVE_TOKEN.symbol}`
-                          : `${getOptimalTokenBalance(formValues.amount.toString())} ${assetSymbol}`}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Gas Price:</span>
-                      <span className="font-numeric">
-                        {utils.fromPlanck(
-                          BigInt(transactionStatus.pendingDetails.gasPrice),
-                          "shor",
-                        )}{" "}
-                        Shor
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Gas Limit:</span>
-                      <span className="font-numeric">
-                        {parseInt(
-                          transactionStatus.pendingDetails.gas,
-                          16,
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Nonce:</span>
-                      <span className="font-numeric">
-                        {parseInt(transactionStatus.pendingDetails.nonce, 16)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  if (transactionStatus.state === "timeout") {
-    return (
-      <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-        <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
-          <Card className="w-full border-l-4 border-l-primary">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Loader className="h-5 w-5" />
-                Still Pending
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-8">
-              <div className="flex flex-col items-center gap-4 text-center">
-                <p className="text-muted-foreground">
-                  {transactionStatus.error ||
-                    "The transaction is taking longer than expected. It may still be mined; check the explorer."}
-                </p>
-                {transactionStatus.txHash && (
-                  <a
-                    href={getExplorerTxUrl(
-                      transactionStatus.txHash,
-                      blockchain,
-                    )}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
-                  >
-                    View on Explorer <ExternalLink className="h-4 w-4" />
-                  </a>
-                )}
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                variant="outline"
-                onClick={resetTransactionStatus}
-                className="w-full"
-              >
-                Done
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  if (transactionStatus.state === "failed") {
-    return (
-      <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-        <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
-          <Card className="w-full border-l-4 border-l-destructive">
-            <CardHeader className="bg-gradient-to-r from-destructive/10 to-transparent">
-              <CardTitle className="flex items-center gap-2 text-destructive">
-                <X className="h-5 w-5" />
-                Transaction Failed
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-8">
-              <div className="flex flex-col items-center gap-4 text-center">
-                <p className="text-destructive">
-                  {transactionStatus.error || "An unknown error occurred."}
-                </p>
-                {transactionStatus.txHash && (
-                  <a
-                    href={getExplorerTxUrl(
-                      transactionStatus.txHash,
-                      blockchain,
-                    )}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
-                  >
-                    View on Explorer <ExternalLink className="h-4 w-4" />
-                  </a>
-                )}
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                variant="outline"
-                onClick={resetTransactionStatus}
-                className="w-full"
-              >
-                Try Again
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      </div>
+      <SendStatus
+        status={transactionStatus}
+        blockchain={blockchain}
+        onBack={transactionStatus.state === "timeout" ? cancelTransaction : backToForm}
+      />
     );
   }
 
   // Main Form
   return (
     <>
-      <SEO title="Transfer" />
-      <div className="flex w-full items-start justify-center py-2 md:py-8 overflow-x-hidden">
-        <div className="page-enter relative w-full max-w-2xl px-2 md:px-4">
-          <img
-            className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
-            src="/tree.svg"
-            alt="Background Tree"
-          />
+      <PageShell title="Transfer" subtitle="Send Quanta or tokens to another wallet" seoTitle="Transfer">
           <Form {...form}>
             <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
               <Card className="w-full">
-                <CardHeader>
-                  <CardTitle className="text-2xl font-bold">Transfer</CardTitle>
-                  <CardDescription>
-                    Send Quanta or tokens to another wallet
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-6 pt-6">
                   {/* Asset Selector */}
                   <FormField
                     control={control}
@@ -1370,8 +1152,7 @@ const Transfer = observer(() => {
               </Card>
             </form>
           </Form>
-        </div>
-      </div>
+        </PageShell>
     </>
   );
 });

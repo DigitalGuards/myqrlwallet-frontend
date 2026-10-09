@@ -83,12 +83,24 @@ export function desktopTransactionArgs(
   params: Record<string, unknown>,
   from: string,
 ): DesktopTransactionArgs {
-  const data = (params['data'] as string) || undefined;
+  const rawData = params['data'];
+  if (rawData !== undefined && typeof rawData !== 'string') {
+    throw new Error('transaction data must be a string');
+  }
+  const data = rawData || undefined;
+  const to = params['to'];
+  if (typeof to !== 'string') {
+    throw new Error('transaction to must be a string');
+  }
+  const rawValue = params['value'];
+  if (rawValue && typeof rawValue !== 'string') {
+    throw new Error('transaction value must be a string');
+  }
   const gas = desktopGasLimit(requestedGasLimit(params));
   return {
     from,
-    to: params['to'] as string,
-    value: params['value'] ? BigInt(params['value'] as string).toString() : '0',
+    to,
+    value: typeof rawValue === 'string' && rawValue ? BigInt(rawValue).toString() : '0',
     ...(data === undefined ? {} : { data }),
     ...(gas === undefined ? {} : { gas }),
   };

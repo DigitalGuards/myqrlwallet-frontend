@@ -1,3 +1,5 @@
+import { Card } from "@/components/UI/Card";
+import { PageShell } from "@/components/Core/Layout/PageShell";
 import { lazy, useState } from "react";
 import { withSuspense } from "@/utils/react";
 import { SEO } from "../../../SEO/SEO";
@@ -12,7 +14,7 @@ import { ROUTES } from "@/router/router";
 import { Button } from "@/components/UI/Button";
 
 const MnemonicDisplay = withSuspense(
-  lazy(() => import("./MnemonicDisplay/MnemonicDisplay"))
+  lazy(() => import("./MnemonicDisplay/MnemonicDisplay")),
 );
 
 const CreateAccount = observer(() => {
@@ -24,9 +26,14 @@ const CreateAccount = observer(() => {
   const [userPassword, setUserPassword] = useState<string>("");
   // Desktop only: the signer-returned address + mnemonic for the backup screen.
   // The hex seed is never returned to the renderer.
-  const [desktopBackup, setDesktopBackup] = useState<{ address: string; mnemonic: string }>();
+  const [desktopBackup, setDesktopBackup] = useState<{
+    address: string;
+    mnemonic: string;
+  }>();
 
-  const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(qrlConnection.blockchain);
+  const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(
+    qrlConnection.blockchain,
+  );
 
   // Called after account is created AND seed is encrypted/stored (web/native),
   // or after the signer provisioned the wallet (desktop: backup carries the
@@ -54,47 +61,43 @@ const CreateAccount = observer(() => {
         description="Create a new quantum-resistant QRL account. Generate a secure wallet with post-quantum cryptography to protect your assets."
         keywords="Create QRL Account, New Wallet, Quantum Resistant Account, Post-Quantum Cryptography"
       />
-      <div className="flex w-full items-start justify-center pt-8 md:pt-16">
-        <div className="relative w-full max-w-2xl px-2 md:px-4">
-          <img
-            className="fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
-            src="/tree.svg"
-            alt="Background Tree"
-          />
-          <div className="page-enter relative z-10">
-            {isWalletLimitReached ? (
-              <div className="flex flex-col items-center gap-6 rounded-lg border border-destructive/50 bg-destructive/10 p-8 text-center">
-                <AlertCircle className="h-12 w-12 text-destructive" />
-                <div className="flex flex-col gap-2">
-                  <h2 className="text-xl font-semibold text-foreground">
-                    Wallet Limit Reached
-                  </h2>
-                  <p className="text-muted-foreground">
-                    You have reached the maximum limit of {maxWallets} wallets.
-                    Please remove an existing wallet before creating a new one.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Current wallets: {walletCount} / {maxWallets}
-                  </p>
-                </div>
-                <Link to={ROUTES.ACCOUNT_LIST}>
-                  <Button variant="outline">
-                    Manage Wallets
-                  </Button>
-                </Link>
+      <PageShell
+        title={
+          isWalletLimitReached
+            ? "Wallet Limit Reached"
+            : hasAccountCreated
+              ? "Your Recovery Information"
+              : "Create new account"
+        }
+      >
+        <div className="relative z-10">
+          {isWalletLimitReached ? (
+            <Card className="flex flex-col items-center gap-6 p-6 text-center">
+              <AlertCircle className="h-12 w-12 text-destructive" />
+              <div className="flex flex-col gap-2">
+                <p className="text-muted-foreground">
+                  You have reached the maximum limit of {maxWallets} wallets.
+                  Please remove an existing wallet before creating a new one.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Current wallets: {walletCount} / {maxWallets}
+                </p>
               </div>
-            ) : hasAccountCreated ? (
-              <MnemonicDisplay
-                account={account}
-                userPassword={userPassword}
-                desktopBackup={desktopBackup}
-              />
-            ) : (
-              <AccountCreationForm onAccountCreated={onAccountCreated} />
-            )}
-          </div>
+              <Link to={ROUTES.ACCOUNT_LIST}>
+                <Button variant="outline">Manage Wallets</Button>
+              </Link>
+            </Card>
+          ) : hasAccountCreated ? (
+            <MnemonicDisplay
+              account={account}
+              userPassword={userPassword}
+              desktopBackup={desktopBackup}
+            />
+          ) : (
+            <AccountCreationForm onAccountCreated={onAccountCreated} />
+          )}
         </div>
-      </div>
+      </PageShell>
     </>
   );
 });

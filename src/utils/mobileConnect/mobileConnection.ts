@@ -2,6 +2,7 @@ import type { QRLConnect } from "@qrlwallet/connect";
 import type { ExtensionProvider } from "@/stores/qrlStore";
 import type { AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
+import { isUserRejection } from "@/utils/signerRejection";
 import { isValidQrlAddress } from "@/utils/web3/address";
 import { IS_V3_PROFILE } from '@/config/runtimeProfile';
 import { qualifyV3MobileProvider, V3_MOBILE_UNRESPONSIVE_MESSAGE } from '@/utils/extension/v3Provider';
@@ -44,21 +45,19 @@ let pairingActive = false;
 // today; the singleton is never torn down) can't serve a stale closure.
 const adapters = new WeakMap<QRLConnect, ExtensionProvider>();
 
-// The SDK's request() returns Promise<unknown>; the store's ExtensionProvider
-// surface is generic. Adapt with a single assertion from unknown at the
-// boundary rather than pretending QRLConnect IS an ExtensionProvider.
+// Keep SDK responses unknown until the consuming operation validates them.
 function asExtensionProvider(qrl: QRLConnect): ExtensionProvider {
   const cached = adapters.get(qrl);
   if (cached) return cached;
   const adapter: ExtensionProvider = {
-    request: <T = unknown>(args: { method: string; params?: unknown[] | object }) => {
+    request: (args) => {
       // The relay protocol takes positional (array) params only; wrap a bare
       // object param the way EIP-1193 callers sometimes pass one.
       const params =
         args.params === undefined || Array.isArray(args.params)
           ? args.params
           : [args.params];
-      return qrl.request({ method: args.method, params }) as Promise<T>;
+      return qrl.request({ method: args.method, params });
     },
   };
   adapters.set(qrl, adapter);
@@ -118,21 +117,6 @@ async function publishProvider(
   return true;
 }
 
-function isExplicitAccountRejection(error: unknown): boolean {
-  if (error && typeof error === "object") {
-    const record = error as Record<string, unknown>;
-    if (record["code"] === 4001) return true;
-    const message = record["message"];
-    if (
-      typeof message === "string" &&
-      /(?:user rejected|rejected by (?:the )?user|request rejected)/i.test(message)
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function requestMobileAccountOnce(qrl: QRLConnect, store: MobileConnectStore): void {
   if (!pairingActive || accountRequestAttempted || accountRequestInFlight) return;
   accountRequestAttempted = true;
@@ -158,7 +142,7 @@ function requestMobileAccountOnce(qrl: QRLConnect, store: MobileConnectStore): v
       // An explicit 4001 stays terminal for this consent attempt. A 4100 from
       // origin metadata ordering, or a transient relay/transport failure,
       // must be retryable on the next connect opportunity.
-      if (isExplicitAccountRejection(error)) {
+      if (isUserRejection(error)) {
         log("Mobile connect: account request rejected");
       } else {
         accountRequestAttempted = false;

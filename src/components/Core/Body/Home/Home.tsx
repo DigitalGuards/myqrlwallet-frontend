@@ -1,3 +1,5 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
+import { accountSetupDescription } from "./AccountCreateImport/accountSetupDescription";
 import { withSuspense } from "@/utils/react";
 import { useStore } from "../../../../stores/store";
 import { Loader, Send, History, QrCode, ScanLine } from "lucide-react";
@@ -5,7 +7,7 @@ import { observer } from "mobx-react-lite";
 import { lazy, useEffect, useRef, useState } from "react";
 import ConnectionFailed from "./ConnectionFailed/ConnectionFailed";
 import { SEO } from "../../../SEO/SEO";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/UI/Card";
+import { Card, CardContent, CardFooter } from "@/components/UI/Card";
 import { Button } from "@/components/UI/Button";
 import { ROUTES } from "@/router/router";
 import { ActiveAccountDisplay } from "./AccountCreateImport/ActiveAccountDisplay/ActiveAccountDisplay";
@@ -17,18 +19,15 @@ import ConnectionBadge from "./ConnectionBadge/ConnectionBadge";
 import { StorageUtil, STORAGE_EVENT_WALLET_SETTINGS } from "@/utils/storage";
 
 const AccountCreateImport = withSuspense(
-  lazy(() => import("./AccountCreateImport/AccountCreateImport"))
+  lazy(() => import("./AccountCreateImport/AccountCreateImport")),
 );
-import BackgroundVideo from "./BackgroundVideo/BackgroundVideo";
 import DecorativeAccountVideo from "./DecorativeAccountVideo";
 
 const TokenForm = withSuspense(
-  lazy(() => import("../Tokens/TokenForm/TokenForm"))
+  lazy(() => import("../Tokens/TokenForm/TokenForm")),
 );
 
-const NftGallery = withSuspense(
-  lazy(() => import("../Nfts/NftGallery"))
-);
+const NftGallery = withSuspense(lazy(() => import("../Nfts/NftGallery")));
 
 const Home = observer(() => {
   const { qrlStore, tokenStore } = useStore();
@@ -52,7 +51,9 @@ const Home = observer(() => {
       setShowNftsCard(s.showNftsCard ?? true);
     };
     load();
-    const handler = () => { load(); };
+    const handler = () => {
+      load();
+    };
     window.addEventListener(STORAGE_EVENT_WALLET_SETTINGS, handler);
     return () => {
       cancelled = true;
@@ -100,66 +101,78 @@ const Home = observer(() => {
         description="Welcome to the QRL 2.0 Web Wallet. Create or import your quantum-resistant wallet and start managing your QRL assets securely."
         keywords="QRL Wallet, Create Wallet, Import Wallet, Quantum Resistant, Web3"
       />
-      <BackgroundVideo />
-      <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-2 md:gap-4 md:py-4">
-        <div className="relative flex w-full items-center justify-end px-4 pt-2 md:pt-0">
-          {isInNativeApp() && (
-            <button
-              onClick={() => requestQRScan()}
-              className="absolute left-4 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Scan QR code"
-            >
-              <ScanLine className="h-6 w-6" />
-            </button>
-          )}
-          <ConnectionBadge />
-        </div>
+      <PageShell
+        title={
+          activeAccount.accountAddress
+            ? "Active account"
+            : isConnected
+              ? "Let's start"
+              : "Home"
+        }
+        subtitle={
+          isConnected && !activeAccount.accountAddress
+            ? accountSetupDescription()
+            : undefined
+        }
+        action={
+          <div className="flex items-center gap-3">
+            {isInNativeApp() && (
+              <button
+                onClick={() => requestQRScan()}
+                className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Scan QR code"
+              >
+                <ScanLine className="h-6 w-6" />
+              </button>
+            )}
+            <ConnectionBadge />
+          </div>
+        }
+      >
         {isLoading ? (
           <Loader className="animate-spin text-foreground" size={32} />
         ) : (
           <>
-
-            <div className="page-enter flex w-full flex-col gap-4 md:gap-8">
+            <div className="flex w-full flex-col gap-4 md:gap-8">
               {activeAccount.accountAddress && (
                 <Card className="w-full relative overflow-hidden surface-ember">
                   <DecorativeAccountVideo />
                   <div className="relative z-10">
-                    <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent">
-                      <CardTitle className="text-2xl font-bold">Active account</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ActiveAccountDisplay onShowAddress={() => setReceiveOpen(true)} />
-                      </CardContent>
-                      {/* Narrow phones wrap Receive onto its own row, so
+                    <CardContent className="pt-6">
+                      <ActiveAccountDisplay
+                        onShowAddress={() => setReceiveOpen(true)}
+                      />
+                    </CardContent>
+                    {/* Narrow phones wrap Receive onto its own row, so
                           Transfer stays inside the card. */}
-                      <CardFooter className="flex-wrap justify-end gap-2">
-                        <Link className="flex-1" to={ROUTES.TRANSFER}>
-                          <Button className="w-full px-3 sm:px-4" type="button">
-                            <Send className="mr-2 h-4 w-4" />
-                            Transfer
-                          </Button>
-                        </Link>
-                        <Button 
-                          className="flex-1 px-3 sm:px-4" 
-                          type="button" 
-                          variant="outline"
-                          onClick={() => setTxHistoryOpen(true)}
-                        >
-                          <History className="mr-2 h-4 w-4" />
-                          History
+                    <CardFooter className="flex-wrap justify-end gap-2">
+                      <Link className="flex-1" to={ROUTES.TRANSFER}>
+                        <Button className="w-full px-3 sm:px-4" type="button">
+                          <Send className="mr-2 h-4 w-4" />
+                          Transfer
                         </Button>
-                        <Button
-                          className="flex-1 px-3 sm:px-4"
-                          type="button"
-                          variant="secondary"
-                          onClick={() => setReceiveOpen(true)}
-                        >
-                          <QrCode className="mr-2 h-4 w-4" />
-                          Receive
-                        </Button>
-                      </CardFooter>
-                    </div>
-                  </Card>
+                      </Link>
+                      <Button
+                        className="flex-1 px-3 sm:px-4"
+                        type="button"
+                        variant="outline"
+                        onClick={() => setTxHistoryOpen(true)}
+                      >
+                        <History className="mr-2 h-4 w-4" />
+                        History
+                      </Button>
+                      <Button
+                        className="flex-1 px-3 sm:px-4"
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setReceiveOpen(true)}
+                      >
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Receive
+                      </Button>
+                    </CardFooter>
+                  </div>
+                </Card>
               )}
               {activeAccount.accountAddress && showTokensCard && (
                 <div className="relative z-10">
@@ -174,12 +187,14 @@ const Home = observer(() => {
               {!isConnected ? (
                 <ConnectionFailed />
               ) : (
-                !activeAccount.accountAddress && <AccountCreateImport />
+                !activeAccount.accountAddress && (
+                  <AccountCreateImport showHeading={false} />
+                )
               )}
             </div>
           </>
         )}
-      </div>
+      </PageShell>
       {activeAccount.accountAddress && (
         <>
           <TransactionHistoryPopup

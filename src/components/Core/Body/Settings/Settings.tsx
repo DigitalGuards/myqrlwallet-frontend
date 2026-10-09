@@ -1,3 +1,4 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "../../../UI/Button";
 import { Card } from "../../../UI/Card";
 import {
@@ -30,7 +31,6 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { ROUTES } from "@/router/router";
-import { SEO } from "@/components/SEO/SEO";
 import { PinInput, type PinInputHandle } from "@/components/UI/PinInput/PinInput";
 import { CryptoErrorCode, CryptoOperationError } from "@/utils/crypto";
 import { rotateStoredSeedPin } from "@/utils/crypto/pinRotation";
@@ -295,10 +295,8 @@ const Settings = observer(() => {
 
     return (
         <>
-            <SEO title="Settings" />
-            <div className="flex w-full items-start justify-center py-2 md:py-8">
-                <div className="relative w-full max-w-2xl px-2 md:px-4">
-                    <div className="page-enter relative z-10 space-y-5 md:space-y-6">
+            <PageShell title="Settings" seoTitle="Settings">
+                    <div className="space-y-5 md:space-y-6">
                         {/* Security is browser-only here. Native routes Settings
                             to its request-bound PIN flow, and desktop uses a
                             password / Argon2id rather than this PIN. */}
@@ -597,8 +595,7 @@ const Settings = observer(() => {
                             <DAppSessionsList />
                         </Card>
                     </div>
-                </div>
-            </div>
+                </PageShell>
         </>
     );
 });

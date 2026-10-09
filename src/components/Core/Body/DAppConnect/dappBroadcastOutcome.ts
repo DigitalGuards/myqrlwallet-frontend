@@ -42,6 +42,7 @@
  * `InvalidResponseError`, and `ContractExecutionError` for a revert.
  */
 import { ContractExecutionError, InvalidResponseError } from "@theqrl/web3";
+import { describeUnknown } from "@/utils/guards";
 
 /**
  * True when the node itself refused the transaction, so it is certainly not
@@ -75,7 +76,7 @@ export function isDefinitiveBroadcastRejection(error: unknown): boolean {
 const DUPLICATE_TX_RE = /already known|known transaction|already exists/i;
 
 export function isAlreadyKnown(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error ?? "");
+  const message = error instanceof Error ? error.message : describeUnknown(error);
   return DUPLICATE_TX_RE.test(message);
 }
 

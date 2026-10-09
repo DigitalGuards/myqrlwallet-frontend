@@ -19,7 +19,6 @@ jest.mock("@/config", () => ({
     },
   },
   EXPLORER_BASE: "https://explorer.invalid",
-  getPendingTxApiUrl: jest.fn(),
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({
@@ -313,6 +312,7 @@ it("keeps both directions of legacy and v3 asset-cache sweeps isolated", async (
 it("blocks external account adoption and direct external broadcasts", async () => {
   const { store } = storeFixture();
   const provider = { request: jest.fn() };
+  store.extensionProvider = provider;
   await expect(store.setActiveAccount(ACCOUNT, "extension")).rejects.toThrow(
     "not yet qualified",
   );
@@ -334,9 +334,6 @@ it.each([false, true])(
   async (changeChain) => {
     jest.spyOn(console, "error").mockImplementation(() => undefined);
     jest
-      .spyOn(QrlStore.prototype, "fetchPendingTxDetails")
-      .mockResolvedValue(undefined);
-    jest
       .spyOn(QrlStore.prototype, "pollForReceipt")
       .mockResolvedValue(undefined);
     const { store, rpc } = storeFixture();
@@ -351,13 +348,14 @@ it.each([false, true])(
             genesisHash: HASH,
           };
         if (method === "qrl_chainId") return chain;
+        if (method === "qrl_accounts") return [ACCOUNT];
         if (method === "qrl_getBlockByNumber")
           return { number: "0x0", hash: HASH };
         if (method === "qrl_sendTransaction") return HASH;
         throw new Error("Unexpected extension request");
       },
     );
-    const provider = { request } as ExtensionProvider;
+    const provider: ExtensionProvider = { request };
     await qualifyV3Provider(provider);
     store.setExtensionProvider(provider);
     store.qrlAccounts.accounts = [

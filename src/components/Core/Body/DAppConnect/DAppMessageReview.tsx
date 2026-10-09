@@ -100,7 +100,10 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
         <details
           className="text-xs"
           open={showDigest}
-          onToggle={(e) => setShowDigest((e.currentTarget as HTMLDetailsElement).open)}
+          onToggle={(e) => {
+            const details = e.currentTarget;
+            if (details instanceof HTMLDetailsElement) setShowDigest(details.open);
+          }}
         >
           <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
             Advanced: 64-byte SHAKE256 digest

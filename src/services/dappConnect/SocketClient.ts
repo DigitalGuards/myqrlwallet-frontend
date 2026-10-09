@@ -5,6 +5,7 @@
 import type { Socket } from 'socket.io-client';
 import type { RelayMessage } from './types';
 import { logToNative } from '@/utils/nativeApp';
+import { isArray, isRecord, toError } from '@/utils/guards';
 
 type SocketIoLoader = () => Promise<Pick<typeof import('socket.io-client'), 'io'>>;
 const defaultSocketIoLoader: SocketIoLoader = () => import('socket.io-client');
@@ -44,17 +45,13 @@ interface JoinChannelResult {
 }
 
 function parseRoster(value: unknown): RelayRoster | null {
-  if (!Array.isArray(value)) return null;
+  if (!isArray(value)) return null;
   const roster: RelayRoster = [];
   for (const entry of value) {
     if (entry !== 'dapp' && entry !== 'wallet') return null;
     roster.push(entry);
   }
   return roster;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isRelayMessage(value: unknown): value is RelayMessage {
@@ -82,7 +79,7 @@ function parseJoinResponse(response: unknown): JoinChannelResult {
     throw new Error(error);
   }
   const rawMessages = response['bufferedMessages'];
-  if (!Array.isArray(rawMessages)) {
+  if (!isArray(rawMessages)) {
     throw new Error('Relay returned malformed buffered messages');
   }
   const bufferedMessages = rawMessages;
@@ -479,7 +476,7 @@ export class SocketClient {
         this.joined = true;
         this.rejoinAttempts = 0;
         for (const msg of bufferedMessages) {
-          this.handlers.onMessage(msg as RelayMessage);
+          this.handlers.onMessage(msg);
         }
         // A completed rejoin is the first moment the relay has actually
         // taken this channel back, so the retry budget is refilled here.
@@ -616,15 +613,17 @@ export class SocketClient {
   ): Promise<JoinChannelResult> {
     return new Promise((resolve, reject) => {
       let settled = false;
-      const finish = (error: Error | null, result?: JoinChannelResult): void => {
+      const finish = (outcome: Error | JoinChannelResult): void => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        if (error) reject(error);
-        else resolve(result as JoinChannelResult);
+        if (outcome instanceof Error) reject(outcome);
+        else resolve(outcome);
       };
       const timer = setTimeout(
-        () => finish(new Error('Relay join acknowledgement timeout')),
+        () => {
+          finish(new Error('Relay join acknowledgement timeout'));
+        },
         RELAY_ACK_TIMEOUT_MS
       );
       try {
@@ -633,14 +632,14 @@ export class SocketClient {
           { channelId, clientType: 'wallet' },
           (response: unknown) => {
             try {
-              finish(null, parseJoinResponse(response));
+              finish(parseJoinResponse(response));
             } catch (error) {
-              finish(error instanceof Error ? error : new Error(String(error)));
+              finish(toError(error));
             }
           }
         );
       } catch (error) {
-        finish(error instanceof Error ? error : new Error(String(error)));
+        finish(toError(error));
       }
     });
   }
@@ -671,7 +670,9 @@ export class SocketClient {
         else resolve();
       };
       const timer = setTimeout(
-        () => finish(new Error('Relay send acknowledgement timeout')),
+        () => {
+          finish(new Error('Relay send acknowledgement timeout'));
+        },
         RELAY_ACK_TIMEOUT_MS
       );
       try {
@@ -699,7 +700,7 @@ export class SocketClient {
           }
         });
       } catch (error) {
-        finish(error instanceof Error ? error : new Error(String(error)));
+        finish(toError(error));
       }
     });
   }
@@ -725,7 +726,9 @@ export class SocketClient {
         clearTimeout(timer);
         resolve(success);
       };
-      const timer = setTimeout(() => done(false), SEND_FLUSH_TIMEOUT_MS);
+      const timer = setTimeout(() => {
+        done(false);
+      }, SEND_FLUSH_TIMEOUT_MS);
       try {
         this.socket.emit(event, payload, (response: unknown) => {
           done(
@@ -827,7 +830,9 @@ export class SocketClient {
     const socket = this.socket;
     if (!socket?.connected || !this.joined) return Promise.resolve(false);
     return new Promise((resolve) => {
-      const timer = setTimeout(() => resolve(false), timeoutMs);
+      const timer = setTimeout(() => {
+        resolve(false);
+      }, timeoutMs);
       try {
         socket.emit('ping', (response: unknown) => {
           clearTimeout(timer);

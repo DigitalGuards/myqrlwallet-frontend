@@ -1,3 +1,5 @@
+import { isCallable } from '@/utils/guards';
+
 export interface RpcRequestProvider {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 }
@@ -5,19 +7,26 @@ export interface RpcRequestProvider {
 /** Web3's request manager builds JSON-RPC envelopes and unwraps provider results. */
 export function getRequestProvider(web3: unknown): RpcRequestProvider | null {
   if (typeof web3 !== 'object' || web3 === null) return null;
-  const manager = (web3 as { requestManager?: unknown }).requestManager;
+  const manager: unknown = Reflect.get(web3, 'requestManager');
   if (typeof manager === 'object' && manager !== null) {
-    const send = (manager as { send?: unknown }).send;
-    if (typeof send === 'function') {
+    const send: unknown = Reflect.get(manager, 'send');
+    if (isCallable(send)) {
       return {
-        request: (args) => send.call(manager, args) as Promise<unknown>,
+        request: (args) => toPromise(send.call(manager, args)),
       };
     }
   }
-  const provider = (web3 as { currentProvider?: unknown }).currentProvider;
+  const provider: unknown = Reflect.get(web3, 'currentProvider');
   if (typeof provider !== 'object' || provider === null) return null;
-  if (typeof (provider as { request?: unknown }).request !== 'function') return null;
-  return provider as RpcRequestProvider;
+  const request: unknown = Reflect.get(provider, 'request');
+  if (!isCallable(request)) return null;
+  return {
+    request: (args) => toPromise(request.call(provider, args)),
+  };
+}
+
+function toPromise(value: unknown): Promise<unknown> {
+  return Promise.resolve(value);
 }
 
 export function canonicalChainId(value: unknown): string {
