@@ -520,22 +520,21 @@ const DAppApprovalModalContent = observer(() => {
           return;
         }
 
-        const historyParams = firstParamRecord(params);
-        const historyValue = unsignedQuantity(historyParams["value"] ?? "0");
-        const historyTo = historyParams["to"] ?? "";
-        if (historyValue === null || typeof historyTo !== "string") {
-          throw new Error("Invalid transaction history details");
-        }
-        broadcastDetails = {
-          blockchain, from: activeAddress, to: historyTo, amount: formatUnits(historyValue),
-        };
-
         await assertRequestedTransactionChain(
           firstParamRecord(params),
           qrlStore.qrlInstance,
         );
         if (!isStillCurrent() || qrlStore.activeAccount?.accountAddress !== activeAddress) {
           throw new Error("Wallet changed while verifying the transaction chain");
+        }
+
+        const historyParams = firstParamRecord(params);
+        const historyValue = unsignedQuantity(historyParams["value"] ?? "0");
+        const historyTo = historyParams["to"] ?? "";
+        if (historyValue !== null && typeof historyTo === "string") {
+          broadcastDetails = {
+            blockchain, from: activeAddress, to: historyTo, amount: formatUnits(historyValue),
+          };
         }
 
         // Desktop: build + confirm + sign in the isolated signer (its own
@@ -795,8 +794,10 @@ const DAppApprovalModalContent = observer(() => {
           { checkRevertBeforeSending: false },
         );
 
-        broadcastDetails = { ...broadcastDetails, nonce };
-        observeHistoryBroadcast(promiEvent, broadcastDetails);
+        if (broadcastDetails) {
+          broadcastDetails = { ...broadcastDetails, nonce };
+          observeHistoryBroadcast(promiEvent, broadcastDetails);
+        }
         await waitForDAppBroadcastSettlement(
           promiEvent,
           {

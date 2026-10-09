@@ -2,6 +2,7 @@
 import { TransactionHistoryStore } from "../transactionHistoryStore";
 import { mergeHistory, parseHistoryResponse } from "@/utils/transactionHistory";
 import type { HistoryRpc } from "../transactionHistoryStore";
+import { QRL_ADDRESS_PATTERN } from "@/utils/web3/address";
 
 const from = `Q${"a".repeat(128)}`;
 const to = `Q${"b".repeat(128)}`;
@@ -61,6 +62,46 @@ it("normalizes fractional native input without losing precision", () => {
   store.record({ ...details, amount: ".123456789012345678" });
   expect(store.getSnapshot().entries[0]?.amount).toBe("0.123456789012345678");
 });
+
+it.each(["1.", "0.", "123456789012345678901234567890."])(
+  "persists and reloads a trailing-dot amount: %s",
+  (amount) => {
+    const store = new TransactionHistoryStore();
+    expect(store.record({ ...details, amount })?.amount).toBe(
+      amount.slice(0, -1),
+    );
+    expect(new TransactionHistoryStore().getSnapshot().entries[0]?.amount).toBe(
+      amount.slice(0, -1),
+    );
+  },
+);
+
+it.each([".", "1..", ".1.", "1e2", "-1."])(
+  "rejects malformed decimal input: %s",
+  (amount) => {
+    expect(
+      new TransactionHistoryStore().record({ ...details, amount }),
+    ).toBeNull();
+  },
+);
+
+it.each([
+  from,
+  `Q${"A".repeat(128)}`,
+  from.toLowerCase(),
+  `Q${"a".repeat(40)}`,
+  `Q${"g".repeat(128)}`,
+])(
+  "uses the shared address format for both history addresses: %s",
+  (address) => {
+    for (const field of ["from", "to"] as const) {
+      const store = new TransactionHistoryStore();
+      expect(store.record({ ...details, [field]: address }) !== null).toBe(
+        QRL_ADDRESS_PATTERN.test(address),
+      );
+    }
+  },
+);
 
 it("isolates identical hashes by account and network and accepts concurrent sends", () => {
   const first = new TransactionHistoryStore();
@@ -232,7 +273,7 @@ it("learns a remote signer's nonce from a matching transaction", async () => {
   expect(store.getSnapshot().entries[0]?.nonce).toBe("7");
 });
 
-it("marks an absent transaction with a consumed nonce dropped and accepts a later receipt", async () => {
+it("stops polling a confirmed drop across reloads and accepts a directly supplied receipt", async () => {
   const store = new TransactionHistoryStore();
   store.record(details);
   const rpc = request()
@@ -249,14 +290,17 @@ it("marks an absent transaction with a consumed nonce dropped and accepts a late
   expect(new TransactionHistoryStore().getSnapshot().entries[0]?.state).toBe(
     "dropped",
   );
-  rpc.mockResolvedValueOnce(receipt);
-  await store.reconcile(
+  rpc.mockClear();
+  const reloaded = new TransactionHistoryStore();
+  await reloaded.reconcile(
     details.blockchain,
     from,
     { request: rpc },
     stillCurrent,
   );
-  expect(store.getSnapshot().entries[0]?.state).toBe("confirmed");
+  expect(rpc).not.toHaveBeenCalled();
+  expect(reloaded.settle(details.blockchain, from, hash, receipt)).toBe(true);
+  expect(reloaded.getSnapshot().entries[0]?.state).toBe("confirmed");
 });
 
 it("rechecks the receipt after nonce advancement before declaring a drop", async () => {
@@ -304,6 +348,224 @@ it("deduplicates case-insensitive indexed hashes and retains independent interna
   expect(
     mergeHistory([...backend, ...backend], store.getSnapshot().entries),
   ).toHaveLength(2);
+});
+
+it("retains both indexed directions of a self-send and deduplicates repeated IDs", () => {
+  const store = new TransactionHistoryStore();
+  store.record({ ...details, to: from });
+  const backend = parseHistoryResponse({
+    transactions: [
+      { ...row, ID: "sent", To: from },
+      {
+        ...row,
+        ID: "received",
+        InOut: 1,
+        To: from,
+        TxHash: `0x${"C".repeat(64)}`,
+      },
+      { ...row, ID: "internal", IsInternal: true },
+    ],
+  });
+  const merged = mergeHistory(
+    [...backend, ...backend],
+    store.getSnapshot().entries,
+  );
+  expect(merged).toHaveLength(3);
+  expect(merged.find((tx) => tx.ID === "sent")).toMatchObject({
+    InOut: 0,
+    state: "confirmed",
+  });
+  expect(merged.find((tx) => tx.ID === "received")).toMatchObject({
+    InOut: 1,
+    state: "confirmed",
+  });
+  expect(merged.find((tx) => tx.ID === "internal")).toMatchObject({
+    To: to,
+    IsInternal: true,
+  });
+  expect(mergeHistory(backend, [])).toHaveLength(3);
+});
+
+it("clears every history key and its memory fallback while preserving unrelated storage", () => {
+  const store = new TransactionHistoryStore();
+  store.record(details);
+  store.record({ ...details, blockchain: "MAIN_NET", from: to });
+  localStorage.setItem("qrl:transaction-history:v1:broken", "{");
+  localStorage.setItem("qrl:transaction-history:v10:unrelated", "keep");
+  localStorage.setItem("preferences", "keep");
+  const persist = jest
+    .spyOn(Storage.prototype, "setItem")
+    .mockImplementation(() => {
+      throw new Error("quota");
+    });
+  store.record({ ...details, hash: `0x${"d".repeat(64)}` });
+  persist.mockRestore();
+  const listener = jest.fn();
+  const unsubscribe = store.subscribe(listener);
+  store.clear();
+  expect(listener).toHaveBeenCalledTimes(1);
+  store.reload();
+  expect(store.getSnapshot()).toEqual({
+    entries: [],
+    storageUnavailable: false,
+  });
+  expect(new TransactionHistoryStore().getSnapshot().entries).toEqual([]);
+  expect(localStorage.length).toBe(2);
+  expect(localStorage.getItem("preferences")).toBe("keep");
+  expect(localStorage.getItem("qrl:transaction-history:v10:unrelated")).toBe(
+    "keep",
+  );
+  unsubscribe();
+});
+
+it("reports a failed wipe and clears its in-memory history", () => {
+  const store = new TransactionHistoryStore();
+  store.record(details);
+  jest.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+    throw new Error("storage denied");
+  });
+  expect(() => store.clear()).toThrow("storage denied");
+  expect(store.getSnapshot()).toEqual({
+    entries: [],
+    storageUnavailable: true,
+  });
+});
+
+it("discards a pre-wipe receipt even when the same hash is recorded again", async () => {
+  const store = new TransactionHistoryStore();
+  store.record(details);
+  const rpc = request().mockImplementation(async () => {
+    store.clear();
+    store.record(details);
+    return receipt;
+  });
+  await store.reconcile(
+    details.blockchain,
+    from,
+    { request: rpc },
+    stillCurrent,
+  );
+  expect(store.getSnapshot().entries[0]?.state).toBe("pending");
+  expect(rpc).toHaveBeenCalledTimes(1);
+});
+
+const numberedHash = (index: number) =>
+  `0x${index.toString(16).padStart(64, "0")}`;
+
+it("caps persisted entries at the newest 100 per chain and account across writers", () => {
+  const first = new TransactionHistoryStore();
+  const second = new TransactionHistoryStore();
+  const now = jest.spyOn(Date, "now");
+  const submittedAt = Date.now();
+  first.record({ ...details, blockchain: "MAIN_NET" });
+  first.record({ ...details, from: to });
+  for (let index = 0; index < 102; index++) {
+    now.mockReturnValue(submittedAt + index);
+    (index % 2 === 0 ? first : second).record({
+      ...details,
+      hash: numberedHash(index),
+    });
+  }
+  const entries = new TransactionHistoryStore().getSnapshot().entries;
+  expect(entries).toHaveLength(102);
+  expect(
+    entries.filter(
+      (tx) => tx.blockchain === details.blockchain && tx.from === from,
+    ),
+  ).toHaveLength(100);
+  expect(
+    entries.some(
+      (tx) => tx.hash === numberedHash(0) || tx.hash === numberedHash(1),
+    ),
+  ).toBe(false);
+  expect(localStorage.length).toBe(102);
+});
+
+it("prunes an oversized existing history on reload", () => {
+  const template = new TransactionHistoryStore().record(details);
+  for (let index = 0; index < 110; index++) {
+    const hash = numberedHash(index);
+    localStorage.setItem(
+      `qrl:transaction-history:v1:${details.blockchain}:${from.toLowerCase()}:${hash}`,
+      JSON.stringify({ ...template, hash, submittedAt: index }),
+    );
+  }
+  expect(new TransactionHistoryStore().getSnapshot().entries).toHaveLength(100);
+  expect(localStorage.length).toBe(100);
+});
+
+it("caps entries held in memory when persistence is unavailable", () => {
+  const store = new TransactionHistoryStore(() => null);
+  for (let index = 0; index < 105; index++) {
+    store.record({ ...details, hash: numberedHash(index) });
+  }
+  store.reload();
+  expect(store.getSnapshot().entries).toHaveLength(100);
+  expect(store.getSnapshot().storageUnavailable).toBe(true);
+});
+
+it.each([undefined, 7n])(
+  "stops polling after 24 hours with nonce %s",
+  async (nonce) => {
+    const now = jest.spyOn(Date, "now").mockReturnValue(1000);
+    const store = new TransactionHistoryStore();
+    store.record({ ...details, nonce });
+    const rpc = request().mockImplementation(async ({ method }) =>
+      method === "qrl_getTransactionCount" ? "0x7" : null,
+    );
+    now.mockReturnValue(1000 + 24 * 60 * 60 * 1000 - 1);
+    await store.reconcile(
+      details.blockchain,
+      from,
+      { request: rpc },
+      stillCurrent,
+    );
+    expect(rpc).toHaveBeenCalledTimes(nonce === undefined ? 2 : 3);
+    rpc.mockClear();
+    now.mockReturnValue(1000 + 24 * 60 * 60 * 1000);
+    const reloaded = new TransactionHistoryStore();
+    await reloaded.reconcile(
+      details.blockchain,
+      from,
+      { request: rpc },
+      stillCurrent,
+    );
+    expect(rpc).not.toHaveBeenCalled();
+    expect(reloaded.getSnapshot().entries[0]?.state).toBe("pending");
+  },
+);
+
+it("limits reconciliation to 20 entries per pass and eventually checks every entry", async () => {
+  const store = new TransactionHistoryStore();
+  for (let index = 0; index < 45; index++) {
+    store.record({ ...details, hash: numberedHash(index) });
+  }
+  const rpc = request().mockImplementation(async ({ method }) =>
+    method === "qrl_getTransactionCount" ? "0x8" : null,
+  );
+  await store.reconcile(
+    details.blockchain,
+    from,
+    { request: rpc },
+    stillCurrent,
+  );
+  expect(rpc).toHaveBeenCalledTimes(80);
+  await store.reconcile(
+    details.blockchain,
+    from,
+    { request: rpc },
+    stillCurrent,
+  );
+  await store.reconcile(
+    details.blockchain,
+    from,
+    { request: rpc },
+    stillCurrent,
+  );
+  expect(rpc).toHaveBeenCalledTimes(180);
+  expect(
+    store.getSnapshot().entries.every((tx) => tx.state === "dropped"),
+  ).toBe(true);
 });
 
 it.each(["TOKEN", "Quanta"])(

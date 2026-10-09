@@ -184,11 +184,12 @@ it.each(["extension", "mobile"] as const)(
     const wallet = store();
     wallet.activeAccount.source = source;
     const provider = {
-      request: async () => {
+      request: jest.fn(async ({ method }: { method: string }) => {
+        if (method === "qrl_accounts") return [from];
         wallet.activeAccount.accountAddress = to;
         wallet.qrlConnection.blockchain = "MAIN_NET";
         return hash;
-      },
+      }),
     };
     Object.assign(
       wallet,
@@ -197,6 +198,14 @@ it.each(["extension", "mobile"] as const)(
         : { mobileProvider: provider },
     );
     await wallet.sendTransactionViaProvider(to, "2");
+    if (source === "extension") {
+      expect(provider.request).toHaveBeenCalledWith(
+        expect.objectContaining({ method: "qrl_accounts" }),
+      );
+    }
+    expect(provider.request).toHaveBeenLastCalledWith(
+      expect.objectContaining({ method: "qrl_sendTransaction" }),
+    );
     expect(transactionHistoryStore.getSnapshot().entries[0]).toMatchObject({
       blockchain: "TEST_NET",
       from,

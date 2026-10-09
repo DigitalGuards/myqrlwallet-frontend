@@ -8,6 +8,14 @@ import {
 import type { LocalTransaction } from "@/utils/transactionHistory";
 
 const STORAGE_PREFIX = "qrl:transaction-history:v1:";
+const MAX_ENTRIES_PER_ACCOUNT = 100;
+const MAX_POLL_AGE_MS = 24 * 60 * 60 * 1000;
+const POLL_INTERVAL_MS = 10000;
+const POLL_BATCH_SIZE = 20;
+
+function scopeKey(blockchain: string, from: string): string {
+  return `${blockchain}:${from.toLowerCase()}`;
+}
 
 function entryKey(tx: LocalTransaction): string {
   return `${STORAGE_PREFIX}${tx.blockchain}:${tx.from.toLowerCase()}:${tx.hash}`;
@@ -15,6 +23,16 @@ function entryKey(tx: LocalTransaction): string {
 
 export interface HistoryRpc {
   request(args: { method: string; params: string[] }): Promise<unknown>;
+}
+
+interface PollClient {
+  rpc: HistoryRpc;
+  cancelled: () => boolean;
+}
+
+interface HistoryPoller {
+  clients: Set<PollClient>;
+  release: (client: PollClient) => void;
 }
 
 /** Public transaction metadata only. Each broadcast has its own storage key. */
@@ -25,6 +43,9 @@ export class TransactionHistoryStore {
   } = { entries: [], storageUnavailable: false };
   private listeners = new Set<() => void>();
   private unsaved = new Map<string, LocalTransaction>();
+  private generation = 0;
+  private pollOffsets = new Map<string, number>();
+  private pollers = new Map<string, HistoryPoller>();
 
   constructor(
     private readonly storage: () => Storage | null = () =>
@@ -48,6 +69,7 @@ export class TransactionHistoryStore {
 
   private onStorage = (event: StorageEvent) => {
     if (event.key === null) this.unsaved.clear();
+    else if (event.newValue === null) this.unsaved.delete(event.key);
     if (event.key === null || event.key.startsWith(STORAGE_PREFIX))
       this.reload();
   };
@@ -55,7 +77,10 @@ export class TransactionHistoryStore {
   reload = () => {
     try {
       const storage = this.storage();
-      if (storage === null) return;
+      if (storage === null) {
+        this.publish(this.snapshot.entries, true);
+        return;
+      }
       const entries: LocalTransaction[] = [];
       for (let index = 0; index < storage.length; index++) {
         const key = storage.key(index);
@@ -71,16 +96,59 @@ export class TransactionHistoryStore {
       }
       const merged = new Map(entries.map((tx) => [entryKey(tx), tx]));
       for (const [key, tx] of this.unsaved) merged.set(key, tx);
-      this.snapshot = {
-        entries: [...merged.values()],
-        storageUnavailable: this.unsaved.size > 0,
-      };
-      this.emit();
+      this.publish([...merged.values()], false);
     } catch {
-      this.snapshot = { ...this.snapshot, storageUnavailable: true };
-      this.emit();
+      this.publish(this.snapshot.entries, true);
     }
   };
+
+  /** Erase history for every account and chain, including unreadable entries. */
+  clear() {
+    this.generation += 1;
+    this.unsaved.clear();
+    this.pollOffsets.clear();
+    let storageUnavailable = true;
+    try {
+      const storage = this.storage();
+      if (storage === null)
+        throw new Error("Transaction history storage unavailable");
+      for (let index = storage.length - 1; index >= 0; index--) {
+        const key = storage.key(index);
+        if (key?.startsWith(STORAGE_PREFIX)) storage.removeItem(key);
+      }
+      storageUnavailable = false;
+    } finally {
+      this.snapshot = { entries: [], storageUnavailable };
+      this.emit();
+    }
+  }
+
+  private publish(entries: LocalTransaction[], storageUnavailable: boolean) {
+    const counts = new Map<string, number>();
+    const retained: LocalTransaction[] = [];
+    for (const tx of [...entries].sort(
+      (a, b) => b.submittedAt - a.submittedAt || a.hash.localeCompare(b.hash),
+    )) {
+      const scope = scopeKey(tx.blockchain, tx.from);
+      const count = counts.get(scope) ?? 0;
+      counts.set(scope, count + 1);
+      if (count < MAX_ENTRIES_PER_ACCOUNT) retained.push(tx);
+      else {
+        const key = entryKey(tx);
+        this.unsaved.delete(key);
+        try {
+          this.storage()?.removeItem(key);
+        } catch {
+          storageUnavailable = true;
+        }
+      }
+    }
+    this.snapshot = {
+      entries: retained,
+      storageUnavailable: storageUnavailable || this.unsaved.size > 0,
+    };
+    this.emit();
+  }
 
   private emit() {
     for (const listener of this.listeners) listener();
@@ -119,7 +187,7 @@ export class TransactionHistoryStore {
       ],
       storageUnavailable: storageUnavailable || this.unsaved.size > 0,
     };
-    this.emit();
+    this.reload();
   }
 
   record(input: {
@@ -134,7 +202,10 @@ export class TransactionHistoryStore {
     const nonce = unsignedQuantity(input.nonce);
     const parsed = localTransactionSchema.safeParse({
       ...input,
-      amount: input.amount.startsWith(".") ? `0${input.amount}` : input.amount,
+      amount:
+        input.amount.startsWith(".") && input.amount.length > 1
+          ? `0${input.amount}`
+          : input.amount,
       hash: historyHash(input.hash),
       asset: input.asset ?? "Quanta",
       nonce: nonce === null ? null : nonce.toString(),
@@ -171,33 +242,94 @@ export class TransactionHistoryStore {
     return true;
   }
 
+  /** Views of one account share a timer and one in-flight reconciliation. */
+  watch(
+    blockchain: string,
+    from: string,
+    rpc: HistoryRpc,
+    cancelled: () => boolean,
+  ): () => void {
+    const scope = scopeKey(blockchain, from);
+    const client = { rpc, cancelled };
+    const existing = this.pollers.get(scope);
+    if (existing) {
+      existing.clients.add(client);
+      return () => {
+        existing.release(client);
+      };
+    }
+    const clients = new Set([client]);
+    let busy = false;
+    const poll = async () => {
+      if (busy) return;
+      const current = [...clients].find((candidate) => !candidate.cancelled());
+      if (current === undefined) return;
+      busy = true;
+      try {
+        await this.reconcile(
+          blockchain,
+          from,
+          current.rpc,
+          () => clients.size === 0 || current.cancelled(),
+        );
+      } finally {
+        busy = false;
+      }
+    };
+    const interval = setInterval(() => {
+      void poll();
+    }, POLL_INTERVAL_MS);
+    const release = (leaving: PollClient) => {
+      clients.delete(leaving);
+      if (clients.size === 0) {
+        clearInterval(interval);
+        this.pollers.delete(scope);
+      }
+    };
+    this.pollers.set(scope, { clients, release });
+    void poll();
+    return () => {
+      release(client);
+    };
+  }
+
   async reconcile(
     blockchain: string,
     from: string,
     rpc: HistoryRpc,
     cancelled: () => boolean,
   ): Promise<void> {
+    const generation = this.generation;
+    const isCancelled = () => cancelled() || generation !== this.generation;
     const entries = this.snapshot.entries.filter(
       (tx) =>
         tx.blockchain === blockchain &&
         tx.from.toLowerCase() === from.toLowerCase() &&
-        (tx.state === "pending" || tx.state === "dropped"),
+        tx.state === "pending" &&
+        Date.now() - tx.submittedAt < MAX_POLL_AGE_MS,
     );
-    for (const tx of entries) {
-      if (cancelled()) return;
+    const scope = scopeKey(blockchain, from);
+    const offset = (this.pollOffsets.get(scope) ?? 0) % (entries.length || 1);
+    const batch = [...entries.slice(offset), ...entries.slice(0, offset)].slice(
+      0,
+      POLL_BATCH_SIZE,
+    );
+    this.pollOffsets.set(scope, offset + batch.length);
+    for (const tx of batch) {
+      if (isCancelled()) return;
       try {
         const receipt = await rpc.request({
           method: "qrl_getTransactionReceipt",
           params: [tx.hash],
         });
-        if (cancelled()) return;
+        if (isCancelled()) return;
         if (this.settle(blockchain, from, tx.hash, receipt)) continue;
         if (receipt !== null) continue;
         const transaction = await rpc.request({
           method: "qrl_getTransactionByHash",
           params: [tx.hash],
         });
-        if (cancelled()) return;
+        if (isCancelled()) return;
         if (
           isRecord(transaction) &&
           historyHash(transaction["hash"]) === tx.hash &&
@@ -223,14 +355,14 @@ export class TransactionHistoryStore {
             params: [from, "latest"],
           }),
         );
-        if (cancelled()) return;
+        if (isCancelled()) return;
         if (count === null || count <= BigInt(tx.nonce)) continue;
         // Recheck after the nonce query to cover inclusion during this poll.
         const finalReceipt = await rpc.request({
           method: "qrl_getTransactionReceipt",
           params: [tx.hash],
         });
-        if (cancelled()) return;
+        if (isCancelled()) return;
         if (this.settle(blockchain, from, tx.hash, finalReceipt)) continue;
         const current = this.snapshot.entries.find(
           (entry) => entryKey(entry) === entryKey(tx),

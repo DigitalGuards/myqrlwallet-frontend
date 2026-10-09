@@ -2,13 +2,15 @@ import { z } from "zod";
 import { isRecord } from "@/utils/guards";
 import { receiptExecutionStatus } from "@/utils/web3/txPolling";
 import { formatUnits } from "@/utils/web3/units";
+import { QRL_ADDRESS_PATTERN } from "@/utils/web3/address";
 
 const text = z.string().max(512);
 const decimal = z
   .string()
   .max(100)
-  .regex(/^\d+(?:\.\d+)?$/);
-const address = z.string().regex(/^q[0-9a-f]{128}$/i);
+  .regex(/^\d+(?:\.\d*)?$/)
+  .transform((value) => (value.endsWith(".") ? value.slice(0, -1) : value));
+const address = z.string().regex(QRL_ADDRESS_PATTERN);
 const quantity = z
   .string()
   .max(80)
@@ -115,21 +117,18 @@ export function receiptUpdate(
   };
 }
 
-/** A local send and its indexed outer transaction occupy one row. */
+/** Preserve indexed row identities and match local broadcasts by hash. */
 export function mergeHistory(
   backend: HistoryRow[],
   local: LocalTransaction[],
 ): HistoryRow[] {
-  const rows = new Map(
-    backend.map((row) => [
-      `${row.TxHash.toLowerCase()}:${row.IsInternal ? row.ID : "outer"}`,
-      row,
-    ]),
-  );
+  const rows = new Map(backend.map((row) => [`backend:${row.ID}`, row]));
   for (const tx of local) {
-    const key = `${tx.hash}:outer`;
-    const indexed = rows.get(key);
-    rows.set(key, {
+    const matches = [...rows].filter(
+      ([, row]) =>
+        row.IsInternal !== true && row.TxHash.toLowerCase() === tx.hash,
+    );
+    const localRow: HistoryRow = {
       ID: tx.hash,
       InOut: 0,
       TxType: "0x2",
@@ -139,13 +138,23 @@ export function mergeHistory(
       TimeStamp: `0x${Math.floor(tx.submittedAt / 1000).toString(16)}`,
       BlockNumber: tx.blockNumber,
       ...(tx.paidFees === null ? {} : { PaidFees: tx.paidFees }),
-      ...indexed,
-      // Preserve the reviewed amount and recipient from the broadcast.
       Amount: tx.amount,
       To: tx.to,
-      state: indexed?.state ?? tx.state,
+      state: tx.state,
       asset: tx.asset,
-    });
+    };
+    if (matches.length === 0) rows.set(`local:${tx.hash}`, localRow);
+    for (const [key, indexed] of matches) {
+      rows.set(key, {
+        ...localRow,
+        ...indexed,
+        // Preserve the reviewed amount and recipient from the broadcast.
+        Amount: tx.amount,
+        To: tx.to,
+        state: indexed.state ?? tx.state,
+        asset: tx.asset,
+      });
+    }
   }
   return [...rows.values()].sort((a, b) =>
     Number(BigInt(b.TimeStamp) - BigInt(a.TimeStamp)),

@@ -203,6 +203,71 @@ it("continues pending receipt checks and stops when the view unmounts", async ()
   expect(mockRpc).toHaveBeenCalledTimes(stopped);
 });
 
+it.each(["page", "popup"])(
+  "shares one poller across views when %s unmounts first",
+  async (first) => {
+    jest.useFakeTimers();
+    transactionHistoryStore.record(details);
+    const page = render(<TransactionHistory />);
+    const popup = render(
+      <TransactionHistoryPopup
+        accountAddress={from}
+        blockchain="TEST_NET"
+        isOpen
+        onClose={() => undefined}
+      />,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mockRpc).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(10000);
+    });
+    expect(mockRpc).toHaveBeenCalledTimes(4);
+    (first === "page" ? page : popup).unmount();
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(10000);
+    });
+    expect(mockRpc).toHaveBeenCalledTimes(6);
+    (first === "page" ? popup : page).unmount();
+    await jest.advanceTimersByTimeAsync(20000);
+    expect(mockRpc).toHaveBeenCalledTimes(6);
+  },
+);
+
+it("keeps one request in flight across views and discards it after both close", async () => {
+  jest.useFakeTimers();
+  transactionHistoryStore.record(details);
+  let resolve: (value: unknown) => void = () => undefined;
+  mockRpc.mockReturnValueOnce(
+    new Promise((done) => {
+      resolve = done;
+    }),
+  );
+  const page = render(<TransactionHistory />);
+  const popup = render(
+    <TransactionHistoryPopup
+      accountAddress={from}
+      blockchain="TEST_NET"
+      isOpen
+      onClose={() => undefined}
+    />,
+  );
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(30000);
+  });
+  expect(mockRpc).toHaveBeenCalledTimes(1);
+  page.unmount();
+  popup.unmount();
+  await act(async () => {
+    resolve({ transactionHash: hash, blockNumber: "0x42", status: "0x1" });
+  });
+  expect(transactionHistoryStore.getSnapshot().entries[0]?.state).toBe(
+    "pending",
+  );
+});
+
 it("keeps local entries searchable and displays persistence failures", async () => {
   jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
     throw new Error("quota");

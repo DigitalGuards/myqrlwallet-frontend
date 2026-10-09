@@ -45,6 +45,7 @@ import { clearDeviceCredential } from "@/utils/crypto/deviceCredential";
 import { ROUTES } from "@/router/router";
 import StorageUtil from "@/utils/storage/storage";
 import { clearAddressBook, mergeContacts } from "@/utils/addressBook";
+import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
 import { QRL_PROVIDER, AVAILABLE_NETWORKS, isAvailableNetwork } from "@/config";
 import { store } from "@/stores/store";
 import {
@@ -741,6 +742,7 @@ const NativeAppBridge: React.FC = () => {
               StorageUtil.clearAllTokenData();
               StorageUtil.clearAllNftData();
               clearAddressBook();
+              transactionHistoryStore.clear();
             };
 
             // A restore may already be inside qrlStore.setActiveAccount when the

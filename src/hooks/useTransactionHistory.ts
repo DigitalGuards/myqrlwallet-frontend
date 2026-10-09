@@ -22,35 +22,14 @@ export function useTransactionHistory(
     transactionHistoryStore.reload();
     if (!enabled || !provider || blockchain !== providerBlockchain || !account)
       return;
-    let cancelled = false;
-    let busy = false;
-    const poll = async () => {
-      if (busy) return;
-      busy = true;
-      try {
-        await transactionHistoryStore.reconcile(
-          blockchain,
-          account,
-          {
-            request: (args) => provider.requestManager.send(args),
-          },
-          () =>
-            cancelled ||
-            provider !== qrlStore.qrlInstance ||
-            blockchain !== qrlStore.qrlConnection.blockchain,
-        );
-      } finally {
-        busy = false;
-      }
-    };
-    void poll();
-    const interval = setInterval(() => {
-      void poll();
-    }, 10000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
+    return transactionHistoryStore.watch(
+      blockchain,
+      account,
+      { request: (args) => provider.requestManager.send(args) },
+      () =>
+        provider !== qrlStore.qrlInstance ||
+        blockchain !== qrlStore.qrlConnection.blockchain,
+    );
   }, [account, blockchain, enabled, provider, providerBlockchain, qrlStore]);
 
   const local = snapshot.entries.filter(
