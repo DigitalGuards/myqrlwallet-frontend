@@ -119,24 +119,27 @@ function decodePersistedSession(p: PersistedSession): DecodedPersistedSession {
     throw new Error('KeyExchange: invalid persisted session');
   }
 
-  const decoded: Partial<DecodedPersistedSession> = {};
+  const decoded: Uint8Array[] = [];
+  const decode = (value: unknown, byteLength: number): Uint8Array => {
+    const bytes = decodeExactBase64(value, byteLength);
+    decoded.push(bytes);
+    return bytes;
+  };
   try {
-    decoded.cid = decodeExactBase64(p.cid, CID_LEN);
-    decoded.kAeadRaw = decodeExactBase64(p.kAeadRaw, 32);
-    decoded.htx = decodeExactBase64(p.htx, 32);
-    decoded.sendDir = decodeExactBase64(p.sendDir, 4);
-    decoded.recvDir = decodeExactBase64(p.recvDir, 4);
+    const cid = decode(p.cid, CID_LEN);
+    const kAeadRaw = decode(p.kAeadRaw, 32);
+    const htx = decode(p.htx, 32);
+    const sendDir = decode(p.sendDir, 4);
+    const recvDir = decode(p.recvDir, 4);
     if (
-      !constantTimeEquals(decoded.sendDir, DIR_WALLET_TX) ||
-      !constantTimeEquals(decoded.recvDir, DIR_DAPP_TX)
+      !constantTimeEquals(sendDir, DIR_WALLET_TX) ||
+      !constantTimeEquals(recvDir, DIR_DAPP_TX)
     ) {
       throw new Error('KeyExchange: invalid persisted directions');
     }
-    return decoded as DecodedPersistedSession;
+    return { cid, kAeadRaw, htx, sendDir, recvDir };
   } catch (error) {
-    for (const value of Object.values(decoded)) {
-      if (value instanceof Uint8Array) zeroize(value);
-    }
+    for (const value of decoded) zeroize(value);
     throw error;
   }
 }

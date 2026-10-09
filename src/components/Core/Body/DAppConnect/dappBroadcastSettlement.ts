@@ -1,3 +1,4 @@
+import { isCallable, isRecord } from '@/utils/guards';
 import { receiptExecutionStatus } from '@/utils/web3/txPolling';
 import {
   UNKNOWN_BROADCAST_MESSAGE,
@@ -17,8 +18,8 @@ interface DAppBroadcastSettlementCallbacks {
 }
 
 function transactionHashFromReceipt(value: unknown): string {
-  if (!value || typeof value !== 'object') return '';
-  const hash = (value as Record<string, unknown>)['transactionHash'];
+  if (!isRecord(value)) return '';
+  const hash = value['transactionHash'];
   if (typeof hash === 'string') return hash;
   if (hash instanceof Uint8Array) {
     return `0x${Array.from(hash, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
@@ -29,7 +30,8 @@ function transactionHashFromReceipt(value: unknown): string {
 export function getDAppReceiptStatus(receipt: unknown, transactionHash?: string): boolean | undefined {
   const hash = transactionHashFromReceipt(receipt);
   if (!hash || (transactionHash && hash.toLowerCase() !== transactionHash.toLowerCase())) return undefined;
-  return receiptExecutionStatus((receipt as Record<string, unknown>)['status']);
+  if (!isRecord(receipt)) return undefined;
+  return receiptExecutionStatus(receipt['status']);
 }
 
 /**
@@ -54,14 +56,10 @@ export function waitForDAppBroadcastSettlement(
   callbacks: DAppBroadcastSettlementCallbacks,
   options: DAppBroadcastSettlementOptions = {},
 ): Promise<void> {
-  if (
-    !source ||
-    typeof source !== 'object' ||
-    typeof (source as Record<string, unknown>)['on'] !== 'function'
-  ) {
+  if (!isEventSource(source)) {
     return Promise.reject(new Error('Invalid transaction event source'));
   }
-  const eventSource = source as DAppBroadcastEventSource;
+  const eventSource = source;
   return new Promise((resolve) => {
     let settled = false;
     let broadcastHash = '';
@@ -82,21 +80,18 @@ export function waitForDAppBroadcastSettlement(
     });
     eventSource.on('receipt', (value) => {
       if (settled) return;
-      const receipt =
-        value && typeof value === 'object'
-          ? (value as Record<string, unknown>)
-          : null;
+      const receipt = isRecord(value) ? value : null;
       const hash = transactionHashFromReceipt(receipt);
       const succeeded = getDAppReceiptStatus(receipt, broadcastHash);
       if (succeeded === undefined) {
-        settle(() => callbacks.onUnknown(broadcastHash || hash, 'Transaction confirmation is unavailable. Check the explorer before sending again.'));
+        settle(() => { callbacks.onUnknown(broadcastHash || hash, 'Transaction confirmation is unavailable. Check the explorer before sending again.'); });
         return;
       }
-      if (succeeded === false) {
-        settle(() => callbacks.onFailure('Transaction has been reverted by the QRVM'));
+      if (!succeeded) {
+        settle(() => { callbacks.onFailure('Transaction has been reverted by the QRVM'); });
         return;
       }
-      settle(() => callbacks.onSuccess(hash));
+      settle(() => { callbacks.onSuccess(hash); });
     });
     const failWithoutHash = (value: unknown): void => {
       const message = value instanceof Error ? value.message : String(value);
@@ -105,16 +100,16 @@ export function waitForDAppBroadcastSettlement(
         // The node already holds this transaction, so it is on its way. The
         // dApp gets the hash, the same answer the desktop signer gives.
         settle(() =>
-          callbacks.onUnknown(
+          { callbacks.onUnknown(
             localHashForDuplicate,
             'This transaction is already in the network queue. Check the explorer before sending it again.',
-          ),
+          ); },
         );
         return;
       }
       if (isDefinitiveBroadcastRejection(value)) {
         // The node replied with an error, so nothing is in the mempool.
-        settle(() => callbacks.onFailure(message));
+        settle(() => { callbacks.onFailure(message); });
         return;
       }
       const localHash = options.localHash;
@@ -122,15 +117,15 @@ export function waitForDAppBroadcastSettlement(
         // Nobody answered. The transaction may well have been accepted, so
         // the dApp gets the hash derived from the signed bytes instead of a
         // rejection it would act on by sending again.
-        settle(() => callbacks.onUnknown(localHash, UNKNOWN_BROADCAST_MESSAGE));
+        settle(() => { callbacks.onUnknown(localHash, UNKNOWN_BROADCAST_MESSAGE); });
         return;
       }
-      settle(() => callbacks.onFailure(message));
+      settle(() => { callbacks.onFailure(message); });
     };
 
     eventSource.on('error', (value) => {
       if (broadcastHash) {
-        settle(() => callbacks.onUnknown(broadcastHash, 'Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again.'));
+        settle(() => { callbacks.onUnknown(broadcastHash, 'Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again.'); });
         return;
       }
       failWithoutHash(value);
@@ -147,10 +142,10 @@ export function waitForDAppBroadcastSettlement(
           if (settled) return;
           if (broadcastHash) {
             settle(() =>
-              callbacks.onUnknown(
+              { callbacks.onUnknown(
                 broadcastHash,
                 'Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again.',
-              ),
+              ); },
             );
             return;
           }
@@ -165,6 +160,14 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
   return (
     typeof value === 'object' &&
     value !== null &&
-    typeof (value as { then?: unknown }).then === 'function'
+    isCallable(Reflect.get(value, 'then'))
+  );
+}
+
+function isEventSource(value: unknown): value is DAppBroadcastEventSource {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    isCallable(Reflect.get(value, 'on'))
   );
 }

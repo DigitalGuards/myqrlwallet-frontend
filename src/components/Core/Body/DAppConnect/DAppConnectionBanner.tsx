@@ -78,7 +78,7 @@ const DAppConnectionBanner = observer(() => {
             </span>
           </div>
           <button
-            onClick={() => dappConnectStore.disconnectSession(session.id)}
+            onClick={() => { dappConnectStore.disconnectSession(session.id); }}
             className="text-muted-foreground hover:text-destructive"
           >
             Disconnect

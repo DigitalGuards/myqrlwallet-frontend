@@ -75,6 +75,7 @@ import {
   asOptionalString,
   assertTransactionWouldNotRevert,
 } from "./dappRevertPrecheck";
+import { isRecord } from "@/utils/guards";
 import { createDAppRequestAnswer } from "./dappRequestAnswer";
 import {
   buildReviewedDAppTransaction,
@@ -110,6 +111,16 @@ const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
 // dApp requests carry no fee selector; sign at the send screen's default level.
 const DAPP_FEE_LEVEL: FeeLevel = "medium";
 
+/** The first request parameter as a record, or an empty record when it is absent or malformed. */
+function firstParamRecord(params: unknown[] | undefined): Record<string, unknown> {
+  const first = params?.[0];
+  return isRecord(first) ? first : {};
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 /**
  * The gas limit a dApp transaction will be signed with.
  *
@@ -122,12 +133,12 @@ async function resolveDAppGasLimit(
 ): Promise<number> {
   const explicitGas = requestedGasLimit(txParams);
   if (explicitGas !== undefined) return Number(explicitGas);
-  const data = (txParams["data"] as string) || "0x";
+  const data = optionalString(txParams["data"]) || "0x";
   if (data && data !== "0x") {
     const estimated = await web3.estimateGas({
-      from: txParams["from"] as string,
-      to: txParams["to"] as string,
-      value: (txParams["value"] as string | undefined) ?? "0x0",
+      from: optionalString(txParams["from"]),
+      to: optionalString(txParams["to"]),
+      value: optionalString(txParams["value"]) ?? "0x0",
       data,
     });
     return Math.ceil(Number(estimated) * GAS_ESTIMATE_BUFFER_MULTIPLIER);
@@ -319,14 +330,14 @@ const DAppApprovalModalContent = observer(() => {
     // Confirmation stays in the wallet as progress, which is a local concern.
     const dAppRequest = createDAppRequestAnswer({
       approve: (result) =>
-        dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, result),
+        { dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, result); },
       reject: (message) =>
-        dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, message),
+        { dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, message); },
     });
-    const answerDApp = (hash: string): void => dAppRequest.answer(hash);
+    const answerDApp = (hash: string): void => { dAppRequest.answer(hash); };
     // Never after an answer: the dApp holds a hash for a transaction that is
     // on its way, and a later revert is something it observes on chain.
-    const rejectDApp = (message: string): void => dAppRequest.reject(message);
+    const rejectDApp = (message: string): void => { dAppRequest.reject(message); };
 
     const reportUnknownTransaction = (hash: string, message: string) => {
       setCurrentTxProgress("unknown", hash, message);
@@ -444,8 +455,8 @@ const DAppApprovalModalContent = observer(() => {
         }
 
         try {
-          const request = params?.[0] as Record<string, unknown> | undefined;
-          const requestedChainId = canonicalChainId(request?.["chainId"]);
+          const request = firstParamRecord(params);
+          const requestedChainId = canonicalChainId(request["chainId"]);
           const walletChainId = await readWalletChainId(qrlStore.qrlInstance);
           if (requestedChainId !== walletChainId) {
             dappConnectStore.rejectRequestById(
@@ -490,9 +501,8 @@ const DAppApprovalModalContent = observer(() => {
         // Bind the required transaction `from` to the live active account at
         // approve-click. The active account can flip while this approval sits
         // open, so an exact comparison prevents signing for a different wallet.
-        const requestedFrom = ((
-          params?.[0] as Record<string, unknown> | undefined
-        )?.["from"] ?? "") as string;
+        const requestedFrom =
+          optionalString(firstParamRecord(params)["from"]) ?? "";
         if (!isExactQrlAccount(requestedFrom, activeAddress)) {
           setError("Signer mismatch: request is for a different account");
           setLoading(false);
@@ -500,7 +510,7 @@ const DAppApprovalModalContent = observer(() => {
         }
 
         await assertRequestedTransactionChain(
-          (params?.[0] || {}) as Record<string, unknown>,
+          firstParamRecord(params),
           qrlStore.qrlInstance,
         );
         if (!isStillCurrent() || qrlStore.activeAccount?.accountAddress !== activeAddress) {
@@ -511,7 +521,7 @@ const DAppApprovalModalContent = observer(() => {
         // trusted modal), then broadcast for send / return raw for sign. No
         // PIN, no seed in the renderer.
         if (isDesktop) {
-          const txParamsD = (params?.[0] || {}) as Record<string, unknown>;
+          const txParamsD = firstParamRecord(params);
           // One construction for both desktop methods, including the
           // explicitly requested gas limit that the web and mobile path below
           // already honours. Some contract flows need headroom the wallet's own
@@ -633,7 +643,7 @@ const DAppApprovalModalContent = observer(() => {
         }
         const hexSeed = unlocked.hexSeed;
 
-        const txParams = (params?.[0] || {}) as Record<string, unknown>;
+        const txParams = firstParamRecord(params);
         const web3 = qrlStore.qrlInstance;
         if (!web3) {
           setError("Web3 not initialized");
@@ -651,8 +661,8 @@ const DAppApprovalModalContent = observer(() => {
         // Same fee policy as the send screen: the node's suggested tip plus
         // base-fee headroom, so a rising base fee cannot strand the tx.
         const fees = await quoteFees(web3, DAPP_FEE_LEVEL);
-        const txData = (txParams["data"] as string) || "0x";
-        const txValue = (txParams["value"] as string | undefined) ?? "0x0";
+        const txData = optionalString(txParams["data"]) || "0x";
+        const txValue = optionalString(txParams["value"]) ?? "0x0";
 
         let gas: string | number;
         const explicitGas = requestedGasLimit(txParams);
@@ -662,7 +672,7 @@ const DAppApprovalModalContent = observer(() => {
           const estimated = await web3.estimateGas(
             {
               from: activeAddress,
-              to: txParams["to"] as string,
+              to: optionalString(txParams["to"]),
               value: txValue,
               data: txData,
             },
@@ -1179,7 +1189,7 @@ const DAppApprovalModalContent = observer(() => {
 
   // Transaction details for display during progress
   const txParams = isTransaction
-    ? (params?.[0] as Record<string, unknown> | undefined)
+    ? firstParamRecord(params)
     : undefined;
   const txDisplayValue = formatQuantaValue(txParams?.["value"]);
 
@@ -1274,8 +1284,8 @@ const DAppApprovalModalContent = observer(() => {
           by accident or left dangling. */}
       <DialogContent
         className="max-w-md p-0 gap-0 overflow-hidden"
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(e) => { e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { e.preventDefault(); }}
       >
         {/* dApp Identity Header */}
         <div className="bg-gradient-to-r from-primary/10 to-transparent p-4">
@@ -1381,7 +1391,7 @@ const DAppApprovalModalContent = observer(() => {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">To</span>
                     <QrlAddress
-                      address={(txParams["to"] as string) || ""}
+                      address={optionalString(txParams["to"]) || ""}
                       mode="full"
                       className="max-w-[75%] justify-end text-right"
                       addressClassName="text-xs"
@@ -1413,7 +1423,7 @@ const DAppApprovalModalContent = observer(() => {
 
               {isTransaction && params?.[0] != null && (
                 <DAppTransactionReview
-                  params={params[0] as Record<string, unknown>}
+                  params={firstParamRecord(params)}
                   maxNetworkFee={
                     feePreview?.status === "ready"
                       ? feePreview.display
@@ -1438,7 +1448,7 @@ const DAppApprovalModalContent = observer(() => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setFeePreviewAttempt((count) => count + 1)}
+                    onClick={() => { setFeePreviewAttempt((count) => count + 1); }}
                   >
                     Retry
                   </Button>
@@ -1525,7 +1535,9 @@ const DAppApprovalModalContent = observer(() => {
                 Reject
               </Button>
               <Button
-                onClick={handleApprove}
+                onClick={() => {
+                  void handleApprove();
+                }}
                 disabled={loading || feeApprovalPending}
                 // A transaction cannot be approved before its fee is on
                 // screen: approving while the quote is loading or failed is
