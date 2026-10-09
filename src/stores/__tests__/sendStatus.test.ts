@@ -5,6 +5,7 @@ import TokenStore from "../tokenStore";
 import { transactionHistoryStore } from "../transactionHistoryStore";
 import { parseUnits } from "@/utils/web3/units";
 import { FEE_NOT_SHOWN } from "@/utils/web3/feePolicy";
+import { SEND_TX_POLLING_CONFIG } from "@/utils/web3/txPolling";
 import type { SendSigner } from "@/utils/sendStatus";
 
 const FROM = `Q${"1".repeat(128)}`;
@@ -101,7 +102,10 @@ jest.mock("@/utils/web3", () => ({
       static providers: { HttpProvider: new (url: string) => object } = {
         HttpProvider: class {},
       };
-      qrl = mockRpc;
+      qrl = { ...mockRpc };
+      constructor(options?: { config?: typeof SEND_TX_POLLING_CONFIG }) {
+        Object.assign(this.qrl, options?.config);
+      }
     },
     utils: {
       toPlanck: (value: string) => mockParseUnits(value).toString(),
@@ -490,14 +494,21 @@ it.each([false, true])(
     const broadcast = token
       ? mockRpc.sendTransaction
       : mockRpc.sendSignedTransaction;
-    broadcast.mockImplementationOnce(() => {
-      expect(mockRpc.transactionPollingTimeout).toBe(300000);
-      expect(mockRpc.transactionPollingInterval).toBe(5000);
-      expect(mockRpc.transactionConfirmationBlocks).toBe(1);
+    const pollingAtBroadcast: (typeof SEND_TX_POLLING_CONFIG)[] = [];
+    broadcast.mockImplementationOnce(function (this: typeof mockRpc) {
+      pollingAtBroadcast.push({
+        transactionPollingTimeout: this.transactionPollingTimeout,
+        transactionPollingInterval: this.transactionPollingInterval,
+        transactionConfirmationBlocks: this.transactionConfirmationBlocks,
+      });
       return mockEvents;
     });
     await send();
     expect(broadcast).toHaveBeenCalledTimes(1);
+    expect(pollingAtBroadcast).toEqual([SEND_TX_POLLING_CONFIG]);
+    expect(mockRpc.transactionPollingTimeout).toBe(750000);
+    expect(mockRpc.transactionPollingInterval).toBe(1000);
+    expect(mockRpc.transactionConfirmationBlocks).toBe(24);
   },
 );
 

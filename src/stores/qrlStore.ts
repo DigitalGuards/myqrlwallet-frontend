@@ -1081,11 +1081,15 @@ class QrlStore {
         throw new Error("Transaction could not be signed");
       }
 
-      // Send the signed transaction and handle PromiEvents
+      // Keep the seed polling window scoped to this send.
+      const Web3 = this._Web3 ?? (await getQrlWeb3()).default;
       if (IS_V3_PROFILE) await this.assertNetworkReady();
       assertSigningCurrent();
-      Object.assign(this.qrlInstance, SEND_TX_POLLING_CONFIG);
-      const promiEvent = this.qrlInstance?.sendSignedTransaction(
+      const { qrl } = new Web3({
+        provider: this.qrlInstance.currentProvider,
+        config: SEND_TX_POLLING_CONFIG,
+      });
+      const promiEvent = qrl.sendSignedTransaction(
         signedTransaction.rawTransaction
       );
 
