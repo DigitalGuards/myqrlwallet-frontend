@@ -11,6 +11,8 @@
  * never be sent to the relay.
  */
 
+import { toError } from '@/utils/guards';
+
 import { base45Decode } from './base45';
 
 const MAGIC = new Uint8Array([0x50, 0x51, 0x50, 0x33]); // "PQP3"
@@ -61,11 +63,11 @@ export async function computeFingerprint(
 export function fingerprintEquals(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
-  // Equal lengths + bounded i mean both reads are always defined. Use a
-  // compile-time `as number` (fully erased at runtime to `a[i] ^ b[i]`)
-  // rather than `?? 0`, which would emit a conditional and break the
-  // constant-time guarantee.
-  for (let i = 0; i < a.length; i++) diff |= (a[i] as number) ^ (b[i] as number);
+  // DataView reads return a plain number, so the loop needs neither a `?? 0`
+  // conditional (which would break the constant-time guarantee) nor a cast.
+  const viewA = new DataView(a.buffer, a.byteOffset, a.byteLength);
+  const viewB = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  for (let i = 0; i < a.length; i++) diff |= viewA.getUint8(i) ^ viewB.getUint8(i);
   return diff === 0;
 }
 
@@ -157,7 +159,15 @@ export function parseRelayUrl(value: string): string {
   }
 }
 
-export async function parseConnectionURI(uri: string): Promise<ParsedURI> {
+export function parseConnectionURI(uri: string): Promise<ParsedURI> {
+  try {
+    return Promise.resolve(parseConnectionURISync(uri));
+  } catch (err) {
+    return Promise.reject(toError(err));
+  }
+}
+
+function parseConnectionURISync(uri: string): ParsedURI {
   if (typeof uri !== 'string' || uri.length === 0) {
     throw new Error('qrUri: empty URI');
   }

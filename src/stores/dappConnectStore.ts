@@ -322,12 +322,12 @@ class DAppConnectStore {
 
   /** Disconnect a specific dApp session */
   disconnectSession(channelId: string): void {
-    dappConnectService.disconnectSession(channelId);
+    void dappConnectService.disconnectSession(channelId);
   }
 
   /** Disconnect all sessions */
   disconnectAll(): void {
-    dappConnectService.disconnectAll();
+    void dappConnectService.disconnectAll();
   }
 
   /** Reconnect all stored sessions */

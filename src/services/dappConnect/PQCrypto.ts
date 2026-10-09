@@ -48,12 +48,14 @@ function subtle(): SubtleCrypto {
  * generic `Uint8Array` type defaults to ArrayBufferLike (which includes
  * SharedArrayBuffer), and WebCrypto's `BufferSource` excludes SharedArrayBuffer
  * since TS 5.7. We verify the backing buffer at runtime and only copy in the
- * rare SharedArrayBuffer case, so this is an honest narrowing, not a blind cast.
+ * rare SharedArrayBuffer case, so the narrowing is a runtime-checked type predicate.
  */
+function isArrayBufferBacked(u: Uint8Array): u is Uint8Array<ArrayBuffer> {
+  return u.buffer instanceof ArrayBuffer;
+}
+
 function bs(u: Uint8Array): Uint8Array<ArrayBuffer> {
-  return u.buffer instanceof ArrayBuffer
-    ? (u as Uint8Array<ArrayBuffer>)
-    : new Uint8Array(u);
+  return isArrayBufferBacked(u) ? u : new Uint8Array(u);
 }
 
 export function kemKeygen(): Keypair {
@@ -234,10 +236,10 @@ export function fromBase64(b64: string): Uint8Array {
 export function constantTimeEquals(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   let d = 0;
-  // Equal lengths + bounded i mean both reads are always defined. Use a
-  // compile-time `as number` (fully erased at runtime to `a[i] ^ b[i]`)
-  // rather than `?? 0`, which would emit a conditional and break the
-  // constant-time guarantee.
-  for (let i = 0; i < a.length; i++) d |= (a[i] as number) ^ (b[i] as number);
+  // DataView reads return a plain number, so the loop needs neither a `?? 0`
+  // conditional (which would break the constant-time guarantee) nor a cast.
+  const viewA = new DataView(a.buffer, a.byteOffset, a.byteLength);
+  const viewB = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  for (let i = 0; i < a.length; i++) d |= viewA.getUint8(i) ^ viewB.getUint8(i);
   return d === 0;
 }

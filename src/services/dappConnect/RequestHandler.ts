@@ -7,6 +7,7 @@
 import type { PendingDAppRequest, DAppInfo, JsonRpcRequest } from './types';
 import { computeTypedDataDigest, TYPED_DATA_LIMITS } from '@/utils/signing';
 import { isQrlAccount } from './accountBinding';
+import { isArray, isRecord } from '@/utils/guards';
 import { normalizeQrlVm64Topic } from '@/utils/web3/address';
 
 /**
@@ -74,14 +75,14 @@ function validateRpcQuantity(value: unknown, field: 'value' | 'gas'): void {
 }
 
 function validateTransactionParams(params: unknown): void {
-  if (!Array.isArray(params) || params.length !== 1) {
+  if (!isArray(params) || params.length !== 1) {
     throw new Error('transaction request requires exactly one transaction object');
   }
   const candidate = params[0];
-  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+  if (!isRecord(candidate)) {
     throw new Error('transaction request requires exactly one transaction object');
   }
-  const tx = candidate as Record<string, unknown>;
+  const tx = candidate;
   const unsupported = Object.keys(tx).find((field) => !TRANSACTION_FIELDS.has(field));
   if (unsupported) throw new Error(`transaction field is not supported: ${unsupported}`);
 
@@ -116,7 +117,7 @@ function isValidVm64TopicSlot(value: unknown): boolean {
   if (value === null) return true;
   if (typeof value === 'string') return normalizeQrlVm64Topic(value) !== null;
   return (
-    Array.isArray(value) &&
+    isArray(value) &&
     value.length > 0 &&
     value.every(
       (candidate) =>
@@ -127,37 +128,37 @@ function isValidVm64TopicSlot(value: unknown): boolean {
 }
 
 function validateGetLogsParams(params: unknown): void {
-  if (!Array.isArray(params) || params.length !== 1) {
+  if (!isArray(params) || params.length !== 1) {
     throw new Error('qrl_getLogs requires exactly one filter object');
   }
   const candidate = params[0];
-  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+  if (!isRecord(candidate)) {
     throw new Error('qrl_getLogs requires exactly one filter object');
   }
-  const filter = candidate as Record<string, unknown>;
+  const filter = candidate;
   if ('address' in filter) {
-    const addresses = Array.isArray(filter['address']) ? filter['address'] : [filter['address']];
+    const addresses = isArray(filter['address']) ? filter['address'] : [filter['address']];
     if (addresses.length === 0 || !addresses.every(isQrlAccount)) {
       throw new Error('qrl_getLogs filter address must use QIP-55');
     }
   }
   if (
     'topics' in filter &&
-    (!Array.isArray(filter['topics']) || !filter['topics'].every(isValidVm64TopicSlot))
+    (!isArray(filter['topics']) || !filter['topics'].every(isValidVm64TopicSlot))
   ) {
     throw new Error('qrl_getLogs topics must use exact 64-byte VM64 values');
   }
 }
 
-export class RequestHandler {
-  static isValidJsonRpcId(value: unknown): value is string | number {
+export const RequestHandler = {
+  isValidJsonRpcId(value: unknown): value is string | number {
     return (
       (typeof value === 'string' && value.length > 0 && value.length <= 128) ||
       (typeof value === 'number' && Number.isSafeInteger(value))
     );
-  }
+  },
 
-  static validateJsonRpcEnvelope(value: Record<string, unknown>): {
+  validateJsonRpcEnvelope(value: Record<string, unknown>): {
     id: string | number;
     method: string;
     params?: unknown[];
@@ -174,7 +175,7 @@ export class RequestHandler {
     if (typeof method !== 'string' || method.length === 0 || method.length > 128) {
       throw new Error('JSON-RPC method must be a bounded string');
     }
-    if (params !== undefined && !Array.isArray(params)) {
+    if (params !== undefined && !isArray(params)) {
       throw new Error('JSON-RPC params must be an array when provided');
     }
     return {
@@ -182,19 +183,19 @@ export class RequestHandler {
       method,
       ...(params === undefined ? {} : { params }),
     };
-  }
+  },
 
   /**
    * Check if a method requires user approval.
    */
-  static isRestricted(method: string): boolean {
+  isRestricted(method: string): boolean {
     return RESTRICTED_METHODS.has(method);
-  }
+  },
 
   /**
    * Create a PendingDAppRequest from an incoming JSON-RPC request.
    */
-  static createPendingRequest(
+  createPendingRequest(
     sessionId: string,
     request: JsonRpcRequest,
     dappInfo: DAppInfo
@@ -207,16 +208,16 @@ export class RequestHandler {
       dappInfo,
       timestamp: Date.now(),
     };
-  }
+  },
 
   /**
    * Validate approval-bound input at relay ingress. A dApp can bypass the npm
    * SDK and speak encrypted JSON-RPC directly, so SDK validation is never a
    * wallet security boundary.
    */
-  static validateRestrictedRequest(method: string, params: unknown): void {
+  validateRestrictedRequest(method: string, params: unknown): void {
     if (method === 'qrl_requestAccounts') {
-      if (params !== undefined && (!Array.isArray(params) || params.length !== 0)) {
+      if (params !== undefined && (!isArray(params) || params.length !== 0)) {
         throw new Error('qrl_requestAccounts does not accept parameters');
       }
       return;
@@ -228,7 +229,7 @@ export class RequestHandler {
     }
 
     if (method === 'qrl_signMessage') {
-      if (!Array.isArray(params) || params.length !== 2) {
+      if (!isArray(params) || params.length !== 2) {
         throw new Error('qrl_signMessage requires [signer, messageHex]');
       }
       const [signer, messageHex] = params;
@@ -246,7 +247,7 @@ export class RequestHandler {
     }
 
     if (method === 'qrl_signTypedData') {
-      if (!Array.isArray(params) || params.length !== 2) {
+      if (!isArray(params) || params.length !== 2) {
         throw new Error('qrl_signTypedData requires [signer, payload]');
       }
       const [signer, payload] = params;
@@ -261,29 +262,29 @@ export class RequestHandler {
     }
 
     if (method === 'wallet_switchQrlChain') {
-      if (!Array.isArray(params) || params.length !== 1) {
+      if (!isArray(params) || params.length !== 1) {
         throw new Error('wallet_switchQrlChain requires one chain configuration object');
       }
       const config = params[0];
-      if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      if (!isRecord(config)) {
         throw new Error('wallet_switchQrlChain requires one chain configuration object');
       }
-      const chainId = (config as Record<string, unknown>)['chainId'];
+      const chainId = config['chainId'];
       if (typeof chainId !== 'string' || chainId.length > 66 || !/^0x[0-9a-fA-F]+$/.test(chainId)) {
         throw new Error('wallet_switchQrlChain requires a 0x-prefixed chainId');
       }
     }
-  }
+  },
 
   /** Validate width-sensitive read methods before forwarding to the provider. */
-  static validateUnrestrictedRequest(method: string, params: unknown): void {
+  validateUnrestrictedRequest(method: string, params: unknown): void {
     if (method === 'qrl_getLogs') validateGetLogsParams(params);
-  }
+  },
 
   /**
    * Validate that a method is known/supported.
    */
-  static isKnownMethod(method: string): boolean {
+  isKnownMethod(method: string): boolean {
     // Closed policy: prefix matching turns every future qrl_/wallet_ method
     // into an accidental capability. In particular qrl_sendRawTransaction
     // would broadcast state changes without a wallet-owned approval path.
@@ -292,9 +293,9 @@ export class RequestHandler {
       UNRESTRICTED_METHODS.has(method) ||
       LOCAL_READ_METHODS.has(method)
     );
-  }
+  },
 
-  static isLocalRead(method: string): boolean {
+  isLocalRead(method: string): boolean {
     return LOCAL_READ_METHODS.has(method);
-  }
-}
+  },
+};

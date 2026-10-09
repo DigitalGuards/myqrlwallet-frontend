@@ -101,7 +101,7 @@ const PasteConnect = observer(() => {
   if (!open) {
     return (
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Button variant="outline" size="sm" onClick={() => { setOpen(true); }}>
           <Plug className="mr-2 h-4 w-4" />
           Connect a dApp
         </Button>
@@ -179,7 +179,7 @@ const DAppSessionsList = observer(() => {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => dappConnectStore.disconnectAll()}
+              onClick={() => { dappConnectStore.disconnectAll(); }}
             >
               Disconnect all
             </Button>
@@ -233,7 +233,7 @@ const DAppSessionsList = observer(() => {
                   variant="outline"
                   size="sm"
                   className="hover:border-destructive hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => dappConnectStore.disconnectSession(session.id)}
+                  onClick={() => { dappConnectStore.disconnectSession(session.id); }}
                 >
                   Disconnect
                 </Button>

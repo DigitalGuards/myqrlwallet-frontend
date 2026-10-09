@@ -25,6 +25,7 @@ import {
 } from "./dappMetadata";
 import { isQrlAccount } from "./accountBinding";
 
+import { isArray, isRecord } from "@/utils/guards";
 import { profileStorageKey } from '@/config/runtimeProfile';
 
 const STORAGE_KEY = profileStorageKey("qrlconnect:sessions");
@@ -32,8 +33,12 @@ const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const CID_STRING_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function isSafeInt(value: unknown): value is number {
+  return Number.isSafeInteger(value);
+}
+
+function isSessionStatus(value: unknown): value is SessionStatus {
+  return Object.values<unknown>(SessionStatus).includes(value);
 }
 
 function parsePersistedKeyExchange(value: unknown): PersistedSession | null {
@@ -55,12 +60,12 @@ function parsePersistedKeyExchange(value: unknown): PersistedSession | null {
     typeof htx !== "string" ||
     typeof sendDir !== "string" ||
     typeof recvDir !== "string" ||
-    !Number.isSafeInteger(sendSeq) ||
-    (sendSeq as number) < 0 ||
-    (sendSeq as number) >= Number.MAX_SAFE_INTEGER ||
-    !Number.isSafeInteger(recvSeq) ||
-    (recvSeq as number) < 0 ||
-    (recvSeq as number) >= Number.MAX_SAFE_INTEGER
+    !isSafeInt(sendSeq) ||
+    sendSeq < 0 ||
+    sendSeq >= Number.MAX_SAFE_INTEGER ||
+    !isSafeInt(recvSeq) ||
+    recvSeq < 0 ||
+    recvSeq >= Number.MAX_SAFE_INTEGER
   ) {
     return null;
   }
@@ -71,8 +76,8 @@ function parsePersistedKeyExchange(value: unknown): PersistedSession | null {
     htx,
     sendDir,
     recvDir,
-    sendSeq: sendSeq as number,
-    recvSeq: recvSeq as number,
+    sendSeq,
+    recvSeq,
   };
   return isPersistedSessionEncodingValid(parsed) ? parsed : null;
 }
@@ -158,18 +163,21 @@ function isSafeRelayUrl(value: unknown): boolean {
   }
 }
 
-function areSessionTimestampsValid(
+function parseSessionTimestamps(
   createdAt: unknown,
   lastActivity: unknown,
   now = Date.now(),
-): createdAt is number {
-  return (
-    Number.isSafeInteger(createdAt) &&
-    Number.isSafeInteger(lastActivity) &&
-    (createdAt as number) >= 0 &&
-    (lastActivity as number) >= (createdAt as number) &&
-    (lastActivity as number) <= now
-  );
+): { createdAt: number; lastActivity: number } | null {
+  if (
+    isSafeInt(createdAt) &&
+    isSafeInt(lastActivity) &&
+    createdAt >= 0 &&
+    lastActivity >= createdAt &&
+    lastActivity <= now
+  ) {
+    return { createdAt, lastActivity };
+  }
+  return null;
 }
 
 function parseSession(
@@ -182,8 +190,10 @@ function parseSession(
   const originatorInfoReceived = dappInfo
     ? parseOriginatorState(value, dappInfo)
     : null;
-  const validStatus = Object.values(SessionStatus).includes(
-    value["status"] as SessionStatus,
+  const status = value["status"];
+  const timestamps = parseSessionTimestamps(
+    value["createdAt"],
+    value["lastActivity"],
   );
   if (
     !dappInfo ||
@@ -196,8 +206,8 @@ function parseSession(
       ? !isQrlAccount(value["connectedAccount"])
       : value["connectedAccount"] !== "") ||
     !isSafeRelayUrl(value["relayUrl"]) ||
-    !validStatus ||
-    !areSessionTimestampsValid(value["createdAt"], value["lastActivity"])
+    !isSessionStatus(status) ||
+    timestamps === null
   ) {
     return null;
   }
@@ -219,9 +229,9 @@ function parseSession(
     ...(typeof value["relayUrl"] === "string"
       ? { relayUrl: value["relayUrl"] }
       : {}),
-    status: value["status"] as SessionStatus,
-    createdAt: value["createdAt"],
-    lastActivity: value["lastActivity"] as number,
+    status,
+    createdAt: timestamps.createdAt,
+    lastActivity: timestamps.lastActivity,
     walletEpoch: expectedEpoch,
   };
 }
@@ -233,7 +243,7 @@ function readSessions(expectedEpoch: WalletEpoch = getWalletEpoch()): {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return { sessions: [], dropped: 0 };
   const parsed: unknown = JSON.parse(raw);
-  if (!Array.isArray(parsed)) {
+  if (!isArray(parsed)) {
     throw new Error("Invalid QRL Connect session store");
   }
   const now = Date.now();
@@ -271,13 +281,13 @@ function writeSessions(
   throw new Error("Wallet identity changed during QRL Connect checkpoint");
 }
 
-export class SessionStore {
+export const SessionStore = {
   /**
    * Remove only a store that contains no valid record for the current wallet
    * generation. The raw-value comparison prevents a delayed epoch listener
    * from deleting a fresh session written by another tab after this read.
    */
-  static clearStale(expectedEpoch: WalletEpoch = getWalletEpoch()): void {
+  clearStale(expectedEpoch: WalletEpoch = getWalletEpoch()): void {
     if (!isWalletEpochCurrent(expectedEpoch)) return;
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw === null) return;
@@ -285,7 +295,7 @@ export class SessionStore {
     let containsCurrentSession = false;
     try {
       const parsed: unknown = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
+      if (isArray(parsed)) {
         containsCurrentSession = parsed.some(
           (value) => parseSession(value, expectedEpoch) !== null,
         );
@@ -297,14 +307,14 @@ export class SessionStore {
     if (localStorage.getItem(STORAGE_KEY) === raw) {
       localStorage.removeItem(STORAGE_KEY);
     }
-  }
+  },
 
   /**
    * Delete legacy, expired, or malformed entries after the service has
    * acquired origin-wide ownership. getAll() stays read-only so a non-owner
    * tab cannot race an active counter checkpoint.
    */
-  static prune(expectedEpoch: WalletEpoch = getWalletEpoch()): void {
+  prune(expectedEpoch: WalletEpoch = getWalletEpoch()): void {
     const rawBefore = localStorage.getItem(STORAGE_KEY);
     try {
       if (!isWalletEpochCurrent(expectedEpoch)) {
@@ -340,9 +350,9 @@ export class SessionStore {
       }
       throw err;
     }
-  }
+  },
 
-  static save(
+  save(
     session: DAppSession,
     expectedEpoch: WalletEpoch = getWalletEpoch(),
   ): void {
@@ -368,7 +378,7 @@ export class SessionStore {
     if (
       !isPersistedSessionEncodingValid(session.keyExchange) ||
       !Object.values(SessionStatus).includes(session.status) ||
-      !areSessionTimestampsValid(session.createdAt, session.lastActivity)
+      parseSessionTimestamps(session.createdAt, session.lastActivity) === null
     ) {
       throw new Error("QRL Connect session has invalid persisted state");
     }
@@ -388,9 +398,9 @@ export class SessionStore {
       sessions.push(boundSession);
     }
     writeSessions(sessions, expectedEpoch);
-  }
+  },
 
-  static getAll(): DAppSession[] {
+  getAll(): DAppSession[] {
     try {
       // Reads stay side-effect free. In particular, a non-owner wallet tab
       // must not race the active tab by rewriting the shared session array
@@ -400,13 +410,13 @@ export class SessionStore {
     } catch {
       return [];
     }
-  }
+  },
 
-  static get(channelId: string): DAppSession | null {
+  get(channelId: string): DAppSession | null {
     return SessionStore.getAll().find((s) => s.id === channelId) || null;
-  }
+  },
 
-  static remove(
+  remove(
     channelId: string,
     expectedEpoch: WalletEpoch = getWalletEpoch(),
   ): void {
@@ -429,9 +439,9 @@ export class SessionStore {
       }
       throw err;
     }
-  }
+  },
 
-  static updateStatus(
+  updateStatus(
     channelId: string,
     status: SessionStatus,
     expectedEpoch: WalletEpoch = getWalletEpoch(),
@@ -442,9 +452,9 @@ export class SessionStore {
       session.lastActivity = Date.now();
       SessionStore.save(session, expectedEpoch);
     }
-  }
+  },
 
-  static clearAll(): void {
+  clearAll(): void {
     localStorage.removeItem(STORAGE_KEY);
-  }
-}
+  },
+};

@@ -32,6 +32,7 @@ import {
 } from "./SocketClient";
 import { IS_EMBEDDED_BUILD } from "@/utils/embeddedRuntime";
 import { EMBEDDED_RELAY_URLS } from "@/config/embeddedBuild";
+import { isArray, isRecord } from "@/utils/guards";
 import { RequestHandler } from "./RequestHandler";
 import { getRequestProvider, readWalletChainId } from "./rpcProvider";
 import {
@@ -128,8 +129,13 @@ const ACCOUNT_BOUND_METHODS = new Set([
   "qrl_signTypedData",
 ]);
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function isAckMessage(value: unknown): value is AckMessage {
+  return (
+    isRecord(value) &&
+    value["type"] === KeyExchangeMessageType.ACK &&
+    typeof value["c1"] === "string" &&
+    typeof value["v"] === "number"
+  );
 }
 
 function isExpectedDappFrame(
@@ -175,7 +181,7 @@ function validateBufferedMessages(
   value: unknown,
   channelId: string,
 ): RelayMessage[] {
-  if (!Array.isArray(value) || value.length > MAX_BUFFERED_MESSAGES) {
+  if (!isArray(value) || value.length > MAX_BUFFERED_MESSAGES) {
     throw new Error("Relay returned an invalid buffered message list");
   }
   const messages: RelayMessage[] = [];
@@ -499,7 +505,9 @@ export class DAppConnectService {
       if (now - this.lastWakeRetryAt < WAKE_RETRY_MIN_INTERVAL_MS) return;
       this.lastWakeRetryAt = now;
       void this.reconnectAll().catch((err: unknown) =>
-        console.error("[DAppConnect] wake retry failed:", err),
+        {
+          console.error("[DAppConnect] wake retry failed:", err);
+        },
       );
     };
     window.addEventListener("online", retry);
@@ -755,7 +763,7 @@ export class DAppConnectService {
         joinResult.bufferedMessages,
         channelId,
       );
-      if (joinResult.terminated !== false) {
+      if (joinResult.terminated) {
         throw new Error("Relay reported a terminated or malformed channel");
       }
       const channelPublicKey = joinResult.channelPublicKey;
@@ -984,11 +992,11 @@ export class DAppConnectService {
     // bad JSON) must not starve every subsequent message on this channel.
     conn.messageQueue = conn.messageQueue
       .then(() => this.handleRelayMessage(channelId, data))
-      .catch((err) =>
+      .catch((err: unknown) => {
         dlog(
           `messageQueue error on ${channelId}: ${err instanceof Error ? err.message : String(err)}`,
-        ),
-      );
+        );
+      });
   }
 
   private async handleRelayMessage(
@@ -1003,31 +1011,36 @@ export class DAppConnectService {
 
     const message = data.message;
 
-    if (typeof message === "object" && message !== null) {
-      const msg = message as { type?: string };
-      if (msg.type === KeyExchangeMessageType.ACK) {
+    if (isRecord(message)) {
+      const messageKind = message["type"];
+      if (messageKind === KeyExchangeMessageType.ACK) {
         try {
-          await conn.keyExchange.onAck(message as AckMessage);
+          if (!isAckMessage(message)) {
+            throw new Error("malformed ACK message");
+          }
+          await conn.keyExchange.onAck(message);
         } catch (err) {
           dlog(
-            `ACK verify failed: ${err instanceof Error ? err.message : err}`,
+            `ACK verify failed: ${err instanceof Error ? err.message : String(err)}`,
           );
           // Await the teardown: the message queue is PER-CHANNEL, so
           // blocking this queue until the channel is fully torn down is
           // the correct behaviour on a security failure (prevents any
           // subsequent buffered message on this compromised channel from
           // being processed during the 800ms TERMINATE flush window).
-          await this.disconnectSession(channelId, false).catch((err) =>
-            console.error("[DAppConnect] disconnect-on-ack-fail failed:", err),
+          await this.disconnectSession(channelId, false).catch((err: unknown) =>
+            {
+              console.error("[DAppConnect] disconnect-on-ack-fail failed:", err);
+            },
           );
         }
         return;
       }
       if (
-        msg.type === KeyExchangeMessageType.SYN ||
-        msg.type === KeyExchangeMessageType.SYNACK
+        messageKind === KeyExchangeMessageType.SYN ||
+        messageKind === KeyExchangeMessageType.SYNACK
       ) {
-        dlog(`Unexpected ${msg.type} on wallet side — ignoring`);
+        dlog(`Unexpected ${messageKind} on wallet side, ignoring`);
         return;
       }
     }
@@ -1067,7 +1080,10 @@ export class DAppConnectService {
       }
 
       try {
-        const parsed = JSON.parse(decrypted);
+        const parsed: unknown = JSON.parse(decrypted);
+        if (!isRecord(parsed)) {
+          throw new Error("decrypted message is not an object");
+        }
         await this.handleDecryptedMessage(channelId, parsed);
       } catch (err) {
         console.error("[DAppConnect] Failed to handle decrypted message:", err);
@@ -1082,7 +1098,7 @@ export class DAppConnectService {
     const conn = this.connections.get(channelId);
     if (!conn) return;
 
-    const type = msg["type"] as string;
+    const type = msg["type"];
 
     switch (type) {
       case MessageType.ORIGINATOR_INFO: {
@@ -1116,7 +1132,7 @@ export class DAppConnectService {
         await this.persistSession(channelId, conn);
         this.handlers?.onSessionsChanged();
         if (isInNativeApp() && conn.authorizedAccount) {
-          sendToNative("DAPP_CONNECTED" as never, {
+          sendToNative("DAPP_CONNECTED", {
             name: conn.dappInfo.name,
             url: conn.dappInfo.url,
             channelId,
@@ -1239,7 +1255,7 @@ export class DAppConnectService {
           this.handlers?.onPendingRequest(pendingRequest);
 
           if (isInNativeApp()) {
-            sendToNative("DAPP_SHOW_WEBVIEW" as never, {
+            sendToNative("DAPP_SHOW_WEBVIEW", {
               name: conn.dappInfo.name,
               method,
             });
@@ -1275,8 +1291,10 @@ export class DAppConnectService {
         // TERMINATE is a remote close (the dApp already left on its side), so
         // it should emit leave_channel and record a non-explicit disconnect,
         // matching the relay 'close' path — not a redundant durable tombstone.
-        await this.disconnectSession(channelId, false).catch((err) =>
-          console.error("[DAppConnect] disconnect-on-terminate failed:", err),
+        await this.disconnectSession(channelId, false).catch((err: unknown) =>
+          {
+            console.error("[DAppConnect] disconnect-on-terminate failed:", err);
+          },
         );
         break;
       }
@@ -1321,8 +1339,10 @@ export class DAppConnectService {
     result: unknown,
   ): void {
     void this.approveRequestInternal(sessionId, requestId, result).catch(
-      (error) =>
-        console.error("[DAppConnect] approval could not be completed:", error),
+      (error: unknown) =>
+        {
+          console.error("[DAppConnect] approval could not be completed:", error);
+        },
     );
   }
 
@@ -1404,11 +1424,9 @@ export class DAppConnectService {
     result: unknown,
     conn: ActiveConnection,
   ): Promise<void> {
-    if (
-      !Array.isArray(result) ||
-      result.length !== 1 ||
-      !isQrlAccount(result[0])
-    ) {
+    const approvedAccount: unknown =
+      isArray(result) && result.length === 1 ? result[0] : undefined;
+    if (!isQrlAccount(approvedAccount)) {
       await this.sendJsonRpcResponse(sessionId, {
         jsonrpc: "2.0",
         id: requestId,
@@ -1417,7 +1435,6 @@ export class DAppConnectService {
       return;
     }
 
-    const approvedAccount = result[0] as string;
     const liveAccount = activeWalletAccount();
     if (!isExactQrlAccount(approvedAccount, liveAccount)) {
       await this.sendJsonRpcResponse(sessionId, {
@@ -1465,7 +1482,7 @@ export class DAppConnectService {
       conn.originatorInfoReceived &&
       isInNativeApp()
     ) {
-      sendToNative("DAPP_CONNECTED" as never, {
+      sendToNative("DAPP_CONNECTED", {
         name: conn.dappInfo.name,
         url: conn.dappInfo.url,
         channelId: sessionId,
@@ -1561,7 +1578,7 @@ export class DAppConnectService {
    */
   private notifyNativeDisconnected(channelId: string, explicit: boolean): void {
     if (isInNativeApp()) {
-      sendToNative("DAPP_DISCONNECTED" as never, { channelId, explicit });
+      sendToNative("DAPP_DISCONNECTED", { channelId, explicit });
     }
   }
 
@@ -1651,7 +1668,9 @@ export class DAppConnectService {
         `[DAppConnect] relay will not take ${channelId} back and a sealed frame is undelivered; retiring the pairing`,
       );
       void this.teardownSession(channelId, false, false, false, false).catch(
-        (err) => console.error("[DAppConnect] retire after abandon failed:", err),
+        (err: unknown) => {
+          console.error("[DAppConnect] retire after abandon failed:", err);
+        },
       );
       return;
     }
@@ -1921,7 +1940,9 @@ export class DAppConnectService {
               this.enqueueRelayMessage(session.id, data);
             },
             onConnected: () =>
-              dlog(`Reconnected to relay for ${session.dappInfo.name}`),
+              {
+                dlog(`Reconnected to relay for ${session.dappInfo.name}`);
+              },
             onDisconnected: () => {
               this.clearDappLeaveTimeout(session.id);
               this.updateLiveSessionStatus(
@@ -1994,7 +2015,7 @@ export class DAppConnectService {
           );
           const { terminated } = joinResult;
 
-          if (terminated !== false) {
+          if (terminated) {
             // The dApp explicitly closed this channel while the wallet was
             // offline. Drop the dead session instead of resurrecting a ghost
             // that shows active but can never reach the gone dApp.
@@ -2609,8 +2630,12 @@ export class DAppConnectService {
     options: { isAnswer?: boolean; queuedAt?: number; alreadyQueued?: boolean } = {},
   ): Promise<{ outcome: SendOutcome; parked: boolean }> {
     const conn = this.connections.get(channelId);
+    const tracked = (
+      outcome: SendOutcome,
+      parked: boolean,
+    ): { outcome: SendOutcome; parked: boolean } => ({ outcome, parked });
     if (!conn?.cryptoUsable) {
-      return Promise.resolve({ outcome: "failed" as SendOutcome, parked: false });
+      return Promise.resolve(tracked("failed", false));
     }
 
     const isAnswer = options.isAnswer ?? false;
@@ -2635,7 +2660,7 @@ export class DAppConnectService {
     };
 
     if (!conn.socketClient.isJoined()) {
-      return Promise.resolve({ outcome: hold(), parked: false });
+      return Promise.resolve(tracked(hold(), false));
     }
 
     const task = conn.outboundQueue.then(() =>
@@ -2649,21 +2674,21 @@ export class DAppConnectService {
     );
 
     return task.then(
-      () => ({ outcome: "sent" as SendOutcome, parked: false }),
+      () => tracked("sent", false),
       (err: unknown) => {
         if (err instanceof FrameParkedError) {
           // This message is already sealed and its counter is spent. The frame
           // goes out first on reconnect, so queueing the plaintext as well
           // would deliver the same answer twice.
-          return { outcome: "held" as SendOutcome, parked: true };
+          return tracked("held", true);
         }
         if (err instanceof SocketNotConnectedError) {
           // Raised before any emit, so nothing left this process and no
           // counter was spent. Unambiguous, and safe to hold.
-          return { outcome: hold(), parked: false };
+          return tracked(hold(), false);
         }
         console.error("[DAppConnect] Failed to send encrypted:", err);
-        return { outcome: "failed" as SendOutcome, parked: false };
+        return tracked("failed", false);
       },
     );
   }
@@ -2795,8 +2820,10 @@ export class DAppConnectService {
     // unknown. A relay tombstone communicates permanent teardown without
     // consuming another AEAD nonce.
     await this.teardownSession(channelId, true, false, false, false).catch(
-      (err) =>
-        console.error("[DAppConnect] Fail-closed teardown failed:", err),
+      (err: unknown) =>
+        {
+          console.error("[DAppConnect] Fail-closed teardown failed:", err);
+        },
     );
   }
 
