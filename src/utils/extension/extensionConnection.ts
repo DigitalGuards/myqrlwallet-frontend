@@ -2,9 +2,8 @@ import { QRL_EXTENSION_RDNS } from "@/constants";
 import type { AccountSource } from "@/utils/storage";
 import type { ExtensionProvider } from "@/stores/qrlStore";
 import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
-import { IS_V3_PROFILE } from '@/config/runtimeProfile';
-import { qualifyV3Provider } from './v3Provider';
-import { isValidQrlAddress } from '@/utils/web3/address';
+import { qualifyV3Provider } from "./v3Provider";
+import { isValidQrlAddress } from "@/utils/web3/address";
 
 // EIP-6963 types (simplified)
 export interface EIP6963ProviderInfo {
@@ -19,25 +18,51 @@ export interface EIP6963ProviderDetail {
   provider: ExtensionProvider;
 }
 
-interface EIP6963AnnounceProviderEvent extends CustomEvent {
-  detail: EIP6963ProviderDetail;
-}
-
 /**
  * Whether an EIP-6963 announcement is a QRL wallet extension we can drive
  * over the qrl_* namespace. Both the upstream QRL Web3 Wallet and the
  * MyQRLWallet Extension fork qualify; neither exposes a window global, so
  * EIP-6963 is the only discovery channel.
  */
-export const isQrlExtension = (info: Pick<EIP6963ProviderInfo, "rdns">): boolean =>
-  (QRL_EXTENSION_RDNS as readonly string[]).includes(info.rdns);
+export const isQrlExtension = (
+  info: Pick<EIP6963ProviderInfo, "rdns">,
+): boolean => QRL_EXTENSION_RDNS.some((rdns) => rdns === info.rdns);
+
+function isProviderDetail(value: unknown): value is EIP6963ProviderDetail {
+  if (typeof value !== "object" || value === null) return false;
+  if (!("info" in value) || !("provider" in value)) return false;
+  const { info, provider } = value;
+  return (
+    typeof info === "object" &&
+    info !== null &&
+    "uuid" in info &&
+    typeof info.uuid === "string" &&
+    "name" in info &&
+    typeof info.name === "string" &&
+    "icon" in info &&
+    typeof info.icon === "string" &&
+    "rdns" in info &&
+    typeof info.rdns === "string" &&
+    isQrlExtension({ rdns: info.rdns }) &&
+    typeof provider === "object" &&
+    provider !== null &&
+    "request" in provider &&
+    typeof provider.request === "function"
+  );
+}
+
+function isAccountList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(isValidQrlAddress);
+}
 
 /**
  * Collapse duplicate announcements. Keyed by rdns: a provider may announce
  * more than once (initial announce + the requestProvider re-announce), and
  * two entries sharing an rdns would be indistinguishable in a picker anyway.
  */
-export function dedupeProviders(details: EIP6963ProviderDetail[]): EIP6963ProviderDetail[] {
+export function dedupeProviders(
+  details: EIP6963ProviderDetail[],
+): EIP6963ProviderDetail[] {
   const seen = new Set<string>();
   const result: EIP6963ProviderDetail[] = [];
   for (const detail of details) {
@@ -51,53 +76,139 @@ export function dedupeProviders(details: EIP6963ProviderDetail[]): EIP6963Provid
 /**
  * Discover every installed QRL wallet extension via EIP-6963.
  *
- * Compliant providers re-announce synchronously while the requestProvider
- * event dispatches, so anything installed is normally collected immediately;
- * a short grace period then catches stragglers, and the long timeout only
- * applies when nothing announced at all.
+ * Request fresh announcements on every discovery, including after a reload.
+ * Keep the full collection window for extensions that initialize later, and
+ * repeat the request halfway through for listeners installed during startup.
  */
 export function discoverQrlProviders(): Promise<EIP6963ProviderDetail[]> {
   return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve([]);
+      return;
+    }
     const found: EIP6963ProviderDetail[] = [];
     const handleAnnounceProvider = (event: Event) => {
-      const announceEvent = event as EIP6963AnnounceProviderEvent;
-      if (announceEvent.detail?.info && isQrlExtension(announceEvent.detail.info)) {
-        found.push(announceEvent.detail);
+      if (event instanceof CustomEvent) {
+        const detail: unknown = event.detail;
+        if (isProviderDetail(detail)) found.push(detail);
       }
     };
 
     window.addEventListener("eip6963:announceProvider", handleAnnounceProvider);
-    window.dispatchEvent(new Event("eip6963:requestProvider"));
+    const request = () =>
+      window.dispatchEvent(new Event("eip6963:requestProvider"));
+    const retry = setTimeout(request, 500);
 
     const settle = () => {
-      window.removeEventListener("eip6963:announceProvider", handleAnnounceProvider);
+      clearTimeout(retry);
+      window.removeEventListener(
+        "eip6963:announceProvider",
+        handleAnnounceProvider,
+      );
       resolve(dedupeProviders(found));
     };
-    setTimeout(settle, found.length > 0 ? 100 : 1000);
+    setTimeout(settle, 1000);
+    request();
   });
+}
+
+/** Check the site's current permission without opening a connection prompt. */
+export async function extensionAuthorizesAccount(
+  provider: ExtensionProvider,
+  address: string,
+): Promise<boolean> {
+  if (!isValidQrlAddress(address)) return false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const accounts: unknown = await Promise.race([
+      provider.request({ method: "qrl_accounts" }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error("Extension account check timed out"));
+        }, 10000);
+      }),
+    ]);
+    return (
+      isAccountList(accounts) &&
+      accounts.some(
+        (account) => account.toLowerCase() === address.toLowerCase(),
+      )
+    );
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Recover a live signer for the selected address using existing permission. */
+export async function restoreExtensionProvider(
+  address: string,
+  current: ExtensionProvider | null = null,
+): Promise<ExtensionProvider | null> {
+  if (!isValidQrlAddress(address)) return null;
+  if (current && (await extensionAuthorizesAccount(current, address)))
+    return current;
+
+  const details = await discoverQrlProviders();
+  const candidates = await Promise.allSettled(
+    details.map(async ({ provider }) => {
+      if (
+        provider === current ||
+        !(await extensionAuthorizesAccount(provider, address))
+      )
+        return null;
+      await qualifyV3Provider(provider);
+      return provider;
+    }),
+  );
+  const matches = new Set<ExtensionProvider>();
+  let qualificationError: Error | undefined;
+  for (const candidate of candidates) {
+    if (candidate.status === "fulfilled") {
+      if (candidate.value) matches.add(candidate.value);
+    } else {
+      const reason: unknown = candidate.reason;
+      qualificationError ??=
+        reason instanceof Error
+          ? reason
+          : new Error("Extension qualification failed");
+    }
+  }
+  if (matches.size > 1) {
+    throw new Error(
+      "Multiple extensions authorize this account. Choose one with Connect Browser Extension.",
+    );
+  }
+  if (matches.size === 0 && qualificationError) throw qualificationError;
+  return matches.values().next().value ?? null;
 }
 
 /**
  * Connect to a discovered extension: request account access (the extension
- * shows its own approval popup), make the first account active with the
+ * shows its own approval surface), make the first account active with the
  * 'extension' source, and store the provider for later request() calls.
  */
 export async function connectWithProvider(
   detail: EIP6963ProviderDetail,
   setActiveAccount: (address: string, source?: AccountSource) => Promise<void>,
-  setExtensionProvider: (provider: ExtensionProvider | null) => void
+  setExtensionProvider: (provider: ExtensionProvider | null) => void,
 ): Promise<string[] | null> {
   const provider = detail.provider;
 
   try {
     await qualifyV3Provider(provider);
-    console.log(`Attempting to connect to ${detail.info.name} using qrl_requestAccounts...`);
-    const accounts = await provider.request<string[]>({ method: 'qrl_requestAccounts' });
+    console.log(
+      `Attempting to connect to ${detail.info.name} using qrl_requestAccounts...`,
+    );
+    const accounts: unknown = await provider.request({
+      method: "qrl_requestAccounts",
+    });
+    if (!isAccountList(accounts)) {
+      throw new Error("The extension returned an invalid account list");
+    }
 
-    if (accounts && accounts.length > 0) {
-      if (IS_V3_PROFILE && !accounts.every(isValidQrlAddress)) {
-        throw new Error('The extension returned an invalid Testnet v3 account');
-      }
+    if (accounts.length > 0) {
       const firstAccount = accounts[0];
       if (!firstAccount) return null; // length > 0 guarantees this; satisfies the index checker
       console.log("Connected to extension with accounts:", accounts);
@@ -105,7 +216,7 @@ export async function connectWithProvider(
       console.log(`Setting active account to: ${firstAccount}`);
       console.log("Setting extension provider in store.");
       setExtensionProvider(provider);
-      await setActiveAccount(firstAccount, 'extension');
+      await setActiveAccount(firstAccount, "extension");
 
       return accounts;
     } else {
@@ -117,9 +228,10 @@ export async function connectWithProvider(
     setExtensionProvider(null); // Clear provider on error
     // Handle errors, such as user rejection
     const code = isProviderRpcError(error) ? error.code : undefined;
-    if (code === 4001) { // EIP-1193 user rejection error
-      console.log('User rejected connection request.');
-      alert('Connection request rejected.');
+    if (code === 4001) {
+      // EIP-1193 user rejection error
+      console.log("User rejected connection request.");
+      alert("Connection request rejected.");
     } else if (code === -32601) {
       console.error("RPC Error: Method not found", error);
       alert(`RPC Error: ${getErrorMessage(error)}`);

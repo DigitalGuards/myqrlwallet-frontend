@@ -44,21 +44,19 @@ let pairingActive = false;
 // today; the singleton is never torn down) can't serve a stale closure.
 const adapters = new WeakMap<QRLConnect, ExtensionProvider>();
 
-// The SDK's request() returns Promise<unknown>; the store's ExtensionProvider
-// surface is generic. Adapt with a single assertion from unknown at the
-// boundary rather than pretending QRLConnect IS an ExtensionProvider.
+// Keep SDK responses unknown until the consuming operation validates them.
 function asExtensionProvider(qrl: QRLConnect): ExtensionProvider {
   const cached = adapters.get(qrl);
   if (cached) return cached;
   const adapter: ExtensionProvider = {
-    request: <T = unknown>(args: { method: string; params?: unknown[] | object }) => {
+    request: (args) => {
       // The relay protocol takes positional (array) params only; wrap a bare
       // object param the way EIP-1193 callers sometimes pass one.
       const params =
         args.params === undefined || Array.isArray(args.params)
           ? args.params
           : [args.params];
-      return qrl.request({ method: args.method, params }) as Promise<T>;
+      return qrl.request({ method: args.method, params });
     },
   };
   adapters.set(qrl, adapter);
