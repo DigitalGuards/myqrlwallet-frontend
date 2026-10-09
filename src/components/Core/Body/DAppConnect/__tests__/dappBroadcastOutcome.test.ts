@@ -14,6 +14,8 @@ import { isDefinitiveBroadcastRejection } from "../dappBroadcastOutcome";
 import { waitForDAppBroadcastSettlement } from "../dappBroadcastSettlement";
 
 const LOCAL_HASH = "0xdd5d4abee99b373e36a58f56fdb2715c5917e22a16355fb396fa2ee930bfa1b6";
+// Real HTTP and the first signature share CPU with parallel Jest workers.
+const HTTP_BROADCAST_TIMEOUT = 30_000;
 
 /**
  * Bound the receipt poll. sendSignedTransaction otherwise keeps a 750 second
@@ -123,12 +125,15 @@ async function broadcastThroughHttp(answer: {
   contentType: string;
   body: string;
 }): Promise<unknown> {
+  const rawTransaction = await signedTransaction();
   const server = createServer((req, res) => {
     // The body has to be drained before answering, or a signed transaction
     // large enough to fill the socket buffer blocks the write.
     let body = "";
-    req.on("data", (chunk) => {
-      body += String(chunk);
+    req.setEncoding("utf8");
+    req.on("data", (chunk: unknown) => {
+      if (typeof chunk === "string") body += chunk;
+      else req.destroy(new Error("Expected a UTF-8 request body"));
     });
     req.on("end", () => {
       // Only the broadcast fails. Failing everything also failed web3's
@@ -138,12 +143,21 @@ async function broadcastThroughHttp(answer: {
       let method = "";
       try {
         const parsed: unknown = JSON.parse(body);
-        if (typeof parsed === "object" && parsed !== null) {
-          const value = (parsed as { method?: unknown }).method;
-          if (typeof value === "string") method = value;
+        if (
+          typeof parsed === "object" &&
+          parsed !== null &&
+          "method" in parsed &&
+          typeof parsed.method === "string"
+        ) {
+          method = parsed.method;
         }
       } catch {
         // An unparseable body cannot be the broadcast.
+      }
+      if (method === "") {
+        res.writeHead(400);
+        res.end();
+        return;
       }
       if (method !== "qrl_sendRawTransaction") {
         res.writeHead(200, { "content-type": "application/json" });
@@ -160,15 +174,23 @@ async function broadcastThroughHttp(answer: {
       res.end(answer.body);
     });
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address();
-  const port = typeof address === "object" && address !== null ? address.port : 0;
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "localhost", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
   try {
+    const address = server.address();
+    if (typeof address !== "object" || address === null) {
+      throw new Error("Expected the HTTP fixture to listen on a TCP port");
+    }
     const web3 = new Web3({
-      provider: new HttpProvider(`http://127.0.0.1:${port}`),
+      provider: new HttpProvider(`http://localhost:${address.port}`),
       config: SHORT_POLLING,
     });
-    const sending = web3.qrl.sendSignedTransaction(await signedTransaction(), undefined, {
+    const sending = web3.qrl.sendSignedTransaction(rawTransaction, undefined, {
       checkRevertBeforeSending: false,
     });
     sending.on("error", () => undefined);
@@ -179,7 +201,14 @@ async function broadcastThroughHttp(answer: {
       return error;
     }
   } finally {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+      // The response is consumed. Close keep-alive sockets before awaiting exit.
+      server.closeAllConnections();
+    });
   }
 }
 
@@ -197,7 +226,7 @@ describe("the node refused it, through a real HttpProvider", () => {
       body: '{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"nonce too low"}}',
     });
     expect(isDefinitiveBroadcastRejection(error)).toBe(true);
-  });
+  }, HTTP_BROADCAST_TIMEOUT);
 });
 
 describe("the node refused it", () => {
@@ -245,7 +274,7 @@ describe("we never heard back", () => {
   ])("treats %s as open", async (_label, status, contentType, body) => {
     const error = await broadcastThroughHttp({ status, contentType, body });
     expect(isDefinitiveBroadcastRejection(error)).toBe(false);
-  });
+  }, HTTP_BROADCAST_TIMEOUT);
 
   it.each([
     ["a dropped connection", new TypeError("Failed to fetch")],

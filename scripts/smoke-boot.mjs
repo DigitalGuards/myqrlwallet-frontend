@@ -61,9 +61,41 @@ try {
   await page.locator('input[type="password"]').first().waitFor({ timeout: 10000 }).catch(async () => {
     fail(`create-account page did not render a password field; page text: ${(await page.evaluate(() => document.body.innerText)).slice(0, 300).replace(/\s+/g, ' ')}`);
   });
-  const heading = 'password form';
+  for (const viewport of [{ width: 320, height: 640 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    const pins = page.locator('input[aria-label^="PIN digit "]');
+    await pins.nth(11).waitFor();
+    const issues = await page.evaluate(() => {
+      const problems = [];
+      for (const element of document.querySelectorAll('body *')) {
+        const rect = element.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0 && getComputedStyle(element).visibility === 'visible' && rect.right > innerWidth + 0.5) {
+          problems.push(`${element.tagName} extends to ${rect.right}`);
+        }
+      }
+      const rows = new Set([...document.querySelectorAll('input[aria-label^="PIN digit "]')].map(input => input.parentElement));
+      if (rows.size !== 2) problems.push(`expected two PIN rows, received ${rows.size}`);
+      for (const row of rows) {
+        if (row === null) {
+          problems.push('PIN row is missing');
+          continue;
+        }
+        const bounds = row.getBoundingClientRect();
+        const cells = [...row.querySelectorAll('input')].map(input => input.getBoundingClientRect());
+        if (cells.length !== 6) problems.push('PIN row must contain six cells');
+        for (const cell of cells) {
+          if (cell.left < bounds.left - 0.5 || cell.right > bounds.right + 0.5 || Math.abs(cell.top - bounds.top) > 0.5) {
+            problems.push('PIN cell overflows or wraps');
+          }
+          if (cell.width < 36 || cell.height < 47) problems.push('PIN cell is too small to tap');
+        }
+      }
+      return problems;
+    });
+    if (issues.length > 0) fail(`PIN layout at ${viewport.width}px: ${issues.join(' | ')}`);
+  }
   if (pageErrors.length > 0) fail(`uncaught page errors: ${pageErrors.join(' | ').slice(0, 500)}`);
-  console.log(`smoke-boot: OK (home rendered, create-account heading: "${heading}")`);
+  console.log('smoke-boot: OK (home, create-account, PIN rows at 320x640 and 390x844)');
   await browser.close();
 } finally {
   stop();

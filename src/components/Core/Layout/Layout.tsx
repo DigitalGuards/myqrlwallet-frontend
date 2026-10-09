@@ -9,7 +9,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <SidebarProvider>
             <div className="flex min-h-svh flex-col w-full">
                 <img
-                    className="pointer-events-none fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 scale-150 overflow-hidden opacity-10"
+                    className="pointer-events-none fixed left-0 top-0 -z-10 h-96 w-96 -translate-x-8 sm:scale-150 overflow-hidden opacity-10"
                     src="/tree.svg"
                     alt=""
                     aria-hidden="true"

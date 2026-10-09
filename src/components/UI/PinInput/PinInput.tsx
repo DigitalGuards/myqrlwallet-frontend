@@ -22,7 +22,7 @@ export interface PinInputHandle {
 }
 
 /**
- * Boxed PIN entry — a row of single-digit masked cells used to unlock the
+ * Boxed PIN entry: a row of single-digit masked cells used to unlock the
  * encrypted seed before signing. Keeps the original string-based API
  * (`value`/`onChange`) so every call site stays untouched; only the
  * presentation changed from one input to `length` cells.
@@ -126,7 +126,7 @@ export const PinInput = forwardRef<PinInputHandle, PinInputProps>(({
 
   return (
     <div className={cn("w-full space-y-2", className)}>
-      <div className="flex gap-2">
+      <div className="flex gap-1 min-[360px]:gap-2">
         {Array.from({ length }).map((_, i) => (
           <input
             key={i}
@@ -155,7 +155,7 @@ export const PinInput = forwardRef<PinInputHandle, PinInputProps>(({
             }}
             aria-label={`PIN digit ${i + 1}`}
             className={cn(
-              "h-12 w-11 rounded-md border bg-foreground/[0.04] text-center font-data text-xl text-foreground outline-none transition-colors",
+              "h-12 w-11 min-w-0 rounded-md border bg-foreground/[0.04] text-center font-data text-xl text-foreground outline-none transition-colors",
               "focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary",
               "disabled:cursor-not-allowed disabled:opacity-50",
               error
