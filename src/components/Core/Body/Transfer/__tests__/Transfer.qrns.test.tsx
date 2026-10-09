@@ -232,17 +232,17 @@ describe("native Max fee composition", () => {
       store.qrlConnection.blockchain = "TEST_NET";
       store.activeAccount.accountAddress = ACCOUNT;
       store._utils = { bytesToHex: (value: string) => value } as never;
-      store.qrlInstance = { getTransactionReceipt: async () => ({ transactionHash: "0xreceipt", status: 0n }) } as never;
-      store.transactionStatus = { state: "pending", txHash: "0xreceipt", receipt: null, error: null, pendingDetails: null };
+      Object.assign(store, { qrlInstance: { getTransactionReceipt: async () => ({ transactionHash: `0x${"a".repeat(64)}`, status: 0n, blockHash: `0x${"b".repeat(64)}`, blockNumber: 42n, gasUsed: 21000n }) } });
+      store.transactionStatus = { state: "pending", txHash: `0x${"a".repeat(64)}`, receipt: null, error: null, pendingDetails: null };
     });
     jest.mocked(useStore).mockReturnValue({ qrlStore: store, tokenStore: { visibleTokenList: [] } } as never);
     try {
       const view = render(<Transfer />);
       await act(async () => {
-        await store.pollForReceipt("0xreceipt");
+        await store.pollForReceipt(`0x${"a".repeat(64)}`);
         await jest.advanceTimersByTimeAsync(5000);
       });
-      expect(view.getByText("Transaction Failed")).toBeTruthy();
+      expect(view.getByText("Transaction failed")).toBeTruthy();
       expect(view.getByText(/transfer was reverted/)).toBeTruthy();
     } finally {
       store.cancelReceiptPoller();

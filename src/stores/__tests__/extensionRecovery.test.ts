@@ -140,7 +140,7 @@ it("sends from the persisted account after reload with a fresh provider announce
   install(detail);
   const { store } = await restoredStore();
   const send = store.sendTransactionViaProvider(OTHER, "1");
-  expect(store.transactionStatus.state).toBe("pending");
+  expect(store.transactionStatus.state).toBe("preparing");
   await jest.advanceTimersByTimeAsync(1000);
   await send;
   expect(store.extensionProvider).toBe(detail.provider);
@@ -331,7 +331,8 @@ it("preserves rejection from the extension approval surface", async () => {
   const send = store.sendTransactionViaProvider(OTHER, "1");
   await jest.advanceTimersByTimeAsync(1000);
   await send;
+  expect(store.transactionStatus.state).toBe("rejected");
   expect(store.transactionStatus.error).toBe(
-    "Transaction rejected in extension.",
+    "The transaction was declined or the approval request was closed in your signer.",
   );
 });

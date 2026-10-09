@@ -1,12 +1,11 @@
-import { transactionHistoryStore } from "./transactionHistoryStore";
-import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
 import { QRL_PROVIDER, TOKEN_FACTORY_ADDRESS } from "@/config";
 import { IS_V3_PROFILE, profileStorageKey } from '@/config/runtimeProfile';
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
-import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
+import { encodeTokenTransfer } from "@/utils/web3/tokenTransfer";
+import { isRecord } from "@/utils/guards";
 import type { TransactionReceipt } from "@theqrl/web3";
 import { getQrlWeb3 } from "@/utils/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
@@ -397,272 +396,79 @@ class TokenStore {
      */
     approvedFee: ApprovedFeeInput,
   ) {
-    const historyDetails = {
-      to: toAddress,
-      amount: formatUnits(amount, token.decimals),
-      asset: token.symbol || "Token",
-    };
-    this.qrlStore.resetTransactionStatus();
+    const from = this.qrlStore.activeAccount.accountAddress;
+    const source = this.qrlStore.activeAccountSource;
+    const provider = this.qrlStore.qrlInstance;
+    const blockchain = this.qrlStore.qrlConnection.blockchain;
+    const attempt = this.qrlStore.beginSend({
+      from, to: toAddress, amount: formatUnits(amount, token.decimals),
+      asset: token.symbol || 'Token', signer: isDesktop ? 'desktop' : source,
+    });
     const signingGeneration = walletMutations.captureGeneration();
     const assertSigningCurrent = (): void => {
-      if (!walletMutations.isCurrent(signingGeneration)) {
-        throw new Error("Wallet changed while preparing the token transfer");
+      if (!walletMutations.isCurrent(signingGeneration)
+        || !this.qrlStore.isSendCurrent(attempt)
+        || from !== this.qrlStore.activeAccount.accountAddress
+        || source !== this.qrlStore.activeAccountSource
+        || provider !== this.qrlStore.qrlInstance
+        || blockchain !== this.qrlStore.qrlConnection.blockchain) {
+        throw new Error('Wallet changed while preparing the token transfer');
       }
     };
-    if (IS_V3_PROFILE) {
-      try {
-        await this.qrlStore.assertNetworkReady();
-        assertSigningCurrent();
-      }
-      catch (error) {
-        this.qrlStore.transactionStatus = { ...this.qrlStore.transactionStatus, state: 'failed', error: getErrorMessage(error) };
-        return false;
-      }
-    }
-
-    // Desktop: build the transfer() calldata purely (no seed), then route the
-    // build/sign/broadcast through the isolated signer. `mnemonicPhrases` is
-    // intentionally unused (the renderer never holds it on desktop).
-    if (isDesktop) {
-      try {
-        const selectedBlockChain = await StorageUtil.getBlockChain();
-        const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
-        const { default: Web3 } = await getQrlWeb3();
-        const web3 = new Web3(new Web3.providers.HttpProvider(url));
-        const from = this.qrlStore.activeAccount.accountAddress;
-        const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
-        const data = contract.methods.transfer(toAddress, amount).encodeABI();
-        const { transactionHash } = await desktopSigner.signAndSendTransaction({
-          from,
-          to: token.address,
-          value: "0",
-          data,
-          feeLevel,
-        });
-        runInAction(() => {
-          this.qrlStore.transactionStatus = {
-            state: "pending",
-            txHash: transactionHash,
-            receipt: null,
-            error: null,
-            pendingDetails: null,
-          };
-        });
-        transactionHistoryStore.record({
-          ...historyDetails, blockchain: selectedBlockChain, from, hash: transactionHash,
-        });
-        log(`Desktop token transfer broadcast with hash: ${transactionHash}`);
-        this.qrlStore.fetchPendingTxDetails(transactionHash);
-        this.qrlStore.pollForReceipt(transactionHash);
-        // The receipt poller calls fetchAccounts on confirm; refresh token
-        // balances proactively too so the UI updates without a manual reload.
-        this.refreshTokenBalances();
-        return true;
-      } catch (error) {
-        const message = getErrorMessage(error);
-        runInAction(() => {
-          this.qrlStore.transactionStatus = {
-            state: "failed",
-            txHash: null,
-            receipt: null,
-            error: `Token transfer failed: ${message}`,
-            pendingDetails: null,
-          };
-        });
-        log(`Desktop token transfer failed: ${message}`);
-        return false;
-      }
-    }
-
-    // Mobile-app pairing: build the transfer() calldata locally (no seed),
-    // then route through the relay provider. Minimal shape: the phone
-    // estimates its own gas and shows its own confirmation, so no gas
-    // fields; no value either (a token transfer moves no native QRL).
-    // `mnemonicPhrases` and `feeLevel` are intentionally unused here.
-    if (this.qrlStore.activeAccountSource === "mobile") {
-      try {
-        const provider = this.qrlStore.remoteProvider;
-        if (!provider) throw new Error("Mobile app wallet not connected.");
-        const selectedBlockChain = await StorageUtil.getBlockChain();
-        const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
-        const { default: Web3 } = await getQrlWeb3();
-        const web3 = new Web3(new Web3.providers.HttpProvider(url));
-        const from = this.qrlStore.activeAccount.accountAddress;
-        const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
-        const data = contract.methods.transfer(toAddress, amount).encodeABI();
-        // Pending (no hash yet) while the phone shows its approval screen.
-        runInAction(() => {
-          this.qrlStore.transactionStatus = {
-            state: "pending",
-            txHash: null,
-            receipt: null,
-            error: null,
-            pendingDetails: null,
-          };
-        });
-        const txHash = await provider.request({
-          method: "qrl_sendTransaction",
-          params: [{ from, to: token.address, data }],
-        });
-        if (!txHash || typeof txHash !== "string") {
-          throw new Error("The mobile app did not return a valid transaction hash.");
-        }
-        runInAction(() => {
-          this.qrlStore.transactionStatus = {
-            state: "pending",
-            txHash,
-            receipt: null,
-            error: null,
-            pendingDetails: null,
-          };
-        });
-        transactionHistoryStore.record({
-          ...historyDetails, blockchain: selectedBlockChain, from, hash: txHash,
-        });
-        log(`Mobile token transfer broadcast with hash: ${txHash}`);
-        this.qrlStore.fetchPendingTxDetails(txHash);
-        this.qrlStore.pollForReceipt(txHash);
-        // The receipt poller calls fetchAccounts on confirm; refresh token
-        // balances proactively too, matching the desktop path.
-        this.refreshTokenBalances();
-        return true;
-      } catch (error) {
-        const userRejected = isProviderRpcError(error) && error.code === 4001;
-        const message = getErrorMessage(error);
-        runInAction(() => {
-          this.qrlStore.transactionStatus = {
-            state: "failed",
-            txHash: null,
-            receipt: null,
-            error: userRejected
-              ? "Transaction rejected in mobile app."
-              : `Token transfer failed: ${message}`,
-            pendingDetails: null,
-          };
-        });
-        log(`Mobile token transfer failed: ${message}`);
-        return false;
-      }
-    }
-
     try {
-      // Last line of defence before local seed signing: the stored account
-      // list, not the possibly-stale in-memory one, decides who owns the
-      // active account.
-      await this.qrlStore.assertLocalSeedAccount(
-        this.qrlStore.activeAccount.accountAddress,
-      );
+      if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady();
+      assertSigningCurrent();
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
-      const { default: Web3, utils } = await getQrlWeb3();
+      const { url } = QRL_PROVIDER[selectedBlockChain];
+      const { default: Web3 } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
+      const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
+      const data = encodeTokenTransfer(contract.methods, toAddress, amount);
+      assertSigningCurrent();
+
+      if (isDesktop) {
+        this.qrlStore.awaitSendApproval(attempt);
+        const result: unknown = await desktopSigner.signAndSendTransaction({
+          from, to: token.address, value: '0', data, feeLevel,
+        });
+        if (!isRecord(result)) throw new Error('The desktop signer returned an invalid response.');
+        this.qrlStore.recordSendBroadcast(attempt, result['transactionHash']);
+        void this.refreshTokenBalances();
+        return true;
+      }
+      if (source === 'extension' || source === 'mobile') {
+        return await this.qrlStore.sendTransactionViaProvider(token.address, '0', feeLevel, {
+          data, recipient: toAddress, amount: attempt.details.amount, asset: attempt.details.asset,
+        });
+      }
+
+      await this.qrlStore.assertLocalSeedAccount(from);
       assertSigningCurrent();
       const seed = await deriveHexSeedAsync(mnemonicPhrases);
       if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady(web3.qrl);
       assertSigningCurrent();
       const acc = web3.qrl.accounts.seedToAccount(seed);
-      if (acc.address !== this.qrlStore.activeAccount.accountAddress) {
-        throw new Error("The signing seed does not match the active account");
-      }
+      if (acc.address !== from) throw new Error('The signing seed does not match the active account');
       web3.qrl.wallet?.add(seed);
       web3.qrl.transactionConfirmationBlocks = 1;
       const signingQuote = await quoteFees(web3.qrl, feeLevel);
       const { maxFeePerGas, maxPriorityFeePerGas } = signingQuote;
-      const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
-      const tx = contract.methods.transfer(toAddress, amount).encodeABI();
-      const estimateGas = await contract.methods
-        .transfer(toAddress, amount)
-        .estimateGas({ from: acc.address });
-      // Sign the fee the user saw, as a total. quoteFees already refuses a
-      // quote outside the wallet's safety limits; this refuses a price that
-      // grew and a gas limit that grew, which are the two halves of the
-      // figure on screen.
+      const estimateGas = await web3.qrl.estimateGas({ from, to: token.address, data });
       if (approvedFee !== FEE_NOT_SHOWN) {
-        assertSignedFeeWithinApproved(
-          { quote: signingQuote, gasLimit: BigInt(estimateGas) },
-          approvedFee,
-        );
+        assertSignedFeeWithinApproved({ quote: signingQuote, gasLimit: BigInt(estimateGas) }, approvedFee);
       }
-      const txObj = {
-        type: "0x2",
-        gas: estimateGas,
-        from: acc.address,
-        data: tx,
-        to: token.address,
-        maxFeePerGas,
-        maxPriorityFeePerGas,
-      };
-
       assertSigningCurrent();
       if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady(web3.qrl);
       assertSigningCurrent();
-      const promiEvent = web3.qrl.sendTransaction({ ...txObj,
+      const promiEvent = web3.qrl.sendTransaction({
+        type: '0x2', gas: estimateGas, from, data, to: token.address,
+        maxFeePerGas, maxPriorityFeePerGas,
         ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
-      }, undefined, {
-        checkRevertBeforeSending: true,
-      });
-
-      observeHistoryBroadcast(promiEvent, {
-        ...historyDetails, blockchain: selectedBlockChain, from: acc.address,
-      });
-      promiEvent
-        .on("transactionHash", (hash: string | Uint8Array) => {
-          runInAction(() => {
-            const txHash =
-              typeof hash === "string" ? hash : utils.bytesToHex(hash);
-            this.qrlStore.transactionStatus = {
-              state: "pending",
-              txHash: txHash,
-              receipt: null,
-              error: null,
-              pendingDetails: null,
-            };
-            log(`Token transfer pending with hash: ${txHash}`);
-            this.qrlStore.fetchPendingTxDetails(txHash);
-          });
-        })
-        .on("receipt", (receipt: TransactionReceipt) => {
-          runInAction(() => {
-            const txHashString = utils.bytesToHex(receipt.transactionHash);
-            this.qrlStore.transactionStatus = {
-              state: "confirmed",
-              txHash: txHashString,
-              receipt: receipt,
-              error: null,
-              pendingDetails: null,
-            };
-            log(`Token transfer confirmed: ${txHashString}`);
-            this.refreshTokenBalances();
-            this.qrlStore.fetchAccounts();
-          });
-        })
-        .on("error", (error: Error) => {
-          runInAction(() => {
-            const txHash = this.qrlStore.transactionStatus.txHash;
-            this.qrlStore.transactionStatus = {
-              state: "failed",
-              txHash: txHash,
-              receipt: null,
-              error: error.message || "Token transfer failed",
-              pendingDetails: null,
-            };
-            log(`Token transfer failed: ${error.message}`);
-          });
-        });
-
+      }, undefined, { checkRevertBeforeSending: true });
+      this.qrlStore.observeSend(attempt, promiEvent, () => { void this.refreshTokenBalances(); });
       return true;
     } catch (error) {
-      const message = getErrorMessage(error);
-      runInAction(() => {
-        this.qrlStore.transactionStatus = {
-          state: "failed",
-          txHash: null,
-          receipt: null,
-          error: `Token transfer failed: ${message}`,
-          pendingDetails: null,
-        };
-        log(`Token transfer preparation failed: ${message}`);
-      });
+      this.qrlStore.failSend(attempt, error);
       return false;
     }
   }
