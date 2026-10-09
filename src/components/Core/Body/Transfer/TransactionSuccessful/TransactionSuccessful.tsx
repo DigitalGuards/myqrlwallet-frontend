@@ -8,7 +8,7 @@ import {
 } from "@/components/UI/Card";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { getOptimalTokenBalance } from "@/utils/formatting";
-import type { TransactionReceipt } from "@theqrl/web3";
+import type { SendReceipt } from "@/utils/sendStatus";
 import { utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
 import { Check, CheckCircle2, Copy, ExternalLink } from "lucide-react";
@@ -16,7 +16,8 @@ import { QRL_PROVIDER } from "@/config";
 import { useStore } from "@/stores/store";
 
 type TransactionSuccessfulProps = {
-  transactionReceipt: TransactionReceipt;
+  transactionReceipt: SendReceipt;
+  blockchain?: string;
   amount?: string;
   assetSymbol?: string;
   onDone: () => void;
@@ -27,6 +28,7 @@ export const TransactionSuccessful = ({
   amount,
   assetSymbol,
   onDone,
+  blockchain: submittedBlockchain,
 }: TransactionSuccessfulProps) => {
   const { qrlStore } = useStore();
   const { qrlConnection } = qrlStore;
@@ -45,7 +47,7 @@ export const TransactionSuccessful = ({
   >();
 
   const explorerUrl =
-    QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER]?.explorer ||
+    Object.entries(QRL_PROVIDER).find(([id]) => id === (submittedBlockchain ?? blockchain))?.[1].explorer ||
     "https://zondscan.com";
 
   const gasInQrl = new BigNumber(
@@ -156,7 +158,7 @@ export const TransactionSuccessful = ({
                 </Button>
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="space-y-6">
               <div className="flex min-w-0 flex-col gap-2">
                 <div>Block number</div>
                 <a

@@ -8,7 +8,11 @@ import type { AccountListItem, AccountSource } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
 import { getQrlWeb3 } from "@/utils/web3";
-import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
+import { getErrorMessage } from "@/utils/errors";
+import { isCallable, isRecord } from "@/utils/guards";
+import { historyHash } from "@/utils/transactionHistory";
+import { approvalRejection, readSendReceipt, revertedTransactionMessage, sendErrorMessage } from "@/utils/sendStatus";
+import type { SendDetails, SendReceipt } from "@/utils/sendStatus";
 import { receiptExecutionStatus, QRL_TX_POLLING_CONFIG } from "@/utils/web3/txPolling";
 import { normalizeQrlAddress } from "@/utils/web3/address";
 import { formatUnits, parseUnits } from "@/utils/web3/units";
@@ -18,7 +22,7 @@ import {
   FEE_NOT_SHOWN,
   type ApprovedFeeInput,
 } from "@/utils/web3/feePolicy";
-import type { TransactionReceipt, Web3QRLInterface } from "@theqrl/web3";
+import type { Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import { IS_V3_PROFILE, assertSupportedAccountSource, assertV3BrowserContext, V3_UNSUPPORTED_SIGNER_MESSAGE } from '@/config/runtimeProfile';
@@ -64,12 +68,19 @@ type PendingTxInfo = {
 export type TransactionStatus = {
   // 'timeout' is distinct from 'failed': the tx was broadcast and may still be
   // mined; the poller just stopped waiting. Never render it as a failure.
-  state: 'idle' | 'pending' | 'confirmed' | 'failed' | 'timeout';
+  state: 'idle' | 'preparing' | 'awaiting-approval' | 'rejected' | 'pending' | 'confirmed' | 'failed' | 'timeout';
   txHash: string | null;
-  receipt: TransactionReceipt | null;
+  receipt: SendReceipt | null;
   error: string | null;
   pendingDetails: PendingTxInfo | null;
+  details?: SendDetails;
 }
+
+type SendAttempt = {
+  id: number;
+  details: SendDetails;
+  provider: Web3QRLInterface | undefined;
+};
 
 export type FeeLevel = 'low' | 'medium' | 'high';
 
@@ -201,6 +212,7 @@ class QrlStore {
   _receiptPollerIntervalId: ReturnType<typeof setInterval> | null = null;
   _balanceRequestId = 0;
   _initializationRequestId = 0;
+  _sendAttemptId = 0;
   _extensionProviderVersion = 0;
   _extensionRecovery: { address: string; version: number; promise: Promise<ExtensionProvider> } | null = null;
 
@@ -280,6 +292,7 @@ class QrlStore {
       _receiptPollerIntervalId: false,
       _balanceRequestId: false,
       _initializationRequestId: false,
+      _sendAttemptId: false,
       _extensionProviderVersion: false,
       _extensionRecovery: false,
       _desktopUnlockListenerBound: false,
@@ -345,7 +358,97 @@ class QrlStore {
     // Always cancel any in-flight poller first so it can't race a stale
     // receipt into the freshly-reset transactionStatus.
     this.cancelReceiptPoller();
+    this._sendAttemptId += 1;
     this.transactionStatus = { state: 'idle', txHash: null, receipt: null, error: null, pendingDetails: null };
+  }
+
+  beginSend(details: Omit<SendDetails, 'blockchain'>): SendAttempt {
+    this.resetTransactionStatus();
+    const snapshot = { ...details, blockchain: this.qrlConnection.blockchain };
+    this.transactionStatus = { ...this.transactionStatus, state: 'preparing', details: snapshot };
+    return { id: this._sendAttemptId, details: snapshot, provider: this.qrlInstance };
+  }
+
+  isSendCurrent(attempt: SendAttempt): boolean {
+    return attempt.id === this._sendAttemptId
+      && attempt.provider === this.qrlInstance
+      && attempt.details.blockchain === this.qrlConnection.blockchain;
+  }
+
+  awaitSendApproval(attempt: SendAttempt) {
+    if (this.isSendCurrent(attempt) && attempt.details.signer !== 'seed') {
+      this.transactionStatus = { ...this.transactionStatus, state: 'awaiting-approval' };
+    }
+  }
+
+  recordSendBroadcast(attempt: SendAttempt, value: unknown, poll = true) {
+    const hash = historyHash(value);
+    if (hash === null) throw new Error('The signer did not return a valid transaction hash. Check your signer and History before retrying.');
+    transactionHistoryStore.record({ ...attempt.details, hash });
+    if (!this.isSendCurrent(attempt)) return;
+    if (this.transactionStatus.state === 'confirmed' || this.transactionStatus.receipt !== null) return;
+    this.transactionStatus = { ...this.transactionStatus, state: 'pending', txHash: hash, error: null };
+    void this.fetchPendingTxDetails(hash);
+    if (poll) void this.pollForReceipt(hash);
+  }
+
+  receiveSendReceipt(attempt: SendAttempt, value: unknown, reason?: string): boolean {
+    const receipt = readSendReceipt(value);
+    if (receipt === null) return false;
+    const hash = historyHash(receipt.transactionHash);
+    if (hash === null) return false;
+    if (!this.isSendCurrent(attempt)) return false;
+    if (this.transactionStatus.txHash !== null && this.transactionStatus.txHash !== hash) return false;
+    if (this.transactionStatus.receipt !== null) return false;
+    transactionHistoryStore.record({ ...attempt.details, hash });
+    transactionHistoryStore.settle(attempt.details.blockchain, attempt.details.from, hash, value);
+    this.cancelReceiptPoller();
+    const succeeded = receiptExecutionStatus(receipt.status) === true;
+    this.transactionStatus = {
+      ...this.transactionStatus, state: succeeded ? 'confirmed' : 'failed',
+      txHash: hash, receipt, pendingDetails: null,
+      error: succeeded ? null : reason ?? revertedTransactionMessage(value),
+    };
+    void this.fetchAccounts();
+    return true;
+  }
+
+  failSend(attempt: SendAttempt, error: unknown) {
+    if (attempt.id !== this._sendAttemptId) return;
+    const message = sendErrorMessage(error);
+    if (isRecord(error) && this.receiveSendReceipt(attempt, error['receipt'], message)) return;
+    if (this.transactionStatus.receipt !== null) return;
+    if (this.transactionStatus.txHash !== null) {
+      // A broadcast hash remains pending in History when receipt observation stops.
+      this.transactionStatus = {
+        ...this.transactionStatus, state: 'timeout',
+        error: `Confirmation is unavailable: ${message} Check History or the explorer before sending again.`,
+      };
+      this.cancelReceiptPoller();
+      return;
+    }
+    const rejection = this.transactionStatus.state === 'awaiting-approval' ? approvalRejection(error) : null;
+    this.transactionStatus = {
+      ...this.transactionStatus, state: rejection === null ? 'failed' : 'rejected',
+      error: rejection ?? message,
+    };
+  }
+
+  observeSend(attempt: SendAttempt, source: unknown, onReceipt?: () => void, nonce?: unknown) {
+    if (!isRecord(source) || !isCallable(source['on'])) throw new Error('Transaction broadcast is unavailable.');
+    observeHistoryBroadcast(source, { ...attempt.details, nonce });
+    source['on']('transactionHash', (hash: unknown) => {
+      try { this.recordSendBroadcast(attempt, hash, false); }
+      catch (error) { this.failSend(attempt, error); }
+    });
+    const receive = (value: unknown) => {
+      if (this.receiveSendReceipt(attempt, value)) onReceipt?.();
+    };
+    const fail = (error: unknown) => { this.failSend(attempt, error); };
+    source['on']('receipt', receive);
+    source['on']('error', fail);
+    // PromiEvents also reject their promise when they emit an error.
+    if (isCallable(source['then'])) void source['then'](receive, fail);
   }
 
   // Cancels the pollForReceipt setInterval (if any) and clears the handle.
@@ -978,13 +1081,13 @@ class QrlStore {
      */
     approvedFee: ApprovedFeeInput | undefined,
   ) {
-    // Reset status before starting a new transaction
-    this.resetTransactionStatus();
+    const attempt = this.beginSend({ from, to, amount: value, asset: 'Quanta', signer: isDesktop ? 'desktop' : 'seed' });
     const signingGeneration = walletMutations.captureGeneration();
     const signingProvider = this.qrlInstance;
     const signingBlockchain = this.qrlConnection.blockchain;
     const assertSigningCurrent = (): void => {
       if (!walletMutations.isCurrent(signingGeneration)
+        || !this.isSendCurrent(attempt)
         || signingProvider !== this.qrlInstance
         || signingBlockchain !== this.qrlConnection.blockchain) {
         throw new Error("Wallet changed while preparing the transaction");
@@ -996,7 +1099,7 @@ class QrlStore {
         assertSigningCurrent();
       }
       catch (error) {
-        this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: getErrorMessage(error) };
+        this.failSend(attempt, error);
         return;
       }
     }
@@ -1009,39 +1112,18 @@ class QrlStore {
       try {
         const utils = this._utils ?? (await getQrlWeb3()).utils;
         const valuePlanck = BigInt(utils.toPlanck(value, "quanta")).toString();
-        const { transactionHash } = await desktopSigner.signAndSendTransaction({
+        this.awaitSendApproval(attempt);
+        assertSigningCurrent();
+        const result: unknown = await desktopSigner.signAndSendTransaction({
           from,
           to,
           value: valuePlanck,
           feeLevel,
         });
-        runInAction(() => {
-          this.transactionStatus = {
-            state: 'pending',
-            txHash: transactionHash,
-            receipt: null,
-            error: null,
-            pendingDetails: null,
-          };
-        });
-        transactionHistoryStore.record({
-          blockchain: signingBlockchain, from, to, amount: value, hash: transactionHash,
-        });
-        log(`Desktop transaction broadcast with hash: ${transactionHash}`);
-        this.fetchPendingTxDetails(transactionHash);
-        this.pollForReceipt(transactionHash);
+        if (!isRecord(result)) throw new Error('The desktop signer returned an invalid response.');
+        this.recordSendBroadcast(attempt, result['transactionHash']);
       } catch (error) {
-        const message = getErrorMessage(error);
-        runInAction(() => {
-          this.transactionStatus = {
-            state: 'failed',
-            txHash: null,
-            receipt: null,
-            error: `Transaction failed: ${message}`,
-            pendingDetails: null,
-          };
-        });
-        log(`Desktop transaction failed: ${message}`);
+        this.failSend(attempt, error);
       }
       return;
     }
@@ -1107,68 +1189,9 @@ class QrlStore {
         signedTransaction.rawTransaction
       );
 
-      observeHistoryBroadcast(promiEvent, {
-        blockchain: signingBlockchain, from, to, amount: value, nonce,
-      });
-
-      promiEvent?.on('transactionHash', (hash: string) => {
-        runInAction(() => {
-          this.transactionStatus = {
-            state: 'pending',
-            txHash: hash,
-            receipt: null,
-            error: null,
-            pendingDetails: null,
-          };
-          log(`Transaction pending with hash: ${hash}`);
-          // Attempt to fetch pending details immediately after getting the hash
-          this.fetchPendingTxDetails(hash);
-        });
-      }).on('receipt', (receipt: TransactionReceipt) => {
-        runInAction(() => {
-          const txHashString = utils.bytesToHex(receipt.transactionHash);
-          this.transactionStatus = {
-            state: 'confirmed',
-            txHash: txHashString,
-            receipt: receipt,
-            error: null,
-            pendingDetails: null,
-          };
-          log(`Transaction confirmed: ${txHashString}`);
-          // Fetch accounts again to update balance after confirmation
-          this.fetchAccounts();
-        });
-      }).on('error', (error: Error) => {
-        runInAction(() => {
-          const txHash = this.transactionStatus.txHash;
-          this.transactionStatus = {
-            state: 'failed',
-            txHash: txHash,
-            receipt: null,
-            error: error.message || "Transaction failed",
-            pendingDetails: null,
-          };
-          log(`Transaction failed for hash ${txHash}: ${error.message}`);
-        });
-      });
-
-      // Optional: Return the PromiEvent if the caller needs more control,
-      // but for this pattern, we primarily manage state within the store.
-      // return promiEvent;
-
+      this.observeSend(attempt, promiEvent, undefined, nonce);
     } catch (error) {
-      // Catch signing errors or other issues before sending
-      const message = getErrorMessage(error);
-      runInAction(() => {
-        this.transactionStatus = {
-          state: 'failed',
-          txHash: null,
-          receipt: null,
-          error: `Transaction preparation failed: ${message}`,
-          pendingDetails: null,
-        };
-        log(`Transaction preparation failed: ${message}`);
-      });
+      this.failSend(attempt, error);
     }
   }
 
@@ -1277,232 +1300,115 @@ class QrlStore {
     }
   }
 
-  // --- NEW: Function to poll for transaction receipt ---
   async pollForReceipt(txHash: string) {
     if (!txHash || !this.qrlInstance) return;
     const provider = this.qrlInstance;
     const blockchain = this.qrlConnection.blockchain;
-    const from = this.activeAccount.accountAddress;
-
-    const maxAttempts = 60; // Poll for ~5 minutes (60 attempts * 5 seconds)
-    const pollInterval = 5000; // 5 seconds
+    const from = this.transactionStatus.details?.from ?? this.activeAccount.accountAddress;
+    const attemptId = this._sendAttemptId;
     let attempts = 0;
-
-    log(`Starting receipt polling for ${txHash}`);
-
-    const utils = this._utils ?? (await getQrlWeb3()).utils;
-
-    // If a previous poll was somehow left running, kill it before starting
-    // a fresh one so we never have two intervals racing into transactionStatus.
+    let polling = false;
     this.cancelReceiptPoller();
-
-    this._receiptPollerIntervalId = setInterval(async () => {
-      // Stop polling if state is no longer pending or hash changed
-      if (this.transactionStatus.state !== 'pending' || this.transactionStatus.txHash !== txHash) {
-        log(`Stopping receipt polling for ${txHash} (state changed)`);
-        this.cancelReceiptPoller();
-        return;
+    const stillCurrent = () => attemptId === this._sendAttemptId
+      && provider === this.qrlInstance && blockchain === this.qrlConnection.blockchain
+      && this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash;
+    const interval = setInterval(async () => {
+      if (!stillCurrent()) { clearInterval(interval); return; }
+      if (polling) return;
+      polling = true;
+      attempts += 1;
+      let wireReceipt: unknown;
+      try {
+        wireReceipt = await provider.getTransactionReceipt(txHash);
+      } catch {
+        // Nodes can report an unmined transaction through an RPC error.
+      } finally {
+        polling = false;
       }
-
-      attempts++;
-      log(`Polling for receipt ${txHash}, attempt ${attempts}`);
-
-      // A tx that is broadcast but not yet mined has NO receipt. The v2 node
-      // reports that as a thrown "transaction not found" rather than a null
-      // return, so a thrown error here is the EXPECTED pending state, not a
-      // failure. Treat both a null receipt and any poll error as "not yet":
-      // keep the tx in `pending` and keep polling until a receipt arrives or
-      // the timeout below, so neither an unmined tx nor a transient RPC hiccup
-      // ever flips a successfully-broadcast tx to `failed`. const so the
-      // truthy-narrowing holds inside the runInAction closure.
-      const receipt = await (async () => {
-        try {
-          return (await provider.getTransactionReceipt(txHash)) ?? null;
-        } catch (error) {
-          log(`Receipt not ready for ${txHash} (attempt ${attempts}): ${getErrorMessage(error)}`);
-          return null;
-        }
-      })();
-
-      if (provider !== this.qrlInstance || blockchain !== this.qrlConnection.blockchain) return;
-
-      const receiptHash = receipt?.transactionHash != null ? utils.bytesToHex(receipt.transactionHash) : null;
-      const succeeded = receiptExecutionStatus(receipt?.status);
-      if (receipt && receiptHash?.toLowerCase() === txHash.toLowerCase() && succeeded !== undefined) {
-        transactionHistoryStore.settle(blockchain, from, txHash, receipt);
-        log(`Receipt found for ${txHash}`);
-        this.cancelReceiptPoller(); // Stop polling
+      if (!stillCurrent()) return;
+      const receipt = readSendReceipt(wireReceipt);
+      if (receipt && historyHash(receipt.transactionHash) === txHash.toLowerCase()) {
+        transactionHistoryStore.settle(blockchain, from, txHash, wireReceipt);
+        this.cancelReceiptPoller();
+        const succeeded = receiptExecutionStatus(receipt.status) === true;
         runInAction(() => {
-          // Double-check state again before updating
-          if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-            const txHashString = receiptHash;
-            this.transactionStatus = {
-              state: succeeded ? 'confirmed' : 'failed',
-              txHash: txHashString,
-              receipt: receipt,
-              error: succeeded ? null : 'Transaction execution failed. The transfer was reverted.',
-              pendingDetails: null, // Clear pending details
-            };
-            log(`Transaction ${succeeded ? 'confirmed' : 'reverted'} via polling: ${txHashString}`);
-            this.fetchAccounts(); // Refresh account balance
-          } else {
-            log(`Receipt found for ${txHash}, but state changed before update.`);
-          }
+          this.transactionStatus = {
+            ...this.transactionStatus, state: succeeded ? 'confirmed' : 'failed',
+            txHash, receipt, pendingDetails: null,
+            error: succeeded ? null : revertedTransactionMessage(wireReceipt),
+          };
         });
-      } else if (attempts >= maxAttempts) {
-        // Still no receipt after the full window. The tx may yet be mined
-        // (it is broadcast and sitting in the mempool), so this is a soft
-        // give-up on polling, not proof of failure: point the user at the
-        // explorer rather than claiming the tx failed.
-        log(`Max polling attempts reached for ${txHash}; stopping poll (tx may still confirm).`);
+        void this.fetchAccounts();
+      } else if (attempts >= 60) {
         this.cancelReceiptPoller();
         runInAction(() => {
-          if (this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash) {
-            // 'timeout', NOT 'failed': the tx is broadcast and may still mine.
-            // The UI shows a neutral "still pending" card with the explorer
-            // link, never a red failure.
-            this.transactionStatus = {
-              ...this.transactionStatus,
-              state: 'timeout',
-              txHash: txHash,
-              receipt: null,
-              error:
-                'Still pending after 5 minutes. The transaction may yet be mined; check the explorer.',
-            };
-          }
+          this.transactionStatus = {
+            ...this.transactionStatus, state: 'timeout',
+            error: 'Still waiting for confirmation after 5 minutes. Check History or the explorer before sending again.',
+          };
         });
       }
-      // receipt null and attempts < maxAttempts: stay pending, keep polling.
-    }, pollInterval);
+    }, 5000);
+    this._receiptPollerIntervalId = interval;
   }
-  // --- END NEW Function ---
 
-  // --- Send Transaction via a remote signer (extension or paired mobile app) ---
-  async sendTransactionViaProvider(to: string, valueEther: string, feeLevel: FeeLevel = 'medium') {
-    if (IS_V3_PROFILE && this.activeAccountSource !== 'extension' && this.activeAccountSource !== 'mobile') {
-      this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: V3_UNSUPPORTED_SIGNER_MESSAGE };
-      return;
-    }
+  // Native and QRC20 sends share the remote approval and broadcast lifecycle.
+  async sendTransactionViaProvider(
+    to: string,
+    valueEther: string,
+    feeLevel: FeeLevel = 'medium',
+    tokenCall?: { data: string; recipient: string; amount: string; asset: string },
+  ): Promise<boolean> {
     const source = this.activeAccountSource;
     const from = this.activeAccount.accountAddress;
     const blockchain = this.qrlConnection.blockchain;
     const rpcProvider = this.qrlInstance;
-    const walletName = source === 'mobile' ? 'mobile app' : 'extension';
-    if (!this.activeAccount.accountAddress) {
-      console.error("sendTransactionViaProvider called but no active account.");
-      log("Error: sendTransactionViaProvider called without active account.");
-      runInAction(() => {
-        this.transactionStatus = { ...this.transactionStatus, state: 'failed', error: 'No active account selected.' };
-      });
-      return;
-    }
-
+    const attempt = this.beginSend({
+      from, to: tokenCall?.recipient ?? to, amount: tokenCall?.amount ?? valueEther,
+      asset: tokenCall?.asset ?? 'Quanta', signer: source,
+    });
+    const generation = walletMutations.captureGeneration();
     try {
-      // Reset status before starting
-      this.resetTransactionStatus();
-      runInAction(() => {
-        this.transactionStatus = { ...this.transactionStatus, state: 'pending' };
-      });
+      if (source !== 'extension' && source !== 'mobile') throw new Error(V3_UNSUPPORTED_SIGNER_MESSAGE);
+      if (!from) throw new Error('No active account selected.');
       const provider = source === 'extension' ? await this.ensureExtensionProvider(from) : this.remoteProvider;
-      if (!provider) {
-        throw new Error(source === 'mobile' ? 'Mobile app wallet not connected.' : 'Extension not connected.');
-      }
+      if (!provider) throw new Error(source === 'mobile' ? 'Mobile app wallet not connected.' : 'Extension not connected.');
       if (IS_V3_PROFILE) await this.assertNetworkReady();
-
-      // --- Use 18 decimals via "quanta" unit ---
-      const utils = this._utils ?? (await getQrlWeb3()).utils;
-      let valueBaseUnit: string | bigint; // toPlanck returns string or bigint
-      try {
-        valueBaseUnit = utils.toPlanck(valueEther, "quanta"); // Use "quanta" for 18 decimals
-      } catch (calcError) {
-        console.error("Error calculating base unit value with toPlanck:", calcError);
-        throw new Error("Could not calculate transaction value.");
-      }
-      // --- End Wei Calculation ---
-
-      const valueHex = "0x" + BigInt(valueBaseUnit).toString(16);
-
-      let params: object[];
-      if (source === 'mobile') {
-        // The relay wallet estimates its own gas and shows its own fee UI, so
-        // it must receive the MINIMAL shape: dApp-supplied gas fields are
-        // ignored at best and shape-mismatched at worst.
-        params = [{
-          from: this.activeAccount.accountAddress,
-          to: to,
-          value: valueHex,
-          // Bind the phone's signature to the pinned Testnet v3 chain.
-          ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
-        }];
-      } else {
-        if (!this.qrlInstance) throw new Error("Wallet not connected. Please try again.");
-        const { maxFeePerGas, maxPriorityFeePerGas } = await quoteFees(this.qrlInstance, feeLevel);
-
-        const maxPriorityFeeHex = "0x" + maxPriorityFeePerGas.toString(16);
-        const maxFeeHex = "0x" + maxFeePerGas.toString(16);
-        const transaction = {
-          from: this.activeAccount.accountAddress,
-          to: to,
-          value: valueHex, // Use manually hexed value from toPlanck("quanta")
-          maxPriorityFeePerGas: maxPriorityFeeHex,
-          maxFeePerGas: maxFeeHex,
-          type: '0x2',
-          ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+      const valueHex = `0x${parseUnits(valueEther, 18).toString(16)}`;
+      const transaction = {
+        from, to,
+        ...(tokenCall ? { data: tokenCall.data } : { value: valueHex }),
+        ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+      };
+      let params: object[] = [transaction];
+      if (source === 'extension') {
+        if (!rpcProvider) throw new Error('Wallet not connected. Please try again.');
+        const { maxFeePerGas, maxPriorityFeePerGas } = await quoteFees(rpcProvider, feeLevel);
+        const pricedTransaction = {
+          ...transaction, type: '0x2',
+          maxFeePerGas: `0x${maxFeePerGas.toString(16)}`,
+          maxPriorityFeePerGas: `0x${maxPriorityFeePerGas.toString(16)}`,
         };
-        const gas = await this.qrlInstance?.estimateGas(transaction);
-        if (gas === undefined) throw new Error("Wallet not connected. Please try again.");
-        params = [{ ...transaction, gas: `0x${gas.toString(16)}` }];
+        const gas = await rpcProvider.estimateGas(pricedTransaction);
+        params = [{ ...pricedTransaction, gas: `0x${gas.toString(16)}` }];
       }
-
-      log(`Requesting transaction via ${walletName} (18 Decimals): ${JSON.stringify(params)}`);
       if (IS_V3_PROFILE) await this.assertNetworkReady();
       if (source === 'extension' && !await extensionAuthorizesAccount(provider, from)) {
         throw new Error('Extension not connected.');
       }
-      if (from !== this.activeAccount.accountAddress || source !== this.activeAccountSource
+      if (!walletMutations.isCurrent(generation) || !this.isSendCurrent(attempt)
+        || from !== this.activeAccount.accountAddress || source !== this.activeAccountSource
         || blockchain !== this.qrlConnection.blockchain || rpcProvider !== this.qrlInstance
         || provider !== this.remoteProvider) {
-        throw new Error("Wallet changed while preparing the transaction");
+        throw new Error('Wallet changed while preparing the transaction');
       }
-      // The remote wallet shows its own confirmation UI
-      const txHash = await provider.request({
-        method: 'qrl_sendTransaction',
-        params: params
-      });
-
-      if (txHash && typeof txHash === 'string') {
-        transactionHistoryStore.record({ blockchain, from, to, amount: valueEther, hash: txHash });
-        log(`Transaction sent via ${walletName}, hash: ${txHash}`);
-        runInAction(() => {
-          // Still 'pending' until confirmed on-chain, but we have the hash
-          this.transactionStatus = { ...this.transactionStatus, state: 'pending', txHash: txHash, error: null };
-          // Start polling for receipt / pending details
-          this.fetchPendingTxDetails(txHash);
-          this.pollForReceipt(txHash);
-        });
-      } else {
-        log(`Wallet returned invalid txHash: ${txHash}`);
-        throw new Error(`The ${walletName} did not return a valid transaction hash.`);
-      }
-
+      this.awaitSendApproval(attempt);
+      const hash = await provider.request({ method: 'qrl_sendTransaction', params });
+      this.recordSendBroadcast(attempt, hash);
+      return true;
     } catch (error) {
-      console.error(`Error sending transaction via ${walletName}:`, error);
-      const message = getErrorMessage(error);
-      log(`Error sending via ${walletName}: ${message}`);
-      runInAction(() => {
-        // Check for user rejection code specifically if the provider follows EIP-1193 errors
-        const userRejected = isProviderRpcError(error) && error.code === 4001;
-        const isCalcError = message === "Could not calculate transaction value." || message === "Invalid amount input";
-        this.transactionStatus = {
-          ...this.transactionStatus,
-          state: 'failed',
-          error: userRejected
-            ? `Transaction rejected in ${walletName}.`
-            : isCalcError
-              ? message // Show calculation error
-              : (message || `Transaction failed in ${walletName}.`)
-        };
-      });
+      this.failSend(attempt, error);
+      return false;
     }
   }
   async assertNetworkReady(provider = this.qrlInstance): Promise<void> {
