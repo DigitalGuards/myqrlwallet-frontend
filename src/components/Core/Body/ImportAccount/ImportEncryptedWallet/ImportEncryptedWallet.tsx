@@ -1,12 +1,5 @@
 import { Button } from "@/components/UI/Button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/UI/Card";
+import { Card, CardContent, CardFooter } from "@/components/UI/Card";
 import { Input } from "@/components/UI/Input";
 import { Label } from "@/components/UI/Label";
 import {
@@ -253,17 +246,11 @@ export const ImportEncryptedWallet = ({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold">
-          Import Encrypted Wallet
-        </CardTitle>
-        <CardDescription className="text-muted-foreground">
-          Select an encrypted wallet file from this wallet or a backup exported
-          by the MyQRLWallet browser extension, then enter its password.
-        </CardDescription>
-      </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-8">
+        <CardContent className="space-y-8 pt-6">
+          <p className="text-sm text-muted-foreground">
+            Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.
+          </p>
           <div className="space-y-2">
             <Label className="text-foreground">Wallet File</Label>
             <div className="flex flex-col items-center justify-center w-full">

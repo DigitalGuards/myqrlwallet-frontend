@@ -1,12 +1,5 @@
 import { Button } from "../../../../UI/Button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "../../../../UI/Card";
+import { Card, CardContent, CardFooter } from "../../../../UI/Card";
 import {
   Form,
   FormControl,
@@ -87,13 +80,10 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card >
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">Import with Mnemonic</CardTitle>
-            <CardDescription>
-              Enter your mnemonic phrase to restore your wallet
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-8">
+          <CardContent className="space-y-8 pt-6">
+          <p className="text-sm text-muted-foreground">
+            Enter your mnemonic phrase to restore your wallet
+          </p>
             <FormField
               control={control}
               name="mnemonicPhrases"

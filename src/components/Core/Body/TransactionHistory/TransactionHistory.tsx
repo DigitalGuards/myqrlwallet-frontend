@@ -1,3 +1,5 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
+import { Card } from "@/components/UI/Card";
 import { createPortal } from "react-dom";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 import {
@@ -165,10 +167,8 @@ const TransactionHistory = observer(() => {
   };
 
   return (
-    <div className="page-enter p-4 sm:p-6">
-      <h1 className="text-xl sm:text-2xl font-bold mb-4">
-        Transaction History
-      </h1>
+    <PageShell title="Transaction History" width="wide" seoTitle="Transaction History">
+      <Card className="p-6">
       <div className="mb-4 flex flex-col sm:flex-row justify-between items-center">
         <input
           type="text"
@@ -353,7 +353,8 @@ const TransactionHistory = observer(() => {
           </div>
         </>
       )}
-    </div>
+    </Card>
+    </PageShell>
   );
 });
 

@@ -1,3 +1,5 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
+import { Card } from "@/components/UI/Card";
 import { Link } from "react-router";
 import { SEO } from "@/components/SEO/SEO";
 import { ROUTES } from "@/router/router";
@@ -7,13 +9,12 @@ const linkClass =
 
 const Disclaimer = () => {
     return (
-        <div className="min-h-screen">
+        <PageShell title="Disclaimer" width="wide">
             <SEO
                 title="Disclaimer"
                 description="Plain-language risk summary for MyQRLWallet, the self-custody wallet for QRL 2.0 by DigitalGuards."
             />
-            <main className="container mx-auto max-w-3xl px-4 py-8">
-                <h1 className="text-3xl font-bold mb-4">Disclaimer</h1>
+            <Card className="p-6">
 
                 <p className="mb-2 text-sm text-muted-foreground">Last updated: 13 July 2026</p>
 
@@ -97,8 +98,8 @@ const Disclaimer = () => {
                     </Link>{" "}
                     or email security@digitalguards.nl.
                 </p>
-            </main>
-        </div>
+            </Card>
+        </PageShell>
     );
 };
 

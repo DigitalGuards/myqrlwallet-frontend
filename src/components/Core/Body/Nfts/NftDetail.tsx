@@ -1,3 +1,4 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
 import { observer } from "mobx-react-lite";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
@@ -102,21 +103,20 @@ const NftDetail = observer(() => {
 
   if (!nft) {
     return (
-      <div className="mx-auto max-w-2xl px-2 py-4">
-        <Button
+      <PageShell title="NFT details" width="wide" seoTitle="NFT Details" action={<Button
           variant="ghost"
           size="sm"
           onClick={onBack}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
-        </Button>
-        <Card className="mt-4">
+        </Button>}>
+        <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
             NFT not found in your wallet. Add it from the Home page first.
           </CardContent>
         </Card>
-      </div>
+      </PageShell>
     );
   }
 
@@ -169,7 +169,7 @@ const NftDetail = observer(() => {
     setIsSending(true);
     try {
       if (isExtension) {
-        // Extension-signed NFT writes aren't wired yet — surface a clear
+        // Extension-signed NFT writes aren't wired yet : surface a clear
         // message rather than silently using the encrypted-seed path.
         setSendError(
           "Extension-signed NFT transfers are coming soon. Switch to an imported account to transfer for now.",
@@ -295,36 +295,29 @@ const NftDetail = observer(() => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-2 py-4 md:py-8">
-      <Button
+    <PageShell
+      title={nft.name ?? `Token #${nft.tokenId}`}
+      subtitle={nft.collectionName ? `${nft.collectionName}${nft.collectionSymbol ? ` (${nft.collectionSymbol})` : ""}` : undefined}
+      width="wide"
+      seoTitle={nft.name ?? `Token #${nft.tokenId}`}
+      action={<Button
         variant="ghost"
         size="sm"
         onClick={onBack}
-        className="mb-4"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back
-      </Button>
-
+      </Button>}
+    >
+      <Card className="p-6">
       <div className="grid gap-4 md:grid-cols-2 md:gap-8">
         <NftImage
           src={nft.image}
           alt={nft.name ?? `Token #${nft.tokenId}`}
           className="aspect-square w-full rounded-lg"
         />
-        <Card className="min-w-0">
-          <CardHeader>
-            <CardTitle className="break-words text-2xl [overflow-wrap:anywhere]">
-              {nft.name ?? `Token #${nft.tokenId}`}
-            </CardTitle>
-            {nft.collectionName && (
-              <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
-                {nft.collectionName}
-                {nft.collectionSymbol ? ` (${nft.collectionSymbol})` : ""}
-              </p>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
+        <div className="min-w-0">
+          <div className="space-y-3 text-sm">
             <Row label="Standard" value={nft.standard} />
             <Row label="Token ID" value={nft.tokenId} mono />
             <Row
@@ -357,9 +350,10 @@ const NftDetail = observer(() => {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
+      </Card>
 
       <Card className="mt-6">
         <CardHeader>
@@ -474,7 +468,7 @@ const NftDetail = observer(() => {
           </CardFooter>
         </form>
       </Card>
-    </div>
+    </PageShell>
   );
 });
 

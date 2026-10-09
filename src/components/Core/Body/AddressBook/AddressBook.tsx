@@ -1,16 +1,19 @@
+import { PageShell } from "@/components/Core/Layout/PageShell";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { BookUser, Copy, Pencil, Plus, Send, Trash2, Check } from "lucide-react";
+import {
+  BookUser,
+  Copy,
+  Pencil,
+  Plus,
+  Send,
+  Trash2,
+  Check,
+} from "lucide-react";
 import { Button } from "@/components/UI/Button";
 import { Input } from "@/components/UI/Input";
 import { Label } from "@/components/UI/Label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/UI/Card";
+import { Card, CardContent } from "@/components/UI/Card";
 import {
   Dialog,
   DialogContent,
@@ -23,19 +26,30 @@ import { ROUTES } from "@/router/router";
 import { copyToClipboard } from "@/utils/nativeApp";
 import { formatAddressShort } from "@/utils/formatting";
 import type { AddressBookEntry } from "@/utils/addressBook";
-import { addEntry, loadAddressBook, removeEntry, renameEntry } from "@/utils/addressBook";
+import {
+  addEntry,
+  loadAddressBook,
+  removeEntry,
+  renameEntry,
+} from "@/utils/addressBook";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 
 export default function AddressBook() {
   const navigate = useNavigate();
-  const [entries, setEntries] = useState<AddressBookEntry[]>(() => loadAddressBook());
+  const [entries, setEntries] = useState<AddressBookEntry[]>(() =>
+    loadAddressBook(),
+  );
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newAddress, setNewAddress] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
-  const [renameTarget, setRenameTarget] = useState<AddressBookEntry | null>(null);
+  const [renameTarget, setRenameTarget] = useState<AddressBookEntry | null>(
+    null,
+  );
   const [renameValue, setRenameValue] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<AddressBookEntry | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AddressBookEntry | null>(
+    null,
+  );
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const refresh = () => setEntries(loadAddressBook());
@@ -71,7 +85,10 @@ export default function AddressBook() {
   const handleCopy = (entry: AddressBookEntry) => {
     copyToClipboard(entry.address);
     setCopiedId(entry.id);
-    setTimeout(() => setCopiedId((current) => (current === entry.id ? null : current)), 1500);
+    setTimeout(
+      () => setCopiedId((current) => (current === entry.id ? null : current)),
+      1500,
+    );
   };
 
   const handleSend = (entry: AddressBookEntry) => {
@@ -79,24 +96,19 @@ export default function AddressBook() {
   };
 
   return (
-    <div className="page-enter flex flex-col gap-4 p-4 pb-20 max-w-2xl mx-auto w-full">
-      <Card className="border-l-4 border-l-primary">
-        <CardHeader>
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <BookUser className="h-7 w-7 text-secondary" />
-              <div>
-                <CardTitle className="text-2xl font-bold">Address Book</CardTitle>
-                <CardDescription>Saved recipients for quick transfers</CardDescription>
-              </div>
-            </div>
-            <Button size="sm" onClick={() => setAddOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              Add
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
+    <PageShell
+      title="Address Book"
+      subtitle="Saved recipients for quick transfers"
+      seoTitle="Address Book"
+      action={
+        <Button size="sm" onClick={() => setAddOpen(true)}>
+          <Plus className="h-4 w-4 mr-1" />
+          Add
+        </Button>
+      }
+    >
+      <Card>
+        <CardContent className="pt-6">
           {entries.length === 0 ? (
             <div className="text-center text-muted-foreground py-10 flex flex-col items-center gap-3">
               <BookUser className="h-10 w-10 opacity-40" />
@@ -181,7 +193,9 @@ export default function AddressBook() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Address</DialogTitle>
-            <DialogDescription>Save a recipient for quick transfers.</DialogDescription>
+            <DialogDescription>
+              Save a recipient for quick transfers.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
@@ -204,7 +218,9 @@ export default function AddressBook() {
                 className="font-mono"
               />
             </div>
-            {addError ? <p className="text-sm text-destructive">{addError}</p> : null}
+            {addError ? (
+              <p className="text-sm text-destructive">{addError}</p>
+            ) : null}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>
@@ -216,7 +232,10 @@ export default function AddressBook() {
       </Dialog>
 
       {/* Rename contact */}
-      <Dialog open={renameTarget !== null} onOpenChange={(open) => !open && setRenameTarget(null)}>
+      <Dialog
+        open={renameTarget !== null}
+        onOpenChange={(open) => !open && setRenameTarget(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rename Address</DialogTitle>
@@ -241,7 +260,10 @@ export default function AddressBook() {
       </Dialog>
 
       {/* Delete contact */}
-      <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Address?</DialogTitle>
@@ -261,6 +283,6 @@ export default function AddressBook() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

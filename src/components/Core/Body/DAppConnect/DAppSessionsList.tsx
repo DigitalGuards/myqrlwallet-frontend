@@ -153,7 +153,7 @@ const emptyStateHint = isDesktop
     ? 'Scan a QR code from a dApp to connect.'
     : 'Click "Open web wallet" in a dApp pairing dialog, or paste its connection code above.';
 
-const DAppSessionsList = observer(() => {
+const DAppSessionsList = observer(({ showHeading = true }: { showHeading?: boolean }) => {
   const { dappConnectStore } = useStore();
   const { activeSessions } = dappConnectStore;
 
@@ -167,25 +167,27 @@ const DAppSessionsList = observer(() => {
           }
         }
       `}</style>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-1">
-            <CardTitle className="text-xl font-bold">dApp connections</CardTitle>
-            <CardDescription>
-              dApps paired with this wallet over the end-to-end encrypted QRL Connect relay.
-            </CardDescription>
+      {showHeading && (
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <CardTitle className="text-xl font-bold">dApp connections</CardTitle>
+              <CardDescription>
+                dApps paired with this wallet over the end-to-end encrypted QRL Connect relay.
+              </CardDescription>
+            </div>
+            {activeSessions.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => { dappConnectStore.disconnectAll(); }}
+              >
+                Disconnect all
+              </Button>
+            )}
           </div>
-          {activeSessions.length > 0 && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => { dappConnectStore.disconnectAll(); }}
-            >
-              Disconnect all
-            </Button>
-          )}
-        </div>
-      </CardHeader>
+        </CardHeader>
+      )}
       <CardContent className="space-y-4 pt-6">
         {(isDesktop || !isInNativeApp()) && <PasteConnect />}
 
