@@ -1,3 +1,5 @@
+import { transactionHistoryStore } from "./transactionHistoryStore";
+import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
 import { QRL_PROVIDER, EXPLORER_BASE, getPendingTxApiUrl } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { isDesktop, desktopSigner, qrlWallet } from "@/desktop/bridge";
@@ -1022,6 +1024,9 @@ class QrlStore {
             pendingDetails: null,
           };
         });
+        transactionHistoryStore.record({
+          blockchain: signingBlockchain, from, to, amount: value, hash: transactionHash,
+        });
         log(`Desktop transaction broadcast with hash: ${transactionHash}`);
         this.fetchPendingTxDetails(transactionHash);
         this.pollForReceipt(transactionHash);
@@ -1101,6 +1106,10 @@ class QrlStore {
       const promiEvent = this.qrlInstance?.sendSignedTransaction(
         signedTransaction.rawTransaction
       );
+
+      observeHistoryBroadcast(promiEvent, {
+        blockchain: signingBlockchain, from, to, amount: value, nonce,
+      });
 
       promiEvent?.on('transactionHash', (hash: string) => {
         runInAction(() => {
@@ -1273,6 +1282,7 @@ class QrlStore {
     if (!txHash || !this.qrlInstance) return;
     const provider = this.qrlInstance;
     const blockchain = this.qrlConnection.blockchain;
+    const from = this.activeAccount.accountAddress;
 
     const maxAttempts = 60; // Poll for ~5 minutes (60 attempts * 5 seconds)
     const pollInterval = 5000; // 5 seconds
@@ -1319,6 +1329,7 @@ class QrlStore {
       const receiptHash = receipt?.transactionHash != null ? utils.bytesToHex(receipt.transactionHash) : null;
       const succeeded = receiptExecutionStatus(receipt?.status);
       if (receipt && receiptHash?.toLowerCase() === txHash.toLowerCase() && succeeded !== undefined) {
+        transactionHistoryStore.settle(blockchain, from, txHash, receipt);
         log(`Receipt found for ${txHash}`);
         this.cancelReceiptPoller(); // Stop polling
         runInAction(() => {
@@ -1460,6 +1471,7 @@ class QrlStore {
       });
 
       if (txHash && typeof txHash === 'string') {
+        transactionHistoryStore.record({ blockchain, from, to, amount: valueEther, hash: txHash });
         log(`Transaction sent via ${walletName}, hash: ${txHash}`);
         runInAction(() => {
           // Still 'pending' until confirmed on-chain, but we have the hash

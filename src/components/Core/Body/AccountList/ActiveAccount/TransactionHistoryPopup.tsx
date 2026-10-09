@@ -1,3 +1,9 @@
+import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import {
+  historyStatus,
+  parseHistoryResponse,
+} from "@/utils/transactionHistory";
+import type { HistoryRow } from "@/utils/transactionHistory";
 import { useState, useEffect } from "react";
 import { observer } from "mobx-react-lite";
 import axios from "axios";
@@ -12,22 +18,6 @@ import { CompactAddressText } from "../../../../UI/QrlAddress";
 import { getExplorerAddressUrl, getExplorerTxUrl } from "@/config";
 import { openExternalUrl } from "@/utils/nativeApp";
 import { useBackDismiss } from "@/utils/useBackDismiss";
-
-type TransactionHistoryType = {
-  ID: string;
-  InOut: number;
-  // Raw EIP-1559 envelope type from the node ("0x2" for every v2 tx),
-  // not a user-facing category. Direction is derived from InOut instead.
-  TxType: string;
-  Address: string;
-  From: string;
-  To: string;
-  TxHash: string;
-  TimeStamp: string;
-  Amount: string;
-  PaidFees?: string;
-  BlockNumber: string;
-};
 
 const DUST_DISPLAY_FLOOR = new BigNumber("0.000001");
 
@@ -54,12 +44,16 @@ export const TransactionHistoryPopup = observer(
   }: TransactionHistoryPopupProps) => {
     // Android's back button closes this the same way its X button does.
     useBackDismiss(isOpen, onClose);
-    const [transactions, setTransactions] = useState<TransactionHistoryType[]>(
-      [],
-    );
+    const [backendTransactions, setTransactions] = useState<HistoryRow[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const network = historyNetwork(blockchain);
+    const { transactions, storageUnavailable } = useTransactionHistory(
+      blockchain,
+      accountAddress,
+      backendTransactions,
+      isOpen,
+    );
 
     useEffect(() => {
       const controller = new AbortController();
@@ -67,19 +61,21 @@ export const TransactionHistoryPopup = observer(
       setError(null);
       if (!isOpen || !accountAddress) {
         setLoading(false);
-        return () => controller.abort();
+        return () => {
+          controller.abort();
+        };
       }
       if (!network) {
         setLoading(false);
         setError("Transaction history is unavailable for this network.");
-        return () => controller.abort();
+        return () => {
+          controller.abort();
+        };
       }
       setLoading(true);
       void (async () => {
         try {
-          const response = await axios.post<{
-            transactions: TransactionHistoryType[];
-          }>(
+          const response = await axios.post<unknown>(
             `${SERVER_URL}/tx-history`,
             {
               network,
@@ -90,9 +86,7 @@ export const TransactionHistoryPopup = observer(
             { signal: controller.signal },
           );
           if (controller.signal.aborted) return;
-          if (!Array.isArray(response.data.transactions))
-            throw new Error("Invalid transaction history response");
-          setTransactions(response.data.transactions);
+          setTransactions(parseHistoryResponse(response.data));
         } catch (cause) {
           if (controller.signal.aborted) return;
           const unavailable =
@@ -106,7 +100,9 @@ export const TransactionHistoryPopup = observer(
           if (!controller.signal.aborted) setLoading(false);
         }
       })();
-      return () => controller.abort();
+      return () => {
+        controller.abort();
+      };
     }, [isOpen, accountAddress, network]);
 
     const viewAllTransactions = () => {
@@ -123,7 +119,9 @@ export const TransactionHistoryPopup = observer(
       >
         <Card
           className="w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
         >
           <CardContent className="p-4">
             <div className="flex justify-between items-center mb-4">
@@ -133,15 +131,22 @@ export const TransactionHistoryPopup = observer(
               </Button>
             </div>
 
-            {loading ? (
+            {storageUnavailable && (
+              <p role="alert" className="mb-4 text-sm text-red-400">
+                Transaction history could not be saved. Keep this page open
+                until confirmation.
+              </p>
+            )}
+            {error && (
+              <div role="alert" className="py-4 text-sm text-red-400">
+                {error}
+              </div>
+            )}
+            {loading && transactions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 Loading...
               </div>
-            ) : error ? (
-              <div role="alert" className="text-center py-8 text-red-400">
-                {error}
-              </div>
-            ) : transactions.length === 0 ? (
+            ) : transactions.length === 0 && !error ? (
               <div className="text-center py-8 text-muted-foreground">
                 No transactions found
               </div>
@@ -169,9 +174,11 @@ export const TransactionHistoryPopup = observer(
                       key={tx.ID}
                       type="button"
                       title="View transaction on Explorer"
-                      onClick={() =>
-                        openExternalUrl(getExplorerTxUrl(tx.TxHash, blockchain))
-                      }
+                      onClick={() => {
+                        openExternalUrl(
+                          getExplorerTxUrl(tx.TxHash, blockchain),
+                        );
+                      }}
                       className="w-full flex items-start justify-between gap-3 px-1 py-3 text-left rounded-md transition-colors hover:bg-foreground/5"
                     >
                       <div className="flex items-start gap-2.5 min-w-0">
@@ -200,6 +207,16 @@ export const TransactionHistoryPopup = observer(
                               "Contract creation"
                             )}
                           </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            Status
+                          </div>
+                          <div className="text-sm">{historyStatus(tx)}</div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            Hash
+                          </div>
+                          <div className="text-xs font-data break-all">
+                            {tx.TxHash}
+                          </div>
                           <div className="text-xs text-muted-foreground">
                             {new Date(
                               parseInt(tx.TimeStamp, 16) * 1000,
@@ -213,7 +230,7 @@ export const TransactionHistoryPopup = observer(
                           {amountText}
                         </div>
                         <div className="text-xs text-muted-foreground font-numeric">
-                          Quanta
+                          {tx.asset ?? "Quanta"}
                         </div>
                       </div>
                     </button>
