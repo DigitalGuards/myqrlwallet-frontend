@@ -24,11 +24,19 @@ import {
 } from "@/utils/web3/feePolicy";
 import type { Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
+import { z } from "zod";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import { IS_V3_PROFILE, assertSupportedAccountSource, assertV3BrowserContext, V3_UNSUPPORTED_SIGNER_MESSAGE } from '@/config/runtimeProfile';
 import { assertQualifiedV3MobileProvider, assertQualifiedV3Provider, qualifyV3MobileProvider, qualifyV3Provider } from '@/utils/extension/v3Provider';
 import { verifyNetworkIdentity } from '@/config/deploymentProfile';
 import { extensionAuthorizesAccount, restoreExtensionProvider } from '@/utils/extension/extensionConnection';
+
+const PRICE_FETCH_TIMEOUT_MS = 10_000;
+const MAX_PRICE_RESPONSE_BYTES = 64 * 1024;
+const priceOverviewSchema = z.object({
+  currentPrice: z.number().gt(0).lt(1_000_000),
+  priceChange24h: z.number().min(-100).max(10_000),
+});
 
 type ActiveAccountType = {
   accountAddress: string;
@@ -183,6 +191,7 @@ class QrlStore {
   mobileProvider: ExtensionProvider | null = null;
   qrlPrice: number = 0; // USD price from Explorer
   qrlPriceChange24h: number = 0; // 24h price change percentage
+  _priceFetchInFlight = false;
 
   // Cached reference to @theqrl/web3 utils, set during initializeBlockchain.
   // Stored on the instance so we don't re-import on every action call.
@@ -274,6 +283,7 @@ class QrlStore {
       qrlPrice: observable,
       qrlPriceChange24h: observable,
       // Runtime handles + their cleanup helper are non-observable.
+      _priceFetchInFlight: false,
       _utils: false,
       _Web3: false,
       _receiptPollerIntervalId: false,
@@ -319,21 +329,50 @@ class QrlStore {
   }
 
   async fetchQrlPrice() {
+    if (this._priceFetchInFlight) return;
+    this._priceFetchInFlight = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PRICE_FETCH_TIMEOUT_MS);
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+
     try {
-      const res = await fetch(`${EXPLORER_BASE}/api/overview`);
-      const data = await res.json();
-      const price = data?.currentPrice;
-      const change = data?.priceChange24h;
-      if (typeof price === "number" && price > 0) {
-        runInAction(() => {
-          this.qrlPrice = price;
-          if (typeof change === "number") {
-            this.qrlPriceChange24h = change;
-          }
-        });
+      const res = await fetch(`${EXPLORER_BASE}/api/overview`, {
+        signal: controller.signal,
+      });
+      if (!res.ok) return;
+      const contentLength = res.headers.get("content-length");
+      if (contentLength !== null && Number(contentLength) > MAX_PRICE_RESPONSE_BYTES) return;
+      reader = res.body?.getReader();
+      if (!reader) return;
+
+      const decoder = new TextDecoder();
+      let body = "";
+      let bytesRead = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytesRead += value.byteLength;
+        if (bytesRead > MAX_PRICE_RESPONSE_BYTES) return;
+        body += decoder.decode(value, { stream: true });
       }
+      const data: unknown = JSON.parse(body + decoder.decode());
+      const parsed = priceOverviewSchema.safeParse(data);
+      if (!parsed.success || controller.signal.aborted) return;
+      runInAction(() => {
+        this.qrlPrice = parsed.data.currentPrice;
+        this.qrlPriceChange24h = parsed.data.priceChange24h;
+      });
     } catch (e) {
-      log("Failed to fetch QRL price: " + e);
+      log("Failed to fetch QRL price: " + getErrorMessage(e));
+    } finally {
+      clearTimeout(timeout);
+      // Stop unread bodies after an HTTP or size rejection as well as a timeout.
+      controller.abort();
+      if (reader) {
+        void reader.cancel().catch(() => undefined);
+        reader.releaseLock();
+      }
+      this._priceFetchInFlight = false;
     }
   }
 
