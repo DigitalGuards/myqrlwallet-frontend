@@ -501,10 +501,9 @@ export const desktopSigner = {
   },
 
   /**
-   * Sign typed data. The signer currently THROWS (hasher not yet ported), so
-   * callers should surface a clear "not yet supported on desktop" error rather
-   * than falling back to an in-renderer signer. Carries the same signer
-   * binding as signMessage.
+   * Sign typed data in the isolated signer, which picks the scheme version
+   * from the payload and shows the request on its trusted confirm window.
+   * Carries the same signer binding as signMessage.
    */
   async signTypedData(
     payload: unknown,

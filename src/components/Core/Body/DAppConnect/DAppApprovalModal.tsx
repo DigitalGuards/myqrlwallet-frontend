@@ -966,10 +966,10 @@ const DAppApprovalModalContent = observer(() => {
           setLoading(false);
           return;
         }
-        // Desktop: typed-data signing is not yet supported in the signer (the
-        // hasher has not been ported). Surface a clear error instead of any
-        // in-renderer fallback. Same signer binding + response reshaping as
-        // the message arm, so this is already correct when the hasher lands.
+        // Desktop: the isolated signer hashes and signs the typed data and
+        // shows it on its trusted confirm window; the renderer never holds
+        // the seed. Same signer binding and response reshaping as the
+        // message arm.
         if (isDesktop) {
           try {
             const result = await desktopSigner.signTypedData(
@@ -1004,11 +1004,11 @@ const DAppApprovalModalContent = observer(() => {
             });
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
-            setError("Typed-data signing not yet supported on desktop");
+            setError(`Typed-data signing failed: ${errMsg}`);
             dappConnectStore.rejectRequestById(
               approvalSessionId,
               approvalId,
-              `Typed-data signing not yet supported on desktop: ${errMsg}`,
+              `Typed-data signing failed: ${errMsg}`,
             );
           }
           setLoading(false);
