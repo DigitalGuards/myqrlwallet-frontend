@@ -1,4 +1,13 @@
-import { computeTypedDataDigest, TYPED_DATA_LIMITS, typedDataSchemeVersion } from '../typedData';
+import { performance } from 'node:perf_hooks';
+import {
+  baseTypeName,
+  computeTypedDataDigest,
+  encodeField,
+  encodeType,
+  hashStruct,
+  TYPED_DATA_LIMITS,
+  typedDataSchemeVersion,
+} from '../typedData';
 import { SignTypedDataParamsSchema } from '../types';
 
 const SIGNER = `Q${'0'.repeat(128)}`;
@@ -16,7 +25,117 @@ function payloadWith(fieldType: string, value: unknown): unknown {
   };
 }
 
+function errorMessageFor(action: () => unknown): string {
+  try {
+    action();
+  } catch (error) {
+    if (error instanceof Error) return error.message;
+    throw error;
+  }
+  throw new Error('expected typed data validation to fail');
+}
+
+describe('typed data base type names', () => {
+  it.each([
+    ['uint256', 'uint256'],
+    ['address[]', 'address'],
+    ['Struct[][3]', 'Struct'],
+    ['bytes32[2][]', 'bytes32'],
+    ['string', 'string'],
+    ['', ''],
+    ['[]', ''],
+    ['[3][]', ''],
+    ['Struct[003][]', 'Struct'],
+    ['Struct[]x', 'Struct[]x'],
+    ['Struct[x][]', 'Struct[x]'],
+    ['Struct[[3]][]', 'Struct[[3]]'],
+    ['Struct[+3][]', 'Struct[+3]'],
+    ['Struct[\u0663][]', 'Struct[\u0663]'],
+    ['Struct[3', 'Struct[3'],
+    ['Struct3]', 'Struct3]'],
+    ['Struct[]\n', 'Struct[]\n'],
+    ['Struct[]\r\n', 'Struct[]\r\n'],
+    ['Struct[]\u2028', 'Struct[]\u2028'],
+    ['Struct[]\u2029', 'Struct[]\u2029'],
+    ['[]'.repeat(TYPED_DATA_LIMITS.maxFieldTypeLength / 2), ''],
+    [`[${'9'.repeat(TYPED_DATA_LIMITS.maxFieldTypeLength - 2)}]`, ''],
+  ])('preserves legacy suffix removal for %j', (type, expected) => {
+    expect(baseTypeName(type)).toBe(expected);
+    expect(baseTypeName(type)).toBe(type.replace(/(\[\d*\])+$/, ''));
+  });
+});
+
 describe('typed data deterministic resource limits', () => {
+  it('rejects a 1 MB field type in under 100 ms with a bounded error', () => {
+    const fieldType = '[]'.repeat(500_000) + 'x';
+    const payload = payloadWith(fieldType, []);
+    const started = performance.now();
+    const message = errorMessageFor(() => computeTypedDataDigest(payload));
+    const elapsed = performance.now() - started;
+
+    expect(elapsed).toBeLessThan(100);
+    expect(message).toBe(`field type too long: ${'[]'.repeat(16)}... (length 1000001)`);
+  });
+
+  it('checks field type length in every struct before resolving dependencies', () => {
+    const types = {
+      QRLDomain: [{ name: 'name', type: 'string' }],
+      Payload: [{ name: 'value', type: 'uint8' }],
+      Unused: [{ name: 'value', type: '[]'.repeat(500_000) + 'x' }],
+    };
+    expect(() => encodeType('Payload', types)).toThrow('field type too long');
+    expect(() => hashStruct('Payload', { value: 1 }, types)).toThrow('field type too long');
+    expect(() => encodeField('uint8', 1, types)).toThrow('field type too long');
+    expect(() =>
+      typedDataSchemeVersion({
+        types,
+        primaryType: 'Payload',
+        domain: { name: 'Security test' },
+        message: { value: 1 },
+      }),
+    ).toThrow('field type too long');
+  });
+
+  it('preserves the inclusive field type length limit', () => {
+    const padding = '0'.repeat(TYPED_DATA_LIMITS.maxFieldTypeLength - 'uint8[1]'.length);
+    const fieldType = `uint8[${padding}1]`;
+    expect(fieldType).toHaveLength(TYPED_DATA_LIMITS.maxFieldTypeLength);
+    expect(() => computeTypedDataDigest(payloadWith(fieldType, [1]))).not.toThrow();
+    expect(() => computeTypedDataDigest(payloadWith(`uint8[0${padding}1]`, [1]))).toThrow(
+      'field type too long',
+    );
+  });
+
+  it('bounds untrusted identifiers, field types, addresses and object keys in errors', () => {
+    const input = 'x'.repeat(1_000_000);
+    const types = { Payload: [{ name: 'value', type: 'uint8' }] };
+    const actions = [
+      () => encodeType(input, types),
+      () => hashStruct(input, {}, types),
+      () => encodeType('Payload', { [input]: types.Payload }),
+      () => encodeType('Payload', { Payload: [{ name: input, type: 'uint8' }] }),
+      () => encodeType('Payload', { Payload: [{ name: input, type: '' }] }),
+      () => encodeField(input, 1, types),
+      () => computeTypedDataDigest(payloadWith('address', input)),
+      () => hashStruct('Payload', { value: 1, [input]: 2 }, types),
+    ];
+    for (const action of actions) {
+      const message = errorMessageFor(action);
+      expect(message).toContain(`${'x'.repeat(32)}... (length 1000000)`);
+      expect(message.length).toBeLessThan(160);
+    }
+  });
+
+  it('bounds invalid integer strings and out-of-range integer values in errors', () => {
+    const types = { Payload: [{ name: 'value', type: 'uint8' }] };
+    for (const input of ['x'.repeat(80), '9'.repeat(80), `-${'9'.repeat(79)}`]) {
+      const message = errorMessageFor(() => encodeField('uint8', input, types));
+      expect(message).toContain(`${input.slice(0, 32)}... (length 80)`);
+      expect(message.length).toBeLessThan(100);
+    }
+    expect(() => encodeField('uint8', 'bad', types)).toThrow('invalid uint8 string: bad');
+  });
+
   it('rejects unsigned top-level and type-definition display fields', () => {
     const topLevelExtra = {
       ...(payloadWith('uint8', 1) as Record<string, unknown>),
