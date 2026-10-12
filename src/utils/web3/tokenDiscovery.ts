@@ -66,7 +66,7 @@ export async function discoverTokens(
         // same display string refreshTokenBalances would produce, so the
         // picker (and the token list once added) never flashes the raw
         // integer before the next 30s refresh cycle reformats it.
-        let amount = "0.0";
+        let amount: string;
         try {
           amount = getOptimalTokenBalance(
             formatUnits(token.balance || "0", decimals),

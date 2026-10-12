@@ -1143,11 +1143,12 @@ class QrlStore {
       if (provider !== current) this.setExtensionProvider(provider);
       return provider;
     })();
-    this._extensionRecovery = { address, version, promise };
+    const recovery = { address, version, promise };
+    this._extensionRecovery = recovery;
     try {
       return await promise;
     } finally {
-      if (this._extensionRecovery?.promise === promise) this._extensionRecovery = null;
+      if (this._extensionRecovery === recovery) this._extensionRecovery = null;
     }
   }
 

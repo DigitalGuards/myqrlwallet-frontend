@@ -49,7 +49,7 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
     );
 
     // Prune selectedAddresses if a discovered token has since been added
-    // elsewhere — keeps the "Add Selected (n)" count honest.
+    // elsewhere. This keeps the "Add Selected (n)" count accurate.
     useEffect(() => {
         setSelectedAddresses((prev) => {
             const allow = new Set(selectableAddresses);
@@ -127,7 +127,7 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
                 // Store the display-formatted balance (decimals applied) so the
                 // token list doesn't flash the raw base-unit integer until the
                 // next refreshTokenBalances cycle reformats it.
-                let amount = "0.0";
+                let amount: string;
                 try {
                     amount = getOptimalTokenBalance(formatUnits(balance?.toString() ?? "0", parsedDecimals), symbol, false);
                 } catch {
@@ -140,7 +140,7 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
                 setTokenInfo(null);
                 setError(
                     err instanceof Error
-                        ? `Could not fetch token info — the address may not be a QRC-20 token contract. (${err.message})`
+                        ? `Could not fetch token info. The address may not be a QRC-20 token contract. (${err.message})`
                         : "Could not fetch token info. The address may not be a token contract."
                 );
             } finally {
