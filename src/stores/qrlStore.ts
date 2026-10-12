@@ -331,13 +331,17 @@ class QrlStore {
   async fetchQrlPrice() {
     if (this._priceFetchInFlight) return;
     this._priceFetchInFlight = true;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), PRICE_FETCH_TIMEOUT_MS);
+    let controller: AbortController | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
     try {
+      // Created inside the try so a throw here still releases the in-flight guard.
+      const requestController = new AbortController();
+      controller = requestController;
+      timeout = setTimeout(() => requestController.abort(), PRICE_FETCH_TIMEOUT_MS);
       const res = await fetch(`${EXPLORER_BASE}/api/overview`, {
-        signal: controller.signal,
+        signal: requestController.signal,
       });
       if (!res.ok) return;
       const contentLength = res.headers.get("content-length");
@@ -357,7 +361,7 @@ class QrlStore {
       }
       const data: unknown = JSON.parse(body + decoder.decode());
       const parsed = priceOverviewSchema.safeParse(data);
-      if (!parsed.success || controller.signal.aborted) return;
+      if (!parsed.success || requestController.signal.aborted) return;
       runInAction(() => {
         this.qrlPrice = parsed.data.currentPrice;
         this.qrlPriceChange24h = parsed.data.priceChange24h;
@@ -365,9 +369,9 @@ class QrlStore {
     } catch (e) {
       log("Failed to fetch QRL price: " + getErrorMessage(e));
     } finally {
-      clearTimeout(timeout);
+      if (timeout !== undefined) clearTimeout(timeout);
       // Stop unread bodies after an HTTP or size rejection as well as a timeout.
-      controller.abort();
+      controller?.abort();
       if (reader) {
         void reader.cancel().catch(() => undefined);
         reader.releaseLock();

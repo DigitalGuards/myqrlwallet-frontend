@@ -229,6 +229,23 @@ it("accepts a valid response exactly at the byte cap", async () => {
   expect(store.qrlPriceChange24h).toBe(-4.5);
 });
 
+it("releases the in-flight guard when the request setup throws", async () => {
+  const setupFailure = jest
+    .spyOn(globalThis, "AbortController")
+    .mockImplementationOnce(() => {
+      throw new Error("AbortController unavailable");
+    });
+  await store.fetchQrlPrice();
+  expect(fetchMock).not.toHaveBeenCalled();
+  expectOldPrice();
+  setupFailure.mockRestore();
+
+  fetchMock.mockResolvedValueOnce(new Response(validBody));
+  await store.fetchQrlPrice();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(store.qrlPrice).toBe(3.25);
+});
+
 it("ignores invalid JSON and permits the next request", async () => {
   fetchMock.mockResolvedValueOnce(new Response('{"currentPrice":3.25,'));
   await store.fetchQrlPrice();
