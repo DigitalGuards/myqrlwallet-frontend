@@ -11,12 +11,42 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import {
   buildDappOrigin,
   desktopSigner,
+  desktopSigningError,
   supportsDappGasLimit,
   type QrlWalletBridge,
 } from '../bridge';
 import { desktopTransactionArgs } from '@/components/Core/Body/DAppConnect/dappTransaction';
 
 const CHANNEL = '0199aabb-ccdd-eeff-0011-223344556677';
+
+describe('desktop signing errors', () => {
+  it.each([
+    'user rejected signature',
+    "Error invoking remote method 'wallet:requestSignature': Error: user rejected signature",
+    'User rejected the request',
+  ])('normalizes an explicit user rejection: %s', (message) => {
+    expect(desktopSigningError(new Error(message))).toEqual({
+      code: 4001,
+      message: 'User rejected the request',
+    });
+  });
+
+  it.each(['signer locked', 'signer refused signature', 'boundary rejected request'])('preserves the failure reason: %s', (message) => {
+    expect(desktopSigningError(new Error(`Error invoking remote method 'wallet:requestSignature': Error: ${message}`))).toEqual({
+      code: -32603,
+      message,
+    });
+  });
+
+  it('bounds long failures and handles unknown causes', () => {
+    expect(desktopSigningError(new Error('x'.repeat(2000)))).toEqual({
+      code: -32603,
+      message: `${'x'.repeat(237)}...`,
+    });
+    expect(desktopSigningError(null)).toEqual({ code: -32603, message: 'Desktop signing failed' });
+    expect(desktopSigningError('signer locked\ninternal stack')).toEqual({ code: -32603, message: 'signer locked' });
+  });
+});
 
 describe('buildDappOrigin', () => {
   it('passes through clean values with via=dapp', () => {

@@ -100,8 +100,8 @@ const DAppConnectConsentModal = observer(() => {
         if (!open) handleCancel();
       }}
     >
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col overflow-hidden">
+        <DialogHeader className="shrink-0 pr-6">
           <DialogTitle className="flex items-center gap-2">
             <Plug className="h-5 w-5" />
             Connect to a dApp?
@@ -115,8 +115,12 @@ const DAppConnectConsentModal = observer(() => {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-2 text-sm">
-          <p className="text-muted-foreground">
+        <div
+          role="region"
+          aria-label="Connection details"
+          className="min-h-0 space-y-2 overflow-y-auto overscroll-contain text-sm"
+        >
+          <p className="break-all text-muted-foreground">
             Relay: <span className="font-mono">{relayOrigin}</span>
           </p>
           <p>
@@ -132,10 +136,10 @@ const DAppConnectConsentModal = observer(() => {
               access request from the dApp.
             </p>
           )}
-          {error && <p className="text-destructive">{error}</p>}
+          {error && <p role="alert" className="break-words text-destructive">{error}</p>}
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="shrink-0 gap-2">
           <Button variant="outline" onClick={handleCancel} disabled={connecting}>
             Cancel
           </Button>

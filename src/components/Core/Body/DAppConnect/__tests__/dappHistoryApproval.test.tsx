@@ -101,6 +101,7 @@ jest.mock("@/components/UI/QrlAddress", () => ({ QrlAddress: () => null }));
 jest.mock("@/components/UI/Dialog", () => ({
   Dialog: ({ children }: { children: ReactNode }) => children,
   DialogContent: ({ children }: { children: ReactNode }) => children,
+  DialogTitle: ({ children }: { children: ReactNode }) => children,
 }));
 
 beforeEach(() => {
