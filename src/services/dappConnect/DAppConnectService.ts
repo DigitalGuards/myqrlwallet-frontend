@@ -1465,6 +1465,7 @@ export class DAppConnectService {
     // response can disclose it. A failed checkpoint retires the session.
     await this.persistSession(sessionId, conn);
     if (this.connections.get(sessionId) !== conn || !conn.cryptoUsable) return;
+    this.handlers?.onSessionsChanged();
 
     // Carry on when the relay is merely away: WALLET_INFO is queued and the
     // response below queues behind it, so the dApp gets both in order when it
@@ -2835,9 +2836,15 @@ export class DAppConnectService {
     channelId: string,
     response: JsonRpcResponse,
   ): Promise<SendOutcome> {
+    // The SDK rejects error messages over 1024 characters. Bound every error
+    // before encryption and queuing so validation failures always get an answer.
+    const error = response.error;
+    const boundedResponse = error && error.message.length > 512
+      ? { ...response, error: { ...error, message: `${error.message.slice(0, 509)}...` } }
+      : response;
     return this.sendEncrypted(
       channelId,
-      { type: MessageType.JSONRPC, ...response },
+      { type: MessageType.JSONRPC, ...boundedResponse },
       { isAnswer: true },
     );
   }

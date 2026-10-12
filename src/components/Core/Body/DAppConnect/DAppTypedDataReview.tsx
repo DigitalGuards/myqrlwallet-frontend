@@ -13,6 +13,7 @@ import type { TypedDataPayload } from '@/utils/signing';
 interface DAppTypedDataReviewProps {
   payload: TypedDataPayload;
   digestHex?: string;
+  connectedChainId?: string;
 }
 
 const UNSAFE_VISUAL_CONTROL_PATTERN =
@@ -60,7 +61,7 @@ function renderValue(value: unknown): React.ReactNode {
       <ul className="space-y-1 border-l border-border pl-2">
         {value.map((item, i) => (
           <li key={i} className="flex gap-2">
-            <span className="text-muted-foreground">[{i}]</span>
+            <span className="shrink-0 whitespace-nowrap text-muted-foreground">[{i}]</span>
             <span className="min-w-0">{renderValue(item)}</span>
           </li>
         ))}
@@ -82,15 +83,37 @@ function renderValue(value: unknown): React.ReactNode {
   return <span className="text-muted-foreground">(unsupported value)</span>;
 }
 
-const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({ payload, digestHex }) => {
+function chainNumber(value: unknown): bigint | undefined {
+  if (
+    typeof value !== 'string' &&
+    typeof value !== 'number' &&
+    typeof value !== 'bigint'
+  ) return undefined;
+  try {
+    return BigInt(value);
+  } catch {
+    return undefined;
+  }
+}
+
+const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
+  payload,
+  digestHex,
+  connectedChainId,
+}) => {
   const [showDigest, setShowDigest] = useState(false);
   const { domain, primaryType, message } = payload;
   const domainFields = payload.types['QRLDomain'] ?? [];
   const messageFields = payload.types[primaryType] ?? [];
   const canonicalPayload = canonicalTypedDataReview(payload);
+  const hasChainId = domainFields.some((field) => field.name === 'chainId');
+  const domainChain = hasChainId ? chainNumber(domain['chainId']) : undefined;
+  const connectedChain = chainNumber(connectedChainId);
+  const chainMismatch = domainChain !== undefined &&
+    connectedChain !== undefined && domainChain !== connectedChain;
 
   return (
-    <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm">
+    <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm [overflow-wrap:anywhere]">
       <div className="space-y-1">
         <div className="mb-2 text-xs text-muted-foreground">Signed domain</div>
         {domainFields.map((field) => (
@@ -102,6 +125,18 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({ payload, dige
             <span className="min-w-0 text-right">{renderValue(domain[field.name])}</span>
           </div>
         ))}
+        {chainMismatch && (
+          <p role="alert" className="pt-2 text-xs text-amber-600 dark:text-amber-400">
+            The signed domain chain ID ({domainChain.toString()}) differs from the
+            connected chain ({connectedChain.toString()}). Only sign if you expect
+            this chain.
+          </p>
+        )}
+        {!hasChainId && (
+          <p className="pt-2 text-xs text-amber-600 dark:text-amber-400">
+            This domain has no chain ID. The signature is not bound to a chain.
+          </p>
+        )}
       </div>
 
       <div className="border-t border-border pt-3">

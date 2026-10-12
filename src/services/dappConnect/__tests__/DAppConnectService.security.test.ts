@@ -356,6 +356,7 @@ interface Pairing {
 }
 
 interface ServiceHandlers {
+  activeSessions: DAppSession[];
   pending: PendingDAppRequest[];
   checkpointAtDispatch: number[];
   /** Channels the service told the UI to close its approvals for. */
@@ -510,6 +511,7 @@ async function reconnect(
 ): Promise<{ service: DAppConnectService; observed: ServiceHandlers }> {
   SessionStore.save(session);
   const observed: ServiceHandlers = {
+    activeSessions: [],
     pending: [],
     checkpointAtDispatch: [],
     disconnected: [],
@@ -518,7 +520,7 @@ async function reconnect(
   const service = new DAppConnectService();
   services.push(service);
   service.setHandlers({
-    onSessionsChanged: () => undefined,
+    onSessionsChanged: () => { observed.activeSessions = service.getActiveSessions(); },
     onPendingRequest: (request) => {
       observed.pending.push(request);
       const checkpoint = SessionStore.get(request.sessionId);
@@ -2223,6 +2225,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
     pairing.session.connectedAccount = "";
     const { service, observed } = await reconnect(pairing.session);
     const socket = firstSocket();
+    expect(observed.activeSessions[0]?.connectedAccount).toBe("");
 
     await deliverEncrypted(pairing, socket, {
       type: MessageType.JSONRPC,
@@ -2246,6 +2249,10 @@ describe("wallet-side direct relay RPC enforcement", () => {
 
     expect(authorizationAtRelaySend).toEqual([true, true]);
     expect(SessionStore.get(pairing.session.id)).toMatchObject({
+      accountAuthorized: true,
+      connectedAccount: mockQrlAccount,
+    });
+    expect(observed.activeSessions[0]).toMatchObject({
       accountAuthorized: true,
       connectedAccount: mockQrlAccount,
     });
@@ -2438,6 +2445,46 @@ describe("wallet-side direct relay RPC enforcement", () => {
       error: { code: -32602 },
     });
     expect(observed.pending).toHaveLength(0);
+  });
+
+  it("answers an overlong validation error with a bounded encrypted message", async () => {
+    const pairing = await makePairing("long-validation-error");
+    const { observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    await deliverEncrypted(pairing, socket, {
+      type: MessageType.JSONRPC,
+      jsonrpc: "2.0",
+      id: 44,
+      method: "qrl_sendTransaction",
+      params: [{ from: mockQrlAccount, to: mockQrlRecipient, ["x".repeat(2000)]: true }],
+    });
+    await waitFor(() => socket.sent.length === 1);
+    const reason = `transaction field is not supported: ${"x".repeat(2000)}`;
+    expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
+      id: 44,
+      error: { code: -32602, message: `${reason.slice(0, 509)}...` },
+    });
+    expect(observed.pending).toHaveLength(0);
+  });
+
+  it.each([512, 513, 2000])("bounds a %i-character rejection on the same send path", async (length) => {
+    const pairing = await makePairing("long-rejection-error");
+    const { service, observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    await deliverEncrypted(pairing, socket, {
+      type: MessageType.JSONRPC,
+      jsonrpc: "2.0",
+      id: 45,
+      method: "qrl_requestAccounts",
+      params: [],
+    });
+    await waitFor(() => observed.pending.length === 1);
+    service.rejectRequest(pairing.session.id, 45, "x".repeat(length), -32603);
+    await waitFor(() => socket.sent.length === 1);
+    expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
+      id: 45,
+      error: { code: -32603, message: length > 512 ? `${"x".repeat(509)}...` : "x".repeat(length) },
+    });
   });
 
   it("rejects malformed transaction objects before approval rendering", async () => {

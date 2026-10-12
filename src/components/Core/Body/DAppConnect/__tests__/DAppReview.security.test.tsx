@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import {
   TextDecoder as NodeTextDecoder,
   TextEncoder as NodeTextEncoder,
@@ -73,6 +73,34 @@ afterAll(() => {
 });
 
 describe("dApp approval review fidelity", () => {
+  it.each(["1", "0x1", 1, 1n])("warns when signed chain %s differs from the wallet chain", (chainId) => {
+    const payload = typedPayload("chain warning", "11");
+    payload.types["QRLDomain"] = [
+      ...(payload.types["QRLDomain"] ?? []),
+      { name: "chainId", type: "uint256" },
+    ];
+    payload.domain["chainId"] = chainId;
+    render(<DAppTypedDataReview payload={payload} connectedChainId="0x301825" />);
+    expect(screen.getByRole("alert").textContent).toContain("chain ID (1) differs from the connected chain (3151909)");
+  });
+
+  it.each(["3151909", "0x301825", 3151909, 3151909n])("accepts equivalent chain encodings: %s", (chainId) => {
+    const payload = typedPayload("same chain", "11");
+    payload.types["QRLDomain"] = [
+      ...(payload.types["QRLDomain"] ?? []),
+      { name: "chainId", type: "uint256" },
+    ];
+    payload.domain["chainId"] = chainId;
+    render(<DAppTypedDataReview payload={payload} connectedChainId="0x301825" />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText(/signature is not bound to a chain/)).toBeNull();
+  });
+
+  it("explains when a signature has no chain binding", () => {
+    render(<DAppTypedDataReview payload={typedPayload("no chain", "11")} connectedChainId="0x301825" />);
+    expect(screen.getByText(/This domain has no chain ID. The signature is not bound to a chain./)).toBeTruthy();
+  });
+
   it("shows the exact transaction signing account", () => {
     const from = `Q${"ABCDEF".repeat(21)}AB`;
     const { container } = render(
