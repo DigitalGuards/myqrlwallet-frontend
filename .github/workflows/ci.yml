@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, dev]
 
+permissions:
+  contents: read
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -13,6 +16,9 @@ env:
 jobs:
   lint-and-build:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     strategy:
       matrix:
@@ -117,6 +123,9 @@ jobs:
     runs-on: ubuntu-latest
     # Disabled - Kubernetes deployment not configured
     if: false
+
+    permissions:
+      contents: read
 
     environment: production
 

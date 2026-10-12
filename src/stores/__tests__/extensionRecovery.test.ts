@@ -198,6 +198,30 @@ it("shares recovery between fee estimation and Send", async () => {
   ).toHaveLength(1);
 });
 
+it("keeps a newer recovery shared after a superseded recovery rejects", async () => {
+  const { store } = await restoredStore();
+  const { detail, request } = extension();
+  install(detail);
+  const stale = expect(store.ensureExtensionProvider()).rejects.toThrow(
+    "Wallet changed while reconnecting the extension.",
+  );
+  await jest.advanceTimersByTimeAsync(500);
+  store.setExtensionProvider(null);
+  const fresh = expect(store.ensureExtensionProvider()).resolves.toBe(
+    detail.provider,
+  );
+  await jest.advanceTimersByTimeAsync(500);
+  await stale;
+  const shared = expect(store.ensureExtensionProvider()).resolves.toBe(
+    detail.provider,
+  );
+  await jest.advanceTimersByTimeAsync(1000);
+  await Promise.all([fresh, shared]);
+  expect(
+    request.mock.calls.filter(([args]) => args.method === "qrl_accounts"),
+  ).toHaveLength(2);
+});
+
 it.each([
   "missing",
   "revoked",

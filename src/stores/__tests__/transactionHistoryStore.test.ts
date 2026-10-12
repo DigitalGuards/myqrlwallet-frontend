@@ -39,6 +39,11 @@ const request = () =>
   jest.fn<Promise<unknown>, [Parameters<HistoryRpc["request"]>[0]]>();
 const stillCurrent = () => false;
 
+function dispatchStorageEvent(key: string | null) {
+  const event = Object.assign(new Event("storage"), { key, newValue: null });
+  window.dispatchEvent(event);
+}
+
 beforeEach(() => localStorage.clear());
 afterEach(() => jest.restoreAllMocks());
 
@@ -150,12 +155,10 @@ it("reacts to storage events from another tab and handles cleared storage", () =
   const changed = jest.fn();
   const unsubscribe = store.subscribe(changed);
   new TransactionHistoryStore().record(details);
-  window.dispatchEvent(
-    new StorageEvent("storage", { key: localStorage.key(0) }),
-  );
+  dispatchStorageEvent(localStorage.key(0));
   expect(store.getSnapshot().entries).toHaveLength(1);
   localStorage.clear();
-  window.dispatchEvent(new StorageEvent("storage", { key: null }));
+  dispatchStorageEvent(null);
   expect(store.getSnapshot().entries).toHaveLength(0);
   expect(changed).toHaveBeenCalledTimes(2);
   unsubscribe();

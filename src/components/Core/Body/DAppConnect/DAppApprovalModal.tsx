@@ -1226,7 +1226,6 @@ const DAppApprovalModalContent = observer(() => {
     isIOSNative: isIOSNativeApp(),
     txProgress,
     handedBackToDApp:
-      currentApproval !== null &&
       dappConnectStore.returnHandedBackSessionId === currentApproval.sessionId,
   });
   const isTxTerminal = txProgress === "confirmed" || txProgress === "failed" || txProgress === "unknown";

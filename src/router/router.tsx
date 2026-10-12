@@ -13,7 +13,7 @@ const MyQRLWallet = lazy(() => _myQrlWalletChunk);
 const Home = lazy(() => _homeChunk);
 const CreateAccount = lazy(() => import("../components/Core/Body/CreateAccount/CreateAccount.tsx"));
 const ImportAccount = lazy(() => import("../components/Core/Body/ImportAccount/ImportAccount.tsx"));
-const AddAccount = lazy(() => import("../components/Core/Body/AddAccount/AddAccount.tsx"))
+const AddAccount = lazy(() => import("../components/Core/Body/AddAccount/AddAccount.tsx"));
 const AccountList = lazy(() => import("../components/Core/Body/AccountList/AccountList.tsx"));
 const CreateToken = lazy(() => import("../components/Core/Body/CreateToken/CreateToken.tsx"));
 const Settings = lazy(() => import("../components/Core/Body/Settings/Settings.tsx"));
