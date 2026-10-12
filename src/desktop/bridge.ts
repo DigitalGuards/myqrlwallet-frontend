@@ -246,6 +246,29 @@ export function qrlWallet(): QrlWalletBridge {
   return bridge;
 }
 
+/** Map desktop IPC failures to a short dApp-facing signing error. */
+export function desktopSigningError(error: unknown): {
+  code: number;
+  message: string;
+} {
+  let message = error instanceof Error ? error.message
+    : typeof error === "string" ? error : "";
+  const wrapper =
+    /^(?:Error:\s*)?Error invoking remote method (?:'[^']+'|"[^"]+"):\s*(?:Error:\s*)?/;
+  while (wrapper.test(message)) message = message.replace(wrapper, "");
+  message = message.trim();
+  if (
+    /^user (?:rejected (?:signature|the request)|cancelled signature|canceled signature)\.?$/i.test(message)
+  ) {
+    return { code: 4001, message: "User rejected the request" };
+  }
+  const firstLine = message.split(/\r?\n/)[0]?.trim() || "Desktop signing failed";
+  return {
+    code: -32603,
+    message: firstLine.length > 240 ? `${firstLine.slice(0, 237)}...` : firstLine,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // dApp origin sanitiser
 // ---------------------------------------------------------------------------
@@ -501,10 +524,9 @@ export const desktopSigner = {
   },
 
   /**
-   * Sign typed data. The signer currently THROWS (hasher not yet ported), so
-   * callers should surface a clear "not yet supported on desktop" error rather
-   * than falling back to an in-renderer signer. Carries the same signer
-   * binding as signMessage.
+   * Sign typed data in the isolated signer, which picks the scheme version
+   * from the payload and shows the request on its trusted confirm window.
+   * Carries the same signer binding as signMessage.
    */
   async signTypedData(
     payload: unknown,

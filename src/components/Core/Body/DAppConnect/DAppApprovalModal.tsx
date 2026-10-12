@@ -17,7 +17,7 @@ import {
   assertSignedFeeWithinApproved,
   type ApprovedFee,
 } from "@/utils/web3/feePolicy";
-import { Dialog, DialogContent } from "@/components/UI/Dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/UI/Dialog";
 import { Button } from "@/components/UI/Button";
 import DAppTransactionReview from "./DAppTransactionReview";
 import DAppMessageReview from "./DAppMessageReview";
@@ -62,7 +62,12 @@ import {
 import { Loader, Check, X, ExternalLink, Shield, Globe } from "lucide-react";
 import type { TxProgressState } from "@/stores/dappConnectStore";
 import type { ZodError } from "zod";
-import { isDesktop, desktopSigner, buildDappOrigin } from "@/desktop/bridge";
+import {
+  isDesktop,
+  desktopSigner,
+  buildDappOrigin,
+  desktopSigningError,
+} from "@/desktop/bridge";
 import { isExactQrlAccount } from "@/services/dappConnect/accountBinding";
 import {
   assertRequestedTransactionChain,
@@ -241,6 +246,9 @@ const DAppApprovalModalContent = observer(() => {
   const [feePreviewAttempt, setFeePreviewAttempt] = useState(0);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
+  const [signingFailure, setSigningFailure] = useState<ReturnType<
+    typeof desktopSigningError
+  > | null>(null);
   const [loading, setLoading] = useState(false);
   // Device Login can finish while this dialog is open; the PIN field must
   // follow the injected PIN as it arrives or is cleared.
@@ -297,6 +305,21 @@ const DAppApprovalModalContent = observer(() => {
     const { sessionId: approvalSessionId, id: approvalId } = currentApproval;
     const isStillCurrent = () =>
       dappConnectStore.isCurrentApproval(approvalSessionId, approvalId);
+    const failDesktopSigning = (cause: unknown, operation: string): void => {
+      const failure = desktopSigningError(cause);
+      if (failure.code === 4001 || !isStillCurrent()) {
+        dappConnectStore.rejectRequestById(
+          approvalSessionId,
+          approvalId,
+          failure.message,
+          failure.code,
+        );
+        return;
+      }
+      // Keep the failure visible until Close, Escape or X answers this request.
+      setSigningFailure(failure);
+      setError(`${operation} signing failed: ${failure.message}`);
+    };
     const setCurrentTxProgress = (
       state: TxProgressState,
       hash?: string,
@@ -883,13 +906,7 @@ const DAppApprovalModalContent = observer(() => {
               schemeVersion: result.schemeVersion ?? SCHEME_VERSION_MSG,
             });
           } catch (e) {
-            const errMsg = e instanceof Error ? e.message : String(e);
-            setError(`Message signing failed: ${errMsg}`);
-            dappConnectStore.rejectRequestById(
-              approvalSessionId,
-              approvalId,
-              `Message signing failed: ${errMsg}`,
-            );
+            failDesktopSigning(e, "Message");
           }
           setLoading(false);
           return;
@@ -966,10 +983,10 @@ const DAppApprovalModalContent = observer(() => {
           setLoading(false);
           return;
         }
-        // Desktop: typed-data signing is not yet supported in the signer (the
-        // hasher has not been ported). Surface a clear error instead of any
-        // in-renderer fallback. Same signer binding + response reshaping as
-        // the message arm, so this is already correct when the hasher lands.
+        // Desktop: the isolated signer hashes and signs the typed data and
+        // shows it on its trusted confirm window; the renderer never holds
+        // the seed. Same signer binding and response reshaping as the
+        // message arm.
         if (isDesktop) {
           try {
             const result = await desktopSigner.signTypedData(
@@ -1003,13 +1020,7 @@ const DAppApprovalModalContent = observer(() => {
               domain: payload.domain,
             });
           } catch (e) {
-            const errMsg = e instanceof Error ? e.message : String(e);
-            setError("Typed-data signing not yet supported on desktop");
-            dappConnectStore.rejectRequestById(
-              approvalSessionId,
-              approvalId,
-              `Typed-data signing not yet supported on desktop: ${errMsg}`,
-            );
+            failDesktopSigning(e, "Typed-data");
           }
           setLoading(false);
           return;
@@ -1110,10 +1121,13 @@ const DAppApprovalModalContent = observer(() => {
   }, [currentApproval, pin, dappConnectStore, qrlStore, blockchain]);
 
   const handleReject = useCallback(() => {
-    dappConnectStore.rejectCurrentRequest();
+    dappConnectStore.rejectCurrentRequest(
+      signingFailure?.message,
+      signingFailure?.code,
+    );
     setPin("");
     setError("");
-  }, [dappConnectStore]);
+  }, [dappConnectStore, signingFailure]);
 
   const handleDone = useCallback(() => {
     dappConnectStore.dismissCurrentApproval();
@@ -1179,6 +1193,22 @@ const DAppApprovalModalContent = observer(() => {
     }
     return null;
   }, [currentApproval]);
+
+  const [connectedChainId, setConnectedChainId] = useState<string>();
+  useEffect(() => {
+    setConnectedChainId(undefined);
+    if (currentApproval?.method !== "qrl_signTypedData") return;
+    let cancelled = false;
+    void readWalletChainId(qrlStore.qrlInstance).then(
+      (chainId) => {
+        if (!cancelled) setConnectedChainId(chainId);
+      },
+      () => undefined,
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [currentApproval, qrlStore.qrlInstance, blockchain]);
 
   if (!currentApproval) return null;
 
@@ -1280,7 +1310,7 @@ const DAppApprovalModalContent = observer(() => {
         // must resolve first. Answering the dApp with a rejection here would
         // race the desktop's trusted confirm, which can still approve and
         // produce a signature for an already-rejected request.
-        if (loading) return;
+        if (loading || approveInFlightRef.current) return;
         if (isTxTerminal) {
           handleDone();
           return;
@@ -1292,25 +1322,22 @@ const DAppApprovalModalContent = observer(() => {
         handleReject();
       }}
     >
-      {/* A pending approval demands an explicit answer (Approve / Reject / X).
-          Stray clicks elsewhere in the wallet and Escape must not dismiss the
-          card: silently swallowing the decision is how requests get answered
-          by accident or left dangling. */}
+      {/* Outside clicks leave the decision pending. Escape and X reject it. */}
       <DialogContent
-        className="max-w-md p-0 gap-0 overflow-hidden"
+        className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0"
+        aria-describedby={undefined}
         onInteractOutside={(e) => { e.preventDefault(); }}
-        onEscapeKeyDown={(e) => { e.preventDefault(); }}
       >
         {/* dApp Identity Header */}
-        <div className="bg-gradient-to-r from-primary/10 to-transparent p-4">
+        <div className="shrink-0 bg-gradient-to-r from-primary/10 to-transparent p-4 pr-10">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/10">
               <Globe className="h-5 w-5 text-secondary" />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-foreground truncate">
+              <DialogTitle className="truncate text-base font-semibold leading-normal text-foreground">
                 {dappInfo.name}
-              </h3>
+              </DialogTitle>
               <p className="text-xs text-muted-foreground truncate">
                 {dappInfo.url}
               </p>
@@ -1325,9 +1352,17 @@ const DAppApprovalModalContent = observer(() => {
         </div>
 
         {/* Approval details and transaction progress */}
-        <div className="m-6 space-y-4">
+        <div
+          role="region"
+          aria-label="Request details"
+          className="min-h-0 space-y-4 overflow-y-auto overscroll-contain p-6"
+        >
           {/* Transaction progress states */}
-          {isTxInProgress ? (
+          {signingFailure ? (
+            <p role="alert" className="break-words text-sm text-destructive">
+              {error}
+            </p>
+          ) : isTxInProgress ? (
             <div className="space-y-4">
               {/* Progress status row */}
               <div className="flex items-center gap-3 py-2">
@@ -1478,6 +1513,7 @@ const DAppApprovalModalContent = observer(() => {
                 <DAppTypedDataReview
                   payload={signingPreview.payload}
                   digestHex={signingPreview.digestHex}
+                  connectedChainId={connectedChainId}
                 />
               )}
 
@@ -1528,8 +1564,12 @@ const DAppApprovalModalContent = observer(() => {
         </div>
 
         {/* Footer buttons */}
-        <div className="border-t border-border px-4 py-4">
-          {isTxTerminal ? (
+        <div className="shrink-0 border-t border-border px-4 py-4">
+          {signingFailure ? (
+            <Button onClick={handleReject} className="w-full">
+              Close
+            </Button>
+          ) : isTxTerminal ? (
             <Button onClick={handleDone} className="w-full">
               {txProgress === "confirmed" ? "Done" : "Close"}
             </Button>
