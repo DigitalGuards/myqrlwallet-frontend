@@ -42,6 +42,7 @@ export const TransactionHistoryPopup = observer(
   }: TransactionHistoryPopupProps) => {
     const [backendTransactions, setTransactions] = useState<HistoryRow[]>([]);
     const contentRef = useRef<HTMLDivElement>(null);
+    const openerRef = useRef<HTMLElement | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const network = historyNetwork(blockchain);
@@ -119,9 +120,19 @@ export const TransactionHistoryPopup = observer(
         <DialogContent
           ref={contentRef}
           onOpenAutoFocus={(event) => {
-            // Start on the dialog itself so no row shows a focus ring.
+            // Remember the opening control so Escape and back return focus to
+            // it, then start on the dialog itself so no row shows a ring.
             event.preventDefault();
+            openerRef.current =
+              document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
             contentRef.current?.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            openerRef.current?.focus();
+            openerRef.current = null;
           }}
           className="max-h-[85dvh] focus:outline-none focus-visible:outline-none w-[calc(100%-2rem)] max-w-md gap-0 overflow-y-auto rounded-lg p-4 sm:p-5"
         >

@@ -9,6 +9,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { useState } from "react";
 import axios from "axios";
 import TransactionHistory from "../TransactionHistory";
 import { TransactionHistoryPopup } from "../../AccountList/ActiveAccount/TransactionHistoryPopup";
@@ -294,17 +295,38 @@ it("keeps local entries searchable and displays persistence failures", async () 
   expect(screen.getByText("Pending")).toBeTruthy();
 });
 
-it("closes the history popup with Escape", async () => {
-  const onClose = jest.fn();
-  render(
-    <TransactionHistoryPopup
-      accountAddress={from}
-      blockchain="TEST_NET"
-      isOpen
-      onClose={onClose}
-    />,
-  );
-  await screen.findByRole("alert");
+it("closes the history popup with Escape and returns focus to the opener", async () => {
+  function Host() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(true);
+          }}
+        >
+          History
+        </button>
+        <TransactionHistoryPopup
+          accountAddress={from}
+          blockchain="TEST_NET"
+          isOpen={open}
+          onClose={() => {
+            setOpen(false);
+          }}
+        />
+      </>
+    );
+  }
+  render(<Host />);
+  const opener = screen.getByRole("button", { name: "History" });
+  opener.focus();
+  fireEvent.click(opener);
+  await screen.findByText("No transactions found");
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
-  expect(onClose).toHaveBeenCalledTimes(1);
+  await waitFor(() => {
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+  expect(document.activeElement).toBe(opener);
 });
