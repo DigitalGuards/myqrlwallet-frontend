@@ -1,4 +1,5 @@
 import type { Web3BaseWalletAccount } from '@theqrl/web3';
+import { isRecord } from '@/utils/guards';
 import { isInNativeApp, shareContent } from '@/utils/nativeApp';
 import { isDesktop } from '@/desktop/bridge';
 import { formatAddressFingerprint } from '@/utils/formatting/address';
@@ -64,7 +65,10 @@ export const MAX_WALLET_PASSWORD_LENGTH = 1024;
  * Allows reliable error type checking without fragile string matching.
  */
 export class PinDecryptionError extends Error {
-  constructor(message: string = 'Failed to decrypt seed. Invalid PIN.') {
+  constructor(
+    message: string = 'Failed to decrypt seed. Invalid PIN.',
+    public readonly incorrectPin: boolean = true,
+  ) {
     super(message);
     this.name = 'PinDecryptionError';
   }
@@ -159,15 +163,27 @@ async function aesGcmEncrypt(plaintext: string, secret: string): Promise<AesGcmE
  * Authenticated-decrypt. Throws if the GCM tag fails (wrong secret or tampered
  * ciphertext): unlike AES-CBC this is detected, not silently mis-decrypted.
  */
-async function aesGcmDecrypt(envelope: AesGcmEnvelope, secret: string): Promise<string> {
+async function aesGcmDecrypt(
+  envelope: AesGcmEnvelope,
+  secret: string,
+  pinAuthentication = false,
+): Promise<string> {
   const salt = hexToBytes(envelope.salt);
   const iv = hexToBytes(envelope.iv);
   const key = await deriveAesGcmKey(secret, salt);
-  const plaintext = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    hexToBytes(envelope.encryptedData),
-  );
+  let plaintext: ArrayBuffer;
+  try {
+    plaintext = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      hexToBytes(envelope.encryptedData),
+    );
+  } catch (error) {
+    if (pinAuthentication && isRecord(error) && error['name'] === 'OperationError') {
+      throw new PinDecryptionError();
+    }
+    throw error;
+  }
   return textDecoder.decode(plaintext);
 }
 
@@ -190,11 +206,10 @@ function isBoundedCiphertext(value: unknown): value is string {
 }
 
 function parseSeedJson(json: string): { mnemonic: string; hexSeed: string } {
-  const parsed = JSON.parse(json) as unknown;
-  if (!parsed || typeof parsed !== 'object') {
+  const seed: unknown = JSON.parse(json);
+  if (!isRecord(seed)) {
     throw new Error('Invalid seed payload');
   }
-  const seed = parsed as Record<string, unknown>;
   const mnemonic = seed['mnemonic'];
   const hexSeed = seed['hexSeed'];
   if (
@@ -296,7 +311,7 @@ async function decryptPinV5(
     !isExactHex(parsed['iv'], IV_BYTES) ||
     !isBoundedCiphertext(parsed['encryptedData'])
   ) {
-    throw new PinDecryptionError('Invalid encrypted seed format.');
+    throw new PinDecryptionError('Invalid encrypted seed format.', false);
   }
 
   const deviceKey = await getDeviceEncryptionKey(false);
@@ -324,10 +339,10 @@ async function decryptPinV5(
   } catch {
     throw new DeviceCredentialUnavailableError('The device-protected wallet envelope is corrupt.');
   }
-  if (!inner || typeof inner !== 'object') {
+  if (!isRecord(inner)) {
     throw new DeviceCredentialUnavailableError('The device-protected wallet envelope is corrupt.');
   }
-  const pinEnvelope = inner as Record<string, unknown>;
+  const pinEnvelope = inner;
   if (
     !isExactHex(pinEnvelope['salt'], SALT_BYTES) ||
     !isExactHex(pinEnvelope['iv'], IV_BYTES) ||
@@ -336,19 +351,16 @@ async function decryptPinV5(
     throw new DeviceCredentialUnavailableError('The device-protected wallet envelope is corrupt.');
   }
 
-  try {
-    const json = await aesGcmDecrypt(
-      {
-        salt: pinEnvelope['salt'],
-        iv: pinEnvelope['iv'],
-        encryptedData: pinEnvelope['encryptedData'],
-      },
-      pin,
-    );
-    return parseSeedJson(json);
-  } catch (_error) {
-    throw new PinDecryptionError();
-  }
+  const json = await aesGcmDecrypt(
+    {
+      salt: pinEnvelope['salt'],
+      iv: pinEnvelope['iv'],
+      encryptedData: pinEnvelope['encryptedData'],
+    },
+    pin,
+    true,
+  );
+  return parseSeedJson(json);
 }
 
 async function decryptPinV4(
@@ -360,22 +372,19 @@ async function decryptPinV4(
     !isExactHex(parsed['iv'], IV_BYTES) ||
     !isBoundedCiphertext(parsed['encryptedData'])
   ) {
-    throw new PinDecryptionError('Invalid encrypted seed format.');
+    throw new PinDecryptionError('Invalid encrypted seed format.', false);
   }
 
-  try {
-    const json = await aesGcmDecrypt(
-      {
-        salt: parsed['salt'],
-        iv: parsed['iv'],
-        encryptedData: parsed['encryptedData'],
-      },
-      pin,
-    );
-    return parseSeedJson(json);
-  } catch (_error) {
-    throw new PinDecryptionError();
-  }
+  const json = await aesGcmDecrypt(
+    {
+      salt: parsed['salt'],
+      iv: parsed['iv'],
+      encryptedData: parsed['encryptedData'],
+    },
+    pin,
+    true,
+  );
+  return parseSeedJson(json);
 }
 
 export class WalletEncryptionUtil {
@@ -543,27 +552,25 @@ export class WalletEncryptionUtil {
       encryptedData.length > MAX_PIN_BLOB_JSON_LENGTH ||
       !this.validatePin(pin)
     ) {
-      throw new PinDecryptionError('Invalid encrypted seed format.');
+      throw new PinDecryptionError('Invalid encrypted seed format.', false);
     }
-    let parsed;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(encryptedData);
     } catch {
-      throw new PinDecryptionError('Invalid encrypted seed format.');
+      throw new PinDecryptionError('Invalid encrypted seed format.', false);
     }
 
-    // Valid JSON but not an object (e.g. "123" or "null") is corrupt data, not
-    // an old format: report it as such rather than prompting a pointless
-    // re-import.
-    if (!parsed || typeof parsed !== 'object') {
-      throw new PinDecryptionError('Invalid encrypted seed format.');
+    // Validate the stored envelope before inspecting its version.
+    if (!isRecord(parsed)) {
+      throw new PinDecryptionError('Invalid encrypted seed format.', false);
     }
 
-    if (parsed.version === PIN_VERSION) {
+    if (parsed['version'] === PIN_VERSION) {
       return { seed: await decryptPinV5(parsed, pin), version: PIN_VERSION };
     }
 
-    if (parsed.version === LEGACY_PIN_VERSION) {
+    if (parsed['version'] === LEGACY_PIN_VERSION) {
       return { seed: await decryptPinV4(parsed, pin), version: LEGACY_PIN_VERSION };
     }
 

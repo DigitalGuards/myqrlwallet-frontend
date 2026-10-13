@@ -1,3 +1,4 @@
+import { PinVerificationError } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "../../../UI/Button";
 import { Card } from "../../../UI/Card";
@@ -43,8 +44,6 @@ import { SettingsIconTile, SettingsRow, SettingsSection } from "./SettingsList";
 import { ExportWalletFile } from "./ExportWalletFile";
 import {
     checkLockout,
-    recordFailedAttempt,
-    recordSuccessfulAttempt,
     formatLockoutTime,
     getRemainingAttempts,
     hasFailedAttempts,
@@ -233,13 +232,6 @@ const Settings = observer(() => {
     });
 
     async function onChangePinSubmit(data: ChangePinFormValues) {
-        // Check if locked out
-        const lockoutStatus = checkLockout();
-        if (lockoutStatus.isLocked) {
-            setChangePinError(`Too many failed attempts. Please wait ${formatLockoutTime(lockoutStatus.remainingMs)}.`);
-            return;
-        }
-
         setIsChangingPin(true);
         setChangePinError(null);
         setChangePinSuccess(false);
@@ -251,8 +243,6 @@ const Settings = observer(() => {
                 newPin: data.newPin,
             });
 
-            // Record successful attempt (resets counter)
-            recordSuccessfulAttempt();
             setAttemptsLeft(5);
 
             // Show success in card
@@ -267,18 +257,10 @@ const Settings = observer(() => {
                 error.code === CryptoErrorCode.DEVICE_CREDENTIAL_UNAVAILABLE
             ) {
                 setChangePinError("This wallet's device security credential is unavailable. Re-import the seed before changing its PIN.");
-            } else if (
-                error instanceof CryptoOperationError &&
-                error.code === CryptoErrorCode.INCORRECT_PIN
-            ) {
-                const result = recordFailedAttempt();
-                setPinLockout({ isLocked: result.isLocked, remainingMs: result.remainingMs });
-                setAttemptsLeft(result.attemptsLeft);
-                setChangePinError(
-                    result.isLocked
-                        ? `Too many failed attempts. Please wait ${formatLockoutTime(result.remainingMs)}.`
-                        : `Incorrect PIN. ${result.attemptsLeft} attempt${result.attemptsLeft === 1 ? '' : 's'} remaining.`,
-                );
+            } else if (error instanceof PinVerificationError) {
+                setPinLockout(error);
+                setAttemptsLeft(error.attemptsLeft);
+                setChangePinError(error.message);
             } else if (error instanceof Error && error.message === 'No encrypted seeds found') {
                 setChangePinError("No encrypted seeds found.");
             } else {

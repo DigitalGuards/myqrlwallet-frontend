@@ -1,3 +1,4 @@
+import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { Checkbox } from "@/components/UI/CheckBox";
 import { Button } from "../../../../UI/Button";
 import { ShinyButton } from "../../../../UI/ShinyButton";
@@ -138,7 +139,8 @@ export const TokenCreationForm = observer(
                         return;
                     }
 
-                    signingGeneration = walletMutations.captureGeneration();
+                    const pinGeneration = walletMutations.captureGeneration();
+                    signingGeneration = pinGeneration;
                     const selectedBlockChain = await StorageUtil.getBlockChain();
                     const encryptedSeed = await StorageUtil.getEncryptedSeed(selectedBlockChain, activeAccount.accountAddress);
 
@@ -152,19 +154,23 @@ export const TokenCreationForm = observer(
                     // crypto worker is not a wrong-PIN error and shouldn't
                     // be misreported as one.
                     try {
-                        const decryptedSeed = await decryptStoredSeedWithPin(
-                            selectedBlockChain,
-                            activeAccount.accountAddress,
-                            encryptedSeed,
-                            pin,
-                            signingGeneration,
+                        const decryptedSeed = await verifyPinWithLimit(() =>
+                            decryptStoredSeedWithPin(
+                                selectedBlockChain,
+                                activeAccount.accountAddress,
+                                encryptedSeed,
+                                pin,
+                                pinGeneration,
+                            ),
                         );
                         mnemonicPhrase = decryptedSeed.mnemonic;
                     } catch (error) {
                         setPinError(
-                            error instanceof DeviceCredentialUnavailableError
-                                ? "This wallet's device security credential is unavailable. Re-import the seed."
-                                : "Invalid PIN. Please try again.",
+                            error instanceof PinVerificationError
+                                ? error.message
+                                : error instanceof DeviceCredentialUnavailableError
+                                    ? "This wallet's device security credential is unavailable. Re-import the seed."
+                                    : "Failed to unlock the seed. Please try again.",
                         );
                         return;
                     }

@@ -5,6 +5,7 @@
  * them to appropriate handlers. Mount this at the app root.
  */
 
+import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
@@ -181,7 +182,11 @@ async function handleChangePinRequest(
     }
 
     // Check error code for proper handling
-    if (
+    if (error instanceof PinVerificationError) {
+      // The app shows this text as is: attempts left, lockout time or a retry.
+      logToNative("PIN change failed: current PIN not accepted");
+      sendPinChanged(requestId, false, undefined, error.message);
+    } else if (
       error instanceof CryptoOperationError &&
       error.code === CryptoErrorCode.INCORRECT_PIN
     ) {
@@ -263,11 +268,13 @@ async function handleCorrelatedPinVerification(
         }
 
         try {
-          await verifyStoredSeedPinAsync(
-            activeAccount,
-            encryptedSeed,
-            pin,
-            generation,
+          await verifyPinWithLimit(() =>
+            verifyStoredSeedPinAsync(
+              activeAccount,
+              encryptedSeed,
+              pin,
+              generation,
+            ),
           );
           if (!isCurrent()) {
             sendPinVerified(
@@ -294,6 +301,9 @@ async function handleCorrelatedPinVerification(
               false,
               PIN_VERIFY_ERRORS.DEVICE_CREDENTIAL,
             );
+          } else if (error instanceof PinVerificationError) {
+            // The app shows this text as is: attempts left, lockout time or a retry.
+            sendPinVerified(requestId, false, error.message);
           } else {
             sendPinVerified(requestId, false, PIN_VERIFY_ERRORS.INCORRECT_PIN);
           }

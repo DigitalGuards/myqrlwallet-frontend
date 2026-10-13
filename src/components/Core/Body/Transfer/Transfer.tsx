@@ -1,3 +1,4 @@
+import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "@/components/UI/Button";
 import { ShinyButton } from "@/components/UI/ShinyButton";
@@ -506,20 +507,24 @@ const Transfer = observer(() => {
 
         let mnemonicPhrases;
         try {
-          const decryptedSeed = await decryptStoredSeedWithPin(
-            blockchain,
-            accountAddress,
-            encryptedSeed,
-            formData.pin || "",
-            signingGeneration,
+          const decryptedSeed = await verifyPinWithLimit(() =>
+            decryptStoredSeedWithPin(
+              blockchain,
+              accountAddress,
+              encryptedSeed,
+              formData.pin || "",
+              signingGeneration,
+            ),
           );
           mnemonicPhrases = decryptedSeed.mnemonic;
         } catch (error) {
           control.setError("pin", {
             message:
-              error instanceof DeviceCredentialUnavailableError
-                ? "This wallet's device security credential is unavailable. Restore it on the original device or re-import the seed."
-                : "Invalid PIN. Please try again.",
+              error instanceof PinVerificationError
+                ? error.message
+                : error instanceof DeviceCredentialUnavailableError
+                  ? "This wallet's device security credential is unavailable. Restore it on the original device or re-import the seed."
+                  : "Failed to unlock the seed. Please try again.",
           });
           return;
         }
@@ -641,20 +646,24 @@ const Transfer = observer(() => {
 
       let mnemonic;
       try {
-        const decryptedSeed = await decryptStoredSeedWithPin(
-          blockchain,
-          accountAddress,
-          encryptedSeed,
-          formData.pin || "",
-          signingGeneration,
+        const decryptedSeed = await verifyPinWithLimit(() =>
+          decryptStoredSeedWithPin(
+            blockchain,
+            accountAddress,
+            encryptedSeed,
+            formData.pin || "",
+            signingGeneration,
+          ),
         );
         mnemonic = decryptedSeed.mnemonic;
       } catch (error) {
         control.setError("pin", {
           message:
-            error instanceof DeviceCredentialUnavailableError
-              ? "This wallet's device security credential is unavailable. Restore it on the original device or re-import the seed."
-              : "Invalid PIN. Please try again.",
+            error instanceof PinVerificationError
+              ? error.message
+              : error instanceof DeviceCredentialUnavailableError
+                ? "This wallet's device security credential is unavailable. Restore it on the original device or re-import the seed."
+                : "Failed to unlock the seed. Please try again.",
         });
         return;
       }

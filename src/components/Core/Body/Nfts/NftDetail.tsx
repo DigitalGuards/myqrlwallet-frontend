@@ -1,3 +1,4 @@
+import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { observer } from "mobx-react-lite";
 import { useLocation, useNavigate, useParams } from "react-router";
@@ -230,19 +231,23 @@ const NftDetail = observer(() => {
       }
       let mnemonic: string;
       try {
-        const decrypted = await decryptStoredSeedWithPin(
-          blockchain,
-          accountAddress,
-          encryptedSeed,
-          pin,
-          signingGeneration,
+        const decrypted = await verifyPinWithLimit(() =>
+          decryptStoredSeedWithPin(
+            blockchain,
+            accountAddress,
+            encryptedSeed,
+            pin,
+            signingGeneration,
+          ),
         );
         mnemonic = decrypted.mnemonic;
       } catch (error) {
         setPinError(
-          error instanceof DeviceCredentialUnavailableError
-            ? "This wallet's device security credential is unavailable. Re-import the seed."
-            : "Invalid PIN.",
+          error instanceof PinVerificationError
+            ? error.message
+            : error instanceof DeviceCredentialUnavailableError
+              ? "This wallet's device security credential is unavailable. Re-import the seed."
+              : "Failed to unlock the seed. Please try again.",
         );
         setIsSending(false);
         return;
