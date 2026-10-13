@@ -135,7 +135,7 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) automatically:
 
 Both CI and embedded builds run `node scripts/audit-gate.mjs` immediately after dependency installation. The gate rejects high or critical production advisories unless `audit-allowlist.json` supplies a matching reason and an unexpired exception.
 
-`npm run typecheck` checks the app and build-tool configs independently with emission disabled, keeping declarations and TypeScript build metadata out of the source tree.
+`npm run typecheck` checks the app config and the build-tool config (`config/vite.config.ts` and the files it imports) with emission disabled, keeping declarations and TypeScript build metadata out of the source tree.
 
 ### Image Tags
 

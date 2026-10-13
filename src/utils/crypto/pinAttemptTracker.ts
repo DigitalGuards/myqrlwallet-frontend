@@ -10,6 +10,9 @@ import { profileStorageKey } from '@/config/runtimeProfile';
 const STORAGE_KEY = profileStorageKey('pin_attempt_tracker');
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+// A stored deadline further ahead than one lockout plus this margin cannot come
+// from recordFailedAttempt, even after the clock stepped back; it is corrupt.
+const CLOCK_STEP_TOLERANCE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface AttemptData {
   failedAttempts: number;
@@ -43,12 +46,15 @@ function getAttemptData(): AttemptData {
     if (stored) {
       const parsed: unknown = JSON.parse(stored);
       if (isAttemptData(parsed)) {
+        const now = Date.now();
+        const corruptDeadline =
+          parsed.lockoutUntil !== null &&
+          parsed.lockoutUntil > now + LOCKOUT_DURATION_MS + CLOCK_STEP_TOLERANCE_MS;
         const data: AttemptData = {
           failedAttempts: Math.min(parsed.failedAttempts, MAX_ATTEMPTS),
-          lockoutUntil:
-            parsed.lockoutUntil === null
-              ? null
-              : Math.min(parsed.lockoutUntil, Date.now() + LOCKOUT_DURATION_MS),
+          // A plausible deadline stays as stored, so a clock that stepped back
+          // does not shorten a real lockout.
+          lockoutUntil: corruptDeadline ? now + LOCKOUT_DURATION_MS : parsed.lockoutUntil,
           lastAttemptTime: parsed.lastAttemptTime,
         };
         if (

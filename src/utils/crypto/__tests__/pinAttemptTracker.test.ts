@@ -116,6 +116,37 @@ describe('PIN attempt tracker', () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBe(JSON.stringify(DEFAULT_DATA));
   });
 
+  it('keeps a real lockout after the clock steps back', () => {
+    for (let attempt = 0; attempt < 5; attempt += 1) recordFailedAttempt();
+    const stored = localStorage.getItem(STORAGE_KEY);
+
+    // The clock steps back one hour (NTP or VM resume), then recovers.
+    jest.setSystemTime(NOW - 60 * 60 * 1000);
+    expect(checkLockout()).toEqual({
+      isLocked: true,
+      remainingMs: LOCKOUT_DURATION_MS + 60 * 60 * 1000,
+    });
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(stored);
+
+    jest.setSystemTime(NOW + 1000);
+    expect(checkLockout()).toEqual({ isLocked: true, remainingMs: LOCKOUT_DURATION_MS - 1000 });
+    expect(getRemainingAttempts()).toBe(0);
+  });
+
+  it('caps a deadline just beyond the clock-step tolerance', () => {
+    const tolerance = 24 * 60 * 60 * 1000;
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        failedAttempts: 5,
+        lockoutUntil: NOW + LOCKOUT_DURATION_MS + tolerance + 1,
+        lastAttemptTime: NOW,
+      })
+    );
+
+    expect(checkLockout()).toEqual({ isLocked: true, remainingMs: LOCKOUT_DURATION_MS });
+  });
+
   it('keeps a capped lockout when persisting the correction fails', () => {
     localStorage.setItem(
       STORAGE_KEY,
