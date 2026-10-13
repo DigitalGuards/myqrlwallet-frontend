@@ -323,7 +323,7 @@ it("closes the history popup with Escape and returns focus to the opener", async
   const opener = screen.getByRole("button", { name: "History" });
   opener.focus();
   fireEvent.click(opener);
-  await screen.findByText("No transactions found");
+  await screen.findByRole("dialog");
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
   await waitFor(() => {
     expect(screen.queryByRole("dialog")).toBeNull();
