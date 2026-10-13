@@ -1,31 +1,29 @@
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
-import {
-  historyStatus,
-  parseHistoryResponse,
-} from "@/utils/transactionHistory";
+import { parseHistoryResponse } from "@/utils/transactionHistory";
 import type { HistoryRow } from "@/utils/transactionHistory";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import axios from "axios";
-import { BigNumber } from "bignumber.js";
-import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { SERVER_URL } from "@/config";
 import { historyNetwork } from "@/config/runtimeProfile";
-import { formatBalance } from "@/utils/formatting";
-import { Card, CardContent } from "../../../../UI/Card";
+import { historyRowView } from "@/utils/historyRow";
+import type { HistoryTone } from "@/utils/historyRow";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "../../../../UI/Dialog";
 import { Button } from "../../../../UI/Button";
 import { CompactAddressText } from "../../../../UI/QrlAddress";
 import { getExplorerAddressUrl, getExplorerTxUrl } from "@/config";
 import { openExternalUrl } from "@/utils/nativeApp";
-import { useBackDismiss } from "@/utils/useBackDismiss";
 
-const DUST_DISPLAY_FLOOR = new BigNumber("0.000001");
-
-const formatTxAmount = (amount: string): string => {
-  const bn = new BigNumber(amount);
-  if (bn.isNaN() || bn.isZero()) return "0";
-  if (bn.abs().lt(DUST_DISPLAY_FLOOR)) return "<0.000001";
-  return formatBalance(amount);
+const TONE_CLASS: Record<HistoryTone, string> = {
+  success: "text-success",
+  danger: "text-red-400",
+  warning: "text-amber-400",
+  muted: "text-muted-foreground",
 };
 
 interface TransactionHistoryPopupProps {
@@ -42,9 +40,9 @@ export const TransactionHistoryPopup = observer(
     isOpen,
     onClose,
   }: TransactionHistoryPopupProps) => {
-    // Android's back button closes this the same way its X button does.
-    useBackDismiss(isOpen, onClose);
     const [backendTransactions, setTransactions] = useState<HistoryRow[]>([]);
+    const contentRef = useRef<HTMLDivElement>(null);
+    const openerRef = useRef<HTMLElement | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const network = historyNetwork(blockchain);
@@ -113,65 +111,64 @@ export const TransactionHistoryPopup = observer(
     if (!isOpen) return null;
 
     return (
-      <div
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-        onClick={onClose}
+      <Dialog
+        open
+        onOpenChange={(open) => {
+          if (!open) onClose();
+        }}
       >
-        <Card
-          className="w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto"
-          onClick={(e) => {
-            e.stopPropagation();
+        <DialogContent
+          ref={contentRef}
+          onOpenAutoFocus={(event) => {
+            // Remember the opening control so Escape and back return focus to
+            // it, then start on the dialog itself so no row shows a ring.
+            event.preventDefault();
+            openerRef.current =
+              document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
+            contentRef.current?.focus();
           }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            openerRef.current?.focus();
+            openerRef.current = null;
+          }}
+          className="max-h-[85dvh] focus:outline-none focus-visible:outline-none w-[calc(100%-2rem)] max-w-md gap-0 overflow-y-auto rounded-lg p-4 sm:p-5"
         >
-          <CardContent className="p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Recent Transactions</h2>
-              <Button variant="ghost" size="sm" onClick={onClose}>
-                ×
-              </Button>
+          <DialogTitle className="pr-8 text-xl font-bold">
+            Recent Transactions
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Your latest transactions for this account.
+          </DialogDescription>
+
+          {storageUnavailable && (
+            <p role="alert" className="mt-3 text-sm text-red-400">
+              Transaction history could not be saved. Keep this page open until
+              confirmation.
+            </p>
+          )}
+          {error && (
+            <div role="alert" className="mt-3 text-sm text-red-400">
+              {error}
             </div>
-
-            {storageUnavailable && (
-              <p role="alert" className="mb-4 text-sm text-red-400">
-                Transaction history could not be saved. Keep this page open
-                until confirmation.
-              </p>
-            )}
-            {error && (
-              <div role="alert" className="py-4 text-sm text-red-400">
-                {error}
-              </div>
-            )}
-            {loading && transactions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Loading...
-              </div>
-            ) : transactions.length === 0 && !error ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No transactions found
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {transactions.map((tx) => {
-                  const isIncoming = tx.InOut === 1;
-                  const amountText = formatTxAmount(tx.Amount);
-                  const isZero = amountText === "0";
-                  const sign =
-                    isZero || amountText.startsWith("<")
-                      ? ""
-                      : isIncoming
-                        ? "+"
-                        : "-";
-                  const amountClass = isZero
-                    ? "text-muted-foreground"
-                    : isIncoming
-                      ? "text-success"
-                      : "text-red-400";
-                  const counterparty = isIncoming ? tx.From : tx.To;
-
-                  return (
+          )}
+          {loading && transactions.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">
+              Loading...
+            </div>
+          ) : transactions.length === 0 && !error ? (
+            <div className="py-8 text-center text-muted-foreground">
+              No transactions found
+            </div>
+          ) : (
+            <ul className="mt-3 divide-y divide-border">
+              {transactions.map((tx) => {
+                const view = historyRowView(tx);
+                return (
+                  <li key={tx.ID}>
                     <button
-                      key={tx.ID}
                       type="button"
                       title="View transaction on Explorer"
                       onClick={() => {
@@ -179,74 +176,58 @@ export const TransactionHistoryPopup = observer(
                           getExplorerTxUrl(tx.TxHash, blockchain),
                         );
                       }}
-                      className="w-full flex items-start justify-between gap-3 px-1 py-3 text-left rounded-md transition-colors hover:bg-foreground/5"
+                      className="flex w-full items-start justify-between gap-3 rounded-md px-1 py-3 text-left transition-colors hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <div className="flex items-start gap-2.5 min-w-0">
-                        <div
-                          className={`mt-0.5 shrink-0 rounded-full p-1.5 ${isIncoming ? "bg-success/10 text-success" : "bg-red-400/10 text-red-400"}`}
-                        >
-                          {isIncoming ? (
-                            <ArrowDownLeft size={14} />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{view.title}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {view.counterparty ? (
+                            <>
+                              {view.counterpartyLabel}{" "}
+                              <CompactAddressText address={view.counterparty} />
+                            </>
+                          ) : view.title === "Received" ? (
+                            "Unknown sender"
                           ) : (
-                            <ArrowUpRight size={14} />
+                            "Contract creation"
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium">
-                            {isIncoming ? "Received" : "Sent"}
-                          </div>
-                          <div className="text-xs text-muted-foreground font-data break-words">
-                            {counterparty ? (
-                              <>
-                                {isIncoming ? "From " : "To "}
-                                <CompactAddressText address={counterparty} />
-                              </>
-                            ) : isIncoming ? (
-                              "Unknown sender"
-                            ) : (
-                              "Contract creation"
-                            )}
-                          </div>
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            Status
-                          </div>
-                          <div className="text-sm">{historyStatus(tx)}</div>
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            Hash
-                          </div>
-                          <div className="text-xs font-data break-all">
-                            {tx.TxHash}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(
-                              parseInt(tx.TimeStamp, 16) * 1000,
-                            ).toLocaleString()}
-                          </div>
+                        <div
+                          className={`mt-1 text-xs ${TONE_CLASS[view.statusTone]}`}
+                        >
+                          {view.status}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {view.time}
+                        </div>
+                        <div className="mt-1 break-all font-data text-[11px] text-muted-foreground">
+                          {view.hash}
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <div className={`text-sm font-numeric ${amountClass}`}>
-                          {sign}
-                          {amountText}
+                      <div className="shrink-0 text-right">
+                        <div
+                          className={`text-sm font-numeric ${TONE_CLASS[view.amountTone]}`}
+                        >
+                          {view.amount}
                         </div>
-                        <div className="text-xs text-muted-foreground font-numeric">
-                          {tx.asset ?? "Quanta"}
+                        <div className="text-xs font-numeric text-muted-foreground">
+                          {view.unit}
                         </div>
                       </div>
                     </button>
-                  );
-                })}
-              </div>
-            )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
-            <div className="mt-4 flex justify-center">
-              <Button variant="outline" onClick={viewAllTransactions}>
-                View All in Explorer
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <div className="mt-4 flex justify-center">
+            <Button variant="outline" onClick={viewAllTransactions}>
+              View All in Explorer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   },
 );
