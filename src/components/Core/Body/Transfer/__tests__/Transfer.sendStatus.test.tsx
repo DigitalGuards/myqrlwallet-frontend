@@ -16,6 +16,9 @@ import { copyToClipboard } from "@/utils/nativeApp";
 import Transfer from "../Transfer";
 import { SendStatus } from "../SendStatus";
 
+import { decryptStoredSeedWithPin } from "@/utils/crypto";
+import { getRemainingAttempts, checkLockout } from "@/utils/crypto/pinAttemptTracker";
+
 const FROM = `Q${"1".repeat(128)}`;
 const TO = `Q${"2".repeat(128)}`;
 const CONTRACT = `Q${"3".repeat(128)}`;
@@ -60,7 +63,7 @@ jest.mock("@/utils/storage", () => ({
 }));
 jest.mock("@/utils/crypto", () => ({
   DeviceCredentialUnavailableError: class extends Error {},
-  decryptStoredSeedWithPin: async () => ({ mnemonic: "fixture" }),
+  decryptStoredSeedWithPin: jest.fn(async () => ({ mnemonic: "fixture" })),
   getAddressFromMnemonicAsync: async () => `Q${"1".repeat(128)}`,
 }));
 jest.mock("@/utils/nativeWalletMutation", () => ({
@@ -188,6 +191,8 @@ class MockResizeObserver {
   disconnect() {}
 }
 beforeEach(() => {
+  localStorage.clear();
+  jest.mocked(decryptStoredSeedWithPin).mockResolvedValue({ mnemonic: "fixture", hexSeed: "00" });
   Object.defineProperty(globalThis, "ResizeObserver", {
     configurable: true,
     value: MockResizeObserver,
@@ -462,3 +467,48 @@ it("clears the form when Done closes an unconfirmed broadcast", async () => {
   });
   expect(screen.queryByDisplayValue("1.234567")).toBeNull();
 });
+
+
+it.each([false, true])(
+  "limits wrong PINs for transfers (token=%s)",
+  async (token) => {
+    mockStore = fixture("seed", token);
+    jest
+      .mocked(decryptStoredSeedWithPin)
+      .mockRejectedValue(
+        Object.assign(new Error("Incorrect PIN"), { code: "INCORRECT_PIN" }),
+      );
+    render(<Transfer />);
+    fireEvent.change(screen.getByPlaceholderText("QRL address or QNS name"), {
+      target: { value: TO },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Enter amount"), {
+      target: { value: "1" },
+    });
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      fireEvent.change(screen.getByLabelText("PIN"), {
+        target: { value: `99999${attempt}` },
+      });
+      const submit = screen.getByRole("button", {
+        name: token ? "Send TOK" : "Send Quanta",
+      });
+      await waitFor(() => expect(submit.hasAttribute("disabled")).toBe(false));
+      await act(async () => {
+        fireEvent.click(submit);
+      });
+      const failures = Math.min(attempt, 5);
+      expect(getRemainingAttempts()).toBe(5 - failures);
+      expect(decryptStoredSeedWithPin).toHaveBeenCalledTimes(failures);
+      expect(
+        screen.getByText(
+          attempt >= 5
+            ? "Too many failed attempts. Please wait 15 minutes."
+            : `Incorrect PIN. ${5 - attempt} attempt${attempt === 4 ? "" : "s"} remaining.`,
+        ),
+      ).toBeTruthy();
+    }
+    expect(checkLockout().isLocked).toBe(true);
+    expect(mockStore.qrlStore.signAndSendTransaction).not.toHaveBeenCalled();
+    expect(mockStore.tokenStore.sendToken).not.toHaveBeenCalled();
+  },
+);

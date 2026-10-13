@@ -1,7 +1,9 @@
+import { checkLockout, getRemainingAttempts } from "../pinAttemptTracker";
 import { useEffect } from "react";
 import NativeAppBridge from "@/components/NativeAppBridge";
 import {
   sendPinVerified,
+  sendPinChanged,
   subscribeToNativeMessages,
   notifySeedStored,
   type NativeMessage,
@@ -31,6 +33,7 @@ jest.mock("@/utils/nativeApp", () => ({
   isInNativeApp: () => true,
   subscribeToNativeMessages: jest.fn(),
   sendPinVerified: jest.fn(),
+  sendPinChanged: jest.fn(),
   notifySeedStored: jest.fn(),
   notifyWebAppReady: jest.fn(),
   logToNative: jest.fn(),
@@ -187,6 +190,12 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  const data = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+    getItem: (key: string) => data.get(key) ?? null,
+    setItem: (key: string, value: string) => { data.set(key, value); },
+    removeItem: (key: string) => { data.delete(key); },
+  } });
   jest.clearAllMocks();
   ciphertext = v5;
   revision = 1;
@@ -231,6 +240,7 @@ beforeEach(() => {
     dispose = effect() as (() => void) | undefined;
   });
   jest.spyOn(console, "log").mockImplementation(() => undefined);
+  jest.spyOn(console, "error").mockImplementation(() => undefined);
   NativeAppBridge({});
 });
 
@@ -276,6 +286,7 @@ it("reports a missing device factor without creating it or modifying ciphertext"
     "Wallet device credential unavailable",
   ]);
   expect(getDeviceEncryptionKey).toHaveBeenCalledWith(false);
+  expect(getRemainingAttempts()).toBe(5);
   expect(ciphertext).toBe(v5);
   expect(StorageUtil.migrateEncryptedSeed).not.toHaveBeenCalled();
 });
@@ -284,6 +295,7 @@ it("checks decrypted account binding before PIN success", async () => {
   jest.mocked(StorageUtil.getActiveAccount).mockResolvedValue(OTHER_ADDRESS);
   const requestId = verify();
   expect(await response()).toEqual([requestId, false, "Incorrect PIN"]);
+  expect(getRemainingAttempts()).toBe(5);
   expect(notifySeedStored).not.toHaveBeenCalled();
 });
 
@@ -347,4 +359,44 @@ it("verifies legacy v4 without factor creation, then retains normal unlock migra
   expect(getDeviceEncryptionKey).toHaveBeenCalledWith(true);
   expect(JSON.parse(ciphertext ?? "{}").version).toBe("pin_v5");
   expect(notifySeedStored).toHaveBeenCalledTimes(1);
+});
+
+
+it("counts wrong native verification PINs and keeps the response contract during lockout", async () => {
+  const decrypt = jest.spyOn(
+    WalletEncryptionUtil,
+    "decryptSeedWithPinVersioned",
+  );
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    jest.mocked(sendPinVerified).mockClear();
+    const requestId = verify(attempt === 6 ? PIN : "654321");
+    expect(await response()).toEqual([requestId, false, "Incorrect PIN"]);
+    expect(getRemainingAttempts()).toBe(Math.max(0, 5 - attempt));
+    expect(decrypt).toHaveBeenCalledTimes(Math.min(attempt, 5));
+  }
+  expect(checkLockout().isLocked).toBe(true);
+});
+
+it("limits native PIN changes with the existing PIN_CHANGED failure response", async () => {
+  const decrypt = jest.spyOn(
+    WalletEncryptionUtil,
+    "decryptSeedWithPinVersioned",
+  );
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    const requestId = (++requestNumber).toString(16).padStart(32, "0");
+    receive({
+      type: "CHANGE_PIN",
+      payload: { requestId, oldPin: "654321", newPin: "112233" },
+    });
+    await bounded(walletMutations.enqueueRestore(async () => undefined));
+    expect(sendPinChanged).toHaveBeenLastCalledWith(
+      requestId,
+      false,
+      undefined,
+      "Incorrect current PIN",
+    );
+    expect(getRemainingAttempts()).toBe(Math.max(0, 5 - attempt));
+    expect(decrypt).toHaveBeenCalledTimes(Math.min(attempt, 5));
+  }
+  expect(checkLockout().isLocked).toBe(true);
 });

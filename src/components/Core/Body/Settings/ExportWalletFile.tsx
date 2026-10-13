@@ -1,3 +1,4 @@
+import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { Button } from "../../../UI/Button";
 import {
     Form,
@@ -31,8 +32,6 @@ import { SettingsRow } from "./SettingsList";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 import {
     checkLockout,
-    recordFailedAttempt,
-    recordSuccessfulAttempt,
     formatLockoutTime,
 } from "@/utils/crypto/pinAttemptTracker";
 
@@ -87,12 +86,6 @@ export const ExportWalletFile = observer(() => {
     });
 
     async function onSubmit(data: ExportFormValues) {
-        const lockoutStatus = checkLockout();
-        if (lockoutStatus.isLocked) {
-            setExportError(`Too many failed attempts. Please wait ${formatLockoutTime(lockoutStatus.remainingMs)}.`);
-            return;
-        }
-
         setIsExporting(true);
         setExportError(null);
         setExportSuccess(false);
@@ -116,24 +109,18 @@ export const ExportWalletFile = observer(() => {
 
             let decrypted: { mnemonic: string; hexSeed: string };
             try {
-                decrypted = await decryptStoredSeedAsync(
-                    blockchain,
-                    entry.address,
-                    entry.encryptedSeed,
-                    data.pin,
+                decrypted = await verifyPinWithLimit(() =>
+                    decryptStoredSeedAsync(
+                        blockchain,
+                        entry.address,
+                        entry.encryptedSeed,
+                        data.pin,
+                    ),
                 );
             } catch (error) {
-                if (
-                    error instanceof CryptoOperationError &&
-                    error.code === CryptoErrorCode.INCORRECT_PIN
-                ) {
-                    const result = recordFailedAttempt();
-                    setPinLockout({ isLocked: result.isLocked, remainingMs: result.remainingMs });
-                    setExportError(
-                        result.isLocked
-                            ? `Too many failed attempts. Please wait ${formatLockoutTime(result.remainingMs)}.`
-                            : `Incorrect PIN. ${result.attemptsLeft} attempt${result.attemptsLeft === 1 ? '' : 's'} remaining.`,
-                    );
+                if (error instanceof PinVerificationError) {
+                    setPinLockout(error);
+                    setExportError(error.message);
                 } else if (
                     error instanceof CryptoOperationError &&
                     error.code === CryptoErrorCode.OUTDATED_FORMAT
@@ -149,8 +136,6 @@ export const ExportWalletFile = observer(() => {
                 }
                 return;
             }
-
-            recordSuccessfulAttempt();
 
             const qrlInstance = qrlStore.qrlInstance;
             if (!qrlInstance) {

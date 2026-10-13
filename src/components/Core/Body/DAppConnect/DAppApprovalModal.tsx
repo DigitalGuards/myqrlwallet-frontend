@@ -1,3 +1,4 @@
+import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
 import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
 import { unsignedQuantity } from "@/utils/transactionHistory";
@@ -187,7 +188,7 @@ async function unlockHexSeed(
   pinToUse: string,
   activeAddress: string,
   signingGeneration: WalletMutationToken,
-): Promise<{ hexSeed: string } | { error: string }> {
+): Promise<{ hexSeed: string } | { error: string; retryPin?: boolean }> {
   if (!pinToUse) return { error: "Please enter your PIN" };
   if (!walletMutations.isCurrent(signingGeneration)) {
     return { error: "Wallet changed while preparing the request" };
@@ -199,23 +200,28 @@ async function unlockHexSeed(
   );
   if (!encryptedSeed) return { error: "No encrypted seed found" };
   try {
-    const decrypted = await decryptStoredSeedWithPin(
-      blockchainVal,
-      activeAddress,
-      encryptedSeed,
-      pinToUse,
-      signingGeneration,
+    const decrypted = await verifyPinWithLimit(() =>
+      decryptStoredSeedWithPin(
+        blockchainVal,
+        activeAddress,
+        encryptedSeed,
+        pinToUse,
+        signingGeneration,
+      ),
     );
     return { hexSeed: decrypted.hexSeed };
   } catch (error) {
     if (!walletMutations.isCurrent(signingGeneration)) {
       return { error: "Wallet changed while preparing the request" };
     }
+    if (error instanceof PinVerificationError) {
+      return { error: error.message, retryPin: true };
+    }
     return {
       error:
         error instanceof DeviceCredentialUnavailableError
           ? "Wallet device security credential unavailable; re-import the seed"
-          : "Incorrect PIN",
+          : "Failed to unlock the seed. Please try again.",
     };
   }
 }
@@ -656,7 +662,7 @@ const DAppApprovalModalContent = observer(() => {
         );
         if ("error" in unlocked) {
           setError(unlocked.error);
-          if (unlocked.error === "Incorrect PIN") {
+          if (unlocked.retryPin) {
             // Recoverable: reset to the editable state so the user can retry.
             if (usedNativePin) clearNativeInjectedPin();
             setPin("");
@@ -920,7 +926,7 @@ const DAppApprovalModalContent = observer(() => {
           signingGeneration,
         );
         if ("error" in unlocked) {
-          if (unlocked.error === "Incorrect PIN") {
+          if (unlocked.retryPin) {
             if (usedNativePin) clearNativeInjectedPin();
             setPin("");
           }
@@ -1034,7 +1040,7 @@ const DAppApprovalModalContent = observer(() => {
           signingGeneration,
         );
         if ("error" in unlocked) {
-          if (unlocked.error === "Incorrect PIN") {
+          if (unlocked.retryPin) {
             if (usedNativePin) clearNativeInjectedPin();
             setPin("");
           }

@@ -1,10 +1,6 @@
+import { PinVerificationError, verifyPinWithLimit } from "./verifyPinWithLimit";
 import StorageUtil, { type EncryptedSeedData } from "@/utils/storage/storage";
-import {
-  CryptoErrorCode,
-  CryptoOperationError,
-  decryptSeedAsync,
-  encryptSeedAsync,
-} from "./cryptoWorkerClient";
+import { decryptSeedAsync, encryptSeedAsync } from "./cryptoWorkerClient";
 import {
   getWalletEpoch,
   isWalletEpochCurrent,
@@ -117,8 +113,9 @@ async function rollbackLocalWrites(
  * revision both locally and natively, preventing a late/stale restore from
  * reintroducing the partially rotated value.
  */
-export async function rotateStoredSeedPin(
+export async function rotateStoredSeedPinWithTargetFallback(
   options: RotateStoredSeedPinOptions,
+  acceptAlreadyTarget: boolean,
 ): Promise<{ rotatedSeeds: number }> {
   const expectedEpoch = options.walletEpoch ?? getWalletEpoch();
   const isCurrent = () =>
@@ -143,25 +140,53 @@ export async function rotateStoredSeedPin(
   if (totalSeeds === 0) throw new Error("No encrypted seeds found");
 
   assertCurrent();
-  const prepared = await Promise.all(
-    originals
-      .filter(({ seeds }) => seeds.length > 0)
-      .map(async ({ blockchain, seeds }): Promise<PreparedChain> => {
-        const updated = await Promise.all(
-          seeds.map(async (seed) => {
-            assertCurrent();
-            const decrypted = await decryptSeedAsync(
-              seed.encryptedSeed,
-              options.oldPin,
-            );
-            const derivedAddress = deriveCanonicalAddressFromHexSeed(
-              decrypted.hexSeed,
-            );
-            if (derivedAddress !== seed.address) {
-              throw new Error(
-                `Security error: stored seed does not match ${seed.address} on ${blockchain}`,
+  const decryptSeeds = (pin: string) =>
+    Promise.all(
+      originals
+        .filter(({ seeds }) => seeds.length > 0)
+        .map(async (chain) => ({
+          ...chain,
+          decrypted: await Promise.all(
+            chain.seeds.map(async (seed) => {
+              assertCurrent();
+              const decrypted = await decryptSeedAsync(seed.encryptedSeed, pin);
+              const derivedAddress = deriveCanonicalAddressFromHexSeed(
+                decrypted.hexSeed,
               );
-            }
+              if (derivedAddress !== seed.address) {
+                throw new Error(
+                  `Security error: stored seed does not match ${seed.address} on ${chain.blockchain}`,
+                );
+              }
+              assertCurrent();
+              return { seed, decrypted };
+            }),
+          ),
+        })),
+    );
+  // One submitted PIN counts once across all networks. Recovery can prove
+  // the target PIN when a prior native response timed out.
+  const authenticated = await verifyPinWithLimit(() =>
+    decryptSeeds(options.oldPin),
+  ).catch((error: unknown) => {
+    if (
+      !acceptAlreadyTarget ||
+      !(error instanceof PinVerificationError) ||
+      error.isLocked
+    ) {
+      throw error;
+    }
+    return verifyPinWithLimit(() => decryptSeeds(options.newPin));
+  });
+  const prepared = await Promise.all(
+    authenticated.map(
+      async ({
+        blockchain,
+        seeds,
+        decrypted: records,
+      }): Promise<PreparedChain> => {
+        const updated = await Promise.all(
+          records.map(async ({ seed, decrypted }) => {
             assertCurrent();
             return {
               ...seed,
@@ -181,7 +206,8 @@ export async function rotateStoredSeedPin(
           revision: revisionOf(updated[index] ?? seed) + 1,
         }));
         return { blockchain, original: seeds, updated, rollback };
-      }),
+      },
+    ),
   );
 
   const written = new Set<string>();
@@ -256,30 +282,9 @@ export async function rotateStoredSeedPin(
   throw new Error("Native seed backup failed; the old PIN remains active.");
 }
 
-/**
- * Apply a requested rotation, or confirm every seed is already encrypted with
- * the target PIN. The second path is reserved for compensating an operation
- * whose response timed out: the original request may have either committed or
- * rolled itself back before its late response arrived.
- */
-export async function rotateStoredSeedPinWithTargetFallback(
+/** Rotate the stored seeds after authenticating the current PIN. */
+export function rotateStoredSeedPin(
   options: RotateStoredSeedPinOptions,
-  acceptAlreadyTarget: boolean,
 ): Promise<{ rotatedSeeds: number }> {
-  try {
-    return await rotateStoredSeedPin(options);
-  } catch (error) {
-    if (
-      !acceptAlreadyTarget ||
-      !(error instanceof CryptoOperationError) ||
-      error.code !== CryptoErrorCode.INCORRECT_PIN
-    ) {
-      throw error;
-    }
-
-    return rotateStoredSeedPin({
-      ...options,
-      oldPin: options.newPin,
-    });
-  }
+  return rotateStoredSeedPinWithTargetFallback(options, false);
 }

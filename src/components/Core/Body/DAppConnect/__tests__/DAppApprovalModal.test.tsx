@@ -15,6 +15,9 @@ import { desktopSigner } from "@/desktop/bridge";
 import type { SignatureResult } from "@/desktop/bridge";
 import type { PendingDAppRequest } from "@/services/dappConnect/types";
 
+import { decryptStoredSeedWithPin } from "@/utils/crypto";
+import { checkLockout, getRemainingAttempts } from "@/utils/crypto/pinAttemptTracker";
+let mockDesktop = true;
 const address = `Q${"a".repeat(128)}`;
 let mockDappStore: DAppConnectStore;
 const mockQrlStore = {
@@ -46,16 +49,16 @@ jest.mock("@/services/dappConnect/qrUri", () => ({
 }));
 jest.mock("@/desktop/bridge", () => ({
   ...jest.requireActual<typeof import("@/desktop/bridge")>("@/desktop/bridge"),
-  isDesktop: true,
+  get isDesktop() { return mockDesktop; },
 }));
 jest.mock("@/config", () => ({
   getExplorerTxUrl: () => "https://explorer.example/tx",
 }));
-jest.mock("@/config/runtimeProfile", () => ({ IS_V3_PROFILE: false }));
-jest.mock("@/utils/crypto", () => ({}));
-jest.mock("@/utils/storage/storage", () => ({}));
-jest.mock("@/utils/nativeWalletMutation", () => ({}));
-jest.mock("@/utils/nativeApp", () => ({ isIOSNativeApp: () => false }));
+jest.mock("@/config/runtimeProfile", () => ({ IS_V3_PROFILE: false, profileStorageKey: (key: string) => key }));
+jest.mock("@/utils/crypto", () => ({ decryptStoredSeedWithPin: jest.fn(), DeviceCredentialUnavailableError: class extends Error {} }));
+jest.mock("@/utils/storage/storage", () => ({ __esModule: true, default: { getBlockChain: async () => "TEST_NET", getEncryptedSeed: async () => "fixture" } }));
+jest.mock("@/utils/nativeWalletMutation", () => ({ walletMutations: { captureGeneration: () => 0, isCurrent: () => true } }));
+jest.mock("@/utils/nativeApp", () => ({ isIOSNativeApp: () => false, getNativeInjectedPin: () => "" }));
 jest.mock("@/hooks/useHasNativeInjectedPin", () => ({
   useHasNativeInjectedPin: () => false,
 }));
@@ -123,6 +126,8 @@ function request(method: string, id = 1): PendingDAppRequest {
 }
 
 beforeEach(() => {
+  mockDesktop = true;
+  localStorage.clear();
   configure({ enforceActions: "never" });
   jest.useFakeTimers();
   jest.clearAllMocks();
@@ -299,5 +304,40 @@ it.each(["Escape", "Close", "Cancel"])(
     else fireEvent.click(screen.getByRole("button", { name: action }));
     expect(mockDappStore.desktopConnectUri).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
+  },
+);
+
+
+it.each(["qrl_signMessage", "qrl_signTypedData", "qrl_sendTransaction"])(
+  "limits wrong PINs for %s approvals and keeps the prompt retryable",
+  async (method) => {
+    mockDesktop = false;
+    jest
+      .mocked(decryptStoredSeedWithPin)
+      .mockRejectedValue(
+        Object.assign(new Error("Incorrect PIN"), { code: "INCORRECT_PIN" }),
+      );
+    const pending = await showApproval(method);
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      fireEvent.change(screen.getByPlaceholderText("Enter PIN"), {
+        target: { value: `99999${attempt}` },
+      });
+      await approve();
+      expect(getRemainingAttempts()).toBe(Math.max(0, 5 - attempt));
+      expect(decryptStoredSeedWithPin).toHaveBeenCalledTimes(
+        Math.min(attempt, 5),
+      );
+      expect(
+        screen.getByText(
+          attempt >= 5
+            ? "Too many failed attempts. Please wait 15 minutes."
+            : `Incorrect PIN. ${5 - attempt} attempt${attempt === 4 ? "" : "s"} remaining.`,
+        ),
+      ).toBeTruthy();
+      expect(mockDappStore.currentApproval?.id).toBe(pending.id);
+    }
+    expect(checkLockout().isLocked).toBe(true);
+    expect(dappConnectService.approveRequest).not.toHaveBeenCalled();
+    expect(dappConnectService.rejectRequest).not.toHaveBeenCalled();
   },
 );
