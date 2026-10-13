@@ -4,8 +4,9 @@
 // Runs `npm audit --omit=dev --json` and fails when an advisory at or above
 // the chosen severity affects the production dependency graph. An advisory
 // passes only when audit-allowlist.json holds a matching entry with a reason
-// and an expiry date. An expired entry fails the gate, so every exception
-// gets a fresh review. A failed or unreadable audit also fails the gate.
+// and an expiry date at most 90 days ahead. An expired entry fails the gate,
+// so every exception gets a fresh review. A failed, offline or inconsistent
+// audit also fails the gate.
 //
 // Usage: node scripts/audit-gate.mjs [--level low|moderate|high|critical]
 //                                    [--dir <package dir>] [--allowlist <file>]
@@ -19,6 +20,8 @@ const SEVERITIES = ['info', 'low', 'moderate', 'high', 'critical'];
 const ENTRY_KEYS = ['id', 'package', 'reason', 'expires'];
 const GHSA_ID = /^GHSA(-[23456789cfghjmpqrvwx]{4}){3}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_EXCEPTION_DAYS = 90;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const inActions = process.env.GITHUB_ACTIONS === 'true';
 
 function fail(message) {
@@ -27,7 +30,8 @@ function fail(message) {
 }
 
 function warn(message) {
-  console.log(inActions ? `::warning::audit-gate: ${message}` : `audit-gate: warning: ${message}`);
+  const prefix = inActions ? '::warning::audit-gate:' : 'audit-gate: warning:';
+  console.log(`${prefix} ${message}`);
 }
 
 function isRecord(value) {
@@ -58,11 +62,24 @@ function severityRank(severity) {
   return rank === -1 ? SEVERITIES.length - 1 : rank;
 }
 
-function todayUtc() {
-  return new Date().toISOString().slice(0, 10);
+function isoDay(timeMs) {
+  return new Date(timeMs).toISOString().slice(0, 10);
 }
 
-function loadAllowlist(label) {
+function isCalendarDate(value) {
+  if (!ISO_DATE.test(value)) return false;
+  const time = Date.parse(`${value}T00:00:00Z`);
+  // Date.parse rolls 2026-02-30 over to March; the round trip rejects it.
+  return !Number.isNaN(time) && isoDay(time) === value;
+}
+
+// Advisories are matched by GHSA id; an entry may give the id or its URL.
+function advisoryId(idOrUrl) {
+  const last = idOrUrl.split('/').pop();
+  return typeof last === 'string' && GHSA_ID.test(last) ? last : idOrUrl;
+}
+
+function loadAllowlist(label, today, latestExpiry) {
   const file = path.resolve(label);
   if (!existsSync(file)) return [];
   let parsed;
@@ -71,7 +88,8 @@ function loadAllowlist(label) {
   } catch (error) {
     fail(`${label} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
   }
-  if (!isRecord(parsed) || !Array.isArray(parsed.exceptions) || Object.keys(parsed).some((key) => key !== 'exceptions')) {
+  const keys = isRecord(parsed) ? Object.keys(parsed) : [];
+  if (!isRecord(parsed) || !Array.isArray(parsed.exceptions) || keys.length !== 1) {
     fail(`${label} must be an object with one key, "exceptions", holding an array`);
   }
   return parsed.exceptions.map((entry, index) => {
@@ -84,16 +102,22 @@ function loadAllowlist(label) {
       fail(`${where}.id must be a GHSA id or the advisory URL`);
     }
     if (!isNonEmptyString(pkg)) fail(`${where}.package must name the affected package`);
-    if (!isNonEmptyString(reason) || reason.trim().length < 20) fail(`${where}.reason must explain the exception`);
-    if (typeof expires !== 'string' || !ISO_DATE.test(expires) || Number.isNaN(Date.parse(`${expires}T00:00:00Z`))) {
-      fail(`${where}.expires must be a YYYY-MM-DD date`);
+    if (!isNonEmptyString(reason) || reason.trim().length < 20) {
+      fail(`${where}.reason must explain the exception`);
     }
-    return { id, pkg, reason: reason.trim(), expires };
+    if (typeof expires !== 'string' || !isCalendarDate(expires)) {
+      fail(`${where}.expires must be a valid YYYY-MM-DD date`);
+    }
+    if (expires > latestExpiry) {
+      fail(`${where}.expires may be at most ${MAX_EXCEPTION_DAYS} days ahead (${latestExpiry})`);
+    }
+    return { id: advisoryId(id), pkg, reason: reason.trim(), expires, expired: expires < today };
   });
 }
 
 function runAudit(dir) {
-  const result = spawnSync('npm', ['audit', '--omit=dev', '--json'], {
+  // --no-offline: an offline audit returns an empty report and would pass.
+  const result = spawnSync('npm', ['audit', '--omit=dev', '--json', '--no-offline'], {
     cwd: dir,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
@@ -103,12 +127,21 @@ function runAudit(dir) {
   try {
     report = JSON.parse(result.stdout);
   } catch {
-    fail(`npm audit did not return JSON (exit ${String(result.status)}): ${String(result.stderr).slice(0, 500)}`);
+    const stderr = String(result.stderr).slice(0, 500);
+    fail(`npm audit did not return JSON (exit ${String(result.status)}): ${stderr}`);
   }
   if (!isRecord(report)) fail('npm audit returned an unexpected shape');
-  if ('error' in report) fail(`npm audit failed: ${JSON.stringify(report.error).slice(0, 500)}`);
+  if ('error' in report) {
+    const message = typeof report.message === 'string' ? `${report.message} ` : '';
+    fail(`npm audit failed: ${message}${JSON.stringify(report.error).slice(0, 500)}`);
+  }
   if (report.auditReportVersion !== 2 || !isRecord(report.vulnerabilities)) {
     fail('unsupported npm audit report format (expected auditReportVersion 2)');
+  }
+  const totals = isRecord(report.metadata) ? report.metadata.vulnerabilities : undefined;
+  const entryCount = Object.keys(report.vulnerabilities).length;
+  if (!isRecord(totals) || totals.total !== entryCount) {
+    fail('npm audit report totals do not match its vulnerability entries');
   }
   return report.vulnerabilities;
 }
@@ -116,15 +149,21 @@ function runAudit(dir) {
 function collectAdvisories(vulnerabilities) {
   const advisories = new Map();
   for (const [name, entry] of Object.entries(vulnerabilities)) {
-    if (!isRecord(entry) || !Array.isArray(entry.via)) fail(`unexpected audit entry for ${name}`);
+    if (!isRecord(entry) || !Array.isArray(entry.via) || entry.via.length === 0) {
+      fail(`unexpected audit entry for ${name}`);
+    }
     for (const via of entry.via) {
       // A string names another vulnerable package; its own entry lists the advisory.
-      if (typeof via === 'string') continue;
+      if (typeof via === 'string') {
+        if (!Object.hasOwn(vulnerabilities, via)) {
+          fail(`audit entry ${name} points at ${via}, which has no entry of its own`);
+        }
+        continue;
+      }
       if (!isRecord(via) || !isNonEmptyString(via.url) || !isNonEmptyString(via.name)) {
         fail(`unexpected advisory record under ${name}`);
       }
-      const ghsa = via.url.split('/').pop();
-      const id = typeof ghsa === 'string' && GHSA_ID.test(ghsa) ? ghsa : via.url;
+      const id = advisoryId(via.url);
       const key = `${id} ${via.name}`;
       if (!advisories.has(key)) {
         advisories.set(key, {
@@ -141,10 +180,12 @@ function collectAdvisories(vulnerabilities) {
 }
 
 const options = parseArgs(process.argv.slice(2));
-const allowlist = loadAllowlist(options.allowlist);
+const now = Date.now();
+const today = isoDay(now);
+const latestExpiry = isoDay(now + MAX_EXCEPTION_DAYS * DAY_MS);
+const allowlist = loadAllowlist(options.allowlist, today, latestExpiry);
 const advisories = collectAdvisories(runAudit(path.resolve(options.dir)));
 const threshold = severityRank(options.level);
-const today = todayUtc();
 
 const relevant = advisories.filter((advisory) => severityRank(advisory.severity) >= threshold);
 const blocking = [];
@@ -152,7 +193,7 @@ const usedEntries = new Set();
 let expired = 0;
 
 for (const advisory of relevant) {
-  const entry = allowlist.find((candidate) => candidate.id === advisory.id && candidate.pkg === advisory.pkg);
+  const entry = allowlist.find((item) => item.id === advisory.id && item.pkg === advisory.pkg);
   const label = `${advisory.id} ${advisory.severity} ${advisory.pkg}: ${advisory.title}`;
   if (entry === undefined) {
     blocking.push(advisory);
@@ -160,7 +201,7 @@ for (const advisory of relevant) {
     continue;
   }
   usedEntries.add(entry);
-  if (entry.expires < today) {
+  if (entry.expired) {
     expired += 1;
     console.log(`  EXPIRED ${label}: allowlist entry expired ${entry.expires}, review it again`);
   } else {
@@ -169,16 +210,20 @@ for (const advisory of relevant) {
 }
 
 for (const entry of allowlist) {
-  if (!usedEntries.has(entry)) warn(`allowlist entry ${entry.id} (${entry.pkg}) matches no current advisory; remove it`);
+  if (!usedEntries.has(entry)) {
+    warn(`allowlist entry ${entry.id} (${entry.pkg}) matches no current advisory; remove it`);
+  }
 }
 
 const where = options.dir === '.' ? 'root' : options.dir;
-console.log(
-  `audit-gate: ${where}: ${advisories.length} production advisories, ${relevant.length} at ${options.level} or above, ` +
-    `${blocking.length} blocking, ${expired} expired exceptions`,
-);
+const summary =
+  `audit-gate: ${where}: ${advisories.length} production advisories, ` +
+  `${relevant.length} at ${options.level} or above, ${blocking.length} blocking, ` +
+  `${expired} expired exceptions`;
+console.log(summary);
 if (blocking.length > 0 || expired > 0) {
-  console.error('audit-gate: FAIL. Update the dependency, or add a dated entry with a reason to audit-allowlist.json.');
+  const hint = 'Update the dependency, or add a dated entry with a reason to audit-allowlist.json.';
+  console.error(`audit-gate: FAIL. ${hint}`);
   process.exit(1);
 }
 console.log('audit-gate: OK');
