@@ -269,7 +269,11 @@ it("verifies real pin_v5 encryption under the real coordinator without nested wr
 
 it("returns a correlated wrong-PIN failure and leaves the queue usable", async () => {
   const requestId = verify("654321");
-  expect(await response()).toEqual([requestId, false, "Incorrect PIN"]);
+  expect(await response()).toEqual([
+    requestId,
+    false,
+    "Incorrect PIN. 4 attempts remaining.",
+  ]);
   await bounded(walletMutations.enqueueRestore(async () => undefined));
   expect(ciphertext).toBe(v5);
   expect(notifySeedStored).not.toHaveBeenCalled();
@@ -362,7 +366,14 @@ it("verifies legacy v4 without factor creation, then retains normal unlock migra
 });
 
 
-it("counts wrong native verification PINs and keeps the response contract during lockout", async () => {
+const limitMessage = (attempt: number) => {
+  const left = 5 - attempt;
+  return left > 0
+    ? `Incorrect PIN. ${left} attempt${left === 1 ? "" : "s"} remaining.`
+    : "Too many failed attempts. Please wait 15 minutes.";
+};
+
+it("counts wrong native verification PINs and reports the lockout in the response", async () => {
   const decrypt = jest.spyOn(
     WalletEncryptionUtil,
     "decryptSeedWithPinVersioned",
@@ -370,14 +381,14 @@ it("counts wrong native verification PINs and keeps the response contract during
   for (let attempt = 1; attempt <= 6; attempt++) {
     jest.mocked(sendPinVerified).mockClear();
     const requestId = verify(attempt === 6 ? PIN : "654321");
-    expect(await response()).toEqual([requestId, false, "Incorrect PIN"]);
+    expect(await response()).toEqual([requestId, false, limitMessage(attempt)]);
     expect(getRemainingAttempts()).toBe(Math.max(0, 5 - attempt));
     expect(decrypt).toHaveBeenCalledTimes(Math.min(attempt, 5));
   }
   expect(checkLockout().isLocked).toBe(true);
 });
 
-it("limits native PIN changes with the existing PIN_CHANGED failure response", async () => {
+it("limits native PIN changes and reports attempts in PIN_CHANGED", async () => {
   const decrypt = jest.spyOn(
     WalletEncryptionUtil,
     "decryptSeedWithPinVersioned",
@@ -393,7 +404,7 @@ it("limits native PIN changes with the existing PIN_CHANGED failure response", a
       requestId,
       false,
       undefined,
-      "Incorrect current PIN",
+      limitMessage(attempt),
     );
     expect(getRemainingAttempts()).toBe(Math.max(0, 5 - attempt));
     expect(decrypt).toHaveBeenCalledTimes(Math.min(attempt, 5));

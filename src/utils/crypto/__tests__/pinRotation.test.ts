@@ -307,7 +307,7 @@ it("resets the PIN failures before a subsequent encryption error", async () => {
   expect(getRemainingAttempts()).toBe(5);
 });
 
-it("counts each wrong recovery PIN and blocks the fallback after the fifth failure", async () => {
+it("counts one attempt per wrong recovery call and refuses while locked", async () => {
   localStorage.clear();
   mockGetAll.mockResolvedValue([{ ...TEST_SEED }]);
   mockDecrypt
@@ -316,20 +316,20 @@ it("counts each wrong recovery PIN and blocks the fallback after the fifth failu
       new CryptoOperationError(CryptoErrorCode.INCORRECT_PIN, "Incorrect PIN"),
     );
   const options = { blockchains: ["TEST_NET"], oldPin: "9988", newPin: "8877" };
-  await expect(
-    rotateStoredSeedPinWithTargetFallback(options, true),
-  ).rejects.toMatchObject({ attemptsLeft: 3 });
-  await expect(
-    rotateStoredSeedPinWithTargetFallback(options, true),
-  ).rejects.toMatchObject({ attemptsLeft: 1 });
+  for (const attemptsLeft of [4, 3, 2, 1]) {
+    await expect(
+      rotateStoredSeedPinWithTargetFallback(options, true),
+    ).rejects.toMatchObject({ isLocked: false, attemptsLeft });
+  }
   await expect(
     rotateStoredSeedPinWithTargetFallback(options, true),
   ).rejects.toMatchObject({ isLocked: true });
-  expect(mockDecrypt.mock.calls.map(([, pin]) => pin)).toEqual([
-    "9988",
-    "8877",
-    "9988",
-    "8877",
-    "9988",
-  ]);
+  // Each call probed the current PIN, then the target PIN.
+  expect(mockDecrypt.mock.calls.map(([, pin]) => pin)).toEqual(
+    Array.from({ length: 5 }, () => ["9988", "8877"]).flat(),
+  );
+  await expect(
+    rotateStoredSeedPinWithTargetFallback(options, true),
+  ).rejects.toMatchObject({ isLocked: true });
+  expect(mockDecrypt).toHaveBeenCalledTimes(10);
 });

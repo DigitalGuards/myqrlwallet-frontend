@@ -3,6 +3,7 @@ import type { PinDecryptionError } from "./walletEncryption";
 import {
   checkLockout,
   formatLockoutTime,
+  getRemainingAttempts,
   recordFailedAttempt,
   recordSuccessfulAttempt,
 } from "./pinAttemptTracker";
@@ -18,11 +19,12 @@ export class PinVerificationError extends Error implements PinAttemptStatus {
   readonly remainingMs: number;
   readonly attemptsLeft: number;
 
-  constructor(status: PinAttemptStatus) {
+  constructor(status: PinAttemptStatus, message?: string) {
     super(
-      status.isLocked
-        ? `Too many failed attempts. Please wait ${formatLockoutTime(status.remainingMs)}.`
-        : `Incorrect PIN. ${status.attemptsLeft} attempt${status.attemptsLeft === 1 ? "" : "s"} remaining.`,
+      message ??
+        (status.isLocked
+          ? `Too many failed attempts. Please wait ${formatLockoutTime(status.remainingMs)}.`
+          : `Incorrect PIN. ${status.attemptsLeft} attempt${status.attemptsLeft === 1 ? "" : "s"} remaining.`),
     );
     this.name = "PinVerificationError";
     this.isLocked = status.isLocked;
@@ -31,7 +33,7 @@ export class PinVerificationError extends Error implements PinAttemptStatus {
   }
 }
 
-function isIncorrectPinError(
+export function isIncorrectPinError(
   error: unknown,
 ): error is PinDecryptionError | CryptoOperationError {
   return (
@@ -57,8 +59,11 @@ export async function verifyPinWithLimit<T>(
   // Reject overlapping submissions before they start crypto work. Waiting
   // here can deadlock callers that already hold the native wallet queue.
   if (verificationPending) {
-    throw new Error(
-      "PIN verification is already in progress. Please try again.",
+    // A PinVerificationError, so every prompt keeps its request open for a
+    // retry. No attempt is counted.
+    throw new PinVerificationError(
+      { isLocked: false, remainingMs: 0, attemptsLeft: getRemainingAttempts() },
+      "Another PIN check is still running. Please try again.",
     );
   }
   verificationPending = true;

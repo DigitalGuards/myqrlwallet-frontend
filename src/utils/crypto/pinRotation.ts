@@ -1,4 +1,4 @@
-import { PinVerificationError, verifyPinWithLimit } from "./verifyPinWithLimit";
+import { isIncorrectPinError, verifyPinWithLimit } from "./verifyPinWithLimit";
 import StorageUtil, { type EncryptedSeedData } from "@/utils/storage/storage";
 import { decryptSeedAsync, encryptSeedAsync } from "./cryptoWorkerClient";
 import {
@@ -165,18 +165,15 @@ export async function rotateStoredSeedPinWithTargetFallback(
         })),
     );
   // One submitted PIN counts once across all networks. Recovery can prove
-  // the target PIN when a prior native response timed out.
-  const authenticated = await verifyPinWithLimit(() =>
-    decryptSeeds(options.oldPin),
-  ).catch((error: unknown) => {
-    if (
-      !acceptAlreadyTarget ||
-      !(error instanceof PinVerificationError) ||
-      error.isLocked
-    ) {
-      throw error;
+  // the target PIN when a prior native response timed out; both probes run
+  // inside one limited check, so a recovery call counts at most one attempt.
+  const authenticated = await verifyPinWithLimit(async () => {
+    try {
+      return await decryptSeeds(options.oldPin);
+    } catch (error) {
+      if (!acceptAlreadyTarget || !isIncorrectPinError(error)) throw error;
+      return decryptSeeds(options.newPin);
     }
-    return verifyPinWithLimit(() => decryptSeeds(options.newPin));
   });
   const prepared = await Promise.all(
     authenticated.map(

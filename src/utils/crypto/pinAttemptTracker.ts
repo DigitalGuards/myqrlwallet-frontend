@@ -63,11 +63,7 @@ function getAttemptData(): AttemptData {
         ) {
           // Persist the capped deadline so subsequent reads allow the lockout to expire.
           // A failed write keeps the validated record for this read.
-          try {
-            setAttemptData(data);
-          } catch {
-            // Storage full or unavailable.
-          }
+          setAttemptData(data);
         }
         return data;
       }
@@ -79,8 +75,14 @@ function getAttemptData(): AttemptData {
   return { failedAttempts: 0, lockoutUntil: null, lastAttemptTime: 0 };
 }
 
+// Best effort: a full or unavailable storage must never turn a correct PIN
+// into a failure. The limit only slows guessing at the UI.
 function setAttemptData(data: AttemptData): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // Storage full or unavailable.
+  }
 }
 
 /**
@@ -150,7 +152,11 @@ export function hasFailedAttempts(): boolean {
  * Clear all attempt tracking data (used on logout)
  */
 export function clearAttemptTracker(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage unavailable.
+  }
 }
 
 /**

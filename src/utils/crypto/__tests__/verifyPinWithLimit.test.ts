@@ -112,14 +112,32 @@ it("refuses concurrent submissions before decrypting and releases the guard afte
       }),
   );
   const decrypt = jest.fn(async () => "seed");
-  await expect(verifyPinWithLimit(decrypt)).rejects.toThrow(
-    "already in progress",
-  );
+  const busy = verifyPinWithLimit(decrypt);
+  await expect(busy).rejects.toBeInstanceOf(PinVerificationError);
+  await expect(busy).rejects.toMatchObject({
+    isLocked: false,
+    attemptsLeft: 5,
+    message: "Another PIN check is still running. Please try again.",
+  });
   expect(decrypt).not.toHaveBeenCalled();
   expect(getRemainingAttempts()).toBe(5);
   fail(wrongPin());
   await expect(pending).rejects.toMatchObject({ attemptsLeft: 4 });
   await expect(verifyPinWithLimit(decrypt)).resolves.toBe("seed");
+});
+
+it("returns a correct PIN's result when the tracker cannot write", async () => {
+  recordFailedAttempt();
+  const setItem = jest
+    .spyOn(Storage.prototype, "setItem")
+    .mockImplementation(() => {
+      throw new DOMException("quota exceeded", "QuotaExceededError");
+    });
+  try {
+    await expect(verifyPinWithLimit(async () => "seed")).resolves.toBe("seed");
+  } finally {
+    setItem.mockRestore();
+  }
 });
 
 it("preserves a lockout that starts while a correct PIN is being decrypted", async () => {

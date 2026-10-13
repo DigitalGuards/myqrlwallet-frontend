@@ -182,10 +182,13 @@ async function handleChangePinRequest(
     }
 
     // Check error code for proper handling
-    if (
-      error instanceof PinVerificationError ||
-      (error instanceof CryptoOperationError &&
-        error.code === CryptoErrorCode.INCORRECT_PIN)
+    if (error instanceof PinVerificationError) {
+      // The app shows this text as is: attempts left, lockout time or a retry.
+      logToNative("PIN change failed: current PIN not accepted");
+      sendPinChanged(requestId, false, undefined, error.message);
+    } else if (
+      error instanceof CryptoOperationError &&
+      error.code === CryptoErrorCode.INCORRECT_PIN
     ) {
       logToNative("PIN change failed: incorrect current PIN");
       sendPinChanged(
@@ -298,6 +301,9 @@ async function handleCorrelatedPinVerification(
               false,
               PIN_VERIFY_ERRORS.DEVICE_CREDENTIAL,
             );
+          } else if (error instanceof PinVerificationError) {
+            // The app shows this text as is: attempts left, lockout time or a retry.
+            sendPinVerified(requestId, false, error.message);
           } else {
             sendPinVerified(requestId, false, PIN_VERIFY_ERRORS.INCORRECT_PIN);
           }
