@@ -17,15 +17,59 @@ interface AttemptData {
   lastAttemptTime: number;
 }
 
+function isAttemptData(value: unknown): value is AttemptData {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    'failedAttempts' in value &&
+    typeof value.failedAttempts === 'number' &&
+    Number.isFinite(value.failedAttempts) &&
+    Number.isInteger(value.failedAttempts) &&
+    value.failedAttempts >= 0 &&
+    'lockoutUntil' in value &&
+    (value.lockoutUntil === null ||
+      (typeof value.lockoutUntil === 'number' && Number.isFinite(value.lockoutUntil))) &&
+    'lastAttemptTime' in value &&
+    typeof value.lastAttemptTime === 'number' &&
+    Number.isFinite(value.lastAttemptTime) &&
+    value.lastAttemptTime >= 0
+  );
+}
+
 function getAttemptData(): AttemptData {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed: unknown = JSON.parse(stored);
+      if (isAttemptData(parsed)) {
+        const data: AttemptData = {
+          failedAttempts: Math.min(parsed.failedAttempts, MAX_ATTEMPTS),
+          lockoutUntil:
+            parsed.lockoutUntil === null
+              ? null
+              : Math.min(parsed.lockoutUntil, Date.now() + LOCKOUT_DURATION_MS),
+          lastAttemptTime: parsed.lastAttemptTime,
+        };
+        if (
+          data.failedAttempts !== parsed.failedAttempts ||
+          data.lockoutUntil !== parsed.lockoutUntil
+        ) {
+          // Persist the capped deadline so subsequent reads allow the lockout to expire.
+          // A failed write keeps the validated record for this read.
+          try {
+            setAttemptData(data);
+          } catch {
+            // Storage full or unavailable.
+          }
+        }
+        return data;
+      }
     }
   } catch {
-    // Ignore parse errors
+    // Treat unreadable storage as a cleared tracker.
   }
+  // This reset matches clearAttemptTracker(); storage writers can already remove this key.
   return { failedAttempts: 0, lockoutUntil: null, lastAttemptTime: 0 };
 }
 

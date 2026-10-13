@@ -59,6 +59,7 @@ npm run dev:lan     # LAN access (0.0.0.0:5173)
 npm run build       # TypeScript check + production build
 npm run preview     # Preview production build
 npm run lint        # ESLint with zero warnings policy
+npm run typecheck   # Check app and build-tool TypeScript
 npm test            # Run tests
 ```
 
@@ -128,9 +129,13 @@ kubectl apply -f deploy/k8s/cluster-issuer.yaml  # Once per cluster
 
 The GitHub Actions workflow (`.github/workflows/ci.yml`) automatically:
 
-1. **On PR/Push**: Runs lint and build checks
+1. **On PR/Push**: Runs lint, typecheck, test and build checks
 2. **On Push to main/dev**: Builds and pushes Docker image to GitHub Container Registry
 3. **On Push to main**: Deploys to Kubernetes cluster
+
+Both CI and embedded builds run `node scripts/audit-gate.mjs` immediately after dependency installation. The gate rejects high or critical production advisories unless `audit-allowlist.json` supplies a matching reason and an unexpired exception.
+
+`npm run typecheck` checks the app and build-tool configs independently with emission disabled, keeping declarations and TypeScript build metadata out of the source tree.
 
 ### Image Tags
 
