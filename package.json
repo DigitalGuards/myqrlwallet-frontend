@@ -19,6 +19,7 @@
     "dev": "vite --config config/vite.config.ts --host=127.0.0.1",
     "dev:lan": "vite --config config/vite.config.ts --host=0.0.0.0",
     "dev:custom": "vite --config config/vite.config.ts --host",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "build": "tsc && vite --config config/vite.config.ts build",
     "build:embedded": "tsc && vite --config config/vite.config.embedded.ts build",
     "check:embedded": "node scripts/check-embedded-output.mjs",
