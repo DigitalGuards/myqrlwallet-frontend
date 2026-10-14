@@ -1,3 +1,4 @@
+import { toNumber } from "@/utils/guards";
 import { PinVerificationError } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "../../../UI/Button";
@@ -56,16 +57,20 @@ const DAppSessionsList = withSuspense(
     lazy(() => import("../DAppConnect/DAppSessionsList")),
 );
 
-const SettingsFormSchema = z.object({
+type SettingsFormValues = {
+    autoLockTimeout: number;
+    showTokensCard: unknown;
+    showNftsCard: unknown;
+};
+
+const SettingsFormSchema: z.ZodType<SettingsFormValues, SettingsFormValues> = z.object({
     autoLockTimeout: z.number().min(1).max(60),
     showTokensCard: z.boolean(),
     showNftsCard: z.boolean(),
 });
 
-type SettingsFormValues = z.infer<typeof SettingsFormSchema>;
-
 // Async form defaults leave switch values unset until storage resolves.
-const preferenceChecked = (value: boolean | undefined) => value ?? true;
+const preferenceChecked = (value: unknown) => Boolean(value ?? true);
 
 // Separate schema for Change PIN form
 const ChangePinSchema = z.object({
@@ -150,7 +155,7 @@ const Settings = observer(() => {
         shouldFocusError: false,
         defaultValues: async () => {
             const settings = await StorageUtil.getWalletSettings();
-            const minutes = settings.autoLockTimeout ? Math.floor(settings.autoLockTimeout / (60 * 1000)) : 15;
+            const minutes = settings.autoLockTimeout ? Math.floor(toNumber(settings.autoLockTimeout) / (60 * 1000)) : 15;
             lastSavedTimerRef.current = minutes;
             return {
                 autoLockTimeout: minutes,

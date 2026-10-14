@@ -1,3 +1,5 @@
+import { blockchainKey } from "@/utils/storage/storage";
+import { renderValue, toTemplateString } from "@/utils/guards";
 import { isRecord } from "@/utils/guards";
 import { unsignedQuantity } from "@/utils/transactionHistory";
 import { reportError } from "@/utils/reportError";
@@ -125,8 +127,8 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
                 setIsLoading(true);
                 setError(null);
                 const selectedBlockChain = await StorageUtil.getBlockChain();
-                const info: unknown = await fetchTokenInfo(tokenAddress, QRL_PROVIDER[selectedBlockChain].url);
-                const balance: unknown = await fetchBalance(tokenAddress, activeAccountAddress, QRL_PROVIDER[selectedBlockChain].url);
+                const info: unknown = await fetchTokenInfo(tokenAddress, QRL_PROVIDER[blockchainKey(selectedBlockChain)].url);
+                const balance: unknown = await fetchBalance(tokenAddress, activeAccountAddress, QRL_PROVIDER[blockchainKey(selectedBlockChain)].url);
                 if (cancelled) return;
                 if (!isRecord(info) || typeof info["name"] !== "string" || typeof info["symbol"] !== "string") {
                     throw new Error("Invalid token metadata.");
@@ -214,9 +216,9 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
                                             className="flex flex-1 cursor-pointer flex-col gap-0.5"
                                         >
                                             <span className="text-sm font-medium">
-                                                {t.name || "Unknown"}{" "}
+                                                {renderValue(t.name || "Unknown")}{" "}
                                                 <span className="text-muted-foreground">
-                                                    ({t.symbol || "UNK"})
+                                                    ({renderValue(t.symbol || "UNK")})
                                                 </span>
                                             </span>
                                             <QrlAddress
@@ -259,25 +261,25 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
                             <Label htmlFor="name" className="text-right">
                                 Token Name
                             </Label>
-                            <Input className="col-span-3" value={tokenInfo.name} disabled />
+                            <Input className="col-span-3" value={tokenInfo.name == null ? undefined : toTemplateString(tokenInfo.name)} disabled />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="symbol" className="text-right">
                                 Token Symbol
                             </Label>
-                            <Input className="col-span-3" value={tokenInfo.symbol} disabled />
+                            <Input className="col-span-3" value={tokenInfo.symbol == null ? undefined : toTemplateString(tokenInfo.symbol)} disabled />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="decimals" className="text-right">
                                 Token Decimals
                             </Label>
-                            <Input className="col-span-3" value={tokenInfo.decimals} disabled />
+                            <Input className="col-span-3" value={tokenInfo.decimals == null ? undefined : toTemplateString(tokenInfo.decimals)} disabled />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="amount" className="text-right">
                                 Token Amount
                             </Label>
-                            <Input className="col-span-3" value={tokenInfo.amount} disabled />
+                            <Input className="col-span-3" value={tokenInfo.amount == null ? undefined : toTemplateString(tokenInfo.amount)} disabled />
                         </div>
                     </div>
                 )}

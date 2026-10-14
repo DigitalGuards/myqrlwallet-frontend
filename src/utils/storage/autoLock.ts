@@ -1,4 +1,5 @@
 import { logger } from '../log';
+import { toNumber } from '../guards';
 import { handleLogout } from '../logout';
 import StorageUtil, {
   STORAGE_EVENT_ACTIVE_ACCOUNT,
@@ -10,7 +11,7 @@ import { isDesktop, desktopSigner } from '@/desktop/bridge';
 let autoLockTimer: NodeJS.Timeout | null = null;
 let lastActivityTime: number = Date.now();
 let navigateFunction: ((path: string) => void) | null = null;
-let timeoutMs: number = 0;
+let timeoutMs: unknown = 0;
 let timerStartTime: number = 0;
 let isActivityTrackingInitialized = false;
 // Monotonic id for serializing concurrent startAutoLockTimer calls. When
@@ -26,7 +27,7 @@ let timerSetupRequestId = 0;
  */
 export const hasActiveWallet = async (): Promise<boolean> => {
   // Get the current blockchain from storage
-  const blockchain: string = await StorageUtil.getBlockChain();
+  const blockchain = await StorageUtil.getBlockChain();
   if (!blockchain) return false;
 
   // Check if there's an active account for this blockchain
@@ -70,7 +71,7 @@ export const startAutoLockTimer = async (navigate: (path: string) => void) => {
   const settings = await StorageUtil.getWalletSettings();
   timeoutMs = settings.autoLockTimeout;
 
-  if (!timeoutMs || timeoutMs <= 0) {
+  if (!timeoutMs || toNumber(timeoutMs) <= 0) {
     logger.log("🔒 Auto-lock: DISABLED (timeout set to 0 or negative)");
     return; // Auto-lock is disabled
   }
@@ -88,7 +89,7 @@ export const startAutoLockTimer = async (navigate: (path: string) => void) => {
   timerStartTime = Date.now();
   lastActivityTime = Date.now();
 
-  const minutes = timeoutMs / (60 * 1000);
+  const minutes = toNumber(timeoutMs) / (60 * 1000);
   logger.log(`🔒 Auto-lock: ENABLED - Will lock after ${minutes.toFixed(1)} minutes of inactivity`);
 
   // Start a new timer that checks for inactivity
@@ -104,7 +105,7 @@ export const startAutoLockTimer = async (navigate: (path: string) => void) => {
 
       const now = Date.now();
       const inactiveTime = now - lastActivityTime;
-      const remainingTime = timeoutMs - inactiveTime;
+      const remainingTime = toNumber(timeoutMs) - inactiveTime;
 
       if (remainingTime <= 60000 && remainingTime > 0) {
         // Only log when less than a minute remaining
@@ -112,7 +113,7 @@ export const startAutoLockTimer = async (navigate: (path: string) => void) => {
       }
 
       // If user has been inactive for longer than the timeout, lock the wallet.
-      if (inactiveTime >= timeoutMs) {
+      if (inactiveTime >= toNumber(timeoutMs)) {
         logger.log(`🔐 Auto-lock: TRIGGERED - No activity detected for ${minutes.toFixed(1)} minutes`);
         if (isDesktop) {
           // Desktop: drop the signer session but KEEP the seed (it lives in the
@@ -154,7 +155,7 @@ export const updateLastActivity = () => {
   // to avoid console spam from continuous mouse movements
   if (lastActivityTime - previousActivityTime > 5000) {
     const elapsedMinutes = (lastActivityTime - timerStartTime) / (60 * 1000);
-    const remainingMinutes = (timeoutMs - (lastActivityTime - previousActivityTime)) / (60 * 1000);
+    const remainingMinutes = (toNumber(timeoutMs) - (lastActivityTime - previousActivityTime)) / (60 * 1000);
 
     logger.log(`👆 Activity detected after ${elapsedMinutes.toFixed(1)} minutes - Timer reset (${remainingMinutes.toFixed(1)} minutes remaining)`);
   }

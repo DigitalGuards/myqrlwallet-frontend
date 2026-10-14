@@ -1,3 +1,4 @@
+import { renderValue } from "@/utils/guards";
 import { ChevronRight, Images } from "lucide-react";
 import {
   collectionDisplayName,
@@ -43,12 +44,12 @@ export function NftCollectionRow({
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="truncate text-sm font-medium">
-          {title}
-          {collection.symbol && collection.name && (
+          {renderValue(title)}
+          {renderValue(collection.symbol && collection.name && (
             <span className="ml-1 text-muted-foreground">
-              ({collection.symbol})
+              ({renderValue(collection.symbol)})
             </span>
-          )}
+          ))}
         </div>
         <div className="truncate text-xs text-muted-foreground">
           {collection.tokenCount} item{collection.tokenCount === 1 ? "" : "s"} ·{" "}

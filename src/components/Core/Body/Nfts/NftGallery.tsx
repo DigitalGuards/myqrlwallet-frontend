@@ -1,3 +1,5 @@
+import { stringValue } from "@/utils/guards";
+import { renderValue, toTemplateString } from "@/utils/guards";
 import { reportError } from "@/utils/reportError";
 import { observer } from "mobx-react-lite";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -156,7 +158,7 @@ const NftGallery = observer(() => {
             </Button>
           )}
           <CardTitle className="truncate text-2xl font-bold">
-            {openCollection ? collectionDisplayName(openCollection) : "NFTs"}
+            {renderValue(openCollection ? collectionDisplayName(openCollection) : "NFTs")}
           </CardTitle>
           {collections.length > 0 && (
             <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
@@ -207,7 +209,7 @@ const NftGallery = observer(() => {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {openCollection.tokens.map((nft) => (
                 <NftCard
-                  key={`${nft.contractAddress.toLowerCase()}:${nft.tokenId}`}
+                  key={`${stringValue(nft.contractAddress).toLowerCase()}:${toTemplateString(nft.tokenId)}`}
                   nft={nft}
                 />
               ))}

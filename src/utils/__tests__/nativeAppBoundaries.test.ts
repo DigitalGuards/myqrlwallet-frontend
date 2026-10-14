@@ -150,3 +150,12 @@ describe('optional browser capabilities', () => {
     expect(error).toHaveBeenCalledWith('Failed to copy text to clipboard:', failure);
   });
 });
+
+it('passes numeric clipboard values and the original receiver to the browser API', async () => {
+  const clipboard = { writeText: jest.fn<(text: unknown) => Promise<void>>().mockResolvedValue(undefined) };
+  setNavigator({ userAgent: 'browser', clipboard });
+  const native = await import('../nativeApp');
+  await expect(native.copyToClipboard(12)).resolves.toBe(true);
+  expect(clipboard.writeText).toHaveBeenCalledWith(12);
+  expect(clipboard.writeText.mock.contexts[0]).toBe(clipboard);
+});

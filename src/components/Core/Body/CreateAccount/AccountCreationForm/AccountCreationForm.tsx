@@ -1,3 +1,5 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
+import type { EncryptedSeedData } from "@/utils/storage/storage";
 import { logger } from "@/utils/log";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { useState, useEffect, useRef } from "react";
@@ -126,8 +128,8 @@ type InnerFormProps = {
     desktopBackup?: { address: string; mnemonic: string },
   ) => void | Promise<void>;
   hasExistingSeeds: boolean;
-  existingSeeds: { address: string; encryptedSeed: string }[];
-  blockchain: string;
+  existingSeeds: EncryptedSeedData[];
+  blockchain: BlockchainSelection;
 };
 
 /**
@@ -475,7 +477,7 @@ export const AccountCreationForm = observer(
       null,
     );
     const [existingSeeds, setExistingSeeds] = useState<
-      { address: string; encryptedSeed: string }[]
+      EncryptedSeedData[]
     >([]);
 
     const [loadError, setLoadError] = useState(false);

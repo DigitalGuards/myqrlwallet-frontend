@@ -1,3 +1,4 @@
+import { toTemplateString } from "@/utils/guards";
 import { NATIVE_TOKEN } from "@/constants";
 import { utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
@@ -62,15 +63,16 @@ export const getOptimalGasFee = (gas: string, tokenSymbol?: string) => {
 };
 
 export const getOptimalTokenBalance = (
-    balance: string,
-    tokenSymbol?: string,
+    balance: unknown,
+    tokenSymbol?: unknown,
     includeSymbol: boolean = true,
 ) => {
     const symbol = tokenSymbol ?? NATIVE_TOKEN.symbol;
     try {
-        const bigNumber = new BigNumber(balance);
+        const bigNumber: unknown = Reflect.construct(BigNumber, [balance]);
+        if (!(bigNumber instanceof BigNumber)) throw new TypeError("Invalid BigNumber result");
         if (bigNumber.isNaN() || bigNumber.isZero()) {
-            return includeSymbol ? `0.0 ${symbol}` : "0.0";
+            return includeSymbol ? `0.0 ${toTemplateString(symbol)}` : "0.0";
         }
 
         let formatted = bigNumber
@@ -81,9 +83,9 @@ export const getOptimalTokenBalance = (
             formatted += ".0";
         }
 
-        return includeSymbol ? `${formatted} ${symbol}` : formatted;
+        return includeSymbol ? `${formatted} ${toTemplateString(symbol)}` : formatted;
     } catch {
-        return includeSymbol ? `0.0 ${symbol}` : "0.0";
+        return includeSymbol ? `0.0 ${toTemplateString(symbol)}` : "0.0";
     }
 };
 
@@ -109,11 +111,12 @@ export const getOptimalTokenBalance = (
  * because token decimals vary.
  */
 export const formatBalance = (
-    balance: string | number,
+    balance: unknown,
     decimals: number = 2,
     useThousandSeparator: boolean = true
 ): string => {
-    const bn = new BigNumber(balance);
+    const bn: unknown = Reflect.construct(BigNumber, [balance]);
+    if (!(bn instanceof BigNumber)) throw new TypeError("Invalid BigNumber result");
 
     if (bn.isNaN()) return '0';
 

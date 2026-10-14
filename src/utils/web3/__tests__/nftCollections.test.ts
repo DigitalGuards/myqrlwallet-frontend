@@ -131,7 +131,7 @@ it("falls back to the shortened contract address when nothing names the collecti
   const display = collectionDisplayName(collection);
   expect(display).not.toBe("");
   expect(display).toContain("...");
-  expect(display.startsWith("Q1222c573")).toBe(true);
+  expect(display).toEqual(expect.stringMatching(/^Q1222c573/));
   expect(collectionStandardLabel(collection.standard)).toBe("ERC-1155");
 });
 

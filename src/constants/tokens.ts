@@ -1,9 +1,10 @@
+import { isArray, isRecord } from "@/utils/guards";
 export interface TokenInterface {
-    name: string;
-    symbol: string;
+    name?: unknown;
+    symbol?: unknown;
     address: string;
-    amount: string;
-    decimals: number;
+    amount?: unknown;
+    decimals?: unknown;
 }
 
 export const KNOWN_TOKEN_LIST: TokenInterface[] = [];
@@ -22,3 +23,15 @@ export const NATIVE_TOKEN = {
  * exposes a window global; EIP-6963 announcements are the only discovery.
  */
 export const QRL_EXTENSION_RDNS = ["com.qrlwallet.extension", "theqrl.org"] as const;
+
+/** Token-list consumers require string addresses when matching holdings. */
+export function tokenListValue(value: unknown): TokenInterface[] {
+    if (!isTokenList(value)) throw new TypeError('Invalid token list');
+    return value;
+}
+
+function isTokenList(value: unknown): value is TokenInterface[] {
+    return isArray(value) && value.every((item) =>
+        isRecord(item) && typeof item['address'] === 'string',
+    );
+}

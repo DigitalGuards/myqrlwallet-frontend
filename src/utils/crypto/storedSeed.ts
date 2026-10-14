@@ -1,3 +1,5 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
+import { stringValue } from "@/utils/guards";
 import log from '@/utils/log';
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
 import StorageUtil from "@/utils/storage/storage";
@@ -22,16 +24,16 @@ function assertCurrentWalletGeneration(
 }
 
 async function syncCurrentV5Backup(
-  blockchain: string,
-  address: string,
-  encryptedSeed: string,
+  blockchain: BlockchainSelection,
+  address: unknown,
+  encryptedSeed: unknown,
   revision?: number,
   isCurrent: () => boolean = () => true,
 ): Promise<void> {
   if (!isInNativeApp() || !isCurrent()) return;
 
-  let currentRevision = revision;
-  if (!Number.isSafeInteger(currentRevision) || (currentRevision ?? 0) < 1) {
+  let currentRevision: unknown = revision;
+  if (!Number.isSafeInteger(currentRevision) || Number(currentRevision ?? 0) < 1) {
     const current = (await StorageUtil.getAllEncryptedSeeds(blockchain)).find(
       (seed) =>
         seed.address === address && seed.encryptedSeed === encryptedSeed,
@@ -49,8 +51,8 @@ async function syncCurrentV5Backup(
 
   try {
     await notifySeedStored({
-      address,
-      encryptedSeed,
+      address: stringValue(address),
+      encryptedSeed: stringValue(encryptedSeed),
       blockchain,
       revision: currentRevision,
     });
@@ -65,8 +67,8 @@ async function syncCurrentV5Backup(
 }
 
 async function decryptAuthenticatedStoredSeed(
-  address: string,
-  encryptedSeed: string,
+  address: unknown,
+  encryptedSeed: unknown,
   pin: string,
   walletGeneration: WalletMutationToken,
 ): Promise<VersionedSeedDecryption> {
@@ -101,8 +103,8 @@ async function decryptAuthenticatedStoredSeed(
  * mutation lock. Authentication performs no migration or native backup writes.
  */
 export async function verifyStoredSeedPin(
-  address: string,
-  encryptedSeed: string,
+  address: unknown,
+  encryptedSeed: unknown,
   pin: string,
   expectedGeneration: WalletMutationToken = walletMutations.captureGeneration(),
 ): Promise<void> {
@@ -125,9 +127,9 @@ export async function verifyStoredSeedPin(
  * initial pin_v5 encryption fails closed if the device credential is absent.
  */
 export async function decryptStoredSeedWithPin(
-  blockchain: string,
-  address: string,
-  encryptedSeed: string,
+  blockchain: BlockchainSelection,
+  address: unknown,
+  encryptedSeed: unknown,
   pin: string,
   expectedGeneration: WalletMutationToken = walletMutations.captureGeneration(),
 ): Promise<{ mnemonic: string; hexSeed: string }> {
@@ -163,7 +165,7 @@ export async function decryptStoredSeedWithPin(
         if (!isCurrent()) return;
         const migrated = await StorageUtil.migrateEncryptedSeed(
           blockchain,
-          address,
+          stringValue(address),
           encryptedSeed,
           migratedEncryptedSeed,
           isCurrent.epoch,

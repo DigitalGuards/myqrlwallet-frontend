@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 import {
   normalizeQrnsRecipientName,
   qrnsFunctionSelector,
@@ -17,7 +18,7 @@ export interface QrnsRpcProvider {
 }
 
 export interface QrnsNetworkConfig {
-  blockchain: string;
+  blockchain: BlockchainSelection;
   networkName: string;
   rpcUrl: string;
   expectedChainId: string;
@@ -26,7 +27,7 @@ export interface QrnsNetworkConfig {
 }
 
 export interface QrnsNetworkRecord {
-  blockchain: string;
+  blockchain: BlockchainSelection;
   networkName: string;
   rpcUrl: string;
   expectedChainId: string;

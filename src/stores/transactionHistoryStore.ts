@@ -1,4 +1,5 @@
-import { isRecord } from "@/utils/guards";
+import type { BlockchainSelection } from "@/utils/storage/storage";
+import { isRecord, toTemplateString } from "@/utils/guards";
 import {
   historyHash,
   localTransactionSchema,
@@ -13,8 +14,8 @@ const MAX_POLL_AGE_MS = 24 * 60 * 60 * 1000;
 const POLL_INTERVAL_MS = 10000;
 const POLL_BATCH_SIZE = 20;
 
-function scopeKey(blockchain: string, from: string): string {
-  return `${blockchain}:${from.toLowerCase()}`;
+function scopeKey(blockchain: BlockchainSelection, from: string): string {
+  return `${toTemplateString(blockchain)}:${from.toLowerCase()}`;
 }
 
 function entryKey(tx: LocalTransaction): string {
@@ -191,12 +192,12 @@ export class TransactionHistoryStore {
   }
 
   record(input: {
-    blockchain: string;
+    blockchain: BlockchainSelection;
     from: string;
     to: string;
     hash: unknown;
     amount: string;
-    asset?: string;
+    asset?: unknown;
     nonce?: unknown;
   }): LocalTransaction | null {
     const nonce = unsignedQuantity(input.nonce);
@@ -224,7 +225,7 @@ export class TransactionHistoryStore {
   }
 
   settle(
-    blockchain: string,
+    blockchain: BlockchainSelection,
     from: string,
     hash: unknown,
     receipt: unknown,
@@ -244,7 +245,7 @@ export class TransactionHistoryStore {
 
   /** Views of one account share a timer and one in-flight reconciliation. */
   watch(
-    blockchain: string,
+    blockchain: BlockchainSelection,
     from: string,
     rpc: HistoryRpc,
     cancelled: () => boolean,
@@ -294,7 +295,7 @@ export class TransactionHistoryStore {
   }
 
   async reconcile(
-    blockchain: string,
+    blockchain: BlockchainSelection,
     from: string,
     rpc: HistoryRpc,
     cancelled: () => boolean,

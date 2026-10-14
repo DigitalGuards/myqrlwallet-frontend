@@ -1,3 +1,5 @@
+import { blockchainKey } from "@/utils/storage/storage";
+import { renderValue, stringAttribute } from "@/utils/guards";
 import { reportError } from "@/utils/reportError";
 import { useEffect, useMemo, useState } from "react";
 import { observer } from "mobx-react-lite";
@@ -140,7 +142,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
       setIsDetecting(true);
       try {
         const blockchain = await StorageUtil.getBlockChain();
-        const rpcUrl = QRL_PROVIDER[blockchain].url;
+        const rpcUrl = QRL_PROVIDER[blockchainKey(blockchain)].url;
         const standard = await detectTokenStandard(contractAddress, rpcUrl);
         if (isCancelled()) return;
         if (!standard) {
@@ -184,7 +186,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
     setError(null);
     try {
       const blockchain = await StorageUtil.getBlockChain();
-      const rpcUrl = QRL_PROVIDER[blockchain].url;
+      const rpcUrl = QRL_PROVIDER[blockchainKey(blockchain)].url;
 
       let ids: string[] = [];
       // ERC-1155 balance cache so the metadata loop below doesn't re-fetch
@@ -367,7 +369,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
                     />
                     {cover ? (
                       <img
-                        src={cover}
+                        src={stringAttribute(cover)}
                         alt=""
                         className="h-10 w-10 shrink-0 rounded object-cover"
                         loading="lazy"
@@ -382,12 +384,12 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
                       className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5"
                     >
                       <span className="truncate text-sm font-medium">
-                        {collectionDisplayName(collection)}
-                        {collection.symbol && collection.name && (
+                        {renderValue(collectionDisplayName(collection))}
+                        {renderValue(collection.symbol && collection.name && (
                           <span className="ml-1 text-muted-foreground">
-                            ({collection.symbol})
+                            ({renderValue(collection.symbol)})
                           </span>
-                        )}
+                        ))}
                       </span>
                       <span className="truncate text-xs text-muted-foreground">
                         {collection.tokenCount} item

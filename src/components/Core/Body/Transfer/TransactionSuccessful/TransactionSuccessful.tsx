@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 import { reportError } from "@/utils/reportError";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "@/components/UI/Button";
@@ -13,9 +14,9 @@ import { useStore } from "@/stores/store";
 
 type TransactionSuccessfulProps = {
   transactionReceipt: SendReceipt;
-  blockchain?: string;
+  blockchain?: BlockchainSelection;
   amount?: string;
-  assetSymbol?: string;
+  assetSymbol?: unknown;
   onDone: () => void;
 };
 

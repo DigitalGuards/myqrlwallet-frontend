@@ -227,6 +227,35 @@ it("flushes a pending preference save on unmount and preserves unrelated storage
   );
 });
 
+it("loads a string timeout and keeps invalid display preferences subject to form validation", async () => {
+  jest.useFakeTimers();
+  jest.mocked(StorageUtil).getWalletSettings.mockResolvedValue({
+    autoLockTimeout: "60000",
+    showTokensCard: "false",
+    showNftsCard: true,
+  });
+  render(<Settings />);
+  await waitFor(() => {
+    expect(screen.getByRole("spinbutton")).toHaveProperty("value", "1");
+  });
+  expect(screen.getByRole("switch", { name: /Show Tokens Card/ }).getAttribute("data-state")).toBe("checked");
+  expect(screen.getByRole("switch", { name: /Show Tokens Card/ }).getAttribute("aria-checked")).toBe("true");
+  fireEvent.click(screen.getByRole("switch", { name: /Show NFTs Card/ }));
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(200);
+  });
+  expect(StorageUtil.setWalletSettings).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("switch", { name: /Show Tokens Card/ }));
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(200);
+  });
+  expect(StorageUtil.setWalletSettings).toHaveBeenCalledWith({
+    autoLockTimeout: 60000,
+    showTokensCard: false,
+    showNftsCard: false,
+  });
+});
+
 it("reports an encrypted-seed check failure without changing preferences", async () => {
   const failure = new Error("Storage unavailable");
   const report = jest

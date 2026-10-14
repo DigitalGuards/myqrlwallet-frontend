@@ -1,3 +1,7 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
+import { blockchainKey } from "@/utils/storage/storage";
+import { tokenListValue } from "@/constants/tokens";
+import { arrayValue, iterableValue, propertyValue, stringValue } from "@/utils/guards";
 import { QRL_PROVIDER, TOKEN_FACTORY_ADDRESS } from "@/config";
 import { IS_V3_PROFILE, profileStorageKey } from '@/config/runtimeProfile';
 import { deriveHexSeedAsync } from "@/utils/crypto";
@@ -7,7 +11,7 @@ import { log } from "@/utils";
 import { logger } from "@/utils/log";
 import { encodeTokenTransfer } from "@/utils/web3/tokenTransfer";
 import { SEND_TX_POLLING_CONFIG } from "@/utils/web3/txPolling";
-import { isRecord, toBigInt, toTemplateString } from "@/utils/guards";
+import { isRecord, toBigInt, toNumber, toTemplateString } from "@/utils/guards";
 import { runAsPromise } from "@/utils/runAsPromise";
 import type { TransactionReceipt } from "@theqrl/web3";
 import { getQrlWeb3 } from "@/utils/web3";
@@ -22,16 +26,16 @@ import {
   FEE_NOT_SHOWN,
   type ApprovedFeeInput,
 } from "@/utils/web3/feePolicy";
-const formatUnits = (value: unknown, decimals: number): string => {
+const formatUnits = (value: unknown, decimals: unknown): string => {
   let v = toBigInt(value);
   const isNegative = v < 0n;
   if (isNegative) v = -v;
-  const divisor = BigInt(10) ** BigInt(decimals);
+  const divisor = BigInt(10) ** toBigInt(decimals);
   const intPart = v / divisor;
   const fracPart = v % divisor;
   const prefix = isNegative ? '-' : '';
   if (fracPart === 0n) return `${prefix}${intPart}`;
-  return `${prefix}${intPart}.${fracPart.toString().padStart(decimals, '0').replace(/0+$/, '')}`;
+  return `${prefix}${intPart}.${fracPart.toString().padStart(toNumber(decimals), '0').replace(/0+$/, '')}`;
 };
 import { getOptimalTokenBalance } from "@/utils/formatting";
 import type QrlStore from "./qrlStore";
@@ -82,7 +86,7 @@ class TokenStore {
     blockHash: "",
   };
   tokenList: TokenInterface[] = [];
-  hiddenTokens: string[] = [];
+  hiddenTokens: unknown = [];
   // Phase 3b opt-in: the explorer's view of what this address holds.
   // Populated by discoverTokensForReview(); never auto-merged into
   // tokenList. The UI surfaces these as picker rows ("Explorer
@@ -133,8 +137,8 @@ class TokenStore {
   get visibleTokenList(): TokenInterface[] {
     return this.tokenList.filter(
       (token) =>
-        !this.hiddenTokens.some(
-          (hidden) => hidden.toLowerCase() === token.address.toLowerCase(),
+        !arrayValue(this.hiddenTokens).some(
+          (hidden) => stringValue(hidden).toLowerCase() === token.address.toLowerCase(),
         ),
     );
   }
@@ -154,11 +158,11 @@ class TokenStore {
     );
   }
 
-  // Token storage is now keyed by `${blockchain}_${account}` (see
+  // Token storage is now keyed by `${toTemplateString(blockchain)}_${account}` (see
   // StorageUtil), mirroring the NFT list. Reads from the wrong scope are
   // impossible, but we still need the scope to write. Pulls live values
   // from qrlStore at the call site.
-  private get scope(): { blockchain: string; account: string } {
+  private get scope(): { blockchain: BlockchainSelection; account: string } {
     return {
       blockchain: this.qrlStore.qrlConnection.blockchain,
       account: this.qrlStore.activeAccount.accountAddress,
@@ -177,7 +181,7 @@ class TokenStore {
     // Seed KNOWN_TOKEN_LIST into the persisted list if not already present.
     // Use a local copy to avoid multiple re-renders and potential races
     // during the loop.
-    const initialList = [...persistedList];
+    const initialList = tokenListValue([...iterableValue(persistedList)]);
     const seen = new Set(initialList.map((t) => t.address.toLowerCase()));
     for (const token of KNOWN_TOKEN_LIST) {
       if (!seen.has(token.address.toLowerCase())) {
@@ -214,7 +218,7 @@ class TokenStore {
 
   // One-shot migration: the token list used to live under a single global
   // key shared across every account/chain. It is now scoped per
-  // `${blockchain}_${account}` like the NFT list. Move whatever the user
+  // `${toTemplateString(blockchain)}_${account}` like the NFT list. Move whatever the user
   // currently has under the global key into the active account's scope,
   // then drop the global key. Deferred (flag not set) until an account is
   // active so we never discard the legacy list before we can re-home it.
@@ -225,25 +229,25 @@ class TokenStore {
     if (!blockchain || !account) return;
 
     const legacyTokens = StorageUtil.getLegacyGlobalTokenList();
-    if (legacyTokens.length > 0) {
+    if (Number(propertyValue(legacyTokens, "length")) > 0) {
       const existing = await StorageUtil.getTokenList(blockchain, account);
-      const seen = new Set(existing.map((t) => t.address.toLowerCase()));
+      const seen = new Set(tokenListValue(existing).map((t) => t.address.toLowerCase()));
       const merged = [
-        ...existing,
-        ...legacyTokens.filter((t) => !seen.has(t.address.toLowerCase())),
+        ...tokenListValue(existing),
+        ...tokenListValue(legacyTokens).filter((t) => !seen.has(t.address.toLowerCase())),
       ];
       await StorageUtil.updateTokenList(blockchain, account, merged);
     }
 
     const legacyHidden = StorageUtil.getLegacyGlobalHiddenTokens();
-    for (const addr of legacyHidden) {
-      await StorageUtil.hideToken(blockchain, account, addr);
+    for (const addr of iterableValue(legacyHidden)) {
+      await StorageUtil.hideToken(blockchain, account, stringValue(addr));
     }
 
     StorageUtil.clearLegacyGlobalTokenData();
     localStorage.setItem(FLAG, "1");
     log(
-      `Migration: moved ${legacyTokens.length} global tokens to ${blockchain}_${account}; flag set`,
+      `Migration: moved ${toTemplateString(propertyValue(legacyTokens, "length"))} global tokens to ${toTemplateString(blockchain)}_${account}; flag set`,
     );
   }
 
@@ -273,7 +277,7 @@ class TokenStore {
     const hidden = await StorageUtil.getHiddenTokens(blockchain, newActiveAccount);
 
     // Sync KNOWN_TOKEN_LIST into the persisted list for the new account.
-    const initialList = [...persisted];
+    const initialList = tokenListValue([...iterableValue(persisted)]);
     const seen = new Set(initialList.map((t) => t.address.toLowerCase()));
     for (const token of KNOWN_TOKEN_LIST) {
       if (!seen.has(token.address.toLowerCase())) {
@@ -349,8 +353,8 @@ class TokenStore {
       return token;
     }
 
-    const isHidden = this.hiddenTokens.some(
-      (addr) => addr.toLowerCase() === token.address.toLowerCase(),
+    const isHidden = arrayValue(this.hiddenTokens).some(
+      (addr) => stringValue(addr).toLowerCase() === token.address.toLowerCase(),
     );
     if (isHidden) {
       await this.unhideToken(token.address);
@@ -429,7 +433,7 @@ class TokenStore {
       if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady();
       assertSigningCurrent();
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { url } = QRL_PROVIDER[selectedBlockChain];
+      const { url } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
       const { default: Web3 } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
@@ -513,7 +517,7 @@ class TokenStore {
       void this.setCreatingToken(tokenName, true);
       if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady();
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { url } = QRL_PROVIDER[selectedBlockChain];
+      const { url } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
       const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
 
@@ -749,7 +753,7 @@ class TokenStore {
       const startList = this.tokenList;
       const snapshot = [...startList];
       const providers: Readonly<Record<string, { url: string }>> = QRL_PROVIDER;
-      const providerConfig = providers[startBlockchain];
+      const providerConfig = providers[toTemplateString(startBlockchain)];
       if (providerConfig === undefined) {
         throw new TypeError("Cannot read properties of undefined (reading 'url')");
       }
@@ -767,7 +771,7 @@ class TokenStore {
           } catch (err) {
             // Production removes diagnostics and their argument evaluation.
             if (typeof __QRL_DIAGNOSTICS__ === "undefined" || __QRL_DIAGNOSTICS__) {
-              logger.error(`Error fetching balance for token ${token.symbol}:`, err);
+              logger.error(`Error fetching balance for token ${toTemplateString(token.symbol)}:`, err);
             }
             return { ...token, amount: "Error" };
           }
@@ -884,10 +888,10 @@ class TokenStore {
     
     // Capture state once to ensure consistency during the loop
     const currentTokenList = [...this.tokenList];
-    const currentHiddenTokens = [...this.hiddenTokens];
+    const currentHiddenTokens = [...iterableValue(this.hiddenTokens)];
     
     const owned = new Set(currentTokenList.map((t) => t.address.toLowerCase()));
-    const hidden = new Set(currentHiddenTokens.map((a) => a.toLowerCase()));
+    const hidden = new Set(currentHiddenTokens.map((a) => stringValue(a).toLowerCase()));
     
     const additions: TokenInterface[] = [];
     const unhides: string[] = [];
@@ -930,10 +934,10 @@ class TokenStore {
         return;
       }
 
-      const drop = new Set(unhides.map((a) => a.toLowerCase()));
+      const drop = new Set(unhides.map((a) => stringValue(a).toLowerCase()));
       runInAction(() => {
-        this.hiddenTokens = this.hiddenTokens.filter(
-          (addr) => !drop.has(addr.toLowerCase()),
+        this.hiddenTokens = arrayValue(this.hiddenTokens).filter(
+          (addr) => !drop.has(stringValue(addr).toLowerCase()),
         );
       });
     }
@@ -961,11 +965,11 @@ class TokenStore {
     runInAction(() => {
       const lowerCaseAddress = tokenAddress.toLowerCase();
       if (
-        !this.hiddenTokens.some(
-          (addr) => addr.toLowerCase() === lowerCaseAddress,
+        !arrayValue(this.hiddenTokens).some(
+          (addr) => stringValue(addr).toLowerCase() === lowerCaseAddress,
         )
       ) {
-        this.hiddenTokens = [...this.hiddenTokens, lowerCaseAddress];
+        this.hiddenTokens = [...iterableValue(this.hiddenTokens), lowerCaseAddress];
       }
     });
     log(`Token hidden: ${tokenAddress}`);
@@ -975,8 +979,8 @@ class TokenStore {
     const { blockchain, account } = this.scope;
     await StorageUtil.unhideToken(blockchain, account, tokenAddress);
     runInAction(() => {
-      this.hiddenTokens = this.hiddenTokens.filter(
-        (addr) => addr.toLowerCase() !== tokenAddress.toLowerCase(),
+      this.hiddenTokens = arrayValue(this.hiddenTokens).filter(
+        (addr) => stringValue(addr).toLowerCase() !== tokenAddress.toLowerCase(),
       );
     });
     log(`Token unhidden: ${tokenAddress}`);

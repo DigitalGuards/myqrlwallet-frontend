@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 import type { TransactionReceipt } from "@theqrl/web3";
 import { isRecord } from "@/utils/guards";
 import { isUserRejection } from "@/utils/signerRejection";
@@ -10,8 +11,8 @@ export interface SendDetails {
   from: string;
   to: string;
   amount: string;
-  asset: string;
-  blockchain: string;
+  asset: unknown;
+  blockchain: BlockchainSelection;
   signer: SendSigner;
 }
 

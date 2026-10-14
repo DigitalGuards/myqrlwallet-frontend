@@ -1,11 +1,12 @@
+import { stringAttribute, stringValue, toTemplateString } from "@/utils/guards";
 import { useMemo, useState } from "react";
 import { Skeleton } from "@/components/UI/skeleton";
 import { ImageIcon } from "lucide-react";
 import { resolveIpfsUri } from "@/utils/web3/nft";
 
 interface NftImageProps {
-  src?: string;
-  alt: string;
+  src?: unknown;
+  alt: unknown;
   className?: string;
   /**
    * Soft-blur the artwork (used for gallery thumbnails). The full-resolution
@@ -19,7 +20,7 @@ export function NftImage({ src, alt, className, blur = false }: NftImageProps) {
   // changes the outer component re-renders with a new memoized value and
   // the inner <Inner> remounts via its key, resetting load/error state.
   const imageSrc = useMemo(
-    () => (src ? resolveIpfsUri(src) : null),
+    () => (src ? resolveIpfsUri(stringValue(src)) : null),
     [src],
   );
   const wrapper = `relative overflow-hidden bg-muted ${className ?? ""}`;
@@ -37,7 +38,7 @@ function Inner({
 }: {
   wrapper: string;
   src: string;
-  alt: string;
+  alt: unknown;
   blur: boolean;
 }) {
   // Component is keyed by src, so this state always resets on src change.
@@ -55,7 +56,7 @@ function Inner({
       {status === "loading" && <Skeleton className="absolute inset-0" />}
       <img
         src={src}
-        alt={alt}
+        alt={stringAttribute(alt)}
         loading="lazy"
         onLoad={() => { setStatus("loaded"); }}
         onError={() => { setStatus("error"); }}
@@ -67,12 +68,12 @@ function Inner({
   );
 }
 
-function Fallback({ wrapper, alt }: { wrapper: string; alt: string }) {
+function Fallback({ wrapper, alt }: { wrapper: string; alt: unknown }) {
   return (
     <div
       className={`${wrapper} flex items-center justify-center text-muted-foreground`}
       role="img"
-      aria-label={`${alt} (image unavailable)`}
+      aria-label={`${toTemplateString(alt)} (image unavailable)`}
     >
       <ImageIcon className="h-10 w-10 opacity-50" />
     </div>

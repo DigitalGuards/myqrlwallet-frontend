@@ -541,7 +541,7 @@ export const WalletEncryptionUtil = {
   },
 
   async decryptSeedWithPinVersioned(
-    encryptedData: string,
+    encryptedData: unknown,
     pin: string,
   ): Promise<VersionedSeedDecryption> {
     if (isDesktop) {
@@ -581,7 +581,7 @@ export const WalletEncryptionUtil = {
   },
 
   async decryptSeedWithPin(
-    encryptedData: string,
+    encryptedData: unknown,
     pin: string,
   ): Promise<{ mnemonic: string; hexSeed: string }> {
     return (await this.decryptSeedWithPinVersioned(encryptedData, pin)).seed;

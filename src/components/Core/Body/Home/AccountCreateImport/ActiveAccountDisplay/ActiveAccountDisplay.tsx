@@ -23,7 +23,7 @@ export const ActiveAccountDisplay = observer(({ onShowAddress }: { onShowAddress
   const [refreshSuccess, setRefreshSuccess] = useState(false);
   const [isSlotSpinning, setIsSlotSpinning] = useState(false);
 
-  const handleCopy = async (text: string, type: 'balance' | 'address') => {
+  const handleCopy = async (text: unknown, type: 'balance' | 'address') => {
     const success = await copyToClipboard(text);
     if (success) {
       setCopiedItem(type);

@@ -1,3 +1,4 @@
+import { integerArgument, stringValue, toBigInt, toTemplateString } from "@/utils/guards";
 import type { default as Web3Type } from "@theqrl/web3";
 import { getQrlWeb3 } from "./web3Lazy";
 import { contractMethods } from "./contractFactory";
@@ -251,16 +252,16 @@ export async function fetchOwned721Ids(
 
 /** Confirm `owner` still holds an ERC-721 tokenId. */
 export async function isErc721Owner(
-  contractAddress: string,
+  contractAddress: unknown,
   ownerAddress: string,
-  tokenId: string,
+  tokenId: unknown,
   rpcUrl: string,
 ): Promise<boolean> {
   const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
   try {
     const methods = contractMethods(web3, erc721ABI, contractAddress);
-    const actual = await methods.ownerOf(tokenId).call();
+    const actual = await methods.ownerOf(integerArgument(tokenId)).call();
     return actual.toLowerCase() === web3.utils.toChecksumAddress(ownerAddress).toLowerCase();
   } catch {
     return false;
@@ -269,16 +270,16 @@ export async function isErc721Owner(
 
 /** Fetch ERC-1155 balance for (owner, id). */
 export async function fetchErc1155Balance(
-  contractAddress: string,
+  contractAddress: unknown,
   ownerAddress: string,
-  tokenId: string,
+  tokenId: unknown,
   rpcUrl: string,
 ): Promise<bigint> {
   const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
   const methods = contractMethods(web3, erc1155ABI, contractAddress);
   const checksum = web3.utils.toChecksumAddress(ownerAddress);
-  const raw = await methods.balanceOf(checksum, tokenId).call();
+  const raw = await methods.balanceOf(checksum, integerArgument(tokenId)).call();
   return BigInt(raw);
 }
 
@@ -288,23 +289,23 @@ export async function fetchErc1155Balance(
  * clients substitute with the 64-char zero-padded hex token id.
  */
 export async function fetchTokenUri(
-  contractAddress: string,
-  tokenId: string,
+  contractAddress: unknown,
+  tokenId: unknown,
   rpcUrl: string,
-  standard: NftStandard,
+  standard: unknown,
 ): Promise<string | null> {
   const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
   try {
     if (standard === "ERC721") {
       const methods = contractMethods(web3, erc721ABI, contractAddress);
-      const uri = await methods.tokenURI(tokenId).call();
+      const uri = await methods.tokenURI(integerArgument(tokenId)).call();
       return uri || null;
     }
     const methods = contractMethods(web3, erc1155ABI, contractAddress);
-    let uri = await methods.uri(tokenId).call();
+    let uri = await methods.uri(integerArgument(tokenId)).call();
     if (uri && uri.includes("{id}")) {
-      const hexId = BigInt(tokenId).toString(16).padStart(64, "0");
+      const hexId = toBigInt(tokenId).toString(16).padStart(64, "0");
       uri = uri.replace(/\{id\}/g, hexId);
     }
     return uri || null;
@@ -410,6 +411,6 @@ export async function fetchNftMetadata(uri: string): Promise<NftMetadata | null>
  * Composite key for an NFT (contract + tokenId). Used as the persistence
  * key in `hiddenNfts` and as the React list key in the gallery.
  */
-export function nftKey(contractAddress: string, tokenId: string): string {
-  return `${contractAddress.toLowerCase()}:${tokenId}`;
+export function nftKey(contractAddress: unknown, tokenId: unknown): string {
+  return `${stringValue(contractAddress).toLowerCase()}:${toTemplateString(tokenId)}`;
 }

@@ -1,4 +1,5 @@
 /** @jest-environment jsdom */
+import { arrayValue, propertyValue } from "@/utils/guards";
 /**
  * Store-level behaviour of collection discovery: the picker groups the
  * explorer's per-token rows into collections, names the ones the
@@ -31,7 +32,10 @@ jest.mock("@/config", () => ({
   QRL_PROVIDER: { TEST_NET: { url: "https://rpc.example/testnet" } },
   NFT_METADATA_TTL_MS: 0,
 }));
-jest.mock("@/config/runtimeProfile", () => ({ IS_V3_PROFILE: false }));
+jest.mock("@/config/runtimeProfile", () => ({
+  IS_V3_PROFILE: false,
+  profileStorageKey: (key: string) => key,
+}));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({ deriveHexSeedAsync: jest.fn() }));
 jest.mock("@/desktop/bridge", () => ({ isDesktop: false, desktopSigner: {} }));
@@ -171,8 +175,8 @@ it("adds every owned token of a picked collection", async () => {
 
   expect(store.nftList).toHaveLength(26);
   expect(
-    store.nftList.every(
-      (entry) => entry.contractAddress === DEVNET_PUNKS,
+    arrayValue(store.nftList).every(
+      (entry) => propertyValue(entry, "contractAddress") === DEVNET_PUNKS,
     ),
   ).toBe(true);
   expect(mockUpdateNftList).toHaveBeenCalledTimes(1);

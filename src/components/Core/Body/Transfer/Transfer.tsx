@@ -1,3 +1,5 @@
+import { blockchainKey } from "@/utils/storage/storage";
+import { renderValue, toNumber, toTemplateString } from "@/utils/guards";
 import { reportError } from "@/utils/reportError";
 import { unsignedQuantity } from "@/utils/transactionHistory";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
@@ -125,7 +127,7 @@ const Transfer = observer(() => {
           } catch {
             ctx.addIssue({
               code: "custom",
-              message: `Enter an amount with at most ${decimals} decimal places`,
+              message: `Enter an amount with at most ${toTemplateString(decimals)} decimal places`,
               path: ["amount"],
             });
           }
@@ -185,7 +187,7 @@ const Transfer = observer(() => {
 
   // Preserved across resetForm so the success screen can show the amount sent.
   const [submittedAmount, setSubmittedAmount] = useState<string>("");
-  const [submittedAssetSymbol, setSubmittedAssetSymbol] = useState<string>("");
+  const [submittedAssetSymbol, setSubmittedAssetSymbol] = useState<unknown>("");
 
   const form = useForm({
     resolver: zodResolver(FormSchema),
@@ -239,7 +241,7 @@ const Transfer = observer(() => {
           const balance: unknown = await fetchBalance(
             selectedAsset,
             accountAddress,
-            QRL_PROVIDER[selectedBlockChain].url,
+            QRL_PROVIDER[blockchainKey(selectedBlockChain)].url,
           );
           const token = visibleTokenList.find(
             (t) => t.address === selectedAsset,
@@ -322,10 +324,11 @@ const Transfer = observer(() => {
   ]);
 
   // Balance available for the transfer amount itself (subtracting gas reserve for native).
-  const maxSendableBalance = useMemo(() => {
+  const maxSendableBalance = useMemo<unknown>(() => {
     if (!isNativeTransfer) return accountBalance;
     if (nativeGasReserve === null) return "0";
-    const balanceBn = new BigNumber(accountBalance || "0");
+    const balanceBn: unknown = Reflect.construct(BigNumber, [accountBalance || "0"]);
+    if (!(balanceBn instanceof BigNumber)) throw new TypeError("Invalid BigNumber result");
     const reserveBn = new BigNumber(nativeGasReserve || "0");
     const sendable = balanceBn.minus(reserveBn);
     return sendable.isPositive() ? sendable.toString() : "0";
@@ -745,18 +748,20 @@ const Transfer = observer(() => {
     if (!percentageReady) return;
     setPercentageQuote(isNativeTransfer ? { key: feeQuoteKey, provider: feeQuoteProvider } : null);
     setSliderValue(percentage);
-    const sendableBn = new BigNumber(maxSendableBalance || "0");
+    const sendableBn: unknown = Reflect.construct(BigNumber, [maxSendableBalance || "0"]);
+    if (!(sendableBn instanceof BigNumber)) throw new TypeError("Invalid BigNumber result");
     if (sendableBn.isZero()) {
       setAmountInputValue("");
       setValue("amount", "");
       return;
     }
     const decimals = isNativeTransfer ? 18 : selectedToken?.decimals ?? 18;
-    const formattedAmount = sendableBn
-      .multipliedBy(percentage)
-      .shiftedBy(-2)
-      .decimalPlaces(percentage === 100 ? decimals : Math.min(6, decimals), BigNumber.ROUND_DOWN)
-      .toFixed();
+    const scaledAmount = sendableBn.multipliedBy(percentage).shiftedBy(-2);
+    const roundedAmount: unknown = Reflect.apply(scaledAmount.decimalPlaces.bind(scaledAmount), scaledAmount, [
+      percentage === 100 ? decimals : Math.min(6, toNumber(decimals)), BigNumber.ROUND_DOWN,
+    ]);
+    if (!(roundedAmount instanceof BigNumber)) throw new TypeError("Invalid BigNumber result");
+    const formattedAmount = roundedAmount.toFixed();
     setAmountInputValue(formattedAmount);
     setValue("amount", formattedAmount, { shouldValidate: true });
   };
@@ -857,10 +862,10 @@ const Transfer = observer(() => {
                               >
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium">
-                                    {token.symbol}
+                                    {renderValue(token.symbol)}
                                   </span>
                                   <span className="text-muted-foreground">
-                                    - {token.name}
+                                    - {renderValue(token.name)}
                                   </span>
                                 </div>
                               </SelectItem>
@@ -1040,12 +1045,12 @@ const Transfer = observer(() => {
                                   field.onChange(value);
                                   if (
                                     maxSendableBalance &&
-                                    parseFloat(maxSendableBalance) > 0
+                                    parseFloat(toTemplateString(maxSendableBalance)) > 0
                                   ) {
                                     const percentage = Math.min(
                                       100,
                                       (numValue /
-                                        parseFloat(maxSendableBalance)) *
+                                        parseFloat(toTemplateString(maxSendableBalance))) *
                                         100,
                                     );
                                     setSliderValue(Math.round(percentage));
@@ -1172,8 +1177,8 @@ const Transfer = observer(() => {
                   >
                     <Send className="mr-2 h-4 w-4" />
                     {isSubmitting
-                      ? `Sending ${assetSymbol}...`
-                      : `Send ${assetSymbol}`}
+                      ? `Sending ${toTemplateString(assetSymbol)}...`
+                      : `Send ${toTemplateString(assetSymbol)}`}
                   </ShinyButton>
                 </CardFooter>
               </Card>

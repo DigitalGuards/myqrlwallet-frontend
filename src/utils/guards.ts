@@ -4,6 +4,8 @@
  * assertions, so every wire value enters the typed world through a predicate.
  */
 
+import { Children, isValidElement, type ReactNode } from 'react';
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -24,6 +26,78 @@ export function isObjectLike(value: unknown): value is Record<string, unknown> {
  */
 export function isArray(value: unknown): value is unknown[] {
   return Array.isArray(value);
+}
+
+/** Keep list checks at the operation that requires an array. */
+export function arrayValue(value: unknown): unknown[] {
+  if (!isArray(value)) throw new TypeError('Expected an array');
+  return value;
+}
+
+/** JSON arrays and strings both support the original iteration operations. */
+export function iterableValue(value: unknown): Iterable<unknown> {
+  if (typeof value === 'string') return value;
+  return arrayValue(value);
+}
+
+/** Property reads box primitives and fail on nullish receivers. */
+export function propertyValue(value: unknown, key: string): unknown {
+  if (value == null) throw new TypeError('Cannot read properties of null or undefined');
+  const receiver: unknown = Object(value);
+  if (!isObject(receiver)) throw new TypeError('Invalid property receiver');
+  return receiver[key];
+}
+
+export function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+export function stringValue(value: unknown): string {
+  if (!isString(value)) throw new TypeError('Expected a string');
+  return value;
+}
+
+/** HTML string attributes omit nullish values, booleans, symbols and functions. */
+export function stringAttribute(value: unknown): string | undefined {
+  if (value == null || typeof value === 'boolean' || typeof value === 'symbol' || typeof value === 'function') {
+    return undefined;
+  }
+  return toTemplateString(value);
+}
+
+/** Preserve addition for a retry count read from JSON, including string concatenation. */
+export function incrementStoredNumber(value: unknown): string | number {
+  const primitive = isRecord(value) || isArray(value) ? toTemplateString(value) : value;
+  return typeof primitive === 'string' ? primitive + '1' : toNumber(primitive) + 1;
+}
+
+function isReactNode(value: unknown): value is ReactNode {
+  return value == null || typeof value === 'string' || typeof value === 'number' ||
+    typeof value === 'bigint' || typeof value === 'boolean' || isValidElement(value) ||
+    (isArray(value) && value.every(isReactNode));
+}
+
+/** Keep stored metadata intact and let unsupported children fail at rendering. */
+export function renderValue(value: unknown): ReactNode {
+  if (isReactNode(value)) return value;
+  const children: unknown = Reflect.apply(Children.toArray.bind(Children), Children, [value]);
+  if (!isReactNode(children)) throw new TypeError('Invalid React children');
+  return children;
+}
+
+/** ABI integers accept the original string, number or bigint without conversion. */
+export function integerArgument(value: unknown): string | number | bigint {
+  if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'bigint') {
+    throw new TypeError('Invalid integer argument');
+  }
+  return value;
+}
+
+/** Native ToNumber coercion also rejects bigint, including boxed values. */
+export function toNumber(value: unknown): number {
+  const result: unknown = Reflect.apply(Math.min, undefined, [value]);
+  if (typeof result !== 'number') throw new TypeError('Number conversion failed');
+  return result;
 }
 
 // JSON.stringify returns undefined for top-level undefined, symbols, functions

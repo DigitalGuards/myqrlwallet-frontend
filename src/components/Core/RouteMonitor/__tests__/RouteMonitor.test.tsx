@@ -15,7 +15,7 @@ const mockSetActivePage = jest.fn((path: string) => {
 });
 let mockConnected = false;
 let mockPathname = "/transfer";
-let mockSavedPage = "/";
+let mockSavedPage: unknown = "/";
 let mockDesktop = false;
 jest.mock("@/stores/store", () => ({
   useStore: () => ({
@@ -176,3 +176,15 @@ it("retains the desktop settings recovery rule", async () => {
     expect(mockNavigate).toHaveBeenCalledWith("/");
   });
 });
+
+it.each([-1, { pathname: "/tokens", search: "?view=all" }])(
+  "passes a stored navigation target through without conversion: %j",
+  async (page) => {
+    mockConnected = true;
+    mockSavedPage = page;
+    render(<RouteMonitor />);
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(page);
+    });
+  },
+);

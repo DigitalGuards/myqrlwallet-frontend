@@ -1,3 +1,4 @@
+import { renderValue } from "@/utils/guards";
 import { logger } from "@/utils/log";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { accountSetupDescription } from "./AccountCreateImport/accountSetupDescription";
@@ -37,8 +38,8 @@ const Home = observer(() => {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [txHistoryOpen, setTxHistoryOpen] = useState(false);
   const [receiveOpen, setReceiveOpen] = useState(false);
-  const [showTokensCard, setShowTokensCard] = useState(true);
-  const [showNftsCard, setShowNftsCard] = useState(true);
+  const [showTokensCard, setShowTokensCard] = useState<unknown>(true);
+  const [showNftsCard, setShowNftsCard] = useState<unknown>(true);
 
   // Load card-visibility prefs and refresh whenever Settings re-saves
   // (StorageUtil dispatches STORAGE_EVENT_WALLET_SETTINGS on write so
@@ -195,16 +196,16 @@ const Home = observer(() => {
                   </div>
                 </Card>
               )}
-              {activeAccount.accountAddress && showTokensCard && (
+              {renderValue(activeAccount.accountAddress && showTokensCard && (
                 <div className="relative z-10">
                   <TokenForm />
                 </div>
-              )}
-              {activeAccount.accountAddress && showNftsCard && (
+              ))}
+              {renderValue(activeAccount.accountAddress && showNftsCard && (
                 <div className="relative z-10">
                   <NftGallery />
                 </div>
-              )}
+              ))}
               {!isConnected ? (
                 <ConnectionFailed />
               ) : (

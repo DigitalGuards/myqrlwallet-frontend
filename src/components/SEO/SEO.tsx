@@ -1,7 +1,8 @@
+import { toTemplateString } from '@/utils/guards';
 import { Helmet } from 'react-helmet-async';
 
 interface SEOProps {
-  title?: string;
+  title?: unknown;
   description?: string;
   keywords?: string;
   type?: string;
@@ -25,7 +26,7 @@ export const SEO = ({
   url = "https://qrlwallet.com/",
   image = DEFAULT_IMAGE,
 }: SEOProps) => {
-  const fullTitle = title === DEFAULT_TITLE ? title : `${title} | ${SITE_NAME}`;
+  const fullTitle = title === DEFAULT_TITLE ? title : `${toTemplateString(title)} | ${SITE_NAME}`;
 
   return (
     <Helmet>

@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 import { isRecord } from "@/utils/guards";
 
 declare const __QRL_WALLET_PROFILE__: string | undefined;
@@ -66,7 +67,7 @@ export const profileStorageKey = (key: string): string =>
   IS_V3_PROFILE ? `qrlwallet:v3:${key}` : key;
 
 export function historyNetwork(
-  blockchain: string,
+  blockchain: BlockchainSelection,
 ): "testnet" | "mainnet" | null {
   if (IS_V3_PROFILE) return blockchain === "TEST_NET_V3" ? "testnet" : null;
   if (blockchain === "TEST_NET") return "testnet";

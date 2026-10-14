@@ -262,11 +262,11 @@ it("records token sends using the reviewed token amount and recipient", async ()
 it("records NFT sends using the recipient and token identifier", async () => {
   const wallet = store();
   const nfts = new NftStore(wallet, new TokenStore(wallet));
-  const nft: NFTInterface = {
+  const nft = {
     contractAddress: contract,
     tokenId: "7",
     standard: "ERC721",
-  };
+  } satisfies NFTInterface;
   await nfts.transferNft(nft, to, "test-seed", 1n, "medium", FEE_NOT_SHOWN);
   mockEvents.emit("transactionHash", hash);
   expect(transactionHistoryStore.getSnapshot().entries[0]).toMatchObject({

@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 import { parseHistoryResponse } from "@/utils/transactionHistory";
 import type { HistoryRow } from "@/utils/transactionHistory";
@@ -28,7 +29,7 @@ const TONE_CLASS: Record<HistoryTone, string> = {
 
 interface TransactionHistoryPopupProps {
   accountAddress: string;
-  blockchain: string;
+  blockchain: BlockchainSelection;
   isOpen: boolean;
   onClose: () => void;
 }

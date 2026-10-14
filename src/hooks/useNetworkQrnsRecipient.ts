@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 import { useMemo } from "react";
 import { getNetworkConfig } from "@/config/networks";
 import {
@@ -12,7 +13,7 @@ import {
 
 interface UseNetworkQrnsRecipientOptions {
   input: string;
-  blockchain: string;
+  blockchain: BlockchainSelection;
   accountAddress: string;
 }
 

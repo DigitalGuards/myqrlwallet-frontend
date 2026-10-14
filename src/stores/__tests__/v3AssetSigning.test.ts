@@ -151,11 +151,11 @@ function assetFixture(asset: "ERC20" | "ERC721" | "ERC1155") {
         "medium",
         approvedFee,
       );
-    const nft: NFTInterface = {
+    const nft = {
       contractAddress: CONTRACT,
       tokenId: "1",
       standard: asset,
-    };
+    } satisfies NFTInterface;
     return nfts.transferNft(nft, RECIPIENT, "test mnemonic", 1n, "medium", approvedFee);
   };
   return { store, tokens, nfts, ready, send };

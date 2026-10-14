@@ -1,7 +1,7 @@
 import { runAsPromise } from "@/utils/runAsPromise";
-import { isRecord } from "@/utils/guards";
+import { arrayValue, isArray, isRecord, stringValue, toNumber, toTemplateString } from "@/utils/guards";
 import { QRL_PROVIDER } from "@/config";
-import type { TokenInterface, NFTInterface } from "@/constants";
+import type { TokenInterface } from "@/constants";
 import { isInNativeApp } from "@/utils/nativeApp";
 import { isDesktop } from "@/desktop/bridge";
 import {
@@ -48,11 +48,12 @@ const dispatchStorageEvent = (name: string) => {
 };
 
 type TransactionValuesType = {
-  receiverAddress?: string;
-  amount?: number;
+  receiverAddress?: unknown;
+  amount?: unknown;
 };
 
 type BlockchainType = keyof typeof QRL_PROVIDER;
+export type BlockchainSelection = string | unknown[];
 
 interface StorageItem<T> {
   value: T;
@@ -61,23 +62,23 @@ interface StorageItem<T> {
 }
 
 interface WalletSettings {
-  autoLockTimeout: number;
-  showTokensCard: boolean;
-  showNftsCard: boolean;
+  autoLockTimeout?: unknown;
+  showTokensCard?: unknown;
+  showNftsCard?: unknown;
 }
 
 export interface EncryptedSeedData {
-  address: string;
-  encryptedSeed: string; // JSON string from WalletEncryptionUtil.encryptSeedWithPin
-  lastAccessed: number;
+  address?: unknown;
+  encryptedSeed?: unknown;
+  lastAccessed?: unknown;
   /**
    * Monotonic per-(blockchain,address) revision used by the native backup
    * protocol. Records written before the acknowledged-backup protocol have no
    * revision and are treated as revision 0.
    */
-  revision?: number;
+  revision?: unknown;
   /** Wallet identity generation that is allowed to read this ciphertext. */
-  walletEpoch?: WalletEpoch;
+  walletEpoch?: unknown;
 }
 
 function seedBelongsToEpoch(
@@ -92,6 +93,7 @@ function seedBelongsToEpoch(
 
 function seedRevision(seed: EncryptedSeedData | undefined): number {
   return seed &&
+    typeof seed.revision === "number" &&
     Number.isSafeInteger(seed.revision) &&
     (seed.revision ?? 0) >= 0
     ? (seed.revision ?? 0)
@@ -169,32 +171,70 @@ function wrapWithMetadata<T>(value: T): StorageItem<T> {
   };
 }
 
-function isExpired(timestamp: number): boolean {
+function isExpired(timestamp: unknown): boolean {
   // Native app has its own security (Device Login, auto-lock on background)
   // so we don't need the 6-hour expiration guardrail there
   if (isInNativeApp()) {
     return false;
   }
-  return Date.now() - timestamp > MAX_STORAGE_AGE;
+  return Date.now() - Number(timestamp) > MAX_STORAGE_AGE;
 }
 
-function getItem<T>(key: string): T | null {
+function getItem(key: string): unknown {
   try {
     const item = localStorage.getItem(key);
     if (!item) return null;
 
-    const parsed = JSON.parse(item) as StorageItem<T>;
+    const parsed: unknown = JSON.parse(item);
+    if (!isRecord(parsed)) return null;
 
     // Check expiration
-    if (isExpired(parsed.timestamp)) {
+    if (isExpired(parsed["timestamp"])) {
       localStorage.removeItem(key);
       return null;
     }
 
-    return parsed.value;
+    return parsed["value"];
   } catch {
     return null;
   }
+}
+
+function isEncryptedSeedList(value: unknown): value is EncryptedSeedData[] {
+  // Optional fields stay unknown so inventory and revision checks see every
+  // record, including legacy records with incomplete metadata.
+  return isArray(value) && value.every((item) => item !== null && item !== undefined);
+}
+
+function isTransactionValues(value: unknown): value is TransactionValuesType {
+  return value !== null && value !== undefined;
+}
+
+function isWalletSettings(value: unknown): value is WalletSettings {
+  return value !== null && value !== undefined;
+}
+
+function isBalanceCache(value: unknown): value is Record<string, unknown> {
+  return value !== null && value !== undefined;
+}
+
+function isBlockchain(value: unknown): value is BlockchainType {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(QRL_PROVIDER, value);
+}
+
+function isBlockchainSelection(value: unknown): value is BlockchainSelection {
+  return typeof value === "string" || isArray(value);
+}
+
+export function blockchainKey(value: BlockchainSelection): BlockchainType {
+  return checkedValue(toTemplateString(value), isBlockchain);
+}
+
+// A failed shape check must preserve the stored value for recovery. In
+// particular it must never become an empty list that a later write replaces.
+function checkedValue<T>(value: unknown, guard: (value: unknown) => value is T): T {
+  if (!guard(value)) throw new TypeError("Invalid stored value");
+  return value;
 }
 
 function setItem(key: string, value: unknown): void {
@@ -222,19 +262,19 @@ function setItemAtWalletEpoch(
 }
 
 /**
- * Token list - keyed by `${blockchain}_${account}` (mirrors the NFT
+ * Token list - keyed by `${toTemplateString(blockchain)}_${account}` (mirrors the NFT
  * list) so manually-added tokens from one wallet/chain never bleed
  * into another and survive logout/re-import of the same account.
  * Returns `[]` when either scope component is empty (caller bootstrap
  * typically races init). Replaces the older global key which leaked
  * across accounts on switch and across networks on chain switch.
  */
-function tokenListKey(blockchain: string, account: string) {
-  return `${blockchain}_${account.toLowerCase()}_${TOKEN_LIST_IDENTIFIER}`;
+function tokenListKey(blockchain: BlockchainSelection, account: string) {
+  return `${toTemplateString(blockchain)}_${account.toLowerCase()}_${TOKEN_LIST_IDENTIFIER}`;
 }
 
-function hiddenTokensKey(blockchain: string, account: string) {
-  return `${blockchain}_${account.toLowerCase()}_${HIDDEN_TOKENS_IDENTIFIER}`;
+function hiddenTokensKey(blockchain: BlockchainSelection, account: string) {
+  return `${toTemplateString(blockchain)}_${account.toLowerCase()}_${HIDDEN_TOKENS_IDENTIFIER}`;
 }
 
 function removeKeysEndingWith(suffix: string): void {
@@ -249,18 +289,18 @@ function removeKeysEndingWith(suffix: string): void {
 }
 
 /**
- * NFT list - keyed by `${blockchain}_${account}` so collectibles from
+ * NFT list - keyed by `${toTemplateString(blockchain)}_${account}` so collectibles from
  * one wallet/chain never bleed into another. Returns `[]` when either
  * scope component is empty (caller's bootstrap typically races init).
  * Replaces the older global key which leaked across accounts on
  * re-import and across networks on chain switch.
  */
-function nftListKey(blockchain: string, account: string) {
-  return `${blockchain}_${account.toLowerCase()}_${NFT_LIST_IDENTIFIER}`;
+function nftListKey(blockchain: BlockchainSelection, account: string) {
+  return `${toTemplateString(blockchain)}_${account.toLowerCase()}_${NFT_LIST_IDENTIFIER}`;
 }
 
-function hiddenNftsKey(blockchain: string, account: string) {
-  return `${blockchain}_${account.toLowerCase()}_${HIDDEN_NFTS_IDENTIFIER}`;
+function hiddenNftsKey(blockchain: BlockchainSelection, account: string) {
+  return `${toTemplateString(blockchain)}_${account.toLowerCase()}_${HIDDEN_NFTS_IDENTIFIER}`;
 }
 
 /**
@@ -282,9 +322,9 @@ const StorageUtil = {
     });
   },
 
-  getActivePage: (): Promise<string> => {
+  getActivePage: (): Promise<unknown> => {
     return runAsPromise(() => {
-      return getItem<string>(ACTIVE_PAGE_IDENTIFIER) ?? "";
+      return getItem(ACTIVE_PAGE_IDENTIFIER) ?? "";
     });
   },
 
@@ -327,7 +367,7 @@ const StorageUtil = {
   },
 
   updateTokenList: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     account: string,
     tokenList: TokenInterface[],
   ): Promise<void> => {
@@ -337,17 +377,16 @@ const StorageUtil = {
     });
   },
 
-  getTokenList: (blockchain: string, account: string): Promise<TokenInterface[]> => {
+  getTokenList: (blockchain: BlockchainSelection, account: string): Promise<unknown> => {
     return runAsPromise(() => {
       if (!blockchain || !account) return [];
       return (
-        getItem<TokenInterface[]>(tokenListKey(blockchain, account)) ??
-        []
+        getItem(tokenListKey(blockchain, account)) ?? []
       );
     });
   },
 
-  clearTokenList: (blockchain: string, account: string): Promise<void> => {
+  clearTokenList: (blockchain: BlockchainSelection, account: string): Promise<void> => {
     return runAsPromise(() => {
       if (!blockchain || !account) return;
       localStorage.removeItem(tokenListKey(blockchain, account));
@@ -358,15 +397,15 @@ const StorageUtil = {
    * Reads the pre-per-account global token list (legacy key). Used once
    * by the migration that moves it under the active account's scope.
    */
-  getLegacyGlobalTokenList: (): TokenInterface[] => {
-    return getItem<TokenInterface[]>(TOKEN_LIST_IDENTIFIER) ?? [];
+  getLegacyGlobalTokenList: (): unknown => {
+    return getItem(TOKEN_LIST_IDENTIFIER) ?? [];
   },
 
   /**
    * Reads the pre-per-account global hidden-tokens list (legacy key).
    */
-  getLegacyGlobalHiddenTokens: (): string[] => {
-    return getItem<string[]>(HIDDEN_TOKENS_IDENTIFIER) ?? [];
+  getLegacyGlobalHiddenTokens: (): unknown => {
+    return getItem(HIDDEN_TOKENS_IDENTIFIER) ?? [];
   },
 
   /**
@@ -398,11 +437,11 @@ const StorageUtil = {
     removeKeysEndingWith(`_${HIDDEN_NFTS_IDENTIFIER}`);
   },
 
-  getBlockChain: (): Promise<BlockchainType> => {
+  getBlockChain: (): Promise<BlockchainSelection> => {
     return runAsPromise(() => {
       if (IS_V3_PROFILE) return 'TEST_NET_V3';
-      const DEFAULT_BLOCKCHAIN = QRL_PROVIDER.TEST_NET.id;
-      const storedBlockchain = getItem<string>(
+      const DEFAULT_BLOCKCHAIN = checkedValue(QRL_PROVIDER.TEST_NET.id, isBlockchain);
+      const storedBlockchain = getItem(
         BLOCKCHAIN_SELECTION_IDENTIFIER,
       );
       // Guard against stale keys (e.g. "CUSTOM_RPC") that no longer exist in
@@ -410,8 +449,9 @@ const StorageUtil = {
       // mainnet launch).
       const isValid =
         storedBlockchain != null && storedBlockchain !== 'TEST_NET_V3' &&
-        Object.prototype.hasOwnProperty.call(QRL_PROVIDER, storedBlockchain);
-      return (isValid ? storedBlockchain : DEFAULT_BLOCKCHAIN) as BlockchainType;
+        Object.prototype.hasOwnProperty.call(QRL_PROVIDER, toTemplateString(storedBlockchain));
+      if (!isValid) return DEFAULT_BLOCKCHAIN;
+      return checkedValue(storedBlockchain, isBlockchainSelection);
     });
   },
 
@@ -420,8 +460,8 @@ const StorageUtil = {
    * Call the getActiveAccount function to retrieve the stored value.
    * Data expires after 6 hours on desktop web (native app bypasses expiration).
    */
-  async setActiveAccount(blockchain: string, activeAccount?: string) {
-    const blockChainAccountIdentifier = `${blockchain}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
+  async setActiveAccount(blockchain: BlockchainSelection, activeAccount?: string) {
+    const blockChainAccountIdentifier = `${toTemplateString(blockchain)}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
     if (activeAccount) {
       const normalizedActiveAccount = normalizeQrlAddress(activeAccount);
       if (!normalizedActiveAccount) {
@@ -448,19 +488,19 @@ const StorageUtil = {
     dispatchStorageEvent(STORAGE_EVENT_ACTIVE_ACCOUNT);
   },
 
-  getActiveAccount: (blockchain: string): Promise<string> => {
+  getActiveAccount: (blockchain: BlockchainSelection): Promise<string> => {
     return runAsPromise(() => {
-      const blockChainAccountIdentifier = `${blockchain}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
-      return normalizeQrlAddress(getItem<unknown>(blockChainAccountIdentifier)) ?? "";
+      const blockChainAccountIdentifier = `${toTemplateString(blockchain)}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
+      return normalizeQrlAddress(getItem(blockChainAccountIdentifier)) ?? "";
     });
   },
 
-  clearActiveAccount: (blockchain: string): Promise<void> => {
+  clearActiveAccount: (blockchain: BlockchainSelection): Promise<void> => {
     return runAsPromise(() => {
-      const blockChainAccountIdentifier = `${blockchain}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
+      const blockChainAccountIdentifier = `${toTemplateString(blockchain)}_${ACTIVE_ACCOUNT_IDENTIFIER}`;
       localStorage.removeItem(blockChainAccountIdentifier);
       localStorage.removeItem(
-        `${blockchain}_${LEGACY_ACTIVE_ACCOUNT_IDENTIFIER}`,
+        `${toTemplateString(blockchain)}_${LEGACY_ACTIVE_ACCOUNT_IDENTIFIER}`,
       );
       dispatchStorageEvent(STORAGE_EVENT_ACTIVE_ACCOUNT);
     });
@@ -470,11 +510,11 @@ const StorageUtil = {
    * Stores a list of accounts along with their sources (seed or extension).
    */
   setAccountList: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     accountList: AccountListItem[],
   ): Promise<void> => {
     return runAsPromise(() => {
-      const blockChainAccountListIdentifier = `${blockchain}_${ACCOUNT_LIST_IDENTIFIER}`;
+      const blockChainAccountListIdentifier = `${toTemplateString(blockchain)}_${ACCOUNT_LIST_IDENTIFIER}`;
       const normalized = normalizeAccountList(accountList);
       if (normalized.length !== accountList.length) {
         throw new Error("Account list contains an invalid QIP-55 account");
@@ -489,10 +529,10 @@ const StorageUtil = {
    * malformed records found in the QIP-55 namespace also remain stored for an
    * explicit recovery flow, while the active runtime list excludes them.
    */
-  getAccountList: (blockchain: string): Promise<AccountListItem[]> => {
+  getAccountList: (blockchain: BlockchainSelection): Promise<AccountListItem[]> => {
     return runAsPromise(() => {
-      const blockChainAccountListIdentifier = `${blockchain}_${ACCOUNT_LIST_IDENTIFIER}`;
-      const data = getItem<unknown>(blockChainAccountListIdentifier);
+      const blockChainAccountListIdentifier = `${toTemplateString(blockchain)}_${ACCOUNT_LIST_IDENTIFIER}`;
+      const data = getItem(blockChainAccountListIdentifier);
 
       if (!data) {
         return [];
@@ -514,7 +554,7 @@ const StorageUtil = {
    * @param blockchain The blockchain identifier
    * @returns True if the wallet limit has been reached
    */
-  async isWalletLimitReached(blockchain: string): Promise<boolean> {
+  async isWalletLimitReached(blockchain: BlockchainSelection): Promise<boolean> {
     const accountList = await this.getAccountList(blockchain);
     return accountList.length >= MAX_WALLETS;
   },
@@ -524,7 +564,7 @@ const StorageUtil = {
    * @param blockchain The blockchain identifier
    * @returns The number of wallets currently stored
    */
-  async getWalletCount(blockchain: string): Promise<number> {
+  async getWalletCount(blockchain: BlockchainSelection): Promise<number> {
     const accountList = await this.getAccountList(blockchain);
     return accountList.length;
   },
@@ -535,11 +575,11 @@ const StorageUtil = {
    * Data expires after 6 hours.
    */
   setTransactionValues: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     transactionValues: TransactionValuesType,
   ): Promise<void> => {
     return runAsPromise(() => {
-      const transactionValuesIdentifier = `${blockchain}_${TRANSACTION_VALUES_IDENTIFIER}`;
+      const transactionValuesIdentifier = `${toTemplateString(blockchain)}_${TRANSACTION_VALUES_IDENTIFIER}`;
       const safeValues = {
         receiverAddress: transactionValues.receiverAddress ?? "",
         amount: transactionValues.amount ?? 0,
@@ -549,18 +589,18 @@ const StorageUtil = {
     });
   },
 
-  getTransactionValues: (blockchain: string): Promise<TransactionValuesType> => {
+  getTransactionValues: (blockchain: BlockchainSelection): Promise<TransactionValuesType> => {
     return runAsPromise(() => {
-      const transactionValuesIdentifier = `${blockchain}_${TRANSACTION_VALUES_IDENTIFIER}`;
+      const transactionValuesIdentifier = `${toTemplateString(blockchain)}_${TRANSACTION_VALUES_IDENTIFIER}`;
       return (
-        getItem<TransactionValuesType>(transactionValuesIdentifier) ?? {}
+        checkedValue(getItem(transactionValuesIdentifier) ?? {}, isTransactionValues)
       );
     });
   },
 
-  clearTransactionValues: (blockchain: string): Promise<void> => {
+  clearTransactionValues: (blockchain: BlockchainSelection): Promise<void> => {
     return runAsPromise(() => {
-      const transactionValuesIdentifier = `${blockchain}_${TRANSACTION_VALUES_IDENTIFIER}`;
+      const transactionValuesIdentifier = `${toTemplateString(blockchain)}_${TRANSACTION_VALUES_IDENTIFIER}`;
       localStorage.removeItem(transactionValuesIdentifier);
     });
   },
@@ -575,7 +615,7 @@ const StorageUtil = {
   getWalletSettings: (): Promise<WalletSettings> => {
     return runAsPromise(() => {
       const stored =
-        getItem<Partial<WalletSettings>>(WALLET_SETTINGS_IDENTIFIER) ?? {};
+        checkedValue(getItem(WALLET_SETTINGS_IDENTIFIER) ?? {}, isWalletSettings);
       return {
         autoLockTimeout: stored.autoLockTimeout ?? AUTO_LOCK_TIMEOUT,
         showTokensCard: stored.showTokensCard ?? true,
@@ -591,11 +631,11 @@ const StorageUtil = {
    * @param encryptedSeed The encrypted seed data from WalletEncryptionUtil.encryptSeedWithPin
    */
   storeEncryptedSeed: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     address: string,
     encryptedSeed: string,
     expectedEpoch: WalletEpoch = getWalletEpoch(),
-  ): Promise<EncryptedSeedData> => {
+  ): Promise<EncryptedSeedData & { revision?: number }> => {
     return runAsPromise(() => {
       // Defense-in-depth: on desktop the seed lives only in the isolated signer
       // and must NEVER be written to renderer localStorage. Throw loudly so any
@@ -605,17 +645,17 @@ const StorageUtil = {
           "desktop: encrypted seeds must never be stored in the renderer",
         );
       }
-      const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+      const encryptedSeedsKey = `${toTemplateString(blockchain)}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
       const encryptedSeeds = (
-        getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+        checkedValue(getItem(encryptedSeedsKey) ?? [], isEncryptedSeedList)
       ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
 
       // Update or add the encrypted seed
       const existingIndex = encryptedSeeds.findIndex(
-        (item) => item.address.toLowerCase() === address.toLowerCase(),
+        (item) => stringValue(item.address).toLowerCase() === address.toLowerCase(),
       );
       const existing = encryptedSeeds[existingIndex];
-      const seedData: EncryptedSeedData = {
+      const seedData = {
         address,
         encryptedSeed,
         lastAccessed: Date.now(),
@@ -645,18 +685,18 @@ const StorageUtil = {
    * @returns The encrypted seed data or null if not found
    */
   getEncryptedSeed: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     address: string,
     expectedEpoch: WalletEpoch = getWalletEpoch(),
-  ): Promise<string | null> => {
+  ): Promise<unknown> => {
     return runAsPromise(() => {
-      const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+      const encryptedSeedsKey = `${toTemplateString(blockchain)}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
       const encryptedSeeds = (
-        getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+        checkedValue(getItem(encryptedSeedsKey) ?? [], isEncryptedSeedList)
       ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
 
       const seedIndex = encryptedSeeds.findIndex(
-        (item) => item.address.toLowerCase() === address.toLowerCase(),
+        (item) => stringValue(item.address).toLowerCase() === address.toLowerCase(),
       );
       const seedData = encryptedSeeds[seedIndex];
       if (seedData) {
@@ -685,12 +725,12 @@ const StorageUtil = {
    * @returns Array of all stored encrypted seeds
    */
   getAllEncryptedSeeds: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
   ): Promise<EncryptedSeedData[]> => {
     return runAsPromise(() => {
-      const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+      const encryptedSeedsKey = `${toTemplateString(blockchain)}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
       const epoch = getWalletEpoch();
-      return (getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []).filter(
+      return (checkedValue(getItem(encryptedSeedsKey) ?? [], isEncryptedSeedList)).filter(
         (seed) => seedBelongsToEpoch(seed, epoch),
       );
     });
@@ -701,7 +741,7 @@ const StorageUtil = {
    * @param blockchain The blockchain identifier
    * @returns True if at least one encrypted seed exists
    */
-  async hasEncryptedSeeds(blockchain: string): Promise<boolean> {
+  async hasEncryptedSeeds(blockchain: BlockchainSelection): Promise<boolean> {
     const seeds = await this.getAllEncryptedSeeds(blockchain);
     return seeds.length > 0;
   },
@@ -713,12 +753,12 @@ const StorageUtil = {
    * @param seeds Array of updated encrypted seed data
    */
   updateAllEncryptedSeeds: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     seeds: EncryptedSeedData[],
     expectedEpoch: WalletEpoch = getWalletEpoch(),
   ): Promise<void> => {
     return runAsPromise(() => {
-      const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+      const encryptedSeedsKey = `${toTemplateString(blockchain)}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
       setItemAtWalletEpoch(
         encryptedSeedsKey,
         seeds.map((seed) => ({ ...seed, walletEpoch: expectedEpoch })),
@@ -735,16 +775,16 @@ const StorageUtil = {
    * during those awaits.
    */
   replaceEncryptedSeedSetIfUnchanged: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     expected: EncryptedSeedData[],
     replacement: EncryptedSeedData[],
     expectedEpoch: WalletEpoch = getWalletEpoch(),
   ): Promise<boolean> => {
     return runAsPromise(() => {
       if (!isWalletEpochCurrent(expectedEpoch)) return false;
-      const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+      const encryptedSeedsKey = `${toTemplateString(blockchain)}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
       const current = (
-        getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+        checkedValue(getItem(encryptedSeedsKey) ?? [], isEncryptedSeedList)
       ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
       if (!encryptedSeedSetsEqual(current, expected)) return false;
       setItemAtWalletEpoch(
@@ -763,7 +803,7 @@ const StorageUtil = {
    * browser state.
    */
   restoreEncryptedSeedIfNewer: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     address: string,
     encryptedSeed: string,
     revision: number,
@@ -773,12 +813,12 @@ const StorageUtil = {
       if (!Number.isSafeInteger(revision) || revision < 0) {
         throw new Error("Invalid encrypted seed revision");
       }
-      const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+      const encryptedSeedsKey = `${toTemplateString(blockchain)}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
       const encryptedSeeds = (
-        getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+        checkedValue(getItem(encryptedSeedsKey) ?? [], isEncryptedSeedList)
       ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
       const existingIndex = encryptedSeeds.findIndex(
-        (item) => item.address.toLowerCase() === address.toLowerCase(),
+        (item) => stringValue(item.address).toLowerCase() === address.toLowerCase(),
       );
       const existing = encryptedSeeds[existingIndex];
       if (existing && seedRevision(existing) >= revision) return "skipped";
@@ -807,26 +847,26 @@ const StorageUtil = {
    * overwriting a concurrent PIN change or account replacement.
    */
   migrateEncryptedSeed: (
-    blockchain: string,
-    address: string,
-    expectedEncryptedSeed: string,
+    blockchain: BlockchainSelection,
+    address: unknown,
+    expectedEncryptedSeed: unknown,
     migratedEncryptedSeed: string,
     expectedEpoch: WalletEpoch = getWalletEpoch(),
-  ): Promise<EncryptedSeedData | null> => {
+  ): Promise<(EncryptedSeedData & { revision?: number }) | null> => {
     return runAsPromise(() => {
       if (!isWalletEpochCurrent(expectedEpoch)) return null;
-      const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+      const encryptedSeedsKey = `${toTemplateString(blockchain)}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
       const encryptedSeeds = (
-        getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+        checkedValue(getItem(encryptedSeedsKey) ?? [], isEncryptedSeedList)
       ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
       const existingIndex = encryptedSeeds.findIndex(
-        (item) => item.address.toLowerCase() === address.toLowerCase(),
+        (item) => stringValue(item.address).toLowerCase() === stringValue(address).toLowerCase(),
       );
       const existing = encryptedSeeds[existingIndex];
       if (!existing || existing.encryptedSeed !== expectedEncryptedSeed)
         return null;
 
-      const migrated: EncryptedSeedData = {
+      const migrated = {
         ...existing,
         encryptedSeed: migratedEncryptedSeed,
         lastAccessed: Date.now(),
@@ -849,14 +889,14 @@ const StorageUtil = {
    * @param address The account address
    */
   removeEncryptedSeed: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     address: string,
     expectedEpoch: WalletEpoch = getWalletEpoch(),
   ): Promise<void> => {
     return runAsPromise(() => {
-      const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+      const encryptedSeedsKey = `${toTemplateString(blockchain)}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
       let encryptedSeeds = (
-        getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+        checkedValue(getItem(encryptedSeedsKey) ?? [], isEncryptedSeedList)
       ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
 
       encryptedSeeds = encryptedSeeds.filter((item) => item.address !== address);
@@ -873,18 +913,18 @@ const StorageUtil = {
    * @param blockchain The blockchain identifier
    */
   async cleanupExpiredSeeds(
-    blockchain: string,
+    blockchain: BlockchainSelection,
     expectedEpoch: WalletEpoch = getWalletEpoch(),
   ) {
     const settings = await this.getWalletSettings();
-    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+    const encryptedSeedsKey = `${toTemplateString(blockchain)}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
     let encryptedSeeds = (
-      getItem<EncryptedSeedData[]>(encryptedSeedsKey) ?? []
+      checkedValue(getItem(encryptedSeedsKey) ?? [], isEncryptedSeedList)
     ).filter((seed) => seedBelongsToEpoch(seed, expectedEpoch));
 
     const now = Date.now();
     encryptedSeeds = encryptedSeeds.filter(
-      (item) => now - item.lastAccessed < settings.autoLockTimeout,
+      (item) => now - Number(item.lastAccessed) < toNumber(settings.autoLockTimeout),
     );
 
     setItemAtWalletEpoch(
@@ -898,8 +938,8 @@ const StorageUtil = {
    * Clears ALL encrypted seeds for a blockchain (used by native app wallet removal)
    * @param blockchain The blockchain identifier
    */
-  clearAllEncryptedSeeds: (blockchain: string): void => {
-    const encryptedSeedsKey = `${blockchain}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
+  clearAllEncryptedSeeds: (blockchain: BlockchainSelection): void => {
+    const encryptedSeedsKey = `${toTemplateString(blockchain)}_${ENCRYPTED_SEEDS_IDENTIFIER}`;
     localStorage.removeItem(encryptedSeedsKey);
   },
 
@@ -907,23 +947,23 @@ const StorageUtil = {
    * Clears the account list for a blockchain
    * @param blockchain The blockchain identifier
    */
-  clearAccountList: (blockchain: string): void => {
-    const blockChainAccountListIdentifier = `${blockchain}_${ACCOUNT_LIST_IDENTIFIER}`;
+  clearAccountList: (blockchain: BlockchainSelection): void => {
+    const blockChainAccountListIdentifier = `${toTemplateString(blockchain)}_${ACCOUNT_LIST_IDENTIFIER}`;
     localStorage.removeItem(blockChainAccountListIdentifier);
-    localStorage.removeItem(`${blockchain}_${LEGACY_ACCOUNT_LIST_IDENTIFIER}`);
+    localStorage.removeItem(`${toTemplateString(blockchain)}_${LEGACY_ACCOUNT_LIST_IDENTIFIER}`);
   },
 
   /**
    * Get list of hidden token addresses for an account scope.
    */
   getHiddenTokens: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     account: string,
-  ): Promise<string[]> => {
+  ): Promise<unknown> => {
     return runAsPromise(() => {
       if (!blockchain || !account) return [];
       return (
-        getItem<string[]>(hiddenTokensKey(blockchain, account)) ?? []
+        getItem(hiddenTokensKey(blockchain, account)) ?? []
       );
     });
   },
@@ -932,18 +972,18 @@ const StorageUtil = {
    * Add a token address to the hidden list
    */
   async hideToken(
-    blockchain: string,
+    blockchain: BlockchainSelection,
     account: string,
     tokenAddress: string,
   ) {
     if (!blockchain || !account) return;
     const hiddenTokens = await this.getHiddenTokens(blockchain, account);
     if (
-      !hiddenTokens.some(
-        (addr) => addr.toLowerCase() === tokenAddress.toLowerCase(),
+      !arrayValue(hiddenTokens).some(
+        (addr) => stringValue(addr).toLowerCase() === tokenAddress.toLowerCase(),
       )
     ) {
-      hiddenTokens.push(tokenAddress.toLowerCase());
+      arrayValue(hiddenTokens).push(tokenAddress.toLowerCase());
       setItem(hiddenTokensKey(blockchain, account), hiddenTokens);
     }
   },
@@ -952,41 +992,41 @@ const StorageUtil = {
    * Remove a token address from the hidden list
    */
   async unhideToken(
-    blockchain: string,
+    blockchain: BlockchainSelection,
     account: string,
     tokenAddress: string,
   ) {
     if (!blockchain || !account) return;
     let hiddenTokens = await this.getHiddenTokens(blockchain, account);
-    hiddenTokens = hiddenTokens.filter(
-      (addr) => addr.toLowerCase() !== tokenAddress.toLowerCase(),
+    hiddenTokens = arrayValue(hiddenTokens).filter(
+      (addr) => stringValue(addr).toLowerCase() !== tokenAddress.toLowerCase(),
     );
     setItem(hiddenTokensKey(blockchain, account), hiddenTokens);
   },
 
   setBalanceCache: (
-    blockchain: string,
-    balances: Record<string, string>,
+    blockchain: BlockchainSelection,
+    balances: Record<string, unknown>,
   ): Promise<void> => {
     return runAsPromise(() => {
-      const key = `${blockchain}_${BALANCE_CACHE_IDENTIFIER}`;
+      const key = `${toTemplateString(blockchain)}_${BALANCE_CACHE_IDENTIFIER}`;
       setItem(key, balances);
     });
   },
 
   getBalanceCache: (
-    blockchain: string,
-  ): Promise<Record<string, string>> => {
+    blockchain: BlockchainSelection,
+  ): Promise<Record<string, unknown>> => {
     return runAsPromise(() => {
-      const key = `${blockchain}_${BALANCE_CACHE_IDENTIFIER}`;
-      return getItem<Record<string, string>>(key) ?? {};
+      const key = `${toTemplateString(blockchain)}_${BALANCE_CACHE_IDENTIFIER}`;
+      return checkedValue(getItem(key) ?? {}, isBalanceCache);
     });
   },
 
   /**
    * Clear all hidden tokens for an account scope (re-show all).
    */
-  clearHiddenTokens: (blockchain: string, account: string): Promise<void> => {
+  clearHiddenTokens: (blockchain: BlockchainSelection, account: string): Promise<void> => {
     return runAsPromise(() => {
       if (!blockchain || !account) return;
       localStorage.removeItem(hiddenTokensKey(blockchain, account));
@@ -994,21 +1034,21 @@ const StorageUtil = {
   },
 
   getNftList: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     account: string,
-  ): Promise<NFTInterface[]> => {
+  ): Promise<unknown> => {
     return runAsPromise(() => {
       if (!blockchain || !account) return [];
       return (
-        getItem<NFTInterface[]>(nftListKey(blockchain, account)) ?? []
+        getItem(nftListKey(blockchain, account)) ?? []
       );
     });
   },
 
   updateNftList: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     account: string,
-    list: NFTInterface[],
+    list: unknown,
   ): Promise<void> => {
     return runAsPromise(() => {
       if (!blockchain || !account) return;
@@ -1016,7 +1056,7 @@ const StorageUtil = {
     });
   },
 
-  clearNftList: (blockchain: string, account: string): Promise<void> => {
+  clearNftList: (blockchain: BlockchainSelection, account: string): Promise<void> => {
     return runAsPromise(() => {
       if (!blockchain || !account) return;
       localStorage.removeItem(nftListKey(blockchain, account));
@@ -1024,34 +1064,34 @@ const StorageUtil = {
   },
 
   getHiddenNfts: (
-    blockchain: string,
+    blockchain: BlockchainSelection,
     account: string,
-  ): Promise<string[]> => {
+  ): Promise<unknown> => {
     return runAsPromise(() => {
       if (!blockchain || !account) return [];
       return (
-        getItem<string[]>(hiddenNftsKey(blockchain, account)) ?? []
+        getItem(hiddenNftsKey(blockchain, account)) ?? []
       );
     });
   },
 
-  async hideNft(blockchain: string, account: string, key: string) {
+  async hideNft(blockchain: BlockchainSelection, account: string, key: string) {
     if (!blockchain || !account) return;
     const list = await this.getHiddenNfts(blockchain, account);
-    if (!list.some((k) => k.toLowerCase() === key.toLowerCase())) {
-      list.push(key.toLowerCase());
+    if (!arrayValue(list).some((k) => stringValue(k).toLowerCase() === key.toLowerCase())) {
+      arrayValue(list).push(key.toLowerCase());
       setItem(hiddenNftsKey(blockchain, account), list);
     }
   },
 
-  async unhideNft(blockchain: string, account: string, key: string) {
+  async unhideNft(blockchain: BlockchainSelection, account: string, key: string) {
     if (!blockchain || !account) return;
     let list = await this.getHiddenNfts(blockchain, account);
-    list = list.filter((k) => k.toLowerCase() !== key.toLowerCase());
+    list = arrayValue(list).filter((k) => stringValue(k).toLowerCase() !== key.toLowerCase());
     setItem(hiddenNftsKey(blockchain, account), list);
   },
 
-  clearHiddenNfts: (blockchain: string, account: string): Promise<void> => {
+  clearHiddenNfts: (blockchain: BlockchainSelection, account: string): Promise<void> => {
     return runAsPromise(() => {
       if (!blockchain || !account) return;
       localStorage.removeItem(hiddenNftsKey(blockchain, account));
