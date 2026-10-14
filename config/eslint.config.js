@@ -790,53 +790,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/utils/web3/__tests__/feePolicy.test.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: ["src/utils/web3/__tests__/nativeMaxReserve.test.ts"],
-    rules: {
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/utils/web3/__tests__/nftCollections.test.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/utils/web3/__tests__/qip55Composition.test.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/utils/web3/__tests__/qrns.test.ts"],
-    rules: {
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/utils/web3/__tests__/sendPolling.test.ts"],
-    rules: {
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/utils/web3/__tests__/vm64Logs.test.ts"],
-    rules: {
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
     files: ["src/utils/web3/contractFactory.ts"],
     rules: {
       "@typescript-eslint/consistent-type-assertions": "off",

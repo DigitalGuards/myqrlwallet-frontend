@@ -1,7 +1,9 @@
 import { nativeMaxReserve } from "../nativeMaxReserve";
 
 it("reserves fees and verifies the actual Max value", async () => {
-  const estimate = jest.fn(async () => "0.0000252");
+  const estimate = jest
+    .fn<Promise<string>, [value: string]>()
+    .mockResolvedValue("0.0000252");
   expect(await nativeMaxReserve("1", estimate)).toBe("0.0000252");
   expect(estimate.mock.calls).toEqual([
     ["0.000000000000000001"],
@@ -11,7 +13,7 @@ it("reserves fees and verifies the actual Max value", async () => {
 
 it("retains a conservative reserve when the reduced value consumes less gas", async () => {
   const estimate = jest
-    .fn()
+    .fn<Promise<string>, [value: string]>()
     .mockResolvedValueOnce("0.1")
     .mockResolvedValueOnce("0.05");
   expect(await nativeMaxReserve("1", estimate)).toBe("0.1");
@@ -19,7 +21,7 @@ it("retains a conservative reserve when the reduced value consumes less gas", as
 
 it("re-estimates when the reduced value consumes more gas", async () => {
   const estimate = jest
-    .fn()
+    .fn<Promise<string>, [value: string]>()
     .mockResolvedValueOnce("0.1")
     .mockResolvedValue("0.2");
   expect(await nativeMaxReserve("1", estimate)).toBe("0.2");
@@ -32,7 +34,7 @@ it("re-estimates when the reduced value consumes more gas", async () => {
 
 it("bounds unstable estimates", async () => {
   const estimate = jest
-    .fn()
+    .fn<Promise<string>, [value: string]>()
     .mockResolvedValueOnce("0.1")
     .mockResolvedValueOnce("0.2")
     .mockResolvedValue("0.3");
@@ -45,12 +47,16 @@ it("bounds unstable estimates", async () => {
 it.each(["-1", "1", "2", "invalid"])(
   "rejects an unusable fee %s",
   async (fee) => {
-    await expect(nativeMaxReserve("1", async () => fee)).rejects.toThrow();
+    await expect(
+      nativeMaxReserve("1", () => Promise.resolve(fee)),
+    ).rejects.toThrow();
   },
 );
 
 it("preserves exact amounts and genuine zero fees", async () => {
-  const estimate = jest.fn(async () => "0");
+  const estimate = jest
+    .fn<Promise<string>, [value: string]>()
+    .mockResolvedValue("0");
   expect(
     await nativeMaxReserve("9007199254740993.123456789012345678", estimate),
   ).toBe("0.0");
@@ -59,8 +65,6 @@ it("preserves exact amounts and genuine zero fees", async () => {
 
 it("propagates estimation failure", async () => {
   await expect(
-    nativeMaxReserve("1", async () => {
-      throw new Error("offline");
-    }),
+    nativeMaxReserve("1", () => Promise.reject(new Error("offline"))),
   ).rejects.toThrow("offline");
 });

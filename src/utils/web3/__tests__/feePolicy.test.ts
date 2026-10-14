@@ -137,7 +137,9 @@ describe("the maximum-fee rule never refuses a quote the tip rule allowed", () =
 describe("ordinary quotes pass", () => {
   it("accepts a quote shaped like the wallet's own", () => {
     expect(feeQuoteViolation(ordinary)).toBeNull();
-    expect(() => assertFeeQuoteWithinPolicy(ordinary)).not.toThrow();
+    expect(() => {
+      assertFeeQuoteWithinPolicy(ordinary);
+    }).not.toThrow();
   });
 
   it("accepts a busy network, where the base fee carries the cost", () => {
@@ -231,13 +233,13 @@ describe("the tip is the lever, so it is bounded", () => {
   });
 
   it("throws a message a user can act on", () => {
-    expect(() =>
+    expect(() => {
       assertFeeQuoteWithinPolicy({
         baseFeePerGas: BigInt(7),
         maxPriorityFeePerGas: ABSOLUTE_MAX_PRIORITY_FEE_PER_GAS * BigInt(2),
         maxFeePerGas: ABSOLUTE_MAX_FEE_PER_GAS * BigInt(2),
-      }),
-    ).toThrow(FeeQuoteOutOfPolicyError);
+      });
+    }).toThrow(FeeQuoteOutOfPolicyError);
   });
 });
 
@@ -245,25 +247,27 @@ describe("signing the fee the user saw", () => {
   const approved = { maxFeePerGas: BigInt(100), maxPriorityFeePerGas: BigInt(10) };
 
   it("allows the same quote", () => {
-    expect(() => assertQuoteNotAboveApproved(approved, approved)).not.toThrow();
+    expect(() => {
+      assertQuoteNotAboveApproved(approved, approved);
+    }).not.toThrow();
   });
 
   it("allows a cheaper re-quote", () => {
-    expect(() =>
+    expect(() => {
       assertQuoteNotAboveApproved(
         { maxFeePerGas: BigInt(60), maxPriorityFeePerGas: BigInt(5) },
         approved,
-      ),
-    ).not.toThrow();
+      );
+    }).not.toThrow();
   });
 
   it("refuses a re-quote that grew, by any amount", () => {
-    expect(() =>
+    expect(() => {
       assertQuoteNotAboveApproved(
         { maxFeePerGas: BigInt(101), maxPriorityFeePerGas: BigInt(10) },
         approved,
-      ),
-    ).toThrow(FeeQuoteIncreasedError);
+      );
+    }).toThrow(FeeQuoteIncreasedError);
   });
 
   it("carries both figures, so the caller can show the new one", () => {
@@ -275,9 +279,9 @@ describe("signing the fee the user saw", () => {
       throw new Error("expected a throw");
     } catch (error) {
       expect(error).toBeInstanceOf(FeeQuoteIncreasedError);
-      const increased = error as FeeQuoteIncreasedError;
-      expect(increased.approvedMaxFeePerGas).toBe(BigInt(100));
-      expect(increased.currentMaxFeePerGas).toBe(BigInt(500));
+      if (!(error instanceof FeeQuoteIncreasedError)) throw error;
+      expect(error.approvedMaxFeePerGas).toBe(BigInt(100));
+      expect(error.currentMaxFeePerGas).toBe(BigInt(500));
     }
   });
 
@@ -285,12 +289,12 @@ describe("signing the fee the user saw", () => {
     // This used to sign whatever came back. A screen whose fee preview was
     // still loading, or had failed, could therefore produce a signature at a
     // price that was never displayed.
-    expect(() =>
+    expect(() => {
       assertQuoteNotAboveApproved(
         { maxFeePerGas: BigInt(10_000), maxPriorityFeePerGas: BigInt(9_000) },
         undefined,
-      ),
-    ).toThrow(FeeNotApprovedError);
+      );
+    }).toThrow(FeeNotApprovedError);
   });
 });
 
@@ -301,64 +305,64 @@ describe("signing no more than the total the user saw", () => {
   const approved = { quote, gasLimit: BigInt(21_000) };
 
   it("allows the same gas limit and price", () => {
-    expect(() =>
-      assertSignedFeeWithinApproved({ quote, gasLimit: BigInt(21_000) }, approved),
-    ).not.toThrow();
+    expect(() => {
+      assertSignedFeeWithinApproved({ quote, gasLimit: BigInt(21_000) }, approved);
+    }).not.toThrow();
   });
 
   it("refuses a gas limit that grew at an unchanged price", () => {
     // The exact gap: a tenfold re-estimate passed the price check untouched
     // and signed ten times the fee that was displayed.
-    expect(() =>
+    expect(() => {
       assertSignedFeeWithinApproved(
         { quote, gasLimit: BigInt(210_000) },
         approved,
-      ),
-    ).toThrow(FeeCeilingExceededError);
+      );
+    }).toThrow(FeeCeilingExceededError);
   });
 
   it("refuses one more unit of gas than was displayed", () => {
-    expect(() =>
+    expect(() => {
       assertSignedFeeWithinApproved(
         { quote, gasLimit: BigInt(21_001) },
         approved,
-      ),
-    ).toThrow(FeeCeilingExceededError);
+      );
+    }).toThrow(FeeCeilingExceededError);
   });
 
   it("lets a cheaper price pay for more gas, up to the same total", () => {
     // The ceiling is the product, so a price that halved can cover twice the
     // gas and the user still pays no more than the figure they approved.
-    expect(() =>
+    expect(() => {
       assertSignedFeeWithinApproved(
         {
           quote: { maxFeePerGas: BigInt(50), maxPriorityFeePerGas: BigInt(5) },
           gasLimit: BigInt(42_000),
         },
         approved,
-      ),
-    ).not.toThrow();
-    expect(() =>
+      );
+    }).not.toThrow();
+    expect(() => {
       assertSignedFeeWithinApproved(
         {
           quote: { maxFeePerGas: BigInt(50), maxPriorityFeePerGas: BigInt(5) },
           gasLimit: BigInt(42_001),
         },
         approved,
-      ),
-    ).toThrow(FeeCeilingExceededError);
+      );
+    }).toThrow(FeeCeilingExceededError);
   });
 
   it("still refuses a dearer price at the approved gas limit", () => {
-    expect(() =>
+    expect(() => {
       assertSignedFeeWithinApproved(
         {
           quote: { maxFeePerGas: BigInt(101), maxPriorityFeePerGas: BigInt(10) },
           gasLimit: BigInt(21_000),
         },
         approved,
-      ),
-    ).toThrow(FeeQuoteIncreasedError);
+      );
+    }).toThrow(FeeQuoteIncreasedError);
   });
 
   it("carries both totals, so the caller can show the new one", () => {
@@ -370,15 +374,15 @@ describe("signing no more than the total the user saw", () => {
       throw new Error("expected a throw");
     } catch (error) {
       expect(error).toBeInstanceOf(FeeCeilingExceededError);
-      const exceeded = error as FeeCeilingExceededError;
-      expect(exceeded.approvedTotal).toBe(BigInt(2_100_000));
-      expect(exceeded.currentTotal).toBe(BigInt(21_000_000));
+      if (!(error instanceof FeeCeilingExceededError)) throw error;
+      expect(error.approvedTotal).toBe(BigInt(2_100_000));
+      expect(error.currentTotal).toBe(BigInt(21_000_000));
     }
   });
 
   it("fails closed with no approved fee", () => {
-    expect(() =>
-      assertSignedFeeWithinApproved({ quote, gasLimit: BigInt(21_000) }, undefined),
-    ).toThrow(FeeNotApprovedError);
+    expect(() => {
+      assertSignedFeeWithinApproved({ quote, gasLimit: BigInt(21_000) }, undefined);
+    }).toThrow(FeeNotApprovedError);
   });
 });
