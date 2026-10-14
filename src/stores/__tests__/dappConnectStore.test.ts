@@ -135,6 +135,9 @@ describe("requestDesktopConnect", () => {
       store.requestDesktopConnect("https://evil.example/?q=x", "deeplink");
       expect(store.desktopConnectUri).toBeNull();
       expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "[DAppConnect] ignoring non-qrlconnect desktop connect URI",
+      );
     } finally {
       warn.mockRestore();
     }

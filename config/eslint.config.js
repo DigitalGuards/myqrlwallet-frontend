@@ -193,57 +193,6 @@ export const baseConfig = tseslint.config(
 // BEGIN LINT RATCHET
 export const lintRatchet = [
   {
-    files: ["src/stores/dappConnectStore.ts"],
-    rules: {
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/stores/nftStore.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/no-unnecessary-type-assertion": "off",
-      "@typescript-eslint/no-unnecessary-type-conversion": "off",
-      "@typescript-eslint/restrict-template-expressions": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/stores/qrlStore.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/no-unnecessary-type-conversion": "off",
-      "@typescript-eslint/require-await": "off",
-      "@typescript-eslint/restrict-plus-operands": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/stores/store.ts"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/stores/tokenStore.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-redundant-type-constituents": "off",
-      "@typescript-eslint/no-unnecessary-type-assertion": "off",
-      "@typescript-eslint/no-unnecessary-type-conversion": "off",
-      "@typescript-eslint/require-await": "off",
-      "@typescript-eslint/restrict-template-expressions": "off",
-      "no-console": "off",
-    },
-  },
-  {
     files: ["src/utils/formatting/__tests__/address.test.ts"],
     rules: {
       "@typescript-eslint/no-unnecessary-template-expression": "off",

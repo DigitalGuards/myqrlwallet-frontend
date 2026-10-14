@@ -13,6 +13,7 @@ import type {
   PendingDAppRequest,
 } from "@/services/dappConnect/types";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
+import { logger } from "@/utils/log";
 
 export type TxProgressState =
   | "idle"
@@ -150,7 +151,7 @@ class DAppConnectStore {
     if (!DAppConnectService.isConnectionURI(uri)) {
       // Surface the drop: an invalid URI arriving via the OS protocol handler
       // is otherwise indistinguishable from a mis-registered handler.
-      console.warn("[DAppConnect] ignoring non-qrlconnect desktop connect URI");
+      logger.warn("[DAppConnect] ignoring non-qrlconnect desktop connect URI");
       return;
     }
     this.desktopConnectUri = uri;

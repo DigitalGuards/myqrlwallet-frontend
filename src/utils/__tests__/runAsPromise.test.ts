@@ -52,6 +52,33 @@ describe("runAsPromise", () => {
     expect(exact).toBe(true);
   });
 
+  it("settles on the same microtask as an async function would", async () => {
+    // An async function resolves a plain value at once and adopts a returned
+    // promise two microtasks later. A shortcut such as Promise.resolve(body())
+    // would settle the adopted case first and break callers' ordering.
+    const order: string[] = [];
+    void runAsPromise(() => "plain").then(() => {
+      order.push("plain");
+    });
+    void runAsPromise(() => Promise.resolve("adopted")).then(() => {
+      order.push("adopted");
+    });
+    void Promise.resolve()
+      .then(() => {
+        order.push("tick 1");
+      })
+      .then(() => {
+        order.push("tick 2");
+      })
+      .then(() => {
+        order.push("tick 3");
+      });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(order).toEqual(["plain", "tick 1", "tick 2", "adopted", "tick 3"]);
+  });
+
   it("adopts a returned promise", async () => {
     await expect(runAsPromise(() => Promise.resolve("inner"))).resolves.toBe(
       "inner",

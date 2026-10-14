@@ -9,6 +9,8 @@ import {
 } from "mobx";
 import type { TransactionReceipt } from "@theqrl/web3";
 import { log } from "@/utils";
+import { logger } from "@/utils/log";
+import { toBigInt, toTemplateString } from "@/utils/guards";
 import { getErrorMessage } from "@/utils/errors";
 import { getQrlWeb3 } from "@/utils/web3";
 import { IS_V3_PROFILE } from '@/config/runtimeProfile';
@@ -275,7 +277,7 @@ class NftStore {
     void this.refreshNftBalances()
       .then(() => this.refreshNftMetadata())
       .catch((err: unknown) => {
-        console.error("post-switch NFT refresh failed:", err);
+        logger.error("post-switch NFT refresh failed:", err);
       });
   }
 
@@ -379,7 +381,7 @@ class NftStore {
     if (!this.nftListSettledFor(scope)) return;
     const selectedBlockChain = await StorageUtil.getBlockChain();
     const rpcUrl =
-      QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url;
+      QRL_PROVIDER[selectedBlockChain].url;
 
     // Decide per-entry from a snapshot, then merge the decisions into
     // the CURRENT list. A wholesale overwrite of this.nftList would
@@ -414,7 +416,7 @@ class NftStore {
       } catch (err) {
         // Keep entries on transient errors so a flaky RPC doesn't wipe
         // the gallery; log + carry on.
-        console.error(
+        logger.error(
           `refreshNftBalances: ${nft.contractAddress}#${nft.tokenId}`,
           err,
         );
@@ -485,7 +487,7 @@ class NftStore {
     if (!this.nftListSettledFor(scope)) return;
     const selectedBlockChain = await StorageUtil.getBlockChain();
     const rpcUrl =
-      QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url;
+      QRL_PROVIDER[selectedBlockChain].url;
 
     const now = Date.now();
     const updates = new Map<string, NFTInterface>();
@@ -538,7 +540,7 @@ class NftStore {
         });
       } catch (err) {
         markFailed(nft);
-        console.error(
+        logger.error(
           `refreshNftMetadata: ${nft.contractAddress}#${nft.tokenId}`,
           err,
         );
@@ -620,7 +622,7 @@ class NftStore {
       try {
         const selectedBlockChain = await StorageUtil.getBlockChain();
         const { url } =
-          QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
+          QRL_PROVIDER[selectedBlockChain];
         const { default: Web3 } = await getQrlWeb3();
         const web3 = new Web3(new Web3.providers.HttpProvider(url));
         const from = this.qrlStore.activeAccount.accountAddress;
@@ -671,8 +673,8 @@ class NftStore {
           ...historyDetails, blockchain: selectedBlockChain, from, hash: transactionHash,
         });
         log(`Desktop NFT transfer broadcast: ${transactionHash}`);
-        this.qrlStore.pollForReceipt(transactionHash);
-        this.refreshNftBalances();
+        void this.qrlStore.pollForReceipt(transactionHash);
+        void this.refreshNftBalances();
         return true;
       } catch (error) {
         const message = getErrorMessage(error);
@@ -698,7 +700,7 @@ class NftStore {
       );
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } =
-        QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
+        QRL_PROVIDER[selectedBlockChain];
       const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       assertSigningCurrent();
@@ -755,14 +757,14 @@ class NftStore {
       // implementations; fall back to a sane 200k cap if estimation fails.
       let gas: bigint;
       try {
-        const estimated = await web3.qrl.estimateGas({
+        const estimated: unknown = await web3.qrl.estimateGas({
           from: acc.address,
           to: nft.contractAddress,
           data,
         });
-        gas = (BigInt(estimated) * 12n) / 10n;
+        gas = (toBigInt(estimated) * 12n) / 10n;
       } catch (err) {
-        log(`estimateGas failed for NFT transfer, using fallback: ${err}`);
+        log(`estimateGas failed for NFT transfer, using fallback: ${toTemplateString(err)}`);
         gas = 200_000n;
       }
 
@@ -816,8 +818,8 @@ class NftStore {
             log(`NFT transfer confirmed: ${txHashString}`);
             // Refresh ownership state so the transferred NFT drops out
             // of the gallery on its own.
-            this.refreshNftBalances();
-            this.qrlStore.fetchAccounts();
+            void this.refreshNftBalances();
+            void this.qrlStore.fetchAccounts();
           });
         })
         .on("error", (error: Error) => {
@@ -909,8 +911,8 @@ class NftStore {
       await this.resolveCollectionNames();
       return discovered;
     } catch (error) {
-      console.error("discoverNftsForReview:", error);
-      log(`discoverNftsForReview failed: ${error}`);
+      logger.error("discoverNftsForReview:", error);
+      log(`discoverNftsForReview failed: ${toTemplateString(error)}`);
       runInAction(() => {
         this.discoveredNfts = [];
       });
@@ -1005,7 +1007,8 @@ class NftStore {
   async resolveCollectionNames(): Promise<void> {
     const { blockchain, account } = this.scope;
     if (!blockchain) return;
-    const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
+    const providers: Readonly<Record<string, { url: string }>> = QRL_PROVIDER;
+    const provider = providers[blockchain];
     const rpcUrl = provider?.url;
     if (!rpcUrl) return;
 
@@ -1067,7 +1070,7 @@ class NftStore {
       } catch (error) {
         // A dead RPC must not break the picker, and must not be recorded
         // as "this contract has no name" either.
-        log(`resolveCollectionNames failed for ${group.key}: ${error}`);
+        log(`resolveCollectionNames failed for ${group.key}: ${toTemplateString(error)}`);
       }
       const live = this.scope;
       if (live.blockchain !== blockchain || live.account !== account) return;
