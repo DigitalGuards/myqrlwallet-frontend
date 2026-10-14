@@ -165,7 +165,8 @@ export const baseConfig = tseslint.config(
   },
   {
     // The logger is the single module allowed to write to the console; every
-    // other module logs through it, so no-console stays an error everywhere else.
+    // other module logs through it. Console calls still listed in the ratchet
+    // below are debt that their slices move onto the logger.
     files: ['src/utils/log.ts'],
     rules: {
       'no-console': 'off',
