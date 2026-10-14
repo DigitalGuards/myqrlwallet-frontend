@@ -87,9 +87,9 @@ it("updates the document and social titles when navigating between shells", asyn
       </PageShell>
     </HelmetProvider>,
   );
-  await waitFor(() =>
-    expect(document.title).toBe("Address Book | MyQRLWallet"),
-  );
+  await waitFor(() => {
+    expect(document.title).toBe("Address Book | MyQRLWallet");
+  });
   view.rerender(
     <HelmetProvider>
       <PageShell
@@ -101,9 +101,9 @@ it("updates the document and social titles when navigating between shells", asyn
       </PageShell>
     </HelmetProvider>,
   );
-  await waitFor(() =>
-    expect(document.title).toBe("dApp Connections | MyQRLWallet"),
-  );
+  await waitFor(() => {
+    expect(document.title).toBe("dApp Connections | MyQRLWallet");
+  });
   expect(
     document
       .querySelector('meta[property="og:title"]')
@@ -128,9 +128,9 @@ it("preserves route metadata when the route supplies its own SEO", async () => {
       </PageShell>
     </HelmetProvider>,
   );
-  await waitFor(() =>
-    expect(document.title).toBe("Create Account | MyQRLWallet"),
-  );
+  await waitFor(() => {
+    expect(document.title).toBe("Create Account | MyQRLWallet");
+  });
   expect(
     document.querySelector('meta[name="description"]')?.getAttribute("content"),
   ).toBe("Create a quantum-resistant account.");
