@@ -92,9 +92,10 @@ it("updates both values from a valid streamed overview with other explorer field
   expect(fetchMock).toHaveBeenCalledWith(
     "https://explorer.invalid/api/overview",
     {
-      signal: expect.any(AbortSignal),
+      signal: requestSignal(),
     },
   );
+  expect(requestSignal()).toBeInstanceOf(AbortSignal);
   expect(store.qrlPrice).toBe(3.25);
   expect(store.qrlPriceChange24h).toBe(-4.5);
   expect(stream.body.locked).toBe(false);
@@ -108,7 +109,9 @@ it("aborts stalled response headers at ten seconds, preserves prices and permits
         if (!signal) throw new Error("Missing abort signal");
         signal.addEventListener(
           "abort",
-          () => reject(new DOMException("Aborted", "AbortError")),
+          () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          },
           { once: true },
         );
       }),
@@ -142,8 +145,9 @@ it("keeps the original ten-second deadline while reading a stalled body", async 
               controller.enqueue(encoder.encode('{"currentPrice":3.25,'));
               signal.addEventListener(
                 "abort",
-                () =>
-                  controller.error(new DOMException("Aborted", "AbortError")),
+                () => {
+                  controller.error(new DOMException("Aborted", "AbortError"));
+                },
                 { once: true },
               );
             },

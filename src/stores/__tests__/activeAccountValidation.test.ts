@@ -8,7 +8,9 @@ jest.mock("@/config", () => ({
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({ deriveHexSeedAsync: jest.fn() }));
 jest.mock("@/utils/storage", () => ({
-  StorageUtil: jest.requireActual("@/utils/storage/storage").default,
+  StorageUtil: jest.requireActual<typeof import("@/utils/storage/storage")>(
+    "@/utils/storage/storage",
+  ).default,
 }));
 jest.mock("@/utils/nativeApp", () => ({ isInNativeApp: () => false }));
 jest.mock("@/utils/web3", () => ({ getQrlWeb3: jest.fn() }));
