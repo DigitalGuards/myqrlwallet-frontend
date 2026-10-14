@@ -9,10 +9,12 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { useState } from "react";
 import axios from "axios";
 import TransactionHistory from "../TransactionHistory";
 import { TransactionHistoryPopup } from "../../AccountList/ActiveAccount/TransactionHistoryPopup";
 import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
+import { displayAddress } from "@/utils/historyRow";
 
 const from = `Q${"a".repeat(128)}`;
 const to = `Q${"b".repeat(128)}`;
@@ -147,7 +149,10 @@ it("keeps recent local transactions visible when the backend is unavailable", as
   await screen.findByRole("alert");
   expect(screen.getByText("Pending")).toBeTruthy();
   expect(screen.getByText(hash)).toBeTruthy();
-  expect(screen.getByText(`To ${to}`)).toBeTruthy();
+  expect(screen.getByRole("dialog")).toBeTruthy();
+  expect(screen.getByText("Sent")).toBeTruthy();
+  expect(screen.getByText("Quanta")).toBeTruthy();
+  expect(screen.getByText(`To ${displayAddress(to)}`)).toBeTruthy();
   expect(screen.queryByText("No transactions found")).toBeNull();
 });
 
@@ -288,4 +293,40 @@ it("keeps local entries searchable and displays persistence failures", async () 
     { target: { value: to } },
   );
   expect(screen.getByText("Pending")).toBeTruthy();
+});
+
+it("closes the history popup with Escape and returns focus to the opener", async () => {
+  function Host() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(true);
+          }}
+        >
+          History
+        </button>
+        <TransactionHistoryPopup
+          accountAddress={from}
+          blockchain="TEST_NET"
+          isOpen={open}
+          onClose={() => {
+            setOpen(false);
+          }}
+        />
+      </>
+    );
+  }
+  render(<Host />);
+  const opener = screen.getByRole("button", { name: "History" });
+  opener.focus();
+  fireEvent.click(opener);
+  await screen.findByRole("dialog");
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  await waitFor(() => {
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+  expect(document.activeElement).toBe(opener);
 });

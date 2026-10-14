@@ -2,7 +2,7 @@
 
 jest.mock("@/components/SEO/SEO", () => ({ SEO: () => null }));
 
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useParams } from "react-router";
 import { useStore } from "@/stores/store";
 import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
@@ -12,6 +12,12 @@ import type { NFTInterface } from "@/constants";
 import NftDetail from "../NftDetail";
 import { FEE_NOT_SHOWN } from "@/utils/web3/feePolicy";
 
+import { decryptStoredSeedWithPin } from "@/utils/crypto";
+import { getRemainingAttempts, checkLockout } from "@/utils/crypto/pinAttemptTracker";
+let mockDesktop = true;
+jest.mock("@/components/UI/PinInput/PinInput", () => ({
+  PinInput: ({ value, onChange, error }: { value: string; onChange: (pin: string) => void; error?: string }) => <div><input aria-label="PIN" value={value} onChange={(event) => onChange(event.target.value)} />{error && <p>{error}</p>}</div>,
+}));
 jest.mock("react-router", () => ({
   useNavigate: jest.fn(() => jest.fn()),
   useParams: jest.fn(),
@@ -23,7 +29,7 @@ jest.mock("@/utils", () => ({
     values.filter((value) => typeof value === "string").join(" "),
 }));
 jest.mock("@/router/router", () => ({ ROUTES: { HOME: "/" } }));
-jest.mock("@/utils/storage", () => ({ StorageUtil: {} }));
+jest.mock("@/utils/storage", () => ({ StorageUtil: { getBlockChain: async () => "TEST_NET", getEncryptedSeed: async () => "fixture" } }));
 jest.mock("@/hooks/useNetworkQrnsRecipient", () => ({
   useNetworkQrnsRecipient: jest.fn(),
 }));
@@ -32,7 +38,7 @@ jest.mock("@/config", () => ({
     TEST_NET: { explorer: "https://explorer.invalid" },
   },
 }));
-jest.mock("@/desktop/bridge", () => ({ isDesktop: true }));
+jest.mock("@/desktop/bridge", () => ({ get isDesktop() { return mockDesktop; } }));
 jest.mock("@/utils/crypto", () => ({
   DeviceCredentialUnavailableError: class extends Error {},
   decryptStoredSeedWithPin: jest.fn(),
@@ -77,6 +83,7 @@ function resolvedRecipient(): UseQrnsRecipientResult {
   };
 }
 
+beforeEach(() => { mockDesktop = true; localStorage.clear(); });
 afterEach(() => {
   cleanup();
   jest.clearAllMocks();
@@ -146,4 +153,61 @@ describe("NftDetail QRNS recipient flow", () => {
       );
     },
   );
+});
+
+
+it("counts wrong NFT transfer PINs and locks after five failures", async () => {
+  mockDesktop = false;
+  const transferNft = jest.fn();
+  const nft: NFTInterface = {
+    contractAddress: CONTRACT,
+    tokenId: "7",
+    standard: "ERC721",
+    name: "Test NFT",
+  };
+  jest.mocked(useStore).mockReturnValue(
+    Object.assign(Object.create(null), {
+      qrlStore: {
+        activeAccount: { accountAddress: ACCOUNT },
+        activeAccountSource: "seed",
+        qrlConnection: { blockchain: "TEST_NET" },
+        transactionStatus: { state: "idle" },
+        resetTransactionStatus: jest.fn(),
+      },
+      nftStore: { nftList: [nft], transferNft },
+    }),
+  );
+  jest
+    .mocked(useParams)
+    .mockReturnValue({ contractAddress: CONTRACT, tokenId: "7" });
+  jest.mocked(useNetworkQrnsRecipient).mockReturnValue(resolvedRecipient());
+  jest
+    .mocked(decryptStoredSeedWithPin)
+    .mockRejectedValue(
+      Object.assign(new Error("Incorrect PIN"), { code: "INCORRECT_PIN" }),
+    );
+  render(<NftDetail />);
+  fireEvent.change(screen.getByLabelText("Recipient address or QNS name"), {
+    target: { value: "alice.qrl" },
+  });
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    fireEvent.change(screen.getByLabelText("PIN"), {
+      target: { value: `99999${attempt}` },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Transfer" }));
+    });
+    const failures = Math.min(attempt, 5);
+    expect(getRemainingAttempts()).toBe(5 - failures);
+    expect(decryptStoredSeedWithPin).toHaveBeenCalledTimes(failures);
+    expect(
+      screen.getByText(
+        attempt >= 5
+          ? "Too many failed attempts. Please wait 15 minutes."
+          : `Incorrect PIN. ${5 - attempt} attempt${attempt === 4 ? "" : "s"} remaining.`,
+      ),
+    ).toBeTruthy();
+  }
+  expect(checkLockout().isLocked).toBe(true);
+  expect(transferNft).not.toHaveBeenCalled();
 });

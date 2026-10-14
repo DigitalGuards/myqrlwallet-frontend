@@ -306,3 +306,32 @@ describe('WalletEncryptionUtil password wallet file (WebCrypto AES-GCM)', () => 
     expect(JSON.parse(shared?.text ?? '{}').address).toBe(walletData.address);
   });
 });
+
+
+it.each(['invalid-json', 'null', '[]', JSON.stringify({ version: 'pin_v5' })])(
+  'classifies malformed storage as a format failure: %s',
+  async (blob) => {
+    await expect(
+      WalletEncryptionUtil.decryptSeedWithPin(blob, PIN),
+    ).rejects.toMatchObject({ incorrectPin: false });
+  },
+);
+
+it('propagates key derivation failure without classifying it as a wrong PIN', async () => {
+  const blob = await WalletEncryptionUtil.encryptSeedWithPin(
+    MNEMONIC,
+    HEX_SEED,
+    PIN,
+  );
+  const failure = new DOMException('Key derivation failed', 'OperationError');
+  const derive = jest
+    .spyOn(crypto.subtle, 'deriveKey')
+    .mockRejectedValueOnce(failure);
+  try {
+    await expect(
+      WalletEncryptionUtil.decryptSeedWithPin(blob, PIN),
+    ).rejects.toBe(failure);
+  } finally {
+    derive.mockRestore();
+  }
+});

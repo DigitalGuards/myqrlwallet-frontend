@@ -1,3 +1,5 @@
+/** @jest-environment jsdom */
+import { getRemainingAttempts, checkLockout, recordFailedAttempt } from "../pinAttemptTracker";
 jest.mock("@/utils/storage/storage", () => ({
   __esModule: true,
   default: {
@@ -77,6 +79,7 @@ const mockDeriveAddress =
 describe("cross-network PIN rotation", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.clear();
     mockGetAll.mockImplementation(async (blockchain) =>
       blockchain === "TEST_NET" ? [{ ...TEST_SEED }] : [{ ...MAIN_SEED }],
     );
@@ -266,4 +269,67 @@ describe("cross-network PIN rotation", () => {
     ]);
     expect(mockReplace).toHaveBeenCalledTimes(2);
   });
+});
+
+
+it("counts one failure across multiple seed records and refuses the sixth rotation", async () => {
+  localStorage.clear();
+  mockGetAll.mockResolvedValue([{ ...TEST_SEED }, { ...MAIN_SEED }]);
+  mockDecrypt
+    .mockReset()
+    .mockRejectedValue(
+      new CryptoOperationError(CryptoErrorCode.INCORRECT_PIN, "Incorrect PIN"),
+    );
+  const options = { blockchains: ["TEST_NET"], oldPin: "9999", newPin: "1234" };
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    await expect(rotateStoredSeedPin(options)).rejects.toMatchObject({
+      attemptsLeft: Math.max(0, 5 - attempt),
+    });
+  }
+  expect(mockDecrypt).toHaveBeenCalledTimes(10);
+  expect(checkLockout().isLocked).toBe(true);
+});
+
+it("resets the PIN failures before a subsequent encryption error", async () => {
+  localStorage.clear();
+  recordFailedAttempt();
+  mockGetAll.mockResolvedValue([{ ...TEST_SEED }]);
+  mockDecrypt.mockResolvedValue({ mnemonic: "fixture", hexSeed: "hex-test" });
+  mockDeriveAddress.mockReturnValue(TEST_ADDRESS);
+  mockEncrypt.mockRejectedValue(new Error("Encryption unavailable"));
+  await expect(
+    rotateStoredSeedPin({
+      blockchains: ["TEST_NET"],
+      oldPin: "1234",
+      newPin: "5678",
+    }),
+  ).rejects.toThrow("Encryption unavailable");
+  expect(getRemainingAttempts()).toBe(5);
+});
+
+it("counts one attempt per wrong recovery call and refuses while locked", async () => {
+  localStorage.clear();
+  mockGetAll.mockResolvedValue([{ ...TEST_SEED }]);
+  mockDecrypt
+    .mockReset()
+    .mockRejectedValue(
+      new CryptoOperationError(CryptoErrorCode.INCORRECT_PIN, "Incorrect PIN"),
+    );
+  const options = { blockchains: ["TEST_NET"], oldPin: "9988", newPin: "8877" };
+  for (const attemptsLeft of [4, 3, 2, 1]) {
+    await expect(
+      rotateStoredSeedPinWithTargetFallback(options, true),
+    ).rejects.toMatchObject({ isLocked: false, attemptsLeft });
+  }
+  await expect(
+    rotateStoredSeedPinWithTargetFallback(options, true),
+  ).rejects.toMatchObject({ isLocked: true });
+  // Each call probed the current PIN, then the target PIN.
+  expect(mockDecrypt.mock.calls.map(([, pin]) => pin)).toEqual(
+    Array.from({ length: 5 }, () => ["9988", "8877"]).flat(),
+  );
+  await expect(
+    rotateStoredSeedPinWithTargetFallback(options, true),
+  ).rejects.toMatchObject({ isLocked: true });
+  expect(mockDecrypt).toHaveBeenCalledTimes(10);
 });

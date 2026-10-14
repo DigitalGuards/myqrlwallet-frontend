@@ -10,6 +10,9 @@ import { profileStorageKey } from '@/config/runtimeProfile';
 const STORAGE_KEY = profileStorageKey('pin_attempt_tracker');
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+// A stored deadline further ahead than one lockout plus this margin cannot come
+// from recordFailedAttempt, even after the clock stepped back; it is corrupt.
+const CLOCK_STEP_TOLERANCE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface AttemptData {
   failedAttempts: number;
@@ -17,20 +20,69 @@ interface AttemptData {
   lastAttemptTime: number;
 }
 
+function isAttemptData(value: unknown): value is AttemptData {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    'failedAttempts' in value &&
+    typeof value.failedAttempts === 'number' &&
+    Number.isFinite(value.failedAttempts) &&
+    Number.isInteger(value.failedAttempts) &&
+    value.failedAttempts >= 0 &&
+    'lockoutUntil' in value &&
+    (value.lockoutUntil === null ||
+      (typeof value.lockoutUntil === 'number' && Number.isFinite(value.lockoutUntil))) &&
+    'lastAttemptTime' in value &&
+    typeof value.lastAttemptTime === 'number' &&
+    Number.isFinite(value.lastAttemptTime) &&
+    value.lastAttemptTime >= 0
+  );
+}
+
 function getAttemptData(): AttemptData {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed: unknown = JSON.parse(stored);
+      if (isAttemptData(parsed)) {
+        const now = Date.now();
+        const corruptDeadline =
+          parsed.lockoutUntil !== null &&
+          parsed.lockoutUntil > now + LOCKOUT_DURATION_MS + CLOCK_STEP_TOLERANCE_MS;
+        const data: AttemptData = {
+          failedAttempts: Math.min(parsed.failedAttempts, MAX_ATTEMPTS),
+          // A plausible deadline stays as stored, so a clock that stepped back
+          // does not shorten a real lockout.
+          lockoutUntil: corruptDeadline ? now + LOCKOUT_DURATION_MS : parsed.lockoutUntil,
+          lastAttemptTime: parsed.lastAttemptTime,
+        };
+        if (
+          data.failedAttempts !== parsed.failedAttempts ||
+          data.lockoutUntil !== parsed.lockoutUntil
+        ) {
+          // Persist the capped deadline so subsequent reads allow the lockout to expire.
+          // A failed write keeps the validated record for this read.
+          setAttemptData(data);
+        }
+        return data;
+      }
     }
   } catch {
-    // Ignore parse errors
+    // Treat unreadable storage as a cleared tracker.
   }
+  // This reset matches clearAttemptTracker(); storage writers can already remove this key.
   return { failedAttempts: 0, lockoutUntil: null, lastAttemptTime: 0 };
 }
 
+// Best effort: a full or unavailable storage must never turn a correct PIN
+// into a failure. The limit only slows guessing at the UI.
 function setAttemptData(data: AttemptData): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // Storage full or unavailable.
+  }
 }
 
 /**
@@ -100,7 +152,11 @@ export function hasFailedAttempts(): boolean {
  * Clear all attempt tracking data (used on logout)
  */
 export function clearAttemptTracker(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage unavailable.
+  }
 }
 
 /**

@@ -1,3 +1,4 @@
+import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardFooter } from "../../../UI/Card";
@@ -292,11 +293,13 @@ const WebPinSetup = ({
           // length > 0 is checked above; `?? ''` only satisfies the index
           // checker and would route an (impossible) miss to the catch below.
           const existingSeed = existingSeeds[0];
-          await decryptStoredSeedAsync(
-            blockchain,
-            existingSeed?.address ?? "",
-            existingSeed?.encryptedSeed ?? "",
-            userPin,
+          await verifyPinWithLimit(() =>
+            decryptStoredSeedAsync(
+              blockchain,
+              existingSeed?.address ?? "",
+              existingSeed?.encryptedSeed ?? "",
+              userPin,
+            ),
           );
         } catch (err) {
           const missingDeviceCredential =
@@ -304,12 +307,14 @@ const WebPinSetup = ({
             err.code === CryptoErrorCode.DEVICE_CREDENTIAL_UNAVAILABLE;
           setNeedsDeviceRecovery(missingDeviceCredential);
           const message =
-            err instanceof CryptoOperationError &&
-            err.code === CryptoErrorCode.OUTDATED_FORMAT
-              ? "This wallet was saved in an older format and must be re-imported."
-              : missingDeviceCredential
-                ? "The device security credential is unavailable. Review the recovery steps below."
-                : "Incorrect PIN. Please try again.";
+            err instanceof PinVerificationError
+              ? err.message
+              : err instanceof CryptoOperationError &&
+                err.code === CryptoErrorCode.OUTDATED_FORMAT
+                ? "This wallet was saved in an older format and must be re-imported."
+                : missingDeviceCredential
+                  ? "The device security credential is unavailable. Review the recovery steps below."
+                  : "Failed to unlock the seed. Please try again.";
           setError("pin", { message });
           setIsStoringPin(false);
           return;

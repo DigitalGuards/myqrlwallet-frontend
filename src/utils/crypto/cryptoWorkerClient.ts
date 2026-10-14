@@ -57,7 +57,7 @@ function toCryptoOperationError(error: unknown): CryptoOperationError {
   if (error instanceof OutdatedWalletFormatError) {
     return new CryptoOperationError(CryptoErrorCodes.OUTDATED_FORMAT, error.message);
   }
-  if (error instanceof PinDecryptionError) {
+  if (error instanceof PinDecryptionError && error.incorrectPin) {
     return new CryptoOperationError(CryptoErrorCodes.INCORRECT_PIN, 'Incorrect PIN');
   }
   if (error instanceof DeviceCredentialUnavailableError) {

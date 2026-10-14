@@ -71,7 +71,7 @@ jest.mock("@/desktop/bridge", () => ({
 jest.mock("@/config", () => ({
   getExplorerTxUrl: () => "https://explorer.example/tx",
 }));
-jest.mock("@/config/runtimeProfile", () => ({ IS_V3_PROFILE: false }));
+jest.mock("@/config/runtimeProfile", () => ({ IS_V3_PROFILE: false, profileStorageKey: (key: string) => key }));
 jest.mock("@/utils/crypto", () => ({}));
 jest.mock("@/utils/signing", () => ({}));
 jest.mock("@/utils/storage/storage", () => ({}));
