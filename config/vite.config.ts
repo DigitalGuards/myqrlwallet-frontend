@@ -183,8 +183,14 @@ export default defineConfig(({ mode, command }) => ({
       transformMixedEsModules: true,
       defaultIsModuleExports(id) {
         try {
-          const module = require(id)
-          if (module?.default) {
+          const module: unknown = require(id)
+          // The same lookup as `module?.default`: one [[Get]] on the module,
+          // and a primitive reads through its wrapper with itself as receiver.
+          const exportedDefault: unknown =
+            module === null || module === undefined
+              ? undefined
+              : Reflect.get(new Object(module), 'default', module)
+          if (exportedDefault) {
             return false
           }
           return 'auto'

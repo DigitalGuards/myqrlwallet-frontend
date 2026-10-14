@@ -6,6 +6,7 @@ import { isDesktop } from "@/desktop/bridge";
 import { observer } from "mobx-react-lite";
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { logger } from "@/utils/log";
 
 const RouteMonitor = observer(() => {
   const { qrlStore } = useStore();
@@ -17,24 +18,32 @@ const RouteMonitor = observer(() => {
 
   useEffect(() => {
     if (!isConnected) return;
-    (async () => {
+    void (async () => {
       const activePage = await StorageUtil.getActivePage();
       // Desktop retired the web settings page (Settings opens the native
       // window via navigateTo); a session stored under an older renderer may
       // still have /settings as its active page, so never restore onto it.
       const restorable =
         activePage && !(isDesktop && activePage === ROUTES.SETTINGS);
-      if (restorable && isConnected) {
-        navigate(activePage);
+      if (restorable) {
+        void Promise.resolve(navigate(activePage)).catch((error: unknown) => {
+          logger.error("Failed to restore active page:", error);
+        });
       } else {
-        navigate(ROUTES.HOME);
+        void Promise.resolve(navigate(ROUTES.HOME)).catch((error: unknown) => {
+          logger.error("Failed to restore active page:", error);
+        });
       }
-    })();
+    })().catch((error: unknown) => {
+      logger.error("Failed to restore active page:", error);
+    });
   }, [isConnected, navigate]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    StorageUtil.setActivePage(pathname);
+    void StorageUtil.setActivePage(pathname).catch((error: unknown) => {
+      logger.error("Failed to save active page:", error);
+    });
     // The hash router replaces history entries, so Android's back button has
     // no browser history to walk. This is the stack it walks instead.
     recordRoute(pathname);

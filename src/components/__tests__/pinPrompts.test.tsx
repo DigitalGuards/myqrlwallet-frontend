@@ -45,7 +45,9 @@ jest.mock("mobx-react-lite", () => ({
   observer: (component: unknown) => component,
 }));
 jest.mock("@/desktop/bridge", () => ({ isDesktop: false }));
-jest.mock("@/utils", () => jest.requireActual("@/utils/cn"));
+jest.mock("@/utils", () =>
+  jest.requireActual<typeof import("@/utils/cn")>("@/utils/cn"),
+);
 jest.mock("@/router/router", () => ({ ROUTES: {} }));
 jest.mock("react-router", () => ({ useNavigate: () => jest.fn() }));
 jest.mock("@/components/Core/Layout/PageShell", () => ({
@@ -65,36 +67,46 @@ jest.mock("@/config/runtimeProfile", () => ({
 }));
 jest.mock("@/utils/nativeApp", () => ({ isInNativeApp: () => false }));
 jest.mock("@/utils/web3", () => ({ isValidQrlAddress: () => true }));
-jest.mock("@/utils/storage/storage", () => ({
-  __esModule: true,
-  default: {
-    getBlockChain: async () => "TEST_NET",
-    getAllEncryptedSeeds: jest.fn(),
-    getEncryptedSeed: async () => "encrypted-fixture",
-    hasEncryptedSeeds: async () => true,
-    getWalletSettings: async () => ({ autoLockTimeout: 900000 }),
-    replaceEncryptedSeedSetIfUnchanged: jest.fn(async () => true),
-    storeEncryptedSeed: jest.fn(),
-  },
-}));
+function mockStorageExports() {
+  return {
+    __esModule: true,
+    default: {
+      getBlockChain: () => Promise.resolve("TEST_NET"),
+      getAllEncryptedSeeds: jest.fn(),
+      getEncryptedSeed: () => Promise.resolve("encrypted-fixture"),
+      hasEncryptedSeeds: () => Promise.resolve(true),
+      getWalletSettings: () => Promise.resolve({ autoLockTimeout: 900000 }),
+      replaceEncryptedSeedSetIfUnchanged: jest.fn(() => Promise.resolve(true)),
+      storeEncryptedSeed: jest.fn(),
+    },
+  };
+}
+jest.mock("@/utils/storage/storage", () => mockStorageExports());
 jest.mock("@/utils/storage", () => ({
-  StorageUtil: jest.requireMock("@/utils/storage/storage").default,
+  StorageUtil: jest.requireMock<ReturnType<typeof mockStorageExports>>(
+    "@/utils/storage/storage",
+  ).default,
 }));
-jest.mock("@/utils/crypto/cryptoWorkerClient", () => ({
-  CryptoOperationError: class extends Error {},
-  CryptoErrorCode: {},
-  decryptSeedAsync: jest.fn(),
-  encryptSeedAsync: jest.fn(),
-}));
+function mockCryptoWorkerExports() {
+  return {
+    CryptoOperationError: class extends Error {},
+    CryptoErrorCode: {},
+    decryptSeedAsync: jest.fn(),
+    encryptSeedAsync: jest.fn(),
+  };
+}
+jest.mock("@/utils/crypto/cryptoWorkerClient", () => mockCryptoWorkerExports());
 jest.mock("@/utils/crypto/seedIdentity", () => ({
   deriveCanonicalAddressFromHexSeed: () => `Q${"1".repeat(128)}`,
 }));
 jest.mock("@/utils/crypto", () => ({
-  ...jest.requireMock("@/utils/crypto/cryptoWorkerClient"),
+  ...jest.requireMock<ReturnType<typeof mockCryptoWorkerExports>>(
+    "@/utils/crypto/cryptoWorkerClient",
+  ),
   decryptStoredSeedAsync: jest.fn(),
   decryptStoredSeedWithPin: jest.fn(),
   DeviceCredentialUnavailableError: class extends Error {},
-  getAddressFromMnemonicAsync: async () => `Q${"1".repeat(128)}`,
+  getAddressFromMnemonicAsync: () => Promise.resolve(`Q${"1".repeat(128)}`),
   WalletEncryptionUtil: {
     validatePassword: () => true,
     downloadWallet: jest.fn(),
@@ -119,7 +131,9 @@ jest.mock("@/components/UI/PinInput/PinInput", () => ({
         aria-label={placeholder}
         value={value}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
       />
       {error && <p>{error}</p>}
     </div>
@@ -137,7 +151,7 @@ beforeEach(() => {
   localStorage.clear();
   jest.spyOn(console, "error").mockImplementation(() => {});
   jest
-    .mocked(StorageUtil.getAllEncryptedSeeds)
+    .spyOn(StorageUtil, "getAllEncryptedSeeds")
     .mockResolvedValue([
       { address: ADDRESS, encryptedSeed: "fixture", lastAccessed: 1 },
     ]);
@@ -204,6 +218,7 @@ it.each([
 ])(
   "%s counts each wrong PIN and refuses decryption after the fifth failure",
   async (kind) => {
+    const downloadWallet = jest.spyOn(WalletEncryptionUtil, "downloadWallet");
     const pin = await prompt(kind);
     const form = pin.closest("form");
     if (!form) throw new Error("PIN form is missing");
@@ -214,11 +229,14 @@ it.each([
           ? decryptStoredSeedWithPin
           : decryptStoredSeedAsync;
     for (let attempt = 1; attempt <= 5; attempt++) {
-      await act(async () => {
+      await act(() => {
         fill(pin, `99999${attempt}`);
         fireEvent.submit(form);
+        return Promise.resolve();
       });
-      await waitFor(() => expect(getRemainingAttempts()).toBe(5 - attempt));
+      await waitFor(() => {
+        expect(getRemainingAttempts()).toBe(5 - attempt);
+      });
       expect(decrypt).toHaveBeenCalledTimes(attempt);
       expect(
         screen.getByText(
@@ -229,13 +247,14 @@ it.each([
       ).toBeTruthy();
     }
     expect(checkLockout().isLocked).toBe(true);
-    await act(async () => {
+    await act(() => {
       fireEvent.submit(form);
+      return Promise.resolve();
     });
     expect(decrypt).toHaveBeenCalledTimes(5);
     expect(mockCreated).not.toHaveBeenCalled();
     expect(mockCreateAccount).not.toHaveBeenCalled();
     expect(encryptSeedAsync).not.toHaveBeenCalled();
-    expect(WalletEncryptionUtil.downloadWallet).not.toHaveBeenCalled();
+    expect(downloadWallet).not.toHaveBeenCalled();
   },
 );

@@ -22,7 +22,7 @@ const QRView = observer(() => {
           bgColor="#000000"
           fgColor="#ffffff"
           level="L"
-          includeMargin={false}
+          marginSize={0}
         />
         <Label className="text-xs text-muted-foreground">
           Scan to open in Explorer

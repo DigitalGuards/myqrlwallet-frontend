@@ -35,7 +35,7 @@
  *                       source fails, and inlining it nearly doubles the HTML.
  *   SOURCE_DATE_EPOCH   Unix seconds recorded as the build time.
  */
-import { defineConfig, loadEnv, type Plugin, type PluginOption } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import path from 'path'
 import fs from 'fs'
 import { createHash } from 'crypto'
@@ -651,17 +651,24 @@ const emitSingleFile = (
   },
 })
 
-export default defineConfig(async (env) => {
+export default defineConfig((env) => {
   applyEmbeddedProfileEnv()
-  const base = await baseConfigFactory(env)
+  const base = baseConfigFactory(env)
   const { profile, connectUrls } = resolveEmbeddedDeployment(env.mode)
   // Fail here rather than ship a document that quietly runs the wrong network.
   assertEmbeddedProfile(profile)
 
+  const baseOutput = base.build?.rolldownOptions?.output
+  // The base config emits one output. Spreading a list here would copy its
+  // indices as option keys, so refuse it.
+  if (Array.isArray(baseOutput)) {
+    throw new Error('embedded build: expected a single rolldown output in the base config')
+  }
+
   const rolldownOptions = {
     ...(base.build?.rolldownOptions ?? {}),
     output: {
-      ...(base.build?.rolldownOptions?.output ?? {}),
+      ...(baseOutput ?? {}),
       // One chunk for everything: no runtime chunk loading, so no code URL is
       // ever fetched. manualChunks is dropped because it is mutually exclusive
       // with this.
@@ -689,7 +696,7 @@ export default defineConfig(async (env) => {
     plugins: [
       inlineWorkerImports(),
       stripDependencyReloads(),
-      ...((base.plugins ?? []) as PluginOption[]),
+      ...(base.plugins ?? []),
       inlinePublicAssetLiterals(),
       rewriteEmbeddedHtml(),
       emitSingleFile(path.join(projectRoot, EMBEDDED_OUT_DIR), connectUrls, profile),

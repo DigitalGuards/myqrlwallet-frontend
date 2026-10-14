@@ -21,6 +21,7 @@ import { isInNativeApp } from "@/utils/nativeApp";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { navigateTo } from "@/utils/navigation";
 import { cn } from "@/utils/cn";
+import { logger } from "@/utils/log";
 
 // Menu items.
 const sidebarItems = [
@@ -55,14 +56,22 @@ export const AppSidebar = observer(function AppSidebar() {
     const location = useLocation();
     const { dappConnectStore } = useStore();
     const onLogoutClick = () => {
-        handleLogout(navigate);
+        void handleLogout((path) => {
+            void Promise.resolve(navigate(path)).catch((error: unknown) => {
+                logger.error("Failed to navigate after logout:", error);
+            });
+        }).catch((error: unknown) => {
+            logger.error("Error during logout:", error);
+        });
     };
     // Desktop: there is no "logout" (the seed lives in the signer, not here).
     // The footer button locks the signer session instead; main then shows the
     // native unlock window. Removing the wallet entirely is a separate,
     // confirmed action under Settings.
     const onLockClick = () => {
-        void desktopSigner.lock();
+        void desktopSigner.lock().catch((error: unknown) => {
+            logger.error("Failed to lock desktop wallet:", error);
+        });
     };
     const isActive = (url: string) =>
         location.pathname === url || location.pathname.startsWith(`${url}/`);
@@ -77,7 +86,14 @@ export const AppSidebar = observer(function AppSidebar() {
                     {/* <SidebarGroupLabel>Application</SidebarGroupLabel> */}
                     <SidebarGroupContent className="mt-5">
                         <SidebarMenu>
-                            <SidebarMenuItem className="cursor-pointer flex justify-center py-5" onClick={() => navigate(ROUTES.HOME)}>
+                            <SidebarMenuItem
+                                className="cursor-pointer flex justify-center py-5"
+                                onClick={() => {
+                                    void Promise.resolve(navigate(ROUTES.HOME)).catch((error: unknown) => {
+                                        logger.error("Failed to open home:", error);
+                                    });
+                                }}
+                            >
                                 <MyQRLWalletLogo showText={false} size="lg" />
                             </SidebarMenuItem>
                             {sidebarItems.map((item) => {
@@ -85,7 +101,9 @@ export const AppSidebar = observer(function AppSidebar() {
                                 return (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton
-                                        onClick={() => navigateTo(item.url, navigate)}
+                                        onClick={() => {
+                                            navigateTo(item.url, navigate);
+                                        }}
                                         // Semantic <button> (no asChild) for native keyboard support.
                                         // Override shadcn's rounded-md so the active accent reads as a
                                         // flat full-bleed block with a straight accent edge; keep a
@@ -110,7 +128,9 @@ export const AppSidebar = observer(function AppSidebar() {
                             {isDesktop && (
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
-                                        onClick={() => navigateTo(ROUTES.DAPP_SESSIONS, navigate)}
+                                        onClick={() => {
+                                            navigateTo(ROUTES.DAPP_SESSIONS, navigate);
+                                        }}
                                         className={cn(
                                             "flex flex-col justify-evenly items-center gap-1 py-2 h-auto rounded-none border-r-2 border-r-transparent transition-colors",
                                             "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",

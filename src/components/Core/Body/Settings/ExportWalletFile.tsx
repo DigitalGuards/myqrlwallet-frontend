@@ -23,12 +23,12 @@ import {
     getAddressFromMnemonicAsync,
     CryptoOperationError,
     CryptoErrorCode,
-    type ExtendedWalletAccount,
 } from "@/utils/crypto";
 import { isInNativeApp } from "@/utils/nativeApp";
 import { useStore } from "../../../../stores/store";
 import { cn } from "@/utils/cn";
 import { SettingsRow } from "./SettingsList";
+import { logger } from "@/utils/log";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 import {
     checkLockout,
@@ -73,7 +73,9 @@ export const ExportWalletFile = observer(() => {
         const interval = setInterval(() => {
             setPinLockout(checkLockout());
         }, 1000);
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+        };
     }, []);
 
     const form = useForm<ExportFormValues>({
@@ -155,13 +157,13 @@ export const ExportWalletFile = observer(() => {
                 address: entry.address,
                 mnemonic: decrypted.mnemonic,
                 hexSeed: decrypted.hexSeed,
-            } as ExtendedWalletAccount;
+            };
             await WalletEncryptionUtil.downloadWallet(account, data.filePassword);
 
             setExportSuccess(true);
             form.reset();
         } catch (error) {
-            console.error("Error exporting wallet file:", error);
+            logger.error("Error exporting wallet file:", error);
             setExportError("An unexpected error occurred while exporting the wallet file.");
         } finally {
             setIsExporting(false);
@@ -183,7 +185,9 @@ export const ExportWalletFile = observer(() => {
                         )}
                     />
                 }
-                onClick={() => setShowPanel((open) => !open)}
+                onClick={() => {
+                    setShowPanel((open) => !open);
+                }}
                 disabled={isExporting}
                 ariaExpanded={showPanel}
                 ariaControls="export-wallet-panel"
@@ -191,7 +195,15 @@ export const ExportWalletFile = observer(() => {
             {showPanel && (
                 <div id="export-wallet-panel" className="px-4 pb-4 pt-3">
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <form
+                            onSubmit={(event) => {
+                                void form.handleSubmit(onSubmit)(event).catch((error: unknown) => {
+                                    logger.error("Error exporting wallet file:", error);
+                                    setExportError("An unexpected error occurred while exporting the wallet file.");
+                                });
+                            }}
+                            className="space-y-4"
+                        >
                             <p className="text-xs text-muted-foreground">
                                 Exports{" "}
                                 {activeAddress ? (
