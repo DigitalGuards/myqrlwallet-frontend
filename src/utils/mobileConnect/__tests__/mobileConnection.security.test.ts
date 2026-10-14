@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { runAsPromise as mockRunAsPromise } from "@/utils/runAsPromise";
+import { deferred } from "@/test-utils/deferred";
 
 type Handler = (...args: unknown[]) => void;
 
@@ -20,9 +22,9 @@ class MockConnect {
     if (mockRequestError) throw mockRequestError;
     return mockRequestResult;
   });
-  getConnectionURI = jest.fn(async () => "qrlconnect://?q=first");
-  newConnection = jest.fn(async () => "qrlconnect://?q=second");
-  disconnect = jest.fn(async () => undefined);
+  getConnectionURI = jest.fn(() => mockRunAsPromise(() => "qrlconnect://?q=first"));
+  newConnection = jest.fn(() => mockRunAsPromise(() => "qrlconnect://?q=second"));
+  disconnect = jest.fn(() => mockRunAsPromise(() => undefined));
   isMobile = jest.fn(() => false);
   hasStoredSession = jest.fn(() => mockHasStoredSession);
 
@@ -54,7 +56,7 @@ class MockConnect {
 
 jest.mock("@qrlwallet/connect", () => ({
   QRLConnect: MockConnect,
-  attemptWalletRedirect: jest.fn(async () => false),
+  attemptWalletRedirect: jest.fn(() => mockRunAsPromise(() => false)),
   getAppStoreUrl: jest.fn(() => "https://example.test/app"),
 }));
 
@@ -62,10 +64,10 @@ jest.mock("@/utils", () => ({ log: jest.fn() }));
 
 function makeStore() {
   return {
-    setActiveAccount: jest.fn(async () => undefined),
+    setActiveAccount: jest.fn(() => mockRunAsPromise(() => undefined)),
     setMobileProvider: jest.fn(),
-    adoptMobileAccount: jest.fn<(address: string) => Promise<void>>(async () => undefined),
-    removeMobileAccounts: jest.fn(async () => undefined),
+    adoptMobileAccount: jest.fn<(address: string) => Promise<void>>(() => mockRunAsPromise(() => undefined)),
+    removeMobileAccounts: jest.fn(() => mockRunAsPromise(() => undefined)),
   };
 }
 
@@ -119,6 +121,69 @@ beforeEach(() => {
 });
 
 describe("mobile pairing account consent", () => {
+  it("keeps mock effects synchronous and turns throws into rejected promises", async () => {
+    const qrl = new MockConnect();
+    const failure = new Error("request failed");
+    let calls = 0;
+    mockRequestHook = () => mockRunAsPromise(() => {
+      calls += 1;
+      throw failure;
+    });
+    const request = qrl.request({ method: "qrl_requestAccounts" });
+    expect(calls).toBe(1);
+    await expect(request).rejects.toBe(failure);
+  });
+
+  it.each([null, 7, "account", [], [QRL_ACCOUNT, QRL_OTHER_ACCOUNT], [7]])(
+    "preserves account approval rejection for %p",
+    async (result) => {
+      const store = makeStore();
+      const module = await import("../mobileConnection");
+      await module.startMobilePairing(store);
+      const qrl = mockInstances[0];
+      if (!qrl) throw new Error("Expected QRLConnect instance");
+      mockRequestResult = result;
+      qrl.emit("connect");
+      await flush();
+      expect(store.adoptMobileAccount).not.toHaveBeenCalled();
+      expect(qrl.request).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("cleans up account adoption that finishes after cancellation", async () => {
+    const store = makeStore();
+    const adoption = deferred<undefined>();
+    store.adoptMobileAccount.mockImplementation(() => adoption.promise);
+    const module = await import("../mobileConnection");
+    await module.startMobilePairing(store);
+    const qrl = mockInstances[0];
+    if (!qrl) throw new Error("Expected QRLConnect instance");
+    mockRequestResult = [QRL_ACCOUNT];
+    qrl.emit("connect");
+    await flush();
+    expect(store.adoptMobileAccount).toHaveBeenCalledWith(QRL_ACCOUNT);
+    await module.cancelMobilePairing();
+    expect(store.removeMobileAccounts).not.toHaveBeenCalled();
+    adoption.resolve(undefined);
+    await flush();
+    expect(store.setMobileProvider).toHaveBeenLastCalledWith(null);
+    expect(store.removeMobileAccounts).toHaveBeenCalledTimes(1);
+  });
+
+  it("stringifies status values and removes the listener on unsubscribe", async () => {
+    const module = await import("../mobileConnection");
+    await module.startMobilePairing(makeStore());
+    const qrl = mockInstances[0];
+    if (!qrl) throw new Error("Expected QRLConnect instance");
+    const status = jest.fn();
+    const unsubscribe = module.subscribeMobileStatus(status);
+    for (const value of [null, undefined, 7, 9n]) qrl.emit("statusChanged", value);
+    expect(status.mock.calls).toEqual([["null"], ["undefined"], ["7"], ["9"]]);
+    unsubscribe();
+    qrl.emit("statusChanged", "connected");
+    expect(status).toHaveBeenCalledTimes(4);
+  });
+
   it("single-flights explicit qrl_requestAccounts after an empty fresh handshake", async () => {
     const store = makeStore();
     const module = await import("../mobileConnection");
@@ -174,11 +239,11 @@ describe("mobile pairing account consent", () => {
     const qrl = mockInstances[0];
     if (!qrl) throw new Error("Expected QRLConnect instance");
     let attempt = 0;
-    mockRequestHook = async () => {
+    mockRequestHook = () => mockRunAsPromise(() => {
       attempt += 1;
       if (attempt === 1) throw firstError;
       return [QRL_ACCOUNT];
-    };
+    });
 
     qrl.emit("connect");
     qrl.emit("connect");

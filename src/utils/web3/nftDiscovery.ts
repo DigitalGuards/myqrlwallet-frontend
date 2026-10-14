@@ -1,6 +1,7 @@
 import { getNFTDiscoveryApiUrl } from "@/config";
 import type { NFTInterface } from "@/constants";
 import { log } from "@/utils";
+import { logger } from "@/utils/log";
 
 // One row of the zondscan /api/address/:addr/nfts response. Shape mirrors
 // backendAPI/models/token_balance.go:NFTBalance, restricted to the
@@ -10,7 +11,7 @@ interface ExplorerNFT {
   contractAddress: string;
   holderAddress: string;
   tokenID: string;
-  tokenStandard: "ERC-721" | "ERC-1155" | string;
+  tokenStandard: string;
   balance?: string;
   blockNumber?: string;
   updatedAt?: string;
@@ -101,8 +102,8 @@ export async function discoverNFTs(
     log(`Discovered ${out.length} NFTs for ${address}`);
     return out;
   } catch (error) {
-    console.error("Error discovering NFTs:", error);
-    log(`NFT discovery error: ${error}`);
+    logger.error("Error discovering NFTs:", error);
+    log(`NFT discovery error: ${typeof error === "symbol" ? [error].join("") : String(error)}`);
     return [];
   }
 }

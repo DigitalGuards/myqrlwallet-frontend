@@ -3,9 +3,10 @@ import {
   normalizeQrlAddress,
   normalizeQrlVm64Topic,
 } from './address';
+import { isArray, isObject, isRecord } from '@/utils/guards';
 
 interface RpcRequestManager {
-  send(args: { method: string; params?: unknown[] }): Promise<unknown>;
+  send(args: { method: string; params?: unknown[] }): unknown;
 }
 
 export interface QrlVm64Log {
@@ -15,11 +16,15 @@ export interface QrlVm64Log {
 }
 
 function getRequestManager(web3: unknown): RpcRequestManager | null {
-  if (typeof web3 !== 'object' || web3 === null) return null;
-  const requestManager = (web3 as { requestManager?: unknown }).requestManager;
-  if (typeof requestManager !== 'object' || requestManager === null) return null;
-  if (typeof (requestManager as { send?: unknown }).send !== 'function') return null;
-  return requestManager as RpcRequestManager;
+  if (!isObject(web3)) return null;
+  const requestManager = web3['requestManager'];
+  if (!isObject(requestManager)) return null;
+  if (!hasSend(requestManager)) return null;
+  return requestManager;
+}
+
+function hasSend(value: Record<string, unknown>): value is Record<string, unknown> & RpcRequestManager {
+  return typeof value['send'] === 'function';
 }
 
 /**
@@ -45,7 +50,7 @@ export async function requestQrlVm64Logs(
     method: 'qrl_getLogs',
     params: [{ blockHash: filter.blockHash, address, topics: [topic] }],
   });
-  if (!Array.isArray(result)) {
+  if (!isArray(result)) {
     throw new Error('qrl_getLogs returned a malformed result');
   }
   return result;
@@ -62,14 +67,10 @@ export function findQrlVm64Log(
   const address = expected.address.toLowerCase();
 
   return logs.find((candidate): candidate is QrlVm64Log => {
-    if (
-      typeof candidate !== 'object' ||
-      candidate === null ||
-      Array.isArray(candidate)
-    ) {
+    if (!isRecord(candidate)) {
       return false;
     }
-    const record = candidate as Record<string, unknown>;
+    const record = candidate;
     const topics = record['topics'];
     return (
       typeof record['transactionHash'] === 'string' &&

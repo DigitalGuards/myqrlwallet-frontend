@@ -1,6 +1,7 @@
 import { getTokenDiscoveryApiUrl } from "@/config";
 import type { TokenInterface } from "@/constants";
 import { log } from "@/utils";
+import { logger } from "@/utils/log";
 import { formatUnits } from "@/utils/web3/units";
 import { getOptimalTokenBalance } from "@/utils/formatting";
 
@@ -11,7 +12,7 @@ interface ExplorerToken {
   balance: string;
   name: string;
   symbol: string;
-  decimals: number;
+  decimals?: number | null;
   blockNumber: string;
   updatedAt: string;
 }
@@ -92,8 +93,8 @@ export async function discoverTokens(
     log(`Discovered ${tokens.length} tokens for ${address}`);
     return tokens;
   } catch (error) {
-    console.error("Error discovering tokens:", error);
-    log(`Token discovery error: ${error}`);
+    logger.error("Error discovering tokens:", error);
+    log(`Token discovery error: ${typeof error === "symbol" ? [error].join("") : String(error)}`);
     return [];
   }
 }

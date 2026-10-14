@@ -13,6 +13,39 @@ const EVENT_TOPIC = qrlVm64EventTopicFromHash(`0x${'44'.repeat(32)}`);
 if (!EVENT_TOPIC) throw new Error('test event topic must be valid');
 
 describe('VM64 log RPC boundary', () => {
+  it('preserves the send receiver and every returned log without copying', async () => {
+    const logs: unknown[] = [null, 7, { extra: true }, []];
+    const requestManager = Object.assign([], {
+      logs,
+      send() { return this.logs; },
+    });
+    const web3 = Object.assign([], { requestManager });
+    await expect(requestQrlVm64Logs(web3, {
+      blockHash: BLOCK_HASH,
+      address: ADDRESS,
+      topic: EVENT_TOPIC,
+    })).resolves.toBe(logs);
+  });
+
+  it.each([null, {}, { requestManager: null }, { requestManager: { send: 7 } }])(
+    'keeps the unsupported request manager failure for %p',
+    async (web3) => {
+      await expect(requestQrlVm64Logs(web3, {
+        blockHash: BLOCK_HASH,
+        address: ADDRESS,
+        topic: EVENT_TOPIC,
+      })).rejects.toThrow('Web3 request manager does not support send()');
+    },
+  );
+
+  it('keeps the malformed RPC result failure', async () => {
+    await expect(requestQrlVm64Logs({ requestManager: { send: () => null } }, {
+      blockHash: BLOCK_HASH,
+      address: ADDRESS,
+      topic: EVENT_TOPIC,
+    })).rejects.toThrow('qrl_getLogs returned a malformed result');
+  });
+
   it('bypasses the legacy SDK filter validator with one exact 64-byte topic', async () => {
     const send = jest.fn(() => Promise.resolve([]));
     const web3 = { requestManager: { send } };

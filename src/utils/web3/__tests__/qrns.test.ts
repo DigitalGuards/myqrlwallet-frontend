@@ -7,6 +7,7 @@ import {
 } from "@/utils/crypto/qrnsNamehash";
 import { normalizeQrlAddress, QRL_ZERO_ADDRESS } from "@/utils/web3/address";
 import {
+  createQrnsHttpProvider,
   parseQrnsNetworkConfig,
   resolveQrnsRecipient,
   type QrnsNetworkConfig,
@@ -43,6 +44,31 @@ function mockProvider(
 }
 
 describe("native QRVM64 QRNS resolution", () => {
+  it("aborts an HTTP request at the existing eight-second timeout", async () => {
+    jest.useFakeTimers();
+    try {
+      const aborted = jest.fn();
+      const fetcher: typeof fetch = (_input, init) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          aborted();
+          reject(Object.assign(new Error("Aborted"), { name: "AbortError" }));
+        });
+      });
+      const provider = createQrnsHttpProvider("https://rpc.example", fetcher);
+      const failure = expect(provider.request({ method: "qrl_chainId" })).rejects.toThrow(
+        "QRNS RPC request timed out",
+      );
+      await jest.advanceTimersByTimeAsync(7_999);
+      expect(aborted).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(1);
+      await failure;
+      expect(aborted).toHaveBeenCalledTimes(1);
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("matches the QNS normalization and namehash vector", () => {
     expect(normalizeQrnsName("ALICE.QRL")).toBe("alice.qrl");
     expect(normalizeQrnsRecipientName("ALICE.QRL")).toBe("alice.qrl");

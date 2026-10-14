@@ -30,7 +30,7 @@ describe("QRL address presentation", () => {
   });
 
   it("preserves legitimate legacy Q40 address fingerprints", () => {
-    const address = `Q${"11111111"}${"2".repeat(8)}${"33333333"}${"4".repeat(8)}${"55555555"}`;
+    const address = `Q11111111${"2".repeat(8)}33333333${"4".repeat(8)}55555555`;
 
     expect(formatAddressFingerprint(address)).toBe(
       "Q11111111...33333333...55555555",
