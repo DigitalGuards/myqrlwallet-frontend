@@ -5,7 +5,7 @@ import { copyToClipboard } from "@/utils/nativeApp";
 import { QrlAddress } from "../QrlAddress";
 
 jest.mock("@/utils/nativeApp", () => ({
-  copyToClipboard: jest.fn(async () => true),
+  copyToClipboard: jest.fn(() => Promise.resolve(true)),
 }));
 
 const ADDRESS =
@@ -24,7 +24,9 @@ describe("QrlAddress", () => {
     expect(view.getByText("Qd5812F6C...8A9A8B72")).toBeTruthy();
     expect(view.getByLabelText(`QRL address ${ADDRESS}`)).toBeTruthy();
     fireEvent.click(view.getByRole("button", { name: "Copy address" }));
-    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith(ADDRESS));
+    await waitFor(() => {
+      expect(copyToClipboard).toHaveBeenCalledWith(ADDRESS);
+    });
 
     view.rerender(
       <QrlAddress address={ADDRESS} compactFormat="short" mode="full" />,
@@ -32,7 +34,7 @@ describe("QrlAddress", () => {
     expect(
       view
         .getByLabelText(`QRL address ${ADDRESS}`)
-        .textContent?.replace(/ /g, ""),
+        .textContent.replace(/ /g, ""),
     ).toBe(ADDRESS);
   });
   it("puts a compact label's break opportunities after each ellipsis", () => {
@@ -60,7 +62,7 @@ describe("QrlAddress", () => {
     expect(
       view
         .getByLabelText(`QRL address ${ADDRESS}`)
-        .textContent?.replace(/ /g, ""),
+        .textContent.replace(/ /g, ""),
     ).toBe(ADDRESS);
     // Columns follow the card width through a container query, never the
     // viewport, so a revealed address in a narrow card cannot overlap itself.
@@ -87,10 +89,12 @@ describe("QrlAddress", () => {
 
     fireEvent.click(view.getByRole("button", { name: "Copy address" }));
 
-    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith(ADDRESS));
-    await waitFor(() =>
-      expect(view.getByRole("button", { name: "Address copied" })).toBeTruthy(),
-    );
+    await waitFor(() => {
+      expect(copyToClipboard).toHaveBeenCalledWith(ADDRESS);
+    });
+    await waitFor(() => {
+      expect(view.getByRole("button", { name: "Address copied" })).toBeTruthy();
+    });
   });
 
   it("opens an external address view while keeping the fingerprint compact", () => {
@@ -123,7 +127,9 @@ describe("QrlAddress", () => {
 
     fireEvent.click(view.getByRole("button", { name: "Copy address" }));
 
-    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith(ADDRESS));
+    await waitFor(() => {
+      expect(copyToClipboard).toHaveBeenCalledWith(ADDRESS);
+    });
     expect(onShowFull).not.toHaveBeenCalled();
   });
 
@@ -154,7 +160,9 @@ describe("QrlAddress", () => {
     expect(link.contains(copy)).toBe(false);
 
     fireEvent.click(copy);
-    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith(ADDRESS));
+    await waitFor(() => {
+      expect(copyToClipboard).toHaveBeenCalledWith(ADDRESS);
+    });
   });
 
   it("names an unlabelled explorer link after the address it opens", () => {

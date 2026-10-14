@@ -6,6 +6,7 @@ import {
   splitAddressGroups,
 } from "@/utils/formatting/address";
 import { copyToClipboard } from "@/utils/nativeApp";
+import { logError } from "@/utils/log";
 
 /**
  * Ghost icon-button styling. Kept local so this component stays free of the
@@ -41,7 +42,12 @@ export function AddressDisclosure({
     undefined,
   );
 
-  useEffect(() => () => clearTimeout(resetTimerRef.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(resetTimerRef.current);
+    },
+    [],
+  );
 
   const onCopy = async () => {
     const success = await copyToClipboard(address);
@@ -51,7 +57,9 @@ export function AddressDisclosure({
     }
     setCopied(true);
     clearTimeout(resetTimerRef.current);
-    resetTimerRef.current = setTimeout(() => setCopied(false), 1500);
+    resetTimerRef.current = setTimeout(() => {
+      setCopied(false);
+    }, 1500);
   };
 
   const { prefix, groups } = splitAddressGroups(address);
@@ -80,7 +88,11 @@ export function AddressDisclosure({
           className={ICON_BUTTON_CLASS}
           aria-label={copied ? "Address copied" : "Copy address"}
           title={copied ? "Address copied" : "Copy address"}
-          onClick={() => void onCopy()}
+          onClick={() => {
+            void onCopy().catch((error: unknown) => {
+              logError("Failed to copy text to clipboard:", error);
+            });
+          }}
         >
           {copied ? (
             <Check className="h-3.5 w-3.5 text-success" aria-hidden="true" />
@@ -95,7 +107,9 @@ export function AddressDisclosure({
           aria-expanded={expanded}
           aria-label={expanded ? "Hide full address" : "Show full address"}
           title={expanded ? "Hide full address" : "Show full address"}
-          onClick={() => setExpanded((value) => !value)}
+          onClick={() => {
+            setExpanded((value) => !value);
+          }}
         >
           {expanded ? (
             <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
@@ -122,7 +136,7 @@ export function AddressDisclosure({
             title={address}
           >
             {/*
-              Groups are spaced with margins instead of space characters, so
+              Groups are spaced with margins, so
               the rendered text nodes concatenate to the exact address for both
               assistive technology and a manual drag-copy.
             */}
