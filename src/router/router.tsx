@@ -63,7 +63,7 @@ const ROUTES = {
 // so we detect it at runtime and use hash routing there. Web builds are
 // unchanged (no qrlWallet -> createBrowserRouter).
 const isDesktopShell =
-  typeof window !== "undefined" && Boolean((window as { qrlWallet?: unknown }).qrlWallet);
+  typeof window !== "undefined" && Boolean(window.qrlWallet);
 // The embedded mobile build has the same problem for the opposite reason: the
 // document is injected into the WebView as a string under the
 // https://qrlwallet.com/ baseUrl, so a pushState to /transfer would make a

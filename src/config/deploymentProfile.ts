@@ -96,7 +96,9 @@ export async function verifyNetworkIdentity(
         provider.request({ method, params }),
         new Promise<never>((_, reject) => {
           timer = setTimeout(
-            () => reject(new Error("Network identity verification timed out")),
+            () => {
+              reject(new Error("Network identity verification timed out"));
+            },
             10000,
           );
         }),
