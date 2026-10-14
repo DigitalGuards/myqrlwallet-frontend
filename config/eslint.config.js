@@ -299,49 +299,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: [
-      "src/components/Core/Body/Transfer/TransactionSuccessful/__tests__/TransactionSuccessful.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Transfer/__tests__/Transfer.qrns.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-useless-constructor": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Transfer/__tests__/Transfer.sendStatus.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Transfer/__tests__/Transfer.tokenAddress.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
     files: ["src/components/Core/Layout/MobileNav.tsx"],
     rules: {
       "@typescript-eslint/no-confusing-void-expression": "off",
