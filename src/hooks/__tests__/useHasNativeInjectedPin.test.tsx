@@ -22,10 +22,14 @@ describe("useHasNativeInjectedPin", () => {
     render(<PinField />);
     expect(screen.getByText("pin field")).toBeTruthy();
 
-    act(() => setNativeInjectedPin("135790"));
+    act(() => {
+      setNativeInjectedPin("135790");
+    });
     expect(screen.getByText("native pin")).toBeTruthy();
 
-    act(() => clearNativeInjectedPin());
+    act(() => {
+      clearNativeInjectedPin();
+    });
     expect(screen.getByText("pin field")).toBeTruthy();
   });
 

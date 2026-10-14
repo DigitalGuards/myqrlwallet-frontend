@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { QRL_PROVIDER } from "@/config";
+import { getNetworkConfig } from "@/config/networks";
 import {
   createQrnsHttpProvider,
   parseQrnsNetworkConfig,
@@ -22,7 +22,7 @@ export function useNetworkQrnsRecipient({
   blockchain,
   accountAddress,
 }: UseNetworkQrnsRecipientOptions): UseQrnsRecipientResult {
-  const network = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
+  const network = getNetworkConfig(blockchain);
   const record = useMemo<QrnsNetworkRecord | null>(
     () =>
       network
