@@ -13,6 +13,7 @@
  * the ping window, and the one-minute join rate limit) are transient.
  */
 import { beforeEach, afterEach, describe, expect, it, jest } from "@jest/globals";
+import { isCallable } from "@/utils/guards";
 
 type Handler = (...args: unknown[]) => void;
 const listeners = new Map<string, Handler>();
@@ -20,6 +21,7 @@ type Emit = [string, unknown, ((response: unknown) => void)?];
 const emits: Emit[] = [];
 
 const onceListeners = new Map<string, Set<Handler>>();
+const clients: SocketClient[] = [];
 const mockSocket = {
   connected: false,
   active: true,
@@ -51,11 +53,12 @@ jest.mock("@/utils/nativeApp", () => ({
   isInNativeApp: () => false,
 }));
 
+jest.mock("socket.io-client", () => ({ io: () => mockSocket }));
+
 import {
   RelayChannelNotJoinedError,
   SocketClient,
   SocketNotConnectedError,
-  _setSocketIoLoaderForTests,
   rejoinBudgetFloorMs,
 } from "@/services/dappConnect/SocketClient";
 
@@ -125,6 +128,7 @@ async function settle(turns = 12): Promise<void> {
 /** A client that has connected and completed its first join. */
 async function pairedClient(events: ReturnType<typeof handlers>): Promise<SocketClient> {
   const client = new SocketClient("https://relay.example", events);
+  clients.push(client);
   const connecting = client.connect();
   await settle();
   mockSocket.connected = true;
@@ -145,12 +149,12 @@ beforeEach(() => {
   emits.length = 0;
   mockSocket.connected = false;
   mockSocket.active = true;
-  _setSocketIoLoaderForTests(() => Promise.resolve({ io: () => mockSocket as never }));
 });
 
 afterEach(() => {
+  for (const client of clients) client.disconnect();
+  clients.length = 0;
   jest.useRealTimers();
-  _setSocketIoLoaderForTests();
 });
 
 describe("relay channel membership", () => {
@@ -465,12 +469,20 @@ describe("relay channel membership", () => {
   it("drops membership on leave and on close", async () => {
     const events = handlers();
     const client = await pairedClient(events);
-    void client.leaveChannel();
+    const leaving = client.leaveChannel();
     expect(client.isJoined()).toBe(false);
+    const acknowledgeLeave = emits.find(([event]) => event === "leave_channel")?.[2];
+    if (!acknowledgeLeave) throw new Error("Expected a leave acknowledgement");
+    acknowledgeLeave({ success: true });
+    await expect(leaving).resolves.toBe(true);
 
     const second = await pairedClient(handlers());
-    void second.closeChannel();
+    const closing = second.closeChannel();
     expect(second.isJoined()).toBe(false);
+    const acknowledgeClose = emits.find(([event]) => event === "close_channel")?.[2];
+    if (!acknowledgeClose) throw new Error("Expected a close acknowledgement");
+    acknowledgeClose({ success: true, terminated: true });
+    await expect(closing).resolves.toBe(true);
   });
 });
 
@@ -483,7 +495,7 @@ describe("liveness probe and forced reconnect", () => {
     const probing = client.probe();
     // The mock records `ping`'s acknowledgement in the payload slot.
     const ack = pingEmit()?.[1];
-    if (typeof ack !== "function") throw new Error("ping sent no ack");
+    if (!isCallable(ack)) throw new Error("ping sent no ack");
     ack({ type: "pong", timestamp: 1 });
     await expect(probing).resolves.toBe(true);
   });

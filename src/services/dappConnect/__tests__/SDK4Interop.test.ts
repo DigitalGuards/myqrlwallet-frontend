@@ -2,25 +2,48 @@ import { describe, expect, it } from "@jest/globals";
 import {
   generateConnectionURI,
   KeyExchange as DAppKeyExchange,
-  type AckMessage as DAppAckMessage,
+  KeyExchangeMessageType as DAppKeyExchangeMessageType,
   type SynAckMessage as DAppSynAckMessage,
 } from "@qrlwallet/connect";
 
 import {
   KeyExchange as WalletKeyExchange,
-  type AckMessage as WalletAckMessage,
+  isAckMessage,
 } from "../KeyExchange";
+import { isRecord } from "@/utils/guards";
 import {
   computeFingerprint,
   fingerprintEquals,
   parseConnectionURI,
 } from "../qrUri";
 
-function wireClone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
+function wireClone(value: unknown): unknown {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function isDAppSynAckMessage(value: unknown): value is DAppSynAckMessage {
+  return (
+    isRecord(value) &&
+    value["type"] === DAppKeyExchangeMessageType.SYNACK &&
+    typeof value["ct"] === "string" &&
+    typeof value["c0"] === "string" &&
+    typeof value["v"] === "number"
+  );
 }
 
 describe("@qrlwallet/connect 4 wallet interoperability", () => {
+  it.each([
+    null,
+    [],
+    {},
+    { type: DAppKeyExchangeMessageType.ACK, ct: "ct", c0: "c0", v: 3 },
+    { type: DAppKeyExchangeMessageType.SYNACK, ct: 7, c0: "c0", v: 3 },
+    { type: DAppKeyExchangeMessageType.SYNACK, ct: "ct", c0: null, v: 3 },
+    { type: DAppKeyExchangeMessageType.SYNACK, ct: "ct", c0: "c0", v: "3" },
+  ])("rejects a malformed SYNACK wire shape: %p", (message) => {
+    expect(isDAppSynAckMessage(wireClone(message))).toBe(false);
+  });
+
   it("completes a PQP3 handshake and exchanges ciphertext in both directions", async () => {
     const cid = Uint8Array.from({ length: 16 }, (_, index) => index + 1);
     const dapp = new DAppKeyExchange(true);
@@ -46,15 +69,14 @@ describe("@qrlwallet/connect 4 wallet interoperability", () => {
         publicKey,
         parsed.cap,
       );
-      const dappAck = await dapp.onSynAck(
-        cid,
-        wireClone<DAppSynAckMessage>(walletSynAck),
-      );
+      const synAck = wireClone(walletSynAck);
+      if (!isDAppSynAckMessage(synAck)) throw new Error("Expected a SYNACK message");
+      const dappAck = await dapp.onSynAck(cid, synAck);
       expect(dappAck).not.toBeNull();
 
-      await wallet.onAck(
-        wireClone<WalletAckMessage>(dappAck as DAppAckMessage),
-      );
+      const ack = wireClone(dappAck);
+      if (!isAckMessage(ack)) throw new Error("Expected an ACK message");
+      await wallet.onAck(ack);
       dapp.confirmOriginatorAckDelivered();
 
       expect(dapp.areKeysExchanged()).toBe(true);

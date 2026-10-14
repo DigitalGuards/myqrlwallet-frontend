@@ -6,7 +6,7 @@ const SIGNER = `Q${'0'.repeat(128)}`;
 const RECIPIENT = `Q${'1'.repeat(128)}`;
 const LEGACY_Q40 = `Q${'0'.repeat(40)}`;
 
-function typedPayload(fieldType: string, value: unknown): unknown {
+function typedPayload(fieldType: string, value: unknown) {
   return {
     types: {
       QRLDomain: [{ name: 'name', type: 'string' }],
@@ -36,24 +36,24 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
   it('accepts only QIP-55 addresses and exact VM64 topics for qrl_getLogs', () => {
     const eventTopic = `0x${'ab'.repeat(32)}${'00'.repeat(32)}`;
     const indexedAddress = `0x${'cd'.repeat(64)}`;
-    expect(() =>
+    expect(() => {
       RequestHandler.validateUnrestrictedRequest('qrl_getLogs', [
         {
           address: SIGNER,
           topics: [eventTopic, null, [indexedAddress]],
         },
-      ])
-    ).not.toThrow();
-    expect(() =>
+      ]);
+    }).not.toThrow();
+    expect(() => {
       RequestHandler.validateUnrestrictedRequest('qrl_getLogs', [
         { address: SIGNER, topics: [`0x${'ab'.repeat(32)}`] },
-      ])
-    ).toThrow('exact 64-byte VM64');
-    expect(() =>
+      ]);
+    }).toThrow('exact 64-byte VM64');
+    expect(() => {
       RequestHandler.validateUnrestrictedRequest('qrl_getLogs', [
         { address: LEGACY_Q40, topics: [eventTopic] },
-      ])
-    ).toThrow('QIP-55');
+      ]);
+    }).toThrow('QIP-55');
   });
 
   it('validates the complete JSON-RPC request envelope', () => {
@@ -102,53 +102,57 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
   });
 
   it('accepts only empty qrl_requestAccounts params', () => {
-    expect(() => RequestHandler.validateRestrictedRequest('qrl_requestAccounts', [])).not.toThrow();
-    expect(() => RequestHandler.validateRestrictedRequest('qrl_requestAccounts', [SIGNER])).toThrow(
+    expect(() => {
+      RequestHandler.validateRestrictedRequest('qrl_requestAccounts', []);
+    }).not.toThrow();
+    expect(() => {
+      RequestHandler.validateRestrictedRequest('qrl_requestAccounts', [SIGNER]);
+    }).toThrow(
       'does not accept parameters'
     );
   });
 
   it('validates typed data recursively even when the dApp bypasses the SDK', () => {
     const tooMany = new Array(TYPED_DATA_LIMITS.maxArrayLength + 1).fill(1);
-    expect(() =>
+    expect(() => {
       RequestHandler.validateRestrictedRequest('qrl_signTypedData', [
         SIGNER,
         typedPayload('uint8[]', tooMany),
-      ])
-    ).toThrow('exceeds length limit');
+      ]);
+    }).toThrow('exceeds length limit');
   });
 
   it('rejects typed-data fields that would be displayed but not signed', () => {
     const withUnsignedDisplay = {
-      ...(typedPayload('uint8', 1) as Record<string, unknown>),
+      ...typedPayload('uint8', 1),
       displayPrompt: 'Harmless login',
     };
-    expect(() =>
-      RequestHandler.validateRestrictedRequest('qrl_signTypedData', [SIGNER, withUnsignedDisplay])
-    ).toThrow(/unknown top-level fields/);
+    expect(() => {
+      RequestHandler.validateRestrictedRequest('qrl_signTypedData', [SIGNER, withUnsignedDisplay]);
+    }).toThrow(/unknown top-level fields/);
   });
 
   it('accepts bounded typed data and strict message bytes', () => {
-    expect(() =>
+    expect(() => {
       RequestHandler.validateRestrictedRequest('qrl_signTypedData', [
         SIGNER,
         typedPayload('uint16[]', [1, 2]),
-      ])
-    ).not.toThrow();
-    expect(() =>
-      RequestHandler.validateRestrictedRequest('qrl_signMessage', [SIGNER, '0x0102'])
-    ).not.toThrow();
+      ]);
+    }).not.toThrow();
+    expect(() => {
+      RequestHandler.validateRestrictedRequest('qrl_signMessage', [SIGNER, '0x0102']);
+    }).not.toThrow();
   });
 
   it('rejects oversized opaque signing messages before they reach approval UI', () => {
     const oversized = `0x${'aa'.repeat(TYPED_DATA_LIMITS.maxDynamicBytes + 1)}`;
-    expect(() =>
-      RequestHandler.validateRestrictedRequest('qrl_signMessage', [SIGNER, oversized])
-    ).toThrow('bounded');
+    expect(() => {
+      RequestHandler.validateRestrictedRequest('qrl_signMessage', [SIGNER, oversized]);
+    }).toThrow('bounded');
   });
 
   it('accepts one bounded canonical transaction for approval', () => {
-    expect(() =>
+    expect(() => {
       RequestHandler.validateRestrictedRequest('qrl_sendTransaction', [
         {
           from: SIGNER,
@@ -158,8 +162,8 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
           data: '0x0102',
           chainId: '0x301825',
         },
-      ])
-    ).not.toThrow();
+      ]);
+    }).not.toThrow();
   });
 
   it.each([
@@ -179,15 +183,17 @@ describe('RequestHandler closed wallet-side RPC policy', () => {
     ['numeric chain', [{ from: SIGNER, to: RECIPIENT, chainId: 3151909 }]],
     ['oversized chain', [{ from: SIGNER, to: RECIPIENT, chainId: `0x${'f'.repeat(65)}` }]],
   ])('rejects malformed transaction input: %s', (_name, params) => {
-    expect(() => RequestHandler.validateRestrictedRequest('qrl_signTransaction', params)).toThrow();
+    expect(() => {
+      RequestHandler.validateRestrictedRequest('qrl_signTransaction', params);
+    }).toThrow();
   });
 
   it('rejects oversized transaction data before approval rendering', () => {
     const data = `0x${'aa'.repeat(DAPP_TRANSACTION_LIMITS.maxDataBytes + 1)}`;
-    expect(() =>
+    expect(() => {
       RequestHandler.validateRestrictedRequest('qrl_sendTransaction', [
         { from: SIGNER, to: RECIPIENT, data },
-      ])
-    ).toThrow('bounded');
+      ]);
+    }).toThrow('bounded');
   });
 });

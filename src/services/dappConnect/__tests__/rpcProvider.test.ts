@@ -1,9 +1,13 @@
 import { Web3 } from '@theqrl/web3';
+import fetch from 'cross-fetch';
+import { isRecord } from '@/utils/guards';
 import {
   assertRequestedTransactionChain,
   getRequestProvider,
   readWalletChainId,
 } from '../rpcProvider';
+
+jest.mock('cross-fetch', () => ({ __esModule: true, default: jest.fn() }));
 
 describe('published Web3 dApp RPC adapter', () => {
   it('unwraps the actual HttpProvider envelope through the request manager', async () => {
@@ -11,7 +15,7 @@ describe('published Web3 dApp RPC adapter', () => {
     if (!web3.currentProvider) throw new Error('Missing test HttpProvider');
     const request = jest
       .spyOn(web3.currentProvider, 'request')
-      .mockImplementation(async (payload) => ({
+      .mockImplementation((payload) => Promise.resolve({
         jsonrpc: '2.0',
         id: payload.id,
         result: payload.method === 'qrl_chainId' ? '0x301825' : { number: '0x0', hash: '0x1234' },
@@ -31,26 +35,36 @@ describe('published Web3 dApp RPC adapter', () => {
     request.mockRestore();
   });
 
-  it('rejects a real provider RPC error instead of returning it as a result', async () => {
+  it('rejects a real provider RPC error envelope', async () => {
     const web3 = new Web3('http://127.0.0.1:8545');
     if (!web3.currentProvider) throw new Error('Missing test HttpProvider');
-    const request = jest.spyOn(web3.currentProvider, 'request').mockImplementation(
-      async (payload) =>
-        ({
+    const request = jest.mocked(fetch).mockImplementation((_url, options) => {
+      if (typeof options?.body !== 'string') throw new Error('Expected an RPC request body');
+      const payload: unknown = JSON.parse(options.body);
+      if (!isRecord(payload) || typeof payload['id'] !== 'string') {
+        throw new Error('Expected a JSON-RPC request id');
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({
           jsonrpc: '2.0',
-          id: payload.id,
+          id: payload['id'],
           error: { code: -32000, message: 'RPC unavailable' },
-        }) as never
-    );
-    await expect(readWalletChainId(web3.qrl)).rejects.toThrow();
-    request.mockRestore();
+        }))
+      );
+    });
+    try {
+      await expect(readWalletChainId(web3.qrl)).rejects.toThrow('RPC unavailable');
+      expect(request).toHaveBeenCalledTimes(1);
+    } finally {
+      request.mockReset();
+    }
   });
 
   it('preserves the EIP-1193 fallback and its provider receiver', async () => {
     const currentProvider = {
-      request: jest.fn(async function (this: unknown) {
+      request: jest.fn(function (this: unknown) {
         expect(this).toBe(currentProvider);
-        return '0x301825';
+        return Promise.resolve('0x301825');
       }),
     };
     await expect(readWalletChainId({ currentProvider })).resolves.toBe('0x301825');
@@ -58,7 +72,7 @@ describe('published Web3 dApp RPC adapter', () => {
 
   it('checks the requested chain on every approval and rejects a switched provider', async () => {
     let chain = '0x301825';
-    const web3 = { currentProvider: { request: jest.fn(async () => chain) } };
+    const web3 = { currentProvider: { request: jest.fn(() => Promise.resolve(chain)) } };
     const transaction = { chainId: '0x301825' };
     await expect(assertRequestedTransactionChain(transaction, web3)).resolves.toBeUndefined();
     chain = '0x539';
@@ -71,7 +85,7 @@ describe('published Web3 dApp RPC adapter', () => {
   it('rejects malformed chain responses and leaves optional legacy requests valid', async () => {
     await expect(
       readWalletChainId({
-        currentProvider: { request: async () => ({ result: '0x301825' }) },
+        currentProvider: { request: () => Promise.resolve({ result: '0x301825' }) },
       })
     ).rejects.toThrow('invalid chain id');
     await expect(assertRequestedTransactionChain({}, null)).resolves.toBeUndefined();
