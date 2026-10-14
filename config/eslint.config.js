@@ -302,36 +302,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/components/Core/Body/CreateToken/CreateToken.tsx"],
-    rules: {
-      "@typescript-eslint/unbound-method": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/CreateToken/TokenCreationForm/TokenCreationForm.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/CreateToken/TokenStatus.tsx"],
-    rules: {
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/no-unnecessary-type-conversion": "off",
-      "@typescript-eslint/unbound-method": "off",
-      "no-console": "off",
-    },
-  },
-  {
     files: [
       "src/components/Core/Body/Home/AccountCreateImport/AccountCreateImport.tsx",
     ],
@@ -500,105 +470,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/components/Core/Body/Nfts/AddNftModal.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Nfts/NftCard.tsx"],
-    rules: {
-      "@typescript-eslint/no-misused-promises": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Nfts/NftCollectionRow.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Nfts/NftDetail.tsx"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Nfts/NftGallery.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "react-hooks/exhaustive-deps": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Nfts/NftImage.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Nfts/__tests__/AddNftModal.collections.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Nfts/__tests__/NftCollectionNavigation.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Nfts/__tests__/NftDetail.contractRow.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Nfts/__tests__/NftDetail.qrns.test.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Nfts/__tests__/NftGallery.collections.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Nfts/nftNavigation.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
     files: ["src/components/Core/Body/PinSetup/DeviceCredentialRecovery.tsx"],
     rules: {
       "@typescript-eslint/no-confusing-void-expression": "off",
@@ -657,51 +528,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/components/Core/Body/Tokens/AddTokenModal/AddTokenModal.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/unbound-method": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Tokens/TokenForm/TokenForm.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Tokens/TokenForm/__tests__/columns.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Tokens/TokenForm/columns.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "react-refresh/only-export-components": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Tokens/TokenForm/data-table.tsx"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "react-hooks/exhaustive-deps": "off",
-    },
-  },
-  {
     files: [
       "src/components/Core/Body/TransactionHistory/__tests__/historyNetwork.test.tsx",
     ],
@@ -732,26 +558,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/components/Core/Body/Transfer/GasFeeNotice/GasFeeNotice.tsx"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-unnecessary-type-conversion": "off",
-      "@typescript-eslint/restrict-template-expressions": "off",
-      "react-hooks/exhaustive-deps": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Transfer/TransactionSuccessful/TransactionSuccessful.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/restrict-template-expressions": "off",
-    },
-  },
-  {
     files: [
       "src/components/Core/Body/Transfer/TransactionSuccessful/__tests__/TransactionSuccessful.test.tsx",
     ],
@@ -759,19 +565,6 @@ export const lintRatchet = [
       "@typescript-eslint/consistent-type-assertions": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Transfer/Transfer.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-deprecated": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/no-unnecessary-type-conversion": "off",
-      "@typescript-eslint/unbound-method": "off",
-      "no-console": "off",
     },
   },
   {

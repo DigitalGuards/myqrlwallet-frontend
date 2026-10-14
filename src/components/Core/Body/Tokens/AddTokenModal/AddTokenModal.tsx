@@ -1,3 +1,6 @@
+import { isRecord } from "@/utils/guards";
+import { unsignedQuantity } from "@/utils/transactionHistory";
+import { reportError } from "@/utils/reportError";
 import { Button } from "@/components/UI/Button"
 import { Checkbox } from "@/components/UI/CheckBox"
 import {
@@ -24,7 +27,7 @@ import { QrlAddress } from "@/components/UI/QrlAddress";
 
 export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
     const { qrlStore, tokenStore } = useStore();
-    const { addToken: addTokenToStore, pendingDiscoveredTokens } = tokenStore;
+    const { pendingDiscoveredTokens } = tokenStore;
     const { accountAddress: activeAccountAddress } = qrlStore.activeAccount;
     const [tokenAddress, setTokenAddress] = useState("");
     const [tokenInfo, setTokenInfo] = useState<TokenInterface | null>(null);
@@ -38,7 +41,9 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
     useEffect(() => {
         if (!isOpen || !activeAccountAddress) return;
         setSelectedAddresses(new Set());
-        void tokenStore.discoverTokensForReview(activeAccountAddress);
+        tokenStore.discoverTokensForReview(activeAccountAddress).catch((error: unknown) => {
+            reportError("Failed to discover tokens:", error);
+        });
     }, [isOpen, activeAccountAddress, tokenStore]);
 
     // pendingDiscoveredTokens filters out already-added tokens. Lower-cased
@@ -94,7 +99,7 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
     const addToken = async () => {
         setError(null);
         if (tokenInfo) {
-            const data = await addTokenToStore(tokenInfo);
+            const data = await tokenStore.addToken(tokenInfo);
             if (data) {
                 setTokenInfo(null);
                 setTokenAddress("");
@@ -120,23 +125,35 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
                 setIsLoading(true);
                 setError(null);
                 const selectedBlockChain = await StorageUtil.getBlockChain();
-                const { name, symbol, decimals } = await fetchTokenInfo(tokenAddress, QRL_PROVIDER[selectedBlockChain].url);
-                const balance = await fetchBalance(tokenAddress, activeAccountAddress, QRL_PROVIDER[selectedBlockChain].url);
+                const info: unknown = await fetchTokenInfo(tokenAddress, QRL_PROVIDER[selectedBlockChain].url);
+                const balance: unknown = await fetchBalance(tokenAddress, activeAccountAddress, QRL_PROVIDER[selectedBlockChain].url);
                 if (cancelled) return;
-                const parsedDecimals = parseInt(decimals?.toString() ?? "18");
+                if (!isRecord(info) || typeof info["name"] !== "string" || typeof info["symbol"] !== "string") {
+                    throw new Error("Invalid token metadata.");
+                }
+                const name = info["name"];
+                const symbol = info["symbol"];
+                const decimals = info["decimals"];
+                const decimalQuantity = decimals === undefined || decimals === null ? 18n : unsignedQuantity(decimals);
+                if (decimalQuantity === null || decimalQuantity > 255n) {
+                    throw new Error("Invalid token decimals.");
+                }
+                const parsedDecimals = Number(decimalQuantity);
+                const balanceQuantity = balance === undefined || balance === null ? 0n : unsignedQuantity(balance);
+                if (balanceQuantity === null) throw new Error("Invalid token balance.");
                 // Store the display-formatted balance (decimals applied) so the
                 // token list doesn't flash the raw base-unit integer until the
                 // next refreshTokenBalances cycle reformats it.
                 let amount: string;
                 try {
-                    amount = getOptimalTokenBalance(formatUnits(balance?.toString() ?? "0", parsedDecimals), symbol, false);
+                    amount = getOptimalTokenBalance(formatUnits(balanceQuantity, parsedDecimals), symbol, false);
                 } catch {
                     amount = "0.0";
                 }
                 setTokenInfo({ name, symbol, decimals: parsedDecimals, address: tokenAddress, amount });
             } catch (err) {
                 if (cancelled) return;
-                console.error("Error fetching token info", err);
+                reportError("Error fetching token info", err);
                 setTokenInfo(null);
                 setError(
                     err instanceof Error
@@ -189,7 +206,7 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
                                         <Checkbox
                                             id={`discovered-${key}`}
                                             checked={checked}
-                                            onCheckedChange={() => toggleSelection(t.address)}
+                                            onCheckedChange={() => { toggleSelection(t.address); }}
                                             disabled={isAddingPicks}
                                         />
                                         <Label
@@ -216,7 +233,7 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
                             size="sm"
                             className="mt-3 w-full"
                             disabled={selectedAddresses.size === 0 || isAddingPicks}
-                            onClick={addSelected}
+                            onClick={() => { void addSelected(); }}
                         >
                             {isAddingPicks ? (
                                 <>
@@ -266,7 +283,11 @@ export const AddTokenModal = observer(({ isOpen, onClose }: { isOpen: boolean, o
                 )}
 
                 <DialogFooter>
-                    <Button className="w-full" type="button" disabled={tokenAddress.length === 0 || isLoading} onClick={addToken}>Add Token</Button>
+                    <Button className="w-full" type="button" disabled={tokenAddress.length === 0 || isLoading} onClick={() => {
+                        addToken().catch((error: unknown) => {
+                            setError(error instanceof Error ? `Add failed: ${error.message}` : "Add failed.");
+                        });
+                    }}>Add Token</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

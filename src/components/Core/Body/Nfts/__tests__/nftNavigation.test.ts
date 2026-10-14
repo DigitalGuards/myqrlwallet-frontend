@@ -40,6 +40,7 @@ describe("nftNavigation", () => {
       false,
     );
     expect(openedFromCollectionList(null)).toBe(false);
+    expect(openedFromCollectionList(Object.assign([], { nftCollectionFromList: true }))).toBe(false);
     expect(openedFromCollectionList("collection")).toBe(false);
 
     expect(openedFromCollectionView({ nftDetailFromCollection: true })).toBe(

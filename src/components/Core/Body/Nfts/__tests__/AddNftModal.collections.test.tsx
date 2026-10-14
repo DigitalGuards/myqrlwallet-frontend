@@ -3,16 +3,19 @@
  * The Add NFT dialog offers discovered collections, and adding one adds
  * every owned token of that collection.
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { NFTInterface } from "@/constants";
 import {
   groupDiscoveredNftsByCollection,
   type NftCollectionGroup,
 } from "@/utils/web3/nftCollections";
-import { useStore } from "@/stores/store";
+import { reportError } from "@/utils/reportError";
+import { isValidQrlAddress } from "@/utils/web3";
+import { detectTokenStandard, fetchNftCollectionInfo, type NftCollectionInfo } from "@/utils/web3/nft";
 import { AddNftModal } from "../AddNftModal";
 
-jest.mock("@/stores/store", () => ({ useStore: jest.fn() }));
+const mockUseStore = jest.fn<unknown, []>();
+jest.mock("@/stores/store", () => ({ useStore: () => mockUseStore() }));
 jest.mock("@/utils", () => ({
   cn: (...values: unknown[]) =>
     values.filter((value) => typeof value === "string").join(" "),
@@ -20,9 +23,10 @@ jest.mock("@/utils", () => ({
 }));
 jest.mock("@/config", () => ({ QRL_PROVIDER: { TEST_NET: { url: "" } } }));
 jest.mock("@/utils/storage", () => ({
-  StorageUtil: { getBlockChain: jest.fn(async () => "TEST_NET") },
+  StorageUtil: { getBlockChain: jest.fn(() => Promise.resolve("TEST_NET")) },
 }));
-jest.mock("@/utils/web3", () => ({ isValidQrlAddress: () => false }));
+jest.mock("@/utils/reportError", () => ({ reportError: jest.fn() }));
+jest.mock("@/utils/web3", () => ({ isValidQrlAddress: jest.fn(() => false) }));
 jest.mock("@/utils/web3/nft", () => ({
   detectTokenStandard: jest.fn(),
   fetchNftCollectionInfo: jest.fn(),
@@ -54,16 +58,18 @@ const discovered: NFTInterface[] = [
 ];
 
 const addDiscoveredCollections = jest.fn(
-  async (_collections: NftCollectionGroup[]) => undefined,
+  (_collections: NftCollectionGroup[]) => Promise.resolve(),
 );
 
+const mockDiscover = jest.fn<Promise<NFTInterface[]>, [string]>().mockResolvedValue([]);
+
 const mount = () => {
-  (useStore as jest.Mock).mockReturnValue({
+  mockUseStore.mockReturnValue({
     qrlStore: { activeAccount: { accountAddress: HOLDER } },
     nftStore: {
       pendingDiscoveredNftCollections:
         groupDiscoveredNftsByCollection(discovered),
-      discoverNftsForReview: jest.fn(async () => []),
+      discoverNftsForReview: mockDiscover,
       addDiscoveredCollections,
     },
   });
@@ -78,7 +84,10 @@ const at = <T,>(items: T[], index: number): T => {
   return value;
 };
 
-beforeEach(() => addDiscoveredCollections.mockClear());
+beforeEach(() => {
+  addDiscoveredCollections.mockClear();
+  jest.mocked(isValidQrlAddress).mockReturnValue(false);
+});
 afterEach(cleanup);
 
 it("lists discovered collections instead of one row per token", () => {
@@ -100,4 +109,42 @@ it("adds every owned token of the picked collection", async () => {
   expect(picks).toHaveLength(1);
   expect(at(picks, 0).key).toBe(DEVNET_PUNKS.toLowerCase());
   expect(at(picks, 0).tokens).toHaveLength(26);
+});
+
+it("reports failed discovery without adding a collection", async () => {
+  const error = new Error("Discovery unavailable");
+  mockDiscover.mockRejectedValueOnce(error);
+  mount();
+  await waitFor(() => {
+    expect(reportError).toHaveBeenCalledWith("Failed to discover NFTs:", error);
+  });
+  expect(addDiscoveredCollections).not.toHaveBeenCalled();
+});
+
+it("keeps the selected collections available after an add failure", async () => {
+  addDiscoveredCollections.mockRejectedValueOnce(new Error("Storage unavailable"));
+  mount();
+  fireEvent.click(screen.getByLabelText(/Devnet Punks/));
+  fireEvent.click(screen.getByText("Add Selected (1)"));
+  expect((await screen.findByRole("alert")).textContent).toBe("Failed to add picks: Storage unavailable");
+  expect(screen.getByText("Add Selected (1)")).toBeTruthy();
+  expect(addDiscoveredCollections).toHaveBeenCalledTimes(1);
+});
+
+it("ignores metadata that resolves after the contract input changed", async () => {
+  jest.mocked(isValidQrlAddress).mockImplementation((value) => value === DEVNET_PUNKS);
+  jest.mocked(detectTokenStandard).mockResolvedValueOnce("ERC721");
+  let resolveInfo: (value: NftCollectionInfo) => void = () => { throw new Error("Missing pending metadata"); };
+  jest.mocked(fetchNftCollectionInfo).mockReturnValueOnce(new Promise((resolve) => { resolveInfo = resolve; }));
+  mount();
+  const input = screen.getByLabelText("Contract Address");
+  fireEvent.change(input, { target: { value: DEVNET_PUNKS } });
+  await waitFor(() => { expect(fetchNftCollectionInfo).toHaveBeenCalled(); });
+  fireEvent.change(input, { target: { value: "invalid" } });
+  await act(() => {
+    resolveInfo({ standard: "ERC721", name: "Stale metadata", supportsEnumerable: true });
+    return Promise.resolve();
+  });
+  expect(screen.queryByText("Stale metadata")).toBeNull();
+  expect(screen.queryByText("Owner enumeration:")).toBeNull();
 });
