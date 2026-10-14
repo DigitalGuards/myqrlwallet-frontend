@@ -164,6 +164,14 @@ export const baseConfig = tseslint.config(
     },
   },
   {
+    // The logger is the single module allowed to write to the console; every
+    // other module logs through it, so no-console stays an error everywhere else.
+    files: ['src/utils/log.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  {
     files: ['src/test-utils/malformed.ts'],
     rules: {
       // Malformed test fixtures use this single assertion boundary.
@@ -694,12 +702,6 @@ export const lintRatchet = [
     files: ["src/utils/guards.ts"],
     rules: {
       "@typescript-eslint/no-unnecessary-condition": "off",
-    },
-  },
-  {
-    files: ["src/utils/log.ts"],
-    rules: {
-      "no-console": "off",
     },
   },
   {
