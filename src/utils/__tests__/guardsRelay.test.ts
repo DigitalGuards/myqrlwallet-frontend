@@ -98,6 +98,17 @@ function failEmission(failure: unknown): void {
   });
 }
 
+it.each(foreignErrorCases)('preserves $name diagnostics through relay failures', async ({ create, message }) => {
+  const { client } = await connectedClient();
+  failEmission(create());
+  await expect(client.joinChannel('channel')).rejects.toMatchObject({ message });
+
+  acknowledgeJoin();
+  await client.joinChannel('channel');
+  failEmission(create());
+  await expect(client.sendMessage(outbound)).rejects.toMatchObject({ message });
+});
+
 // Class: caught transport failures must reject through every normalization caller.
 describe.each(failureCases)('$name', ({ create }) => {
   it(
