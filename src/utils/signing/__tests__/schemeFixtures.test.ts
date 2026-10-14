@@ -7,8 +7,7 @@
  * single slots byte by byte.
  */
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readCanonical } from "./canonicalFixtures";
 import {
   bytesToHex,
   computeTypedDataDigest,
@@ -18,45 +17,9 @@ import {
   typeHash,
   typedDataSchemeVersion,
   verifyTypedData,
-  type TypedDataPayload,
-  type TypedDataSchemeVersion,
 } from "..";
 
-interface SchemeVector {
-  label: string;
-  schemeVersion: TypedDataSchemeVersion;
-  payload: TypedDataPayload;
-  encodeTypeString: string;
-  typeHashHex: string;
-  domainHashHex: string;
-  messageHashHex: string;
-  digestHex: string;
-}
-
-interface SchemeSigningVector {
-  label: string;
-  hexSeed: string;
-  payload: TypedDataPayload;
-  schemeVersion: TypedDataSchemeVersion;
-  signature: string;
-  publicKey: string;
-  descriptor: string;
-  signer: string;
-  digest: string;
-}
-
-interface Canonical {
-  schemeVersionTypedV2: "QRL-SIGN-TYPED-v2";
-  schemeVectors: SchemeVector[];
-  schemeSigningVectors: SchemeSigningVector[];
-}
-
-const canonical: Canonical = JSON.parse(
-  readFileSync(
-    join(__dirname, "..", "__fixtures__", "canonical.json"),
-    "utf-8",
-  ),
-);
+const canonical = readCanonical();
 
 describe("typed-data scheme vectors", () => {
   it("covers both schemes", () => {

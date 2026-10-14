@@ -35,9 +35,7 @@ import {
   getAddressFromMnemonicAsync,
 } from '../mnemonic';
 
-const mockDeriveHexSeedAsync = deriveHexSeedAsync as jest.MockedFunction<
-  typeof deriveHexSeedAsync
->;
+const mockDeriveHexSeedAsync = jest.mocked(deriveHexSeedAsync);
 
 // A pinned, well-formed 51-byte ML-DSA-87 extended seed (descriptor 0x01),
 // taken from the cross-repo signing parity fixture (canonical.json). Used to

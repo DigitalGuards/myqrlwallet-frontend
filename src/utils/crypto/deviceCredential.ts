@@ -53,15 +53,13 @@ function hexToBytes(hex: string): Uint8Array<ArrayBuffer> {
 }
 
 function isUsableDeviceKey(value: unknown): value is CryptoKey {
-  if (!value || typeof value !== 'object') return false;
-  const key = value as CryptoKey;
-  const algorithm = key.algorithm as KeyAlgorithm | undefined;
   return (
-    key.type === 'secret' &&
-    key.extractable === false &&
-    algorithm?.name === 'AES-GCM' &&
-    key.usages.includes('encrypt') &&
-    key.usages.includes('decrypt')
+    value instanceof CryptoKey &&
+    value.type === 'secret' &&
+    !value.extractable &&
+    value.algorithm.name === 'AES-GCM' &&
+    value.usages.includes('encrypt') &&
+    value.usages.includes('decrypt')
   );
 }
 
@@ -80,7 +78,9 @@ function openDatabase(): Promise<IDBDatabase> {
         request.result.createObjectStore(STORE_NAME);
       }
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
     request.onerror = () => {
       databasePromise = null;
       reject(
@@ -105,7 +105,7 @@ function openDatabase(): Promise<IDBDatabase> {
 function readStoredKey(database: IDBDatabase): Promise<CryptoKey | null> {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, 'readonly');
-    const request = transaction.objectStore(STORE_NAME).get(DEVICE_KEY_ID);
+    const request: IDBRequest<unknown> = transaction.objectStore(STORE_NAME).get(DEVICE_KEY_ID);
     request.onsuccess = () => {
       if (request.result === undefined) {
         resolve(null);
@@ -128,7 +128,7 @@ function readStoredKey(database: IDBDatabase): Promise<CryptoKey | null> {
 }
 
 /**
- * Add rather than put: concurrent wallet tabs must never overwrite one
+ * Add with a unique key: concurrent wallet tabs must preserve one
  * another's device key. The losing tab reloads the winning key after the
  * unique-key constraint fires.
  */
@@ -246,7 +246,7 @@ export function getDeviceEncryptionKey(createIfMissing: boolean): Promise<Crypto
     cachedDeviceKey = (isInNativeApp()
       ? getNativeDeviceKey(createIfMissing)
       : getBrowserDeviceKey(createIfMissing)
-    ).catch((error) => {
+    ).catch((error: unknown) => {
       cachedDeviceKey = null;
       throw error;
     });
@@ -263,10 +263,14 @@ export async function clearDeviceCredential(): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, 'readwrite');
     transaction.objectStore(STORE_NAME).delete(DEVICE_KEY_ID);
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () =>
+    transaction.oncomplete = () => {
+      resolve();
+    };
+    transaction.onerror = () => {
       reject(new DeviceCredentialUnavailableError('The browser device credential was not cleared.'));
-    transaction.onabort = () =>
+    };
+    transaction.onabort = () => {
       reject(new DeviceCredentialUnavailableError('The browser device credential clear was interrupted.'));
+    };
   });
 }

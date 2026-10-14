@@ -1,3 +1,4 @@
+import log from '@/utils/log';
 import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
 import StorageUtil from "@/utils/storage/storage";
 import {
@@ -38,8 +39,9 @@ async function syncCurrentV5Backup(
     currentRevision = current?.revision;
   }
   if (
+    typeof currentRevision !== "number" ||
     !Number.isSafeInteger(currentRevision) ||
-    (currentRevision ?? 0) < 1 ||
+    currentRevision < 1 ||
     !isCurrent()
   ) {
     return;
@@ -50,15 +52,14 @@ async function syncCurrentV5Backup(
       address,
       encryptedSeed,
       blockchain,
-      revision: currentRevision as number,
+      revision: currentRevision,
     });
   } catch (error) {
     // A later unlock retries this exact revision. This keeps signing available
     // during a temporary native-storage failure without declaring the stale
     // pin_v4 backup permanently migrated.
-    console.warn(
-      "[WalletEncryption] Native pin_v5 backup sync deferred.",
-      error instanceof Error ? error.message : String(error),
+    log(
+      `[WalletEncryption] Native pin_v5 backup sync deferred. ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
@@ -180,9 +181,8 @@ export async function decryptStoredSeedWithPin(
       } catch (error) {
         // Encryption or the compare-and-swap failed before a migration committed.
         // Keep a valid PIN unlock usable and retry migration on the next unlock.
-        console.warn(
-          "[WalletEncryption] Deferred pin_v4 migration; the legacy wallet remains intact.",
-          error instanceof Error ? error.message : String(error),
+        log(
+          `[WalletEncryption] Deferred pin_v4 migration; the legacy wallet remains intact. ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     },

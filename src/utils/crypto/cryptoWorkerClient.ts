@@ -22,6 +22,7 @@ import {
 import { isDesktop } from '@/desktop/bridge';
 import { decryptStoredSeedWithPin, verifyStoredSeedPin } from './storedSeed';
 import type { WalletMutationToken } from '@/utils/nativeWalletMutation';
+import { isRecord } from '@/utils/guards';
 
 /**
  * Defense-in-depth: on desktop the seed never leaves the isolated signer, so
@@ -174,6 +175,22 @@ let requestIdCounter = 0;
 // Response type with requestId for matching concurrent requests
 type WorkerResponseWithId = CryptoWorkerResponse & { requestId: number };
 
+function isWorkerResponse(value: unknown): value is WorkerResponseWithId {
+  if (!isRecord(value) || !Number.isSafeInteger(value['requestId'])) return false;
+  if (value['success'] === true) {
+    return (
+      (value['type'] === 'deriveHexSeed' || value['type'] === 'decryptKeystore') &&
+      typeof value['hexSeed'] === 'string'
+    );
+  }
+  return (
+    value['success'] === false &&
+    value['type'] === 'error' &&
+    typeof value['error'] === 'string' &&
+    Object.values(CryptoErrorCodes).some(code => code === value['code'])
+  );
+}
+
 /**
  * Get or create a worker from the pool.
  * Returns an available worker or spawns a new one if pool isn't full.
@@ -232,28 +249,29 @@ function releaseWorker(pooledWorker: PooledWorker): void {
  * Send a message to a worker and wait for response.
  * Acquires a worker from the pool for parallel execution.
  */
-function postToWorker<T extends CryptoWorkerResponse['type']>(
+function postToWorker(
   message: CryptoWorkerMessage
-): Promise<Extract<CryptoWorkerResponse, { type: T; success: true }>> {
+): Promise<Extract<CryptoWorkerResponse, { success: true }>> {
   return new Promise((resolve, reject) => {
     const pooledWorker = acquireWorker();
     const { worker } = pooledWorker;
     const requestId = ++requestIdCounter;
 
-    const handler = (event: MessageEvent<WorkerResponseWithId>) => {
+    const handler = (event: MessageEvent<unknown>) => {
+      const response = event.data;
       // Only process if this response matches our request ID
-      if (event.data.requestId !== requestId) return;
+      if (!isRecord(response) || response['requestId'] !== requestId) return;
 
       worker.removeEventListener('message', handler);
       worker.removeEventListener('error', errorHandler);
       releaseWorker(pooledWorker);
 
-      const { requestId: _reqId, ...response } = event.data;
-      if (response.success) {
-        resolve(response as Extract<CryptoWorkerResponse, { type: T; success: true }>);
+      if (!isWorkerResponse(response) || (response.success && response.type !== message.type)) {
+        reject(new CryptoOperationError(CryptoErrorCodes.INVALID_DATA, 'Invalid crypto worker response'));
+      } else if (response.success) {
+        resolve(response);
       } else {
-        const errorResponse = response as { code: CryptoErrorCode; error: string };
-        reject(new CryptoOperationError(errorResponse.code, errorResponse.error));
+        reject(new CryptoOperationError(response.code, response.error));
       }
     };
 
@@ -292,7 +310,7 @@ export async function decryptKeystoreAsync(
   keystore: EncryptedKeystore,
   password: string,
 ): Promise<string> {
-  const result = await postToWorker<'decryptKeystore'>({
+  const result = await postToWorker({
     type: 'decryptKeystore',
     keystore,
     password,
@@ -307,7 +325,7 @@ export async function deriveHexSeedAsync(mnemonic: string): Promise<string> {
   if (!mnemonic || !mnemonic.trim()) {
     return "";
   }
-  const result = await postToWorker<'deriveHexSeed'>({
+  const result = await postToWorker({
     type: 'deriveHexSeed',
     mnemonic,
   });
