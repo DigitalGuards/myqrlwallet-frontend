@@ -5,6 +5,8 @@ import {
   isObjectLike,
   isRecord,
   toError,
+  toBigInt,
+  toTemplateString,
 } from '../guards';
 import {
   foreignErrorCases,
@@ -91,3 +93,60 @@ it('retains fallbacks for values JSON cannot serialize', () => {
   expect(toError(1n).message).toBe('Unknown error');
   expect(describeUnknown(1n)).toBe('1');
 });
+
+
+it.each([
+  [0, 0n], [1250, 1250n], [-1250, -1250n],
+  [1250n, 1250n], ['1250', 1250n], ['0x4e2', 1250n],
+  [true, 1n], [false, 0n], ['', 0n], ['  ', 0n],
+  [Object(1250n), 1250n], [Object('0x4e2'), 1250n],
+  [[1250], 1250n], [[], 0n],
+])('converts unknown numeric input %p to %p', (value, expected) => {
+  expect(toBigInt(value)).toBe(expected);
+});
+
+it('coerces a numeric object once with the number hint', () => {
+  const primitive = jest.fn((hint: string) => {
+    expect(hint).toBe('number');
+    return '0x4e2';
+  });
+  expect(toBigInt({ [Symbol.toPrimitive]: primitive })).toBe(1250n);
+  expect(primitive).toHaveBeenCalledTimes(1);
+});
+
+it.each([null, undefined, Symbol('balance')])(
+  'keeps the BigInt TypeError for %p', (value) => {
+    expect(() => toBigInt(value)).toThrow(TypeError);
+  },
+);
+it.each([1.5, NaN, Infinity])('keeps the BigInt RangeError for %p', (value) => {
+  expect(() => toBigInt(value)).toThrow(RangeError);
+});
+it.each(['invalid', {}])('keeps the BigInt SyntaxError for %p', (value) => {
+  expect(() => toBigInt(value)).toThrow(SyntaxError);
+});
+it('propagates the exact numeric coercion failure', () => {
+  const failure = new Error('coercion failed');
+  expect(() => toBigInt({ valueOf: () => { throw failure; } })).toThrow(failure);
+});
+
+it.each([
+  [null, 'null'], [undefined, 'undefined'], [23, '23'], [23n, '23'],
+  [false, 'false'], [{}, '[object Object]'], [[1, null, 2], '1,,2'],
+  [new Error('failure'), 'Error: failure'],
+])('retains template text for %p', (value, expected) => {
+  expect(toTemplateString(value)).toBe(expected);
+});
+it('coerces template objects once with the string hint', () => {
+  const primitive = jest.fn((hint: string) => {
+    expect(hint).toBe('string');
+    return 'failure';
+  });
+  expect(toTemplateString({ [Symbol.toPrimitive]: primitive })).toBe('failure');
+  expect(primitive).toHaveBeenCalledTimes(1);
+});
+it.each([Symbol('failure'), { [Symbol.toPrimitive]: () => Symbol('failure') }])(
+  'retains template conversion errors for symbols', (value) => {
+    expect(() => toTemplateString(value)).toThrow(TypeError);
+  },
+);

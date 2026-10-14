@@ -49,6 +49,21 @@ export function isCallable(value: unknown): value is (...args: unknown[]) => unk
   return typeof value === 'function';
 }
 
+/** Preserve native numeric-hint coercion and errors for unknown RPC values. */
+export function toBigInt(value: unknown): bigint {
+  const result: unknown = Reflect.apply(BigInt, undefined, [value]);
+  if (typeof result !== 'bigint') throw new TypeError('BigInt conversion failed');
+  return result;
+}
+
+/** Template interpolation uses string-hint coercion and rejects symbols. */
+export function toTemplateString(value: unknown): string {
+  if (typeof value === 'symbol') {
+    throw new TypeError('Cannot convert a Symbol value to a string');
+  }
+  return String(value);
+}
+
 /**
  * Render an unknown thrown or rejected value as text without the
  * "[object Object]" default stringification. Used where the text only feeds a
