@@ -12,16 +12,18 @@ it.each([false, true])(
   "bounds the installed web3 PromiEvent receipt wait to five minutes (signed=%s)",
   async (signed) => {
     jest.useFakeTimers();
-    const request = jest.fn(async ({ method }: { method: string }) => ({
-      jsonrpc: "2.0",
-      id: 1,
-      result:
-        method === "qrl_sendTransaction" || method === "qrl_sendRawTransaction"
-          ? HASH
-          : method === "qrl_getTransactionReceipt"
-            ? null
-            : "0x1",
-    }));
+    const request = jest.fn(({ method }: { method: string }) =>
+      Promise.resolve({
+        jsonrpc: "2.0",
+        id: 1,
+        result:
+          method === "qrl_sendTransaction" || method === "qrl_sendRawTransaction"
+            ? HASH
+            : method === "qrl_getTransactionReceipt"
+              ? null
+              : "0x1",
+      }),
+    );
     const { qrl } = new Web3({
       provider: { request, supportsSubscriptions: () => false },
     });

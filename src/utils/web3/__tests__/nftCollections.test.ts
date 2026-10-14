@@ -58,12 +58,13 @@ const explorerRows: ExplorerRow[] = [
 ];
 
 const mockExplorer = (rows: ExplorerRow[]) => {
-  const fetchStub = jest.fn(async () => ({
-    ok: true,
-    status: 200,
-    json: async () => ({ address: HOLDER, nfts: rows, count: rows.length }),
-  }));
-  (globalThis as { fetch?: unknown }).fetch = fetchStub;
+  const fetchStub = jest.fn(() => {
+    const response = new Response();
+    response.json = () =>
+      Promise.resolve({ address: HOLDER, nfts: rows, count: rows.length });
+    return Promise.resolve(response);
+  });
+  globalThis.fetch = fetchStub;
 };
 
 const nft = (overrides: Partial<NFTInterface>): NFTInterface => ({
@@ -83,7 +84,7 @@ const at = <T,>(items: T[], index: number): T => {
 
 afterEach(() => {
   jest.restoreAllMocks();
-  delete (globalThis as { fetch?: unknown }).fetch;
+  Reflect.deleteProperty(globalThis, "fetch");
 });
 
 it("groups the 34 discovered tokens into 2 collections with their real counts", async () => {

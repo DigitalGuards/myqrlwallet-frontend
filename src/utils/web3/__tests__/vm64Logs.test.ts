@@ -14,7 +14,7 @@ if (!EVENT_TOPIC) throw new Error('test event topic must be valid');
 
 describe('VM64 log RPC boundary', () => {
   it('bypasses the legacy SDK filter validator with one exact 64-byte topic', async () => {
-    const send = jest.fn(async () => []);
+    const send = jest.fn(() => Promise.resolve([]));
     const web3 = { requestManager: { send } };
 
     await expect(
@@ -37,7 +37,7 @@ describe('VM64 log RPC boundary', () => {
   });
 
   it('fails closed before RPC on 32-byte topics, Q+40, and malformed block hashes', async () => {
-    const send = jest.fn(async () => []);
+    const send = jest.fn(() => Promise.resolve([]));
     const web3 = { requestManager: { send } };
 
     await expect(
