@@ -398,17 +398,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/components/NativeAppBridge.tsx"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-type-assertion": "off",
-      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
-      "no-console": "off",
-    },
-  },
-  {
     files: ["src/components/SEO/__tests__/SEO.test.tsx"],
     rules: {
       "@typescript-eslint/no-confusing-void-expression": "off",
@@ -603,32 +592,6 @@ export const lintRatchet = [
     files: ["src/config/runtimeProfile.ts"],
     rules: {
       "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
-    files: ["src/desktop/__tests__/bridge.test.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
-    files: ["src/desktop/__tests__/walletHydration.test.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
-    files: ["src/desktop/bridge.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "no-console": "off",
-      "no-control-regex": "off",
-    },
-  },
-  {
-    files: ["src/desktop/walletHydration.ts"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
     },
   },
   {
@@ -1093,15 +1056,6 @@ export const lintRatchet = [
     files: ["src/utils/mobileConnect/mobileConnection.ts"],
     rules: {
       "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/utils/nativeApp.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
       "@typescript-eslint/no-unnecessary-condition": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "no-console": "off",

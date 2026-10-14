@@ -21,7 +21,12 @@
  */
 
 import type { AccountListItem } from '@/utils/storage';
+import { isRecord } from '@/utils/guards';
 import { normalizeQrlAddress } from '@/utils/web3/address';
+
+function hasStoredAddress(value: unknown): value is Record<string, unknown> & { address: string } {
+  return isRecord(value) && typeof value['address'] === 'string';
+}
 
 /**
  * Reconcile the renderer's stored account list against the signer's wallet
@@ -37,11 +42,11 @@ import { normalizeQrlAddress } from '@/utils/web3/address';
  * reconciliation add-only. This preserves renderer recovery rows until every
  * signer identity can be represented as QIP-55.
  */
-export function reconcileSignerWallets(
-  stored: AccountListItem[],
-  signerAddresses: string[],
+export function reconcileSignerWallets<T>(
+  stored: readonly T[],
+  signerAddresses: readonly unknown[],
   removeMissing: boolean,
-): { list: AccountListItem[]; changed: boolean } {
+): { list: (T | AccountListItem)[]; changed: boolean } {
   const validSignerAddresses = signerAddresses
     .map((address) => normalizeQrlAddress(address))
     .filter((address): address is string => address !== null);
@@ -52,13 +57,12 @@ export function reconcileSignerWallets(
 
   // Drop 'seed' entries the signer no longer knows. stored comes from
   // localStorage unvalidated; tolerate a malformed entry (missing/non-string
-  // address) rather than throwing out the whole reconcile. Invalid signer
-  // identities disable this destructive pass, and stored malformed entries
-  // are preserved verbatim.
-  const list = stored.filter((entry) => {
+  // address). Invalid signer identities disable this destructive pass, and
+  // stored malformed entries are preserved verbatim.
+  const list: (T | AccountListItem)[] = stored.filter((entry) => {
     if (!removeMissing || signerIdentityInvalid) return true;
-    if (typeof entry?.address !== 'string') return true;
-    if (entry.source !== 'seed') return true;
+    if (!hasStoredAddress(entry) || normalizeQrlAddress(entry.address) === null) return true;
+    if (entry['source'] !== 'seed') return true;
     return signerKeys.has(entry.address.toLowerCase());
   });
   let changed = list.length !== stored.length;
@@ -66,7 +70,7 @@ export function reconcileSignerWallets(
   // Append signer wallets the list does not yet know.
   const known = new Set(
     list
-      .map((a) => (typeof a?.address === 'string' ? a.address.toLowerCase() : null))
+      .map((a) => (hasStoredAddress(a) ? a.address.toLowerCase() : null))
       .filter((k): k is string => k !== null),
   );
   for (const address of validSignerAddresses) {
@@ -85,11 +89,11 @@ export function reconcileSignerWallets(
  * malformed-entry tolerant). Used to detect a stored active account whose
  * wallet was removed.
  */
-export function isAddressListed(list: AccountListItem[], address: string): boolean {
+export function isAddressListed(list: readonly unknown[], address: unknown): boolean {
   const normalized = normalizeQrlAddress(address);
   if (!normalized) return false;
   const key = normalized.toLowerCase();
-  return list.some((a) => typeof a?.address === 'string' && a.address.toLowerCase() === key);
+  return list.some((a) => hasStoredAddress(a) && a.address.toLowerCase() === key);
 }
 
 /**
@@ -99,8 +103,8 @@ export function isAddressListed(list: AccountListItem[], address: string): boole
  * is nothing to adopt.
  */
 export function pickActiveWallet(
-  signerAddresses: string[],
-  signerActive: string | null | undefined,
+  signerAddresses: readonly unknown[],
+  signerActive: unknown,
 ): string | undefined {
   const validSignerAddresses = signerAddresses
     .map((address) => normalizeQrlAddress(address))
@@ -118,12 +122,12 @@ export function pickActiveWallet(
 /** Canonical-case an address as it appears in the reconciled list (so a strict
  * equality lookup elsewhere matches); returns the input if not listed.
  * Malformed-entry tolerant. */
-function canonicalOf(list: AccountListItem[], addr: string): string {
+function canonicalOf(list: readonly unknown[], addr: string): string {
   const key = addr.toLowerCase();
-  return (
-    list.find((a) => typeof a?.address === 'string' && a.address.toLowerCase() === key)?.address ??
-    addr
-  );
+  for (const entry of list) {
+    if (hasStoredAddress(entry) && entry.address.toLowerCase() === key) return entry.address;
+  }
+  return addr;
 }
 
 /** What the renderer should do with its active-account pointer after a
@@ -150,7 +154,7 @@ export type ActiveAccountDecision =
  *  3. Else leave the renderer active as-is.
  */
 export function decideActiveAccount(params: {
-  list: AccountListItem[];
+  list: readonly unknown[];
   storedActive: string | null | undefined;
   signerActive: string | null | undefined;
   signerAddresses: string[];
@@ -161,16 +165,16 @@ export function decideActiveAccount(params: {
 
   // A deliberately-selected non-signer ('extension'/watch-only) active account
   // is not the signer's to stomp: the signer can't sign for it anyway, and
-  // setActiveAccount supports selecting such addresses. Leave it as-is rather
-  // than force-flipping it to a signer wallet on every unlock.
+  // setActiveAccount supports selecting such addresses. Preserve that selection
+  // across signer unlocks.
   const storedKey = (storedActive ?? '').toLowerCase();
   const storedIsNonSigner =
     storedKey.length > 0 &&
     list.some(
       (a) =>
-        typeof a?.address === 'string' &&
+        hasStoredAddress(a) &&
         a.address.toLowerCase() === storedKey &&
-        a.source !== 'seed',
+        a['source'] !== 'seed',
     );
 
   if (!storedIsNonSigner && signerActive && isAddressListed(list, signerActive)) {
