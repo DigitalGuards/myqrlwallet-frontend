@@ -1,3 +1,4 @@
+import { reportError } from "@/utils/reportError";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { Checkbox } from "@/components/UI/CheckBox";
 import { Button } from "../../../../UI/Button";
@@ -117,7 +118,7 @@ export const TokenCreationForm = observer(
 
                 // Check if account exists
                 if (!activeAccount.accountAddress) {
-                    navigate(ROUTES.IMPORT_ACCOUNT);
+                    await navigate(ROUTES.IMPORT_ACCOUNT);
                     return;
                 }
 
@@ -133,7 +134,7 @@ export const TokenCreationForm = observer(
                 // the signer, so we pass an empty mnemonic placeholder.
                 let mnemonicPhrase = "";
                 let signingGeneration: WalletMutationToken | null = null;
-                if (!isUsingRemoteSigner && !isDesktop) {
+                if (!isDesktop) {
                     if (!pin) {
                         setPinError("PIN is required");
                         return;
@@ -209,17 +210,19 @@ export const TokenCreationForm = observer(
                 const maxTransactionLimit = formData.maxTransactionLimit ? parseUnits(formData.maxTransactionLimit, decimals).toString() : undefined;
 
                 // Navigate immediately to show loading state, then start creation
-                tokenStore.setCreatingToken(tokenName, true);
-                navigate(ROUTES.TOKEN_STATUS);
+                await tokenStore.setCreatingToken(tokenName, true);
+                Promise.resolve(navigate(ROUTES.TOKEN_STATUS)).catch((error: unknown) => {
+                    reportError("Failed to open token status:", error);
+                });
 
                 // Start token creation in background (don't await here)
                 onTokenCreated(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipientAddress, maxWalletAmount, maxTransactionLimit, mnemonicPhrase)
-                    .catch((error) => {
-                        console.error("Token creation failed:", error);
+                    .catch((error: unknown) => {
+                        reportError("Token creation failed:", error);
                         // The error state is set within tokenStore and displayed on the status page
                     });
             } catch (error) {
-                console.error("Error creating token:", error);
+                reportError("Error creating token:", error);
                 setFormError("An error occurred while creating the token. Please try again.");
             }
         }
@@ -246,7 +249,11 @@ export const TokenCreationForm = observer(
                             <p className="text-muted-foreground mb-4">
                                 You need to import an account before creating tokens.
                             </p>
-                            <Button onClick={() => navigate(ROUTES.IMPORT_ACCOUNT)}>
+                            <Button onClick={() => {
+                                Promise.resolve(navigate(ROUTES.IMPORT_ACCOUNT)).catch((error: unknown) => {
+                                    reportError("Failed to open account import:", error);
+                                });
+                            }}>
                                 Import Account
                             </Button>
                         </div>
@@ -257,7 +264,12 @@ export const TokenCreationForm = observer(
 
         return (
             <Form {...form}>
-                <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+                <form className="w-full" onSubmit={(event) => {
+                    handleSubmit(onSubmit)(event).catch((error: unknown) => {
+                        reportError("Error creating token:", error);
+                        setFormError("An error occurred while creating the token. Please try again.");
+                    });
+                }}>
                     <Card >
                         <CardContent className="space-y-8 pt-6">
                             {formError && (
@@ -331,7 +343,7 @@ export const TokenCreationForm = observer(
                                                 disabled={isSubmitting}
                                                 placeholder="Example: 18"
                                                 type="number"
-                                                onChange={(e) => field.onChange(Number(e.target.value))}
+                                                onChange={(e) => { field.onChange(Number(e.target.value)); }}
                                             />
                                         </FormControl>
                                         <FormMessage />

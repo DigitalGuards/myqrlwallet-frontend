@@ -27,7 +27,7 @@ export function NftCollectionRow({
   return (
     <button
       type="button"
-      onClick={() => onOpen(collection)}
+      onClick={() => { onOpen(collection); }}
       className="group flex w-full items-center gap-3 rounded-md border border-border bg-background p-3 text-left outline-none transition-colors hover:border-secondary/60 focus-visible:ring-2 focus-visible:ring-secondary"
     >
       {cover ? (

@@ -1,5 +1,6 @@
+import { reportError } from "@/utils/reportError";
 import { observer } from "mobx-react-lite";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Loader2, Plus, RefreshCw, Sparkles } from "lucide-react";
 import {
@@ -58,7 +59,7 @@ const NftGallery = observer(() => {
     );
   };
 
-  const closeCollection = (replace: boolean) => {
+  const closeCollection = useCallback((replace: boolean) => {
     setSearchParams(
       (previous) => {
         const next = new URLSearchParams(previous);
@@ -67,7 +68,7 @@ const NftGallery = observer(() => {
       },
       { replace },
     );
-  };
+  }, [setSearchParams]);
 
   // Pop the pushed entry when the list is one step back, so the in-app
   // Back button and the browser Back button land in the same place. A
@@ -75,7 +76,9 @@ const NftGallery = observer(() => {
   // navigation, has no such entry, so drop the parameter in place.
   const onBackToCollections = () => {
     if (openedFromCollectionList(location.state)) {
-      void navigate(-1);
+      Promise.resolve(navigate(-1)).catch((error: unknown) => {
+        reportError("Failed to navigate back:", error);
+      });
       return;
     }
     closeCollection(true);
@@ -87,21 +90,16 @@ const NftGallery = observer(() => {
   // TTL, so on-chain tokenURI changes (and first-fetch IPFS failures)
   // heal without a remove/re-add.
   useEffect(() => {
-    void (async () => {
+    (async () => {
       await nftStore.refreshNftBalances();
       await nftStore.refreshNftMetadata();
-    })();
+    })().catch((error: unknown) => {
+      reportError("Failed to refresh NFTs:", error);
+    });
   }, [nftStore]);
 
-  // Populate the discovery cache so the empty-state can say "Explorer
-  // found N collections" and the AddNftModal can offer a picker. Does
-  // NOT auto-merge into nftList: the user has to explicitly pick.
-  //
-  // The same effect closes an open drill-down, because the collection
-  // belongs to the account that was active when it was opened. That is
-  // for an actual account switch only: on first mount the parameter is
-  // what a deep link asked for, so clearing it there would defeat the
-  // link.
+  // Close an open collection when its account changes. On first mount,
+  // preserve the collection requested by a deep link.
   const lastAccountRef = useRef(activeAccountAddress);
   useEffect(() => {
     if (!activeAccountAddress) return;
@@ -109,10 +107,14 @@ const NftGallery = observer(() => {
       lastAccountRef.current = activeAccountAddress;
       if (openCollectionKey) closeCollection(true);
     }
-    void nftStore.discoverNftsForReview(activeAccountAddress);
-    // Deliberately keyed on the account alone: re-running this on every
-    // URL change would repeat the discovery fetch.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAccountAddress, openCollectionKey, closeCollection]);
+
+  // Populate the review picker once per account; adding remains an explicit choice.
+  useEffect(() => {
+    if (!activeAccountAddress) return;
+    nftStore.discoverNftsForReview(activeAccountAddress).catch((error: unknown) => {
+      reportError("Failed to discover NFTs:", error);
+    });
   }, [activeAccountAddress, nftStore]);
 
   const onRefresh = async () => {
@@ -122,6 +124,8 @@ const NftGallery = observer(() => {
       // for whatever survived.
       await nftStore.refreshNftBalances();
       await nftStore.refreshNftMetadata(true);
+    } catch (error) {
+      reportError("Failed to refresh NFTs:", error);
     } finally {
       setIsRefreshing(false);
     }
@@ -167,7 +171,7 @@ const NftGallery = observer(() => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={onRefresh}
+                  onClick={() => { void onRefresh(); }}
                   disabled={isRefreshing}
                   aria-label="Refresh ownership, balances, and metadata"
                 >
@@ -186,7 +190,7 @@ const NftGallery = observer(() => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsAddOpen(true)}
+            onClick={() => { setIsAddOpen(true); }}
             aria-label="Add NFT"
           >
             <Plus className="h-4 w-4" />
@@ -211,7 +215,7 @@ const NftGallery = observer(() => {
           </div>
         ) : collections.length === 0 ? (
           <EmptyState
-            onAdd={() => setIsAddOpen(true)}
+            onAdd={() => { setIsAddOpen(true); }}
             discoveredCollectionCount={
               nftStore.pendingDiscoveredNftCollections.length
             }
@@ -222,13 +226,13 @@ const NftGallery = observer(() => {
               <NftCollectionRow
                 key={collection.key}
                 collection={collection}
-                onOpen={(picked) => openCollectionByKey(picked.key)}
+                onOpen={(picked) => { openCollectionByKey(picked.key); }}
               />
             ))}
           </div>
         )}
       </CardContent>
-      <AddNftModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
+      <AddNftModal isOpen={isAddOpen} onClose={() => { setIsAddOpen(false); }} />
     </Card>
   );
 });

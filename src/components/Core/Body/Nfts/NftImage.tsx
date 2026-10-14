@@ -41,7 +41,7 @@ function Inner({
   blur: boolean;
 }) {
   // Component is keyed by src, so this state always resets on src change.
-  // setState only fires from <img> event callbacks — never inside an effect.
+  // setState only fires from <img> image event callbacks.
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
     "loading",
   );
@@ -57,8 +57,8 @@ function Inner({
         src={src}
         alt={alt}
         loading="lazy"
-        onLoad={() => setStatus("loaded")}
-        onError={() => setStatus("error")}
+        onLoad={() => { setStatus("loaded"); }}
+        onError={() => { setStatus("error"); }}
         className={`h-full w-full object-cover transition-opacity ${
           status === "loaded" ? "opacity-100" : "opacity-0"
         } ${blur ? "scale-110 blur-[3px]" : ""}`}
