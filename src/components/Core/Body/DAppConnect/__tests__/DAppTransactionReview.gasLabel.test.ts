@@ -26,9 +26,13 @@ async function reviewText(asDesktop: boolean): Promise<string> {
   let text = '';
   await jest.isolateModulesAsync(async () => {
     if (asDesktop) {
-      (window as { qrlWallet?: unknown }).qrlWallet = { addressScheme: 'qip55-64' };
+      Object.defineProperty(window, 'qrlWallet', {
+        configurable: true,
+        writable: true,
+        value: { addressScheme: 'qip55-64' },
+      });
     } else {
-      Reflect.deleteProperty(window as object, 'qrlWallet');
+      Reflect.deleteProperty(window, 'qrlWallet');
     }
     const { createElement } = await import('react');
     const { renderToStaticMarkup } = await import('react-dom/server');
@@ -40,7 +44,7 @@ async function reviewText(asDesktop: boolean): Promise<string> {
 }
 
 afterEach(() => {
-  Reflect.deleteProperty(window as object, 'qrlWallet');
+  Reflect.deleteProperty(window, 'qrlWallet');
 });
 
 describe('dApp transaction review gas label', () => {

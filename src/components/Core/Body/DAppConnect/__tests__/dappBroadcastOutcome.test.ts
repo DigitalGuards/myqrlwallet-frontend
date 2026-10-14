@@ -50,7 +50,7 @@ async function signedTransaction(): Promise<string> {
   if (rawSigned !== null) return rawSigned;
   const web3 = new Web3({
     provider: {
-      request: async () => ({ jsonrpc: "2.0", id: 1, result: null }),
+      request: () => Promise.resolve({ jsonrpc: "2.0", id: 1, result: null }),
       supportsSubscriptions: () => false,
     },
   });
@@ -78,12 +78,12 @@ async function signedTransaction(): Promise<string> {
 /** Run a broadcast whose node behaves as given, and return the real error. */
 async function broadcastError(
   behaviour: () => { jsonrpc: string; id: number; error?: unknown; result?: unknown },
-): Promise<unknown> {
+): Promise<Error> {
   const provider = {
-    request: async ({ method }: { method: string }) => {
+    request: ({ method }: { method: string }) => Promise.resolve().then(() => {
       if (method === "qrl_sendRawTransaction") return behaviour();
       return { jsonrpc: "2.0", id: 1, result: healthyResultFor(method) };
-    },
+    }),
     supportsSubscriptions: () => false,
   };
   const web3 = new Web3({ provider, config: SHORT_POLLING });
@@ -112,6 +112,7 @@ async function broadcastError(
     await sending;
     throw new Error("expected the broadcast to fail");
   } catch (error) {
+    if (!(error instanceof Error)) throw new Error("Expected a broadcast Error");
     return error;
   }
 }
@@ -297,7 +298,7 @@ describe("we never heard back", () => {
 });
 
 /** A PromiEvent stand-in: emits nothing and rejects, as a transport failure does. */
-function rejectingPromiEvent(error: unknown) {
+function rejectingPromiEvent(error: Error) {
   const promise = Promise.reject(error);
   // Observed by the helper; this keeps the test runner quiet in the meantime.
   promise.catch(() => undefined);
