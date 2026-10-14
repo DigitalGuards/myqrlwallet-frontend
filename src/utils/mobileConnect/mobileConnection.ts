@@ -2,6 +2,8 @@ import type { QRLConnect } from "@qrlwallet/connect";
 import type { ExtensionProvider } from "@/stores/qrlStore";
 import type { AccountSource } from "@/utils/storage";
 import { log } from "@/utils";
+import { logger } from "@/utils/log";
+import { isArray } from "@/utils/guards";
 import { isUserRejection } from "@/utils/signerRejection";
 import { isValidQrlAddress } from "@/utils/web3/address";
 import { IS_V3_PROFILE } from '@/config/runtimeProfile';
@@ -40,6 +42,12 @@ let accountRequestInFlight: Promise<void> | null = null;
 let accountRequestAttempted = false;
 let pairingGeneration = 0;
 let pairingActive = false;
+
+// Re-read mutable pairing state after awaited store and provider work.
+function isPairingActive(): boolean {
+  return pairingActive;
+}
+
 // One adapter per instance so observable.ref comparisons in the store don't
 // churn on every event. Keyed by instance so a future re-create (not possible
 // today; the singleton is never torn down) can't serve a stale closure.
@@ -77,7 +85,7 @@ function endPairing(store: MobileConnectStore): void {
   pairingGeneration += 1;
   store.setMobileProvider(null);
   void store.removeMobileAccounts().catch((error: unknown) => {
-    console.error("Mobile connect: failed to remove accounts:", error);
+    logger.error("Mobile connect: failed to remove accounts:", error);
   });
 }
 
@@ -123,16 +131,16 @@ function requestMobileAccountOnce(qrl: QRLConnect, store: MobileConnectStore): v
   const generation = pairingGeneration;
   accountRequestInFlight = qrl
     .request({ method: "qrl_requestAccounts", params: [] })
-    .then(async (result) => {
+    .then(async (result: unknown) => {
       if (!pairingActive || pairingGeneration !== generation) return;
-      const address = Array.isArray(result) && result.length === 1 ? result[0] : undefined;
+      const address = isArray(result) && result.length === 1 ? result[0] : undefined;
       if (!isValidQrlAddress(address)) {
         log("Mobile connect: account approval returned no account");
         return;
       }
       if (!(await publishProvider(qrl, store, generation))) return;
       await store.adoptMobileAccount(address);
-      if (!pairingActive || pairingGeneration !== generation) {
+      if (!isPairingActive() || pairingGeneration !== generation) {
         store.setMobileProvider(null);
         await store.removeMobileAccounts();
       }
@@ -189,7 +197,7 @@ function adoptConnectedAccount(qrl: QRLConnect, store: MobileConnectStore): void
   accountRequestAttempted = true;
   log(`Mobile connect: paired with ${address}`);
   void store.adoptMobileAccount(address).catch((error: unknown) => {
-    console.error("Mobile connect: failed to adopt paired account:", error);
+    logger.error("Mobile connect: failed to adopt paired account:", error);
   });
 }
 
@@ -243,7 +251,7 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
     void publishProvider(qrl, store, generation).then((published) => {
       if (!published) return;
       void store.adoptMobileAccount(next).catch((error: unknown) => {
-        console.error("Mobile connect: failed to adopt changed account:", error);
+        logger.error("Mobile connect: failed to adopt changed account:", error);
       });
     });
   });
@@ -264,7 +272,7 @@ async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
     pairingGeneration += 1;
     store.setMobileProvider(null);
     void store.removeMobileAccounts().catch((error: unknown) => {
-      console.error("Mobile connect: failed to remove accounts:", error);
+      logger.error("Mobile connect: failed to remove accounts:", error);
     });
   });
 
@@ -295,7 +303,9 @@ export function subscribeMobileStatus(cb: (status: string) => void): () => void 
       statusListeners.delete(cb);
     };
   }
-  const handler = (status: unknown) => cb(String(status));
+  const handler = (status: unknown) => {
+    cb(String(status));
+  };
   qrl.on("statusChanged", handler);
   return () => {
     statusListeners.delete(cb);
@@ -384,7 +394,7 @@ export async function disconnectMobile(): Promise<void> {
       localStorage.removeItem(SDK_INFLIGHT_KEY);
     }
   } catch (error) {
-    console.error("Mobile connect: disconnect failed:", error);
+    logger.error("Mobile connect: disconnect failed:", error);
     try {
       localStorage.removeItem(SDK_SESSION_KEY);
       localStorage.removeItem(SDK_INFLIGHT_KEY);

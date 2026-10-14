@@ -145,7 +145,9 @@ export function createQrnsHttpProvider(
     identity: `http:${rpcUrl}`,
     async request({ method, params = [] }): Promise<unknown> {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), RPC_TIMEOUT_MS);
+      const timeout = setTimeout(() => {
+        controller.abort();
+      }, RPC_TIMEOUT_MS);
       try {
         const response = await fetcher(rpcUrl, {
           method: "POST",

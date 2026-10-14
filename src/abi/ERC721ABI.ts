@@ -1,9 +1,8 @@
-// Minimal ERC-721 ABI — collection metadata, ownership, metadata URI,
+// Minimal ERC-721 ABI: collection metadata, ownership, metadata URI,
 // transfer, plus the ERC721Enumerable owner-side enumeration helpers
 // the gallery uses when the contract supports it.
 //
-// Avoid `as const` here — Web3QRLInterface.Contract generics handle the
-// non-readonly ABI shape; a readonly tuple breaks method-arg inference.
+// Literal tuples preserve method names, arguments, and results for Web3.
 export const erc721ABI = [
   {
     inputs: [],
@@ -61,4 +60,4 @@ export const erc721ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
-];
+] as const;

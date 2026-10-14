@@ -231,29 +231,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/utils/formatting/__tests__/address.test.ts"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-template-expression": "off",
-    },
-  },
-  {
-    files: [
-      "src/utils/mobileConnect/__tests__/mobileConnection.security.test.ts",
-    ],
-    rules: {
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/utils/mobileConnect/mobileConnection.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "no-console": "off",
-    },
-  },
-  {
     files: ["src/utils/storage/__tests__/seedRevision.test.ts"],
     rules: {
       "@typescript-eslint/consistent-type-assertions": "off",
@@ -280,35 +257,10 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/utils/web3/contractFactory.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-unnecessary-type-parameters": "off",
-    },
-  },
-  {
-    files: ["src/utils/web3/nft.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-unnecessary-type-conversion": "off",
-      "no-console": "off",
-    },
-  },
-  {
     files: ["src/utils/web3/nftDiscovery.ts"],
     rules: {
-      "@typescript-eslint/no-redundant-type-constituents": "off",
       "@typescript-eslint/no-unnecessary-condition": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/restrict-template-expressions": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/utils/web3/qrns.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
     },
   },
   {
@@ -316,15 +268,6 @@ export const lintRatchet = [
     rules: {
       "@typescript-eslint/no-unnecessary-condition": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/restrict-template-expressions": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/utils/web3/vm64Logs.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
     },
   },
 ];

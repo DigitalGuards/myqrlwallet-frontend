@@ -40,11 +40,7 @@ import {
   type CollectionNameOverride,
   type NftCollectionGroup,
 } from "@/utils/web3/nftCollections";
-import {
-  contractMethods,
-  type Erc721Methods,
-  type Erc1155Methods,
-} from "@/utils/web3/contractFactory";
+import { contractMethods } from "@/utils/web3/contractFactory";
 import { discoverNFTs } from "@/utils/web3";
 import { isValidQrlAddress } from "@/utils/web3/address";
 import type QrlStore from "./qrlStore";
@@ -627,7 +623,7 @@ class NftStore {
 
         let data: string;
         if (nft.standard === "ERC721") {
-          const methods = contractMethods<Erc721Methods>(
+          const methods = contractMethods(
             web3,
             erc721ABI,
             nft.contractAddress,
@@ -636,7 +632,7 @@ class NftStore {
             .safeTransferFrom(from, toAddress, nft.tokenId)
             .encodeABI();
         } else {
-          const methods = contractMethods<Erc1155Methods>(
+          const methods = contractMethods(
             web3,
             erc1155ABI,
             nft.contractAddress,
@@ -717,7 +713,7 @@ class NftStore {
 
       let data: string;
       if (nft.standard === "ERC721") {
-        const methods = contractMethods<Erc721Methods>(
+        const methods = contractMethods(
           web3,
           erc721ABI,
           nft.contractAddress,
@@ -726,7 +722,7 @@ class NftStore {
           .safeTransferFrom(acc.address, toAddress, nft.tokenId)
           .encodeABI();
       } else {
-        const methods = contractMethods<Erc1155Methods>(
+        const methods = contractMethods(
           web3,
           erc1155ABI,
           nft.contractAddress,
