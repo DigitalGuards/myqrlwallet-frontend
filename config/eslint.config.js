@@ -164,6 +164,14 @@ export const baseConfig = tseslint.config(
     },
   },
   {
+    // Build tooling runs in Node at build time and never ships in the wallet;
+    // printing to the terminal is how it reports.
+    files: ['config/**/*.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  {
     // The logger is the single module allowed to write to the console; every
     // other module logs through it. Console calls still listed in the ratchet
     // below are debt that their slices move onto the logger.
@@ -192,7 +200,6 @@ export const lintRatchet = [
       "@typescript-eslint/consistent-type-assertions": "off",
       "@typescript-eslint/no-misused-spread": "off",
       "@typescript-eslint/no-unnecessary-type-assertion": "off",
-      "no-console": "off",
     },
   },
   {
