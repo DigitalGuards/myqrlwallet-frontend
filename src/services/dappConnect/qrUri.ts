@@ -41,7 +41,8 @@ export async function computeFingerprint(
   if (cap.length !== CAP_LEN) {
     throw new Error(`qrUri: cap must be ${CAP_LEN} bytes`);
   }
-  const c = globalThis.crypto;
+  const runtime: { crypto?: { subtle?: SubtleCrypto } } = globalThis;
+  const c = runtime.crypto;
   if (!c || !c.subtle) {
     throw new Error('qrUri: WebCrypto SubtleCrypto is not available');
   }

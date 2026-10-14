@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
 import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
@@ -8,7 +9,7 @@ import { formatUnits } from "@/utils/web3/units";
  * Single source of truth for all dApp request approvals.
  */
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { toJS } from "mobx";
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
@@ -411,7 +412,7 @@ const DAppApprovalModalContent = observer(() => {
           succeeded ? undefined : "Transaction has been reverted by the QRVM",
         );
       } catch (error) {
-        console.log(
+        logger.log(
           "[DAppConnect] watching an unknown transaction did not complete:",
           error instanceof Error ? error.message : String(error),
         );
@@ -439,7 +440,7 @@ const DAppApprovalModalContent = observer(() => {
         : undefined;
 
       if (method === "qrl_requestAccounts") {
-        const activeAddress = qrlStore.activeAccount?.accountAddress;
+        const activeAddress = qrlStore.activeAccount.accountAddress;
         dappConnectStore.approveRequestById(
           approvalSessionId,
           approvalId,
@@ -518,7 +519,7 @@ const DAppApprovalModalContent = observer(() => {
         method === "qrl_sendTransaction" ||
         method === "qrl_signTransaction"
       ) {
-        const activeAddress = qrlStore.activeAccount?.accountAddress;
+        const activeAddress = qrlStore.activeAccount.accountAddress;
         if (!activeAddress) {
           setError("No active account");
           setLoading(false);
@@ -540,7 +541,7 @@ const DAppApprovalModalContent = observer(() => {
           firstParamRecord(params),
           qrlStore.qrlInstance,
         );
-        if (!isStillCurrent() || qrlStore.activeAccount?.accountAddress !== activeAddress) {
+        if (!isStillCurrent() || qrlStore.activeAccount.accountAddress !== activeAddress) {
           throw new Error("Wallet changed while verifying the transaction chain");
         }
 
@@ -626,7 +627,7 @@ const DAppApprovalModalContent = observer(() => {
             throw new Error("Transaction has been reverted by the QRVM");
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
-            console.log("[DAppConnect] desktop tx error:", errMsg);
+            logger.log("[DAppConnect] desktop tx error:", errMsg);
             const userError = toUserFacingError(errMsg);
             setCurrentTxProgress("failed", undefined, userError);
             // A no-op once the hash was answered: a revert after a successful
@@ -837,9 +838,9 @@ const DAppApprovalModalContent = observer(() => {
           },
           onFailure: (txErrMsg) => {
             // Log the raw node/broadcast reason (bridges to Metro as a
-            // [WebView] line; console.error does not bridge) since
+            // [WebView] line; logger.error does not bridge) since
             // toUserFacingError intentionally hides it from the UI.
-            console.log("[DAppConnect] tx broadcast error:", txErrMsg);
+            logger.log("[DAppConnect] tx broadcast error:", txErrMsg);
             const userError = toUserFacingError(txErrMsg);
             setCurrentTxProgress("failed", undefined, userError);
             // Only a broadcast that never produced a hash is a rejection. A
@@ -875,7 +876,7 @@ const DAppApprovalModalContent = observer(() => {
           return;
         }
         const [signerParam, messageHex] = parsed.data;
-        const activeAddress = qrlStore.activeAccount?.accountAddress;
+        const activeAddress = qrlStore.activeAccount.accountAddress;
         if (!activeAddress) {
           setError("No active account");
           setLoading(false);
@@ -978,7 +979,7 @@ const DAppApprovalModalContent = observer(() => {
           return;
         }
         const [signerParam, payload] = parsed.data;
-        const activeAddress = qrlStore.activeAccount?.accountAddress;
+        const activeAddress = qrlStore.activeAccount.accountAddress;
         if (!activeAddress) {
           setError("No active account");
           setLoading(false);
@@ -1088,7 +1089,7 @@ const DAppApprovalModalContent = observer(() => {
       const errMsg = err instanceof Error ? err.message : String(err);
       // Log the raw cause (bridges to Metro) before toUserFacingError flattens
       // it for display.
-      console.log("[DAppConnect] approval error:", errMsg);
+      logger.log("[DAppConnect] approval error:", errMsg);
       // A revert the wallet caught before signing is a specific, useful
       // answer. Flattening it to "Transaction failed" and code 4001 told the
       // user nothing and told the dApp the user had rejected the request.
@@ -1250,20 +1251,22 @@ const DAppApprovalModalContent = observer(() => {
   // its content instead.
   const reviewedTxKey = JSON.stringify(reviewedTxParams);
   const feePreviewKey = `${approvalKey}|${reviewedTxKey}`;
+  const readReviewedTxParams = useEffectEvent(() => reviewedTxParams);
   useEffect(() => {
-    if (reviewedTxParams === null) {
+    const quoteParams = readReviewedTxParams();
+    if (quoteParams === null) {
       setFeePreview(null);
       return;
     }
-    let cancelled = false;
+    const cancellation = new AbortController();
     setFeePreview({ status: "loading", requestKey: feePreviewKey });
     void (async () => {
       try {
         const web3 = qrlStore.qrlInstance;
         if (!web3) throw new Error("Wallet not connected");
         const quote = await quoteFees(web3, DAPP_FEE_LEVEL);
-        const gasLimit = await resolveDAppGasLimit(web3, reviewedTxParams);
-        if (cancelled) return;
+        const gasLimit = await resolveDAppGasLimit(web3, quoteParams);
+        if (cancellation.signal.aborted) return;
         setFeePreview({
           status: "ready",
           requestKey: feePreviewKey,
@@ -1275,16 +1278,14 @@ const DAppApprovalModalContent = observer(() => {
         // A quote the wallet refuses, or a node that will not answer. Approve
         // stays disabled: signing here would mean signing a fee that was never
         // shown. The user can retry the quote.
-        if (!cancelled) {
+        if (!cancellation.signal.aborted) {
           setFeePreview({ status: "failed", requestKey: feePreviewKey });
         }
       }
     })();
     return () => {
-      cancelled = true;
+      cancellation.abort();
     };
-    // reviewedTxParams is covered by reviewedTxKey, inside feePreviewKey.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feePreviewKey, qrlStore.qrlInstance, feePreviewAttempt]);
 
   /**

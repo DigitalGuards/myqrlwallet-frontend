@@ -2,6 +2,7 @@
  * Socket.IO client for the wallet side of the relay.
  */
 
+import { logger } from "@/utils/log";
 import type { Socket } from 'socket.io-client';
 import type { RelayMessage } from './types';
 import { logToNative } from '@/utils/nativeApp';
@@ -111,7 +112,7 @@ function parseJoinResponse(response: unknown): JoinChannelResult {
 }
 
 type SocketEventHandler = {
-  onMessage: (data: RelayMessage) => void;
+  onMessage: (data: unknown) => void;
   onConnected: () => void;
   onDisconnected: (reason: string) => void;
   /** `participants` is the relay's roster of the other members, when given. */
@@ -389,7 +390,7 @@ export class SocketClient {
       this.scheduleManualReconnect(reason);
     });
 
-    socket.on('message', (data: RelayMessage) => {
+    socket.on('message', (data: unknown) => {
       this.handlers.onMessage(data);
     });
 
@@ -409,7 +410,7 @@ export class SocketClient {
     });
 
     socket.on('connect_error', (err) => {
-      console.warn('[SocketClient] Connection error:', err.message);
+      logger.warn('[SocketClient] Connection error:', err.message);
       logToNative(`[SocketClient] connect_error: ${err.message}`);
     });
     if (!socket.connected) await this.waitForConnect(socket, 20000, generation);
@@ -485,7 +486,7 @@ export class SocketClient {
       })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);
-        console.warn('[SocketClient] Auto-rejoin failed:', message);
+        logger.warn('[SocketClient] Auto-rejoin failed:', message);
         logToNative(`[SocketClient] rejoin failed: ${message}`);
         // A join lost with an earlier transport fails here on its own timeout,
         // after a later one already succeeded. It is not evidence about the
@@ -499,7 +500,7 @@ export class SocketClient {
   private scheduleRejoinRetry(): void {
     if (this.rejoinTimer !== null) return;
     if (this.rejoinAttempts >= REJOIN_ATTEMPTS) {
-      console.warn(
+      logger.warn(
         `[SocketClient] relay refused ${this.rejoinAttempts} rejoins; giving up on the channel`
       );
       this.rejoinAttempts = 0;
@@ -803,7 +804,10 @@ export class SocketClient {
   }
 
   private transportName(): string {
-    return this.socket?.io.engine?.transport?.name ?? 'unknown';
+    const engine: unknown = this.socket?.io.engine;
+    const transport = isRecord(engine) ? engine['transport'] : undefined;
+    const name = isRecord(transport) ? transport['name'] : undefined;
+    return typeof name === 'string' ? name : 'unknown';
   }
 
   isConnected(): boolean {
@@ -898,7 +902,7 @@ export class SocketClient {
     if (this.manualReconnectTimer !== null) return;
 
     if (this.manualReconnectAttempts >= MANUAL_RECONNECT_ATTEMPTS) {
-      console.warn(
+      logger.warn(
         `[SocketClient] relay refused ${this.manualReconnectAttempts} reconnects; giving up`
       );
       this.manualReconnectAttempts = 0;
@@ -918,7 +922,7 @@ export class SocketClient {
       try {
         this.socket?.connect();
       } catch (err) {
-        console.warn('[SocketClient] manual reconnect failed:', err);
+        logger.warn('[SocketClient] manual reconnect failed:', err);
         this.scheduleManualReconnect(reason);
       }
     }, delay);

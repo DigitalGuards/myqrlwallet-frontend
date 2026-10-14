@@ -1,15 +1,16 @@
 /**
- * DApp Connect Service — wallet-side orchestrator for incoming dApp connections.
+ * DApp Connect Service - wallet-side orchestrator for incoming dApp connections.
  *
  * Handles PQP3 URI parsing, relay communication, the post-quantum handshake,
  * request routing, and session management. All approval UI renders in the
  * WebView (single source of truth).
  */
 
+import { logger } from "@/utils/log";
 import {
   KeyExchange,
   type SynAckMessage,
-  type AckMessage,
+  isAckMessage,
 } from "./KeyExchange";
 import {
   parseConnectionURI,
@@ -72,7 +73,7 @@ import {
 } from "@/utils/walletEpoch";
 
 function dlog(msg: string): void {
-  console.log(`[DAppConnect] ${msg}`);
+  logger.log(`[DAppConnect] ${msg}`);
   logToNative(`[DAppConnect] ${msg}`);
 }
 
@@ -129,15 +130,6 @@ const ACCOUNT_BOUND_METHODS = new Set([
   "qrl_signTypedData",
 ]);
 
-function isAckMessage(value: unknown): value is AckMessage {
-  return (
-    isRecord(value) &&
-    value["type"] === KeyExchangeMessageType.ACK &&
-    typeof value["c1"] === "string" &&
-    typeof value["v"] === "number"
-  );
-}
-
 function isExpectedDappFrame(
   value: unknown,
   channelId: string,
@@ -157,7 +149,7 @@ function requestIdKey(id: string | number): string {
 }
 
 function activeWalletAccount(): string | null {
-  const address = store.qrlStore.activeAccount?.accountAddress;
+  const address = store.qrlStore.activeAccount.accountAddress;
   return isQrlAccount(address)
     ? address
     : null;
@@ -233,10 +225,9 @@ class SessionOwnership {
       this.channels.add(channelId);
       return true;
     }
-    if (
-      typeof navigator === "undefined" ||
-      typeof navigator.locks?.request !== "function"
-    ) {
+    const browser: { locks?: LockManager } | undefined =
+      typeof navigator === "undefined" ? undefined : navigator;
+    if (typeof browser?.locks?.request !== "function") {
       return false;
     }
 
@@ -264,6 +255,7 @@ class SessionOwnership {
       releaseLock = resolve;
     });
     let callbackRan = false;
+    const didCallbackRun = (): boolean => callbackRan;
 
     try {
       void navigator.locks
@@ -282,15 +274,15 @@ class SessionOwnership {
           },
         )
         .catch((err: unknown) => {
-          if (!callbackRan) resolveAcquired(false);
-          console.error(
+          if (!didCallbackRun()) resolveAcquired(false);
+          logger.error(
             "[DAppConnect] Failed to acquire session ownership lock:",
             err,
           );
         });
     } catch (err) {
-      if (!callbackRan) resolveAcquired(false);
-      console.error(
+      if (!didCallbackRun()) resolveAcquired(false);
+      logger.error(
         "[DAppConnect] Failed to request session ownership lock:",
         err,
       );
@@ -506,7 +498,7 @@ export class DAppConnectService {
       this.lastWakeRetryAt = now;
       void this.reconnectAll().catch((err: unknown) =>
         {
-          console.error("[DAppConnect] wake retry failed:", err);
+          logger.error("[DAppConnect] wake retry failed:", err);
         },
       );
     };
@@ -516,6 +508,10 @@ export class DAppConnectService {
       window.removeEventListener("online", retry);
       document.removeEventListener("visibilitychange", retry);
     };
+  }
+
+  private isCurrentConnection(channelId: string, conn: ActiveConnection): boolean {
+    return this.connections.get(channelId) === conn && conn.cryptoUsable;
   }
 
   private isEpochCurrent(epoch: WalletEpoch): boolean {
@@ -544,7 +540,7 @@ export class DAppConnectService {
     try {
       SessionStore.clearStale(epoch);
     } catch (error) {
-      console.error(
+      logger.error(
         "[DAppConnect] Failed to clear sessions for newer wallet epoch:",
         error,
       );
@@ -774,7 +770,7 @@ export class DAppConnectService {
       if (!channelPublicKey) {
         // dApp hasn't registered a PK yet (race), or relay forgot. For a
         // fresh scan the wallet has no existing session to fall back on,
-        // so bail with a clear error — the user can rescan when the dApp
+        // so bail with a clear error - the user can rescan when the dApp
         // is actually live.
         throw new Error(
           "dApp has not registered its public key with the relay yet; retry the scan",
@@ -796,7 +792,7 @@ export class DAppConnectService {
       this.assertEpochCurrent(operationEpoch);
       connection.pendingSynAck = synack;
 
-      // Send SYNACK — this kicks off the visible portion of the handshake.
+      // Send SYNACK - this kicks off the visible portion of the handshake.
       await socketClient.sendMessage({
         id: channelId,
         clientType: "wallet",
@@ -819,7 +815,7 @@ export class DAppConnectService {
       try {
         await socketClient.leaveChannel();
       } catch {
-        // ignore — we're already in the error path
+        // ignore - we're already in the error path
       }
       socketClient.disconnect();
       if (this.connections.get(channelId) === connection) {
@@ -827,7 +823,7 @@ export class DAppConnectService {
         try {
           SessionStore.remove(channelId, operationEpoch);
         } catch (removeErr) {
-          console.error(
+          logger.error(
             "[DAppConnect] Failed to remove aborted session:",
             removeErr,
           );
@@ -861,7 +857,7 @@ export class DAppConnectService {
       // persistSession already failed the connection closed. Do not emit
       // WALLET_INFO (or connected UI state) without a durable counter
       // checkpoint from which a reload can safely resume.
-      console.error(
+      logger.error(
         "[DAppConnect] Failed to persist established session:",
         err,
       );
@@ -875,7 +871,7 @@ export class DAppConnectService {
       // The dApp supplies originatorInfo.chainId, so echoing that value would
       // let it choose the chain identity the wallet claims. Establish the
       // chain from the wallet's live provider or retire the pairing.
-      console.error(
+      logger.error(
         "[DAppConnect] Could not establish the wallet chain id:",
         err,
       );
@@ -933,8 +929,7 @@ export class DAppConnectService {
       // finalized this connection in the meantime; never resurrect it by
       // writing a late checkpoint after SessionStore.remove().
       if (
-        this.connections.get(channelId) !== conn ||
-        !conn.cryptoUsable ||
+        !this.isCurrentConnection(channelId, conn) ||
         !this.isEpochCurrent(operationEpoch)
       ) {
         throw new Error(
@@ -961,8 +956,7 @@ export class DAppConnectService {
         walletEpoch: operationEpoch,
       };
       if (
-        this.connections.get(channelId) !== conn ||
-        !conn.cryptoUsable ||
+        !this.isCurrentConnection(channelId, conn) ||
         !this.isEpochCurrent(operationEpoch)
       ) {
         throw new Error(
@@ -982,7 +976,7 @@ export class DAppConnectService {
     }
   }
 
-  private enqueueRelayMessage(channelId: string, data: RelayMessage): void {
+  private enqueueRelayMessage(channelId: string, data: unknown): void {
     if (!isExpectedDappFrame(data, channelId)) return;
     const conn = this.connections.get(channelId);
     if (!conn || !conn.cryptoUsable || !this.isEpochCurrent(conn.walletEpoch))
@@ -1030,7 +1024,7 @@ export class DAppConnectService {
           // being processed during the 800ms TERMINATE flush window).
           await this.disconnectSession(channelId, false).catch((err: unknown) =>
             {
-              console.error("[DAppConnect] disconnect-on-ack-fail failed:", err);
+              logger.error("[DAppConnect] disconnect-on-ack-fail failed:", err);
             },
           );
         }
@@ -1053,7 +1047,7 @@ export class DAppConnectService {
       try {
         decrypted = await conn.keyExchange.decryptMessage(message);
       } catch (err) {
-        console.error("[DAppConnect] Failed to decrypt message:", err);
+        logger.error("[DAppConnect] Failed to decrypt message:", err);
         const failures = (this.decryptFailures.get(channelId) ?? 0) + 1;
         this.decryptFailures.set(channelId, failures);
         if (failures >= MAX_DECRYPT_FAILURES) {
@@ -1072,7 +1066,7 @@ export class DAppConnectService {
       try {
         await this.persistSession(channelId, conn);
       } catch (err) {
-        console.error(
+        logger.error(
           "[DAppConnect] Failed to checkpoint received message:",
           err,
         );
@@ -1086,7 +1080,7 @@ export class DAppConnectService {
         }
         await this.handleDecryptedMessage(channelId, parsed);
       } catch (err) {
-        console.error("[DAppConnect] Failed to handle decrypted message:", err);
+        logger.error("[DAppConnect] Failed to handle decrypted message:", err);
       }
     }
   }
@@ -1286,21 +1280,21 @@ export class DAppConnectService {
       case MessageType.TERMINATE: {
         // Await the teardown: the message queue is per-channel, so
         // halting it while we finalize this same channel is the correct
-        // behaviour — any further buffered messages for a channel that's
+        // behaviour - any further buffered messages for a channel that's
         // being torn down are meaningless. explicit=false: a dApp-initiated
         // TERMINATE is a remote close (the dApp already left on its side), so
         // it should emit leave_channel and record a non-explicit disconnect,
-        // matching the relay 'close' path — not a redundant durable tombstone.
+        // matching the relay 'close' path, with a transient leave.
         await this.disconnectSession(channelId, false).catch((err: unknown) =>
           {
-            console.error("[DAppConnect] disconnect-on-terminate failed:", err);
+            logger.error("[DAppConnect] disconnect-on-terminate failed:", err);
           },
         );
         break;
       }
 
       default:
-        console.log("[DAppConnect] Unhandled message type:", type);
+        logger.log("[DAppConnect] Unhandled message type:", type);
     }
   }
 
@@ -1341,7 +1335,7 @@ export class DAppConnectService {
     void this.approveRequestInternal(sessionId, requestId, result).catch(
       (error: unknown) =>
         {
-          console.error("[DAppConnect] approval could not be completed:", error);
+          logger.error("[DAppConnect] approval could not be completed:", error);
         },
     );
   }
@@ -1412,7 +1406,7 @@ export class DAppConnectService {
       // user back to a dApp that has nothing yet would only confuse them.
       dlog("Approve response held for reconnect; skipping return-to-dApp");
     } else {
-      console.error(
+      logger.error(
         "[DAppConnect] approve response not sent; skipping return-to-dApp",
       );
     }
@@ -1457,14 +1451,14 @@ export class DAppConnectService {
       return;
     }
 
-    if (this.connections.get(sessionId) !== conn || !conn.cryptoUsable) return;
+    if (!this.isCurrentConnection(sessionId, conn)) return;
     const previousAccount = conn.authorizedAccount;
     conn.authorizedAccount = approvedAccount;
 
     // Commit the consent binding before either WALLET_INFO or the JSON-RPC
     // response can disclose it. A failed checkpoint retires the session.
     await this.persistSession(sessionId, conn);
-    if (this.connections.get(sessionId) !== conn || !conn.cryptoUsable) return;
+    if (!this.isCurrentConnection(sessionId, conn)) return;
     this.handlers?.onSessionsChanged();
 
     // Carry on when the relay is merely away: WALLET_INFO is queued and the
@@ -1523,7 +1517,7 @@ export class DAppConnectService {
       else if (sent === "held")
         dlog("Reject response held for reconnect; skipping return-to-dApp");
       else
-        console.error(
+        logger.error(
           "[DAppConnect] reject response not sent; skipping return-to-dApp",
         );
     });
@@ -1608,7 +1602,7 @@ export class DAppConnectService {
       try {
         SessionStore.remove(channelId, stored.walletEpoch ?? this.walletEpoch);
       } catch (error) {
-        console.error("[DAppConnect] Failed to remove cold stored session:", error);
+        logger.error("[DAppConnect] Failed to remove cold stored session:", error);
         this.ownership.release(channelId);
         return false;
       }
@@ -1638,7 +1632,7 @@ export class DAppConnectService {
       if (joined.terminated) return true;
       return await socket.closeChannel();
     } catch (error) {
-      console.error("[DAppConnect] Could not tombstone stored session:", error);
+      logger.error("[DAppConnect] Could not tombstone stored session:", error);
       return false;
     } finally {
       socket.disconnect();
@@ -1665,18 +1659,18 @@ export class DAppConnectService {
     const storageAhead = conn?.pendingRetransmit != null;
 
     if (storageAhead) {
-      console.warn(
+      logger.warn(
         `[DAppConnect] relay will not take ${channelId} back and a sealed frame is undelivered; retiring the pairing`,
       );
       void this.teardownSession(channelId, false, false, false, false).catch(
         (err: unknown) => {
-          console.error("[DAppConnect] retire after abandon failed:", err);
+          logger.error("[DAppConnect] retire after abandon failed:", err);
         },
       );
       return;
     }
 
-    console.warn(
+    logger.warn(
       `[DAppConnect] relay will not take ${channelId} back for now; keeping the session for a later retry`,
     );
     if (conn) {
@@ -1690,7 +1684,7 @@ export class DAppConnectService {
           conn.walletEpoch,
         );
       } catch (err) {
-        console.error(
+        logger.error(
           "[DAppConnect] could not record the deferred reconnect:",
           err,
         );
@@ -1749,6 +1743,7 @@ export class DAppConnectService {
       success: false,
     };
     this.finalizing.set(channelId, teardown);
+    const isExplicitDisconnect = (): boolean => teardown.explicit;
 
     const conn = this.connections.get(channelId);
 
@@ -1769,21 +1764,21 @@ export class DAppConnectService {
         // the relay instead of being dropped with the torn-down socket.
         let tombstoneConfirmed = false;
         try {
-          if (teardown.explicit) {
+          if (isExplicitDisconnect()) {
             tombstoneConfirmed = await activeConn.socketClient.closeChannel();
           } else {
             await activeConn.socketClient.leaveChannel();
             // A user/native forget can race a remote/grace teardown while the
             // leave acknowledgement is pending. Upgrade to a close using the
             // captured channel id so that request cannot be downgraded.
-            if (teardown.explicit) {
+            if (isExplicitDisconnect()) {
               tombstoneConfirmed = await activeConn.socketClient.closeChannel(
                 channelId,
               );
             }
           }
         } catch (err) {
-          console.error("[DAppConnect] Failed to close relay channel:", err);
+          logger.error("[DAppConnect] Failed to close relay channel:", err);
         } finally {
           if (this.connections.get(channelId) === activeConn) {
             this.connections.delete(channelId);
@@ -1791,7 +1786,7 @@ export class DAppConnectService {
           try {
             activeConn.socketClient.disconnect();
           } catch (err) {
-            console.error(
+            logger.error(
               "[DAppConnect] Failed to disconnect relay socket:",
               err,
             );
@@ -1823,7 +1818,7 @@ export class DAppConnectService {
         // The relay tombstone plus the in-memory removal still fail closed.
         // A later reconnect that can read storage observes the tombstone and
         // drops any stale local record instead of resuming its counters.
-        console.error("[DAppConnect] Failed to remove persisted session:", err);
+        logger.error("[DAppConnect] Failed to remove persisted session:", err);
         teardown.success = false;
       }
       this.ownership.release(channelId);
@@ -2048,7 +2043,7 @@ export class DAppConnectService {
             );
           }
         } catch (err) {
-          console.error(
+          logger.error(
             "[DAppConnect] Failed to reconnect session:",
             session.id,
             err,
@@ -2071,7 +2066,7 @@ export class DAppConnectService {
               );
             }
           } catch (statusErr) {
-            console.error(
+            logger.error(
               "[DAppConnect] Failed to persist reconnect status:",
               statusErr,
             );
@@ -2081,7 +2076,7 @@ export class DAppConnectService {
         }
       }
     } catch (err) {
-      console.error("[DAppConnect] Failed to prune persisted sessions:", err);
+      logger.error("[DAppConnect] Failed to prune persisted sessions:", err);
     } finally {
       this.ownership.release(STORE_MAINTENANCE_CHANNEL);
       this.handlers?.onSessionsChanged();
@@ -2163,7 +2158,7 @@ export class DAppConnectService {
 
   async disconnectAll(): Promise<void> {
     dlog(`disconnectAll called with ${this.connections.size} connections`);
-    // Snapshot before awaiting — disconnectSession mutates the map.
+    // Snapshot before awaiting - disconnectSession mutates the map.
     const channelIds = Array.from(this.connections.keys());
     const results = await Promise.all(
       channelIds.map((cid) => this.disconnectSession(cid)),
@@ -2278,7 +2273,7 @@ export class DAppConnectService {
       SessionStore.updateStatus(channelId, status, conn.walletEpoch);
       this.handlers?.onSessionsChanged();
     } catch (err) {
-      console.error(
+      logger.error(
         "[DAppConnect] Failed to persist live session status:",
         err,
       );
@@ -2452,20 +2447,20 @@ export class DAppConnectService {
       // favour of whatever read responses arrived after it. Refuse the new
       // non-answer instead, and say so.
       if (!entry.isAnswer) {
-        console.warn(
+        logger.warn(
           `[DAppConnect] outbox full for ${conn.channelId}; refusing to hold another message`,
         );
         return false;
       }
       const evictable = conn.offlineOutbox.findIndex((held) => !held.isAnswer);
       if (evictable === -1) {
-        console.warn(
+        logger.warn(
           `[DAppConnect] outbox full of answers for ${conn.channelId}; refusing to hold another`,
         );
         return false;
       }
       conn.offlineOutbox.splice(evictable, 1);
-      console.warn(
+      logger.warn(
         `[DAppConnect] outbox full for ${conn.channelId}; dropped a non-answer to hold an answer`,
       );
     }
@@ -2503,7 +2498,7 @@ export class DAppConnectService {
     );
     const expired = before - conn.offlineOutbox.length;
     if (expired > 0) {
-      console.warn(
+      logger.warn(
         `[DAppConnect] dropped ${expired} held message(s) for ${channelId}: the dApp stopped waiting`,
       );
     }
@@ -2572,7 +2567,7 @@ export class DAppConnectService {
     const task = conn.outboundQueue.then(async () => {
       const parked = conn.pendingRetransmit;
       if (parked === null) return;
-      if (this.connections.get(channelId) !== conn || !conn.cryptoUsable) {
+      if (!this.isCurrentConnection(channelId, conn)) {
         throw new Error("retransmit: connection is no longer active");
       }
       await this.emitFrame(channelId, conn, parked.encrypted);
@@ -2586,7 +2581,7 @@ export class DAppConnectService {
       () => true,
       (err: unknown) => {
         if (!(err instanceof SocketNotConnectedError)) {
-          console.error("[DAppConnect] retransmit failed:", err);
+          logger.error("[DAppConnect] retransmit failed:", err);
         }
         return false;
       },
@@ -2688,7 +2683,7 @@ export class DAppConnectService {
           // counter was spent. Unambiguous, and safe to hold.
           return tracked(hold(), false);
         }
-        console.error("[DAppConnect] Failed to send encrypted:", err);
+        logger.error("[DAppConnect] Failed to send encrypted:", err);
         return tracked("failed", false);
       },
     );
@@ -2699,7 +2694,7 @@ export class DAppConnectService {
     message: object,
     conn: ActiveConnection,
   ): Promise<void> {
-    if (this.connections.get(channelId) !== conn || !conn.cryptoUsable) {
+    if (!this.isCurrentConnection(channelId, conn)) {
       throw new Error("sendEncrypted: connection is no longer active");
     }
 
@@ -2742,7 +2737,7 @@ export class DAppConnectService {
       throw err;
     }
 
-    if (this.connections.get(channelId) !== conn || !conn.cryptoUsable) {
+    if (!this.isCurrentConnection(channelId, conn)) {
       throw new Error("sendEncrypted: connection closed during encryption");
     }
 
@@ -2751,7 +2746,7 @@ export class DAppConnectService {
     // fails closed), but can never restore behind and reuse this nonce.
     await this.persistSession(channelId, conn);
 
-    if (this.connections.get(channelId) !== conn || !conn.cryptoUsable) {
+    if (!this.isCurrentConnection(channelId, conn)) {
       throw new Error("sendEncrypted: connection closed after checkpoint");
     }
 
@@ -2823,7 +2818,7 @@ export class DAppConnectService {
     await this.teardownSession(channelId, true, false, false, false).catch(
       (err: unknown) =>
         {
-          console.error("[DAppConnect] Fail-closed teardown failed:", err);
+          logger.error("[DAppConnect] Fail-closed teardown failed:", err);
         },
     );
   }

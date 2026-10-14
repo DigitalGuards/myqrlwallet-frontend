@@ -14,9 +14,9 @@ import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
 const from = `Q${"a".repeat(128)}`;
 const to = `Q${"b".repeat(128)}`;
 const hash = `0x${"c".repeat(64)}`;
-const mockSend = jest.fn(async () => ({ transactionHash: hash }));
-const mockSign = jest.fn(async () => "0x1234");
-const mockRpc = jest.fn(async (_args: unknown) => "0x1");
+const mockSend = jest.fn(() => Promise.resolve({ transactionHash: hash }));
+const mockSign = jest.fn(() => Promise.resolve("0x1234"));
+const mockRpc = jest.fn((_args: unknown) => Promise.resolve("0x1"));
 const mockApproval = {
   id: "approval",
   sessionId: "session",
@@ -40,7 +40,7 @@ const mockQrlStore = {
   qrlConnection: { blockchain: "TEST_NET" },
   qrlInstance: {
     requestManager: { send: mockRpc },
-    getTransactionReceipt: async () => ({
+    getTransactionReceipt: () => Promise.resolve({
       transactionHash: hash,
       blockNumber: "0x1",
       status: "0x1",
@@ -55,7 +55,7 @@ jest.mock("mobx-react-lite", () => ({
   observer: (component: unknown) => component,
 }));
 jest.mock("@/stores/qrlStore", () => ({
-  quoteFees: async () => ({
+  quoteFees: () => Promise.resolve({
     maxFeePerGas: 1000000000n,
     maxPriorityFeePerGas: 1000000000n,
   }),
@@ -104,6 +104,8 @@ jest.mock("@/components/UI/Dialog", () => ({
   DialogTitle: ({ children }: { children: ReactNode }) => children,
 }));
 
+let logSpy: jest.SpyInstance;
+
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
@@ -111,7 +113,7 @@ beforeEach(() => {
   transactionHistoryStore.clear();
   mockApproval.method = "qrl_sendTransaction";
   mockApproval.params = [{ from, to, value: "0x1", chainId: "0x1" }];
-  jest.spyOn(console, "log").mockImplementation(() => undefined);
+  logSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
 });
 afterEach(() => {
   cleanup();
@@ -130,11 +132,11 @@ async function approve() {
 it("reports the transaction chain failure before optional history parsing", async () => {
   mockApproval.params = [{ from, to, value: {}, chainId: "0x2" }];
   await approve();
-  await waitFor(() =>
-    expect(mockDappStore.rejectRequestById).toHaveBeenCalled(),
-  );
+  await waitFor(() => {
+    expect(mockDappStore.rejectRequestById).toHaveBeenCalled();
+  });
   expect(mockRpc).toHaveBeenCalledWith({ method: "qrl_chainId", params: [] });
-  expect(console.log).toHaveBeenCalledWith(
+  expect(logSpy).toHaveBeenCalledWith(
     "[DAppConnect] approval error:",
     "Transaction chain does not match the wallet network",
   );
@@ -145,15 +147,15 @@ it("reports the transaction chain failure before optional history parsing", asyn
 it("allows the existing send flow to handle a value history cannot represent", async () => {
   mockApproval.params = [{ from, to, value: "", chainId: "0x1" }];
   await approve();
-  await waitFor(() =>
+  await waitFor(() => {
     expect(mockDappStore.setTxProgressForApproval).toHaveBeenCalledWith(
       "session",
       "approval",
       "confirmed",
       hash,
       undefined,
-    ),
-  );
+    );
+  });
   expect(mockSend).toHaveBeenCalledTimes(1);
   expect(mockDappStore.sendApprovalResultById).toHaveBeenCalledWith(
     "session",
@@ -169,15 +171,15 @@ it("continues broadcasting and records in memory when history storage is full", 
     throw new Error("quota");
   });
   await approve();
-  await waitFor(() =>
+  await waitFor(() => {
     expect(mockDappStore.setTxProgressForApproval).toHaveBeenCalledWith(
       "session",
       "approval",
       "confirmed",
       hash,
       undefined,
-    ),
-  );
+    );
+  });
   expect(mockSend).toHaveBeenCalledTimes(1);
   expect(mockDappStore.sendApprovalResultById).toHaveBeenCalledWith(
     "session",
@@ -196,13 +198,13 @@ it("keeps signing without broadcast independent of history capture", async () =>
   mockApproval.method = "qrl_signTransaction";
   mockApproval.params = [{ from, to, value: "", chainId: "0x1" }];
   await approve();
-  await waitFor(() =>
+  await waitFor(() => {
     expect(mockDappStore.approveRequestById).toHaveBeenCalledWith(
       "session",
       "approval",
       "0x1234",
-    ),
-  );
+    );
+  });
   expect(mockSign).toHaveBeenCalledTimes(1);
   expect(mockSend).not.toHaveBeenCalled();
   expect(transactionHistoryStore.getSnapshot().entries).toEqual([]);

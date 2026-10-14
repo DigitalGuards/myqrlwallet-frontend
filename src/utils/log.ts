@@ -1,20 +1,33 @@
 export default function log(message: string) {
-  logInfo(`[LOG]: ${message}`);
+  logger.log(`[LOG]: ${message}`);
 }
 
-function writeLog(level: 'log' | 'warn' | 'error', message: string, details: unknown[]): void {
-  console[level](message, ...details);
+function write(level: "log" | "warn" | "error", values: unknown[]): void {
+  console[level](...values);
 }
+
+/** Shared diagnostic sink. Keep message arguments and severity intact. */
+export const logger = {
+  log(...values: unknown[]): void {
+    write("log", values);
+  },
+  warn(...values: unknown[]): void {
+    write("warn", values);
+  },
+  error(...values: unknown[]): void {
+    write("error", values);
+  },
+};
 
 /** Preserve diagnostic levels and structured details at the logging boundary. */
 export function logInfo(message: string, ...details: unknown[]): void {
-  writeLog('log', message, details);
+  logger.log(message, ...details);
 }
 
 export function logWarning(message: string, ...details: unknown[]): void {
-  writeLog('warn', message, details);
+  logger.warn(message, ...details);
 }
 
 export function logError(message: string, ...details: unknown[]): void {
-  writeLog('error', message, details);
+  logger.error(message, ...details);
 }

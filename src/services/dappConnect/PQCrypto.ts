@@ -1,5 +1,5 @@
 /**
- * Post-quantum crypto primitives — wallet side.
+ * Post-quantum crypto primitives - wallet side.
  *
  * Mirror of @qrlwallet/connect's PQCrypto module. Both ends of the
  * handshake MUST stay byte-for-byte compatible: LABEL, direction tags,
@@ -36,7 +36,8 @@ export interface EncapsResult {
 }
 
 function subtle(): SubtleCrypto {
-  const c = globalThis.crypto;
+  const runtime: { crypto?: { subtle?: SubtleCrypto } } = globalThis;
+  const c = runtime.crypto;
   if (!c || !c.subtle) {
     throw new Error('PQCrypto: WebCrypto SubtleCrypto is not available');
   }

@@ -59,26 +59,27 @@ jest.mock("@/config/runtimeProfile", () => ({
 }));
 jest.mock("@/utils", () => ({ log: jest.fn(), cn: () => "" }));
 jest.mock("@/utils/crypto", () => ({
-  deriveHexSeedAsync: async () => mockHexSeed,
-  decryptStoredSeedWithPin: async () => ({ hexSeed: mockHexSeed }),
+  deriveHexSeedAsync: () => Promise.resolve(mockHexSeed),
+  decryptStoredSeedWithPin: () => Promise.resolve({ hexSeed: mockHexSeed }),
   DeviceCredentialUnavailableError: class extends Error {},
 }));
 jest.mock("@/utils/signing", () => ({}));
 jest.mock("@/desktop/bridge", () => ({ isDesktop: false }));
 jest.mock("@/desktop/walletHydration", () => ({}));
 jest.mock("@/utils/storage", () => ({
-  StorageUtil: { getAccountList: async () => [] },
+  StorageUtil: { getAccountList: () => Promise.resolve([]) },
 }));
 jest.mock("@/utils/storage/storage", () => ({
   __esModule: true,
   default: {
-    getBlockChain: async () => "TEST_NET",
-    getEncryptedSeed: async () => "encrypted-fixture",
+    getBlockChain: () => Promise.resolve("TEST_NET"),
+    getEncryptedSeed: () => Promise.resolve("encrypted-fixture"),
   },
 }));
 jest.mock("@/utils/web3", () => ({
-  getQrlWeb3: async () =>
+  getQrlWeb3: () => Promise.resolve(
     jest.requireActual<typeof import("@theqrl/web3")>("@theqrl/web3"),
+  ),
 }));
 jest.mock("@/utils/nativeWalletMutation", () => ({
   walletMutations: { captureGeneration: () => 0, isCurrent: () => true },
@@ -136,11 +137,11 @@ afterEach(() => {
 it("keeps shared polling unchanged after a seed send and uses it for a later dApp approval", async () => {
   let broadcasts = 0;
   const receiptPolls: { hash: string; time: number }[] = [];
-  const request = jest.fn(async (payload: unknown) => {
+  const request = jest.fn((payload: unknown) => {
     const rpc = isRecord(payload) ? payload : {};
     const method = rpc["method"];
     if (typeof method !== "string") {
-      throw new Error("Invalid RPC request");
+      return Promise.reject(new Error("Invalid RPC request"));
     }
     let result: unknown;
     switch (method) {
@@ -178,12 +179,12 @@ it("keeps shared polling unchanged after a seed send and uses it for a later dAp
           result = null;
           break;
         }
-        throw new Error("Invalid receipt request");
+        return Promise.reject(new Error("Invalid receipt request"));
       }
       default:
-        throw new Error(`Unexpected RPC method: ${method}`);
+        return Promise.reject(new Error(`Unexpected RPC method: ${method}`));
     }
-    return { jsonrpc: "2.0", id: rpc["id"], result };
+    return Promise.resolve({ jsonrpc: "2.0", id: rpc["id"], result });
   });
   const { qrl: shared } = new Web3({
     provider: { request, supportsSubscriptions: () => false },

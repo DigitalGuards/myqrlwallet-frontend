@@ -17,13 +17,11 @@ jest.mock("@/utils/signing", () => ({
   },
 }));
 
-import DAppMessageReview, {
-  tryDecodeUtf8,
-} from "../DAppMessageReview";
+import DAppMessageReview from "../DAppMessageReview";
+import { tryDecodeUtf8 } from "../messageReview";
 import DAppTransactionReview from "../DAppTransactionReview";
-import DAppTypedDataReview, {
-  canonicalTypedDataReview,
-} from "../DAppTypedDataReview";
+import DAppTypedDataReview from "../DAppTypedDataReview";
+import { canonicalTypedDataReview } from "../typedDataReview";
 import type { TypedDataPayload } from "@/utils/signing";
 
 const originalTextDecoder = Object.getOwnPropertyDescriptor(
@@ -121,10 +119,10 @@ describe("dApp approval review fidelity", () => {
     const first = typedPayload("deep-alpha", "11");
     const second = typedPayload("deep-beta", "22");
     const firstView = render(<DAppTypedDataReview payload={first} />);
-    const firstText = firstView.container.textContent ?? "";
+    const firstText = firstView.container.textContent;
     firstView.unmount();
     const secondView = render(<DAppTypedDataReview payload={second} />);
-    const secondText = secondView.container.textContent ?? "";
+    const secondText = secondView.container.textContent;
 
     expect(firstText).toContain("deep-alpha");
     expect(firstText).toContain(`0x${"11".repeat(32)}`);

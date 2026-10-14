@@ -17,6 +17,7 @@
  * clear revert lets the transaction proceed.
  */
 
+import { logger } from "@/utils/log";
 import { ContractExecutionError, Eip838ExecutionError } from "@theqrl/web3";
 
 /**
@@ -173,7 +174,7 @@ export async function assertTransactionWouldNotRevert(
     if (reason === null) {
       // The node could not answer. That is not the user's problem and must not
       // stop a send they asked for.
-      console.log(
+      logger.log(
         "[DAppConnect] revert pre-check did not complete:",
         error instanceof Error ? error.message : String(error),
       );
