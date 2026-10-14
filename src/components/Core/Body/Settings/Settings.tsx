@@ -221,15 +221,27 @@ const Settings = observer(() => {
         }, delayMs);
     };
 
-    // Flush (not discard) a pending save on unmount, so a toggle followed by
-    // an immediate navigation still persists.
+    // Flush a pending save on unmount or when the page is hidden.
     useEffect(() => {
-        return () => {
+        const flushPendingSave = () => {
             if (saveTimer.current !== null) {
                 window.clearTimeout(saveTimer.current);
                 saveTimer.current = null;
                 flushSave(true);
             }
+        };
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "hidden") {
+                flushPendingSave();
+            }
+        };
+
+        window.addEventListener("pagehide", flushPendingSave);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            window.removeEventListener("pagehide", flushPendingSave);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            flushPendingSave();
         };
     }, [flushSave]);
 

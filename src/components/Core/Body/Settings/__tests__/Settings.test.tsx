@@ -227,6 +227,81 @@ it("flushes a pending preference save on unmount and preserves unrelated storage
   );
 });
 
+it.each(["pagehide", "visibilitychange"] as const)(
+  "flushes a pending preference save exactly once on %s",
+  async (event) => {
+    jest.useFakeTimers();
+    jest.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    const view = render(<Settings />);
+    await waitFor(() => {
+      expect(screen.getByRole("spinbutton")).toHaveProperty("value", "15");
+    });
+    fireEvent.click(screen.getByRole("switch", { name: /Show Tokens Card/ }));
+    expect(StorageUtil.setWalletSettings).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent(event === "pagehide" ? window : document, new Event(event));
+      await jest.advanceTimersByTimeAsync(0);
+    });
+    expect(StorageUtil.setWalletSettings).toHaveBeenCalledTimes(1);
+    expect(StorageUtil.setWalletSettings).toHaveBeenCalledWith({
+      ...settings,
+      showTokensCard: true,
+    });
+
+    await act(async () => {
+      fireEvent(window, new Event("pagehide"));
+      fireEvent(document, new Event("visibilitychange"));
+      await jest.advanceTimersByTimeAsync(800);
+      view.unmount();
+      await jest.advanceTimersByTimeAsync(0);
+    });
+    expect(StorageUtil.setWalletSettings).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each(["pagehide", "visibilitychange"] as const)(
+  "does not write preferences on %s without a pending change",
+  async (event) => {
+    jest.useFakeTimers();
+    jest.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    render(<Settings />);
+    await waitFor(() => {
+      expect(screen.getByRole("spinbutton")).toHaveProperty("value", "15");
+    });
+
+    await act(async () => {
+      fireEvent(event === "pagehide" ? window : document, new Event(event));
+      await jest.advanceTimersByTimeAsync(800);
+    });
+    expect(StorageUtil.setWalletSettings).not.toHaveBeenCalled();
+  },
+);
+
+it("keeps a pending preference save debounced when the page becomes visible", async () => {
+  jest.useFakeTimers();
+  jest.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  render(<Settings />);
+  await waitFor(() => {
+    expect(screen.getByRole("spinbutton")).toHaveProperty("value", "15");
+  });
+  fireEvent.click(screen.getByRole("switch", { name: /Show Tokens Card/ }));
+
+  await act(async () => {
+    fireEvent(document, new Event("visibilitychange"));
+    await jest.advanceTimersByTimeAsync(199);
+  });
+  expect(StorageUtil.setWalletSettings).not.toHaveBeenCalled();
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(1);
+  });
+  expect(StorageUtil.setWalletSettings).toHaveBeenCalledTimes(1);
+  expect(StorageUtil.setWalletSettings).toHaveBeenCalledWith({
+    ...settings,
+    showTokensCard: true,
+  });
+});
+
 it("loads a string timeout and keeps invalid display preferences subject to form validation", async () => {
   jest.useFakeTimers();
   jest.mocked(StorageUtil).getWalletSettings.mockResolvedValue({
