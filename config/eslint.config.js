@@ -211,19 +211,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/stores/qrlStore.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/no-unnecessary-type-conversion": "off",
-      "@typescript-eslint/require-await": "off",
-      "@typescript-eslint/restrict-plus-operands": "off",
-      "no-console": "off",
-    },
-  },
-  {
     files: ["src/stores/store.ts"],
     rules: {
       "@typescript-eslint/no-unnecessary-condition": "off",

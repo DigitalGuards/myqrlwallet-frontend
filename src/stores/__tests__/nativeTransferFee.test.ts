@@ -1,6 +1,7 @@
 /** @jest-environment jsdom */
 import { configure } from "mobx";
 import QrlStore, { quoteFees } from "../qrlStore";
+import type { FeeLevel, FeeMarketProvider } from "../qrlStore";
 import { blockWithBaseFee, createQrlRpc } from "@/test-utils/web3";
 import { malformed } from "@/test-utils/malformed";
 
@@ -125,11 +126,11 @@ describe("quoteFees", () => {
     return { rpc, getGasPrice, getMaxPriorityFeePerGas, getBlock };
   };
 
-  it.each([
+  it.each<[FeeLevel, bigint]>([
     ["low", 2n * gwei],
     ["medium", 3n * gwei],
     ["high", 4n * gwei],
-  ] as const)("scales the suggested tip for %s", async (level, tip) => {
+  ])("scales the suggested tip for %s", async (level, tip) => {
     const provider = market(2n * gwei, 10n * gwei);
     expect(await quoteFees(provider.rpc, level)).toEqual({
       maxPriorityFeePerGas: tip,
@@ -162,6 +163,43 @@ describe("quoteFees", () => {
     expect((await quoteFees(provider.rpc, "low")).maxFeePerGas).toBe(gwei);
   });
 
+  it.each<[unknown, unknown]>([
+    [3n, 10n],
+    [3, 10],
+    ["3", "10"],
+    ["0x3", "0xa"],
+    [Object(3n), Object(10n)],
+    [[3], [10]],
+  ])("converts wire quantities %p and %p with the same rounding", async (tip, baseFeePerGas) => {
+    const provider = malformed<FeeMarketProvider>({
+      getMaxPriorityFeePerGas: () => Promise.resolve(tip),
+      getBlock: () => Promise.resolve({ baseFeePerGas, extra: "preserved" }),
+      getGasPrice: jest.fn(() => Promise.reject(new Error("Unexpected fallback"))),
+    });
+    expect(await quoteFees(provider, "medium")).toEqual({
+      maxFeePerGas: 24n,
+      maxPriorityFeePerGas: 4n,
+      baseFeePerGas: 10n,
+      expectedFeePerGas: 14n,
+    });
+  });
+
+  it.each([null, undefined, {}, { baseFeePerGas: null }, { baseFeePerGas: undefined }])(
+    "uses the legacy quote for a latest block of %p",
+    async (block) => {
+      const provider: FeeMarketProvider = {
+        getMaxPriorityFeePerGas: () => Promise.resolve(1n),
+        getBlock: () => Promise.resolve(block),
+        getGasPrice: () => Promise.resolve("0x3"),
+      };
+      expect(await quoteFees(provider, "medium")).toEqual({
+        maxFeePerGas: 4n,
+        maxPriorityFeePerGas: 3n,
+        expectedFeePerGas: 4n,
+      });
+    },
+  );
+
   it("reserves the fee ceiling for Max sends", async () => {
     const store = new QrlStore();
     const { rpc } = market(gwei, 10n * gwei);
@@ -181,3 +219,15 @@ describe("quoteFees", () => {
     );
   });
 });
+
+it.each([21000n, 21000, "21000", "0x5208"])(
+  "converts the RPC gas estimate %p when reserving fees",
+  async (gas) => {
+    const store = new QrlStore();
+    const rpc = createQrlRpc();
+    jest.spyOn(rpc, "estimateGas").mockResolvedValue(malformed<bigint>(gas));
+    jest.spyOn(rpc, "getGasPrice").mockResolvedValue(1000000000n);
+    store.qrlInstance = rpc;
+    expect(await store.estimateNativeTransferFee("medium", transfer)).toBe("0.0000315");
+  },
+);

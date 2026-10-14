@@ -280,14 +280,14 @@ it("does not overwrite new-network tokens for the same account with old balances
   );
 });
 
-it.each([21000n, 45000n])(
+it.each([21000n, 45000n, 21000, "21000", "0x5208"])(
   "uses the estimated gas %s for an empty-calldata native send",
   async (gas) => {
     const { store, rpc } = makeStore();
     const sign = jest
       .spyOn(rpc.accounts, "signTransaction")
       .mockResolvedValue(signedTransaction("0xraw"));
-    const estimateGas = jest.spyOn(rpc, "estimateGas").mockResolvedValue(gas);
+    const estimateGas = jest.spyOn(rpc, "estimateGas").mockResolvedValue(malformed<bigint>(gas));
     jest.spyOn(rpc, "getTransactionCount").mockResolvedValue(0n);
     jest.spyOn(rpc, "getGasPrice").mockResolvedValue(1n);
     jest.spyOn(rpc, "sendSignedTransaction").mockReturnValue(pendingSend());
@@ -297,7 +297,7 @@ it.each([21000n, 45000n])(
       "1",
       "test mnemonic",
       "medium",
-      FEE_NOT_SHOWN,
+      { quote: { maxFeePerGas: 1n, maxPriorityFeePerGas: 1n }, gasLimit: 45000n },
     );
     expect(estimateGas).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -307,11 +307,29 @@ it.each([21000n, 45000n])(
       }),
     );
     expect(sign).toHaveBeenCalledWith(
-      expect.objectContaining({ gas }),
+      expect.objectContaining({ gas, maxFeePerGas: "0x1", maxPriorityFeePerGas: "0x1" }),
       "test-seed",
     );
   },
 );
+
+it("retains numeric cached balances and account order after a failed RPC refresh", async () => {
+  const { store, rpc } = makeStore();
+  getAccountList.mockResolvedValue([
+    { address: RECIPIENT, source: "extension" },
+    { address: ACCOUNT, source: "seed" },
+  ]);
+  const cache = { [ACCOUNT]: 12.5, [RECIPIENT]: "3.75", extra: 9 };
+  getBalanceCache.mockResolvedValue(malformed<Record<string, string>>(cache));
+  jest.spyOn(rpc, "getBalance").mockRejectedValue(new Error("RPC unavailable"));
+  await store.fetchAccounts();
+  expect(store.qrlAccounts.accounts).toEqual([
+    { accountAddress: RECIPIENT, accountBalance: "3.75", source: "extension" },
+    { accountAddress: ACCOUNT, accountBalance: 12.5, source: "seed" },
+  ]);
+  expect(setBalanceCache).not.toHaveBeenCalled();
+  expect(cache).toEqual({ [ACCOUNT]: 12.5, [RECIPIENT]: "3.75", extra: 9 });
+});
 
 it("stops before signing when native transfer gas estimation fails", async () => {
   const { store, rpc } = makeStore();
