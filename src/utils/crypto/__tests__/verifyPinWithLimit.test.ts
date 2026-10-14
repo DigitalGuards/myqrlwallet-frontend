@@ -1,4 +1,5 @@
 /** @jest-environment jsdom */
+import { malformed } from "@/test-utils/malformed";
 import {
   PinVerificationError,
   verifyPinWithLimit,
@@ -19,9 +20,7 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 it("counts wrong PINs, locks on the fifth, and refuses decryption until expiry", async () => {
-  const decrypt = jest.fn(async () => {
-    throw wrongPin();
-  });
+  const decrypt = jest.fn(() => Promise.reject(wrongPin()));
   for (let attempt = 1; attempt <= 5; attempt++) {
     await expect(verifyPinWithLimit(decrypt)).rejects.toMatchObject({
       attemptsLeft: 5 - attempt,
@@ -67,7 +66,7 @@ it.each([
     name: "PinDecryptionError",
     incorrectPin: false,
   }),
-  { code: "INCORRECT_PIN" },
+  malformed<Error & { code: string }>({ code: "INCORRECT_PIN" }),
 ])(
   "propagates other failures without consuming an attempt: %s",
   async (error) => {
@@ -83,7 +82,7 @@ it.each([
 it("returns the exact decrypted value and resets failures on success", async () => {
   for (let index = 0; index < 4; index++) recordFailedAttempt();
   const seed = { mnemonic: "fixture", hexSeed: "00" };
-  expect(await verifyPinWithLimit(async () => seed)).toBe(seed);
+  expect(await verifyPinWithLimit(() => Promise.resolve(seed))).toBe(seed);
   expect(getRemainingAttempts()).toBe(5);
   expect(checkLockout().isLocked).toBe(false);
 });
@@ -111,7 +110,7 @@ it("refuses concurrent submissions before decrypting and releases the guard afte
         fail = reject;
       }),
   );
-  const decrypt = jest.fn(async () => "seed");
+  const decrypt = jest.fn(() => Promise.resolve("seed"));
   const busy = verifyPinWithLimit(decrypt);
   await expect(busy).rejects.toBeInstanceOf(PinVerificationError);
   await expect(busy).rejects.toMatchObject({
@@ -134,7 +133,7 @@ it("returns a correct PIN's result when the tracker cannot write", async () => {
       throw new DOMException("quota exceeded", "QuotaExceededError");
     });
   try {
-    await expect(verifyPinWithLimit(async () => "seed")).resolves.toBe("seed");
+    await expect(verifyPinWithLimit(() => Promise.resolve("seed"))).resolves.toBe("seed");
   } finally {
     setItem.mockRestore();
   }

@@ -37,6 +37,7 @@ import {
 } from './ctx';
 import { hexToBytes, concatBytes, concatBytesArr } from './bytes';
 import { isValidQrlAddress } from '@/utils/web3/address';
+import { isArray, isRecord } from '@/utils/guards';
 
 const SLOT_BYTES: Readonly<Record<TypedDataSchemeVersion, number>> = Object.freeze({
   [SCHEME_VERSION_TYPED]: 32,
@@ -86,7 +87,7 @@ type AtomicKind =
   | { kind: 'ref'; name: string };
 
 function isMessageObject(value: unknown): value is Message {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return isRecord(value);
 }
 
 function hasExactOwnKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
@@ -112,7 +113,7 @@ function isTypeMap(value: unknown): value is TypeMap {
     if (typeCount > TYPED_DATA_LIMITS.maxTypes) return false;
     const definition = value[name];
     if (
-      !Array.isArray(definition) ||
+      !isArray(definition) ||
       definition.length > TYPED_DATA_LIMITS.maxFieldsPerType ||
       !definition.every(isTypedField)
     ) {
@@ -188,7 +189,9 @@ function parseFieldType(type: FieldType, types: TypeMap, depth = 0): AtomicKind 
   const m = ATOMIC_RE.exec(type);
   if (m) {
     const [, atomic, intKind, intWidthStr, bytesWidthStr, innerType, sizeStr] = m;
-    if (atomic) return { kind: atomic as 'address' | 'bool' | 'string' | 'bytes' };
+    if (atomic === 'address' || atomic === 'bool' || atomic === 'string' || atomic === 'bytes') {
+      return { kind: atomic };
+    }
     if (intKind) {
       const width = Number(intWidthStr);
       if (!Number.isInteger(width) || width < 8 || width > 256 || width % 8 !== 0) {
@@ -285,7 +288,10 @@ function collectDependencies(primary: string, types: TypeMap): Set<string> {
   return visited;
 }
 
-function validateTypeMap(types: TypeMap): void {
+function validateTypeMap(types: unknown): asserts types is TypeMap {
+  if (!isRecord(types)) {
+    throw new Error(`typed data must contain 1-${TYPED_DATA_LIMITS.maxTypes} struct types`);
+  }
   const entries = Object.entries(types);
   if (entries.length === 0 || entries.length > TYPED_DATA_LIMITS.maxTypes) {
     throw new Error(`typed data must contain 1-${TYPED_DATA_LIMITS.maxTypes} struct types`);
@@ -297,7 +303,7 @@ function validateTypeMap(types: TypeMap): void {
       throw new Error(`struct name is reserved by an atomic type: ${previewInput(name)}`);
     }
     if (
-      !Array.isArray(def) ||
+      !isArray(def) ||
       def.length === 0 ||
       def.length > TYPED_DATA_LIMITS.maxFieldsPerType
     ) {
@@ -309,20 +315,20 @@ function validateTypeMap(types: TypeMap): void {
     }
     const seen = new Set<string>();
     for (const f of def) {
-      if (!f || typeof f.name !== 'string' || !f.name) {
+      if (!isRecord(f) || typeof f['name'] !== 'string' || !f['name']) {
         throw new Error(`bad field in ${previewInput(name)}`);
       }
-      if (typeof f.type !== 'string' || !f.type) {
-        throw new Error(`bad field type in ${previewInput(name)}.${previewInput(f.name)}`);
+      if (typeof f['type'] !== 'string' || !f['type']) {
+        throw new Error(`bad field type in ${previewInput(name)}.${previewInput(f['name'])}`);
       }
-      if (f.type.length > TYPED_DATA_LIMITS.maxFieldTypeLength) {
-        throw new Error(`field type too long: ${previewInput(f.type)}`);
+      if (f['type'].length > TYPED_DATA_LIMITS.maxFieldTypeLength) {
+        throw new Error(`field type too long: ${previewInput(f['type'])}`);
       }
-      assertIdentifier(f.name, `field name in ${previewInput(name)}`);
-      if (seen.has(f.name)) {
-        throw new Error(`duplicate field "${previewInput(f.name)}" in ${previewInput(name)}`);
+      assertIdentifier(f['name'], `field name in ${previewInput(name)}`);
+      if (seen.has(f['name'])) {
+        throw new Error(`duplicate field "${previewInput(f['name'])}" in ${previewInput(name)}`);
       }
-      seen.add(f.name);
+      seen.add(f['name']);
     }
   }
 }
@@ -519,7 +525,7 @@ function encodeFieldWithBudget(
     }
 
     case 'array': {
-      if (!Array.isArray(value)) {
+      if (!isArray(value)) {
         throw new Error(`array field expects array: ${typeof value}`);
       }
       if (value.length > TYPED_DATA_LIMITS.maxArrayLength) {

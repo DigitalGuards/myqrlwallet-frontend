@@ -12,6 +12,7 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { isRecord } from "@/utils/guards";
 import { toChecksumAddress } from "@theqrl/wallet.js";
 import {
   bytesToHex,
@@ -180,10 +181,8 @@ const run =
 run("typed-data scheme fixture generator", () => {
   it("adds schemeVectors and schemeSigningVectors to canonical.json", () => {
     const path = join(__dirname, "..", "__fixtures__", "canonical.json");
-    const canonical = JSON.parse(readFileSync(path, "utf-8")) as Record<
-      string,
-      unknown
-    >;
+    const canonical: unknown = JSON.parse(readFileSync(path, "utf-8"));
+    if (!isRecord(canonical)) throw new Error("Invalid canonical signing fixtures");
     canonical["schemeVersionTypedV2"] = "QRL-SIGN-TYPED-v2";
     canonical["schemeVectors"] = [
       toSchemeVector("v2 StakeIntent with QIP-55 addresses", STAKE_INTENT),

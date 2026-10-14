@@ -21,6 +21,7 @@
  * params (the extension only re-encrypts them on unlock).
  */
 import { deriveArgon2id } from './argon2';
+import { isArray, isRecord } from '@/utils/guards';
 
 export class KeystoreFormatError extends Error {
   constructor(message: string = 'Invalid keystore backup file.') {
@@ -120,18 +121,18 @@ function inBounds(value: unknown, bounds: { min: number; max: number }): value i
 
 function validateKeystore(candidate: unknown, index: number): EncryptedKeystore {
   const label = `keystore #${index + 1}`;
-  if (!candidate || typeof candidate !== 'object') {
+  if (!isRecord(candidate)) {
     throw new KeystoreFormatError(`Invalid ${label}: not an object.`);
   }
-  const ks = candidate as Record<string, unknown>;
+  const ks = candidate;
   if (ks['version'] !== 1) {
     throw new KeystoreFormatError(`Unsupported ${label} version (expected 1).`);
   }
   const cryptoField = ks['crypto'];
-  if (!cryptoField || typeof cryptoField !== 'object') {
+  if (!isRecord(cryptoField)) {
     throw new KeystoreFormatError(`Invalid ${label}: missing crypto section.`);
   }
-  const c = cryptoField as Record<string, unknown>;
+  const c = cryptoField;
   if (c['cipher'] !== 'aes-256-gcm') {
     throw new KeystoreFormatError(`Unsupported cipher in ${label} (expected aes-256-gcm).`);
   }
@@ -139,10 +140,10 @@ function validateKeystore(candidate: unknown, index: number): EncryptedKeystore 
     throw new KeystoreFormatError(`Unsupported KDF in ${label} (expected argon2id).`);
   }
   const cipherparams = c['cipherparams'];
-  if (!cipherparams || typeof cipherparams !== 'object') {
+  if (!isRecord(cipherparams)) {
     throw new KeystoreFormatError(`Invalid ${label}: missing cipherparams.`);
   }
-  const iv = (cipherparams as Record<string, unknown>)['iv'];
+  const iv = cipherparams['iv'];
   if (typeof iv !== 'string' || !isHex(iv) || iv.length !== IV_BYTES * 2) {
     throw new KeystoreFormatError(`Invalid IV in ${label} (expected 12 bytes of hex).`);
   }
@@ -158,10 +159,10 @@ function validateKeystore(candidate: unknown, index: number): EncryptedKeystore 
     throw new KeystoreFormatError(`Invalid ciphertext in ${label}.`);
   }
   const kdfparams = c['kdfparams'];
-  if (!kdfparams || typeof kdfparams !== 'object') {
+  if (!isRecord(kdfparams)) {
     throw new KeystoreFormatError(`Invalid ${label}: missing kdfparams.`);
   }
-  const kp = kdfparams as Record<string, unknown>;
+  const kp = kdfparams;
   if (
     !inBounds(kp['m'], KDF_PARAM_BOUNDS.m) ||
     !inBounds(kp['t'], KDF_PARAM_BOUNDS.t) ||
@@ -217,9 +218,9 @@ function validateKeystore(candidate: unknown, index: number): EncryptedKeystore 
  * the web wallet's own v2 file?
  */
 export function looksLikeKeystoreBackup(parsed: unknown): boolean {
-  if (!parsed || typeof parsed !== 'object') return false;
-  const obj = parsed as Record<string, unknown>;
-  if (Array.isArray(obj['keystores'])) return true;
+  if (!isRecord(parsed)) return false;
+  const obj = parsed;
+  if (isArray(obj['keystores'])) return true;
   return obj['version'] === 1 && typeof obj['crypto'] === 'object' && obj['crypto'] !== null;
 }
 
@@ -229,11 +230,11 @@ export function looksLikeKeystoreBackup(parsed: unknown): boolean {
  * message on any structural problem.
  */
 export function parseKeystoreBackup(parsed: unknown): EncryptedKeystore[] {
-  if (!parsed || typeof parsed !== 'object') {
+  if (!isRecord(parsed)) {
     throw new KeystoreFormatError();
   }
-  const obj = parsed as Record<string, unknown>;
-  const rawList = Array.isArray(obj['keystores']) ? obj['keystores'] : [obj];
+  const obj = parsed;
+  const rawList = isArray(obj['keystores']) ? obj['keystores'] : [obj];
   if (rawList.length === 0) {
     throw new KeystoreFormatError('The backup file contains no keystores.');
   }

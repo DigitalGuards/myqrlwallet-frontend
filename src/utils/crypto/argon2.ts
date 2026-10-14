@@ -8,6 +8,8 @@
  * fallback; the parity test asserts both produce identical bytes.
  */
 import { argon2id as argon2idWasm } from 'hash-wasm';
+import log from '@/utils/log';
+import { describeUnknown } from '@/utils/guards';
 import { argon2id as argon2idJs } from '@noble/hashes/argon2.js';
 
 export interface Argon2idParams {
@@ -52,9 +54,8 @@ export async function deriveArgon2id(
       // extension's reference implementation behaves the same way.
       if (!warnedWasmFallback) {
         warnedWasmFallback = true;
-        console.warn(
-          'argon2: hash-wasm failed, falling back to the slower pure-JS implementation',
-          error,
+        log(
+          `argon2: hash-wasm failed, falling back to the slower pure-JS implementation: ${describeUnknown(error)}`,
         );
       }
     }

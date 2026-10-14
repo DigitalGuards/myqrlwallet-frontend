@@ -18,7 +18,7 @@ jest.mock("react-router", () => ({
   useLocation: () => ({ search: "" }),
 }));
 jest.mock("@/utils/nativeApp", () => ({
-  ...jest.requireActual("@/utils/nativeApp"),
+  ...jest.requireActual<typeof import("@/utils/nativeApp")>("@/utils/nativeApp"),
   isInNativeApp: () => true,
   subscribeToNativeMessages: jest.fn(),
   notifyWebAppReady: jest.fn(),
@@ -26,7 +26,7 @@ jest.mock("@/utils/nativeApp", () => ({
 }));
 let mockCapabilities: Record<string, unknown> | null = null;
 jest.mock("@/config/runtimeProfile", () => ({
-  ...jest.requireActual("@/config/runtimeProfile"),
+  ...jest.requireActual<typeof import("@/config/runtimeProfile")>("@/config/runtimeProfile"),
   readNativeCapabilities: () => mockCapabilities,
 }));
 jest.mock("@/utils/storage/storage", () => ({ __esModule: true, default: {} }));
@@ -58,21 +58,25 @@ jest.mock("@/stores/store", () => ({ store: {} }));
 jest.mock("@/utils/mobileConnect/mobileConnection", () => ({}));
 jest.mock("@/services/dappConnect/accountBinding", () => ({}));
 
+const mockClearDappLeaveTimeouts = jest.spyOn(dappConnectService, "clearAllDappLeaveTimeouts");
+
 let receive: (message: NativeMessage) => void;
 let dispose: (() => void) | undefined;
 
-const appState = (state: string): void =>
+const appState = (state: string): void => {
   receive({ type: "APP_STATE", payload: { state } });
+};
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.mocked(subscribeToNativeMessages).mockImplementation((listener) => {
     receive = listener;
     return () => undefined;
   });
   jest.mocked(useEffect).mockImplementation((effect) => {
-    dispose = effect() as (() => void) | undefined;
+    const cleanup = effect();
+    dispose = typeof cleanup === "function" ? cleanup : undefined;
   });
-  NativeAppBridge({});
+  await NativeAppBridge({});
   setNativeInjectedPin("123456");
 });
 
@@ -131,10 +135,10 @@ describe("dApp-leave countdowns on background", () => {
     mockCapabilities = capabilities;
     appState("inactive");
     appState("active");
-    expect(dappConnectService.clearAllDappLeaveTimeouts).not.toHaveBeenCalled();
+    expect(mockClearDappLeaveTimeouts).not.toHaveBeenCalled();
     appState("background");
     expect(
-      jest.mocked(dappConnectService.clearAllDappLeaveTimeouts),
+      mockClearDappLeaveTimeouts,
     ).toHaveBeenCalledTimes(clears ? 1 : 0);
   });
 });

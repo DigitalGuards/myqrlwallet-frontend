@@ -32,25 +32,19 @@ jest.mock('@theqrl/wallet.js', () => ({
 
 import { decryptStoredSeedWithPin } from '../storedSeed';
 import { isInNativeApp, notifySeedStored } from '@/utils/nativeApp';
-import StorageUtil from '@/utils/storage/storage';
+import StorageUtil, { type EncryptedSeedData } from '@/utils/storage/storage';
+import { malformed } from '@/test-utils/malformed';
 import { WalletEncryptionUtil } from '../walletEncryption';
 import { walletMutations } from '@/utils/nativeWalletMutation';
 
-const mockNotifySeedStored = notifySeedStored as jest.MockedFunction<typeof notifySeedStored>;
-const mockIsInNativeApp = isInNativeApp as jest.MockedFunction<typeof isInNativeApp>;
-const mockMigrateEncryptedSeed = StorageUtil.migrateEncryptedSeed as jest.MockedFunction<
-  typeof StorageUtil.migrateEncryptedSeed
->;
-const mockGetAllEncryptedSeeds = StorageUtil.getAllEncryptedSeeds as jest.MockedFunction<
-  typeof StorageUtil.getAllEncryptedSeeds
->;
+const mockedStorageUtil = jest.mocked(StorageUtil);
+const mockNotifySeedStored = jest.mocked(notifySeedStored);
+const mockIsInNativeApp = jest.mocked(isInNativeApp);
+const mockMigrateEncryptedSeed = mockedStorageUtil.migrateEncryptedSeed;
+const mockGetAllEncryptedSeeds = mockedStorageUtil.getAllEncryptedSeeds;
 const mockDecryptVersioned =
-  WalletEncryptionUtil.decryptSeedWithPinVersioned as jest.MockedFunction<
-    typeof WalletEncryptionUtil.decryptSeedWithPinVersioned
-  >;
-const mockEncryptSeed = WalletEncryptionUtil.encryptSeedWithPin as jest.MockedFunction<
-  typeof WalletEncryptionUtil.encryptSeedWithPin
->;
+  jest.spyOn(WalletEncryptionUtil, 'decryptSeedWithPinVersioned');
+const mockEncryptSeed = jest.spyOn(WalletEncryptionUtil, 'encryptSeedWithPin');
 
 const SEED = { mnemonic: 'word '.repeat(23) + 'word', hexSeed: 'ab'.repeat(48) };
 const ADDRESS = `Q${'12'.repeat(64)}`;
@@ -103,7 +97,7 @@ describe('decryptStoredSeedWithPin migration', () => {
   });
 
   it('leaves the legacy blob usable when device-key creation or storage fails', async () => {
-    const warning = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warning = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     mockEncryptSeed.mockRejectedValue(new Error('secure store unavailable'));
 
     await expect(
@@ -112,8 +106,7 @@ describe('decryptStoredSeedWithPin migration', () => {
     expect(mockMigrateEncryptedSeed).not.toHaveBeenCalled();
     expect(mockNotifySeedStored).not.toHaveBeenCalled();
     expect(warning).toHaveBeenCalledWith(
-      expect.stringContaining('Deferred pin_v4 migration'),
-      'secure store unavailable',
+      '[LOG]: [WalletEncryption] Deferred pin_v4 migration; the legacy wallet remains intact. secure store unavailable',
     );
     warning.mockRestore();
   });
@@ -133,8 +126,29 @@ describe('decryptStoredSeedWithPin migration', () => {
     expect(mockEncryptSeed).not.toHaveBeenCalled();
   });
 
+  it.each([undefined, null, '1', 0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1])(
+    'leaves stored records intact when a native backup revision is invalid: %s', async revision => {
+      mockIsInNativeApp.mockReturnValue(true);
+      mockDecryptVersioned.mockResolvedValue({ seed: SEED, version: 'pin_v5' });
+      const records = [malformed<EncryptedSeedData>({
+        address: ADDRESS,
+        encryptedSeed: 'v5-blob',
+        lastAccessed: 2,
+        revision,
+      })];
+      mockGetAllEncryptedSeeds.mockResolvedValue(records);
+      const snapshot = records.map(record => ({ ...record }));
+      await expect(decryptStoredSeedWithPin('qrl', ADDRESS, 'v5-blob', '123456'))
+        .resolves.toEqual(SEED);
+      expect(mockNotifySeedStored).not.toHaveBeenCalled();
+      expect(mockMigrateEncryptedSeed).not.toHaveBeenCalled();
+      expect(mockEncryptSeed).not.toHaveBeenCalled();
+      expect(records).toEqual(snapshot);
+    },
+  );
+
   it('retries an unacknowledged native v5 backup on the next unlock', async () => {
-    const warning = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warning = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     mockIsInNativeApp.mockReturnValue(true);
     mockNotifySeedStored
       .mockRejectedValueOnce(new Error('native disk full'))
@@ -164,6 +178,9 @@ describe('decryptStoredSeedWithPin migration', () => {
       encryptedSeed: '{"version":"pin_v5"}',
       revision: 1,
     });
+    expect(warning).toHaveBeenCalledWith(
+      '[LOG]: [WalletEncryption] Native pin_v5 backup sync deferred. native disk full',
+    );
     warning.mockRestore();
   });
 
