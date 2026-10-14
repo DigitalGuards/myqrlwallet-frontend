@@ -122,6 +122,33 @@ describe('looksLikeKeystoreBackup', () => {
 });
 
 describe('parseKeystoreBackup', () => {
+  it('rejects arrays masquerading as keystore objects at every boundary', () => {
+    const keystore = firstKeystore();
+    const crypto = keystore.crypto;
+    const invalid = [
+      Object.assign([], keystore),
+      { ...keystore, crypto: Object.assign([], crypto) },
+      { ...keystore, crypto: { ...crypto, cipherparams: Object.assign([], crypto.cipherparams) } },
+      { ...keystore, crypto: { ...crypto, kdfparams: Object.assign([], crypto.kdfparams) } },
+    ];
+    for (const value of invalid) {
+      expect(() => parseKeystoreBackup(value)).toThrow(KeystoreFormatError);
+    }
+    const envelope = Object.assign([], { keystores: [keystore] });
+    expect(looksLikeKeystoreBackup(envelope)).toBe(false);
+    expect(() => parseKeystoreBackup(envelope)).toThrow(KeystoreFormatError);
+  });
+
+  it('preserves the input records and order while validating the full backup', () => {
+    const original = JSON.stringify(EXTENSION_ENVELOPE);
+    const parsed = parseKeystoreBackup(EXTENSION_ENVELOPE);
+    expect(parsed).toEqual(EXTENSION_ENVELOPE.keystores);
+    expect(JSON.stringify(EXTENSION_ENVELOPE)).toBe(original);
+    expect(() => parseKeystoreBackup({ keystores: [...EXTENSION_ENVELOPE.keystores, null] }))
+      .toThrow('Invalid keystore #3: not an object.');
+    expect(JSON.stringify(EXTENSION_ENVELOPE)).toBe(original);
+  });
+
   it('parses both keystores from the envelope', () => {
     const keystores = parseKeystoreBackup(EXTENSION_ENVELOPE);
     expect(keystores).toHaveLength(2);
