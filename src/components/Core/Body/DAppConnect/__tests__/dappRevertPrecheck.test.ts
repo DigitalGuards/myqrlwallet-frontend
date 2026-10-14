@@ -12,9 +12,9 @@ const tx = { from: `Q${"1".repeat(128)}`, to: `Q${"2".repeat(128)}`, value: "0x0
 function nodeAnswering(error: { code: number; message: string; data?: string }) {
   return new Web3({
     provider: {
-      request: async ({ method }: { method: string }) => {
-        if (method === "qrl_call") return { jsonrpc: "2.0", id: 1, error };
-        return { jsonrpc: "2.0", id: 1, result: null };
+      request: ({ method }: { method: string }) => {
+        if (method === "qrl_call") return Promise.resolve({ jsonrpc: "2.0", id: 1, error });
+        return Promise.resolve({ jsonrpc: "2.0", id: 1, result: null });
       },
       supportsSubscriptions: () => false,
     },
@@ -23,7 +23,7 @@ function nodeAnswering(error: { code: number; message: string; data?: string }) 
 
 describe("revert pre-check", () => {
   it("passes a call that returns", async () => {
-    const call = jest.fn(async () => "0x");
+    const call = jest.fn(() => Promise.resolve("0x"));
     await expect(
       assertTransactionWouldNotRevert({ call }, tx),
     ).resolves.toBeUndefined();
@@ -35,7 +35,7 @@ describe("revert pre-check", () => {
     // ahead of the swap it authorizes, must not be refused for depending on
     // state that has not been mined.
     const call = jest.fn(
-      async (_transaction: Record<string, unknown>, _block?: string) => "0x",
+      (_transaction: Record<string, unknown>, _block?: string) => Promise.resolve("0x"),
     );
     await assertTransactionWouldNotRevert({ call }, tx);
 
@@ -100,9 +100,7 @@ describe("revert pre-check", () => {
       new Error("connection refused"),
       new Error("the server is busy"),
     ]) {
-      const call = jest.fn(async () => {
-        throw failure;
-      });
+      const call = jest.fn(() => Promise.reject(failure));
       await expect(
         assertTransactionWouldNotRevert({ call }, tx),
       ).resolves.toBeUndefined();
@@ -118,7 +116,7 @@ describe("revert pre-check", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("gives up rather than holding the send open", async () => {
+  it("bounds the time spent waiting for the node", async () => {
     const call = jest.fn(() => new Promise<string>(() => undefined));
     await expect(
       assertTransactionWouldNotRevert({ call }, tx, 10),
@@ -127,7 +125,7 @@ describe("revert pre-check", () => {
 
   it("omits fields the transaction does not have", async () => {
     const call = jest.fn(
-      async (_transaction: Record<string, unknown>, _block?: string) => "0x",
+      (_transaction: Record<string, unknown>, _block?: string) => Promise.resolve("0x"),
     );
     // A contract deployment has no `to`.
     await assertTransactionWouldNotRevert({ call }, { from: "Q01", data: "0x60" });

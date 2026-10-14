@@ -332,92 +332,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/components/Core/Body/DAppConnect/DAppApprovalModal.tsx"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "no-console": "off",
-      "react-hooks/exhaustive-deps": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/DAppConnect/DAppMessageReview.tsx"],
-    rules: {
-      "react-refresh/only-export-components": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/DAppConnect/DAppTypedDataReview.tsx"],
-    rules: {
-      "react-refresh/only-export-components": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/DAppConnect/__tests__/DAppApprovalModal.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/require-await": "off",
-      "@typescript-eslint/unbound-method": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/DAppConnect/__tests__/DAppReview.security.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/DAppConnect/__tests__/DAppTransactionReview.gasLabel.test.ts",
-    ],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/DAppConnect/__tests__/dappBroadcastOutcome.test.ts",
-    ],
-    rules: {
-      "@typescript-eslint/prefer-promise-reject-errors": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/DAppConnect/__tests__/dappHistoryApproval.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/require-await": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/DAppConnect/__tests__/dappRevertPrecheck.test.ts",
-    ],
-    rules: {
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/DAppConnect/__tests__/seedSendPolling.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/DAppConnect/dappRevertPrecheck.ts"],
-    rules: {
-      "no-console": "off",
-    },
-  },
-  {
     files: [
       "src/components/Core/Body/Home/AccountCreateImport/AccountCreateImport.tsx",
     ],
@@ -1229,32 +1143,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/services/dappConnect/DAppConnectService.ts"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/services/dappConnect/KeyExchange.ts"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
-    },
-  },
-  {
-    files: ["src/services/dappConnect/PQCrypto.ts"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
-    },
-  },
-  {
-    files: ["src/services/dappConnect/SocketClient.ts"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "no-console": "off",
-    },
-  },
-  {
     files: [
       "src/services/dappConnect/__tests__/DAppConnectService.security.test.ts",
     ],
@@ -1332,12 +1220,6 @@ export const lintRatchet = [
     rules: {
       "@typescript-eslint/consistent-type-assertions": "off",
       "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: ["src/services/dappConnect/qrUri.ts"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
     },
   },
   {
