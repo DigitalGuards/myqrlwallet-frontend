@@ -24,22 +24,22 @@ jest.mock("@/utils/nativeApp", () => ({
 jest.mock("@/utils/storage/storage", () => ({
   __esModule: true,
   default: {
-    clearActiveAccount: jest.fn(async () => undefined),
-    clearTransactionValues: jest.fn(async () => undefined),
+    clearActiveAccount: jest.fn(() => Promise.resolve()),
+    clearTransactionValues: jest.fn(() => Promise.resolve()),
     clearAllEncryptedSeeds: jest.fn(),
     clearAccountList: jest.fn(),
     clearAllTokenData: jest.fn(),
     clearAllNftData: jest.fn(),
-    getActiveAccount: async () => "",
-    getAllEncryptedSeeds: async () => [],
-    getAccountList: async () => [],
+    getActiveAccount: () => Promise.resolve(""),
+    getAllEncryptedSeeds: () => Promise.resolve([]),
+    getAccountList: () => Promise.resolve([]),
   },
 }));
 jest.mock("@/utils/crypto", () => ({}));
 jest.mock("@/utils/crypto/walletEncryption", () => ({}));
 jest.mock("@/utils/crypto/pinRotation", () => ({}));
 jest.mock("@/utils/crypto/deviceCredential", () => ({
-  clearDeviceCredential: async () => undefined,
+  clearDeviceCredential: () => Promise.resolve(),
 }));
 jest.mock("@/utils/addressBook", () => ({ clearAddressBook: jest.fn() }));
 jest.mock("@/utils/nativeWalletMutation", () => ({
@@ -53,12 +53,12 @@ jest.mock("@/utils/nativeWalletMutation", () => ({
 }));
 jest.mock("@/services/dappConnect/DAppConnectService", () => ({
   dappConnectService: {
-    clearAllSessions: async () => undefined,
+    clearAllSessions: () => Promise.resolve(),
     getActiveSessions: () => [],
   },
 }));
 jest.mock("@/utils/mobileConnect/mobileConnection", () => ({
-  disconnectMobile: async () => undefined,
+  disconnectMobile: () => Promise.resolve(),
   hasMobileSession: () => false,
 }));
 jest.mock("@/router/router", () => ({ ROUTES: { HOME: "/" } }));
@@ -67,7 +67,7 @@ jest.mock("@/stores/store", () => ({
   store: {
     qrlStore: {
       activeAccount: { accountAddress: "" },
-      setActiveAccount: async () => undefined,
+      setActiveAccount: () => Promise.resolve(),
     },
   },
 }));
@@ -111,9 +111,9 @@ it("erases history for every chain and account before confirming CLEAR_WALLET", 
   localStorage.setItem("qrl:transaction-history:v1:broken", "{");
   localStorage.setItem("preferences", "keep");
   receive({ type: "CLEAR_WALLET", payload: { requestId } });
-  await waitFor(() =>
-    expect(confirmWalletCleared).toHaveBeenCalledWith(requestId, true),
-  );
+  await waitFor(() => {
+    expect(confirmWalletCleared).toHaveBeenCalledWith(requestId, true);
+  });
   expect(clearAddressBook).toHaveBeenCalled();
   expect(transactionHistoryStore.getSnapshot().entries).toEqual([]);
   transactionHistoryStore.reload();
@@ -128,13 +128,13 @@ it("reports failure when history cannot be removed from storage", async () => {
     throw new Error("storage denied");
   });
   receive({ type: "CLEAR_WALLET", payload: { requestId } });
-  await waitFor(() =>
+  await waitFor(() => {
     expect(confirmWalletCleared).toHaveBeenCalledWith(
       requestId,
       false,
       "Web wallet clear failed",
-    ),
-  );
+    );
+  });
 });
 
 it("keeps history when CLEAR_WALLET has an invalid request ID", () => {
