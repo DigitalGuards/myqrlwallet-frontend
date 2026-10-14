@@ -8,6 +8,7 @@ import {
   jest,
 } from "@jest/globals";
 import type { RelayMessage } from "../types";
+import { isRecord } from "@/utils/guards";
 
 const mockQrlAccount = `Q${"0".repeat(128)}`;
 const mockQrlRecipient = `Q${"1".repeat(128)}`;
@@ -143,9 +144,9 @@ jest.mock("../SocketClient", () => {
     probeCalls = 0;
     forceReconnectCalls = 0;
 
-    async probe(): Promise<boolean> {
+    probe(): Promise<boolean> {
       this.probeCalls++;
-      return this.connected && this.joined && this.probeAnswers;
+      return Promise.resolve(this.connected && this.joined && this.probeAnswers);
     }
 
     forceReconnect(): void {
@@ -156,18 +157,19 @@ jest.mock("../SocketClient", () => {
       return (this.connected && this.joined) || this.canReconnect;
     }
 
-    async connect(): Promise<void> {
+    connect(): Promise<void> {
       this.connectCalls++;
       this.connected = true;
+      return Promise.resolve();
     }
 
-    async joinChannel(channelId: string): Promise<MockJoinResult> {
+    joinChannel(channelId: string): Promise<MockJoinResult> {
       this.joinCalls.push(channelId);
       this.joined = !mockJoinResult.terminated;
-      return {
+      return Promise.resolve({
         ...mockJoinResult,
         bufferedMessages: [...mockJoinResult.bufferedMessages],
-      };
+      });
     }
 
     async sendMessage(data: RelayMessage): Promise<void> {
@@ -219,9 +221,9 @@ jest.mock("@/stores/store", () => ({
       },
       qrlInstance: {
         currentProvider: {
-          request: jest.fn(async ({ method }: { method: string }) => {
-            if (method === "qrl_chainId") return "0x539";
-            throw new Error(`Unexpected RPC method: ${method}`);
+          request: jest.fn(({ method }: { method: string }) => {
+            if (method === "qrl_chainId") return Promise.resolve("0x539");
+            return Promise.reject(new Error(`Unexpected RPC method: ${method}`));
           }),
         },
       },
@@ -520,7 +522,9 @@ async function reconnect(
   const service = new DAppConnectService();
   services.push(service);
   service.setHandlers({
-    onSessionsChanged: () => { observed.activeSessions = service.getActiveSessions(); },
+    onSessionsChanged: () => {
+      observed.activeSessions = service.getActiveSessions();
+    },
     onPendingRequest: (request) => {
       observed.pending.push(request);
       const checkpoint = SessionStore.get(request.sessionId);
@@ -551,6 +555,12 @@ async function deliverEncrypted(
   });
 }
 
+function parseMessage(plaintext: string): Record<string, unknown> {
+  const message: unknown = JSON.parse(plaintext);
+  if (!isRecord(message)) throw new Error("Expected a JSON message object");
+  return message;
+}
+
 async function decryptWalletFrame(
   pairing: Pairing,
   frame: RelayMessage | undefined,
@@ -558,10 +568,7 @@ async function decryptWalletFrame(
   if (typeof frame?.message !== "string") {
     throw new Error("Expected an encrypted wallet frame");
   }
-  return JSON.parse(await pairing.dapp.decryptMessage(frame.message)) as Record<
-    string,
-    unknown
-  >;
+  return parseMessage(await pairing.dapp.decryptMessage(frame.message));
 }
 
 function approveTracked(
@@ -570,16 +577,10 @@ function approveTracked(
   requestId: string | number,
   result: unknown,
 ): void {
-  const internals = Object(service) as {
-    pendingRestrictedMethods: Map<
-      string,
-      Map<string, { method: string; authorizedAccount: string | null }>
-    >;
-  };
-  let requests = internals.pendingRestrictedMethods.get(sessionId);
+  let requests = service["pendingRestrictedMethods"].get(sessionId);
   if (!requests) {
     requests = new Map();
-    internals.pendingRestrictedMethods.set(sessionId, requests);
+    service["pendingRestrictedMethods"].set(sessionId, requests);
   }
   requests.set(`${typeof requestId}:${String(requestId)}`, {
     method: "wallet_switchQrlChain",
@@ -612,11 +613,7 @@ beforeEach(() => {
   mockNativeMessages.length = 0;
   mockLeaveHook = null;
   mockCloseHook = null;
-  (
-    Object(mockedStore.qrlStore.activeAccount) as {
-      accountAddress: string;
-    }
-  ).accountAddress = mockQrlAccount;
+  mockedStore.qrlStore.activeAccount.accountAddress = mockQrlAccount;
   logSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
   errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -627,7 +624,9 @@ afterEach(async () => {
   mockLeaveHook = null;
   mockCloseHook = null;
   await Promise.all(services.map((service) => service.disconnectAll()));
-  services.forEach((service) => service.dispose());
+  services.forEach((service) => {
+    service.dispose();
+  });
   logSpy?.mockRestore();
   errorSpy?.mockRestore();
 });
@@ -643,6 +642,26 @@ afterAll(() => {
   } else {
     Reflect.deleteProperty(globalThis, "navigator");
   }
+});
+
+describe("decrypted wallet frame assertions", () => {
+  it.each(["null", "[]", "7", "true", '"text"'])(
+    "rejects a non-object JSON message: %s",
+    async (plaintext) => {
+      const pairing = await makePairing();
+      const wallet = new KeyExchange(
+        await KeyExchange.sessionFromPersisted(pairing.session.keyExchange),
+      );
+      const frame: RelayMessage = {
+        id: pairing.session.id,
+        clientType: "wallet",
+        message: await wallet.encryptMessage(plaintext),
+      };
+      await expect(decryptWalletFrame(pairing, frame)).rejects.toThrow(
+        "Expected a JSON message object",
+      );
+    },
+  );
 });
 
 describe("wallet service AEAD checkpointing", () => {
@@ -838,9 +857,10 @@ describe("wallet service AEAD checkpointing", () => {
     const { service } = await reconnect(pairing.session);
     const socket = firstSocket();
     const checkpoints: number[] = [];
-    mockSendHook = async () => {
+    mockSendHook = () => {
       const stored = SessionStore.get(pairing.session.id);
       checkpoints.push(stored?.keyExchange.sendSeq ?? -1);
+      return Promise.resolve();
     };
 
     approveTracked(service, pairing.session.id, 1, "first");
@@ -855,7 +875,7 @@ describe("wallet service AEAD checkpointing", () => {
       }
       plaintexts.push(await pairing.dapp.decryptMessage(relayMessage.message));
     }
-    expect(plaintexts.map((value) => JSON.parse(value))).toMatchObject([
+    expect(plaintexts.map((value) => parseMessage(value))).toMatchObject([
       { type: MessageType.JSONRPC, id: 1, result: "first" },
       { type: MessageType.JSONRPC, id: 2, result: "second" },
     ]);
@@ -928,7 +948,7 @@ describe("wallet service AEAD checkpointing", () => {
         throw new Error("Expected encrypted relay message");
       }
       decrypted.push(
-        JSON.parse(await pairing.dapp.decryptMessage(relayMessage.message)),
+        parseMessage(await pairing.dapp.decryptMessage(relayMessage.message)),
       );
     }
     expect(decrypted[0]).toMatchObject({ type: MessageType.JSONRPC, id: 1 });
@@ -1040,7 +1060,7 @@ describe("wallet service AEAD checkpointing", () => {
     const pairing = await makePairing("dapp-closes-first");
     const { service } = await reconnect(pairing.session);
     mockInNativeApp = true;
-    mockCloseHook = async () => false;
+    mockCloseHook = () => Promise.resolve(false);
     mockJoinResult = { ...mockJoinResult, terminated: true };
 
     await expect(service.disconnectSession(pairing.session.id, true)).resolves.toBe(
@@ -1082,7 +1102,7 @@ describe("wallet service AEAD checkpointing", () => {
     const pairing = await makePairing("lost-close-ack");
     const { service } = await reconnect(pairing.session);
     const socket = firstSocket();
-    mockCloseHook = async () => false;
+    mockCloseHook = () => Promise.resolve(false);
 
     await expect(service.disconnectSession(pairing.session.id)).resolves.toBe(
       false,
@@ -1168,12 +1188,12 @@ describe("wallet service AEAD checkpointing", () => {
     expect(SessionStore.get(pairing.session.id)).not.toBeNull();
 
     socket.connected = true;
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await waitFor(() => socket.sent.length === 1);
 
-    const delivered = JSON.parse(
+    const delivered = parseMessage(
       await pairing.dapp.decryptMessage(relayCiphertext(socket.sent[0])),
-    ) as Record<string, unknown>;
+    );
     expect(delivered["id"]).toBe(1);
     expect(delivered["result"]).toBe("0xhash");
   });
@@ -1191,7 +1211,7 @@ describe("wallet service AEAD checkpointing", () => {
     approveTracked(service, pairing.session.id, 1, "0xfirst");
     await settle();
     socket.connected = true;
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await waitFor(() => socket.sent.length === 1);
 
     approveTracked(service, pairing.session.id, 2, "0xsecond");
@@ -1199,12 +1219,12 @@ describe("wallet service AEAD checkpointing", () => {
 
     // Both decrypt in order, which is only possible if no counter was burned
     // while the socket was down.
-    const first = JSON.parse(
+    const first = parseMessage(
       await pairing.dapp.decryptMessage(relayCiphertext(socket.sent[0])),
-    ) as Record<string, unknown>;
-    const second = JSON.parse(
+    );
+    const second = parseMessage(
       await pairing.dapp.decryptMessage(relayCiphertext(socket.sent[1])),
-    ) as Record<string, unknown>;
+    );
     expect(first["result"]).toBe("0xfirst");
     expect(second["result"]).toBe("0xsecond");
   });
@@ -1221,14 +1241,14 @@ describe("wallet service AEAD checkpointing", () => {
     await settle();
 
     socket.connected = true;
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await waitFor(() => socket.sent.length === 2);
 
-    const results = [] as unknown[];
+    const results: unknown[] = [];
     for (const frame of socket.sent) {
-      const decoded = JSON.parse(
+      const decoded = parseMessage(
         await pairing.dapp.decryptMessage(relayCiphertext(frame)),
-      ) as Record<string, unknown>;
+      );
       results.push(decoded["result"]);
     }
     expect(results).toEqual(["0xone", "0xtwo"]);
@@ -1243,10 +1263,7 @@ describe("wallet service AEAD checkpointing", () => {
     const { service } = await reconnect(pairing.session);
     const socket = firstSocket();
 
-    const internals = Object(service) as {
-      connections: Map<string, { outboundQueue: Promise<void> }>;
-    };
-    const conn = internals.connections.get(pairing.session.id);
+    const conn = service["connections"].get(pairing.session.id);
     if (!conn) throw new Error("expected a live connection");
     // Ahead of this send in the queue: the socket dies while it waits.
     conn.outboundQueue = conn.outboundQueue.then(() => {
@@ -1273,20 +1290,13 @@ describe("wallet service AEAD checkpointing", () => {
       sealedBefore,
     );
     {
-      const held = (
-        Object(service) as {
-          connections: Map<
-            string,
-            { pendingRetransmit: unknown; offlineOutbox: unknown[] }
-          >;
-        }
-      ).connections.get(pairing.session.id);
+      const held = service["connections"].get(pairing.session.id);
       expect(held?.pendingRetransmit).toBeNull();
       expect(held?.offlineOutbox).toHaveLength(1);
     }
 
     socket.connected = true;
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await waitFor(() => socket.sent.length === 1);
     expect(
       await decryptWalletFrame(pairing, socket.sent[0]),
@@ -1321,20 +1331,14 @@ describe("wallet service AEAD checkpointing", () => {
       sealedBefore,
     );
     {
-      const internals = Object(service) as {
-        connections: Map<
-          string,
-          { pendingRetransmit: unknown; offlineOutbox: unknown[] }
-        >;
-      };
-      const held = internals.connections.get(pairing.session.id);
+      const held = service["connections"].get(pairing.session.id);
       expect(held?.pendingRetransmit).toBeNull();
       expect(held?.offlineOutbox).toHaveLength(1);
     }
 
     // The rejoin lands and the held answer goes out.
     socket.joined = true;
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await waitFor(() => socket.sent.length === 1);
     expect(
       await decryptWalletFrame(pairing, socket.sent[0]),
@@ -1350,17 +1354,7 @@ describe("wallet service AEAD checkpointing", () => {
     const socket = firstSocket();
     mockInNativeApp = true;
 
-    const conn = (
-      Object(service) as {
-        connections: Map<
-          string,
-          {
-            originatedViaDeepLink: boolean;
-            dappInfo: { redirectUrl?: string; name: string; url: string };
-          }
-        >;
-      }
-    ).connections.get(pairing.session.id);
+    const conn = service["connections"].get(pairing.session.id);
     if (!conn) throw new Error("expected a live connection");
     conn.originatedViaDeepLink = true;
     // dappInfo is frozen once pinned, so replace it rather than mutate it.
@@ -1393,17 +1387,7 @@ describe("wallet service AEAD checkpointing", () => {
     const socket = firstSocket();
     mockInNativeApp = true;
 
-    const conn = (
-      Object(service) as {
-        connections: Map<
-          string,
-          {
-            originatedViaDeepLink: boolean;
-            dappInfo: { redirectUrl?: string; name: string; url: string };
-          }
-        >;
-      }
-    ).connections.get(pairing.session.id);
+    const conn = service["connections"].get(pairing.session.id);
     if (!conn) throw new Error("expected a live connection");
     conn.originatedViaDeepLink = true;
     conn.dappInfo = {
@@ -1426,7 +1410,7 @@ describe("wallet service AEAD checkpointing", () => {
     // and pulling them out of the wallet then is its own surprise. The dApp
     // gets its answer either way.
     socket.connected = true;
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await waitFor(() => socket.sent.length === 1);
     await settle();
     expect(observed.handedBack).toEqual([]);
@@ -1443,17 +1427,7 @@ describe("wallet service AEAD checkpointing", () => {
     const { service } = await reconnect(pairing.session);
     mockInNativeApp = true;
 
-    const conn = (
-      Object(service) as {
-        connections: Map<
-          string,
-          {
-            originatedViaDeepLink: boolean;
-            dappInfo: { redirectUrl?: string; name: string; url: string };
-          }
-        >;
-      }
-    ).connections.get(pairing.session.id);
+    const conn = service["connections"].get(pairing.session.id);
     if (!conn) throw new Error("expected a live connection");
     conn.originatedViaDeepLink = true;
     // dappInfo is frozen once pinned, so replace it rather than mutate it.
@@ -1484,17 +1458,7 @@ describe("wallet service AEAD checkpointing", () => {
     const socket = firstSocket();
     mockInNativeApp = true;
 
-    const conn = (
-      Object(service) as {
-        connections: Map<
-          string,
-          {
-            originatedViaDeepLink: boolean;
-            dappInfo: { redirectUrl?: string; name: string; url: string };
-          }
-        >;
-      }
-    ).connections.get(pairing.session.id);
+    const conn = service["connections"].get(pairing.session.id);
     if (!conn) throw new Error("expected a live connection");
     conn.originatedViaDeepLink = false;
     // dappInfo is frozen once pinned, so replace it rather than mutate it.
@@ -1535,18 +1499,7 @@ describe("wallet service AEAD checkpointing", () => {
     expect(socket.leaveCalls).toBe(0);
     expect(SessionStore.get(pairing.session.id)).not.toBeNull();
 
-    const held = (
-      Object(service) as {
-        connections: Map<
-          string,
-          {
-            pendingRetransmit: unknown;
-            offlineOutbox: unknown[];
-            cryptoUsable: boolean;
-          }
-        >;
-      }
-    ).connections.get(pairing.session.id);
+    const held = service["connections"].get(pairing.session.id);
     // Sealed, so its counter is spent and checkpointed: the frame is parked and
     // the plaintext is NOT also queued, or the dApp would get it twice.
     expect(held?.cryptoUsable).toBe(true);
@@ -1559,7 +1512,7 @@ describe("wallet service AEAD checkpointing", () => {
     // The rejoin the client kicked off lands.
     mockRelayRefusesFrame = false;
     socket.joined = true;
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await waitFor(() => socket.sent.length === 1);
 
     // Exactly one answer, at the counter it was sealed with, so the dApp's
@@ -1579,11 +1532,12 @@ describe("wallet service AEAD checkpointing", () => {
     const { service } = await reconnect(pairing.session);
     const socket = firstSocket();
 
-    mockBeforeSendHook = async () => {
+    mockBeforeSendHook = () => {
       // The relay is gone by the time the frame reaches the wire, before any
       // emit: sealed and checkpointed, never sent.
       socket.connected = false;
       mockBeforeSendHook = null;
+      return Promise.resolve();
     };
 
     approveTracked(service, pairing.session.id, 1, "0xhash");
@@ -1595,27 +1549,21 @@ describe("wallet service AEAD checkpointing", () => {
     {
       // Sealed and parked, with nothing queued: queueing the plaintext too is
       // what would deliver this answer twice.
-      const internals = Object(service) as {
-        connections: Map<
-          string,
-          { pendingRetransmit: unknown; offlineOutbox: unknown[] }
-        >;
-      };
-      const held = internals.connections.get(pairing.session.id);
+      const held = service["connections"].get(pairing.session.id);
       expect(held?.pendingRetransmit).not.toBeNull();
       expect(held?.offlineOutbox).toHaveLength(0);
     }
 
     socket.connected = true;
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await waitFor(() => socket.sent.length >= 1);
     await settle();
 
     const delivered: unknown[] = [];
     for (const frame of socket.sent) {
-      const decoded = JSON.parse(
+      const decoded = parseMessage(
         await pairing.dapp.decryptMessage(relayCiphertext(frame)),
-      ) as Record<string, unknown>;
+      );
       if (decoded["result"] !== undefined) delivered.push(decoded["result"]);
     }
     expect(delivered).toEqual(["0xhash"]);
@@ -1634,16 +1582,16 @@ describe("wallet service AEAD checkpointing", () => {
 
     socket.connected = true;
     // A fast flap: two flush loops would otherwise both peek the head entry.
-    socket.handlers.onReconnected?.();
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
+    socket.handlers.onReconnected();
     await waitFor(() => socket.sent.length >= 2);
     await settle();
 
     const delivered: unknown[] = [];
     for (const frame of socket.sent) {
-      const decoded = JSON.parse(
+      const decoded = parseMessage(
         await pairing.dapp.decryptMessage(relayCiphertext(frame)),
-      ) as Record<string, unknown>;
+      );
       delivered.push(decoded["result"]);
     }
     expect(delivered).toEqual(["0xone", "0xtwo"]);
@@ -1667,11 +1615,8 @@ describe("wallet service AEAD checkpointing", () => {
 
     // And nothing is waiting in the outbox either, which is the difference
     // between refusing and quietly swallowing the answer.
-    const internals = Object(service) as {
-      connections: Map<string, { offlineOutbox: unknown[] }>;
-    };
     expect(
-      internals.connections.get(pairing.session.id)?.offlineOutbox,
+      service["connections"].get(pairing.session.id)?.offlineOutbox,
     ).toHaveLength(0);
 
     // And when the client gives up, the live connection goes away so nothing
@@ -1685,9 +1630,7 @@ describe("wallet service AEAD checkpointing", () => {
         SessionStatus.DISCONNECTED,
     );
     expect(
-      (
-        Object(service) as { connections: Map<string, unknown> }
-      ).connections.has(pairing.session.id),
+      service["connections"].has(pairing.session.id),
     ).toBe(false);
   });
 
@@ -1721,13 +1664,13 @@ describe("wallet service AEAD checkpointing", () => {
       });
 
     approveTracked(service, pairing.session.id, 2, "0xdirect");
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     armed = true;
     await settle(40);
     save.mockRestore();
 
     socket.connected = true;
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await settle(40);
 
     const delivered: unknown[] = [];
@@ -1779,19 +1722,16 @@ describe("wallet service AEAD checkpointing", () => {
     const { service } = await reconnect(pairing.session);
     const socket = firstSocket();
 
-    mockBeforeSendHook = async () => {
+    mockBeforeSendHook = () => {
       // Sealed and checkpointed, then the socket dies before any emit.
       socket.connected = false;
       mockBeforeSendHook = null;
+      return Promise.resolve();
     };
     approveTracked(service, pairing.session.id, 1, "0xhash");
     await settle();
 
-    const parked = (
-      Object(service) as {
-        connections: Map<string, { pendingRetransmit: unknown }>;
-      }
-    ).connections.get(pairing.session.id)?.pendingRetransmit;
+    const parked = service["connections"].get(pairing.session.id)?.pendingRetransmit;
     expect(parked).not.toBeNull();
 
     socket.canReconnect = false;
@@ -1824,7 +1764,7 @@ describe("wallet service AEAD checkpointing", () => {
     expect(socket.sent).toHaveLength(0);
 
     socket.connected = true;
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await waitFor(() => socket.sent.length === 2);
 
     // WALLET_INFO first, then the answer the dApp is actually waiting on.
@@ -1852,22 +1792,23 @@ describe("wallet service AEAD checkpointing", () => {
 
     // The relay drops again right after the first delivery.
     socket.connected = true;
-    mockSendHook = async () => {
+    mockSendHook = () => {
       socket.connected = false;
       mockSendHook = null;
+      return Promise.resolve();
     };
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await settle();
 
     socket.connected = true;
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await waitFor(() => socket.sent.length === 3);
 
     const results: unknown[] = [];
     for (const frame of socket.sent) {
-      const decoded = JSON.parse(
+      const decoded = parseMessage(
         await pairing.dapp.decryptMessage(relayCiphertext(frame)),
-      ) as Record<string, unknown>;
+      );
       results.push(decoded["result"]);
     }
     // Nothing after the first undelivered entry was lost.
@@ -1887,7 +1828,7 @@ describe("wallet service AEAD checkpointing", () => {
     await settle();
 
     socket.connected = true;
-    socket.handlers.onReconnected?.();
+    socket.handlers.onReconnected();
     await settle();
 
     expect(socket.sent).toHaveLength(0);
@@ -1900,8 +1841,8 @@ describe("wallet service AEAD checkpointing", () => {
     const pairing = await makePairing("emitted-ambiguous");
     const { service } = await reconnect(pairing.session);
     const socket = firstSocket();
-    mockSendHook = async () => {
-      throw new Error("relay ack lost");
+    mockSendHook = () => {
+      return Promise.reject(new Error("relay ack lost"));
     };
 
     approveTracked(service, pairing.session.id, 1, "ambiguous");
@@ -1914,8 +1855,8 @@ describe("wallet service AEAD checkpointing", () => {
     const pairing = await makePairing();
     const { service } = await reconnect(pairing.session);
     const socket = firstSocket();
-    mockSendHook = async () => {
-      throw new Error("relay ack lost");
+    mockSendHook = () => {
+      return Promise.reject(new Error("relay ack lost"));
     };
 
     approveTracked(service, pairing.session.id, 1, "ambiguous");
@@ -1930,10 +1871,10 @@ describe("wallet service AEAD checkpointing", () => {
     const pairing = await makePairing("ambiguous-send-close-failure");
     const { service } = await reconnect(pairing.session);
     const socket = firstSocket();
-    mockSendHook = async () => {
-      throw new Error("relay ack lost");
+    mockSendHook = () => {
+      return Promise.reject(new Error("relay ack lost"));
     };
-    mockCloseHook = async () => false;
+    mockCloseHook = () => Promise.resolve(false);
 
     approveTracked(service, pairing.session.id, 1, "ambiguous");
     await waitFor(() => socket.disconnectCalls === 1);
@@ -1947,8 +1888,8 @@ describe("wallet service AEAD checkpointing", () => {
     const { service } = await reconnect(pairing.session);
     const socket = firstSocket();
     storage.failWrites = new Error("persistent quota failure");
-    mockCloseHook = async () => {
-      throw new Error("relay unavailable");
+    mockCloseHook = () => {
+      return Promise.reject(new Error("relay unavailable"));
     };
 
     approveTracked(service, pairing.session.id, 1, "must not send");
@@ -1971,13 +1912,17 @@ describe("wallet service AEAD checkpointing", () => {
     const exportStarted = new Promise<void>((resolve) => {
       markExportStarted = resolve;
     });
-    const originalExport = KeyExchange.prototype.exportPersisted;
+    const connection = service["connections"].get(pairing.session.id);
+    if (!connection) throw new Error("Expected a live connection");
+    const originalExport = connection.keyExchange.exportPersisted.bind(
+      connection.keyExchange,
+    );
     const exportSpy = jest
-      .spyOn(KeyExchange.prototype, "exportPersisted")
-      .mockImplementation(async function (this: KeyExchange) {
+      .spyOn(connection.keyExchange, "exportPersisted")
+      .mockImplementation(async () => {
         markExportStarted();
         await exportGate;
-        return originalExport.call(this);
+        return originalExport();
       });
 
     try {
@@ -2009,13 +1954,17 @@ describe("wallet service AEAD checkpointing", () => {
     const exportStarted = new Promise<void>((resolve) => {
       markExportStarted = resolve;
     });
-    const originalExport = KeyExchange.prototype.exportPersisted;
+    const connection = service["connections"].get(pairing.session.id);
+    if (!connection) throw new Error("Expected a live connection");
+    const originalExport = connection.keyExchange.exportPersisted.bind(
+      connection.keyExchange,
+    );
     const exportSpy = jest
-      .spyOn(KeyExchange.prototype, "exportPersisted")
-      .mockImplementation(async function (this: KeyExchange) {
+      .spyOn(connection.keyExchange, "exportPersisted")
+      .mockImplementation(async () => {
         markExportStarted();
         await exportGate;
-        return originalExport.call(this);
+        return originalExport();
       });
 
     try {
@@ -2168,11 +2117,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
   it("rejects an otherwise-valid signer that differs only by hex case", async () => {
     const canonical = `Q${"ABCDEF".repeat(21)}AB`;
     const caseVariant = `Q${canonical.slice(1).toLowerCase()}`;
-    (
-      Object(mockedStore.qrlStore.activeAccount) as {
-        accountAddress: string;
-      }
-    ).accountAddress = canonical;
+    mockedStore.qrlStore.activeAccount.accountAddress = canonical;
     const pairing = await makePairing("account-case-binding");
     pairing.session.connectedAccount = canonical;
     const { observed } = await reconnect(pairing.session);
@@ -2237,10 +2182,11 @@ describe("wallet-side direct relay RPC enforcement", () => {
     await waitFor(() => observed.pending.length === 1);
 
     const authorizationAtRelaySend: boolean[] = [];
-    mockSendHook = async () => {
+    mockSendHook = () => {
       authorizationAtRelaySend.push(
         SessionStore.get(pairing.session.id)?.accountAuthorized ?? false,
       );
+      return Promise.resolve();
     };
     service.approveRequest(pairing.session.id, 14, [
       mockQrlAccount,
@@ -2360,7 +2306,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
       const responseMessage = socket.sent[0]?.message;
       if (typeof responseMessage !== "string")
         throw new Error("Expected encrypted response");
-      const response = JSON.parse(
+      const response = parseMessage(
         await pairing.dapp.decryptMessage(responseMessage),
       );
       expect(response).toMatchObject({
@@ -2436,7 +2382,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
     const responseMessage = socket.sent[0]?.message;
     if (typeof responseMessage !== "string")
       throw new Error("Expected encrypted response");
-    const response = JSON.parse(
+    const response = parseMessage(
       await pairing.dapp.decryptMessage(responseMessage),
     );
     expect(response).toMatchObject({
@@ -2517,7 +2463,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
     const responseMessage = socket.sent[0]?.message;
     if (typeof responseMessage !== "string")
       throw new Error("Expected encrypted response");
-    const response = JSON.parse(
+    const response = parseMessage(
       await pairing.dapp.decryptMessage(responseMessage),
     );
     expect(response).toMatchObject({
@@ -2703,10 +2649,7 @@ describe("wallet service reconnect ownership", () => {
     const freshPairing = await makePairing("fresh-current-tab");
     SessionStore.save(freshPairing.session, currentEpoch);
 
-    const delayedHandler = Object(delayedOwner) as {
-      handleWalletEpochAdvance: (epoch: string) => void;
-    };
-    delayedHandler.handleWalletEpochAdvance(currentEpoch);
+    delayedOwner["handleWalletEpochAdvance"](currentEpoch);
     await waitFor(() => oldSocket.disconnectCalls === 1);
 
     expect(SessionStore.get(freshPairing.session.id)).toMatchObject({
@@ -2718,9 +2661,7 @@ describe("wallet service reconnect ownership", () => {
 });
 
 describe("resume liveness and dApp-leave timers", () => {
-  const leaveTimers = (service: DAppConnectService): Map<string, unknown> =>
-    (Object(service) as { dappLeaveTimers: Map<string, unknown> })
-      .dappLeaveTimers;
+  const leaveTimers = (service: DAppConnectService) => service["dappLeaveTimers"];
 
   const armLeaveTimer = (socket: MockSocketInstance): void => {
     socket.handlers.onParticipantsChanged({

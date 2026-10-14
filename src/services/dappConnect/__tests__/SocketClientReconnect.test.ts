@@ -12,12 +12,21 @@
 import { beforeEach, afterEach, describe, expect, it, jest } from "@jest/globals";
 
 const listeners = new Map<string, (...args: unknown[]) => void>();
+const onceListeners = new Map<string, (...args: unknown[]) => void>();
 const mockConnect = jest.fn();
 const mockSocket = {
   connected: false,
   active: false,
   on(event: string, handler: (...args: unknown[]) => void) {
     listeners.set(event, handler);
+    return this;
+  },
+  once(event: string, handler: (...args: unknown[]) => void) {
+    onceListeners.set(event, handler);
+    return this;
+  },
+  off(event: string, handler: (...args: unknown[]) => void) {
+    if (onceListeners.get(event) === handler) onceListeners.delete(event);
     return this;
   },
   removeAllListeners: jest.fn(),
@@ -32,17 +41,24 @@ jest.mock("@/utils/nativeApp", () => ({
   isInNativeApp: () => false,
 }));
 
-import {
-  SocketClient,
-  _setSocketIoLoaderForTests,
-} from "@/services/dappConnect/SocketClient";
+jest.mock("socket.io-client", () => ({ io: () => mockSocket }));
+
+import { SocketClient } from "@/services/dappConnect/SocketClient";
+
+const clients: SocketClient[] = [];
 
 /** The socket is created behind a dynamic import; let it land. */
 async function started(client: SocketClient): Promise<void> {
-  void client.connect().catch(() => undefined);
+  clients.push(client);
+  const connecting = client.connect();
   for (let turn = 0; turn < 10 && !listeners.has("disconnect"); turn += 1) {
     await Promise.resolve();
   }
+  const onConnect = onceListeners.get("connect");
+  if (!onConnect) throw new Error("Expected a pending connect callback");
+  mockSocket.connected = true;
+  onConnect();
+  await connecting;
 }
 
 const handlers = () => ({
@@ -54,21 +70,23 @@ const handlers = () => ({
   onParticipantsChanged: jest.fn(),
 });
 
-const serverDisconnect = () => listeners.get("disconnect")?.("io server disconnect");
+const serverDisconnect = (): void => {
+  mockSocket.connected = false;
+  listeners.get("disconnect")?.("io server disconnect");
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
   listeners.clear();
+  onceListeners.clear();
   mockSocket.connected = false;
   mockSocket.active = false;
-  _setSocketIoLoaderForTests(() =>
-    Promise.resolve({ io: () => mockSocket as never }),
-  );
 });
 
 afterEach(() => {
+  for (const client of clients) client.disconnect();
+  clients.length = 0;
   jest.useRealTimers();
-  _setSocketIoLoaderForTests();
 });
 
 describe("server-initiated disconnects", () => {
