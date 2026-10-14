@@ -157,6 +157,36 @@ describe("explorer token discovery", () => {
 });
 
 describe("explorer NFT discovery", () => {
+  it.each([42, true, [], [ADDRESS], {}, { startsWith: true }])(
+    "keeps valid holdings around a zero-ID row with address %p",
+    async (contractAddress) => {
+      const error = jest.spyOn(logger, "error").mockImplementation(() => undefined);
+      response({
+        nfts: [
+          { contractAddress: ADDRESS, tokenStandard: "ERC721", tokenID: "17" },
+          { contractAddress, tokenStandard: "ERC721", tokenID: 0 },
+          { contractAddress: ADDRESS, tokenStandard: "ERC-1155", tokenID: 0 },
+        ],
+      });
+      await expect(discoverNFTs(OWNER, "TEST_NET")).resolves.toEqual([
+        { contractAddress: ADDRESS, standard: "ERC721", tokenId: "17" },
+        { contractAddress: ADDRESS, standard: "ERC1155", tokenId: 0 },
+      ]);
+      expect(error).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the existing error fallback for a malformed nonzero-ID address", async () => {
+    jest.spyOn(logger, "error").mockImplementation(() => undefined);
+    response({
+      nfts: [
+        { contractAddress: ADDRESS, tokenStandard: "ERC721", tokenID: "17" },
+        { contractAddress: 42, tokenStandard: "ERC721", tokenID: "1" },
+      ],
+    });
+    await expect(discoverNFTs(OWNER, "TEST_NET")).resolves.toEqual([]);
+  });
+
   it("keeps balances, IDs, metadata, duplicates, and discovery order", async () => {
     const name = { localized: "NFT" };
     response({
@@ -203,7 +233,7 @@ describe("explorer NFT discovery", () => {
     ]);
   });
 
-  it("keeps the existing standard, address, and token-ID checks", async () => {
+  it("keeps standard and address checks and accepts both numeric and string zero IDs", async () => {
     response({
       nfts: [
         { contractAddress: ADDRESS, tokenStandard: "ERC20", tokenID: "7" },
@@ -218,6 +248,7 @@ describe("explorer NFT discovery", () => {
       ],
     });
     await expect(discoverNFTs(OWNER, "TEST_NET")).resolves.toEqual([
+      { contractAddress: ADDRESS, standard: "ERC721", tokenId: 0 },
       {
         contractAddress: ADDRESS,
         standard: "ERC721",
@@ -280,4 +311,23 @@ describe.each(discoveryCases)("%s discovery failures", (label, discover) => {
       );
     },
   );
+});
+
+
+it("keeps valid token rows around a null explorer row", async () => {
+  response({ tokens: [
+    { contractAddress: ADDRESS, balance: 123, decimals: 2 },
+    null,
+    { contractAddress: ADDRESS, balance: "0x10", decimals: "0" },
+  ] });
+  expect((await discoverTokens(OWNER, "TEST_NET")).map((token) => token.amount)).toEqual(["1.23", "16.0"]);
+});
+
+it("keeps valid NFT rows around a null explorer row", async () => {
+  response({ nfts: [
+    { contractAddress: ADDRESS, tokenStandard: "ERC721", tokenID: 0 },
+    null,
+    { contractAddress: ADDRESS, tokenStandard: "ERC-1155", tokenID: "0", balance: 12 },
+  ] });
+  expect((await discoverNFTs(OWNER, "TEST_NET")).map((nft) => [nft.tokenId, nft.balance])).toEqual([[0, undefined], ["0", 12]]);
 });

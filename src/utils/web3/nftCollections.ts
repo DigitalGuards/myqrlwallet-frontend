@@ -1,6 +1,8 @@
+import { nftValue } from "@/constants/nft";
+import { stringValue } from "@/utils/guards";
+import { toTemplateString } from "@/utils/guards";
 import type { NFTInterface } from "@/constants";
 import { formatAddressFingerprint } from "@/utils/formatting";
-import type { NftStandard } from "./nft";
 
 /**
  * Collection-level grouping for NFTs, ported from the MyQRLWallet
@@ -28,9 +30,9 @@ export interface NftCollectionGroup {
   contractAddress: string;
   /** Lowercased contract address: the grouping and selection key. */
   key: string;
-  standard: NftStandard;
-  name?: string;
-  symbol?: string;
+  standard: unknown;
+  name?: unknown;
+  symbol?: unknown;
   /** Distinct owned token ids in this collection, before any cap. */
   tokenCount: number;
   /** Owned tokens, capped by maxTokensPerCollection. */
@@ -40,8 +42,8 @@ export interface NftCollectionGroup {
 }
 
 export interface CollectionNameOverride {
-  name?: string;
-  symbol?: string;
+  name?: unknown;
+  symbol?: unknown;
 }
 
 export interface GroupNftsOptions {
@@ -61,7 +63,7 @@ export interface GroupNftsOptions {
  * Insertion order is preserved so the list is stable across refreshes.
  */
 export function groupNftsByCollection(
-  nfts: NFTInterface[],
+  nfts: unknown[],
   options: GroupNftsOptions = {},
 ): NftCollectionGroup[] {
   const maxTokens =
@@ -71,10 +73,11 @@ export function groupNftsByCollection(
   const groups = new Map<string, NftCollectionGroup>();
   const seenTokens = new Set<string>();
 
-  for (const nft of nfts) {
+  for (const value of nfts) {
+    const nft = nftValue(value);
     if (!nft.contractAddress || !nft.tokenId) continue;
-    const key = nft.contractAddress.toLowerCase();
-    const tokenKey = `${key}:${nft.tokenId}`;
+    const key = stringValue(nft.contractAddress).toLowerCase();
+    const tokenKey = `${key}:${toTemplateString(nft.tokenId)}`;
     if (seenTokens.has(tokenKey)) continue;
     seenTokens.add(tokenKey);
 
@@ -91,7 +94,7 @@ export function groupNftsByCollection(
     }
 
     groups.set(key, {
-      contractAddress: nft.contractAddress,
+      contractAddress: stringValue(nft.contractAddress),
       key,
       standard: nft.standard,
       name: nft.collectionName || undefined,
@@ -117,7 +120,7 @@ export function groupNftsByCollection(
 
 /** Convenience wrapper applying the discovery cap. */
 export function groupDiscoveredNftsByCollection(
-  nfts: NFTInterface[],
+  nfts: unknown[],
   overrides?: Record<string, CollectionNameOverride>,
 ): NftCollectionGroup[] {
   return groupNftsByCollection(nfts, {
@@ -131,14 +134,14 @@ export function groupDiscoveredNftsByCollection(
  * name() and symbol(), and the explorer then indexes neither, so fall
  * back to a shortened contract address instead of leaving the row blank.
  */
-export function collectionDisplayName(group: NftCollectionGroup): string {
+export function collectionDisplayName(group: NftCollectionGroup): unknown {
   return (
     group.name || group.symbol || formatAddressFingerprint(group.contractAddress)
   );
 }
 
 /** Human label for the token standard, hyphenated as the explorer writes it. */
-export function collectionStandardLabel(standard: NftStandard): string {
+export function collectionStandardLabel(standard: unknown): string {
   return standard === "ERC1155" ? "ERC-1155" : "ERC-721";
 }
 

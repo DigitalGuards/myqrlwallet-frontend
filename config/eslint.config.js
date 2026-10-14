@@ -192,27 +192,6 @@ export const baseConfig = tseslint.config(
 // Regenerate with npm run lint:ratchet:update after fixing a file/rule pair.
 // BEGIN LINT RATCHET
 export const lintRatchet = [
-  {
-    files: ["src/utils/storage/storage.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-unnecessary-type-parameters": "off",
-    },
-  },
-  {
-    files: ["src/utils/web3/nftDiscovery.ts"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-    },
-  },
-  {
-    files: ["src/utils/web3/tokenDiscovery.ts"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-    },
-  },
 ];
 // END LINT RATCHET
 

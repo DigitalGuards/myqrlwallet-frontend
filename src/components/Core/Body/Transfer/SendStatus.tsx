@@ -1,3 +1,5 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
+import { renderValue } from "@/utils/guards";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "@/components/UI/Button";
 import { Card, CardContent, CardFooter } from "@/components/UI/Card";
@@ -13,7 +15,7 @@ export function SendStatus({
   onBack,
 }: {
   status: TransactionStatus;
-  blockchain: string;
+  blockchain: BlockchainSelection;
   onBack: () => void;
 }) {
   const { copiedItem, copyToClipboard } = useCopyToClipboard<"hash">();
@@ -85,7 +87,7 @@ export function SendStatus({
               <div className="space-y-2">
                 <dt>Amount</dt>
                 <dd className="font-numeric break-all font-bold text-secondary">
-                  {details.amount} {details.asset}
+                  {details.amount} {renderValue(details.asset)}
                 </dd>
               </div>
               <div className="space-y-2">

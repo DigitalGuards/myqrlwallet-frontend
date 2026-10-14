@@ -1,4 +1,4 @@
-import { isRecord } from "@/utils/guards";
+import { isRecord, toTemplateString } from "@/utils/guards";
 
 /**
  * Navigation helpers shared by the NFT gallery, the collection rows, and
@@ -66,9 +66,9 @@ export function nftCollectionPath(
 export function nftDetailPath(
   detailRoute: string,
   contractAddress: string,
-  tokenId: string,
+  tokenId: unknown,
 ): string {
   return detailRoute
     .replace(":contractAddress", contractAddress)
-    .replace(":tokenId", tokenId);
+    .replace(":tokenId", toTemplateString(tokenId));
 }

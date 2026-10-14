@@ -1,3 +1,4 @@
+import { renderValue, stringValue } from "@/utils/guards";
 import { Copy, Check, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { observer } from "mobx-react-lite";
@@ -10,12 +11,12 @@ export const CopyableText = ({
   text,
   className,
 }: {
-  text: string;
+  text: unknown;
   className?: string;
 }) => {
   const [isCopied, setIsCopied] = useState(false);
 
-  const handleCopy = async (textToCopy: string) => {
+  const handleCopy = async (textToCopy: unknown) => {
     const success = await copyToClipboard(textToCopy);
     if (success) {
       setIsCopied(true);
@@ -27,7 +28,7 @@ export const CopyableText = ({
 
   return (
     <div className="flex flex-wrap items-center gap-2 group">
-      <span className={className}>{text}</span>
+      <span className={className}>{renderValue(text)}</span>
       {isCopied ? (
         <Check className="w-4 h-4 text-success" />
       ) : (
@@ -47,11 +48,11 @@ export const CopyableText = ({
 // Token amount cell with the QRL-balance-style slot-machine cascade
 // while tokenStore.isRefreshingBalances is on, plus the same copy
 // affordance as CopyableText.
-export const BalanceCell = observer(({ amount }: { amount: string }) => {
+export const BalanceCell = observer(({ amount }: { amount: unknown }) => {
   const { tokenStore } = useStore();
   const [isCopied, setIsCopied] = useState(false);
 
-  const handleCopy = async (textToCopy: string) => {
+  const handleCopy = async (textToCopy: unknown) => {
     const success = await copyToClipboard(textToCopy);
     if (success) {
       setIsCopied(true);
@@ -63,7 +64,7 @@ export const BalanceCell = observer(({ amount }: { amount: string }) => {
 
   return (
     <div className="flex flex-wrap items-center gap-2 group font-numeric">
-      <SlotBalance value={amount} spinning={tokenStore.isRefreshingBalances} />
+      <SlotBalance value={stringValue(amount)} spinning={tokenStore.isRefreshingBalances} />
       {isCopied ? (
         <Check className="w-4 h-4 text-success" />
       ) : (

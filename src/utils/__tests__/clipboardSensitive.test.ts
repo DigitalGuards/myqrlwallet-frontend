@@ -99,3 +99,16 @@ describe("which call sites mark their copy sensitive", () => {
     expect(unflagged).toEqual(["accountAddress"]);
   });
 });
+
+it.each([{ value: 12 }, { value: ["T"] }, { value: { en: "Token" } }])(
+  "preserves stored metadata in the native clipboard payload: $value",
+  async ({ value }) => {
+    const { copyToClipboard } = await import("@/utils/nativeApp");
+    await expect(copyToClipboard(value)).resolves.toBe(true);
+    const message: unknown = JSON.parse(postMessage.mock.calls[0]?.[0] ?? "{}");
+    expect(message).toMatchObject({
+      type: "COPY_TO_CLIPBOARD",
+      payload: { text: value, sensitive: false },
+    });
+  },
+);

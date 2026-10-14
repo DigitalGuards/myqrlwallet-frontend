@@ -1,3 +1,4 @@
+import type { EncryptedSeedData } from "@/utils/storage/storage";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { useState, useEffect, useRef } from "react";
@@ -254,7 +255,7 @@ const WebPinSetup = ({
     null,
   );
   const [existingSeeds, setExistingSeeds] = useState<
-    { address: string; encryptedSeed: string }[]
+    EncryptedSeedData[]
   >([]);
 
   // Check for existing encrypted seeds on mount

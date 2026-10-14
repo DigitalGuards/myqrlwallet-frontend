@@ -1,3 +1,4 @@
+import { toNumber, toTemplateString } from "@/utils/guards";
 /**
  * ERC20 fixed-point unit conversion, drop-in compatible with ethers v6
  * `formatUnits` / `parseUnits`.
@@ -23,15 +24,20 @@ const BN = BigNumber.clone({ EXPONENTIAL_AT: 1e9, DECIMAL_PLACES: 100 });
  * Matches ethers v6: full precision, trailing zeros stripped, but always at
  * least one fractional digit (e.g. `1.0`).
  */
-export function formatUnits(value: bigint | string | number, decimals: number = 18): string {
-  const v = new BN(typeof value === "bigint" ? value.toString() : value);
+export function formatUnits(value: unknown, decimals: unknown = 18): string {
+  const v: unknown = Reflect.construct(BN, [typeof value === "bigint" ? value.toString() : value]);
+  if (!(v instanceof BN)) throw new TypeError("Invalid BigNumber result");
   if (v.isNaN()) {
     throw new Error(`formatUnits: invalid value "${String(value)}"`);
   }
-  let s = v.shiftedBy(-decimals).toFixed();
+  const shifted: unknown = Reflect.apply(v.shiftedBy.bind(v), v, [
+    typeof decimals === "bigint" ? -decimals : -toNumber(decimals),
+  ]);
+  if (!(shifted instanceof BN)) throw new TypeError("Invalid BigNumber result");
+  let s = shifted.toFixed();
   // ethers keeps at least one fractional digit when decimals > 0 (e.g. "1.0"),
   // but renders a plain integer when decimals === 0 (e.g. "42").
-  if (decimals > 0 && !s.includes(".")) {
+  if (toNumber(decimals) > 0 && !s.includes(".")) {
     s += ".0";
   }
   return s;
@@ -42,21 +48,22 @@ export function formatUnits(value: bigint | string | number, decimals: number = 
  * Matches ethers v6: throws on a non-numeric value or on more fractional
  * digits than `decimals` allows.
  */
-export function parseUnits(value: string, decimals: number = 18): bigint {
+export function parseUnits(value: unknown, decimals: unknown = 18): bigint {
   // Strict decimal-string validation. ethers v6 rejects non-decimal formats,
   // but bignumber.js silently parses hex/binary/octal prefixes (e.g. "0x11" ->
   // 17). For a transaction-amount parser that would be a dangerous mismatch, so
   // reject anything that is not an optionally-signed base-10 decimal here.
   if (typeof value !== 'string' || !/^-?(\d+\.?\d*|\.\d+)$/.test(value.trim())) {
-    throw new Error(`parseUnits: invalid decimal value "${value}"`);
+    throw new Error(`parseUnits: invalid decimal value "${toTemplateString(value)}"`);
   }
   const v = new BN(value.trim());
   if (v.isNaN()) {
     throw new Error(`parseUnits: invalid decimal value "${value}"`);
   }
-  const scaled = v.shiftedBy(decimals);
+  const scaled: unknown = Reflect.apply(v.shiftedBy.bind(v), v, [decimals]);
+  if (!(scaled instanceof BN)) throw new TypeError("Invalid BigNumber result");
   if (!scaled.isInteger()) {
-    throw new Error(`parseUnits: "${value}" has more than ${decimals} decimal places`);
+    throw new Error(`parseUnits: "${value}" has more than ${toTemplateString(decimals)} decimal places`);
   }
   return BigInt(scaled.toFixed(0));
 }

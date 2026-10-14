@@ -1,5 +1,3 @@
-import type { NftStandard } from "@/utils/web3/nft";
-
 // Re-resolve tokenURI + metadata JSON for a gallery entry when its last
 // successful fetch is older than this. Mirrors the explorer backend's
 // METADATA_REFRESH_TTL_MS default so both surfaces pick up on-chain
@@ -20,24 +18,34 @@ export const NFT_METADATA_RETRY_MAX_MS = 24 * 60 * 60 * 1000;
 export const NFT_METADATA_MAX_PER_RUN = 12;
 
 export interface NFTInterface {
-  contractAddress: string;
-  standard: NftStandard;
-  tokenId: string;
-  collectionName?: string;
-  collectionSymbol?: string;
-  name?: string;
-  description?: string;
-  image?: string;
+  contractAddress?: unknown;
+  standard?: unknown;
+  tokenId?: unknown;
+  collectionName?: unknown;
+  collectionSymbol?: unknown;
+  name?: unknown;
+  description?: unknown;
+  image?: unknown;
   // ERC-1155 holdings can be > 1 of the same id; stored as a decimal
   // string so it survives serialization. Undefined for ERC-721 (always 1).
-  balance?: string;
+  balance?: unknown;
   // Timestamp (ms) of the last SUCCESSFUL metadata fetch. Absent when
   // metadata has never resolved, which makes the entry eligible for a
   // refresh on the next gallery visit instead of waiting out the TTL.
-  fetchedAt?: number;
+  fetchedAt?: unknown;
   // Failure bookkeeping for metadata refreshes: consecutive failure count
   // and the timestamp of the last failure. Drive the exponential backoff
   // in nftStore.refreshNftMetadata; cleared on success.
-  fetchRetryCount?: number;
-  fetchFailedAt?: number;
+  fetchRetryCount?: unknown;
+  fetchFailedAt?: unknown;
+}
+
+/** Narrow only the receiver of an existing NFT property read. */
+export function nftValue(value: unknown): NFTInterface {
+  if (!isNftValue(value)) throw new TypeError('Cannot read properties of null or undefined');
+  return value;
+}
+
+function isNftValue(value: unknown): value is NFTInterface {
+  return value !== null && value !== undefined;
 }

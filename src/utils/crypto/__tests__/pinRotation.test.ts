@@ -129,8 +129,8 @@ describe("cross-network PIN rotation", () => {
       Promise.resolve(blockchain === "TEST_NET" ? seeds.map((seed) => ({ ...seed })) : []),
     );
     mockDecrypt.mockImplementation((encryptedSeed) => Promise.resolve({
-      mnemonic: `m-${encryptedSeed}`,
-      hexSeed: encryptedSeed,
+      mnemonic: `m-${String(encryptedSeed)}`,
+      hexSeed: String(encryptedSeed),
     }));
     mockEncrypt.mockImplementation((_m, hexSeed) => Promise.resolve(`new-${hexSeed}`));
     mockDeriveAddress.mockImplementation((hexSeed) => {

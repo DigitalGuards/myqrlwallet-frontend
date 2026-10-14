@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 /**
  * Async crypto API for the wallet.
  *
@@ -93,7 +94,7 @@ export async function encryptSeedAsync(
  * Decrypt a seed with PIN (WebCrypto AES-256-GCM, main thread, non-blocking).
  */
 export async function decryptSeedAsync(
-  encryptedData: string,
+  encryptedData: unknown,
   pin: string
 ): Promise<{ mnemonic: string; hexSeed: string }> {
   if (isDesktop) {
@@ -108,9 +109,9 @@ export async function decryptSeedAsync(
 
 /** Decrypt a locally stored seed and perform a failure-safe pin_v4 migration. */
 export async function decryptStoredSeedAsync(
-  blockchain: string,
-  address: string,
-  encryptedData: string,
+  blockchain: BlockchainSelection,
+  address: unknown,
+  encryptedData: unknown,
   pin: string,
 ): Promise<{ mnemonic: string; hexSeed: string }> {
   if (isDesktop) {
@@ -125,8 +126,8 @@ export async function decryptStoredSeedAsync(
 
 /** Verify a stored PIN without returning seed material or mutating wallet state. */
 export async function verifyStoredSeedPinAsync(
-  address: string,
-  encryptedData: string,
+  address: unknown,
+  encryptedData: unknown,
   pin: string,
   expectedGeneration: WalletMutationToken,
 ): Promise<void> {

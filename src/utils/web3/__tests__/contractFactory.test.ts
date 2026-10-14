@@ -37,4 +37,15 @@ describe("ABI-inferred contract methods", () => {
       `0x01ffc9a780ac58cd${"0".repeat(120)}`,
     );
   });
+
+  it.each([undefined, null, "", {}, []].map((address) => ({ address })))(
+    "preserves calldata for the library's unbound address form $address",
+    ({ address }) => {
+      const methods = contractMethods(web3, erc721ABI, address);
+      expect(methods.safeTransferFrom(FROM, TO, "0x2a").encodeABI()).toBe(
+        `0x42842e0e${FROM.slice(1)}${TO.slice(1)}${word("2a")}`,
+      );
+      expect(request).not.toHaveBeenCalled();
+    },
+  );
 });

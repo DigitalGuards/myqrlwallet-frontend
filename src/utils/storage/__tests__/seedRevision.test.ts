@@ -304,7 +304,7 @@ describe("auto-lock promise callbacks", () => {
   const events = new EventTarget();
   const navigate = jest.fn();
   const getBlockChain = jest.fn<ReturnType<typeof StorageUtil.getBlockChain>, []>();
-  const getActiveAccount = jest.fn<Promise<string>, [string]>();
+  const getActiveAccount = jest.fn<Promise<string>, [Parameters<typeof StorageUtil.getActiveAccount>[0]]>();
   const getWalletSettings = jest.fn<ReturnType<typeof StorageUtil.getWalletSettings>, []>();
   const log = jest.fn<undefined, unknown[]>();
 

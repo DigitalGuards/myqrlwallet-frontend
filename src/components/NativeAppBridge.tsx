@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 /**
  * NativeAppBridge Component
  *
@@ -90,7 +91,7 @@ const PIN_CHANGE_ERRORS = {
  * Updates MobX store directly instead of reloading the page.
  */
 async function restoreAccountState(
-  blockchain: string,
+  blockchain: BlockchainSelection,
   address: string,
 ): Promise<void> {
   try {
@@ -233,9 +234,9 @@ async function handleCorrelatedPinVerification(
   try {
     await walletMutations.enqueueWalletMutation(
       async (isCurrent) => {
-        let blockchain: string;
+        let blockchain: BlockchainSelection;
         let activeAccount: string;
-        let encryptedSeed: string;
+        let encryptedSeed: unknown;
         try {
           blockchain = await StorageUtil.getBlockChain();
           const storedAccount = await StorageUtil.getActiveAccount(blockchain);

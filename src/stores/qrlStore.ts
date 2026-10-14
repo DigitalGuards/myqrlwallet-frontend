@@ -1,3 +1,4 @@
+import { blockchainKey, type BlockchainSelection } from "@/utils/storage/storage";
 import { transactionHistoryStore } from "./transactionHistoryStore";
 import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
 import { QRL_PROVIDER, EXPLORER_BASE } from "@/config";
@@ -52,7 +53,7 @@ type ActiveAccountType = {
 
 type QrlAccountType = {
   accountAddress: string;
-  accountBalance: string;
+  accountBalance: unknown;
   source: AccountSource;
 };
 
@@ -183,7 +184,7 @@ export interface ExtensionProvider {
 
 class QrlStore {
   qrlInstance?: Web3QRLInterface;
-  qrlConnection = {
+  qrlConnection: { isConnected: boolean; isLoading: boolean; qrlNetworkName: string; blockchain: BlockchainSelection } = {
     isConnected: false,
     isLoading: false,
     qrlNetworkName: "",
@@ -233,7 +234,7 @@ class QrlStore {
 
   // NEW: Computed properties
   // 1) active account balance
-  get activeAccountBalance(): string {
+  get activeAccountBalance(): unknown {
     if (!this.activeAccount.accountAddress) {
       return "0";
     }
@@ -276,7 +277,7 @@ class QrlStore {
 
   // 3) Active account balance in USD
   get activeAccountBalanceUsd(): number {
-    const balance = parseFloat(this.activeAccountBalance) || 0;
+    const balance = parseFloat(String(this.activeAccountBalance)) || 0;
     return balance * this.qrlPrice;
   }
 
@@ -516,7 +517,7 @@ class QrlStore {
       }
       const selectedBlockChain = await StorageUtil.getBlockChain();
       if (IS_V3_PROFILE && selectedBlockChain !== 'TEST_NET_V3') throw new Error('Only Testnet v3 is available in this build');
-      const { name, url } = QRL_PROVIDER[selectedBlockChain];
+      const { name, url } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
 
       runInAction(() => {
         this.qrlConnection = {
@@ -809,7 +810,7 @@ class QrlStore {
       // from the unlocked session is rejected by the signer ("signing account
       // mismatch"). The decision is a pure, unit-tested helper.
       const storage: {
-        getActiveAccount(blockchain: string): Promise<string | null | undefined>;
+        getActiveAccount(blockchain: BlockchainSelection): Promise<string | null | undefined>;
       } = StorageUtil;
       const storedActive = await storage.getActiveAccount(blockchain);
       const decision = decideActiveAccount({
@@ -868,7 +869,7 @@ class QrlStore {
             };
           }),
         );
-      const balanceMap: Record<string, string> = {};
+      const balanceMap: Record<string, unknown> = {};
       accountsWithBalance.forEach(a => { balanceMap[a.accountAddress] = a.accountBalance; });
       if (!isCurrent()) return;
       await StorageUtil.setBalanceCache(blockchain, balanceMap);
@@ -961,7 +962,7 @@ class QrlStore {
     }
   }
 
-  getAccountBalance(accountAddress: string) {
+  getAccountBalance(accountAddress: string): unknown {
     return (
       this.qrlAccounts.accounts.find(
         (account) => account.accountAddress === accountAddress,
@@ -1343,7 +1344,7 @@ class QrlStore {
     to: string,
     valueEther: string,
     feeLevel: FeeLevel = 'medium',
-    tokenCall?: { data: string; recipient: string; amount: string; asset: string; onReceipt?: () => void },
+    tokenCall?: { data: string; recipient: string; amount: string; asset: unknown; onReceipt?: () => void },
   ): Promise<boolean> {
     const source = this.activeAccountSource;
     const from = this.activeAccount.accountAddress;

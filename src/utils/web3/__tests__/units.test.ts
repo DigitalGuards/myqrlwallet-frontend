@@ -70,3 +70,20 @@ describe("parseUnits (ethers v6 parity)", () => {
     expect(() => parseUnits("  ", 6)).toThrow(/invalid decimal value/);
   });
 });
+
+describe("stored decimal and balance types", () => {
+  it("formats numeric, bigint, and hex balances with string decimals", () => {
+    expect(formatUnits(123, "2")).toBe("1.23");
+    expect(formatUnits(123n, "0x2")).toBe("1.23");
+    expect(formatUnits("0x7b", "2")).toBe("1.23");
+    expect(formatUnits(0, 0)).toBe("0");
+  });
+
+  it("keeps parseUnits strict about decimals used for transaction amounts", () => {
+    expect(parseUnits("-1.25", 2)).toBe(-125n);
+    expect(() => parseUnits("1.25", "2")).toThrow("Argument not a primitive number");
+    expect(() => parseUnits("1.25", 2n)).toThrow("Cannot convert a BigInt value to a number");
+    expect(() => parseUnits(1.25, 2)).toThrow("invalid decimal value");
+    expect(() => formatUnits(123, 2n)).toThrow("Cannot convert a BigInt value to a number");
+  });
+});

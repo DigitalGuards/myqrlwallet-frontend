@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 /**
  * Native App Bridge Utilities
  *
@@ -249,7 +250,7 @@ export const copyToClipboardNative = (text: string, sensitive = false): boolean 
  * else does not vanish underneath them.
  */
 export const copyToClipboard = async (
-  text: string,
+  text: unknown,
   sensitive = false,
 ): Promise<boolean> => {
   if (isInNativeApp()) {
@@ -267,7 +268,8 @@ export const copyToClipboard = async (
   }
 
   try {
-    await clipboard.writeText(text);
+    const pending: unknown = Reflect.apply(clipboard.writeText.bind(clipboard), clipboard, [text]);
+    await pending;
     return true;
   } catch (err) {
     logError("Failed to copy text to clipboard:", err);
@@ -545,7 +547,7 @@ function ensureSeedBackupListener(): void {
 export const notifySeedStored = async (options: {
   address: string;
   encryptedSeed: string;
-  blockchain: string;
+  blockchain: BlockchainSelection;
   revision: number;
 }): Promise<SeedBackupAcknowledgement> => {
   if (!isInNativeApp()) {

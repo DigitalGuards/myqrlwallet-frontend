@@ -1,3 +1,4 @@
+import { renderValue } from "@/utils/guards";
 import type { ReactNode } from "react";
 import { SEO } from "@/components/SEO/SEO";
 import { cn } from "@/utils/cn";
@@ -7,7 +8,7 @@ type PageShellProps = {
   subtitle?: ReactNode;
   action?: ReactNode;
   width?: "default" | "wide";
-  seoTitle?: string;
+  seoTitle?: unknown;
   children: ReactNode;
 };
 
@@ -21,7 +22,7 @@ export function PageShell({
 }: PageShellProps) {
   return (
     <div className="w-full" data-page-shell={width}>
-      {seoTitle && <SEO title={seoTitle} />}
+      {renderValue(seoTitle && <SEO title={seoTitle} />)}
       <div
         className={cn(
           "page-enter mx-auto w-full px-4 pt-8 pb-8",

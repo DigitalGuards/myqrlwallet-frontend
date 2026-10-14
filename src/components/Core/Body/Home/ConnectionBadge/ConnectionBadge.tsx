@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 import { Link } from "react-router";
 import { observer } from "mobx-react-lite";
 import { AVAILABLE_NETWORKS } from "@/config";
@@ -7,7 +8,7 @@ import { ROUTES } from "@/router/router";
 // Short, tab-width network name for the plain status label. The v3 profile
 // exposes exactly one network (testnet v3), so it reads the same "TESTNET"
 // as the default profile's testnet.
-function shortNetworkLabel(blockchain: string): string {
+function shortNetworkLabel(blockchain: BlockchainSelection): string {
   return blockchain === "MAIN_NET" ? "MAINNET" : "TESTNET";
 }
 

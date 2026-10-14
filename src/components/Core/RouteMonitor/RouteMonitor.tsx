@@ -26,7 +26,8 @@ const RouteMonitor = observer(() => {
       const restorable =
         activePage && !(isDesktop && activePage === ROUTES.SETTINGS);
       if (restorable) {
-        void Promise.resolve(navigate(activePage)).catch((error: unknown) => {
+        const navigation: unknown = Reflect.apply(navigate, undefined, [activePage]);
+        void Promise.resolve(navigation).catch((error: unknown) => {
           logger.error("Failed to restore active page:", error);
         });
       } else {

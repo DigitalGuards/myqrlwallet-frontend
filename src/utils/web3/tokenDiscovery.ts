@@ -1,27 +1,21 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 import { getTokenDiscoveryApiUrl } from "@/config";
 import type { TokenInterface } from "@/constants";
 import { log } from "@/utils";
+import { isArray, isRecord, stringValue } from "@/utils/guards";
 import { logger } from "@/utils/log";
 import { formatUnits } from "@/utils/web3/units";
 import { getOptimalTokenBalance } from "@/utils/formatting";
 
-// Token info from Explorer API
-interface ExplorerToken {
-  contractAddress: string;
-  holderAddress: string;
-  balance: string;
-  name: string;
-  symbol: string;
-  decimals?: number | null;
-  blockNumber: string;
-  updatedAt: string;
-}
-
-// API response wrapper from Explorer
-interface ExplorerTokenResponse {
-  address: string;
-  tokens: ExplorerToken[];
-  count: number;
+// Explorer metadata is copied verbatim into the persisted token list.
+function isExplorerToken(value: unknown): value is {
+  contractAddress?: unknown;
+  balance?: unknown;
+  name?: unknown;
+  symbol?: unknown;
+  decimals?: unknown;
+} {
+  return value !== null && value !== undefined;
 }
 
 /**
@@ -32,7 +26,7 @@ interface ExplorerTokenResponse {
  */
 export async function discoverTokens(
   address: string,
-  blockchain: string
+  blockchain: BlockchainSelection
 ): Promise<TokenInterface[]> {
   try {
     const apiUrl = getTokenDiscoveryApiUrl(address, blockchain);
@@ -49,14 +43,15 @@ export async function discoverTokens(
       throw new Error(`Token discovery failed: ${response.statusText}`);
     }
 
-    const data: ExplorerTokenResponse = await response.json();
+    const data: unknown = await response.json();
 
-    if (!data || !Array.isArray(data.tokens)) {
+    if (!isRecord(data) || !isArray(data["tokens"])) {
       log(`Invalid token discovery response format`);
       return [];
     }
 
-    const tokens: TokenInterface[] = data.tokens
+    const tokens: TokenInterface[] = data["tokens"]
+      .filter(isExplorerToken)
       .filter((token) => token.contractAddress)
       .map((token) => {
         const symbol = token.symbol || "UNK";
@@ -80,11 +75,11 @@ export async function discoverTokens(
         return {
           name: token.name || "Unknown Token",
           symbol,
-          address: token.contractAddress.startsWith("Q")
-            ? token.contractAddress
-            : token.contractAddress.startsWith("q")
-              ? `Q${token.contractAddress.slice(1)}`
-              : `Q${token.contractAddress.replace(/^0x/i, "")}`,
+          address: stringValue(token.contractAddress).startsWith("Q")
+            ? stringValue(token.contractAddress)
+            : stringValue(token.contractAddress).startsWith("q")
+              ? `Q${stringValue(token.contractAddress).slice(1)}`
+              : `Q${stringValue(token.contractAddress).replace(/^0x/i, "")}`,
           amount,
           decimals,
         };

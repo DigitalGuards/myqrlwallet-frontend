@@ -1,3 +1,4 @@
+import { stringValue } from "@/utils/guards";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { Button } from "../../../UI/Button";
 import {
@@ -100,7 +101,7 @@ export const ExportWalletFile = observer(() => {
             const blockchain = await StorageUtil.getBlockChain();
             const seeds = await StorageUtil.getAllEncryptedSeeds(blockchain);
             const entry = seeds.find(
-                (seed) => seed.address.toLowerCase() === activeAddress.toLowerCase(),
+                (seed) => stringValue(seed.address).toLowerCase() === activeAddress.toLowerCase(),
             );
             if (!entry) {
                 setExportError(
@@ -114,7 +115,7 @@ export const ExportWalletFile = observer(() => {
                 decrypted = await verifyPinWithLimit(() =>
                     decryptStoredSeedAsync(
                         blockchain,
-                        entry.address,
+                        stringValue(entry.address),
                         entry.encryptedSeed,
                         data.pin,
                     ),
@@ -148,13 +149,13 @@ export const ExportWalletFile = observer(() => {
                 decrypted.mnemonic,
                 qrlInstance,
             );
-            if (derivedAddress.toLowerCase() !== entry.address.toLowerCase()) {
+            if (derivedAddress.toLowerCase() !== stringValue(entry.address).toLowerCase()) {
                 setExportError("Security error: the stored seed does not match this account. Re-import the account before exporting.");
                 return;
             }
 
             const account = {
-                address: entry.address,
+                address: stringValue(entry.address),
                 mnemonic: decrypted.mnemonic,
                 hexSeed: decrypted.hexSeed,
             };

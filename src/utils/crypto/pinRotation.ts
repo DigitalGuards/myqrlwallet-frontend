@@ -1,3 +1,4 @@
+import { stringValue, toTemplateString } from "@/utils/guards";
 import { isIncorrectPinError, verifyPinWithLimit } from "./verifyPinWithLimit";
 import StorageUtil, { type EncryptedSeedData } from "@/utils/storage/storage";
 import { decryptSeedAsync, encryptSeedAsync } from "./cryptoWorkerClient";
@@ -32,7 +33,7 @@ interface PreparedChain {
 }
 
 function revisionOf(seed: EncryptedSeedData): number {
-  return Number.isSafeInteger(seed.revision) && (seed.revision ?? 0) >= 0
+  return typeof seed.revision === "number" && Number.isSafeInteger(seed.revision) && (seed.revision ?? 0) >= 0
     ? (seed.revision ?? 0)
     : 0;
 }
@@ -44,8 +45,8 @@ function toBackupRecords(
   return chains.flatMap((chain) =>
     chain[field].map((seed) => ({
       blockchain: chain.blockchain,
-      address: seed.address,
-      encryptedSeed: seed.encryptedSeed,
+      address: stringValue(seed.address),
+      encryptedSeed: stringValue(seed.encryptedSeed),
       revision: revisionOf(seed),
     })),
   );
@@ -155,7 +156,7 @@ export async function rotateStoredSeedPinWithTargetFallback(
               );
               if (derivedAddress !== seed.address) {
                 throw new Error(
-                  `Security error: stored seed does not match ${seed.address} on ${chain.blockchain}`,
+                  `Security error: stored seed does not match ${toTemplateString(seed.address)} on ${chain.blockchain}`,
                 );
               }
               assertCurrent();
