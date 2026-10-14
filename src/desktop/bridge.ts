@@ -21,6 +21,7 @@
 
 /** One provisioned desktop wallet (public data only). */
 import { assertV3BrowserContext } from "@/config/runtimeProfile";
+import { logWarning } from "@/utils/log";
 
 export interface DesktopWalletInfo {
   address: string;
@@ -230,7 +231,7 @@ declare global {
  */
 export const isDesktop: boolean =
   typeof window !== "undefined" &&
-  Boolean((window as { qrlWallet?: unknown }).qrlWallet);
+  Boolean(window.qrlWallet);
 
 /**
  * Typed accessor for the bridge. Throws if absent so a desktop-only path that
@@ -289,9 +290,12 @@ export function buildDappOrigin(
 ): DAppOriginMeta | undefined {
   if (!/^[0-9a-fA-F-]{1,64}$/.test(channelId)) return undefined;
   const cleanName =
-    (name ?? "")
-      // eslint-disable-next-line no-control-regex -- stripping control chars is the point
-      .replace(/[\u0000-\u001f\u007f]/g, "")
+    Array.from(name ?? "")
+      .filter((character) => {
+        const code = character.charCodeAt(0);
+        return code > 31 && code !== 127;
+      })
+      .join("")
       .trim()
       .slice(0, 64) || "Unknown dApp";
   let cleanUrl = "";
@@ -340,7 +344,7 @@ function dappGasField(
 ): { gas?: string } | Record<string, never> {
   if (gas === undefined) return {};
   if (bridge.features?.dappGasLimit !== true) {
-    console.warn(
+    logWarning(
       "desktop: this shell ignores dApp gas limits (features.dappGasLimit missing); building with its own estimate",
     );
     return {};
@@ -561,7 +565,7 @@ export const desktopSigner = {
     if (typeof bridge.openDesktopSettings !== "function") {
       // Dev-only skew (bundled renderers ship with their shell): make the
       // silent degrade visible instead of a dead Settings button.
-      console.warn(
+      logWarning(
         "desktop: this shell has no settings window (openDesktopSettings missing)",
       );
       return;

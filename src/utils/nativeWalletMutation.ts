@@ -121,10 +121,10 @@ export class NativeWalletMutationCoordinator {
       // generation protects this realm only; reporting durable success would
       // let another tab reload the old persisted epoch and revive stale state.
       epochPublicationError = toError(error);
-      logger.write("error", () => [
+      logger.error(
         "[WalletMutation] Could not publish wallet clear epoch:",
         error,
-      ]);
+      );
     }
     const pendingMutations = this.mutationQueue.catch(() => undefined);
 
@@ -138,7 +138,7 @@ export class NativeWalletMutationCoordinator {
           await operation();
         } catch (error) {
           cleanupError ??= toError(error);
-          logger.write("error", () => ["[WalletMutation] Wallet clear step failed:", error]);
+          logger.error("[WalletMutation] Wallet clear step failed:", error);
         }
       };
 
@@ -158,7 +158,7 @@ export class NativeWalletMutationCoordinator {
         });
       } catch (error) {
         cleanupError ??= toError(error);
-        logger.write("error", () => ["[WalletMutation] Wallet clear lock failed:", error]);
+        logger.error("[WalletMutation] Wallet clear lock failed:", error);
       }
 
       if (epochPublicationError !== null) throw epochPublicationError;

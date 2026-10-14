@@ -1,3 +1,5 @@
+import type { ImportedAccount } from "../importedAccount";
+import { logger } from "@/utils/log";
 import { Button } from "@/components/UI/Button";
 import { Card, CardContent, CardFooter } from "@/components/UI/Card";
 import { Input } from "@/components/UI/Input";
@@ -12,7 +14,6 @@ import {
 import type {
   EncryptedKeystore,
   EncryptedWallet,
-  ExtendedWalletAccount,
 } from "@/utils/crypto";
 import {
   MAX_WALLET_FILE_BYTES,
@@ -45,7 +46,7 @@ const FormSchema = z.object({
 });
 
 type ImportEncryptedWalletProps = {
-  onWalletImported: (account: ExtendedWalletAccount) => void;
+  onWalletImported: (account: ImportedAccount) => void;
 };
 
 // The two file formats this tab understands:
@@ -152,18 +153,18 @@ export const ImportEncryptedWallet = ({
     // it to the signer, which derives the address (mnemonic preferred,
     // hexSeed fallback when the file lacks one).
     if (isDesktop) {
-      const account = {
+      const account: ImportedAccount = {
         address: "",
         hexSeed,
         mnemonic,
-      } as ExtendedWalletAccount;
+      };
       onWalletImported(account);
       return;
     }
 
-    const account = qrlInstance?.accounts.seedToAccount(
+    const account: ImportedAccount | undefined = qrlInstance?.accounts.seedToAccount(
       hexSeed,
-    ) as ExtendedWalletAccount;
+    );
     if (!account) {
       throw new Error("Failed to import account from wallet");
     }
@@ -172,7 +173,7 @@ export const ImportEncryptedWallet = ({
     if (mnemonic) {
       account.mnemonic = mnemonic;
     } else {
-      console.warn(
+      logger.warn(
         "Mnemonic might be missing from decrypted wallet data. Proceeding with hexSeed only.",
       );
     }
@@ -246,7 +247,15 @@ export const ImportEncryptedWallet = ({
 
   return (
     <Card>
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form
+        onSubmit={(event) => {
+          handleSubmit(onSubmit)(event).catch(() => {
+            form.setError("password", {
+              message: "Failed to decrypt wallet. Please check your password.",
+            });
+          });
+        }}
+      >
         <CardContent className="space-y-8 pt-6">
           <p className="text-sm text-muted-foreground">
             Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.
@@ -281,7 +290,11 @@ export const ImportEncryptedWallet = ({
                   id="walletFile"
                   type="file"
                   accept=".json"
-                  onChange={handleFileChange}
+                  onChange={(event) => {
+                    handleFileChange(event).catch(() => {
+                      setFileError("Invalid wallet file format");
+                    });
+                  }}
                   // Swapping files mid-decrypt would finish the import with
                   // the OLD file while the card shows the new one.
                   disabled={isDecrypting}

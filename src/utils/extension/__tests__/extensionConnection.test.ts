@@ -179,6 +179,73 @@ describe("discovery timing", () => {
   });
 });
 
+describe("production connection diagnostics", () => {
+  it.each(["readable", "expired"] as const)(
+    "connects without rereading the %s name getter after discovery",
+    async (state) => {
+      const extension = wallet();
+      const name = jest.fn(() => "Fixture wallet");
+      Object.defineProperty(extension.info, "name", { get: name });
+      installed(extension);
+      const discovering = discoverQrlProviders();
+      await jest.advanceTimersByTimeAsync(1000);
+      const [discovered] = await discovering;
+      expect(discovered).toBe(extension);
+      if (!discovered) throw new Error("Expected a discovered extension");
+      expect(name).toHaveBeenCalled();
+      name.mockClear();
+      if (state === "expired") {
+        name.mockImplementation(() => {
+          throw new Error("Extension name expired after discovery");
+        });
+      }
+
+      const qualify = jest
+        .spyOn(qualification, "qualifyV3Provider")
+        .mockResolvedValue(undefined);
+      jest.spyOn(console, "log").mockImplementation(() => undefined);
+      jest.spyOn(console, "error").mockImplementation(() => undefined);
+      const alert = jest
+        .spyOn(window, "alert")
+        .mockImplementation(() => undefined);
+      const setAccount = jest.fn<Parameters<typeof connectWithProvider>[1]>(
+        () => Promise.resolve(),
+      );
+      const setProvider = jest.fn<Parameters<typeof connectWithProvider>[2]>();
+      const flag = Object.getOwnPropertyDescriptor(
+        globalThis,
+        "__QRL_DIAGNOSTICS__",
+      );
+      Object.defineProperty(globalThis, "__QRL_DIAGNOSTICS__", {
+        configurable: true,
+        value: false,
+      });
+      try {
+        await expect(
+          connectWithProvider(discovered, setAccount, setProvider),
+        ).resolves.toEqual([ACCOUNT]);
+        expect(qualify).toHaveBeenCalledWith(extension.provider);
+        expect(name).not.toHaveBeenCalled();
+        expect(extension.provider.request).toHaveBeenCalledTimes(1);
+        expect(extension.provider.request).toHaveBeenCalledWith({
+          method: "qrl_requestAccounts",
+        });
+        expect(setProvider).toHaveBeenCalledTimes(1);
+        expect(setProvider).toHaveBeenCalledWith(extension.provider);
+        expect(setAccount).toHaveBeenCalledTimes(1);
+        expect(setAccount).toHaveBeenCalledWith(ACCOUNT, "extension");
+        expect(alert).not.toHaveBeenCalled();
+      } finally {
+        if (flag) {
+          Object.defineProperty(globalThis, "__QRL_DIAGNOSTICS__", flag);
+        } else {
+          Reflect.deleteProperty(globalThis, "__QRL_DIAGNOSTICS__");
+        }
+      }
+    },
+  );
+});
+
 describe("restoring permission for the selected account", () => {
   // Class: repeated untrusted property reads can change error routing or reject
   // the catch path. Exercise every code branch and supported object shape.

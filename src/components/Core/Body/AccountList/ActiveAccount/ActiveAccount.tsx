@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import { Button } from "../../../../UI/Button";
 import { Card } from "../../../../UI/Card";
 import { Label } from "../../../../UI/Label";
@@ -47,7 +48,7 @@ export const ActiveAccount = observer(() => {
       qrlStore.setMobileProvider(null);
       await qrlStore.removeMobileAccounts();
     } catch (error) {
-      console.error("Failed to disconnect mobile account:", error);
+      logger.error("Failed to disconnect mobile account:", error);
     }
   };
 
@@ -92,7 +93,7 @@ export const ActiveAccount = observer(() => {
                     bgColor="#000000"
                     fgColor="#ffffff"
                     level="L"
-                    includeMargin={false}
+                    marginSize={0}
                   />
                   <Label className="text-xs text-muted-foreground">Scan to open in Explorer</Label>
                 </div>
@@ -106,7 +107,9 @@ export const ActiveAccount = observer(() => {
                       className="hover:text-secondary"
                       variant="outline"
                       size="icon"
-                      onClick={() => setTxHistoryOpen(true)}
+                      onClick={() => {
+                        setTxHistoryOpen(true);
+                      }}
                     >
                       <History size={18} />
                     </Button>
@@ -166,7 +169,9 @@ export const ActiveAccount = observer(() => {
           accountAddress={accountAddress}
           blockchain={blockchain}
           isOpen={txHistoryOpen}
-          onClose={() => setTxHistoryOpen(false)}
+          onClose={() => {
+            setTxHistoryOpen(false);
+          }}
         />
       </>
     )

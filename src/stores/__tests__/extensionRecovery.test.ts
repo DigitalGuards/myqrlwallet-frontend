@@ -4,7 +4,9 @@ jest.mock("@/config/runtimeProfile", () => {
     value: "v3-private",
     configurable: true,
   });
-  return jest.requireActual("@/config/runtimeProfile");
+  return jest.requireActual<typeof import("@/config/runtimeProfile")>(
+    "@/config/runtimeProfile",
+  );
 });
 jest.mock("@/config", () => ({
   QRL_PROVIDER: {
@@ -18,7 +20,9 @@ jest.mock("@/config", () => ({
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({ deriveHexSeedAsync: jest.fn() }));
 jest.mock("@/utils/storage", () => ({
-  StorageUtil: jest.requireActual("@/utils/storage/storage").default,
+  StorageUtil: jest.requireActual<typeof import("@/utils/storage/storage")>(
+    "@/utils/storage/storage",
+  ).default,
 }));
 
 import Web3 from "@theqrl/web3";
@@ -37,19 +41,21 @@ const cleanups: (() => void)[] = [];
 
 function extension(accounts: unknown = [ACCOUNT]) {
   const request = jest.fn(
-    async ({ method }: { method: string }): Promise<unknown> => {
-      if (method === "qrl_accounts") return accounts;
+    ({ method }: { method: string }): Promise<unknown> => {
+      if (method === "qrl_accounts") return Promise.resolve(accounts);
       if (method === "qrl_walletCapabilities")
-        return {
+        return Promise.resolve({
           addressScheme: "qip55-64",
           chainId: "0x301825",
           genesisHash: HASH,
-        };
-      if (method === "qrl_chainId") return "0x301825";
+        });
+      if (method === "qrl_chainId") return Promise.resolve("0x301825");
       if (method === "qrl_getBlockByNumber")
-        return { number: "0x0", hash: HASH };
-      if (method === "qrl_sendTransaction") return HASH;
-      throw new Error(`Unexpected extension method: ${method}`);
+        return Promise.resolve({ number: "0x0", hash: HASH });
+      if (method === "qrl_sendTransaction") return Promise.resolve(HASH);
+      return Promise.reject(
+        new Error(`Unexpected extension method: ${method}`),
+      );
     },
   );
   const detail: EIP6963ProviderDetail = {
@@ -70,9 +76,9 @@ function install(detail: EIP6963ProviderDetail) {
       new CustomEvent("eip6963:announceProvider", { detail }),
     );
   window.addEventListener("eip6963:requestProvider", announce);
-  cleanups.push(() =>
-    window.removeEventListener("eip6963:requestProvider", announce),
-  );
+  cleanups.push(() => {
+    window.removeEventListener("eip6963:requestProvider", announce);
+  });
   announce();
 }
 
@@ -89,8 +95,10 @@ async function restoredStore() {
   };
   jest
     .spyOn(rpc.requestManager, "send")
-    .mockImplementation(async ({ method }) =>
-      method === "qrl_chainId" ? "0x301825" : { number: "0x0", hash: HASH },
+    .mockImplementation(({ method }) =>
+      Promise.resolve(
+        method === "qrl_chainId" ? "0x301825" : { number: "0x0", hash: HASH },
+      ),
     );
   jest.spyOn(rpc, "getGasPrice").mockResolvedValue(100n);
   jest
@@ -322,11 +330,11 @@ it("checks revocation again after estimating gas", async () => {
   install(detail);
   const original = request.getMockImplementation();
   if (!original) throw new Error("Missing fixture implementation");
-  estimate.mockImplementation(async () => {
+  estimate.mockImplementation(() => {
     request.mockImplementation(async (args) =>
       args.method === "qrl_accounts" ? [] : original(args),
     );
-    return 21000n;
+    return Promise.resolve(21000n);
   });
   const send = store.sendTransactionViaProvider(OTHER, "1");
   await jest.advanceTimersByTimeAsync(1000);

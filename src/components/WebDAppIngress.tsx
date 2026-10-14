@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 /**
  * Web dApp-connect ingress (analogue of DesktopDAppBridge for the plain
  * browser build). Mounted only outside the desktop shell and the native app:
@@ -40,7 +41,7 @@ const WebDAppIngress = () => {
       if (uri !== null) {
         dappConnectStore.requestDesktopConnect(uri, 'link');
       } else {
-        console.warn('[DAppConnect] ignoring malformed qrlconnect fragment');
+        logger.warn("[DAppConnect] ignoring malformed qrlconnect fragment");
       }
     };
 

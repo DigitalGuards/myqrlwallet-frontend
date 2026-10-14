@@ -1,3 +1,5 @@
+import { isRecord } from "@/utils/guards";
+import { logger } from "@/utils/log";
 import { accountSetupDescription } from "./accountSetupDescription";
 import { Button } from "../../../../UI/Button";
 import {
@@ -41,14 +43,15 @@ const accountCreateImportClasses = cva("flex gap-8", {
 });
 
 const AccountCreateImport = observer(({ showHeading = true }: { showHeading?: boolean }) => {
-  const { state } = useLocation();
+  const state: unknown = useLocation().state;
   const { qrlStore } = useStore();
-  const { activeAccount, setActiveAccount, setExtensionProvider } = qrlStore;
+  const { activeAccount } = qrlStore;
   const { accountAddress } = activeAccount;
   const navigate = useNavigate();
 
   const hasActiveAccount = !!accountAddress;
-  const hasAccountCreationPreference = !!state?.hasAccountCreationPreference;
+  const hasAccountCreationPreference =
+    isRecord(state) && state["hasAccountCreationPreference"] === true;
   const description = accountSetupDescription();
 
   const [pickerProviders, setPickerProviders] = useState<EIP6963ProviderDetail[] | null>(null);
@@ -62,18 +65,28 @@ const AccountCreateImport = observer(({ showHeading = true }: { showHeading?: bo
   useEffect(() => {
     if (mobilePairing && hasAdoptedMobileAccount) {
       setMobilePairing(null);
-      navigate(ROUTES.HOME);
+      Promise.resolve(navigate(ROUTES.HOME)).catch((error: unknown) => {
+        logger.error("Failed to open home:", error);
+      });
     }
   }, [mobilePairing, hasAdoptedMobileAccount, navigate]);
 
   const finishConnect = async (detail: EIP6963ProviderDetail) => {
     setPickerProviders(null);
-    const accounts = await connectWithProvider(detail, setActiveAccount, setExtensionProvider);
+    const accounts = await connectWithProvider(
+      detail,
+      (address, source) => qrlStore.setActiveAccount(address, source),
+      (provider) => {
+        qrlStore.setExtensionProvider(provider);
+      },
+    );
     if (accounts && accounts.length > 0) {
-      console.log("Successfully connected via extension, set active account, and stored provider.");
-      navigate(ROUTES.HOME);
+      logger.log("Successfully connected via extension, set active account, and stored provider.");
+      Promise.resolve(navigate(ROUTES.HOME)).catch((error: unknown) => {
+        logger.error("Failed to open home:", error);
+      });
     } else {
-      console.log("Failed to connect via extension or no accounts selected.");
+      logger.log("Failed to connect via extension or no accounts selected.");
     }
   };
 
@@ -84,9 +97,9 @@ const AccountCreateImport = observer(({ showHeading = true }: { showHeading?: bo
     const providers = await discoverQrlProviders();
     const only = providers[0];
     if (!only) {
-      console.error("QRL Wallet extension provider not found (EIP-6963).");
+      logger.error("QRL Wallet extension provider not found (EIP-6963).");
       alert("QRL Wallet Extension not detected. Please ensure it is installed and enabled.");
-      setExtensionProvider(null);
+      qrlStore.setExtensionProvider(null);
       return;
     }
     if (providers.length === 1) {
@@ -105,7 +118,7 @@ const AccountCreateImport = observer(({ showHeading = true }: { showHeading?: bo
       if (result.redirected) return;
       setMobilePairing({ uri: result.uri, installHint: result.installHint });
     } catch (error) {
-      console.error("Mobile pairing failed to start:", error);
+      logger.error("Mobile pairing failed to start:", error);
       setMobileConnectError(
         `Could not start mobile pairing: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -119,7 +132,7 @@ const AccountCreateImport = observer(({ showHeading = true }: { showHeading?: bo
       await cancelMobilePairing();
       setMobilePairing(null);
     } catch (error) {
-      console.error("Mobile pairing cancellation failed:", error);
+      logger.error("Mobile pairing cancellation failed:", error);
       setMobileConnectError("Could not cancel the pending mobile pairing. Please try again.");
     }
   };
@@ -155,7 +168,14 @@ const AccountCreateImport = observer(({ showHeading = true }: { showHeading?: bo
           {!isInNativeApp() && !isDesktop && (
             <>
               <Button
-                className="w-full" type="button" variant="outline" onClick={handleConnectExtension}
+                className="w-full"
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  handleConnectExtension().catch((error: unknown) => {
+                    logger.error("Failed to connect browser extension:", error);
+                  });
+                }}
               >
                 <Link2 className="mr-2 h-4 w-4" />
                 Connect Browser Extension
@@ -177,8 +197,14 @@ const AccountCreateImport = observer(({ showHeading = true }: { showHeading?: bo
       {pickerProviders ? (
         <ExtensionPickerDialog
           providers={pickerProviders}
-          onSelect={(detail) => void finishConnect(detail)}
-          onClose={() => setPickerProviders(null)}
+          onSelect={(detail) => {
+            finishConnect(detail).catch((error: unknown) => {
+              logger.error("Failed to connect browser extension:", error);
+            });
+          }}
+          onClose={() => {
+            setPickerProviders(null);
+          }}
         />
       ) : null}
 

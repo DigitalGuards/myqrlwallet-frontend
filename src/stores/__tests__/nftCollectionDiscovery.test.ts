@@ -8,10 +8,24 @@
 import { configure } from "mobx";
 import type { NFTInterface } from "@/constants";
 import NftStore from "../nftStore";
+import QrlStore from "../qrlStore";
+import TokenStore from "../tokenStore";
+import type { StorageUtil } from "@/utils/storage";
+import type { discoverNFTs } from "@/utils/web3";
+import type { fetchCollectionNameSymbol } from "@/utils/web3/nft";
 
-const mockDiscoverNFTs = jest.fn();
-const mockFetchCollectionNameSymbol = jest.fn();
-const mockUpdateNftList = jest.fn();
+const mockDiscoverNFTs = jest.fn<
+  ReturnType<typeof discoverNFTs>,
+  Parameters<typeof discoverNFTs>
+>();
+const mockFetchCollectionNameSymbol = jest.fn<
+  ReturnType<typeof fetchCollectionNameSymbol>,
+  Parameters<typeof fetchCollectionNameSymbol>
+>();
+const mockUpdateNftList = jest.fn<
+  ReturnType<typeof StorageUtil.updateNftList>,
+  Parameters<typeof StorageUtil.updateNftList>
+>();
 
 jest.mock("@/config", () => ({
   QRL_PROVIDER: { TEST_NET: { url: "https://rpc.example/testnet" } },
@@ -25,22 +39,26 @@ jest.mock("@/utils/nativeWalletMutation", () => ({ walletMutations: {} }));
 jest.mock("@/utils/web3/contractFactory", () => ({ contractMethods: jest.fn() }));
 jest.mock("@/utils/storage", () => ({
   StorageUtil: {
-    updateNftList: (...args: unknown[]) => mockUpdateNftList(...args),
-    getNftList: jest.fn(async () => []),
-    getHiddenNfts: jest.fn(async () => []),
-    unhideNft: jest.fn(async () => undefined),
+    updateNftList: (...args: Parameters<typeof StorageUtil.updateNftList>) =>
+      mockUpdateNftList(...args),
+    getNftList: jest.fn(() => Promise.resolve([])),
+    getHiddenNfts: jest.fn(() => Promise.resolve([])),
+    unhideNft: jest.fn(() => Promise.resolve(undefined)),
   },
 }));
 jest.mock("@/utils/web3", () => ({
-  discoverNFTs: (...args: unknown[]) => mockDiscoverNFTs(...args),
+  discoverNFTs: (...args: Parameters<typeof discoverNFTs>) =>
+    mockDiscoverNFTs(...args),
   getQrlWeb3: jest.fn(),
 }));
 jest.mock("@/utils/web3/nft", () => {
-  const actual = jest.requireActual("@/utils/web3/nft");
+  const actual =
+    jest.requireActual<typeof import("@/utils/web3/nft")>("@/utils/web3/nft");
   return {
     ...actual,
-    fetchCollectionNameSymbol: (...args: unknown[]) =>
-      mockFetchCollectionNameSymbol(...args),
+    fetchCollectionNameSymbol: (
+      ...args: Parameters<typeof fetchCollectionNameSymbol>
+    ) => mockFetchCollectionNameSymbol(...args),
     fetchErc1155Balance: jest.fn(),
     fetchNftMetadata: jest.fn(),
     fetchTokenUri: jest.fn(),
@@ -69,11 +87,10 @@ const discoveredRows: NFTInterface[] = [
 ];
 
 const makeStore = () => {
-  const qrlStore = {
-    qrlConnection: { blockchain: "TEST_NET" },
-    activeAccount: { accountAddress: HOLDER },
-  };
-  return new NftStore(qrlStore as never, {} as never);
+  const qrlStore = new QrlStore();
+  qrlStore.qrlConnection.blockchain = "TEST_NET";
+  qrlStore.activeAccount.accountAddress = HOLDER;
+  return new NftStore(qrlStore, new TokenStore(qrlStore));
 };
 
 
@@ -86,6 +103,9 @@ const at = <T,>(items: T[], index: number): T => {
 
 beforeEach(() => {
   configure({ enforceActions: "never" });
+  jest
+    .spyOn(QrlStore.prototype, "initializeBlockchain")
+    .mockResolvedValue(undefined);
   mockDiscoverNFTs.mockReset().mockResolvedValue(discoveredRows);
   // A node that answered: the contract exposes neither name() nor
   // symbol(). Cacheable as a permanent negative.

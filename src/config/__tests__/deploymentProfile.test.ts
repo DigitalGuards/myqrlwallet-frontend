@@ -87,9 +87,9 @@ describe.each(["VITE_V3_QNS_REGISTRY", "VITE_V3_FACTORY_ADDRESS"])(
       `Q${"0".repeat(128)}`,
       ` Q${"1".repeat(128)}`,
       `Q${"1".repeat(128)} `,
-    ])("rejects malformed deployment %p", (address) =>
-      expect(() => v3Deployment({ ...ENV, [key]: address })).toThrow(key),
-    );
+    ])("rejects malformed deployment %p", (address) => {
+      expect(() => v3Deployment({ ...ENV, [key]: address })).toThrow(key);
+    });
   },
 );
 

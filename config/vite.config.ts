@@ -23,7 +23,7 @@ const assertNoBrowserSeed = (mode: string, command: string) => {
   if (profile && profile !== 'v3-private') throw new Error('Unknown VITE_WALLET_PROFILE')
   const network = profile === 'v3-private' ? v3Deployment(publicEnv).network : null
   return { define: {
-    // Match dropConsole for lazy diagnostics, including argument evaluation.
+    // Match dropConsole when guarding diagnostic-only argument evaluation.
     __QRL_DIAGNOSTICS__: JSON.stringify(command !== 'build' || mode !== 'production'),
     // False here and overridden to true by config/vite.config.embedded.ts.
     // It is a constant so the minifier folds it and drops the branches it

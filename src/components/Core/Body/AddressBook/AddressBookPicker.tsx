@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { BookUser, Plus } from "lucide-react";
@@ -116,7 +117,9 @@ export function AddressBookPicker({
               <Input
                 id="ab-save-name"
                 value={saveName}
-                onChange={(e) => setSaveName(e.target.value)}
+                onChange={(e) => {
+                  setSaveName(e.target.value);
+                }}
                 placeholder="Name"
                 maxLength={40}
               />
@@ -134,7 +137,9 @@ export function AddressBookPicker({
           className="w-full"
           onClick={() => {
             onOpenChange(false);
-            navigate(ROUTES.ADDRESS_BOOK);
+            Promise.resolve(navigate(ROUTES.ADDRESS_BOOK)).catch((error: unknown) => {
+              logger.error("Failed to open address book:", error);
+            });
           }}
         >
           Manage address book

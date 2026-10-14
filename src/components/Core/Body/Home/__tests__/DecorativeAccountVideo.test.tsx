@@ -16,7 +16,7 @@ jest.mock("@/utils/nativeApp", () => ({
 let hidden = false;
 let reducedMotion = false;
 let paused = true;
-let motion: MediaQueryList;
+let motion: EventTarget;
 let play: jest.SpyInstance;
 let pause: jest.SpyInstance;
 
@@ -26,7 +26,7 @@ beforeEach(() => {
   reducedMotion = false;
   paused = true;
   mockUnsubscribe.mockClear();
-  motion = new EventTarget() as MediaQueryList;
+  motion = new EventTarget();
   Object.defineProperty(motion, "matches", { get: () => reducedMotion });
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
@@ -57,7 +57,9 @@ afterEach(() => {
 
 function mountVideo() {
   const view = render(<DecorativeAccountVideo />);
-  act(() => jest.advanceTimersByTime(0));
+  act(() => {
+    jest.advanceTimersByTime(0);
+  });
   const video = view.container.querySelector("video");
   if (!video || !video.parentElement)
     throw new Error("Missing decorative video");
@@ -83,11 +85,15 @@ function native(
 function visibility(value: boolean) {
   hidden = value;
   fireEvent(document, new Event("visibilitychange"));
-  act(() => jest.advanceTimersByTime(0));
+  act(() => {
+    jest.advanceTimersByTime(0);
+  });
 }
 
 function expectNoTimers() {
-  act(() => jest.runAllTicks());
+  act(() => {
+    jest.runAllTicks();
+  });
   expect(jest.getTimerCount()).toBe(0);
 }
 
@@ -161,7 +167,10 @@ it("rejects a late playing event and play resolution after the deadline", async 
   });
   paused = false;
   fireEvent.playing(video);
-  await act(async () => resolvePlay?.());
+  await act(async () => {
+    resolvePlay?.();
+    await Promise.resolve();
+  });
   expect(paused).toBe(true);
   expect(media.style.opacity).toBe("0");
 });
@@ -230,13 +239,19 @@ it("does not play under reduced motion and responds to preference changes", () =
   expect(jest.getTimerCount()).toBe(0);
   expect(media.style.opacity).toBe("0");
   reducedMotion = false;
-  act(() => motion.dispatchEvent(new Event("change")));
-  act(() => jest.advanceTimersByTime(0));
+  act(() => {
+    motion.dispatchEvent(new Event("change"));
+  });
+  act(() => {
+    jest.advanceTimersByTime(0);
+  });
   expect(play).toHaveBeenCalledTimes(1);
   paused = false;
   fireEvent.playing(video);
   reducedMotion = true;
-  act(() => motion.dispatchEvent(new Event("change")));
+  act(() => {
+    motion.dispatchEvent(new Event("change"));
+  });
   expect(paused).toBe(true);
   expect(media.style.opacity).toBe("0");
   native("UNLOCK_WITH_PIN");
@@ -268,7 +283,10 @@ it("cancels timers and listeners on unmount and rejects a stale promise", async 
   unmount();
   expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
   expect(jest.getTimerCount()).toBe(0);
-  await act(async () => resolvePlay?.());
+  await act(async () => {
+    resolvePlay?.();
+    await Promise.resolve();
+  });
   visibility(true);
   visibility(false);
   expect(play).toHaveBeenCalledTimes(1);
@@ -287,7 +305,10 @@ it("does not let an old rejection cancel a newer foreground attempt", async () =
   native("APP_STATE", { state: "active" });
   paused = false;
   fireEvent.playing(video);
-  await act(async () => rejectOld?.(new Error("Old interruption")));
+  await act(async () => {
+    rejectOld?.(new Error("Old interruption"));
+    await Promise.resolve();
+  });
   expect(media.style.opacity).toBe("1");
   expect(play).toHaveBeenCalledTimes(2);
   expectNoTimers();

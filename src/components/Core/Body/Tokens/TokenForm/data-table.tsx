@@ -1,9 +1,10 @@
+import { reportError } from "@/utils/reportError";
 import type {
     ColumnDef} from "@tanstack/react-table";
 import {
     flexRender,
+    createTable,
     getCoreRowModel,
-    useReactTable,
 } from "@tanstack/react-table"
 
 import {
@@ -14,45 +15,59 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/UI/table"
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { TokenInterface } from "@/constants";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { ROUTES } from "@/router/router";
 
-interface DataTableProps<TData, TValue> {
+interface DataTableProps<TData extends TokenInterface, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
     isLoading?: boolean
     emptyMessage?: ReactNode
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends TokenInterface, TValue>({
     columns,
     data,
     isLoading = false,
     emptyMessage,
 }: DataTableProps<TData, TValue>) {
     const navigate = useNavigate();
-    const table = useReactTable({
+    const [tableState, setTableState] = useState(() => createTable({
         data,
         columns,
         getCoreRowModel: getCoreRowModel(),
-    })
+        state: {},
+        onStateChange: () => {},
+        renderFallbackValue: null,
+    }).initialState);
+    // Each render uses a table bound to its React state snapshot. Retaining a
+    // mutable table instance across renders hides changes from memoized cells.
+    const table = useMemo(() => createTable({
+        data,
+        columns,
+        getCoreRowModel: getCoreRowModel(),
+        state: tableState,
+        onStateChange: setTableState,
+        renderFallbackValue: null,
+    }), [data, columns, tableState]);
 
     // Watch for row selection changes - navigate to Transfer page
     useEffect(() => {
         const selectedRows = table.getSelectedRowModel().rows;
         const firstRow = selectedRows[0];
         if (firstRow) {
-            const token = firstRow.original as TokenInterface;
+            const token = firstRow.original;
             // Reset selection before navigating
             table.resetRowSelection();
             // Navigate to Transfer page with token address as query param
-            navigate(`${ROUTES.TRANSFER}?asset=${token.address}`);
+            Promise.resolve(navigate(`${ROUTES.TRANSFER}?asset=${token.address}`)).catch((error: unknown) => {
+                reportError("Failed to open transfer:", error);
+            });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [table.getState().rowSelection, navigate]);
+    }, [table, navigate]);
 
     if (isLoading) {
         return (
@@ -92,7 +107,7 @@ export function DataTable<TData, TValue>({
                     ))}
                 </TableHeader>
                 <TableBody>
-                    {table.getRowModel().rows?.length ? (
+                    {table.getRowModel().rows.length ? (
                         table.getRowModel().rows.map((row) => (
                             <TableRow
                                 key={row.id}

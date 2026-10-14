@@ -110,7 +110,10 @@ export default function DecorativeAccountVideo() {
       if (visible) start();
       else stop();
     };
-    const onMotion = () => (motion.matches ? stop() : start());
+    const onMotion = () => {
+      if (motion.matches) stop();
+      else start();
+    };
     const unsubscribe = subscribeToNativeMessages((message) => {
       if (message.type === "APP_STATE") {
         const state = message.payload?.["state"];

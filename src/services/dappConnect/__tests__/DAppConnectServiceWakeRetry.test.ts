@@ -17,11 +17,14 @@ import {
   jest,
 } from "@jest/globals";
 import { TextDecoder, TextEncoder } from "node:util";
+import { SessionStatus, type DAppSession } from "../types";
 
 // jsdom ships neither, and the PQ crypto module builds its labels at import.
+const encoders: Partial<Pick<typeof globalThis, "TextEncoder" | "TextDecoder">> =
+  globalThis;
 Object.assign(globalThis, {
-  TextEncoder: globalThis.TextEncoder ?? TextEncoder,
-  TextDecoder: globalThis.TextDecoder ?? TextDecoder,
+  TextEncoder: encoders.TextEncoder ?? TextEncoder,
+  TextDecoder: encoders.TextDecoder ?? TextDecoder,
 });
 
 jest.mock("../SocketClient", () => ({
@@ -66,10 +69,12 @@ beforeAll(async () => {
   module.dappConnectService.dispose();
 });
 
-const CHANNEL = "wake-retry-channel";
+const CHANNEL = "00000000-0000-0000-0000-000000000000";
 
 let service: InstanceType<ServiceModule["DAppConnectService"]>;
-let reconnectAll: ReturnType<typeof jest.spyOn>;
+let reconnectAll: jest.SpiedFunction<
+  ServiceModule["DAppConnectService"]["prototype"]["reconnectAll"]
+>;
 let visibility: "visible" | "hidden" = "visible";
 
 const wake = (event: "online" | "visibilitychange"): void => {
@@ -88,13 +93,33 @@ beforeEach(() => {
   });
   // One stored session with no live connection: exactly the state a relay
   // refusal leaves behind.
-  jest
-    .spyOn(SessionStore, "getAll")
-    .mockReturnValue([{ id: CHANNEL }] as never);
+  const session: DAppSession = {
+    version: 4,
+    id: CHANNEL,
+    dappInfo: { name: "Wake retry", url: "https://dapp.example/", chainId: "0x1" },
+    originatorInfoReceived: true,
+    accountAuthorized: false,
+    connectedAccount: "",
+    keyExchange: {
+      protocolVersion: 3,
+      cid: "AAAAAAAAAAAAAAAAAAAAAA==",
+      kAeadRaw: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      htx: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      sendDir: "AAAAAg==",
+      recvDir: "AAAAAQ==",
+      sendSeq: 1,
+      recvSeq: 1,
+    },
+    relayUrl: "https://relay.example",
+    status: SessionStatus.DISCONNECTED,
+    createdAt: Date.now(),
+    lastActivity: Date.now(),
+  };
+  jest.spyOn(SessionStore, "getAll").mockReturnValue([session]);
   service = new DAppConnectService();
   reconnectAll = jest
     .spyOn(service, "reconnectAll")
-    .mockResolvedValue(undefined as never);
+    .mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -128,14 +153,10 @@ describe("wake retry", () => {
   });
 
   it("stays quiet while every stored session is live", () => {
-    const connections = (
-      Object(service) as { connections: Map<string, unknown> }
-    ).connections;
-    connections.set(CHANNEL, {});
+    jest.spyOn(service["connections"], "has").mockImplementation((id) => id === CHANNEL);
 
     wake("online");
     expect(reconnectAll).not.toHaveBeenCalled();
-    connections.delete(CHANNEL);
   });
 
   it("stops listening once disposed", () => {

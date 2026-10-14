@@ -51,7 +51,7 @@ function notifyDifferentEpoch(epoch: WalletEpoch): void {
     try {
       listener(epoch);
     } catch (error) {
-      logger.write("error", () => ["[WalletEpoch] Listener failed:", error]);
+      logger.error("[WalletEpoch] Listener failed:", error);
     }
   }
 }
@@ -106,7 +106,7 @@ function installCrossTabListeners(): void {
   } catch (error) {
     // Storage events remain the compatibility path when BroadcastChannel is
     // unavailable or disabled by the browser's privacy policy.
-    logger.write("warn", () => ["[WalletEpoch] BroadcastChannel unavailable:", error]);
+    logger.warn("[WalletEpoch] BroadcastChannel unavailable:", error);
   }
 }
 
@@ -176,7 +176,7 @@ export function advanceWalletEpoch(): WalletEpoch {
         baseEpoch: current,
       });
     } catch (error) {
-      logger.write("warn", () => ["[WalletEpoch] Could not broadcast volatile epoch:", error]);
+      logger.warn("[WalletEpoch] Could not broadcast volatile epoch:", error);
     }
     throw new Error("Could not persist the wallet clear boundary");
   }
@@ -184,7 +184,7 @@ export function advanceWalletEpoch(): WalletEpoch {
   try {
     broadcastChannel?.postMessage({ epoch: next });
   } catch (error) {
-    logger.write("warn", () => ["[WalletEpoch] Could not broadcast wallet epoch:", error]);
+    logger.warn("[WalletEpoch] Could not broadcast wallet epoch:", error);
   }
   return next;
 }

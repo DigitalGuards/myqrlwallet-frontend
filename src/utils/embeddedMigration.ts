@@ -159,9 +159,7 @@ function reportDone(): void {
   if (typeof bridge?.postMessage !== "function") return;
   // No token field: the app's bootstrap adds the per-load token itself. This
   // introduces no new bridge protocol; the app consumes it in QRLWebView.
-  bridge.postMessage(
-    JSON.stringify({ type: EMBEDDED_MIGRATION_DONE_MESSAGE }),
-  );
+  bridge.postMessage(JSON.stringify({ type: EMBEDDED_MIGRATION_DONE_MESSAGE }));
 }
 
 /**
@@ -206,7 +204,7 @@ export function runEmbeddedMigration(): boolean {
     orphans = accounts.removed;
     failed = local.failed || session.failed || accounts.failed;
   } catch (error) {
-    logger.write("error", () => ["[embedded] migration could not reach storage", error]);
+    logger.error("[embedded] migration could not reach storage", error);
     failed = true;
   }
 
@@ -214,16 +212,16 @@ export function runEmbeddedMigration(): boolean {
     // Staying silent is the point: the app keeps its pending marker and tries
     // again on the next launch. Claiming success here would strand a hosted
     // pairing session in the wallet for good.
-    logger.write("error", () => [
+    logger.error(
       "[embedded] migration did not complete, leaving it pending for the next launch",
-    ]);
+    );
     return false;
   }
 
-  logger.write("info", () => [
+  logger.info(
     `[embedded] migration from the hosted wallet cleared ${removed} pairing session key(s) ` +
       `and ${orphans} orphaned remote-signer account row(s)`,
-  ]);
+  );
   reportDone();
   return true;
 }

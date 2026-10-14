@@ -4,7 +4,9 @@ jest.mock("@/config/runtimeProfile", () => {
     value: "v3-private",
     configurable: true,
   });
-  return jest.requireActual("@/config/runtimeProfile");
+  return jest.requireActual<typeof import("@/config/runtimeProfile")>(
+    "@/config/runtimeProfile",
+  );
 });
 jest.mock("@/config", () => ({
   QRL_PROVIDER: {
@@ -22,14 +24,26 @@ jest.mock("@/config", () => ({
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({
-  deriveHexSeedAsync: jest.fn(async () => "public-test-seed"),
+  deriveHexSeedAsync: jest.fn(() => Promise.resolve("public-test-seed")),
 }));
 jest.mock("@/utils/storage", () => ({
-  StorageUtil: jest.requireActual("@/utils/storage/storage").default,
+  StorageUtil: jest.requireActual<typeof import("@/utils/storage/storage")>(
+    "@/utils/storage/storage",
+  ).default,
 }));
 jest.mock("@/utils/nativeApp", () => ({ isInNativeApp: () => false }));
 jest.mock("@/utils/web3", () => ({ getQrlWeb3: jest.fn() }));
 
+import Web3 from "@theqrl/web3";
+import type { QRLExecutionAPI } from "@theqrl/web3";
+import type { Web3SubscriptionConstructor } from "@theqrl/web3-core";
+import type { RegisteredSubscription } from "@theqrl/web3-qrl";
+import {
+  createQrlRpc,
+  pendingSend,
+  signedTransaction,
+} from "@/test-utils/web3";
+import type { QrlWalletBridge } from "@/desktop/bridge";
 import QrlStore from "../qrlStore";
 import type { ExtensionProvider } from "../qrlStore";
 import {
@@ -56,39 +70,54 @@ import { FEE_NOT_SHOWN } from "@/utils/web3/feePolicy";
 
 const ACCOUNT = `Q${"1".repeat(128)}`;
 const HASH = `0x${"ab".repeat(32)}`;
+let fetchAccounts: jest.SpiedFunction<QrlStore["fetchAccounts"]>;
+
 function rpcFixture() {
-  return {
-    requestManager: {
-      send: jest.fn(
-        async ({ method }: { method: string }): Promise<unknown> =>
-          method === "qrl_chainId" ? "0x301825" : { number: "0x0", hash: HASH },
+  const provider = createQrlRpc();
+  const send = jest
+    .spyOn(provider.requestManager, "send")
+    .mockImplementation(({ method }) =>
+      Promise.resolve(
+        method === "qrl_chainId" ? "0x301825" : { number: "0x0", hash: HASH },
       ),
-    },
-    net: { isListening: jest.fn(async () => true) },
-    getTransactionCount: jest.fn(async () => 0n),
-    getGasPrice: jest.fn(async () => 1n),
-    estimateGas: jest.fn(async () => 21000n),
-    accounts: {
-      signTransaction: jest.fn(async () => ({ rawTransaction: "0x1234" })),
-    },
-    sendSignedTransaction: jest.fn(() => {
-      const event = { on: jest.fn() };
-      event.on.mockReturnValue(event);
-      return event;
-    }),
+    );
+  jest.spyOn(provider.net, "isListening").mockResolvedValue(true);
+  jest.spyOn(provider, "getTransactionCount").mockResolvedValue(0n);
+  jest.spyOn(provider, "getGasPrice").mockResolvedValue(1n);
+  jest
+    .spyOn(provider, "getMaxPriorityFeePerGas")
+    .mockRejectedValue(new Error("Use gas price"));
+  jest
+    .spyOn(provider, "getBlock")
+    .mockRejectedValue(new Error("Use gas price"));
+  const estimateGas = jest
+    .spyOn(provider, "estimateGas")
+    .mockResolvedValue(21000n);
+  const signTransaction = jest
+    .spyOn(provider.accounts, "signTransaction")
+    .mockResolvedValue(signedTransaction("0x1234"));
+  const sendSignedTransaction = jest
+    .spyOn(provider, "sendSignedTransaction")
+    .mockImplementation(() => pendingSend());
+  return {
+    provider,
+    send,
+    estimateGas,
+    signTransaction,
+    sendSignedTransaction,
   };
 }
 function storeFixture(rpc = rpcFixture()) {
   const store = new QrlStore();
-  const utils = {
-    toPlanck: (value: string) => BigInt(value) * 10n ** 18n,
-    toHex: (value: bigint) => `0x${value.toString(16)}`,
+  store._Web3 = class<
+    Subscriptions extends Record<
+      string,
+      Web3SubscriptionConstructor<QRLExecutionAPI>
+    > = RegisteredSubscription,
+  > extends Web3<Subscriptions> {
+    override qrl = rpc.provider;
   };
-  store._Web3 = class {
-    static providers = { HttpProvider: class {} };
-    qrl = rpc;
-  } as never;
-  store._utils = utils as never;
+  store._utils = Web3.utils;
   store.activeAccount.accountAddress = ACCOUNT;
   store.qrlAccounts.accounts = [
     { accountAddress: ACCOUNT, accountBalance: "1", source: "seed" },
@@ -100,7 +129,9 @@ beforeEach(() => {
   jest.useFakeTimers();
   localStorage.clear();
   jest.clearAllMocks();
-  jest.spyOn(QrlStore.prototype, "fetchAccounts").mockResolvedValue(undefined);
+  fetchAccounts = jest
+    .spyOn(QrlStore.prototype, "fetchAccounts")
+    .mockResolvedValue(undefined);
   jest
     .spyOn(QrlStore.prototype, "validateActiveAccount")
     .mockResolvedValue(undefined);
@@ -181,27 +212,27 @@ it("marks v3 ready only after chain and genesis verification", async () => {
     blockchain: "TEST_NET_V3",
     isConnected: true,
   });
-  expect(
-    rpc.requestManager.send.mock.calls.map(([args]) => args.method),
-  ).toEqual([
+  expect(rpc.send.mock.calls.map(([args]) => args.method)).toEqual([
     "qrl_chainId",
     "qrl_getBlockByNumber",
     "qrl_chainId",
     "qrl_getBlockByNumber",
   ]);
-  expect(QrlStore.prototype.fetchAccounts).toHaveBeenCalledTimes(1);
+  expect(fetchAccounts).toHaveBeenCalledTimes(1);
 });
 
 it.each(["chain", "genesis"])(
   "keeps accounts and readiness blocked on a %s mismatch",
   async (kind) => {
     const { store, rpc } = storeFixture();
-    rpc.requestManager.send.mockImplementation(async ({ method }) =>
-      method === "qrl_chainId"
-        ? kind === "chain"
-          ? "0x539"
-          : "0x301825"
-        : { number: "0x0", hash: "wrong" },
+    rpc.send.mockImplementation(({ method }) =>
+      Promise.resolve(
+        method === "qrl_chainId"
+          ? kind === "chain"
+            ? "0x539"
+            : "0x301825"
+          : { number: "0x0", hash: "wrong" },
+      ),
     );
     const errors = jest
       .spyOn(console, "error")
@@ -209,7 +240,7 @@ it.each(["chain", "genesis"])(
     await store.initializeBlockchain();
     expect(store.qrlConnection.isConnected).toBe(false);
     expect(store.qrlInstance).toBeUndefined();
-    expect(QrlStore.prototype.fetchAccounts).not.toHaveBeenCalled();
+    expect(fetchAccounts).not.toHaveBeenCalled();
     expect(errors).toHaveBeenCalled();
   },
 );
@@ -217,23 +248,37 @@ it.each(["chain", "genesis"])(
 it("signs a normal web transfer with the pinned chain and rechecks before broadcast", async () => {
   const { store, rpc } = storeFixture();
   await store.initializeBlockchain();
-  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "public fixture", "medium", FEE_NOT_SHOWN);
+  await store.signAndSendTransaction(
+    ACCOUNT,
+    ACCOUNT,
+    "1",
+    "public fixture",
+    "medium",
+    FEE_NOT_SHOWN,
+  );
   expect(deriveHexSeedAsync).toHaveBeenCalled();
-  expect(rpc.accounts.signTransaction).toHaveBeenCalledWith(
+  expect(rpc.signTransaction).toHaveBeenCalledWith(
     expect.objectContaining({ chainId: "0x301825", gas: 21000n }),
     "public-test-seed",
   );
   expect(rpc.sendSignedTransaction).toHaveBeenCalledWith("0x1234");
-  expect(rpc.requestManager.send).toHaveBeenCalledTimes(10);
+  expect(rpc.send).toHaveBeenCalledTimes(10);
 });
 
 it("stops before derivation and signing if the chain changes after initialization", async () => {
   const { store, rpc } = storeFixture();
   await store.initializeBlockchain();
-  rpc.requestManager.send.mockResolvedValue("0x539");
-  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "public fixture", "medium", FEE_NOT_SHOWN);
+  rpc.send.mockResolvedValue("0x539");
+  await store.signAndSendTransaction(
+    ACCOUNT,
+    ACCOUNT,
+    "1",
+    "public fixture",
+    "medium",
+    FEE_NOT_SHOWN,
+  );
   expect(deriveHexSeedAsync).not.toHaveBeenCalled();
-  expect(rpc.accounts.signTransaction).not.toHaveBeenCalled();
+  expect(rpc.signTransaction).not.toHaveBeenCalled();
   expect(rpc.sendSignedTransaction).not.toHaveBeenCalled();
   expect(store.transactionStatus.state).toBe("failed");
   expect(store.qrlConnection.isConnected).toBe(false);
@@ -242,15 +287,17 @@ it("stops before derivation and signing if the chain changes after initializatio
 it("retries initialization after an identity failure and never restores readiness from listening alone", async () => {
   const { store, rpc } = storeFixture();
   jest.spyOn(console, "error").mockImplementation(() => undefined);
-  rpc.requestManager.send.mockResolvedValue("0x539");
+  rpc.send.mockResolvedValue("0x539");
   await store.initializeBlockchain();
   expect(store.qrlInstance).toBeUndefined();
-  rpc.requestManager.send.mockImplementation(async ({ method }) =>
-    method === "qrl_chainId" ? "0x301825" : { number: "0x0", hash: HASH },
+  rpc.send.mockImplementation(({ method }) =>
+    Promise.resolve(
+      method === "qrl_chainId" ? "0x301825" : { number: "0x0", hash: HASH },
+    ),
   );
   await store.fetchQrlConnection();
   expect(store.qrlConnection.isConnected).toBe(true);
-  rpc.requestManager.send.mockResolvedValue("0x539");
+  rpc.send.mockResolvedValue("0x539");
   await store.fetchQrlConnection();
   expect(store.qrlConnection.isConnected).toBe(false);
 });
@@ -260,17 +307,24 @@ it("does not broadcast if wallet generation changes during the final identity ch
   await store.initializeBlockchain();
   let current = true;
   jest.spyOn(walletMutations, "isCurrent").mockImplementation(() => current);
-  rpc.accounts.signTransaction.mockImplementation(async () => {
-    rpc.requestManager.send.mockImplementation(async ({ method }) => {
+  rpc.signTransaction.mockImplementation(() => {
+    rpc.send.mockImplementation(({ method }) => {
       current = false;
-      return method === "qrl_chainId"
-        ? "0x301825"
-        : { number: "0x0", hash: HASH };
+      return Promise.resolve(
+        method === "qrl_chainId" ? "0x301825" : { number: "0x0", hash: HASH },
+      );
     });
-    return { rawTransaction: "0x1234" };
+    return Promise.resolve(signedTransaction("0x1234"));
   });
-  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "public fixture", "medium", FEE_NOT_SHOWN);
-  expect(rpc.accounts.signTransaction).toHaveBeenCalledTimes(1);
+  await store.signAndSendTransaction(
+    ACCOUNT,
+    ACCOUNT,
+    "1",
+    "public fixture",
+    "medium",
+    FEE_NOT_SHOWN,
+  );
+  expect(rpc.signTransaction).toHaveBeenCalledTimes(1);
   expect(rpc.sendSignedTransaction).not.toHaveBeenCalled();
   expect(store.transactionStatus.error).toMatch(/Wallet changed/);
 });
@@ -280,15 +334,22 @@ it("does not retain signing authority across a clear during the initial identity
   await store.initializeBlockchain();
   let current = true;
   jest.spyOn(walletMutations, "isCurrent").mockImplementation(() => current);
-  rpc.requestManager.send.mockImplementation(async ({ method }) => {
+  rpc.send.mockImplementation(({ method }) => {
     current = false;
-    return method === "qrl_chainId"
-      ? "0x301825"
-      : { number: "0x0", hash: HASH };
+    return Promise.resolve(
+      method === "qrl_chainId" ? "0x301825" : { number: "0x0", hash: HASH },
+    );
   });
-  await store.signAndSendTransaction(ACCOUNT, ACCOUNT, "1", "public fixture", "medium", FEE_NOT_SHOWN);
+  await store.signAndSendTransaction(
+    ACCOUNT,
+    ACCOUNT,
+    "1",
+    "public fixture",
+    "medium",
+    FEE_NOT_SHOWN,
+  );
   expect(deriveHexSeedAsync).not.toHaveBeenCalled();
-  expect(rpc.accounts.signTransaction).not.toHaveBeenCalled();
+  expect(rpc.signTransaction).not.toHaveBeenCalled();
   expect(rpc.sendSignedTransaction).not.toHaveBeenCalled();
   expect(store.transactionStatus.error).toMatch(/Wallet changed/);
 });
@@ -316,10 +377,12 @@ it("blocks external account adoption and direct external broadcasts", async () =
   await expect(store.setActiveAccount(ACCOUNT, "extension")).rejects.toThrow(
     "not yet qualified",
   );
-  expect(() => store.setExtensionProvider(provider)).toThrow(
-    "not yet qualified",
-  );
-  expect(() => store.setMobileProvider(provider)).toThrow("not yet qualified");
+  expect(() => {
+    store.setExtensionProvider(provider);
+  }).toThrow("not yet qualified");
+  expect(() => {
+    store.setMobileProvider(provider);
+  }).toThrow("not yet qualified");
   store.extensionProvider = provider;
   store.qrlAccounts.accounts = [
     { accountAddress: ACCOUNT, accountBalance: "1", source: "extension" },
@@ -340,19 +403,19 @@ it.each([false, true])(
     await store.initializeBlockchain();
     let chain = "0x301825";
     const request = jest.fn(
-      async ({ method }: { method: string }): Promise<unknown> => {
+      ({ method }: { method: string }): Promise<unknown> => {
         if (method === "qrl_walletCapabilities")
-          return {
+          return Promise.resolve({
             addressScheme: "qip55-64",
             chainId: "0x301825",
             genesisHash: HASH,
-          };
-        if (method === "qrl_chainId") return chain;
-        if (method === "qrl_accounts") return [ACCOUNT];
+          });
+        if (method === "qrl_chainId") return Promise.resolve(chain);
+        if (method === "qrl_accounts") return Promise.resolve([ACCOUNT]);
         if (method === "qrl_getBlockByNumber")
-          return { number: "0x0", hash: HASH };
-        if (method === "qrl_sendTransaction") return HASH;
-        throw new Error("Unexpected extension request");
+          return Promise.resolve({ number: "0x0", hash: HASH });
+        if (method === "qrl_sendTransaction") return Promise.resolve(HASH);
+        return Promise.reject(new Error("Unexpected extension request"));
       },
     );
     const provider: ExtensionProvider = { request };
@@ -361,9 +424,9 @@ it.each([false, true])(
     store.qrlAccounts.accounts = [
       { accountAddress: ACCOUNT, accountBalance: "1", source: "extension" },
     ];
-    rpc.estimateGas.mockImplementation(async () => {
+    rpc.estimateGas.mockImplementation(() => {
       if (changeChain) chain = "0x539";
-      return 21000n;
+      return Promise.resolve(21000n);
     });
     await store.sendTransactionViaProvider(ACCOUNT, "1");
     const sends = request.mock.calls.filter(
@@ -415,7 +478,7 @@ it("discovers extensions but refuses unqualified connections", async () => {
 function pairedPhone(genesisHash = HASH, chainId = "0x301825") {
   const calls: unknown[] = [];
   const provider: ExtensionProvider = {
-    request: async <T = unknown>(args: { method: string; params?: unknown[] | object }): Promise<T> => {
+    request: (args): Promise<unknown> => {
       calls.push(args);
       const answer: unknown =
         args.method === "qrl_chainId"
@@ -423,8 +486,9 @@ function pairedPhone(genesisHash = HASH, chainId = "0x301825") {
           : args.method === "qrl_getBlockByNumber"
             ? { number: "0x0", hash: genesisHash }
             : undefined;
-      if (answer === undefined) throw new Error(`unexpected ${args.method}`);
-      return answer as T;
+      if (answer === undefined)
+        return Promise.reject(new Error(`unexpected ${args.method}`));
+      return Promise.resolve(answer);
     },
   };
   return { provider, calls };
@@ -433,11 +497,18 @@ function pairedPhone(genesisHash = HASH, chainId = "0x301825") {
 it("accepts a paired phone that proves the v3 network through the pairing", async () => {
   const { store } = storeFixture();
   const { provider: phone, calls } = pairedPhone();
-  expect(() => store.setMobileProvider(phone)).toThrow(V3_UNQUALIFIED_MOBILE_MESSAGE);
+  expect(() => {
+    store.setMobileProvider(phone);
+  }).toThrow(V3_UNQUALIFIED_MOBILE_MESSAGE);
   await qualifyV3MobileProvider(phone);
-  expect(() => store.setMobileProvider(phone)).not.toThrow();
+  expect(() => {
+    store.setMobileProvider(phone);
+  }).not.toThrow();
   expect(store.mobileProvider).toBe(phone);
-  expect(calls).toContainEqual({ method: "qrl_getBlockByNumber", params: ["0x0", false] });
+  expect(calls).toContainEqual({
+    method: "qrl_getBlockByNumber",
+    params: ["0x0", false],
+  });
 });
 
 it.each([
@@ -445,16 +516,46 @@ it.each([
   ["another chain", pairedPhone(HASH, "0x539").provider],
 ])("refuses a paired phone on %s", async (_name, phone) => {
   const { store } = storeFixture();
-  await expect(qualifyV3MobileProvider(phone)).rejects.toThrow(V3_UNQUALIFIED_MOBILE_MESSAGE);
-  expect(() => store.setMobileProvider(phone)).toThrow(V3_UNQUALIFIED_MOBILE_MESSAGE);
+  await expect(qualifyV3MobileProvider(phone)).rejects.toThrow(
+    V3_UNQUALIFIED_MOBILE_MESSAGE,
+  );
+  expect(() => {
+    store.setMobileProvider(phone);
+  }).toThrow(V3_UNQUALIFIED_MOBILE_MESSAGE);
   await expect(store.setActiveAccount(ACCOUNT, "mobile")).rejects.toThrow(
     V3_UNQUALIFIED_MOBILE_MESSAGE,
   );
 });
 
+function desktopBridge(): QrlWalletBridge {
+  const unexpectedRequest = () =>
+    Promise.reject(new Error("Unexpected desktop request"));
+  return {
+    createWallet: unexpectedRequest,
+    importWallet: unexpectedRequest,
+    unlock: unexpectedRequest,
+    lock: unexpectedRequest,
+    removeWallet: unexpectedRequest,
+    getStatus: unexpectedRequest,
+    listWallets: unexpectedRequest,
+    setActiveWallet: unexpectedRequest,
+    hasWallet: unexpectedRequest,
+    getBalance: unexpectedRequest,
+    buildTransaction: unexpectedRequest,
+    requestSignature: unexpectedRequest,
+    sendRawTransaction: unexpectedRequest,
+    onLockStateChanged: () => {
+      throw new Error("Unexpected desktop subscription");
+    },
+  };
+}
+
 it("blocks the desktop bridge and rejects native wrapper readiness", async () => {
-  const buildTransaction = jest.fn();
-  window.qrlWallet = { buildTransaction } as never;
+  const buildTransaction = jest.fn<
+    ReturnType<QrlWalletBridge["buildTransaction"]>,
+    Parameters<QrlWalletBridge["buildTransaction"]>
+  >();
+  window.qrlWallet = { ...desktopBridge(), buildTransaction };
   expect(isUnsupportedV3Context()).toBe(true);
   expect(() => qrlWallet()).toThrow("not yet qualified");
   const { store } = storeFixture();
@@ -468,7 +569,7 @@ it("blocks the desktop bridge and rejects native wrapper readiness", async () =>
 });
 
 it("accepts an updated desktop bridge while retaining native mobile rejection", () => {
-  window.qrlWallet = { addressScheme: "qip55-64" } as never;
+  window.qrlWallet = { ...desktopBridge(), addressScheme: "qip55-64" };
   expect(isUnsupportedV3Context()).toBe(false);
   expect(qrlWallet()).toBe(window.qrlWallet);
   window.ReactNativeWebView = { postMessage: jest.fn() };
@@ -500,14 +601,20 @@ it("reuses a recent mobile qualification and keeps it through a timeout", async 
     let mode: "ok" | "timeout" | "mismatch" = "ok";
     const calls: string[] = [];
     const phone: ExtensionProvider = {
-      request: async <T = unknown>(args: { method: string; params?: unknown[] | object }): Promise<T> => {
+      request: (args): Promise<unknown> => {
         calls.push(args.method);
-        if (mode === "timeout") throw new Error("Network identity verification timed out");
+        if (mode === "timeout")
+          return Promise.reject(
+            new Error("Network identity verification timed out"),
+          );
         const answer: unknown =
           args.method === "qrl_chainId"
             ? "0x301825"
-            : { number: "0x0", hash: mode === "ok" ? HASH : `0x${"cd".repeat(32)}` };
-        return answer as T;
+            : {
+                number: "0x0",
+                hash: mode === "ok" ? HASH : `0x${"cd".repeat(32)}`,
+              };
+        return Promise.resolve(answer);
       },
     };
     await qualifyV3MobileProvider(phone);
@@ -518,11 +625,15 @@ it("reuses a recent mobile qualification and keeps it through a timeout", async 
 
     now += V3_MOBILE_QUALIFICATION_TTL_MS + 1;
     mode = "timeout";
-    await expect(qualifyV3MobileProvider(phone)).rejects.toThrow(V3_MOBILE_UNRESPONSIVE_MESSAGE);
+    await expect(qualifyV3MobileProvider(phone)).rejects.toThrow(
+      V3_MOBILE_UNRESPONSIVE_MESSAGE,
+    );
     expect(isQualifiedV3MobileProvider(phone)).toBe(true);
 
     mode = "mismatch";
-    await expect(qualifyV3MobileProvider(phone)).rejects.toThrow(V3_UNQUALIFIED_MOBILE_MESSAGE);
+    await expect(qualifyV3MobileProvider(phone)).rejects.toThrow(
+      V3_UNQUALIFIED_MOBILE_MESSAGE,
+    );
     expect(isQualifiedV3MobileProvider(phone)).toBe(false);
   } finally {
     clock.mockRestore();

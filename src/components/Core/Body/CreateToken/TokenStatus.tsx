@@ -1,3 +1,4 @@
+import { reportError } from "@/utils/reportError";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
@@ -16,7 +17,7 @@ import { QRL_PROVIDER } from "@/config";
 const TokenStatus = observer(() => {
   const { qrlStore, tokenStore } = useStore();
   const { qrlConnection } = qrlStore;
-  const { addToken, createdToken, creatingToken } = tokenStore;
+  const { createdToken, creatingToken } = tokenStore;
   const {
     name,
     symbol,
@@ -39,7 +40,7 @@ const TokenStatus = observer(() => {
 
   const gasInQrl = new BigNumber(
     utils.fromPlanck(
-      BigInt(gasUsed) * BigInt(effectiveGasPrice ?? 0),
+      BigInt(gasUsed) * BigInt(effectiveGasPrice),
       "quanta",
     ),
   )
@@ -51,7 +52,7 @@ const TokenStatus = observer(() => {
     const addCreatedToken = async () => {
       if (address) {
         try {
-          await addToken({
+          await tokenStore.addToken({
             name,
             symbol,
             decimals,
@@ -59,12 +60,12 @@ const TokenStatus = observer(() => {
             amount: "0",
           });
         } catch (error) {
-          console.error("Failed to add token to list:", error);
+          reportError("Failed to add token to list:", error);
         }
       }
     };
-    addCreatedToken();
-  }, [address, addToken, name, symbol, decimals]);
+    void addCreatedToken();
+  }, [address, tokenStore, name, symbol, decimals]);
 
   // Determine which state to show
   const isCreating = creatingToken.creating;
@@ -168,11 +169,15 @@ const TokenStatus = observer(() => {
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 font-medium text-secondary hover:text-secondary/80"
                 >
-                  {StringUtil.getSplitAddress(tx.toString())}
+                  {StringUtil.getSplitAddress(tx)}
                   <ExternalLink className="h-4 w-4" />
                 </a>
                 <button
-                  onClick={() => copyToClipboard(tx.toString(), "txHash")}
+                  onClick={() => {
+                    copyToClipboard(tx, "txHash").catch((error: unknown) => {
+                      reportError("Failed to copy transaction hash:", error);
+                    });
+                  }}
                   className="text-muted-foreground hover:text-foreground"
                 >
                   {copiedItem === "txHash" ? (
@@ -193,7 +198,11 @@ const TokenStatus = observer(() => {
                   {StringUtil.getSplitAddress(address)}
                 </span>
                 <button
-                  onClick={() => copyToClipboard(address, "tokenAddress")}
+                  onClick={() => {
+                    copyToClipboard(address, "tokenAddress").catch((error: unknown) => {
+                      reportError("Failed to copy token address:", error);
+                    });
+                  }}
                   className="text-muted-foreground hover:text-foreground"
                 >
                   {copiedItem === "tokenAddress" ? (
@@ -230,12 +239,14 @@ const TokenStatus = observer(() => {
               <span className="text-sm text-muted-foreground">Block Hash</span>
               <div className="flex items-center gap-2">
                 <span className="font-medium text-secondary">
-                  {StringUtil.getSplitAddress(blockHash.toString())}
+                  {StringUtil.getSplitAddress(blockHash)}
                 </span>
                 <button
-                  onClick={() =>
-                    copyToClipboard(blockHash.toString(), "blockHash")
-                  }
+                  onClick={() => {
+                    copyToClipboard(blockHash, "blockHash").catch((error: unknown) => {
+                      reportError("Failed to copy block hash:", error);
+                    });
+                  }}
                   className="text-muted-foreground hover:text-foreground"
                 >
                   {copiedItem === "blockHash" ? (

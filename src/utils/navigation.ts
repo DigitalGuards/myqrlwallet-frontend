@@ -21,13 +21,13 @@ export const navigateTo = (url: string, navigate: NavigateFunction): void => {
     openNativeSettings();
   } else if (url === ROUTES.SETTINGS && isDesktop) {
     desktopSigner.openDesktopSettings().catch((error: unknown) => {
-      logger.write("error", () => ["Navigation: desktop settings failed", error]);
+      logger.error("Navigation: desktop settings failed", error);
     });
   } else {
     const navigation = navigate(url);
     if (navigation) {
       navigation.catch((error: unknown) => {
-        logger.write("error", () => ["Navigation: route change failed", error]);
+        logger.error("Navigation: route change failed", error);
       });
     }
   }

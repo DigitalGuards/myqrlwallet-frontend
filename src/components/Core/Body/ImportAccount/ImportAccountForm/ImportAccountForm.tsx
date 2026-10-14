@@ -1,3 +1,4 @@
+import type { ImportedAccount } from "../importedAccount";
 import { Button } from "../../../../UI/Button";
 import { Card, CardContent, CardFooter } from "../../../../UI/Card";
 import {
@@ -15,7 +16,6 @@ import { Download, Loader } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { deriveHexSeedAsync } from "@/utils/crypto";
-import type { ExtendedWalletAccount } from "@/utils/crypto";
 import { isDesktop } from "@/desktop/bridge";
 
 const FormSchema = z.object({
@@ -23,7 +23,7 @@ const FormSchema = z.object({
 });
 
 type ImportAccountFormProps = {
-  onAccountImported: (account: ExtendedWalletAccount) => void;
+  onAccountImported: (account: ImportedAccount) => void;
 };
 
 export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps) => {
@@ -52,13 +52,13 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
       // mnemonic on a placeholder account (address filled in by PinSetup) so
       // the existing import-flow plumbing is unchanged.
       if (isDesktop) {
-        const account = { address: "", mnemonic: formData.mnemonicPhrases } as ExtendedWalletAccount;
+        const account: ImportedAccount = { address: "", mnemonic: formData.mnemonicPhrases };
         onAccountImported(account);
         return;
       }
 
       const hexSeed = await deriveHexSeedAsync(formData.mnemonicPhrases);
-      const account = qrlInstance?.accounts.seedToAccount(hexSeed) as ExtendedWalletAccount;
+      const account: ImportedAccount | undefined = qrlInstance?.accounts.seedToAccount(hexSeed);
 
       if (!account) {
         throw new Error("Failed to create account from mnemonic");
@@ -78,7 +78,11 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
 
   return (
     <Form {...form}>
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={(event) => {
+        handleSubmit(onSubmit)(event).catch(() => {
+          form.setError("mnemonicPhrases", { message: "Invalid mnemonic phrases" });
+        });
+      }}>
         <Card >
           <CardContent className="space-y-8 pt-6">
           <p className="text-sm text-muted-foreground">

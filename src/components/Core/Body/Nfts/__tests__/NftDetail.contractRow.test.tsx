@@ -4,7 +4,6 @@ jest.mock("@/components/SEO/SEO", () => ({ SEO: () => null }));
 
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { useParams } from "react-router";
-import { useStore } from "@/stores/store";
 import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
 import type { UseQrnsRecipientResult } from "@/hooks/useQrnsRecipient";
 import { copyToClipboard } from "@/utils/nativeApp";
@@ -17,7 +16,8 @@ jest.mock("react-router", () => ({
   useParams: jest.fn(),
   useLocation: jest.fn(() => ({ pathname: "/", search: "", state: null })),
 }));
-jest.mock("@/stores/store", () => ({ useStore: jest.fn() }));
+const mockUseStore = jest.fn<unknown, []>();
+jest.mock("@/stores/store", () => ({ useStore: () => mockUseStore() }));
 jest.mock("@/utils", () => ({
   cn: (...values: unknown[]) =>
     values.filter((value) => typeof value === "string").join(" "),
@@ -25,7 +25,7 @@ jest.mock("@/utils", () => ({
 jest.mock("@/router/router", () => ({ ROUTES: { HOME: "/" } }));
 jest.mock("@/utils/storage", () => ({ StorageUtil: {} }));
 jest.mock("@/utils/nativeApp", () => ({
-  copyToClipboard: jest.fn(async () => true),
+  copyToClipboard: jest.fn(() => Promise.resolve(true)),
 }));
 jest.mock("@/hooks/useNetworkQrnsRecipient", () => ({
   useNetworkQrnsRecipient: jest.fn(),
@@ -80,7 +80,7 @@ function renderDetail() {
     collectionName: "Devnet Punks",
     collectionSymbol: "DVP",
   };
-  const mockStore = Object.assign(Object.create(null), {
+  const mockStore = {
     qrlStore: {
       activeAccount: { accountAddress: ACCOUNT },
       activeAccountSource: "seed",
@@ -94,8 +94,8 @@ function renderDetail() {
       resetTransactionStatus: jest.fn(),
     },
     nftStore: { nftList: [nft], transferNft: jest.fn() },
-  });
-  jest.mocked(useStore).mockReturnValue(mockStore);
+  };
+  mockUseStore.mockReturnValue(mockStore);
   jest.mocked(useParams).mockReturnValue({
     contractAddress: CONTRACT,
     tokenId: "2",
@@ -135,9 +135,9 @@ describe("NftDetail contract row", () => {
       view.getByRole("button", { name: "Copy contract address" }),
     );
 
-    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith(CONTRACT));
+    await waitFor(() => { expect(copyToClipboard).toHaveBeenCalledWith(CONTRACT); });
     await waitFor(() =>
-      expect(view.getByRole("button", { name: "Address copied" })).toBeTruthy(),
+      { expect(view.getByRole("button", { name: "Address copied" })).toBeTruthy(); },
     );
   });
 
