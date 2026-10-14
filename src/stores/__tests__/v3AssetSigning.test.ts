@@ -17,14 +17,14 @@ const mockSendEvent = { on: jest.fn().mockReturnThis() };
 const mockRpc = {
   accounts: { seedToAccount: jest.fn(() => ({ address: ACCOUNT })) },
   wallet: { add: jest.fn() },
-  getGasPrice: jest.fn(async () => 1n),
-  estimateGas: jest.fn(async () => 50000n),
+  getGasPrice: jest.fn(() => Promise.resolve(1n)),
+  estimateGas: jest.fn(() => Promise.resolve(50000n)),
   sendTransaction: jest.fn(() => mockSendEvent),
   Contract: class {
     methods = {
       transfer: () => ({
         encodeABI: () => "0x1234",
-        estimateGas: async () => 50000n,
+        estimateGas: () => Promise.resolve(50000n),
       }),
     };
   },
@@ -48,30 +48,32 @@ jest.mock("@/config", () => ({
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({
-  deriveHexSeedAsync: jest.fn(async () => "public-test-seed"),
+  deriveHexSeedAsync: jest.fn(() => Promise.resolve("public-test-seed")),
 }));
 jest.mock("@/desktop/bridge", () => ({ isDesktop: false, desktopSigner: {} }));
 jest.mock("@/desktop/walletHydration", () => ({}));
 jest.mock("@/utils/storage", () => ({
   StorageUtil: {
-    getBlockChain: jest.fn(async () => "TEST_NET_V3"),
+    getBlockChain: jest.fn(() => Promise.resolve("TEST_NET_V3")),
     // The local seed signing paths confirm the active account's source
     // against the persisted list before touching any seed material.
-    getAccountList: jest.fn(async () => [
-      { address: `Q${"1".repeat(128)}`, source: "seed" },
-    ]),
+    getAccountList: jest.fn(() =>
+      Promise.resolve([{ address: `Q${"1".repeat(128)}`, source: "seed" }]),
+    ),
   },
 }));
 jest.mock("@/utils/web3", () => ({
-  getQrlWeb3: jest.fn(async () => ({
-    default: class {
-      static providers: { HttpProvider: new (url: string) => object } = {
-        HttpProvider: class {},
-      };
-      qrl = mockRpc;
-    },
-    utils: { bytesToHex: (value: string) => value },
-  })),
+  getQrlWeb3: jest.fn(() =>
+    Promise.resolve({
+      default: class {
+        static providers: { HttpProvider: new (url: string) => object } = {
+          HttpProvider: jest.fn<object, [string]>(() => ({})),
+        };
+        qrl = mockRpc;
+      },
+      utils: { bytesToHex: (value: string) => value },
+    }),
+  ),
 }));
 jest.mock("@/utils/web3/contractFactory", () => ({
   contractMethods: () => ({
@@ -94,7 +96,7 @@ function deferred() {
   const promise = new Promise<void>((resolve) => {
     settle = resolve;
   });
-  return { promise, resolve: () => settle() };
+  return { promise, resolve: settle };
 }
 
 function assetFixture(asset: "ERC20" | "ERC721" | "ERC1155") {

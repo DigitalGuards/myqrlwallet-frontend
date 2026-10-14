@@ -46,16 +46,19 @@ class Events {
   }
 }
 let mockEvents = new Events();
+let refreshTokenBalances: jest.SpiedFunction<
+  TokenStore["refreshTokenBalances"]
+>;
 const mockRpc = {
-  getTransactionCount: async () => 7n,
-  getGasPrice: async () => 100n,
-  estimateGas: jest.fn(async () => 21000n),
+  getTransactionCount: () => Promise.resolve(7n),
+  getGasPrice: () => Promise.resolve(100n),
+  estimateGas: jest.fn(() => Promise.resolve(21000n)),
   getTransactionReceipt: jest.fn<Promise<unknown>, [string]>(),
   transactionPollingTimeout: 750000,
   transactionPollingInterval: 1000,
   transactionConfirmationBlocks: 24,
   accounts: {
-    signTransaction: jest.fn(async () => ({ rawTransaction: "0x01" })),
+    signTransaction: jest.fn(() => Promise.resolve({ rawTransaction: "0x01" })),
     seedToAccount: jest.fn(() => ({ address: FROM })),
   },
   wallet: { add: jest.fn() },
@@ -82,7 +85,7 @@ jest.mock("@/config", () => ({
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({
-  deriveHexSeedAsync: jest.fn(async () => "fixture-seed"),
+  deriveHexSeedAsync: jest.fn(() => Promise.resolve("fixture-seed")),
 }));
 jest.mock("@/desktop/bridge", () => ({
   get isDesktop() {
@@ -94,24 +97,25 @@ jest.mock("@/desktop/bridge", () => ({
 }));
 jest.mock("@/desktop/walletHydration", () => ({}));
 jest.mock("@/utils/storage", () => ({
-  StorageUtil: { getBlockChain: async () => "TEST_NET" },
+  StorageUtil: { getBlockChain: () => Promise.resolve("TEST_NET") },
 }));
 jest.mock("@/utils/web3", () => ({
-  getQrlWeb3: async () => ({
-    default: class {
-      static providers: { HttpProvider: new (url: string) => object } = {
-        HttpProvider: class {},
-      };
-      qrl = { ...mockRpc };
-      constructor(options?: { config?: typeof SEND_TX_POLLING_CONFIG }) {
-        Object.assign(this.qrl, options?.config);
-      }
-    },
-    utils: {
-      toPlanck: (value: string) => mockParseUnits(value).toString(),
-      toHex: (value: bigint) => `0x${value.toString(16)}`,
-    },
-  }),
+  getQrlWeb3: () =>
+    Promise.resolve({
+      default: class {
+        static providers: { HttpProvider: new (url: string) => object } = {
+          HttpProvider: jest.fn<object, [string]>(() => ({})),
+        };
+        qrl = { ...mockRpc };
+        constructor(options?: { config?: typeof SEND_TX_POLLING_CONFIG }) {
+          Object.assign(this.qrl, options?.config);
+        }
+      },
+      utils: {
+        toPlanck: (value: string) => mockParseUnits(value).toString(),
+        toHex: (value: bigint) => `0x${value.toString(16)}`,
+      },
+    }),
 }));
 jest.mock("@/utils/nativeWalletMutation", () => ({
   walletMutations: { captureGeneration: () => 0, isCurrent: () => true },
@@ -210,7 +214,7 @@ beforeEach(() => {
     .spyOn(QrlStore.prototype, "assertLocalSeedAccount")
     .mockResolvedValue(undefined);
   jest.spyOn(QrlStore.prototype, "fetchAccounts").mockResolvedValue(undefined);
-  jest
+  refreshTokenBalances = jest
     .spyOn(TokenStore.prototype, "refreshTokenBalances")
     .mockResolvedValue(undefined);
 });
@@ -305,7 +309,7 @@ describe.each([false, true])("send lifecycle (token=%s)", (token) => {
               expect.objectContaining({
                 from: FROM,
                 to: CONTRACT,
-                data: expect.stringContaining("0xa9059cbb"),
+                data: `0xa9059cbb${TO.slice(1)}${BigInt("1234567").toString(16).padStart(64, "0")}`,
               }),
             ],
           });
@@ -428,25 +432,17 @@ describe.each<SendSigner>(["extension", "mobile", "desktop"])(
   (signer) => {
     it("refreshes after broadcast and once after inclusion", async () => {
       const { store, broadcast } = fixture(signer, true);
-      expect(TokenStore.prototype.refreshTokenBalances).not.toHaveBeenCalled();
+      expect(refreshTokenBalances).not.toHaveBeenCalled();
       await broadcast();
-      expect(TokenStore.prototype.refreshTokenBalances).toHaveBeenCalledTimes(
-        1,
-      );
+      expect(refreshTokenBalances).toHaveBeenCalledTimes(1);
       await jest.advanceTimersByTimeAsync(5000);
-      expect(TokenStore.prototype.refreshTokenBalances).toHaveBeenCalledTimes(
-        1,
-      );
+      expect(refreshTokenBalances).toHaveBeenCalledTimes(1);
       mockRpc.getTransactionReceipt.mockResolvedValue(RECEIPT);
       await jest.advanceTimersByTimeAsync(5000);
       expect(store.transactionStatus.state).toBe("confirmed");
-      expect(TokenStore.prototype.refreshTokenBalances).toHaveBeenCalledTimes(
-        2,
-      );
+      expect(refreshTokenBalances).toHaveBeenCalledTimes(2);
       await jest.advanceTimersByTimeAsync(5000);
-      expect(TokenStore.prototype.refreshTokenBalances).toHaveBeenCalledTimes(
-        2,
-      );
+      expect(refreshTokenBalances).toHaveBeenCalledTimes(2);
     });
 
     it.each([
@@ -463,7 +459,7 @@ describe.each<SendSigner>(["extension", "mobile", "desktop"])(
           signer === "desktop" ? { transactionHash: result } : result,
         );
       await sending;
-      expect(TokenStore.prototype.refreshTokenBalances).not.toHaveBeenCalled();
+      expect(refreshTokenBalances).not.toHaveBeenCalled();
     });
 
     it("discards an in-flight receipt and its refresh after reset", async () => {
@@ -476,9 +472,7 @@ describe.each<SendSigner>(["extension", "mobile", "desktop"])(
       receipt.resolve(RECEIPT);
       await jest.advanceTimersByTimeAsync(5000);
       expect(store.transactionStatus.state).toBe("idle");
-      expect(TokenStore.prototype.refreshTokenBalances).toHaveBeenCalledTimes(
-        1,
-      );
+      expect(refreshTokenBalances).toHaveBeenCalledTimes(1);
       expect(mockRpc.getTransactionReceipt).toHaveBeenCalledTimes(1);
       expect(transactionHistoryStore.getSnapshot().entries[0]?.state).toBe(
         "pending",
@@ -525,9 +519,7 @@ it.each([false, true])(
     expect(transactionHistoryStore.getSnapshot().entries[0]?.state).toBe(
       "confirmed",
     );
-    expect(TokenStore.prototype.refreshTokenBalances).toHaveBeenCalledTimes(
-      token ? 1 : 0,
-    );
+    expect(refreshTokenBalances).toHaveBeenCalledTimes(token ? 1 : 0);
   },
 );
 
