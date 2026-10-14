@@ -27,7 +27,9 @@ function App() {
         window.clearInterval(timer);
       }
     }, 100);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+    };
   }, [unsupported]);
 
   if (unsupported) {

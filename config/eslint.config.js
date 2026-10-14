@@ -200,26 +200,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/App.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: ["src/__tests__/App.nativeCompatibility.test.tsx"],
-    rules: {
-      "@typescript-eslint/consistent-type-imports": "off",
-      "@typescript-eslint/require-await": "off",
-      "@typescript-eslint/unbound-method": "off",
-    },
-  },
-  {
-    files: ["src/__tests__/viteProductionBuild.test.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
     files: [
       "src/components/Core/Body/ImportAccount/__tests__/ImportAccount.activation.test.tsx",
     ],
@@ -570,42 +550,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/config/__tests__/deploymentProfile.test.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: ["src/config/__tests__/embeddedProfile.test.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: ["src/config/__tests__/nativeRuntimeProfile.test.ts"],
-    rules: {
-      "@typescript-eslint/no-unsafe-return": "off",
-    },
-  },
-  {
-    files: ["src/config/deploymentProfile.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: ["src/config/networks.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
-    files: ["src/config/runtimeProfile.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
     files: ["src/desktop/__tests__/bridge.test.ts"],
     rules: {
       "@typescript-eslint/consistent-type-assertions": "off",
@@ -629,58 +573,6 @@ export const lintRatchet = [
     files: ["src/desktop/walletHydration.ts"],
     rules: {
       "@typescript-eslint/no-unnecessary-condition": "off",
-    },
-  },
-  {
-    files: ["src/hooks/__tests__/useHasNativeInjectedPin.test.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: ["src/hooks/__tests__/useQrnsRecipient.test.tsx"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/require-await": "off",
-      "@typescript-eslint/unbound-method": "off",
-    },
-  },
-  {
-    files: ["src/hooks/use-mobile.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: ["src/hooks/useCopyToClipboard.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: ["src/hooks/useNetworkQrnsRecipient.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-    },
-  },
-  {
-    files: ["src/hooks/useWalletLimit.ts"],
-    rules: {
-      "@typescript-eslint/no-floating-promises": "off",
-    },
-  },
-  {
-    files: ["src/main.tsx"],
-    rules: {
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/router/router.tsx"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
     },
   },
   {
