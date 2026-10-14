@@ -1,10 +1,12 @@
+import { describeUnknown } from "@/utils/guards";
+import { unsignedQuantity } from "@/utils/transactionHistory";
 import { useStore } from "@/stores/store";
 import { quoteFees, type FeeLevel } from "@/stores/qrlStore";
 import type { ApprovedFee } from "@/utils/web3/feePolicy";
 import { utils } from "@theqrl/web3";
 import { cva } from "class-variance-authority";
 import { Loader } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { getOptimalGasFee } from "@/utils/formatting";
 import { cn } from "@/utils/cn";
 
@@ -55,8 +57,6 @@ export const GasFeeNotice = ({
 }: GasFeeNoticeProps) => {
   const { qrlStore } = useStore();
   const { qrlInstance } = qrlStore;
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
   const hasValuesForGasCalculation = !!from && !!to && !!value;
 
   const [gasFee, setGasFee] = useState({
@@ -71,7 +71,7 @@ export const GasFeeNotice = ({
     onQuoteRef.current = onQuote;
   }, [onQuote]);
 
-  const fetchGasFee = async () => {
+  const fetchGasFee = useCallback(async (isCancelled: () => boolean) => {
     setGasFee(prev => ({ ...prev, isLoading: true, error: "" }));
     onQuoteRef.current?.(null);
     try {
@@ -81,48 +81,43 @@ export const GasFeeNotice = ({
         value: utils.toPlanck(value, "quanta"),
       };
       if (!qrlInstance) throw new Error("Wallet not connected");
-      const [estimatedTransactionGas, fees] = await Promise.all([
+      const [estimate, fees] = await Promise.all([
         qrlInstance.estimateGas(transaction),
         quoteFees(qrlInstance, feeLevel),
       ]);
+      if (isCancelled()) return;
+      const estimatedTransactionGas = unsignedQuantity(estimate);
+      if (estimatedTransactionGas === null) throw new Error("Invalid gas estimate");
       // Quote what the send is expected to cost at the current base fee;
       // maxFeePerGas is only a ceiling and its unused part is refunded.
       const estimatedGasRaw = utils.fromPlanck(
-        BigInt(estimatedTransactionGas) * fees.expectedFeePerGas,
+        estimatedTransactionGas * fees.expectedFeePerGas,
         "quanta"
       );
       const estimatedGas = getOptimalGasFee(estimatedGasRaw);
       setGasFee(prev => ({ ...prev, estimatedGas, error: "", isLoading: false }));
       onQuoteRef.current?.({
         quote: fees,
-        gasLimit: BigInt(estimatedTransactionGas),
+        gasLimit: estimatedTransactionGas,
       });
     } catch (error) {
+      if (isCancelled()) return;
       onQuoteRef.current?.(null);
-      setGasFee(prev => ({ ...prev, error: `${error}`, isLoading: false }));
+      setGasFee(prev => ({ ...prev, error: error instanceof Error ? error.toString() : describeUnknown(error), isLoading: false }));
     }
-  };
+  }, [from, to, value, qrlInstance, feeLevel]);
 
   useEffect(() => {
+    if (!hasValuesForGasCalculation) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void fetchGasFee(() => cancelled);
+    }, 500);
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      cancelled = true;
+      clearTimeout(timer);
     };
-  }, []);
-
-  useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    if (hasValuesForGasCalculation) {
-      debounceTimerRef.current = setTimeout(() => {
-        fetchGasFee();
-      }, 500);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from, to, value, feeLevel, hasValuesForGasCalculation]);
+  }, [fetchGasFee, hasValuesForGasCalculation]);
 
   return (
     <div className={gasFeeNoticeClasses({ isSubmitting })}>
@@ -144,13 +139,13 @@ export const GasFeeNotice = ({
           )}
         </div>
         <div className="grid grid-cols-3 gap-2">
-          {(["low", "medium", "high"] as FeeLevel[]).map((level) => {
+          {(["low", "medium", "high"] as const).map((level) => {
             const active = feeLevel === level;
             return (
               <button
                 key={level}
                 type="button"
-                onClick={() => onFeeLevelChange(level)}
+                onClick={() => { onFeeLevelChange(level); }}
                 disabled={isSubmitting}
                 aria-pressed={active}
                 className={cn(

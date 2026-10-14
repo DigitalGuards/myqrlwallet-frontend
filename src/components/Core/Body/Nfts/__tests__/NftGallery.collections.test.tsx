@@ -4,13 +4,15 @@
  * collection's tokens, the way the browser extension's NFT collections
  * list does.
  */
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { NFTInterface } from "@/constants";
 import { groupNftsByCollection } from "@/utils/web3/nftCollections";
-import { useStore } from "@/stores/store";
+import { reportError } from "@/utils/reportError";
 import NftGallery from "../NftGallery";
 
-jest.mock("@/stores/store", () => ({ useStore: jest.fn() }));
+jest.mock("@/utils/reportError", () => ({ reportError: jest.fn() }));
+const mockUseStore = jest.fn<unknown, []>();
+jest.mock("@/stores/store", () => ({ useStore: () => mockUseStore() }));
 jest.mock("@/utils", () => ({
   cn: (...values: unknown[]) =>
     values.filter((value) => typeof value === "string").join(" "),
@@ -59,18 +61,19 @@ const ownedNfts: NFTInterface[] = [
 ];
 
 const mountWith = (nfts: NFTInterface[], pending: NFTInterface[] = []) => {
-  (useStore as jest.Mock).mockReturnValue({
+  const store = {
     qrlStore: { activeAccount: { accountAddress: HOLDER } },
     nftStore: {
       nftCollections: groupNftsByCollection(nfts),
       pendingDiscoveredNftCollections: groupNftsByCollection(pending),
-      refreshNftBalances: jest.fn(async () => undefined),
-      refreshNftMetadata: jest.fn(async () => undefined),
-      discoverNftsForReview: jest.fn(async () => []),
-      hideNft: jest.fn(async () => undefined),
+      refreshNftBalances: jest.fn(() => Promise.resolve()),
+      refreshNftMetadata: jest.fn(() => Promise.resolve()),
+      discoverNftsForReview: jest.fn(() => Promise.resolve([])),
+      hideNft: jest.fn(() => Promise.resolve()),
     },
-  });
-  return render(<NftGallery />);
+  };
+  mockUseStore.mockReturnValue(store);
+  return { ...render(<NftGallery />), store };
 };
 
 afterEach(cleanup);
@@ -93,4 +96,19 @@ it("counts collections, not tokens, in the discovery empty state", () => {
   ).toBeTruthy();
   expect(screen.getByText("2")).toBeTruthy();
   expect(screen.getByText(/NFT\s*collections/)).toBeTruthy();
+});
+
+it("reports refresh failures, preserves the collection rows, and allows retry", async () => {
+  const { store } = mountWith(ownedNfts);
+  await waitFor(() => { expect(store.nftStore.refreshNftMetadata).toHaveBeenCalledTimes(1); });
+  const error = new Error("RPC unavailable");
+  store.nftStore.refreshNftBalances.mockRejectedValueOnce(error);
+  const refresh = screen.getByRole("button", { name: "Refresh ownership, balances, and metadata" });
+  fireEvent.click(refresh);
+  await waitFor(() => { expect(reportError).toHaveBeenCalledWith("Failed to refresh NFTs:", error); });
+  expect(refresh.getAttribute("disabled")).toBeNull();
+  expect(screen.getByText("2 collections")).toBeTruthy();
+  expect(store.nftStore.refreshNftMetadata).toHaveBeenCalledTimes(1);
+  fireEvent.click(refresh);
+  await waitFor(() => { expect(store.nftStore.refreshNftMetadata).toHaveBeenLastCalledWith(true); });
 });

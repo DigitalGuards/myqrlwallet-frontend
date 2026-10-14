@@ -13,6 +13,7 @@ import type { TransactionStatus } from "@/stores/qrlStore";
 import type { SendSigner } from "@/utils/sendStatus";
 import type { ApprovedFee } from "@/utils/web3/feePolicy";
 import { copyToClipboard } from "@/utils/nativeApp";
+import { reportError } from "@/utils/reportError";
 import Transfer from "../Transfer";
 import { SendStatus } from "../SendStatus";
 
@@ -23,6 +24,8 @@ const FROM = `Q${"1".repeat(128)}`;
 const TO = `Q${"2".repeat(128)}`;
 const CONTRACT = `Q${"3".repeat(128)}`;
 const HASH = `0x${"a".repeat(64)}`;
+const mockFetchBalance = jest.fn<Promise<unknown>, []>();
+jest.mock("@/utils/reportError", () => ({ reportError: jest.fn() }));
 let mockDesktop = false;
 let mockAsset = "native";
 let mockStore: ReturnType<typeof fixture>;
@@ -78,7 +81,7 @@ jest.mock("@/utils/nativeApp", () => ({
   triggerHaptic: jest.fn(),
 }));
 jest.mock("@/utils/web3", () => ({
-  fetchBalance: async () => 10000000n,
+  fetchBalance: () => mockFetchBalance(),
   isValidQrlAddress: () => true,
 }));
 jest.mock("@/hooks/useNetworkQrnsRecipient", () => ({
@@ -192,6 +195,7 @@ class MockResizeObserver {
 }
 beforeEach(() => {
   localStorage.clear();
+  mockFetchBalance.mockResolvedValue(10000000n);
   jest.mocked(decryptStoredSeedWithPin).mockResolvedValue({ mnemonic: "fixture", hexSeed: "00" });
   Object.defineProperty(globalThis, "ResizeObserver", {
     configurable: true,
@@ -512,3 +516,38 @@ it.each([false, true])(
     expect(mockStore.tokenStore.sendToken).not.toHaveBeenCalled();
   },
 );
+
+it.each([false, true])("surfaces a rejected remote send and retains the entered values (token=%s)", async (token) => {
+  mockStore = fixture("mobile", token);
+  const send = token ? mockStore.tokenStore.sendToken : mockStore.qrlStore.sendTransactionViaProvider;
+  send.mockRejectedValueOnce(new Error("Signer disconnected"));
+  render(<Transfer />);
+  fireEvent.change(screen.getByPlaceholderText("QRL address or QNS name"), { target: { value: TO } });
+  fireEvent.change(screen.getByPlaceholderText("Enter amount"), { target: { value: "1.234567" } });
+  const submit = screen.getByRole("button", { name: token ? "Send TOK" : "Send Quanta" });
+  await waitFor(() => { expect(submit.hasAttribute("disabled")).toBe(false); });
+  fireEvent.click(submit);
+  expect(await screen.findByText("Transfer failed: Signer disconnected")).toBeTruthy();
+  expect(screen.getByDisplayValue(TO)).toBeTruthy();
+  expect(screen.getByDisplayValue("1.234567")).toBeTruthy();
+  expect(send).toHaveBeenCalledTimes(1);
+});
+
+it("rejects a malformed token balance and leaves the balance at zero", async () => {
+  mockStore = fixture("mobile", true);
+  mockFetchBalance.mockResolvedValueOnce({ balance: "10000000" });
+  render(<Transfer />);
+  await waitFor(() => {
+    expect(reportError).toHaveBeenCalledWith("Error fetching token balance:", new Error("Invalid token balance."));
+  });
+  expect(screen.getByText("0.0 TOK")).toBeTruthy();
+  expect(mockStore.tokenStore.sendToken).not.toHaveBeenCalled();
+});
+
+it("reports failed address copying", async () => {
+  const error = new Error("Clipboard unavailable");
+  jest.mocked(copyToClipboard).mockRejectedValueOnce(error);
+  render(<Transfer />);
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  await waitFor(() => { expect(reportError).toHaveBeenCalledWith("Failed to copy address:", error); });
+});
