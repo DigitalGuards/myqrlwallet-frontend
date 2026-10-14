@@ -43,7 +43,7 @@ jest.mock("@/utils/crypto/pinRotation", () => ({}));
 jest.mock("@/services/dappConnect/DAppConnectService", () => ({
   DAppConnectService: { isConnectionURI: () => false },
   dappConnectService: {
-    reconnectAll: jest.fn(),
+    reconnectAll: jest.fn(() => Promise.resolve()),
     clearAllDappLeaveTimeouts: jest.fn(),
   },
 }));
