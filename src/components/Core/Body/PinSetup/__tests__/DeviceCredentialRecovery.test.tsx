@@ -10,7 +10,9 @@ jest.mock("@/utils/embeddedRuntime", () => ({
   IS_EMBEDDED_BUILD: true,
   HAS_NATIVE_BRIDGE: true,
 }));
-jest.mock("@/utils", () => jest.requireActual("@/utils/cn"));
+jest.mock("@/utils", () =>
+  jest.requireActual<typeof import("@/utils/cn")>("@/utils/cn"),
+);
 
 afterEach(() => {
   cleanup();
@@ -23,7 +25,7 @@ it("opens native settings without requesting deletion or creating a credential",
   jest
     .spyOn(navigator, "userAgent", "get")
     .mockReturnValue("MyQRLWallet/1.3.1");
-  const postMessage = jest.fn();
+  const postMessage = jest.fn((_message: string) => undefined);
   window.ReactNativeWebView = { postMessage };
   localStorage.setItem(
     "TEST_NET_V3_ENCRYPTED_SEEDS",
@@ -51,9 +53,11 @@ it("opens native settings without requesting deletion or creating a credential",
 
   fireEvent.click(screen.getByRole("button", { name: "Open app settings" }));
   expect(postMessage).toHaveBeenCalledTimes(1);
-  expect(JSON.parse(postMessage.mock.calls[0]?.[0] as string).type).toBe(
-    "OPEN_NATIVE_SETTINGS",
-  );
+  const message = postMessage.mock.calls[0]?.[0];
+  if (message === undefined)
+    throw new Error("Native settings message is missing");
+  const payload: unknown = JSON.parse(message);
+  expect(payload).toMatchObject({ type: "OPEN_NATIVE_SETTINGS" });
   expect(localStorage.getItem("TEST_NET_V3_ENCRYPTED_SEEDS")).toBe(
     "preserved current wallet",
   );

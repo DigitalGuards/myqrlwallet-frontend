@@ -35,7 +35,9 @@ describe("wallet title separators", () => {
         <SEO />
       </HelmetProvider>,
     );
-    await waitFor(() => expect(document.title).toBe(DEFAULT_TITLE));
+    await waitFor(() => {
+      expect(document.title).toBe(DEFAULT_TITLE);
+    });
     for (const selector of TITLE_SELECTORS) {
       expect(document.querySelector(selector)?.getAttribute("content")).toBe(
         DEFAULT_TITLE,
@@ -49,7 +51,9 @@ describe("wallet title separators", () => {
         <SEO title="Send QRL" />
       </HelmetProvider>,
     );
-    await waitFor(() => expect(document.title).toBe("Send QRL | MyQRLWallet"));
+    await waitFor(() => {
+      expect(document.title).toBe("Send QRL | MyQRLWallet");
+    });
     for (const selector of TITLE_SELECTORS) {
       expect(document.querySelector(selector)?.getAttribute("content")).toBe(
         "Send QRL | MyQRLWallet",

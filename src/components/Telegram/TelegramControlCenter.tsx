@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { isCallable, isRecord } from "@/utils/guards";
+import { logger } from "@/utils/log";
+import { serverUrl } from "./config";
 import {
   Activity,
   Bell,
@@ -12,24 +15,25 @@ import {
 type HealthState = "loading" | "ok" | "degraded";
 
 interface TelegramWebApp {
-  ready: () => void;
-  expand: () => void;
-  close: () => void;
-  openLink: (url: string) => void;
-  themeParams?: Record<string, string>;
+  ready: () => unknown;
+  expand: () => unknown;
+  openLink: (url: string) => unknown;
+}
+
+function isTelegramWebApp(value: unknown): value is TelegramWebApp {
+  return (
+    isRecord(value) &&
+    isCallable(value["ready"]) &&
+    isCallable(value["expand"]) &&
+    isCallable(value["openLink"])
+  );
 }
 
 function getTelegramWebApp(): TelegramWebApp | null {
-  const telegram = (
-    window as Window & { Telegram?: { WebApp?: TelegramWebApp } }
-  ).Telegram;
-  return telegram?.WebApp ?? null;
+  const telegram: unknown = "Telegram" in window ? window.Telegram : undefined;
+  const webApp = isRecord(telegram) ? telegram["WebApp"] : undefined;
+  return isTelegramWebApp(webApp) ? webApp : null;
 }
-
-const serverUrl = import.meta.env.PROD
-  ? (import.meta.env.VITE_SERVER_URL_PRODUCTION ?? "/api")
-  : (import.meta.env.VITE_SERVER_URL_DEVELOPMENT ??
-    "http://localhost:3000/api");
 
 export default function TelegramControlCenter() {
   const [health, setHealth] = useState<HealthState>("loading");
@@ -39,9 +43,13 @@ export default function TelegramControlCenter() {
     const webApp = getTelegramWebApp();
     webApp?.ready();
     webApp?.expand();
-    fetch(`${serverUrl.replace(/\/$/, "")}/telegram/status`)
-      .then((response) => setHealth(response.ok ? "ok" : "degraded"))
-      .catch(() => setHealth("degraded"));
+    void fetch(`${serverUrl.replace(/\/$/, "")}/telegram/status`)
+      .then((response) => {
+        setHealth(response.ok ? "ok" : "degraded");
+      })
+      .catch(() => {
+        setHealth("degraded");
+      });
   }, []);
 
   // Inside Telegram the mini app has to hand the route to the Telegram client
@@ -55,7 +63,9 @@ export default function TelegramControlCenter() {
       webApp.openLink(new URL(path, window.location.origin).toString());
       return;
     }
-    navigate(path);
+    void Promise.resolve(navigate(path)).catch((error: unknown) => {
+      logger.error("Failed to open wallet page:", error);
+    });
   };
 
   const statusLabel =
@@ -110,7 +120,9 @@ export default function TelegramControlCenter() {
         <section className="grid grid-cols-2 gap-3" aria-label="Wallet actions">
           <button
             className="rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/60"
-            onClick={() => openWallet("/")}
+            onClick={() => {
+              openWallet("/");
+            }}
           >
             <Wallet className="mb-8 h-5 w-5 text-primary" aria-hidden="true" />
             <span className="block font-display font-semibold">
@@ -122,7 +134,9 @@ export default function TelegramControlCenter() {
           </button>
           <button
             className="rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/60"
-            onClick={() => openWallet("/tx-history")}
+            onClick={() => {
+              openWallet("/tx-history");
+            }}
           >
             <Activity
               className="mb-8 h-5 w-5 text-primary"
@@ -138,7 +152,9 @@ export default function TelegramControlCenter() {
         <section className="mt-4 overflow-hidden rounded-2xl border border-border bg-card">
           <button
             className="flex w-full items-center gap-3 border-b border-border p-4 text-left hover:bg-accent"
-            onClick={() => openWallet("/dapp-sessions")}
+            onClick={() => {
+              openWallet("/dapp-sessions");
+            }}
           >
             <ExternalLink
               className="h-5 w-5 text-identity-accent"
@@ -157,7 +173,9 @@ export default function TelegramControlCenter() {
           </button>
           <button
             className="flex w-full items-center gap-3 border-b border-border p-4 text-left hover:bg-accent"
-            onClick={() => openWallet("/settings")}
+            onClick={() => {
+              openWallet("/settings");
+            }}
           >
             <Bell className="h-5 w-5 text-identity-accent" aria-hidden="true" />
             <span className="flex-1">
