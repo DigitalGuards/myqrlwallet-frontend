@@ -1,5 +1,7 @@
 /** @jest-environment jsdom */
-import { configure } from "mobx";
+import { configure, intercept } from "mobx";
+import type { TokenInterface } from "@/constants";
+import { logger } from "@/utils/log";
 import Web3 from "@theqrl/web3";
 import type { TransactionReceipt } from "@theqrl/web3";
 import {
@@ -27,6 +29,9 @@ jest.mock("@/desktop/bridge", () => ({ isDesktop: false, desktopSigner: {} }));
 jest.mock("@/desktop/walletHydration", () => ({}));
 jest.mock("@/utils/storage", () => ({ StorageUtil: {
   getAccountList: jest.fn(), setBalanceCache: jest.fn(), getBalanceCache: jest.fn(), updateTokenList: jest.fn(),
+  clearLegacyGlobalTokenData: jest.fn(),
+  getTokenList: jest.fn(() => Promise.resolve([])),
+  getHiddenTokens: jest.fn(() => Promise.resolve([])),
 } }));
 jest.mock("@/utils/web3", () => ({ getQrlWeb3: jest.fn(), fetchBalance: jest.fn() }));
 jest.mock("@/utils/web3/address", () => ({
@@ -351,4 +356,180 @@ it("stops before signing when native transfer gas estimation fails", async () =>
   );
   expect(sign).not.toHaveBeenCalled();
   expect(store.transactionStatus.state).toBe("failed");
+});
+
+
+it.each([
+  { balance: 1250, expected: '12.5' },
+  { balance: -1250, expected: '-12.5' },
+  { balance: 1250n, expected: '12.5' },
+  { balance: '0x4e2', expected: '12.5' },
+  { balance: '1250', expected: '12.5' },
+  { balance: 1200, expected: '12' },
+  { balance: 0, expected: '0' },
+  { balance: true, expected: '0.01' },
+  { balance: { valueOf: () => 1250 }, expected: '12.5' },
+])('preserves numeric RPC balances: $balance', async ({ balance, expected }) => {
+  const { store } = makeStore();
+  const tokens = new TokenStore(store);
+  const token: TokenInterface = {
+    address: RECIPIENT, name: 'Token', symbol: 'TOK', decimals: 2, amount: 'old',
+  };
+  tokens.tokenList = [token];
+  jest.mocked(fetchBalance).mockResolvedValueOnce(malformed(balance));
+  await tokens.refreshTokenBalances();
+  expect(tokens.tokenList).toEqual([{ ...token, amount: expected }]);
+  expect(updateTokenList).toHaveBeenCalledWith('TEST_NET', ACCOUNT, [
+    { ...token, amount: expected },
+  ]);
+});
+
+it('retains failed balance rows and their fields in the original order', async () => {
+  const { store } = makeStore();
+  const tokens = new TokenStore(store);
+  const first = {
+    address: RECIPIENT, name: 'First', symbol: 'ONE', decimals: 2, amount: 37,
+    importedField: { label: 'preserved' },
+  };
+  const second = { address: ACCOUNT, symbol: 'TWO', decimals: 0, extra: true };
+  tokens.tokenList = [malformed(first), malformed(second)];
+  jest.mocked(fetchBalance)
+    .mockResolvedValueOnce(malformed('invalid'))
+    .mockResolvedValueOnce(malformed(7));
+  const error = jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+  await tokens.refreshTokenBalances();
+  expect(tokens.tokenList).toEqual([
+    { ...first, amount: 'Error' }, { ...second, amount: '7' },
+  ]);
+  expect(error).toHaveBeenCalledWith(
+    'Error fetching balance for token ONE:', expect.any(SyntaxError),
+  );
+});
+
+it.each([{ toString: null }, { toString: 'TOK' }, [{ toString: null }]])(
+  'persists all balance rows with diagnostics disabled for stored symbol %p',
+  async (symbol) => {
+    const flag = Object.getOwnPropertyDescriptor(globalThis, '__QRL_DIAGNOSTICS__');
+    Object.defineProperty(globalThis, '__QRL_DIAGNOSTICS__', {
+      configurable: true,
+      value: false,
+    });
+    localStorage.setItem('TOKEN_LIST_GATE_MIGRATED_V1', '1');
+    localStorage.setItem('TOKEN_LIST_PER_ACCOUNT_MIGRATED_V1', '1');
+    try {
+      const { store } = makeStore();
+      const tokens = new TokenStore(store);
+      const rows = [
+        {
+          address: RECIPIENT, name: 'Failed', symbol, decimals: 0,
+          amount: 'old-failed', extra: { retained: 'first' },
+        },
+        {
+          address: ACCOUNT, name: 'Healthy', symbol: 'OK', decimals: 0,
+          amount: 'old-healthy', extra: { retained: 'second' },
+        },
+      ].map((row) => malformed<TokenInterface>(row));
+      jest.spyOn(StorageUtil, 'getTokenList').mockResolvedValueOnce(rows);
+      await tokens.initialize();
+      expect(tokens.tokenList).toEqual(rows);
+      updateTokenList.mockClear();
+
+      const healthy = deferred<Awaited<ReturnType<typeof fetchBalance>>>();
+      jest.mocked(fetchBalance)
+        .mockRejectedValueOnce(new Error('RPC unavailable'))
+        .mockReturnValueOnce(healthy.promise);
+      const error = jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+      const refresh = tokens.refreshTokenBalances();
+      expect(fetchBalance).toHaveBeenCalledTimes(2);
+      expect(updateTokenList).not.toHaveBeenCalled();
+      healthy.resolve(malformed(7n));
+      await refresh;
+
+      const expected = [{ ...rows[0], amount: 'Error' }, { ...rows[1], amount: '7' }];
+      expect(tokens.tokenList).toEqual(expected);
+      expect(updateTokenList).toHaveBeenCalledTimes(1);
+      expect(updateTokenList).toHaveBeenCalledWith('TEST_NET', ACCOUNT, expected);
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      localStorage.clear();
+      if (flag) {
+        Object.defineProperty(globalThis, '__QRL_DIAGNOSTICS__', flag);
+      } else {
+        Reflect.deleteProperty(globalThis, '__QRL_DIAGNOSTICS__');
+      }
+    }
+  },
+);
+
+it('keeps unknown-network refresh failure ahead of reads and writes', async () => {
+  const { store } = makeStore();
+  store.qrlConnection.blockchain = 'missing-network';
+  const tokens = new TokenStore(store);
+  const error = jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+  await tokens.refreshTokenBalances();
+  expect(fetchBalance).not.toHaveBeenCalled();
+  expect(updateTokenList).not.toHaveBeenCalled();
+  expect(error).toHaveBeenCalledWith(
+    'Error refreshing token balances:',
+    new TypeError("Cannot read properties of undefined (reading 'url')"),
+  );
+});
+
+it('updates creation state synchronously and resolves through a promise', async () => {
+  const { store } = makeStore();
+  const tokens = new TokenStore(store);
+  const pending = tokens.setCreatingToken('Token', true, 'detail');
+  expect(tokens.creatingToken).toEqual({ name: 'Token', creating: true, error: 'detail' });
+  expect(pending).toBeInstanceOf(Promise);
+  await expect(pending).resolves.toBeUndefined();
+});
+
+it('rejects a creation-state write failure through its promise', async () => {
+  const { store } = makeStore();
+  const tokens = new TokenStore(store);
+  const failure = new Error('creation write failed');
+  const dispose = intercept(tokens, 'creatingToken', () => { throw failure; });
+  try {
+    const pending = tokens.setCreatingToken('Token', true);
+    expect(pending).toBeInstanceOf(Promise);
+    await expect(pending).rejects.toBe(failure);
+  } finally {
+    dispose();
+  }
+});
+
+it('runs legacy migration before initialize yields and preserves stored records', async () => {
+  localStorage.clear();
+  localStorage.setItem('TOKEN_LIST_PER_ACCOUNT_MIGRATED_V1', '1');
+  const { store } = makeStore();
+  const tokens = new TokenStore(store);
+  const rows = [
+    { address: ACCOUNT, amount: 42, extra: 'first' },
+    { address: RECIPIENT, decimals: 3, extra: 'second' },
+  ].map((row) => malformed<TokenInterface>(row));
+  const getTokens = jest.spyOn(StorageUtil, 'getTokenList').mockResolvedValueOnce(rows);
+  const clear = jest.spyOn(StorageUtil, 'clearLegacyGlobalTokenData');
+  const pending = tokens.initialize();
+  expect(clear).toHaveBeenCalledTimes(1);
+  expect(localStorage.getItem('TOKEN_LIST_GATE_MIGRATED_V1')).toBe('1');
+  expect(getTokens).not.toHaveBeenCalled();
+  await pending;
+  expect(tokens.tokenList).toEqual(rows);
+  expect(updateTokenList).toHaveBeenCalledWith('TEST_NET', ACCOUNT, rows);
+  localStorage.clear();
+});
+
+it('rejects migration failure and leaves its marker unset', async () => {
+  localStorage.clear();
+  const { store } = makeStore();
+  const tokens = new TokenStore(store);
+  const failure = new Error('migration failed');
+  const getTokens = jest.spyOn(StorageUtil, 'getTokenList');
+  const clear = jest.spyOn(StorageUtil, 'clearLegacyGlobalTokenData').mockImplementationOnce(() => { throw failure; });
+  const pending = tokens.initialize();
+  expect(clear).toHaveBeenCalledTimes(1);
+  expect(localStorage.getItem('TOKEN_LIST_GATE_MIGRATED_V1')).toBeNull();
+  await expect(pending).rejects.toBe(failure);
+  expect(getTokens).not.toHaveBeenCalled();
+  expect(updateTokenList).not.toHaveBeenCalled();
 });

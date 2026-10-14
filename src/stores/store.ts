@@ -6,6 +6,7 @@ import DAppConnectStore from "./dappConnectStore";
 import { maybeRestoreMobileConnection } from "@/utils/mobileConnect/mobileConnection";
 import { StorageUtil } from "@/utils/storage";
 import { configure } from "mobx";
+import { logger } from "@/utils/log";
 
 // Configure MobX
 configure({
@@ -42,11 +43,11 @@ class Store {
         const hasMobileAccount = list.some((item) => item.source === 'mobile');
         void maybeRestoreMobileConnection(this.qrlStore, hasMobileAccount).catch(
           (error: unknown) => {
-            console.error('Mobile pairing restore failed:', error);
+            logger.error('Mobile pairing restore failed:', error);
           },
         );
       } catch (error) {
-        console.error('Mobile pairing restore skipped:', error);
+        logger.error('Mobile pairing restore skipped:', error);
       }
     };
     this.qrlStore.onActiveAccountChanged = async (newActiveAccount?: string) => {
@@ -74,7 +75,7 @@ const getStore = (): StoreType => {
 };
 
 export const store = getStore();
-const StoreContext = createContext<StoreType>(store);
+const StoreContext = createContext<StoreType | null | undefined>(store);
 
 // Export provider and hook for React components
 export const StoreProvider = StoreContext.Provider;
