@@ -2,7 +2,10 @@ export default function log(message: string) {
   logger.log(`[LOG]: ${message}`);
 }
 
-function write(level: "log" | "warn" | "error", values: unknown[]): void {
+function write(
+  level: "log" | "info" | "warn" | "error",
+  values: unknown[],
+): void {
   console[level](...values);
 }
 
@@ -10,6 +13,9 @@ function write(level: "log" | "warn" | "error", values: unknown[]): void {
 export const logger = {
   log(...values: unknown[]): void {
     write("log", values);
+  },
+  info(...values: unknown[]): void {
+    write("info", values);
   },
   warn(...values: unknown[]): void {
     write("warn", values);

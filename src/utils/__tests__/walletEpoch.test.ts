@@ -3,6 +3,8 @@ import {
   getWalletEpoch,
   subscribeWalletEpoch,
   WALLET_EPOCH_STORAGE_KEY,
+  WALLET_MUTATION_LOCK_NAME,
+  withWalletMutationLock,
 } from "../walletEpoch";
 
 class MemoryStorage implements Storage {
@@ -60,19 +62,19 @@ const originalLocalStorage = Object.getOwnPropertyDescriptor(
 );
 
 describe("wallet epoch propagation", () => {
+  const storage = new MemoryStorage();
+
   beforeAll(() => {
-    const windowTarget = new EventTarget() as EventTarget & {
-      BroadcastChannel: typeof BroadcastChannel;
-    };
-    windowTarget.BroadcastChannel =
-      Object(FakeBroadcastChannel) as typeof BroadcastChannel;
+    const windowTarget = Object.assign(new EventTarget(), {
+      BroadcastChannel: FakeBroadcastChannel,
+    });
     Object.defineProperty(globalThis, "window", {
       configurable: true,
       value: windowTarget,
     });
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
-      value: new MemoryStorage(),
+      value: storage,
     });
   });
 
@@ -92,12 +94,12 @@ describe("wallet epoch propagation", () => {
     const unsubscribe = subscribeWalletEpoch((epoch) => observed.push(epoch));
     const nextEpoch =
       getWalletEpoch() === "11".repeat(16) ? "22".repeat(16) : "11".repeat(16);
-    localStorage.setItem(WALLET_EPOCH_STORAGE_KEY, String(nextEpoch));
+    localStorage.setItem(WALLET_EPOCH_STORAGE_KEY, nextEpoch);
 
     const event = new Event("storage");
     Object.assign(event, {
       key: WALLET_EPOCH_STORAGE_KEY,
-      newValue: String(nextEpoch),
+      newValue: nextEpoch,
     });
     window.dispatchEvent(event);
 
@@ -106,7 +108,7 @@ describe("wallet epoch propagation", () => {
     unsubscribe();
   });
 
-  it("accepts reverse write order because generations use equality, not ordering", () => {
+  it("accepts reverse write order by comparing generation equality", () => {
     const observed: string[] = [];
     const unsubscribe = subscribeWalletEpoch((epoch) => observed.push(epoch));
     const laterComputed = "33".repeat(16);
@@ -154,7 +156,6 @@ describe("wallet epoch propagation", () => {
   });
 
   it("keeps a volatile failure boundary across a stale storage event", () => {
-    const storage = localStorage as MemoryStorage;
     const base = getWalletEpoch();
     storage.failEpochWrite = true;
     expect(() => advanceWalletEpoch()).toThrow(
@@ -189,6 +190,95 @@ describe("wallet epoch propagation", () => {
     expect(getWalletEpoch()).toBe(recovery);
   });
 
+  it("ignores malformed broadcasts without publishing an epoch", () => {
+    const observed: string[] = [];
+    const unsubscribe = subscribeWalletEpoch((epoch) => observed.push(epoch));
+    const persisted = "88".repeat(16);
+    localStorage.setItem(WALLET_EPOCH_STORAGE_KEY, persisted);
+    const channel = FakeBroadcastChannel.latest;
+    if (!channel) throw new Error("Missing broadcast channel");
+    try {
+      for (const data of [
+        null,
+        true,
+        "epoch",
+        [],
+        {},
+        { epoch: 42 },
+        { epoch: "invalid" },
+        { epoch: persisted, volatile: true },
+        { epoch: persisted, volatile: true, baseEpoch: 42 },
+        { epoch: persisted, volatile: true, baseEpoch: "invalid" },
+        { epoch: persisted, volatile: true, baseEpoch: "99".repeat(16) },
+      ]) {
+        channel.dispatchEvent(Object.assign(new Event("message"), { data }));
+      }
+      expect(observed).toEqual([]);
+      channel.dispatchEvent(
+        Object.assign(new Event("message"), { data: { epoch: persisted } }),
+      );
+      expect(observed).toEqual([persisted]);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it.each([
+    { name: "object", container: () => ({}) },
+    { name: "array", container: () => [] },
+    { name: "function", container: () => () => undefined },
+    { name: "boxed string", container: () => new String("") },
+  ])("preserves epoch fields on a $name", ({ container }) => {
+    for (const volatile of [false, true]) {
+      const observed: string[] = [];
+      const unsubscribe = subscribeWalletEpoch((epoch) => observed.push(epoch));
+      const baseEpoch = getWalletEpoch();
+      const epoch = baseEpoch === "bb".repeat(16) ? "cc".repeat(16) : "bb".repeat(16);
+      const channel = FakeBroadcastChannel.latest;
+      if (!channel) throw new Error("Missing broadcast channel");
+      if (!volatile) localStorage.setItem(WALLET_EPOCH_STORAGE_KEY, epoch);
+      const data: unknown = Object.assign(container(), { epoch, volatile, baseEpoch });
+      try {
+        channel.dispatchEvent(Object.assign(new Event("message"), { data }));
+        expect(observed).toEqual([epoch]);
+        expect(getWalletEpoch()).toBe(epoch);
+      } finally {
+        unsubscribe();
+        advanceWalletEpoch();
+      }
+    }
+  });
+
+  it("accepts a volatile epoch only against the current stored base", () => {
+    const baseEpoch = getWalletEpoch();
+    const epoch = "aa".repeat(16);
+    const channel = FakeBroadcastChannel.latest;
+    if (!channel) throw new Error("Missing broadcast channel");
+    channel.dispatchEvent(
+      Object.assign(new Event("message"), {
+        data: { epoch, volatile: true, baseEpoch },
+      }),
+    );
+    expect(getWalletEpoch()).toBe(epoch);
+    advanceWalletEpoch();
+  });
+
+  it("fails closed when the browser omits crypto", () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+    Object.defineProperty(globalThis, "crypto", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      expect(() => advanceWalletEpoch()).toThrow(
+        "Secure wallet epoch randomness is unavailable",
+      );
+    } finally {
+      if (original) Object.defineProperty(globalThis, "crypto", original);
+      else Reflect.deleteProperty(globalThis, "crypto");
+    }
+  });
+
   it("fails closed when secure epoch randomness is unavailable", () => {
     const randomSpy = jest
       .spyOn(globalThis.crypto, "getRandomValues")
@@ -202,5 +292,51 @@ describe("wallet epoch propagation", () => {
     } finally {
       randomSpy.mockRestore();
     }
+  });
+});
+
+describe("wallet mutation browser locks", () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  afterEach(() => {
+    if (original) Object.defineProperty(globalThis, "navigator", original);
+    else Reflect.deleteProperty(globalThis, "navigator");
+  });
+
+  it.each([undefined, {}, { locks: undefined }])(
+    "runs the operation when locks are unavailable: %p",
+    async (navigator) => {
+      Object.defineProperty(globalThis, "navigator", {
+        configurable: true,
+        value: navigator,
+      });
+      const operation = jest.fn(() => Promise.resolve("result"));
+      await expect(withWalletMutationLock(operation)).resolves.toBe("result");
+      expect(operation).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("holds the named exclusive lock and preserves the method receiver", async () => {
+    const operation = jest.fn(() => Promise.resolve("result"));
+    const request = jest.fn(function (
+      this: unknown,
+      _name: string,
+      _options: { mode: string },
+      callback: () => Promise<string>,
+    ) {
+      expect(this).toBe(locks);
+      return callback();
+    });
+    const locks = { request };
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: { locks },
+    });
+    await expect(withWalletMutationLock(operation)).resolves.toBe("result");
+    expect(request).toHaveBeenCalledWith(
+      WALLET_MUTATION_LOCK_NAME,
+      { mode: "exclusive" },
+      operation,
+    );
+    expect(operation).toHaveBeenCalledTimes(1);
   });
 });

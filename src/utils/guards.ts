@@ -8,6 +8,16 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** Object property reads also support arrays and boxed primitives. */
+export function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/** Callable objects can carry runtime flags and message fields too. */
+export function isObjectLike(value: unknown): value is Record<string, unknown> {
+  return isObject(value) || typeof value === 'function';
+}
+
 /**
  * Array.isArray narrows unknown to any[], which silently re-launders every
  * element; this predicate keeps the elements unknown.
@@ -16,12 +26,19 @@ export function isArray(value: unknown): value is unknown[] {
   return Array.isArray(value);
 }
 
-/** Coerce an unknown caught value into an Error without losing the message. */
+// JSON.stringify returns undefined for top-level undefined, symbols, functions
+// and objects whose toJSON returns one of those values.
+function stringifyUnknown(value: unknown): string | undefined {
+  return JSON.stringify(value);
+}
+
+/** Return a local Error so callers can discriminate failures with instanceof. */
 export function toError(value: unknown): Error {
-  if (value instanceof Error) return value;
-  if (typeof value === 'string') return new Error(value);
   try {
-    return new Error(JSON.stringify(value) ?? 'Unknown error');
+    // Prototype inspection can throw for proxies, just like serialization.
+    if (value instanceof Error) return value;
+    if (typeof value === 'string') return new Error(value);
+    return new Error(stringifyUnknown(value) ?? 'Unknown error');
   } catch {
     return new Error('Unknown error');
   }
@@ -38,20 +55,23 @@ export function isCallable(value: unknown): value is (...args: unknown[]) => unk
  * pattern match or a log line.
  */
 export function describeUnknown(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value;
-  if (value instanceof Error) return value.message;
-  if (
-    typeof value === 'number' ||
-    typeof value === 'boolean' ||
-    typeof value === 'bigint' ||
-    typeof value === 'symbol'
-  ) {
-    return value.toString();
-  }
-  if (typeof value === 'function') return '[function]';
   try {
-    return JSON.stringify(value) ?? '';
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (value instanceof Error) {
+      const message: unknown = value.message;
+      return typeof message === 'string' ? message : String(message);
+    }
+    if (
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      typeof value === 'bigint' ||
+      typeof value === 'symbol'
+    ) {
+      return value.toString();
+    }
+    if (typeof value === 'function') return '[function]';
+    return stringifyUnknown(value) ?? '';
   } catch {
     return '[object]';
   }

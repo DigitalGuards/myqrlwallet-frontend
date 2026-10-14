@@ -39,17 +39,19 @@ describe("the sensitive flag reaches the app", () => {
     const { copyToClipboard } = await import("@/utils/nativeApp");
     await copyToClipboard("Q0123");
 
-    const payload = JSON.parse(postMessage.mock.calls[0]?.[0] ?? "{}");
-    expect(payload.type).toBe("COPY_TO_CLIPBOARD");
-    expect(payload.payload.sensitive).toBe(false);
+    const payload: unknown = JSON.parse(postMessage.mock.calls[0]?.[0] ?? "{}");
+    expect(payload).toMatchObject({
+      type: "COPY_TO_CLIPBOARD",
+      payload: { sensitive: false },
+    });
   });
 
   it("is set when the caller asks for it", async () => {
     const { copyToClipboard } = await import("@/utils/nativeApp");
     await copyToClipboard("word ".repeat(12).trim(), true);
 
-    const payload = JSON.parse(postMessage.mock.calls[0]?.[0] ?? "{}");
-    expect(payload.payload.sensitive).toBe(true);
+    const payload: unknown = JSON.parse(postMessage.mock.calls[0]?.[0] ?? "{}");
+    expect(payload).toMatchObject({ payload: { sensitive: true } });
   });
 });
 
@@ -67,7 +69,7 @@ describe("which call sites mark their copy sensitive", () => {
 
   it("leaves public values unflagged, so they survive long enough to paste", () => {
     // An address, a token address and a transaction hash are public, and
-    // clearing them after a minute would be a bug rather than a protection.
+    // clearing them after a minute would interrupt the paste.
     for (const [file, call] of [
       [
         "src/components/Core/Body/CreateAccount/MnemonicDisplay/MnemonicDisplay.tsx",

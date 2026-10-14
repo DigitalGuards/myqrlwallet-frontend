@@ -14,7 +14,7 @@ import { registerBackDismiss } from "./nativeBack";
  */
 export function useBackDismiss(
   isOpen: boolean,
-  dismiss: () => boolean | void,
+  dismiss: (() => boolean) | (() => void),
 ): void {
   // Kept in a ref so a new closure on every render does not re-register the
   // overlay and quietly move it to the top of the stack.

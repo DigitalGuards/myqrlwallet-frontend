@@ -12,7 +12,8 @@ export interface AddressBookEntry {
   createdAt: number;
 }
 
-import { profileStorageKey } from '@/config/runtimeProfile';
+import { profileStorageKey } from "@/config/runtimeProfile";
+import { isArray, isObject } from "./guards";
 
 const STORAGE_KEY = profileStorageKey("qrl:addressBook:qip55:v2");
 const LEGACY_STORAGE_KEY = profileStorageKey("qrl:addressBook:v1");
@@ -23,13 +24,12 @@ import { normalizeQrlAddress } from "./web3/address";
 import { isInNativeApp, notifyContactsUpdated } from "./nativeApp";
 
 const isEntry = (value: unknown): value is AddressBookEntry => {
-  if (typeof value !== "object" || value === null) return false;
-  const v = value as Record<string, unknown>;
+  if (!isObject(value)) return false;
   return (
-    typeof v["id"] === "string" &&
-    typeof v["name"] === "string" &&
-    typeof v["address"] === "string" &&
-    typeof v["createdAt"] === "number"
+    typeof value["id"] === "string" &&
+    typeof value["name"] === "string" &&
+    typeof value["address"] === "string" &&
+    typeof value["createdAt"] === "number"
   );
 };
 
@@ -38,7 +38,7 @@ export function loadAddressBook(): AddressBookEntry[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    if (!isArray(parsed)) return [];
     return parsed
       .filter(isEntry)
       .map((entry) => {
@@ -122,7 +122,7 @@ export function clearAddressBook(): void {
  * resulting union syncs back to native via persist().
  */
 export function mergeContacts(incoming: unknown): void {
-  if (!Array.isArray(incoming)) return;
+  if (!isArray(incoming)) return;
   const valid = incoming
     .filter(isEntry)
     .map((entry) => {
