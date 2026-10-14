@@ -1,3 +1,5 @@
+import { reportError } from "@/utils/reportError";
+import { unsignedQuantity } from "@/utils/transactionHistory";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "@/components/UI/Button";
@@ -89,16 +91,11 @@ const Transfer = observer(() => {
   const { qrlStore, tokenStore } = useStore();
   const {
     activeAccount,
-    getAccountBalance,
-    signAndSendTransaction,
-    sendTransactionViaProvider,
     activeAccountSource,
     qrlConnection,
     transactionStatus,
-    resetTransactionStatus,
-    estimateNativeTransferFee,
   } = qrlStore;
-  const { visibleTokenList, sendToken: sendTokenToStore } = tokenStore;
+  const { visibleTokenList } = tokenStore;
   const { blockchain } = qrlConnection;
   const { accountAddress } = activeAccount;
 
@@ -127,7 +124,7 @@ const Transfer = observer(() => {
             parseUnits(fields.amount, decimals);
           } catch {
             ctx.addIssue({
-              code: z.ZodIssueCode.custom,
+              code: "custom",
               message: `Enter an amount with at most ${decimals} decimal places`,
               path: ["amount"],
             });
@@ -138,7 +135,7 @@ const Transfer = observer(() => {
           if (!isUsingRemoteSigner && !isDesktop) {
             if (!fields.pin || fields.pin.length < 4 || fields.pin.length > 6) {
               ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: "custom",
                 message: "PIN must be between 4 to 6 digits",
                 path: ["pin"],
               });
@@ -216,7 +213,7 @@ const Transfer = observer(() => {
   const formValues = watch();
   const isNativeTransfer = selectedAsset === "native";
   const recipientResolution = useNetworkQrnsRecipient({
-    input: formValues.receiverAddress ?? "",
+    input: formValues.receiverAddress,
     blockchain,
     accountAddress,
   });
@@ -228,7 +225,7 @@ const Transfer = observer(() => {
 
   // Get balance based on selected asset
   const accountBalance = isNativeTransfer
-    ? getAccountBalance(accountAddress)
+    ? qrlStore.getAccountBalance(accountAddress)
     : tokenBalance;
 
   // Fetch token balance when asset changes
@@ -239,7 +236,7 @@ const Transfer = observer(() => {
       if (!isNativeTransfer && selectedAsset && accountAddress) {
         try {
           const selectedBlockChain = await StorageUtil.getBlockChain();
-          const balance = await fetchBalance(
+          const balance: unknown = await fetchBalance(
             selectedAsset,
             accountAddress,
             QRL_PROVIDER[selectedBlockChain].url,
@@ -247,14 +244,16 @@ const Transfer = observer(() => {
           const token = visibleTokenList.find(
             (t) => t.address === selectedAsset,
           );
-          if (!cancelled) setTokenBalance(formatUnits(balance, token?.decimals ?? 18));
+          const quantity = unsignedQuantity(balance);
+          if (quantity === null) throw new Error("Invalid token balance.");
+          if (!cancelled) setTokenBalance(formatUnits(quantity, token?.decimals ?? 18));
         } catch (error) {
-          console.error("Error fetching token balance:", error);
+          reportError("Error fetching token balance:", error);
           if (!cancelled) setTokenBalance("0");
         }
       }
     };
-    fetchTokenBalance();
+    void fetchTokenBalance();
     return () => { cancelled = true; };
   }, [selectedAsset, accountAddress, blockchain, isNativeTransfer, visibleTokenList]);
 
@@ -293,15 +292,16 @@ const Transfer = observer(() => {
     setNativeFeeQuote(null);
     if (!isNativeTransfer || isUsingMobile || !feeQuoteRecipient || !accountAddress) return;
     let cancelled = false;
-    (async () => {
+    const isCancelled = () => cancelled;
+    void (async () => {
       try {
         const reserve = await nativeMaxReserve(accountBalance, (value) => {
-          if (cancelled) throw new Error("Fee quote superseded");
-          return estimateNativeTransferFee(feeLevel, {
+          if (isCancelled()) throw new Error("Fee quote superseded");
+          return qrlStore.estimateNativeTransferFee(feeLevel, {
             from: accountAddress, to: feeQuoteRecipient, value,
           });
         });
-        if (!cancelled) setNativeFeeQuote({ key: feeQuoteKey, provider: feeQuoteProvider, reserve });
+        if (!isCancelled()) setNativeFeeQuote({ key: feeQuoteKey, provider: feeQuoteProvider, reserve });
       } catch {
         // Manual amounts remain available; a missing quote cannot enable Max.
       }
@@ -313,7 +313,7 @@ const Transfer = observer(() => {
     isNativeTransfer,
     isUsingMobile,
     feeLevel,
-    estimateNativeTransferFee,
+    qrlStore,
     accountAddress,
     accountBalance,
     feeQuoteKey,
@@ -392,7 +392,11 @@ const Transfer = observer(() => {
                   <p className="text-muted-foreground mb-4">
                     You need to import an account before making transfers.
                   </p>
-                  <Button onClick={() => navigate(ROUTES.IMPORT_ACCOUNT)}>
+                  <Button onClick={() => {
+                    Promise.resolve(navigate(ROUTES.IMPORT_ACCOUNT)).catch((error: unknown) => {
+                      reportError("Failed to open account import:", error);
+                    });
+                  }}>
                     Import Account
                   </Button>
                 </div>
@@ -407,7 +411,7 @@ const Transfer = observer(() => {
     const success = await copyToClipboard(text);
     if (success) {
       setHasJustCopied(true);
-      setTimeout(() => setHasJustCopied(false), 1000);
+      setTimeout(() => { setHasJustCopied(false); }, 1000);
     }
   };
 
@@ -445,7 +449,7 @@ const Transfer = observer(() => {
       return;
     }
 
-    setSubmittedAmount(formData.amount.toString());
+    setSubmittedAmount(formData.amount);
     setSubmittedAssetSymbol(
       isNativeTransfer ? NATIVE_TOKEN.symbol : selectedToken?.symbol || "",
     );
@@ -460,7 +464,7 @@ const Transfer = observer(() => {
     formData: z.infer<typeof FormSchema>,
     recipientSubmission: RecipientSubmission,
   ) {
-    const valueEther = formData.amount.toString();
+    const valueEther = formData.amount;
 
     if (isDesktop) {
       // Desktop: no PIN, no seed in the renderer. The store routes through the
@@ -468,7 +472,7 @@ const Transfer = observer(() => {
       try {
         const recipientAddress = revalidateRecipient(recipientSubmission);
         if (!recipientAddress) return;
-        await signAndSendTransaction(
+        await qrlStore.signAndSendTransaction(
           accountAddress,
           recipientAddress,
           valueEther,
@@ -485,7 +489,7 @@ const Transfer = observer(() => {
     } else if (isUsingRemoteSigner) {
       const recipientAddress = revalidateRecipient(recipientSubmission);
       if (!recipientAddress) return;
-      await sendTransactionViaProvider(
+      await qrlStore.sendTransactionViaProvider(
         recipientAddress,
         valueEther,
         feeLevel,
@@ -557,7 +561,7 @@ const Transfer = observer(() => {
 
         const recipientAddress = revalidateRecipient(recipientSubmission);
         if (!recipientAddress) return;
-        await signAndSendTransaction(
+        await qrlStore.signAndSendTransaction(
           accountAddress,
           recipientAddress,
           valueEther,
@@ -583,12 +587,12 @@ const Transfer = observer(() => {
     if (isUsingRemoteSigner) {
       // The signer confirms the transfer in its own approval screen.
       const rawAmount = parseUnits(
-        formData.amount.toString(),
+        formData.amount,
         selectedToken.decimals,
       ).toString();
       const recipientAddress = revalidateRecipient(recipientSubmission);
       if (!recipientAddress) return;
-      const sent = await sendTokenToStore(
+      const sent = await tokenStore.sendToken(
         selectedToken,
         rawAmount,
         "",
@@ -610,10 +614,10 @@ const Transfer = observer(() => {
         const recipientAddress = revalidateRecipient(recipientSubmission);
         if (!recipientAddress) return;
         const rawAmount = parseUnits(
-          formData.amount.toString(),
+          formData.amount,
           selectedToken.decimals,
         ).toString();
-        await sendTokenToStore(
+        await tokenStore.sendToken(
           selectedToken,
           rawAmount,
           "",
@@ -689,12 +693,12 @@ const Transfer = observer(() => {
       }
 
       const rawAmount = parseUnits(
-        formData.amount.toString(),
+        formData.amount,
         selectedToken.decimals,
       ).toString();
       const recipientAddress = revalidateRecipient(recipientSubmission);
       if (!recipientAddress) return;
-      await sendTokenToStore(
+      await tokenStore.sendToken(
         selectedToken,
         rawAmount,
         mnemonic,
@@ -718,7 +722,7 @@ const Transfer = observer(() => {
   };
 
   const backToForm = () => {
-    resetTransactionStatus();
+    qrlStore.resetTransactionStatus();
     // Release form submission state while the signer request may still be open.
     reset(undefined, {
       keepValues: true,
@@ -731,8 +735,10 @@ const Transfer = observer(() => {
 
   const cancelTransaction = () => {
     resetForm();
-    resetTransactionStatus();
-    navigate(ROUTES.HOME);
+    qrlStore.resetTransactionStatus();
+    Promise.resolve(navigate(ROUTES.HOME)).catch((error: unknown) => {
+      reportError("Failed to open home:", error);
+    });
   };
 
   const applyPercentage = (percentage: number) => {
@@ -788,8 +794,10 @@ const Transfer = observer(() => {
         blockchain={transactionStatus.details?.blockchain}
         onDone={() => {
           resetForm();
-          resetTransactionStatus();
-          navigate(ROUTES.HOME);
+          qrlStore.resetTransactionStatus();
+          Promise.resolve(navigate(ROUTES.HOME)).catch((error: unknown) => {
+            reportError("Failed to open home:", error);
+          });
         }}
       />
     );
@@ -810,7 +818,13 @@ const Transfer = observer(() => {
     <>
       <PageShell title="Transfer" subtitle="Send Quanta or tokens to another wallet" seoTitle="Transfer">
           <Form {...form}>
-            <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+            <form className="w-full" onSubmit={(event) => {
+              handleSubmit(onSubmit)(event).catch((error: unknown) => {
+                control.setError("receiverAddress", {
+                  message: `Transfer failed: ${error instanceof Error ? error.message : "Unexpected transfer error."}`,
+                });
+              });
+            }}>
               <Card className="w-full">
                 <CardContent className="space-y-6 pt-6">
                   {/* Asset Selector */}
@@ -893,7 +907,11 @@ const Transfer = observer(() => {
                         className="w-full"
                         type="button"
                         variant="outline"
-                        onClick={() => handleCopy(accountAddress)}
+                        onClick={() => {
+                          handleCopy(accountAddress).catch((error: unknown) => {
+                            reportError("Failed to copy address:", error);
+                          });
+                        }}
                       >
                         <Copy className="mr-2 h-4 w-4" />
                         {hasJustCopied ? "Copied" : "Copy"}
@@ -924,7 +942,7 @@ const Transfer = observer(() => {
                             <Input
                               {...field}
                               id="transfer-recipient"
-                              value={field.value ?? ""}
+                              value={field.value}
                               onChange={(event) => {
                                 field.onChange(event);
                                 clearErrors("receiverAddress");
@@ -935,7 +953,7 @@ const Transfer = observer(() => {
                             />
                             <button
                               type="button"
-                              onClick={() => setAddressBookOpen(true)}
+                              onClick={() => { setAddressBookOpen(true); }}
                               disabled={isSubmitting || isScanning}
                               className={`absolute ${isInNativeApp() ? "right-9" : "right-2"} top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-accent transition-colors disabled:opacity-50`}
                               title="Address book"
@@ -990,11 +1008,11 @@ const Transfer = observer(() => {
                     open={addressBookOpen}
                     onOpenChange={setAddressBookOpen}
                     currentAddress={formValues.receiverAddress}
-                    onSelect={(address) =>
+                    onSelect={(address) => {
                       setValue("receiverAddress", address, {
                         shouldValidate: true,
-                      })
-                    }
+                      });
+                    }}
                   />
 
                   {/* Amount */}

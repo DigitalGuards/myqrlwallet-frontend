@@ -13,17 +13,20 @@ import {
   fakeRouterModule as mockRouterModule,
   useFakeLocation,
 } from "./fakeRouterHistory";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { observable, runInAction } from "mobx";
 import type { NFTInterface } from "@/constants";
 import { groupNftsByCollection } from "@/utils/web3/nftCollections";
-import { useStore } from "@/stores/store";
 import type { UseQrnsRecipientResult } from "@/hooks/useQrnsRecipient";
 import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
+import { reportError } from "@/utils/reportError";
 import NftGallery from "../NftGallery";
 import NftDetail from "../NftDetail";
 
+jest.mock("@/utils/reportError", () => ({ reportError: jest.fn() }));
 jest.mock("react-router", () => mockRouterModule());
-jest.mock("@/stores/store", () => ({ useStore: jest.fn() }));
+const mockUseStore = jest.fn<unknown, []>();
+jest.mock("@/stores/store", () => ({ useStore: () => mockUseStore() }));
 jest.mock("@/utils", () => ({
   cn: (...values: unknown[]) =>
     values.filter((value) => typeof value === "string").join(" "),
@@ -43,7 +46,7 @@ jest.mock("../NftImage", () => ({
 }));
 jest.mock("@/utils/storage", () => ({ StorageUtil: {} }));
 jest.mock("@/utils/nativeApp", () => ({
-  copyToClipboard: jest.fn(async () => true),
+  copyToClipboard: jest.fn(() => Promise.resolve(true)),
 }));
 jest.mock("@/hooks/useNetworkQrnsRecipient", () => ({
   useNetworkQrnsRecipient: jest.fn(),
@@ -118,11 +121,9 @@ function firstByText(text: string): HTMLElement {
 }
 
 function mountApp(nfts: NFTInterface[] = ownedNfts) {
-  // Object.create(null) keeps the literal structurally typed as the store
-  // the component consumes, the way the other NFT suites mock it.
-  const mockStore = Object.assign(Object.create(null), {
+  const mockStore = {
     qrlStore: {
-      activeAccount: { accountAddress: HOLDER },
+      activeAccount: observable({ accountAddress: HOLDER }),
       activeAccountSource: "seed",
       qrlConnection: { blockchain: "TEST_NET" },
       transactionStatus: {
@@ -137,16 +138,16 @@ function mountApp(nfts: NFTInterface[] = ownedNfts) {
       nftList: nfts,
       nftCollections: groupNftsByCollection(nfts),
       pendingDiscoveredNftCollections: [],
-      refreshNftBalances: jest.fn(async () => undefined),
-      refreshNftMetadata: jest.fn(async () => undefined),
-      discoverNftsForReview: jest.fn(async () => []),
-      hideNft: jest.fn(async () => undefined),
+      refreshNftBalances: jest.fn(() => Promise.resolve()),
+      refreshNftMetadata: jest.fn(() => Promise.resolve()),
+      discoverNftsForReview: jest.fn(() => Promise.resolve([])),
+      hideNft: jest.fn(() => Promise.resolve()),
       transferNft: jest.fn(),
     },
-  });
-  jest.mocked(useStore).mockReturnValue(mockStore);
+  };
+  mockUseStore.mockReturnValue(mockStore);
   jest.mocked(useNetworkQrnsRecipient).mockReturnValue(idleRecipient());
-  return render(<AppShell />);
+  return { ...render(<AppShell />), store: mockStore };
 }
 
 beforeEach(() => {
@@ -258,4 +259,32 @@ describe("NFT collection drill-down navigation", () => {
     expect(fakeHistory.length()).toBe(1);
     expect(screen.getByText("2 collections")).toBeTruthy();
   });
+});
+
+it("discovers once per account while collection navigation retains its history", () => {
+  const { store } = mountApp();
+  fireEvent.click(screen.getByText("Devnet Punks"));
+  fireEvent.click(screen.getByLabelText("Back to collections"));
+  expect(store.nftStore.discoverNftsForReview).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByText("Devnet Punks"));
+  act(() => {
+    runInAction(() => { store.qrlStore.activeAccount.accountAddress = UNOWNED; });
+  });
+  expect(fakeHistory.current().search).toBe("");
+  expect(store.nftStore.discoverNftsForReview).toHaveBeenCalledTimes(2);
+  expect(store.nftStore.discoverNftsForReview).toHaveBeenLastCalledWith(UNOWNED);
+});
+
+it("reports a failed hide and keeps the collection and token visible", async () => {
+  const { store } = mountApp();
+  const error = new Error("Storage unavailable");
+  store.nftStore.hideNft.mockRejectedValueOnce(error);
+  fireEvent.click(screen.getByText("Devnet Punks"));
+  const [hide] = screen.getAllByTitle("Hide NFT");
+  if (!hide) throw new Error("Missing hide action");
+  fireEvent.click(hide);
+  await waitFor(() => { expect(reportError).toHaveBeenCalledWith("Failed to hide NFT:", error); });
+  expect(store.nftStore.hideNft).toHaveBeenCalledWith(`${DEVNET_PUNKS.toLowerCase()}:1`);
+  expect(fakeHistory.current().pathname).toBe("/");
+  expect(screen.getAllByText("Punk #1").length).toBeGreaterThan(0);
 });

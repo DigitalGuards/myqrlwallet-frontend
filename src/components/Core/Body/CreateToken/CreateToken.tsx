@@ -6,7 +6,6 @@ import { QRL_ZERO_ADDRESS } from "@/utils/web3";
 
 const CreateToken = observer(() => {
   const { tokenStore } = useStore();
-  const { createToken } = tokenStore;
 
   const onTokenCreated = async (
     tokenName: string,
@@ -37,7 +36,7 @@ const CreateToken = observer(() => {
       maxTransactionLimit = "0";
     }
 
-    await createToken(
+    await tokenStore.createToken(
       tokenName,
       tokenSymbol,
       initialSupply,

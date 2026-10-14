@@ -1,3 +1,4 @@
+import { reportError } from "@/utils/reportError";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { observer } from "mobx-react-lite";
@@ -68,15 +69,19 @@ const NftDetail = observer(() => {
   // collection view (replacing this entry, which leaves no dead end).
   const onBack = () => {
     if (openedFromCollectionView(location.state)) {
-      void navigate(-1);
+      Promise.resolve(navigate(-1)).catch((error: unknown) => {
+        reportError("Failed to navigate back:", error);
+      });
       return;
     }
-    void navigate(
+    Promise.resolve(navigate(
       walletHoldsCollection
         ? nftCollectionPath(ROUTES.HOME, contractAddress)
         : ROUTES.HOME,
       { replace: true },
-    );
+    )).catch((error: unknown) => {
+      reportError("Failed to open NFT collection:", error);
+    });
   };
 
   const [toAddress, setToAddress] = useState("");
@@ -122,8 +127,8 @@ const NftDetail = observer(() => {
   }
 
   const explorerUrl =
-    QRL_PROVIDER[qrlStore.qrlConnection.blockchain as keyof typeof QRL_PROVIDER]
-      ?.explorer ?? "https://zondscan.com";
+    Object.entries(QRL_PROVIDER).find(([id]) => id === blockchain)?.[1].explorer
+      ?? "https://zondscan.com";
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -364,7 +369,11 @@ const NftDetail = observer(() => {
         <CardHeader>
           <CardTitle className="text-lg">Transfer</CardTitle>
         </CardHeader>
-        <form onSubmit={onSubmit}>
+        <form onSubmit={(event) => {
+          onSubmit(event).catch((error: unknown) => {
+            setSendError(error instanceof Error ? error.message : "Unexpected transfer error.");
+          });
+        }}>
           <CardContent className="space-y-4">
             {sendError && (
               <div
@@ -423,7 +432,7 @@ const NftDetail = observer(() => {
                 <Input
                   id="nft-amount"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value.trim())}
+                  onChange={(e) => { setAmount(e.target.value.trim()); }}
                   inputMode="numeric"
                   disabled={isSending}
                 />

@@ -1,3 +1,4 @@
+import { reportError } from "@/utils/reportError";
 import { useNavigate } from "react-router";
 import { EyeOff } from "lucide-react";
 import type { NFTInterface } from "@/constants";
@@ -18,19 +19,23 @@ export function NftCard({ nft }: NftCardProps) {
   const navigate = useNavigate();
   const key = nftKey(nft.contractAddress, nft.tokenId);
 
-  const onHide = async (e: React.MouseEvent) => {
+  const onHide = (e: React.MouseEvent) => {
     e.stopPropagation();
-    await nftStore.hideNft(key);
+    nftStore.hideNft(key).catch((error: unknown) => {
+      reportError("Failed to hide NFT:", error);
+    });
   };
 
   const onOpen = () => {
     // Record that the previous history entry is this NFT's collection
     // view, so the detail page's Back button pops back into it instead of
     // guessing a route.
-    void navigate(
+    Promise.resolve(navigate(
       nftDetailPath(ROUTES.NFT_DETAIL, nft.contractAddress, nft.tokenId),
       { state: { nftDetailFromCollection: true } satisfies NftNavState },
-    );
+    )).catch((error: unknown) => {
+      reportError("Failed to open NFT:", error);
+    });
   };
 
   const subtitle = nft.collectionName
