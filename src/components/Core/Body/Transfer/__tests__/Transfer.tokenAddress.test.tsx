@@ -9,7 +9,6 @@ import {
 } from "@testing-library/react";
 import { useLocation, useSearchParams } from "react-router";
 import { observable, runInAction } from "mobx";
-import { useStore } from "@/stores/store";
 import { copyToClipboard } from "@/utils/nativeApp";
 import type { TokenInterface } from "@/constants";
 import Transfer from "../Transfer";
@@ -19,7 +18,8 @@ jest.mock("react-router", () => ({
   useNavigate: jest.fn(() => jest.fn()),
   useSearchParams: jest.fn(),
 }));
-jest.mock("@/stores/store", () => ({ useStore: jest.fn() }));
+let mockStore: ReturnType<typeof fixture>;
+jest.mock("@/stores/store", () => ({ useStore: () => mockStore }));
 jest.mock("@/utils", () => ({
   log: jest.fn(),
   cn: (...values: unknown[]) => values.filter(Boolean).join(" "),
@@ -28,13 +28,13 @@ jest.mock("@/router/router", () => ({
   ROUTES: { HOME: "/", IMPORT_ACCOUNT: "/import-account" },
 }));
 jest.mock("@/config", () => ({
-  QRL_PROVIDER: { TEST_NET_V3: { url: "http://127.0.0.1:9" } },
+  QRL_PROVIDER: { TEST_NET_V3: { url: "https://rpc.invalid" } },
   getExplorerAddressUrl: jest.fn(),
   getExplorerTxUrl: jest.fn(),
 }));
 jest.mock("@/desktop/bridge", () => ({ isDesktop: false }));
 jest.mock("@/utils/storage", () => ({
-  StorageUtil: { getBlockChain: jest.fn(async () => "TEST_NET_V3") },
+  StorageUtil: { getBlockChain: jest.fn(() => Promise.resolve("TEST_NET_V3")) },
 }));
 jest.mock("@/utils/crypto", () => ({
   DeviceCredentialUnavailableError: class extends Error {},
@@ -45,7 +45,7 @@ jest.mock("@/utils/nativeWalletMutation", () => ({
   walletMutations: {},
 }));
 jest.mock("@/utils/nativeApp", () => ({
-  copyToClipboard: jest.fn(async () => true),
+  copyToClipboard: jest.fn(() => Promise.resolve(true)),
   openExternalUrl: jest.fn(),
   isInNativeApp: jest.fn(() => false),
   requestQRScan: jest.fn(),
@@ -53,7 +53,7 @@ jest.mock("@/utils/nativeApp", () => ({
   triggerHaptic: jest.fn(),
 }));
 jest.mock("@/utils/web3", () => ({
-  fetchBalance: jest.fn(async () => 0n),
+  fetchBalance: jest.fn(() => Promise.resolve(0n)),
   isValidQrlAddress: jest.fn(() => true),
 }));
 jest.mock("@theqrl/web3", () => ({ utils: {} }));
@@ -130,8 +130,14 @@ function fixture(asset: string, tokens: TokenInterface[] = TOKENS) {
       { deep: false },
     ),
   };
-  jest.mocked(useStore).mockReturnValue(store as never);
-  jest.mocked(useLocation).mockReturnValue({ state: null } as never);
+  mockStore = store;
+  jest.mocked(useLocation).mockReturnValue({
+    state: null,
+    key: "transfer",
+    pathname: "/transfer",
+    search: "",
+    hash: "",
+  });
   jest
     .mocked(useSearchParams)
     .mockReturnValue([new URLSearchParams({ asset }), jest.fn()]);
@@ -142,8 +148,9 @@ it.each(TOKENS)(
   "shows and copies the exact full contract selected by the $symbol query",
   async (token) => {
     const store = fixture(token.address);
-    await act(async () => {
+    await act(() => {
       render(<Transfer />);
+      return Promise.resolve();
     });
     expect(screen.getByText("Token contract")).toBeTruthy();
     expect(screen.getByRole("combobox").textContent).toContain(token.symbol);
@@ -151,12 +158,11 @@ it.each(TOKENS)(
     expect(
       address.closest("[data-address-mode]")?.getAttribute("data-address-mode"),
     ).toBe("full");
-    expect(address.textContent?.replace(/\s/g, "")).toBe(token.address);
+    expect(address.textContent.replace(/\s/g, "")).toBe(token.address);
     expect(screen.queryByText("Native fee notice")).toBeNull();
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("button", { name: "Copy token contract address" }),
-      );
+    await act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Copy token contract address" }));
+      return Promise.resolve();
     });
     expect(copyToClipboard).toHaveBeenCalledWith(token.address);
     expect(store.qrlStore.signAndSendTransaction).not.toHaveBeenCalled();
@@ -167,8 +173,9 @@ it.each(TOKENS)(
 
 it("keeps the native transfer display without a token contract section", async () => {
   fixture("native");
-  await act(async () => {
+  await act(() => {
     render(<Transfer />);
+    return Promise.resolve();
   });
   expect(screen.getByRole("combobox").textContent).toContain("Quanta (Native)");
   expect(screen.getByText("Native fee notice")).toBeTruthy();
@@ -184,18 +191,20 @@ it("waits for the selected token record and removes its contract when unavailabl
   const store = fixture(token.address, []);
   const view = render(<Transfer />);
   expect(screen.queryByText("Token contract")).toBeNull();
-  await act(async () => {
+  await act(() => {
     runInAction(() => {
       store.tokenStore.visibleTokenList = [token];
     });
     view.rerender(<Transfer />);
+    return Promise.resolve();
   });
   expect(screen.getByLabelText(`QRL address ${token.address}`)).toBeTruthy();
-  await act(async () => {
+  await act(() => {
     runInAction(() => {
       store.tokenStore.visibleTokenList = [];
     });
     view.rerender(<Transfer />);
+    return Promise.resolve();
   });
   expect(screen.queryByText("Token contract")).toBeNull();
   expect(screen.queryByLabelText(`QRL address ${token.address}`)).toBeNull();
