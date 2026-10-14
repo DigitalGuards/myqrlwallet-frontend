@@ -38,7 +38,9 @@ const ExtensionPickerDialog = ({ providers, onSelect, onClose }: Props) => (
           <button
             key={detail.info.rdns}
             type="button"
-            onClick={() => onSelect(detail)}
+            onClick={() => {
+              onSelect(detail);
+            }}
             className="flex w-full items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-secondary"
           >
             <img src={detail.info.icon} alt="" className="h-7 w-7 rounded" />

@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { useState } from "react";
 import { useNavigate } from "react-router";
@@ -52,7 +53,9 @@ export default function AddressBook() {
   );
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const refresh = () => setEntries(loadAddressBook());
+  const refresh = () => {
+    setEntries(loadAddressBook());
+  };
 
   const handleAdd = () => {
     const result = addEntry(newName, newAddress);
@@ -83,16 +86,20 @@ export default function AddressBook() {
   };
 
   const handleCopy = (entry: AddressBookEntry) => {
-    copyToClipboard(entry.address);
+    copyToClipboard(entry.address).catch((error: unknown) => {
+      logger.error("Failed to copy address:", error);
+    });
     setCopiedId(entry.id);
     setTimeout(
-      () => setCopiedId((current) => (current === entry.id ? null : current)),
+      () => { setCopiedId((current) => (current === entry.id ? null : current)); },
       1500,
     );
   };
 
   const handleSend = (entry: AddressBookEntry) => {
-    navigate(ROUTES.TRANSFER, { state: { receiverAddress: entry.address } });
+    Promise.resolve(navigate(ROUTES.TRANSFER, { state: { receiverAddress: entry.address } })).catch((error: unknown) => {
+      logger.error("Failed to open transfer:", error);
+    });
   };
 
   return (
@@ -101,7 +108,12 @@ export default function AddressBook() {
       subtitle="Saved recipients for quick transfers"
       seoTitle="Address Book"
       action={
-        <Button size="sm" onClick={() => setAddOpen(true)}>
+        <Button
+          size="sm"
+          onClick={() => {
+            setAddOpen(true);
+          }}
+        >
           <Plus className="h-4 w-4 mr-1" />
           Add
         </Button>
@@ -139,7 +151,9 @@ export default function AddressBook() {
                       variant="ghost"
                       size="icon"
                       title="Copy address"
-                      onClick={() => handleCopy(entry)}
+                      onClick={() => {
+                        handleCopy(entry);
+                      }}
                     >
                       {copiedId === entry.id ? (
                         <Check className="h-4 w-4 text-success" />
@@ -151,7 +165,9 @@ export default function AddressBook() {
                       variant="ghost"
                       size="icon"
                       title="Send to this address"
-                      onClick={() => handleSend(entry)}
+                      onClick={() => {
+                        handleSend(entry);
+                      }}
                     >
                       <Send className="h-4 w-4" />
                     </Button>
@@ -170,7 +186,9 @@ export default function AddressBook() {
                       variant="ghost"
                       size="icon"
                       title="Delete"
-                      onClick={() => setDeleteTarget(entry)}
+                      onClick={() => {
+                        setDeleteTarget(entry);
+                      }}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -203,7 +221,9 @@ export default function AddressBook() {
               <Input
                 id="ab-name"
                 value={newName}
-                onChange={(e) => setNewName(e.target.value)}
+                onChange={(e) => {
+                  setNewName(e.target.value);
+                }}
                 placeholder="e.g. Cold storage"
                 maxLength={40}
               />
@@ -213,7 +233,9 @@ export default function AddressBook() {
               <Input
                 id="ab-address"
                 value={newAddress}
-                onChange={(e) => setNewAddress(e.target.value)}
+                onChange={(e) => {
+                  setNewAddress(e.target.value);
+                }}
                 placeholder="Q..."
                 className="font-mono"
               />
@@ -223,7 +245,12 @@ export default function AddressBook() {
             ) : null}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAddOpen(false);
+              }}
+            >
               Cancel
             </Button>
             <Button onClick={handleAdd}>Save</Button>
@@ -234,7 +261,9 @@ export default function AddressBook() {
       {/* Rename contact */}
       <Dialog
         open={renameTarget !== null}
-        onOpenChange={(open) => !open && setRenameTarget(null)}
+        onOpenChange={(open) => {
+          if (!open) setRenameTarget(null);
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -245,11 +274,18 @@ export default function AddressBook() {
           </DialogHeader>
           <Input
             value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
+            onChange={(e) => {
+              setRenameValue(e.target.value);
+            }}
             maxLength={40}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameTarget(null)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRenameTarget(null);
+              }}
+            >
               Cancel
             </Button>
             <Button onClick={handleRename} disabled={!renameValue.trim()}>
@@ -262,7 +298,9 @@ export default function AddressBook() {
       {/* Delete contact */}
       <Dialog
         open={deleteTarget !== null}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -274,7 +312,12 @@ export default function AddressBook() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteTarget(null);
+              }}
+            >
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleDelete}>

@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import RouteMonitor from "./RouteMonitor/RouteMonitor";
 import { withSuspense } from "@/utils/react";
 import { observer } from "mobx-react-lite";
@@ -36,7 +37,13 @@ const MyQRLWallet = observer(() => {
     setupActivityTracking();
     
     // Start the auto-lock timer
-    startAutoLockTimer(navigate);
+    startAutoLockTimer((path) => {
+      Promise.resolve(navigate(path)).catch((error: unknown) => {
+        logger.error("Failed to navigate after auto-lock:", error);
+      });
+    }).catch((error: unknown) => {
+      logger.error("Failed to start auto-lock timer:", error);
+    });
     
     // Clean up the timer when component unmounts
     return () => {
