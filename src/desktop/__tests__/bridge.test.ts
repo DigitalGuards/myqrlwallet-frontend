@@ -17,6 +17,16 @@ import {
 } from '../bridge';
 import { desktopTransactionArgs } from '@/components/Core/Body/DAppConnect/dappTransaction';
 
+const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+
+function restoreWindow(): void {
+  if (originalWindow) {
+    Object.defineProperty(globalThis, 'window', originalWindow);
+  } else {
+    Reflect.deleteProperty(globalThis, 'window');
+  }
+}
+
 const CHANNEL = '0199aabb-ccdd-eeff-0011-223344556677';
 
 describe('desktop signing errors', () => {
@@ -80,6 +90,12 @@ describe('buildDappOrigin', () => {
     it('strips control characters and trims', () => {
       const origin = buildDappOrigin('\u0000\u001f My\u007fdApp \u0001', undefined, CHANNEL);
       expect(origin?.name).toBe('MydApp');
+    });
+
+    it('removes every ASCII control while preserving printable Unicode', () => {
+      const controls = Array.from({ length: 32 }, (_, code) => String.fromCharCode(code)).join('');
+      const name = `${controls}Wallet é雪😀${String.fromCharCode(127)}`;
+      expect(buildDappOrigin(name, undefined, CHANNEL)?.name).toBe('Wallet é雪😀');
     });
 
     it('clamps to 64 chars', () => {
@@ -149,13 +165,25 @@ interface FakeShell {
  */
 function installFakeShell(opts: { supportsGas: boolean }): FakeShell {
   const builds: Record<string, unknown>[] = [];
-  // Only the three methods these paths touch are implemented, so the stub is
-  // widened from `unknown` once, with no assertion through the full bridge
-  // interface.
-  const stub: unknown = {
+  const status = { hasWallet: true, locked: false, address: `Q${'a'.repeat(128)}` };
+  const bridge: QrlWalletBridge = {
     addressScheme: 'qip55-64',
     ...(opts.supportsGas ? { features: { dappGasLimit: true } } : {}),
-    buildTransaction: (args: Record<string, unknown>) => {
+    createWallet: () => Promise.resolve({ status, mnemonic: 'test mnemonic' }),
+    importWallet: () => Promise.resolve(status),
+    unlock: () => Promise.resolve(status),
+    lock: () => Promise.resolve({ ...status, locked: true }),
+    removeWallet: () => Promise.resolve({ hasWallet: false, locked: true, address: '' }),
+    getStatus: () => Promise.resolve(status),
+    listWallets: () => Promise.resolve({
+      wallets: [{ address: status.address, keychainBacked: false }],
+      active: status.address,
+    }),
+    setActiveWallet: ({ address }) => Promise.resolve({ ...status, address }),
+    hasWallet: () => Promise.resolve(true),
+    getBalance: ({ address }) => Promise.resolve({ address, balance: '0' }),
+    onLockStateChanged: () => () => undefined,
+    buildTransaction: (args) => {
       builds.push(args);
       return Promise.resolve({ ...args, nonce: 1, gas: '120000', chainId: 3151909 });
     },
@@ -168,8 +196,10 @@ function installFakeShell(opts: { supportsGas: boolean }): FakeShell {
       }),
     sendRawTransaction: () => Promise.resolve({ transactionHash: `0x${'1'.repeat(64)}` }),
   };
-  const bridge = stub as QrlWalletBridge;
-  (globalThis as { window?: unknown }).window = { qrlWallet: bridge };
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: { qrlWallet: bridge },
+  });
   return { bridge, builds };
 }
 
@@ -182,7 +212,7 @@ const TX = {
 
 describe('desktop dApp gas-limit passthrough', () => {
   afterEach(() => {
-    delete (globalThis as { window?: unknown }).window;
+    restoreWindow();
     jest.restoreAllMocks();
   });
 
@@ -226,7 +256,7 @@ describe('desktop dApp gas-limit passthrough', () => {
 
 describe('composed desktop approval path', () => {
   afterEach(() => {
-    delete (globalThis as { window?: unknown }).window;
+    restoreWindow();
     jest.restoreAllMocks();
   });
 

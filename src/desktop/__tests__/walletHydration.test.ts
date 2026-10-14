@@ -113,6 +113,37 @@ describe('reconcileSignerWallets', () => {
     expect(list).toEqual(stored);
   });
 
+  it('preserves malformed recovery records verbatim and in order during removal', () => {
+    const recoveryRows = [
+      null,
+      undefined,
+      7,
+      'old record',
+      [],
+      { source: 'seed' },
+      { address: 123, source: 'seed' },
+      { address: 'invalid address', source: 'seed', recovery: { keep: true } },
+      { address: LEGACY_Q40, source: 'seed' },
+    ];
+    const extension = { address: C, source: 'extension', label: 'keep' };
+    const stored = [...recoveryRows, { address: A, source: 'seed' }, extension];
+    const { list, changed } = reconcileSignerWallets(stored, [B], true);
+    expect(changed).toBe(true);
+    expect(list).toEqual([...recoveryRows, extension, { address: B, source: 'seed' }]);
+    for (const [index, entry] of recoveryRows.entries()) expect(list[index]).toBe(entry);
+    expect(list[recoveryRows.length]).toBe(extension);
+    expect(stored).toEqual([...recoveryRows, { address: A, source: 'seed' }, extension]);
+  });
+
+  it('treats malformed signer identities as add-only and keeps existing rows', () => {
+    const stored = [{ address: A, source: 'seed' }];
+    const result = reconcileSignerWallets(stored, [null, { address: C }, B], true);
+    expect(result).toEqual({
+      list: [...stored, { address: B, source: 'seed' }],
+      changed: true,
+    });
+  });
+
   it('does not mutate the input array', () => {
     const stored: AccountListItem[] = [{ address: A, source: 'seed' }];
     reconcileSignerWallets(stored, [B], true);
@@ -122,11 +153,7 @@ describe('reconcileSignerWallets', () => {
   it('tolerates a malformed stored entry (no throw), preserving it verbatim', () => {
     // localStorage is unvalidated: an entry missing address must not blow up
     // the whole reconcile, and must not be dropped (it cannot be matched).
-    // Built via JSON.parse so the malformed shape is a genuine runtime value
-    // (not a compile-time cast the hardened lint bans).
-    const stored = JSON.parse(
-      `[{"source":"seed"},{"address":"${A}","source":"seed"}]`,
-    ) as AccountListItem[];
+    const stored = [{ source: 'seed' }, { address: A, source: 'seed' }];
     const { list, changed } = reconcileSignerWallets(stored, [A, B], true);
     expect(changed).toBe(true);
     expect(list).toHaveLength(3);
@@ -141,7 +168,7 @@ describe('isAddressListed', () => {
   });
 
   it('returns false for a removed address and tolerates malformed entries', () => {
-    const list = JSON.parse(`[{"source":"seed"},{"address":"${A}","source":"seed"}]`) as AccountListItem[];
+    const list = [{ source: 'seed' }, { address: A, source: 'seed' }];
     expect(isAddressListed(list, B)).toBe(false);
     expect(isAddressListed(list, A)).toBe(true);
   });
@@ -178,7 +205,7 @@ describe('decideActiveAccount', () => {
   });
 
   it('rewrites a stored active that matches the signer wallet but differs only by case (canonical heal)', () => {
-    // Gemini HIGH: a case-only difference must still be rewritten to canonical,
+    // A case-only difference must still be rewritten to canonical,
     // or validateActiveAccount's strict === find misses and clears the active.
     const d = decideActiveAccount({
       list,
@@ -283,6 +310,20 @@ describe('decideActiveAccount', () => {
     });
     expect(d).toEqual({ action: 'none' });
   });
+});
+
+it('tolerates unknown recovery rows while choosing a canonical active account', () => {
+  const list = [null, 1, [], { source: 'seed' }, { address: B, source: 'seed' }];
+  expect(isAddressListed(list, B)).toBe(true);
+  expect(isAddressListed(list, { address: B })).toBe(false);
+  expect(decideActiveAccount({
+    list,
+    storedActive: A,
+    signerActive: uniformLower(B),
+    signerAddresses: [B],
+    authoritative: true,
+  })).toEqual({ action: 'set', address: B });
+  expect(pickActiveWallet([null, A], { address: B })).toBe(A);
 });
 
 describe('pickActiveWallet', () => {

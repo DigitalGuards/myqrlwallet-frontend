@@ -14,6 +14,8 @@ import {
   readNativeCapabilities,
 } from '@/config/runtimeProfile';
 import { HAS_NATIVE_BRIDGE } from '@/utils/embeddedRuntime';
+import { isRecord } from '@/utils/guards';
+import { logError, logWarning } from '@/utils/log';
 
 export type WebToNativeMessageType =
   | 'SCAN_QR'
@@ -53,33 +55,40 @@ export type WebToNativeMessageType =
 /**
  * Message types that can be received from the native app
  */
-export type NativeToWebMessageType =
-  | 'QR_RESULT'
-  | 'QR_CANCELLED'          // User closed QR scanner without scanning
-  | 'BIOMETRIC_SUCCESS'
-  | 'APP_STATE'
-  | 'APP_LOCKED'            // Native authorization was invalidated (a real lock)
-  | 'CLIPBOARD_SUCCESS'
-  | 'SHARE_SUCCESS'
-  | 'ERROR'
+const NATIVE_TO_WEB_MESSAGE_TYPES = [
+  'QR_RESULT',
+  'QR_CANCELLED',          // User closed QR scanner without scanning
+  'BIOMETRIC_SUCCESS',
+  'APP_STATE',
+  'APP_LOCKED',            // Native authorization was invalidated (a real lock)
+  'CLIPBOARD_SUCCESS',
+  'SHARE_SUCCESS',
+  'ERROR',
   // Seed persistence messages
-  | 'UNLOCK_WITH_PIN'       // Native sends PIN after biometric success
-  | 'RESTORE_SEED'          // Native sends backup seed if localStorage empty
-  | 'WEB_DOCUMENT_CHALLENGE' // Native proves this exact WebView document is current
-  | 'CLEAR_WALLET'          // Native requests web to clear wallet
-  | 'BIOMETRIC_SETUP_PROMPT' // Native prompts user to enable biometric
-  | 'VERIFY_PIN'            // Native asks web to verify PIN can decrypt seed
-  | 'CHANGE_PIN'            // Native requests web to re-encrypt seeds with new PIN
-  | 'SEED_STORED_RESPONSE'  // Native durably acknowledged a seed backup revision
-  | 'DEVICE_CREDENTIAL_RESPONSE' // Native returns the hardware-backed v5 wallet factor
+  'UNLOCK_WITH_PIN',       // Native sends PIN after biometric success
+  'RESTORE_SEED',          // Native sends backup seed if localStorage empty
+  'WEB_DOCUMENT_CHALLENGE', // Native proves this exact WebView document is current
+  'CLEAR_WALLET',          // Native requests web to clear wallet
+  'BIOMETRIC_SETUP_PROMPT', // Native prompts user to enable biometric
+  'VERIFY_PIN',            // Native asks web to verify PIN can decrypt seed
+  'CHANGE_PIN',            // Native requests web to re-encrypt seeds with new PIN
+  'SEED_STORED_RESPONSE',  // Native durably acknowledged a seed backup revision
+  'DEVICE_CREDENTIAL_RESPONSE', // Native returns the hardware-backed v5 wallet factor
   // DApp Connect messages
-  | 'DAPP_URI'              // Deep link URI received by native, forwarded to WebView
-  | 'DAPP_DISCONNECT'       // Native requests web to disconnect a specific dApp session
+  'DAPP_URI',              // Deep link URI received by native, forwarded to WebView
+  'DAPP_DISCONNECT',       // Native requests web to disconnect a specific dApp session
   // Display preferences (native settings drives the Home card toggles)
-  | 'SET_DISPLAY_PREFS'     // Native sets showTokensCard / showNftsCard in wallet settings
-  | 'RESTORE_CONTACTS'      // Native sends the backed-up address book on boot
-  | 'NAVIGATE'              // Native asks the web app to navigate to an in-app route
-  | 'NATIVE_BACK';          // Android hardware back, for the page to resolve
+  'SET_DISPLAY_PREFS',     // Native sets showTokensCard / showNftsCard in wallet settings
+  'RESTORE_CONTACTS',      // Native sends the backed-up address book on boot
+  'NAVIGATE',              // Native asks the web app to navigate to an in-app route
+  'NATIVE_BACK',          // Android hardware back, for the page to resolve
+] as const;
+
+export type NativeToWebMessageType = (typeof NATIVE_TO_WEB_MESSAGE_TYPES)[number];
+
+function isNativeMessageType(value: unknown): value is NativeToWebMessageType {
+  return NATIVE_TO_WEB_MESSAGE_TYPES.some((type) => type === value);
+}
 
 export interface NativeMessage {
   type: NativeToWebMessageType;
@@ -94,18 +103,13 @@ export const getCurrentNativeDocumentId = (): string => CURRENT_DOCUMENT_ID;
 
 export const isNativeMessageForCurrentDocument = (
   message: unknown,
-): message is NativeMessage => {
-  if (typeof message !== 'object' || message === null || Array.isArray(message)) {
-    return false;
-  }
-  const record = message as Record<string, unknown>;
-  const payload = record['payload'];
+): message is NativeMessage & { payload: Record<string, unknown> } => {
+  if (!isRecord(message)) return false;
+  const payload = message['payload'];
   return (
-    typeof record['type'] === 'string' &&
-    typeof payload === 'object' &&
-    payload !== null &&
-    !Array.isArray(payload) &&
-    (payload as Record<string, unknown>)['documentId'] === CURRENT_DOCUMENT_ID
+    isNativeMessageType(message['type']) &&
+    isRecord(payload) &&
+    payload['documentId'] === CURRENT_DOCUMENT_ID
   );
 };
 
@@ -158,11 +162,12 @@ export const nativeAppPlatform = (): 'ios' | 'android' | null => {
   if (declared !== null) return declared;
   if (typeof navigator === 'undefined') return null;
   const ua = navigator.userAgent;
+  const touchCapabilities: { maxTouchPoints?: number } = navigator;
   if (/Android/.test(ua)) return 'android';
   // iPadOS 13+ reports a desktop user agent, with touch points as the tell.
   if (
     /iPhone|iPad|iPod/.test(ua) ||
-    (ua.includes('Macintosh') && (navigator.maxTouchPoints ?? 0) > 1)
+    (ua.includes('Macintosh') && (touchCapabilities.maxTouchPoints ?? 0) > 1)
   ) {
     return 'ios';
   }
@@ -214,7 +219,7 @@ export const sendToNative = (
     return true;
   }
 
-  console.warn('[NativeApp] Not running in native app, message not sent:', type);
+  logWarning('[NativeApp] Not running in native app, message not sent:', type);
   return false;
 };
 
@@ -254,16 +259,18 @@ export const copyToClipboard = async (
   }
 
   // Fall back to browser clipboard API
-  if (!navigator.clipboard) {
-    console.error("Clipboard API is not available.");
+  const browser: { clipboard?: Clipboard } = navigator;
+  const clipboard = browser.clipboard;
+  if (!clipboard) {
+    logError("Clipboard API is not available.");
     return false;
   }
 
   try {
-    await navigator.clipboard.writeText(text);
+    await clipboard.writeText(text);
     return true;
   } catch (err) {
-    console.error("Failed to copy text to clipboard:", err);
+    logError("Failed to copy text to clipboard:", err);
     return false;
   }
 };
@@ -328,7 +335,7 @@ export const parseExternalHttpUrl = (value: string): string | null => {
 export const openExternalUrl = (url: string): void => {
   const safeUrl = parseExternalHttpUrl(url);
   if (safeUrl === null) {
-    console.warn('[NativeApp] Refusing to open an unsafe external URL');
+    logWarning('[NativeApp] Refusing to open an unsafe external URL');
     return;
   }
   if (isInNativeApp()) {
@@ -362,13 +369,11 @@ export const subscribeToNativeMessages = (
     if (IS_V3_PROFILE && !isQualifiedV3NativeContext()) return;
     // Verify it's a CustomEvent before accessing detail
     if (!(event instanceof CustomEvent)) {
-      console.warn('[NativeApp] Expected CustomEvent but received:', event.type);
+      logWarning('[NativeApp] Expected CustomEvent but received:', event.type);
       return;
     }
-    if (event.detail) {
-      const message = event.detail;
-      if (isNativeMessageForCurrentDocument(message)) callback(message);
-    }
+    const message: unknown = event.detail;
+    if (isNativeMessageForCurrentDocument(message)) callback(message);
   };
 
   window.addEventListener('nativeMessage', handler);
@@ -504,11 +509,10 @@ function ensureSeedBackupListener(): void {
 
   window.addEventListener('nativeMessage', (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
-    const message = event.detail as NativeMessage | undefined;
-    if (message?.type !== 'SEED_STORED_RESPONSE') return;
-    if (!isNativeMessageForCurrentDocument(message)) return;
+    const message: unknown = event.detail;
+    if (!isNativeMessageForCurrentDocument(message) || message.type !== 'SEED_STORED_RESPONSE') return;
 
-    const requestId = message.payload?.['requestId'];
+    const requestId = message.payload['requestId'];
     if (typeof requestId !== 'string') return;
     const pending = pendingSeedBackupRequests.get(requestId);
     if (!pending) return;
@@ -516,12 +520,12 @@ function ensureSeedBackupListener(): void {
     pendingSeedBackupRequests.delete(requestId);
     clearTimeout(pending.timeout);
 
-    if (message.payload?.['success'] !== true) {
+    if (message.payload['success'] !== true) {
       pending.reject(new Error('Native secure seed backup failed.'));
       return;
     }
-    const revision = message.payload?.['revision'];
-    const ciphertextHash = message.payload?.['ciphertextHash'];
+    const revision = message.payload['revision'];
+    const ciphertextHash = message.payload['ciphertextHash'];
     if (revision !== pending.revision || ciphertextHash !== pending.ciphertextHash) {
       pending.reject(new Error('Native acknowledged a different seed backup revision.'));
       return;
@@ -607,11 +611,10 @@ function ensureDeviceCredentialListener(): void {
 
   window.addEventListener('nativeMessage', (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
-    const message = event.detail as NativeMessage | undefined;
-    if (message?.type !== 'DEVICE_CREDENTIAL_RESPONSE') return;
-    if (!isNativeMessageForCurrentDocument(message)) return;
+    const message: unknown = event.detail;
+    if (!isNativeMessageForCurrentDocument(message) || message.type !== 'DEVICE_CREDENTIAL_RESPONSE') return;
 
-    const requestId = message.payload?.['requestId'];
+    const requestId = message.payload['requestId'];
     if (typeof requestId !== 'string') return;
     const pending = pendingDeviceCredentialRequests.get(requestId);
     if (!pending) return;
@@ -619,7 +622,7 @@ function ensureDeviceCredentialListener(): void {
     pendingDeviceCredentialRequests.delete(requestId);
     clearTimeout(pending.timeout);
 
-    const error = message.payload?.['error'];
+    const error = message.payload['error'];
     if (error === 'NOT_FOUND') {
       pending.resolve(null);
       return;
@@ -629,7 +632,7 @@ function ensureDeviceCredentialListener(): void {
       return;
     }
 
-    const credential = message.payload?.['credential'];
+    const credential = message.payload['credential'];
     if (typeof credential !== 'string') {
       pending.reject(new Error('Native returned an invalid wallet credential response.'));
       return;
