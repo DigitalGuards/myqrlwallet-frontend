@@ -4,18 +4,33 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import react from 'eslint-plugin-react'
+import { fileURLToPath } from 'node:url'
 
-export default tseslint.config(
+export const strictFiles = ['**/*.{ts,tsx}']
+
+export const baseConfig = tseslint.config(
   { ignores: ['dist', 'node_modules', 'build', 'coverage', '*.config.js', '*.config.ts'] },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
-    files: ['**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      ...tseslint.configs.strictTypeChecked,
+      // The automatic JSX runtime supplies React without an in-scope import.
+      react.configs.flat['jsx-runtime'],
+    ],
+    files: strictFiles,
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
       parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname,
+        projectService: {
+          // Build tooling and the service worker use the default type-aware project.
+          allowDefaultProject: [
+            'config/vite.config.ts',
+            'config/vite.config.embedded.ts',
+            'public/background.ts',
+          ],
+        },
+        tsconfigRootDir: fileURLToPath(new URL('..', import.meta.url)),
         ecmaFeatures: {
           jsx: true,
         },
@@ -33,13 +48,10 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': 'off', // Allow exporting utilities with components
+      'react-refresh/only-export-components': 'error',
 
       // --- Hardened TypeScript: mandate no type laundering ---------------
-      // The @theqrl/web3 ABI typing gap is handled honestly in
-      // src/utils/web3/contractFactory.ts (single assertions from `unknown`
-      // to the library's own ContractAbi + hand-written method interfaces),
-      // so there is no sanctioned `any` escape hatch anywhere in the app.
+      // Wire input stays unknown until runtime guards establish its type.
       '@typescript-eslint/no-explicit-any': 'error',
       // Prove non-nullness with a guard or resolve a typed value.
       '@typescript-eslint/no-non-null-assertion': 'error',
@@ -56,28 +68,26 @@ export default tseslint.config(
           disallowTypeAnnotations: false,
         },
       ],
-      // No `@ts-ignore` / `@ts-nocheck`; `@ts-expect-error` only with a real reason.
+      // TypeScript errors must be resolved at their source.
       '@typescript-eslint/ban-ts-comment': [
         'error',
         {
           'ts-ignore': true,
           'ts-nocheck': true,
-          'ts-expect-error': 'allow-with-description',
-          minimumDescriptionLength: 10,
+          'ts-expect-error': true,
         },
       ],
       // Wire input is `unknown` narrowed by runtime guards; hand-written
       // assertions are the laundering this rule forbids. `as const` stays legal.
       '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'never' }],
       // Double assertions erase the type system.
-      // Narrow honestly (e.g. annotate WebCrypto buffers as
-      // Uint8Array<ArrayBuffer>, or assert once from `unknown`).
+      // Narrow unknown input with runtime guards.
       'no-restricted-syntax': [
         'error',
         {
           selector: 'TSAsExpression > TSAsExpression',
           message:
-            'Double type assertion (e.g. `x as unknown as T`) is banned: it bypasses the type checker. Narrow honestly or assert once from `unknown`.',
+            'Double type assertions are banned. Narrow unknown input with a guard.',
         },
       ],
       // -------------------------------------------------------------------
@@ -93,10 +103,7 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          // Use `patterns`/`group` (not `paths`) for every entry so deep
-          // subpath imports are covered too (e.g. `@theqrl/wallet.js/dist/...`),
-          // not just the bare specifier. This keeps the boundary enforced by
-          // the rule itself rather than relying on each package's exports map.
+          // Patterns cover each package and all of its subpath imports.
           patterns: [
             {
               group: ['@theqrl/mldsa87', '@theqrl/mldsa87/*'],
@@ -136,23 +143,17 @@ export default tseslint.config(
           caughtErrorsIgnorePattern: '^_',
         },
       ],
-      // Defensive runtime validation of typed parameters is deliberate for wire
-      // input; do not flag those checks as dead.
-      '@typescript-eslint/no-unnecessary-condition': 'off',
       // Counters and sizes in messages are idiomatic; the lossy stringifications stay banned.
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
 
-      'react/react-in-jsx-scope': 'off',
+      // TypeScript types every prop in these files.
       'react/prop-types': 'off',
-      'no-console': 'off', // Allow console for debugging in development
-      'react-hooks/exhaustive-deps': 'warn', // Keep as warning for now
+      'no-console': 'error',
+      'react-hooks/exhaustive-deps': 'error',
     },
   },
   {
-    // The crypto boundary itself: these modules ARE the encapsulation layer,
-    // so they are the only place allowed to import the raw primitives. This
-    // intentionally lifts only `no-restricted-imports` (the primitive ban);
-    // the `no-restricted-syntax` double-assertion ban stays in force here.
+    // Crypto modules are the designated boundary for raw primitive imports.
     files: [
       'src/utils/crypto/**/*.{ts,tsx}',
       'src/utils/signing/**/*.{ts,tsx}',
@@ -163,187 +164,1816 @@ export default tseslint.config(
     },
   },
   {
-    // Tests exercise malformed input and mock internals; assertions and loose
-    // typing are legitimate tools there.
-    files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    files: ['src/test-utils/malformed.ts'],
     rules: {
-      '@typescript-eslint/consistent-type-assertions': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-non-null-assertion': 'off',
-      '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unsafe-member-access': 'off',
-      '@typescript-eslint/no-unsafe-call': 'off',
-      '@typescript-eslint/no-unsafe-argument': 'off',
-      '@typescript-eslint/no-unsafe-return': 'off',
-      '@typescript-eslint/unbound-method': 'off',
-      '@typescript-eslint/no-empty-function': 'off',
-      '@typescript-eslint/no-floating-promises': 'off',
-      '@typescript-eslint/no-unsafe-function-type': 'off',
-      '@typescript-eslint/restrict-plus-operands': 'off',
-      '@typescript-eslint/use-unknown-in-catch-callback-variable': 'off',
-      '@typescript-eslint/require-await': 'off',
-      '@typescript-eslint/no-confusing-void-expression': 'off',
-      '@typescript-eslint/no-extraneous-class': 'off',
-      '@typescript-eslint/no-misused-promises': 'off',
-      '@typescript-eslint/no-deprecated': 'off',
-      '@typescript-eslint/prefer-promise-reject-errors': 'off',
-      '@typescript-eslint/no-useless-constructor': 'off',
-      '@typescript-eslint/no-implied-eval': 'off',
-      '@typescript-eslint/no-unnecessary-type-conversion': 'off',
-      '@typescript-eslint/no-unnecessary-template-expression': 'off',
-    },
-  },
-  {
-    // Files outside the app tsconfig (build config, public service worker) keep
-    // the syntactic rules; type-aware rules need a program that includes them.
-    files: ['config/**/*.ts', 'public/**/*.ts'],
-    extends: [tseslint.configs.disableTypeChecked],
-  },
-  {
-    // RATCHET: hardened-TypeScript rules (strict-type-checked, no type assertions)
-    // are on for the whole project. The files below predate them and still
-    // trip the rules switched off here. Fix a file, then delete its line. New
-    // files are never added to this list; the dApp-connect slice
-    // (src/services/dappConnect, src/components/Core/Body/DAppConnect) passes
-    // the full rule set with no override.
-    files: [
-      'config/vite.config.embedded.ts',
-      'src/App.tsx',
-      'src/components/Core/Body/AccountList/AccountBalance/AccountBalance.tsx',
-      'src/components/Core/Body/AccountList/ActiveAccount/ActiveAccount.tsx',
-      'src/components/Core/Body/AccountList/CopyAddressButton/CopyAddressButton.tsx',
-      'src/components/Core/Body/AccountList/OtherAccounts/OtherAccounts.tsx',
-      'src/components/Core/Body/AddressBook/AddressBook.tsx',
-      'src/components/Core/Body/AddressBook/AddressBookPicker.tsx',
-      'src/components/Core/Body/CreateAccount/AccountCreationForm/AccountCreationForm.tsx',
-      'src/components/Core/Body/CreateAccount/CreateAccount.tsx',
-      'src/components/Core/Body/CreateAccount/MnemonicDisplay/MnemonicDisplay.tsx',
-      'src/components/Core/Body/CreateToken/CreateToken.tsx',
-      'src/components/Core/Body/CreateToken/TokenCreationForm/TokenCreationForm.tsx',
-      'src/components/Core/Body/CreateToken/TokenStatus.tsx',
-      'src/components/Core/Body/Home/AccountCreateImport/AccountCreateImport.tsx',
-      'src/components/Core/Body/Home/AccountCreateImport/ActiveAccountDisplay/ActiveAccountDisplay.tsx',
-      'src/components/Core/Body/Home/AccountCreateImport/ExtensionPickerDialog.tsx',
-      'src/components/Core/Body/Home/AccountCreateImport/MobilePairingDialog.tsx',
-      'src/components/Core/Body/Home/ConnectionFailed/ConnectionFailed.tsx',
-      'src/components/Core/Body/Home/DecorativeAccountVideo.tsx',
-      'src/components/Core/Body/Home/Home.tsx',
-      'src/components/Core/Body/Home/ReceivePopup.tsx',
-      'src/components/Core/Body/ImportAccount/AccountImportSuccess/AccountImportSuccess.tsx',
-      'src/components/Core/Body/ImportAccount/ImportAccount.tsx',
-      'src/components/Core/Body/ImportAccount/ImportAccountForm/ImportAccountForm.tsx',
-      'src/components/Core/Body/ImportAccount/ImportEncryptedWallet/ImportEncryptedWallet.tsx',
-      'src/components/Core/Body/ImportAccount/ImportHexSeedForm/ImportHexSeedForm.tsx',
-      'src/components/Core/Body/Nfts/AddNftModal.tsx',
-      'src/components/Core/Body/Nfts/NftCard.tsx',
-      'src/components/Core/Body/Nfts/NftCollectionRow.tsx',
-      'src/components/Core/Body/Nfts/NftDetail.tsx',
-      'src/components/Core/Body/Nfts/NftGallery.tsx',
-      'src/components/Core/Body/Nfts/NftImage.tsx',
-      'src/components/Core/Body/Nfts/nftNavigation.ts',
-      'src/components/Core/Body/PinSetup/DeviceCredentialRecovery.tsx',
-      'src/components/Core/Body/PinSetup/PinSetup.tsx',
-      'src/components/Core/Body/QRView/QRView.tsx',
-      'src/components/Core/Body/Settings/ExportWalletFile.tsx',
-      'src/components/Core/Body/Settings/NetworkSettings/NetworkSettings.tsx',
-      'src/components/Core/Body/Settings/Settings.tsx',
-      'src/components/Core/Body/Tokens/AddTokenModal/AddTokenModal.tsx',
-      'src/components/Core/Body/Tokens/TokenForm/TokenForm.tsx',
-      'src/components/Core/Body/Tokens/TokenForm/columns.tsx',
-      'src/components/Core/Body/Tokens/TokenForm/data-table.tsx',
-      'src/components/Core/Body/Transfer/GasFeeNotice/GasFeeNotice.tsx',
-      'src/components/Core/Body/Transfer/TransactionSuccessful/TransactionSuccessful.tsx',
-      'src/components/Core/Body/Transfer/Transfer.tsx',
-      'src/components/Core/Layout/MobileNav.tsx',
-      'src/components/Core/Layout/app-sidebar.tsx',
-      'src/components/Core/MyQRLWallet.tsx',
-      'src/components/Core/RouteMonitor/RouteMonitor.tsx',
-      'src/components/NativeAppBridge.tsx',
-      'src/components/Telegram/TelegramControlCenter.tsx',
-      'src/components/UI/AddressDisclosure.tsx',
-      'src/components/UI/CheckBox.tsx',
-      'src/components/UI/Dialog.tsx',
-      'src/components/UI/DropdownMenu.tsx',
-      'src/components/UI/Form.tsx',
-      'src/components/UI/Label.tsx',
-      'src/components/UI/NavigationMenu.tsx',
-      'src/components/UI/PinInput/PinInput.tsx',
-      'src/components/UI/Select.tsx',
-      'src/components/UI/Separator.tsx',
-      'src/components/UI/Slider.tsx',
-      'src/components/UI/Tabs.tsx',
-      'src/components/UI/Tooltip.tsx',
-      'src/components/UI/sheet.tsx',
-      'src/components/UI/sidebar.tsx',
-      'src/components/UI/switch.tsx',
-      'src/config/deploymentProfile.ts',
-      'src/config/networks.ts',
-      'src/config/runtimeProfile.ts',
-      'src/desktop/bridge.ts',
-      'src/hooks/use-mobile.tsx',
-      'src/hooks/useCopyToClipboard.ts',
-      'src/hooks/useNetworkQrnsRecipient.ts',
-      'src/hooks/useWalletLimit.ts',
-      'src/router/router.tsx',
-      'src/stores/nftStore.ts',
-      'src/stores/qrlStore.ts',
-      'src/stores/tokenStore.ts',
-      'src/utils/addressBook.ts',
-      'src/utils/crypto/cryptoWorkerClient.ts',
-      'src/utils/crypto/deviceCredential.ts',
-      'src/utils/crypto/keystoreBackup.ts',
-      'src/utils/crypto/pinAttemptTracker.ts',
-      'src/utils/crypto/storedSeed.ts',
-      'src/utils/crypto/walletEncryption.ts',
-      'src/utils/embeddedMigration.ts',
-      'src/utils/embeddedRuntime.ts',
-      'src/utils/errors.ts',
-      'src/utils/formatting/balance.ts',
-      'src/utils/formatting/string.ts',
-      'src/utils/logout.ts',
-      'src/utils/mobileConnect/mobileConnection.ts',
-      'src/utils/nativeApp.ts',
-      'src/utils/nativeWalletMutation.ts',
-      'src/utils/navigation.ts',
-      'src/utils/signing/typedData.ts',
-      'src/utils/storage/autoLock.ts',
-      'src/utils/storage/storage.ts',
-      'src/utils/useBackDismiss.ts',
-      'src/utils/walletEpoch.ts',
-      'src/utils/web3/contractFactory.ts',
-      'src/utils/web3/nft.ts',
-      'src/utils/web3/nftDiscovery.ts',
-      'src/utils/web3/qrns.ts',
-      'src/utils/web3/tokenDiscovery.ts',
-      'src/utils/web3/vm64Logs.ts',
-    ],
-    rules: {
-      '@typescript-eslint/await-thenable': 'off',
-      '@typescript-eslint/consistent-type-assertions': 'off',
-      '@typescript-eslint/no-confusing-void-expression': 'off',
-      '@typescript-eslint/no-deprecated': 'off',
-      '@typescript-eslint/no-extraneous-class': 'off',
-      '@typescript-eslint/no-floating-promises': 'off',
-      '@typescript-eslint/no-invalid-void-type': 'off',
-      '@typescript-eslint/no-misused-promises': 'off',
-      '@typescript-eslint/no-redundant-type-constituents': 'off',
-      '@typescript-eslint/no-unnecessary-boolean-literal-compare': 'off',
-      '@typescript-eslint/no-unnecessary-template-expression': 'off',
-      '@typescript-eslint/no-unnecessary-type-arguments': 'off',
-      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
-      '@typescript-eslint/no-unnecessary-type-conversion': 'off',
-      '@typescript-eslint/no-unnecessary-type-parameters': 'off',
-      '@typescript-eslint/no-unsafe-argument': 'off',
-      '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unsafe-call': 'off',
-      '@typescript-eslint/no-unsafe-member-access': 'off',
-      '@typescript-eslint/no-unsafe-return': 'off',
-      '@typescript-eslint/only-throw-error': 'off',
-      '@typescript-eslint/require-await': 'off',
-      '@typescript-eslint/restrict-plus-operands': 'off',
-      '@typescript-eslint/restrict-template-expressions': 'off',
-      '@typescript-eslint/unbound-method': 'off',
-      '@typescript-eslint/use-unknown-in-catch-callback-variable': 'off',
+      // Malformed test fixtures use this single assertion boundary.
+      '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'as' }],
     },
   },
 )
+
+// Existing lint debt, including tests. Entries may only be removed.
+// Regenerate with npm run lint:ratchet:update after fixing a file/rule pair.
+// BEGIN LINT RATCHET
+export const lintRatchet = [
+  {
+    files: ["config/vite.config.embedded.ts"],
+    rules: {
+      "@typescript-eslint/await-thenable": "off",
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-misused-spread": "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["config/vite.config.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+    },
+  },
+  {
+    files: ["public/background.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/App.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/__tests__/App.nativeCompatibility.test.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-imports": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/__tests__/viteProductionBuild.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/AccountList/AccountBalance/AccountBalance.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/AccountList/ActiveAccount/ActiveAccount.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-deprecated": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/AccountList/CopyAddressButton/CopyAddressButton.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-deprecated": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/require-await": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/AccountList/OtherAccounts/OtherAccounts.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/AddressBook/AddressBook.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/AddressBook/AddressBookPicker.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/CreateAccount/AccountCreationForm/AccountCreationForm.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/await-thenable": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/CreateAccount/CreateAccount.tsx"],
+    rules: {
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/CreateAccount/MnemonicDisplay/MnemonicDisplay.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/CreateToken/CreateToken.tsx"],
+    rules: {
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/CreateToken/TokenCreationForm/TokenCreationForm.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/CreateToken/TokenStatus.tsx"],
+    rules: {
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unnecessary-type-conversion": "off",
+      "@typescript-eslint/unbound-method": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/DAppConnect/DAppApprovalModal.tsx"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "no-console": "off",
+      "react-hooks/exhaustive-deps": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/DAppConnect/DAppMessageReview.tsx"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/DAppConnect/DAppTypedDataReview.tsx"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/DAppConnect/__tests__/DAppApprovalModal.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/DAppConnect/__tests__/DAppReview.security.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/DAppConnect/__tests__/DAppTransactionReview.gasLabel.test.ts",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/DAppConnect/__tests__/dappBroadcastOutcome.test.ts",
+    ],
+    rules: {
+      "@typescript-eslint/prefer-promise-reject-errors": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/DAppConnect/__tests__/dappHistoryApproval.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/require-await": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/DAppConnect/__tests__/dappRevertPrecheck.test.ts",
+    ],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/DAppConnect/__tests__/seedSendPolling.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/DAppConnect/dappRevertPrecheck.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Home/AccountCreateImport/AccountCreateImport.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/unbound-method": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Home/AccountCreateImport/ActiveAccountDisplay/ActiveAccountDisplay.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Home/AccountCreateImport/ExtensionPickerDialog.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Home/AccountCreateImport/MobilePairingDialog.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Home/ConnectionFailed/ConnectionFailed.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Home/DecorativeAccountVideo.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Home/Home.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Home/ReceivePopup.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Home/__tests__/DecorativeAccountVideo.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Home/__tests__/activeAccountAddressAction.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Home/__tests__/receivePopup.test.tsx"],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Home/__tests__/v3HeaderLayout.test.tsx"],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Home/__tests__/v3ProfileUi.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/ImportAccount/AccountImportSuccess/AccountImportSuccess.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-misused-promises": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/ImportAccount/ImportAccount.tsx"],
+    rules: {
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/ImportAccount/ImportAccountForm/ImportAccountForm.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/ImportAccount/ImportEncryptedWallet/ImportEncryptedWallet.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/ImportAccount/ImportHexSeedForm/ImportHexSeedForm.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/require-await": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/ImportAccount/__tests__/ImportAccount.activation.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Nfts/AddNftModal.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Nfts/NftCard.tsx"],
+    rules: {
+      "@typescript-eslint/no-misused-promises": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Nfts/NftCollectionRow.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Nfts/NftDetail.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Nfts/NftGallery.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "react-hooks/exhaustive-deps": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Nfts/NftImage.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Nfts/__tests__/AddNftModal.collections.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Nfts/__tests__/NftCollectionNavigation.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Nfts/__tests__/NftDetail.contractRow.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Nfts/__tests__/NftDetail.qrns.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Nfts/__tests__/NftGallery.collections.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Nfts/nftNavigation.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/PinSetup/DeviceCredentialRecovery.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/PinSetup/PinSetup.tsx"],
+    rules: {
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/PinSetup/__tests__/DeviceCredentialRecovery.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/QRView/QRView.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Settings/ExportWalletFile.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Settings/NetworkSettings/NetworkSettings.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Settings/Settings.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Tokens/AddTokenModal/AddTokenModal.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/unbound-method": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Tokens/TokenForm/TokenForm.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Tokens/TokenForm/__tests__/columns.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Tokens/TokenForm/columns.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "react-refresh/only-export-components": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Tokens/TokenForm/data-table.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "react-hooks/exhaustive-deps": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/TransactionHistory/__tests__/historyNetwork.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/TransactionHistory/__tests__/pendingHistory.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/TransactionHistory/__tests__/v3HistoryNetwork.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Transfer/GasFeeNotice/GasFeeNotice.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-unnecessary-type-conversion": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "react-hooks/exhaustive-deps": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Transfer/TransactionSuccessful/TransactionSuccessful.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Transfer/TransactionSuccessful/__tests__/TransactionSuccessful.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Body/Transfer/Transfer.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-deprecated": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unnecessary-type-conversion": "off",
+      "@typescript-eslint/unbound-method": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Transfer/__tests__/Transfer.qrns.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-useless-constructor": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Transfer/__tests__/Transfer.sendStatus.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/Core/Body/Transfer/__tests__/Transfer.tokenAddress.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Layout/MobileNav.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Layout/__tests__/PageShell.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/Layout/app-sidebar.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/MyQRLWallet.tsx"],
+    rules: {
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/RouteMonitor/RouteMonitor.tsx"],
+    rules: {
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
+    files: ["src/components/Core/RouteMonitor/__tests__/RouteMonitor.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/NativeAppBridge.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/components/SEO/__tests__/SEO.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/components/Telegram/TelegramControlCenter.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/AddressDisclosure.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/Button.tsx"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/CheckBox.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/Dialog.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/DropdownMenu.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/Form.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-deprecated": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unnecessary-template-expression": "off",
+      "react-refresh/only-export-components": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/Label.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/NavigationMenu.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+      "react-refresh/only-export-components": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/PinInput/PinInput.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-imports": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/Select.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/Separator.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/Slider.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/Tabs.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/Tooltip.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/__tests__/AddressDisclosure.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/__tests__/QrlAddress.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/sheet.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/sidebar.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-deprecated": "off",
+      "react-refresh/only-export-components": "off",
+    },
+  },
+  {
+    files: ["src/components/UI/switch.tsx"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+  {
+    files: ["src/components/WebDAppIngress.tsx"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/components/__tests__/NativeAppBridge.history.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/components/__tests__/pinPrompts.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/config/__tests__/deploymentProfile.test.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/config/__tests__/embeddedProfile.test.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/config/__tests__/nativeRuntimeProfile.test.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-return": "off",
+    },
+  },
+  {
+    files: ["src/config/deploymentProfile.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/config/networks.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/config/runtimeProfile.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/desktop/__tests__/bridge.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/desktop/__tests__/walletHydration.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/desktop/bridge.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "no-console": "off",
+      "no-control-regex": "off",
+    },
+  },
+  {
+    files: ["src/desktop/walletHydration.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
+    files: ["src/hooks/__tests__/useHasNativeInjectedPin.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/hooks/__tests__/useQrnsRecipient.test.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/hooks/use-mobile.tsx"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/hooks/useCopyToClipboard.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/hooks/useNetworkQrnsRecipient.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
+    files: ["src/hooks/useWalletLimit.ts"],
+    rules: {
+      "@typescript-eslint/no-floating-promises": "off",
+    },
+  },
+  {
+    files: ["src/main.tsx"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/router/router.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/services/dappConnect/DAppConnectService.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/services/dappConnect/KeyExchange.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
+    files: ["src/services/dappConnect/PQCrypto.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
+    files: ["src/services/dappConnect/SocketClient.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/services/dappConnect/__tests__/DAppConnectService.security.test.ts",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: [
+      "src/services/dappConnect/__tests__/DAppConnectServiceWakeRetry.test.ts",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
+    files: [
+      "src/services/dappConnect/__tests__/RequestHandler.security.test.ts",
+    ],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/services/dappConnect/__tests__/SDK4Interop.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/services/dappConnect/__tests__/SocketClient.security.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+    },
+  },
+  {
+    files: ["src/services/dappConnect/__tests__/SocketClientReconnect.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/services/dappConnect/__tests__/SocketClientRejoin.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+    },
+  },
+  {
+    files: ["src/services/dappConnect/__tests__/fragmentIngress.test.ts"],
+    rules: {
+      "@typescript-eslint/no-extraneous-class": "off",
+    },
+  },
+  {
+    files: ["src/services/dappConnect/__tests__/rpcProvider.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/services/dappConnect/__tests__/sessionSecurity.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/services/dappConnect/qrUri.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
+    files: ["src/stores/__tests__/activeAccountValidation.test.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+    },
+  },
+  {
+    files: ["src/stores/__tests__/dappConnectStore.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-extraneous-class": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/stores/__tests__/extensionRecovery.test.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/stores/__tests__/nativeTransferFee.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/stores/__tests__/nftCollectionDiscovery.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/stores/__tests__/qrlPriceFetch.test.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+    },
+  },
+  {
+    files: ["src/stores/__tests__/sendHistory.test.ts"],
+    rules: {
+      "@typescript-eslint/no-extraneous-class": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/stores/__tests__/sendStatus.test.ts"],
+    rules: {
+      "@typescript-eslint/no-extraneous-class": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/stores/__tests__/transactionHistoryStore.test.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/stores/__tests__/v3AssetSigning.test.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-extraneous-class": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/stores/__tests__/v3WalletProfile.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-extraneous-class": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/stores/__tests__/walletCorrectness.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/stores/dappConnectStore.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/stores/nftStore.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      "@typescript-eslint/no-unnecessary-type-conversion": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/stores/qrlStore.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unnecessary-type-conversion": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/restrict-plus-operands": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/stores/store.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/stores/tokenStore.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-redundant-type-constituents": "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      "@typescript-eslint/no-unnecessary-type-conversion": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/__tests__/clipboardSensitive.test.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+    },
+  },
+  {
+    files: ["src/utils/__tests__/embeddedMigration.test.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+    },
+  },
+  {
+    files: ["src/utils/__tests__/embeddedRuntime.test.ts"],
+    rules: {
+      "@typescript-eslint/no-implied-eval": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+    },
+  },
+  {
+    files: ["src/utils/__tests__/embeddedShell.test.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/utils/__tests__/logout.test.ts"],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/utils/__tests__/logoutEmbedded.test.ts"],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/__tests__/nativeAppCorrelation.test.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+    },
+  },
+  {
+    files: ["src/utils/__tests__/nativeAppDeviceCredential.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+    },
+  },
+  {
+    files: ["src/utils/__tests__/nativeDocumentBinding.test.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+    },
+  },
+  {
+    files: ["src/utils/__tests__/nativeWalletMutation.test.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/__tests__/walletEpoch.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unnecessary-type-conversion": "off",
+    },
+  },
+  {
+    files: ["src/utils/addressBook.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/__tests__/mnemonic.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/__tests__/nativeInjectedPinLifetime.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/__tests__/nativePinVerification.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/__tests__/pinRotation.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/__tests__/storedSeed.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/__tests__/verifyPinWithLimit.test.ts"],
+    rules: {
+      "@typescript-eslint/prefer-promise-reject-errors": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/__tests__/walletEncryption.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/restrict-plus-operands": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/argon2.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/cryptoWorkerClient.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unnecessary-type-parameters": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/deviceCredential.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unnecessary-boolean-literal-compare": "off",
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/keystoreBackup.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/storedSeed.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/crypto/walletEncryption.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-extraneous-class": "off",
+    },
+  },
+  {
+    files: ["src/utils/embeddedMigration.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/embeddedMigrationBoot.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/embeddedRuntime.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/utils/errors.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/utils/extension/__tests__/extensionConnection.test.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/extension/__tests__/v3Provider.test.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/extension/extensionConnection.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/formatting/__tests__/address.test.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-template-expression": "off",
+    },
+  },
+  {
+    files: ["src/utils/formatting/balance.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/utils/formatting/string.ts"],
+    rules: {
+      "@typescript-eslint/no-extraneous-class": "off",
+    },
+  },
+  {
+    files: ["src/utils/guards.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
+    files: ["src/utils/log.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/logout.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: [
+      "src/utils/mobileConnect/__tests__/mobileConnection.security.test.ts",
+    ],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/mobileConnect/mobileConnection.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/nativeApp.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/nativeBack.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/nativeWalletMutation.ts"],
+    rules: {
+      "@typescript-eslint/only-throw-error": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/navigation.ts"],
+    rules: {
+      "@typescript-eslint/no-floating-promises": "off",
+    },
+  },
+  {
+    files: ["src/utils/signing/__tests__/fixtures.test.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+    },
+  },
+  {
+    files: ["src/utils/signing/__tests__/generateSchemeFixtures.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/utils/signing/__tests__/schemeFixtures.test.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+    },
+  },
+  {
+    files: ["src/utils/signing/__tests__/typedDataSecurity.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/utils/signing/typedData.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+    },
+  },
+  {
+    files: ["src/utils/storage/__tests__/seedRevision.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+    },
+  },
+  {
+    files: ["src/utils/storage/autoLock.ts"],
+    rules: {
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/storage/storage.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-extraneous-class": "off",
+      "@typescript-eslint/no-unnecessary-type-parameters": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/useBackDismiss.ts"],
+    rules: {
+      "@typescript-eslint/no-invalid-void-type": "off",
+    },
+  },
+  {
+    files: ["src/utils/walletEpoch.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/__tests__/feePolicy.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/__tests__/nativeMaxReserve.test.ts"],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/__tests__/nftCollections.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/__tests__/qip55Composition.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/__tests__/qrns.test.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/__tests__/sendPolling.test.ts"],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/__tests__/vm64Logs.test.ts"],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/contractFactory.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unnecessary-type-parameters": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/nft.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unnecessary-type-conversion": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/nftDiscovery.ts"],
+    rules: {
+      "@typescript-eslint/no-redundant-type-constituents": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/qrns.ts"],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/tokenDiscovery.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["src/utils/web3/vm64Logs.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+    },
+  },
+];
+// END LINT RATCHET
+
+export default [...baseConfig, ...lintRatchet]
