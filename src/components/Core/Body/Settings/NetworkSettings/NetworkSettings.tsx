@@ -3,10 +3,12 @@ import { observer } from "mobx-react-lite";
 import { AVAILABLE_NETWORKS, IS_V3_PROFILE } from "@/config";
 import { Check, FlaskConical, Globe } from "lucide-react";
 import { SettingsRow, SettingsSection } from "../SettingsList";
+import { logger } from "@/utils/log";
 
 export const NetworkSettings = observer(() => {
     const { qrlStore } = useStore();
-    const { qrlConnection, selectBlockchain } = qrlStore;
+    const { qrlConnection } = qrlStore;
+    const selectBlockchain = qrlStore.selectBlockchain.bind(qrlStore);
     const { blockchain, isLoading } = qrlConnection;
     const networks = [...AVAILABLE_NETWORKS].sort(
         (left, right) => Number(right.id === "MAIN_NET") - Number(left.id === "MAIN_NET"),
@@ -25,7 +27,11 @@ export const NetworkSettings = observer(() => {
                         : "bg-amber-500/15 text-amber-400"}
                     title={IS_V3_PROFILE ? network.name : network.id === "MAIN_NET" ? "Mainnet" : "Testnet"}
                     right={blockchain === network.id ? activeMark : undefined}
-                    onClick={() => selectBlockchain(network.id)}
+                    onClick={() => {
+                        void Promise.resolve(selectBlockchain(network.id)).catch((error: unknown) => {
+                            logger.error("Failed to select network:", error);
+                        });
+                    }}
                     disabled={isLoading}
                 />
             ))}

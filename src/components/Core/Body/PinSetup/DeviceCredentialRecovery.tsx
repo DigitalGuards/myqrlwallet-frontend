@@ -38,7 +38,9 @@ export function DeviceCredentialRecovery() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => setSettingsUnavailable(!openNativeSettings())}
+            onClick={() => {
+              setSettingsUnavailable(!openNativeSettings());
+            }}
           >
             Open app settings
           </Button>

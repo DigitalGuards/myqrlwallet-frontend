@@ -5,6 +5,7 @@ import { handleLogout } from "@/utils/logout";
 import { isInNativeApp } from "@/utils/nativeApp";
 import { navigateTo } from "@/utils/navigation";
 import { cn } from "@/utils/cn";
+import { logger } from "@/utils/log";
 
 const navItems = [
     {
@@ -34,7 +35,13 @@ export default function MobileNav() {
     const location = useLocation();
 
     const onLogoutClick = () => {
-        handleLogout(navigate);
+        void handleLogout((path) => {
+            void Promise.resolve(navigate(path)).catch((error: unknown) => {
+                logger.error("Failed to navigate after logout:", error);
+            });
+        }).catch((error: unknown) => {
+            logger.error("Error during logout:", error);
+        });
     };
 
     const isActive = (path: string) =>
@@ -53,7 +60,9 @@ export default function MobileNav() {
                                 "cursor-pointer relative flex flex-col items-center gap-0.5 text-xs font-medium transition-colors",
                                 active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                             )}
-                            onClick={() => navigateTo(item.path, navigate)}
+                            onClick={() => {
+                                navigateTo(item.path, navigate);
+                            }}
                         >
                             {/* Sky-blue tick above the active tab, mirroring the desktop rail edge */}
                             <span

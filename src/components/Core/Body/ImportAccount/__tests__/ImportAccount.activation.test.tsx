@@ -9,6 +9,8 @@ import {
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import ImportAccount from "../ImportAccount";
+import { deferred } from "@/test-utils/deferred";
+import { logger } from "@/utils/log";
 import {
   encryptSeedAsync,
   decryptStoredSeedAsync,
@@ -21,7 +23,7 @@ import { desktopSigner } from "@/desktop/bridge";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 
 const mockSelectAccount = jest.fn(
-  async (_address: string): Promise<void> => undefined,
+  (_address: string): Promise<void> => Promise.resolve(),
 );
 let mockDesktop = false;
 let mockNative = true;
@@ -42,7 +44,9 @@ jest.mock("@/stores/store", () => ({
 jest.mock("mobx-react-lite", () => ({
   observer: (component: unknown) => component,
 }));
-jest.mock("@/utils", () => jest.requireActual("@/utils/cn"));
+jest.mock("@/utils", () =>
+  jest.requireActual<typeof import("@/utils/cn")>("@/utils/cn"),
+);
 jest.mock("@/hooks/useWalletLimit", () => ({
   useWalletLimit: () => ({ isWalletLimitReached: false }),
 }));
@@ -68,7 +72,11 @@ jest.mock("../ImportAccountForm/ImportAccountForm", () => ({
   }: {
     onAccountImported: (account: unknown) => void;
   }) => (
-    <button onClick={() => onAccountImported(mockAccount)}>
+    <button
+      onClick={() => {
+        onAccountImported(mockAccount);
+      }}
+    >
       Supply mnemonic
     </button>
   ),
@@ -79,7 +87,11 @@ jest.mock("../ImportHexSeedForm/ImportHexSeedForm", () => ({
   }: {
     onAccountImported: (account: unknown) => void;
   }) => (
-    <button onClick={() => onAccountImported(mockAccount)}>
+    <button
+      onClick={() => {
+        onAccountImported(mockAccount);
+      }}
+    >
       Supply hex seed
     </button>
   ),
@@ -90,7 +102,11 @@ jest.mock("../ImportEncryptedWallet/ImportEncryptedWallet", () => ({
   }: {
     onWalletImported: (account: unknown) => void;
   }) => (
-    <button onClick={() => onWalletImported(mockAccount)}>
+    <button
+      onClick={() => {
+        onWalletImported(mockAccount);
+      }}
+    >
       Supply exported backup
     </button>
   ),
@@ -142,8 +158,8 @@ beforeEach(() => {
   mockNative = true;
   window.scrollTo = jest.fn();
   jest.mocked(encryptSeedAsync).mockResolvedValue("encrypted seed");
-  jest.mocked(StorageUtil.getAllEncryptedSeeds).mockResolvedValue([]);
-  jest.mocked(StorageUtil.storeEncryptedSeed).mockResolvedValue({
+  jest.mocked(StorageUtil).getAllEncryptedSeeds.mockResolvedValue([]);
+  jest.mocked(StorageUtil).storeEncryptedSeed.mockResolvedValue({
     ...mockAccount,
     encryptedSeed: "encrypted seed",
     lastAccessed: 1,
@@ -155,6 +171,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  jest.restoreAllMocks();
   localStorage.clear();
 });
 
@@ -169,36 +186,32 @@ async function enterPin() {
       });
     }
   }
-  await waitFor(() =>
+  await waitFor(() => {
     expect(
       screen.getByRole("button", { name: "Set PIN" }).hasAttribute("disabled"),
-    ).toBe(false),
-  );
+    ).toBe(false);
+  });
   fireEvent.click(screen.getByRole("button", { name: "Set PIN" }));
 }
 
 it.each(["mnemonic", "hex seed", "exported backup"])(
   "selects a %s import only after native acknowledgement",
   async (kind) => {
-    let acknowledge!: (value: {
-      revision: number;
-      ciphertextHash: string;
-    }) => void;
-    jest.mocked(notifySeedStored).mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          acknowledge = resolve;
-        }),
-    );
+    const acknowledgement =
+      deferred<Awaited<ReturnType<typeof notifySeedStored>>>();
+    jest.mocked(notifySeedStored).mockReturnValue(acknowledgement.promise);
     render(<ImportAccount />);
     fireEvent.click(screen.getByRole("button", { name: `Supply ${kind}` }));
     expect(mockSelectAccount).not.toHaveBeenCalled();
     await enterPin();
-    await waitFor(() => expect(notifySeedStored).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(notifySeedStored).toHaveBeenCalledTimes(1);
+    });
     expect(mockSelectAccount).not.toHaveBeenCalled();
     expect(screen.queryByText("Import complete")).toBeNull();
-    await act(async () => {
-      acknowledge({ revision: 1, ciphertextHash: "ab".repeat(32) });
+    await act(() => {
+      acknowledgement.resolve({ revision: 1, ciphertextHash: "ab".repeat(32) });
+      return acknowledgement.promise;
     });
     await screen.findByText("Import complete");
     expect(mockSelectAccount).toHaveBeenCalledTimes(1);
@@ -219,23 +232,20 @@ it("keeps the existing active wallet when native backup fails", async () => {
 });
 
 it("rejects activation when clear arrives during native backup acknowledgement", async () => {
-  let acknowledge!: (value: {
-    revision: number;
-    ciphertextHash: string;
-  }) => void;
-  jest.mocked(notifySeedStored).mockImplementation(
-    () =>
-      new Promise((resolve) => {
-        acknowledge = resolve;
-      }),
-  );
+  const acknowledgement =
+    deferred<Awaited<ReturnType<typeof notifySeedStored>>>();
+  jest.mocked(notifySeedStored).mockReturnValue(acknowledgement.promise);
   render(<ImportAccount />);
   fireEvent.click(screen.getByRole("button", { name: "Supply mnemonic" }));
   await enterPin();
-  await waitFor(() => expect(notifySeedStored).toHaveBeenCalledTimes(1));
+  await waitFor(() => {
+    expect(notifySeedStored).toHaveBeenCalledTimes(1);
+  });
   await act(async () => {
-    const clearing = walletMutations.clear(() => localStorage.clear());
-    acknowledge({ revision: 1, ciphertextHash: "ab".repeat(32) });
+    const clearing = walletMutations.clear(() => {
+      localStorage.clear();
+    });
+    acknowledgement.resolve({ revision: 1, ciphertextHash: "ab".repeat(32) });
     await clearing;
   });
   expect(mockSelectAccount).not.toHaveBeenCalled();
@@ -252,7 +262,9 @@ it.each(["mnemonic", "hex seed", "exported backup"])(
     expect(mockSelectAccount).not.toHaveBeenCalled();
     await enterPin();
     await screen.findByText("Import complete");
-    expect(StorageUtil.storeEncryptedSeed).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(StorageUtil).storeEncryptedSeed).toHaveBeenCalledTimes(
+      1,
+    );
     expect(mockSelectAccount).toHaveBeenCalledTimes(1);
     expect(mockSelectAccount).toHaveBeenCalledWith(mockAccount.address);
     expect(notifySeedStored).not.toHaveBeenCalled();
@@ -260,7 +272,7 @@ it.each(["mnemonic", "hex seed", "exported backup"])(
 );
 
 it("preserves the active wallet and factor while offering recovery settings", async () => {
-  jest.mocked(StorageUtil.getAllEncryptedSeeds).mockResolvedValue([
+  jest.mocked(StorageUtil).getAllEncryptedSeeds.mockResolvedValue([
     {
       address: "existing",
       encryptedSeed: "preserved ciphertext",
@@ -282,18 +294,18 @@ it("preserves the active wallet and factor while offering recovery settings", as
     fireEvent.change(screen.getByLabelText(`PIN digit ${index}`), {
       target: { value: String(index) },
     });
-  await waitFor(() =>
+  await waitFor(() => {
     expect(
       screen
         .getByRole("button", { name: "Import Wallet" })
         .hasAttribute("disabled"),
-    ).toBe(false),
-  );
+    ).toBe(false);
+  });
   fireEvent.click(screen.getByRole("button", { name: "Import Wallet" }));
   await screen.findByRole("alert", { name: "Wallet recovery guidance" });
   expect(mockSelectAccount).not.toHaveBeenCalled();
   expect(encryptSeedAsync).not.toHaveBeenCalled();
-  expect(StorageUtil.storeEncryptedSeed).not.toHaveBeenCalled();
+  expect(jest.mocked(StorageUtil).storeEncryptedSeed).not.toHaveBeenCalled();
   expect(notifySeedStored).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Open app settings" }));
   expect(openNativeSettings).toHaveBeenCalledTimes(1);
@@ -302,7 +314,7 @@ it("preserves the active wallet and factor while offering recovery settings", as
 
 it("keeps desktop activation behind successful signer import", async () => {
   mockDesktop = true;
-  jest.mocked(desktopSigner.importWallet).mockResolvedValue({
+  jest.mocked(desktopSigner).importWallet.mockResolvedValue({
     hasWallet: true,
     locked: false,
     address: mockAccount.address,
@@ -316,13 +328,13 @@ it("keeps desktop activation behind successful signer import", async () => {
   fireEvent.change(screen.getByPlaceholderText("Re-enter the password"), {
     target: { value: "Synthetic!123" },
   });
-  await waitFor(() =>
+  await waitFor(() => {
     expect(
       screen
         .getByRole("button", { name: /Import wallet/i })
         .hasAttribute("disabled"),
-    ).toBe(false),
-  );
+    ).toBe(false);
+  });
   fireEvent.click(screen.getByRole("button", { name: /Import wallet/i }));
   await screen.findByText("Import complete");
   expect(mockSelectAccount).toHaveBeenCalledTimes(1);
@@ -332,21 +344,19 @@ it("keeps desktop activation behind successful signer import", async () => {
 });
 
 it("rejects import success when clear arrives during account selection", async () => {
-  let finishSelection!: () => void;
+  const selection = deferred<undefined>();
   let activeMetadata: string | null = null;
-  mockSelectAccount.mockImplementationOnce(
-    () =>
-      new Promise((resolve) => {
-        finishSelection = () => {
-          activeMetadata = mockAccount.address;
-          resolve();
-        };
-      }),
-  );
+  const finishSelection = () => {
+    activeMetadata = mockAccount.address;
+    selection.resolve(undefined);
+  };
+  mockSelectAccount.mockReturnValueOnce(selection.promise);
   render(<ImportAccount />);
   fireEvent.click(screen.getByRole("button", { name: "Supply mnemonic" }));
   await enterPin();
-  await waitFor(() => expect(mockSelectAccount).toHaveBeenCalledTimes(1));
+  await waitFor(() => {
+    expect(mockSelectAccount).toHaveBeenCalledTimes(1);
+  });
   await act(async () => {
     const clearing = walletMutations.clear(() => {
       activeMetadata = null;
@@ -357,4 +367,50 @@ it("rejects import success when clear arrives during account selection", async (
   expect(activeMetadata).toBeNull();
   expect(screen.queryByText("Import complete")).toBeNull();
   await screen.findByText(/Wallet was cleared during account import/);
+});
+
+it("reports an encrypted-seed read failure while keeping import inactive", async () => {
+  const failure = new Error("Storage unavailable");
+  const report = jest
+    .spyOn(logger, "error")
+    .mockImplementation(() => undefined);
+  jest.mocked(StorageUtil).getAllEncryptedSeeds.mockRejectedValueOnce(failure);
+  render(<ImportAccount />);
+  fireEvent.click(screen.getByRole("button", { name: "Supply mnemonic" }));
+  await waitFor(() => {
+    expect(report).toHaveBeenCalledWith(
+      "Failed to load encrypted seeds:",
+      failure,
+    );
+  });
+  expect(mockSelectAccount).not.toHaveBeenCalled();
+  expect(jest.mocked(StorageUtil).storeEncryptedSeed).not.toHaveBeenCalled();
+  expect(screen.queryByText("Import complete")).toBeNull();
+});
+
+it("retains the desktop import error and leaves activation untouched", async () => {
+  mockDesktop = true;
+  jest
+    .mocked(desktopSigner)
+    .importWallet.mockRejectedValueOnce(new Error("Signer unavailable"));
+  render(<ImportAccount />);
+  fireEvent.click(screen.getByRole("button", { name: "Supply mnemonic" }));
+  fireEvent.change(screen.getByPlaceholderText("Password"), {
+    target: { value: "Synthetic!123" },
+  });
+  fireEvent.change(screen.getByPlaceholderText("Re-enter the password"), {
+    target: { value: "Synthetic!123" },
+  });
+  await waitFor(() => {
+    expect(
+      screen
+        .getByRole("button", { name: /Import wallet/i })
+        .hasAttribute("disabled"),
+    ).toBe(false);
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Import wallet/i }));
+  await screen.findByText(
+    "Signer unavailable There was an error importing your wallet",
+  );
+  expect(mockSelectAccount).not.toHaveBeenCalled();
 });
