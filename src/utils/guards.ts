@@ -106,12 +106,40 @@ function stringifyUnknown(value: unknown): string | undefined {
   return JSON.stringify(value);
 }
 
+/** Read string diagnostics across realms while keeping tagged plain objects on the JSON path. */
+function foreignErrorDetails(value: unknown): { name: string; message: string } | undefined {
+  try {
+    if (!isObject(value)) return undefined;
+    if (Symbol.toStringTag in value) {
+      // DOMException's prototype getter validates its receiver across realms.
+      if (typeof DOMException === 'undefined') return undefined;
+      const code: unknown = Reflect.get(DOMException.prototype, 'code', value);
+      if (typeof code !== 'number') return undefined;
+    } else if (Object.prototype.toString.call(value) !== '[object Error]') {
+      return undefined;
+    }
+    const message = value['message'];
+    if (typeof message !== 'string') return undefined;
+    const name = value['name'];
+    return { name: typeof name === 'string' ? name : 'Error', message };
+  } catch {
+    // Unreadable brands or diagnostics retain the existing serialization fallback.
+    return undefined;
+  }
+}
+
 /** Return a local Error so callers can discriminate failures with instanceof. */
 export function toError(value: unknown): Error {
   try {
     // Prototype inspection can throw for proxies, just like serialization.
     if (value instanceof Error) return value;
     if (typeof value === 'string') return new Error(value);
+    const details = foreignErrorDetails(value);
+    if (details) {
+      const error = new Error(details.message);
+      error.name = details.name;
+      return error;
+    }
     return new Error(stringifyUnknown(value) ?? 'Unknown error');
   } catch {
     return new Error('Unknown error');
@@ -160,6 +188,8 @@ export function describeUnknown(value: unknown): string {
       return value.toString();
     }
     if (typeof value === 'function') return '[function]';
+    const details = foreignErrorDetails(value);
+    if (details) return details.message;
     return stringifyUnknown(value) ?? '';
   } catch {
     return '[object]';

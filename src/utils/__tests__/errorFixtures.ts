@@ -50,9 +50,7 @@ export const foreignErrorCases = [
 ].map(({ source, ...fixture }) => ({
   ...fixture,
   create: (): unknown => new Script(source).runInNewContext(),
-  normalizedMessage: fixture.errorName === 'CredentialStorageError'
-    ? '{"name":"CredentialStorageError","code":"storage_unavailable"}'
-    : '{}',
+  normalizedMessage: fixture.message,
 }));
 
 export const errorShapedCases = [

@@ -27,7 +27,8 @@ it("normalizes a foreign-window DOMException to a local Error", () => {
   const failure = foreignDOMException();
   const normalized = toError(failure);
   expect(normalized).toBeInstanceOf(Error);
-  expect(normalized.message).toBe("{}");
+  expect(normalized.name).toBe(name);
+  expect(normalized.message).toBe(message);
   expect(failure.name).toBe(name);
   expect(failure.message).toBe(message);
 });

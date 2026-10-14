@@ -15,7 +15,21 @@ import {
 } from './errorFixtures';
 
 // Class: normalization must satisfy callers that discriminate with instanceof Error.
-it.each([...foreignErrorCases, ...errorShapedCases])(
+it.each(foreignErrorCases)(
+  'normalizes $name to a local Error with its original diagnostics',
+  ({ create, errorName, message }) => {
+    const value = create();
+    expect(value).not.toBeInstanceOf(Error);
+    const normalized = toError(value);
+    expect(normalized).toBeInstanceOf(Error);
+    expect(normalized).not.toBe(value);
+    expect(normalized.name).toBe(errorName);
+    expect(normalized.message).toBe(message);
+    expect(describeUnknown(value)).toBe(message);
+  }
+);
+
+it.each(errorShapedCases)(
   'normalizes $name to a local Error with serialized diagnostics',
   ({ create, normalizedMessage }) => {
     const value = create();
@@ -25,6 +39,7 @@ it.each([...foreignErrorCases, ...errorShapedCases])(
     expect(normalized).not.toBe(value);
     expect(normalized.name).toBe('Error');
     expect(normalized.message).toBe(normalizedMessage);
+    expect(describeUnknown(value)).toBe(normalizedMessage);
   }
 );
 
@@ -32,15 +47,19 @@ it('normalizes objects with a spoofed Error tag as diagnostic values', () => {
   for (const value of [
     { [Symbol.toStringTag]: 'Error' },
     { code: 1, [Symbol.toStringTag]: 'Error' },
+    { [Symbol.toStringTag]: 'DOMException', name: 'InvalidStateError', message: 'storage unavailable' },
   ]) {
     const normalized = toError(value);
     expect(normalized).not.toBe(value);
     expect(normalized.message).toBe(JSON.stringify(value));
+    expect(describeUnknown(value)).toBe(JSON.stringify(value));
   }
 });
 
 it.each(malformedErrorMessages)('describes malformed Error.message as $text', ({ value, text }) => {
-  expect(describeUnknown(Object.defineProperty(new Error(), 'message', { value }))).toBe(text);
+  const error = Object.defineProperty(new Error(), 'message', { value });
+  expect(toError(error)).toBe(error);
+  expect(describeUnknown(error)).toBe(text);
 });
 
 it('narrows records and arrays separately', () => {
@@ -75,6 +94,7 @@ it('preserves Error identity and serializable diagnostic values', () => {
   expect(toError({ code: 1 }).message).toBe('{"code":1}');
   expect(toError(null).message).toBe('null');
   expect(describeUnknown(error)).toBe('original');
+  expect(describeUnknown('failure')).toBe('failure');
   expect(describeUnknown({ code: 1 })).toBe('{"code":1}');
 });
 
