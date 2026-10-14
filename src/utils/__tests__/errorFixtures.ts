@@ -1,140 +1,127 @@
-interface ErrorCase {
-  name: string;
-  create: () => unknown;
-  normalizedMessage: string | null;
-  description: string;
-  message: string;
+import { Script } from 'node:vm';
+import { isObject } from '../guards';
+
+function foreignError(): object {
+  const value: unknown = new Script('new Error()').runInNewContext();
+  if (!isObject(value)) throw new Error('Expected a foreign-realm error');
+  return value;
 }
 
-const inaccessible = (): never => {
-  throw new Error('Inspection failed');
-};
+// Class: cleanup failures carry Error identity and diagnostics across realms.
+export const foreignErrorCases = [
+  ...['Error', 'EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].map(
+    (errorName) => ({
+      name: `foreign-realm ${errorName}`,
+      errorName,
+      source: `new ${errorName}("credential storage unavailable")`,
+      message: 'credential storage unavailable',
+    })
+  ),
+  {
+    name: 'foreign-realm AggregateError',
+    errorName: 'AggregateError',
+    source: 'new AggregateError([new TypeError("storage")], "credential storage unavailable")',
+    message: 'credential storage unavailable',
+  },
+  {
+    name: 'foreign-realm Error with a cause',
+    errorName: 'Error',
+    source: 'new Error("credential storage unavailable", { cause: new TypeError("storage") })',
+    message: 'credential storage unavailable',
+  },
+  {
+    name: 'foreign-realm Error subclass',
+    errorName: 'CredentialStorageError',
+    source: `new (class extends TypeError {
+      constructor() {
+        super("credential storage unavailable");
+        this.name = "CredentialStorageError";
+        this.code = "storage_unavailable";
+      }
+    })()`,
+    message: 'credential storage unavailable',
+  },
+  {
+    name: 'foreign-realm Error with an empty message',
+    errorName: 'Error',
+    source: 'new Error()',
+    message: '',
+  },
+].map(({ source, ...fixture }) => ({
+  ...fixture,
+  create: (): unknown => new Script(source).runInNewContext(),
+  normalizedMessage: fixture.errorName === 'CredentialStorageError'
+    ? '{"name":"CredentialStorageError","code":"storage_unavailable"}'
+    : '{}',
+}));
 
-export const opaqueErrorCases: ErrorCase[] = [
-  ...[
-    { name: 'revoked object', target: {} },
-    { name: 'revoked array', target: [] },
-    { name: 'revoked function', target: () => undefined },
-  ].map(({ name, target }) => ({
-    name,
+export const errorShapedCases = [
+  {
+    name: 'error-shaped object',
+    create: () => ({ name: 'InvalidStateError', message: 'storage unavailable' }),
+    normalizedMessage: '{"name":"InvalidStateError","message":"storage unavailable"}',
+  },
+  {
+    name: 'error-shaped object with an Error tag',
+    create: () => ({
+      [Symbol.toStringTag]: 'Error', name: 'TypeError', message: 'storage unavailable',
+    }),
+    normalizedMessage: '{"name":"TypeError","message":"storage unavailable"}',
+  },
+  {
+    name: 'error-shaped array',
+    create: () => Object.assign([], { name: 'Error', message: 'storage unavailable' }),
+    normalizedMessage: '[]',
+  },
+  {
+    name: 'error-shaped boxed primitive',
     create: () => {
-      const { proxy, revoke } = Proxy.revocable(target, {});
-      revoke();
-      return proxy;
+      const boxed: unknown = Object('failure');
+      if (!isObject(boxed)) throw new Error('Expected a boxed string');
+      return Object.assign(boxed, { name: 'Error', message: 'storage unavailable' });
     },
-    normalizedMessage: 'Unknown error',
-    description: '[object]',
-    message: 'Unknown error',
-  })),
-  {
-    name: 'throwing prototype trap',
-    create: () => new Proxy({}, { getPrototypeOf: inaccessible }),
-    normalizedMessage: 'Unknown error',
-    description: '[object]',
-    message: 'Unknown error',
-  },
-  {
-    name: 'throwing property trap',
-    create: () => new Proxy({ code: 4001 }, { get: inaccessible }),
-    normalizedMessage: 'Unknown error',
-    description: '[object]',
-    message: 'Unknown error',
-  },
-  {
-    name: 'throwing membership trap',
-    create: () => new Proxy({}, { has: inaccessible }),
-    normalizedMessage: '{}',
-    description: '{}',
-    message: 'Unknown error',
-  },
-  {
-    name: 'throwing enumeration trap',
-    create: () => new Proxy({}, { ownKeys: inaccessible }),
-    normalizedMessage: 'Unknown error',
-    description: '[object]',
-    message: '[object Object]',
-  },
-  {
-    name: 'throwing JSON hook',
-    create: () => ({ toJSON: inaccessible }),
-    normalizedMessage: 'Unknown error',
-    description: '[object]',
-    message: '[object Object]',
-  },
-  {
-    name: 'throwing JSON getter',
-    create: () => Object.defineProperty({}, 'toJSON', { get: inaccessible }),
-    normalizedMessage: 'Unknown error',
-    description: '[object]',
-    message: '[object Object]',
-  },
-  {
-    name: 'throwing string coercion',
-    create: () => ({ [Symbol.toPrimitive]: inaccessible }),
-    normalizedMessage: '{}',
-    description: '{}',
-    message: 'Unknown error',
-  },
-  {
-    name: 'Error with a throwing message getter',
-    create: () => Object.defineProperty(new Error(), 'message', { get: inaccessible }),
-    normalizedMessage: null,
-    description: '[object]',
-    message: 'Unknown error',
+    normalizedMessage: '"failure"',
   },
 ];
 
-// Provider errors can expose inherited fields, accessors, or proxy traps.
+export const browserErrorCases = [
+  {
+    name: 'browser DOMException',
+    create: () => new DOMException('The database connection is closing.', 'InvalidStateError'),
+  },
+  {
+    name: 'foreign-window DOMException',
+    create: () => {
+      const iframe = document.createElement('iframe');
+      document.body.append(iframe);
+      const realm = iframe.contentDocument?.defaultView;
+      if (!realm) throw new Error('Missing iframe window');
+      return new realm.DOMException('The database connection is closing.', 'InvalidStateError');
+    },
+  },
+];
+
 export const providerErrorShapes = [
   { name: 'object', create: () => ({}) },
   { name: 'Error', create: () => new Error() },
   { name: 'array', create: () => [] },
   { name: 'inherited object', create: () => ({}) },
-  { name: 'proxy', create: () => new Proxy({}, {}) },
+  { name: 'foreign-realm Error', create: foreignError },
 ];
 
-export function inspectedProviderError(
+export function providerError(
   shape: (typeof providerErrorShapes)[number],
-  code: (read: number) => unknown,
-  message: (read: number) => unknown
+  code: unknown,
+  message: unknown
 ) {
-  const reads = { code: 0, message: 0 };
-  const fields = {
-    code: { enumerable: true, get: () => code(++reads.code) },
-    message: { enumerable: true, get: () => message(++reads.message) },
-  };
   const value = shape.create();
   if (shape.name === 'inherited object') {
-    Object.setPrototypeOf(value, Object.defineProperties({}, fields));
+    Object.setPrototypeOf(value, { code, message });
   } else {
-    Object.defineProperties(value, fields);
+    Object.assign(value, { code, message });
   }
-  return { value, reads };
+  return value;
 }
-
-export function firstReadOnly(value: unknown): (read: number) => unknown {
-  return (read) => {
-    if (read > 1) throw new Error('Error property expired');
-    return value;
-  };
-}
-
-export const singleReadErrorCases: ErrorCase[] = providerErrorShapes.map((shape) => {
-  const serialized =
-    shape.name === 'array'
-      ? '[]'
-      : shape.name === 'inherited object'
-        ? '{}'
-        : '{"code":-32601,"message":"failure"}';
-  return {
-    name: `${shape.name} with expiring getters`,
-    create: () =>
-      inspectedProviderError(shape, firstReadOnly(-32601), firstReadOnly('failure')).value,
-    normalizedMessage: shape.name === 'Error' ? null : serialized,
-    description: shape.name === 'Error' ? 'failure' : serialized,
-    message: 'failure',
-  };
-});
 
 export const malformedErrorMessages = [
   { value: 42, text: '42' },

@@ -13,7 +13,7 @@ export interface AddressBookEntry {
 }
 
 import { profileStorageKey } from "@/config/runtimeProfile";
-import { isArray, isRecord } from "./guards";
+import { isArray, isObject } from "./guards";
 
 const STORAGE_KEY = profileStorageKey("qrl:addressBook:qip55:v2");
 const LEGACY_STORAGE_KEY = profileStorageKey("qrl:addressBook:v1");
@@ -24,7 +24,7 @@ import { normalizeQrlAddress } from "./web3/address";
 import { isInNativeApp, notifyContactsUpdated } from "./nativeApp";
 
 const isEntry = (value: unknown): value is AddressBookEntry => {
-  if (!isRecord(value)) return false;
+  if (!isObject(value)) return false;
   return (
     typeof value["id"] === "string" &&
     typeof value["name"] === "string" &&

@@ -8,6 +8,16 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** Object property reads also support arrays and boxed primitives. */
+export function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/** Callable objects can carry runtime flags and message fields too. */
+export function isObjectLike(value: unknown): value is Record<string, unknown> {
+  return isObject(value) || typeof value === 'function';
+}
+
 /**
  * Array.isArray narrows unknown to any[], which silently re-launders every
  * element; this predicate keeps the elements unknown.
@@ -22,7 +32,7 @@ function stringifyUnknown(value: unknown): string | undefined {
   return JSON.stringify(value);
 }
 
-/** Coerce an unknown caught value into an Error without losing the message. */
+/** Return a local Error so callers can discriminate failures with instanceof. */
 export function toError(value: unknown): Error {
   try {
     // Prototype inspection can throw for proxies, just like serialization.

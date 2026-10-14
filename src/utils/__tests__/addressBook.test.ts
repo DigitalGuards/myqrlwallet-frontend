@@ -88,15 +88,24 @@ describe("QIP-55 address-book persistence", () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBe(raw);
   });
 
-  it("rejects an array carrying contact properties at the native boundary", () => {
-    const contact = Object.assign([], {
-      id: "array-contact",
-      name: "Array",
+  it.each([
+    { name: "object", container: () => ({}) },
+    { name: "array", container: () => [] },
+    { name: "boxed string", container: () => new String("") },
+  ])("preserves contact fields on a $name", ({ container }) => {
+    const fields = {
+      id: "contact",
+      name: "Contact",
       address: LOWER,
       createdAt: 1,
-    });
+      extra: { keep: true },
+    };
+    const contact: unknown = Object.assign(container(), fields);
+    mergeContacts([contact, { ...fields, id: "duplicate" }]);
+    expect(loadAddressBook()).toEqual([{ ...fields, address: CANONICAL }]);
+    const stored = localStorage.getItem(STORAGE_KEY);
     mergeContacts([contact]);
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(stored);
   });
 
   it("isolates the old address-book namespace for rollback", () => {

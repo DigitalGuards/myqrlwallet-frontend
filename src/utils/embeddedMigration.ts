@@ -28,7 +28,7 @@
  * module in the graph is evaluated.
  */
 
-import { isArray, isRecord } from "./guards";
+import { isArray, isObject } from "./guards";
 import { logger } from "./log";
 
 /** Set by the app's bootstrap on the first launches after the upgrade. */
@@ -106,12 +106,12 @@ function pruneRemoteSignerAccounts(storage: Storage | undefined): ClearOutcome {
       const raw = storage.getItem(key);
       if (raw === null) continue;
       const parsed: unknown = JSON.parse(raw);
-      if (!isRecord(parsed)) continue;
+      if (!isObject(parsed)) continue;
       const entries = parsed["value"];
       if (!isArray(entries)) continue;
 
       const kept = entries.filter((entry) => {
-        if (!isRecord(entry)) return true;
+        if (!isObject(entry)) return true;
         return entry["source"] !== "mobile";
       });
       if (kept.length === entries.length) continue;

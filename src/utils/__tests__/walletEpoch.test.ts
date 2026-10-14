@@ -206,7 +206,6 @@ describe("wallet epoch propagation", () => {
         {},
         { epoch: 42 },
         { epoch: "invalid" },
-        Object.assign([], { epoch: persisted }),
         { epoch: persisted, volatile: true },
         { epoch: persisted, volatile: true, baseEpoch: 42 },
         { epoch: persisted, volatile: true, baseEpoch: "invalid" },
@@ -221,6 +220,32 @@ describe("wallet epoch propagation", () => {
       expect(observed).toEqual([persisted]);
     } finally {
       unsubscribe();
+    }
+  });
+
+  it.each([
+    { name: "object", container: () => ({}) },
+    { name: "array", container: () => [] },
+    { name: "function", container: () => () => undefined },
+    { name: "boxed string", container: () => new String("") },
+  ])("preserves epoch fields on a $name", ({ container }) => {
+    for (const volatile of [false, true]) {
+      const observed: string[] = [];
+      const unsubscribe = subscribeWalletEpoch((epoch) => observed.push(epoch));
+      const baseEpoch = getWalletEpoch();
+      const epoch = baseEpoch === "bb".repeat(16) ? "cc".repeat(16) : "bb".repeat(16);
+      const channel = FakeBroadcastChannel.latest;
+      if (!channel) throw new Error("Missing broadcast channel");
+      if (!volatile) localStorage.setItem(WALLET_EPOCH_STORAGE_KEY, epoch);
+      const data: unknown = Object.assign(container(), { epoch, volatile, baseEpoch });
+      try {
+        channel.dispatchEvent(Object.assign(new Event("message"), { data }));
+        expect(observed).toEqual([epoch]);
+        expect(getWalletEpoch()).toBe(epoch);
+      } finally {
+        unsubscribe();
+        advanceWalletEpoch();
+      }
     }
   });
 

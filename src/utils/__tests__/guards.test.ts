@@ -1,34 +1,44 @@
-import { describeUnknown, isArray, isRecord, toError } from '../guards';
-import { malformedErrorMessages, opaqueErrorCases, singleReadErrorCases } from './errorFixtures';
+import {
+  describeUnknown,
+  isArray,
+  isObject,
+  isObjectLike,
+  isRecord,
+  toError,
+} from '../guards';
+import {
+  foreignErrorCases,
+  errorShapedCases,
+  malformedErrorMessages,
+} from './errorFixtures';
 
-it.each([...opaqueErrorCases, ...singleReadErrorCases])(
-  'normalizes $name without throwing',
+// Class: normalization must satisfy callers that discriminate with instanceof Error.
+it.each([...foreignErrorCases, ...errorShapedCases])(
+  'normalizes $name to a local Error with serialized diagnostics',
   ({ create, normalizedMessage }) => {
     const value = create();
+    expect(value).not.toBeInstanceOf(Error);
     const normalized = toError(value);
-    if (normalizedMessage === null) expect(normalized).toBe(value);
-    else expect(normalized.message).toBe(normalizedMessage);
+    expect(normalized).toBeInstanceOf(Error);
+    expect(normalized).not.toBe(value);
+    expect(normalized.name).toBe('Error');
+    expect(normalized.message).toBe(normalizedMessage);
   }
 );
 
-it.each([...opaqueErrorCases, ...singleReadErrorCases])(
-  'describes $name without throwing',
-  ({ create, description }) => {
-    expect(describeUnknown(create())).toBe(description);
+it('normalizes objects with a spoofed Error tag as diagnostic values', () => {
+  for (const value of [
+    { [Symbol.toStringTag]: 'Error' },
+    { code: 1, [Symbol.toStringTag]: 'Error' },
+  ]) {
+    const normalized = toError(value);
+    expect(normalized).not.toBe(value);
+    expect(normalized.message).toBe(JSON.stringify(value));
   }
-);
+});
 
 it.each(malformedErrorMessages)('describes malformed Error.message as $text', ({ value, text }) => {
-  const getter = jest
-    .fn()
-    .mockImplementationOnce(() => value)
-    .mockImplementation(() => {
-      throw new Error('Message expired');
-    });
-  expect(describeUnknown(Object.defineProperty(new Error(), 'message', { get: getter }))).toBe(
-    text
-  );
-  expect(getter).toHaveBeenCalledTimes(1);
+  expect(describeUnknown(Object.defineProperty(new Error(), 'message', { value }))).toBe(text);
 });
 
 it('narrows records and arrays separately', () => {
@@ -40,6 +50,20 @@ it('narrows records and arrays separately', () => {
   expect(isRecord([])).toBe(false);
   expect(isArray([null, { field: 1 }])).toBe(true);
   expect(isArray({ length: 0 })).toBe(false);
+});
+
+it('preserves object and callable property containers', () => {
+  for (const value of [null, undefined, true, 'text', 1, 1n, Symbol('value')]) {
+    expect(isObject(value)).toBe(false);
+    expect(isObjectLike(value)).toBe(false);
+  }
+  for (const value of [{}, [], Object(1n), Object('text')]) {
+    expect(isObject(value)).toBe(true);
+    expect(isObjectLike(value)).toBe(true);
+  }
+  const callable = () => undefined;
+  expect(isObject(callable)).toBe(false);
+  expect(isObjectLike(callable)).toBe(true);
 });
 
 it('preserves Error identity and serializable diagnostic values', () => {

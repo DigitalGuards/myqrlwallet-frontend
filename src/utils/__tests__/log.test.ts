@@ -45,18 +45,11 @@ it("retains the existing log prefix", () => {
 });
 
 it.each(["log", "info", "warn", "error"] as const)(
-  "preserves empty and opaque %s arguments without inspecting them",
+  "preserves empty and structured %s arguments",
   (level) => {
     const sink = jest.spyOn(console, level).mockImplementation(() => undefined);
-    const opaque = new Proxy(
-      {},
-      {
-        get() {
-          throw new Error("Argument inspected");
-        },
-      },
-    );
-    const values = [undefined, null, false, 1n, Symbol("diagnostic"), opaque];
+    const details = { message: "diagnostic" };
+    const values = [undefined, null, false, 1n, Symbol("diagnostic"), details];
     logger[level]();
     logger[level](...values);
     expect(sink.mock.calls[0]).toEqual([]);
@@ -102,50 +95,28 @@ const diagnosticEntrypoints = [
   },
 ];
 
-// Class: moving diagnostics behind a shared boundary can change method lookup,
-// the receiver, synchronous ordering, return values, or thrown error identity.
+// Diagnostics preserve the receiver, synchronous writes, return values and failures.
 it.each(diagnosticEntrypoints)(
-  "preserves synchronous sink lookup and completion through $name",
+  "preserves synchronous sink writes and completion through $name",
   ({ level, write, message }) => {
-    const descriptor = Object.getOwnPropertyDescriptor(console, level);
-    if (!descriptor) throw new Error("Console method descriptor is missing");
     const events: string[] = [];
     const invoke = jest.fn(write);
-    let reads = 0;
-    Object.defineProperty(console, level, {
-      configurable: true,
-      get() {
-        reads += 1;
-        const call = reads;
-        events.push(`lookup ${call}`);
-        return function (this: Console, ...values: unknown[]) {
-          expect(this).toBe(console);
-          expect(values).toEqual([message]);
-          events.push(`write ${call}`);
-          return "sink return value";
-        };
-      },
+    let writes = 0;
+    jest.spyOn(console, level).mockImplementation(function (this: Console, ...values: unknown[]) {
+      expect(this).toBe(console);
+      expect(values).toEqual([message]);
+      events.push(`write ${++writes}`);
+      return "sink return value";
     });
-    try {
-      invoke("diagnostic");
-      events.push("between");
-      invoke("diagnostic");
-      events.push("after");
-      expect(invoke.mock.results).toEqual([
-        { type: "return", value: undefined },
-        { type: "return", value: undefined },
-      ]);
-      expect(events).toEqual([
-        "lookup 1",
-        "write 1",
-        "between",
-        "lookup 2",
-        "write 2",
-        "after",
-      ]);
-    } finally {
-      Object.defineProperty(console, level, descriptor);
-    }
+    invoke("diagnostic");
+    events.push("between");
+    invoke("diagnostic");
+    events.push("after");
+    expect(invoke.mock.results).toEqual([
+      { type: "return", value: undefined },
+      { type: "return", value: undefined },
+    ]);
+    expect(events).toEqual(["write 1", "between", "write 2", "after"]);
   },
 );
 

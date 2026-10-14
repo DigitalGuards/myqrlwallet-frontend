@@ -1,5 +1,4 @@
 import { logger } from "./log";
-import { toError } from "./guards";
 /**
  * Serializes native restores and PIN rotations, then gives an explicit wallet
  * wipe a final cleanup pass after every mutation that was already running.
@@ -21,6 +20,11 @@ export interface WalletMutationToken {
 export interface WalletMutationGuard {
   (): boolean;
   readonly epoch: WalletEpoch;
+}
+
+interface DeferredFailure {
+  value: unknown;
+  rethrow: () => void;
 }
 
 export class NativeWalletMutationCoordinator {
@@ -113,14 +117,18 @@ export class NativeWalletMutationCoordinator {
     this.generation += 1;
     // Persist and publish the identity boundary before any async cleanup.
     // Other tabs invalidate queued writes and tear down live dApp sessions.
-    let epochPublicationError: Error | null = null;
+    let epochPublicationError: (() => never) | null = null;
     try {
       advanceWalletEpoch();
     } catch (error) {
       // Continue every local cleanup pass, but retain this failure. A volatile
       // generation protects this realm only; reporting durable success would
       // let another tab reload the old persisted epoch and revive stale state.
-      epochPublicationError = toError(error);
+      if (error !== null) {
+        epochPublicationError = () => {
+          throw error;
+        };
+      }
       logger.error(
         "[WalletMutation] Could not publish wallet clear epoch:",
         error,
@@ -129,7 +137,10 @@ export class NativeWalletMutationCoordinator {
     const pendingMutations = this.mutationQueue.catch(() => undefined);
 
     this.clearPromise = (async () => {
-      let cleanupError: Error | null = null;
+      const cleanupError: DeferredFailure = {
+        value: null,
+        rethrow: () => undefined,
+      };
       const attempt = async (
         operation: (() => void | Promise<void>) | undefined,
       ): Promise<void> => {
@@ -137,7 +148,12 @@ export class NativeWalletMutationCoordinator {
         try {
           await operation();
         } catch (error) {
-          cleanupError ??= toError(error);
+          if (cleanupError.value === null || cleanupError.value === undefined) {
+            cleanupError.value = error;
+            cleanupError.rethrow = () => {
+              throw error;
+            };
+          }
           logger.error("[WalletMutation] Wallet clear step failed:", error);
         }
       };
@@ -157,12 +173,21 @@ export class NativeWalletMutationCoordinator {
           await attempt(clearStorage);
         });
       } catch (error) {
-        cleanupError ??= toError(error);
+        if (cleanupError.value === null || cleanupError.value === undefined) {
+          cleanupError.value = error;
+          cleanupError.rethrow = () => {
+            throw error;
+          };
+        }
         logger.error("[WalletMutation] Wallet clear lock failed:", error);
       }
 
-      if (epochPublicationError !== null) throw epochPublicationError;
-      if (cleanupError !== null) throw cleanupError;
+      // Rethrow the caught value synchronously. Inspecting diagnostics here can
+      // invoke caller-owned accessors after the final storage sweep.
+      if (epochPublicationError !== null) epochPublicationError();
+      if (cleanupError.value !== null) {
+        cleanupError.rethrow();
+      }
     })().finally(() => {
       this.clearInProgress = false;
       this.clearPromise = null;

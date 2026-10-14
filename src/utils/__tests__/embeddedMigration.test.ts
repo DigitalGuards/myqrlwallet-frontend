@@ -183,6 +183,17 @@ describe("orphaned remote-signer rows", () => {
     expect(localStorage.getItem("TEST_NET_C_ACCOUNT_LIST")).toBe("null");
   });
 
+  it.each([null, true, 1, "legacy", [], [null, "legacy"], {}, { value: [] }])(
+    "preserves bytes for an untouched wrapper: %p",
+    (wrapper) => {
+      const raw = JSON.stringify(wrapper);
+      localStorage.setItem(ACCOUNT_LIST_KEY, raw);
+      setFlag(true);
+      expect(runEmbeddedMigration()).toBe(true);
+      expect(localStorage.getItem(ACCOUNT_LIST_KEY)).toBe(raw);
+    },
+  );
+
   it("does not touch the encrypted seeds beside it", () => {
     setFlag(true);
     runEmbeddedMigration();
@@ -398,7 +409,7 @@ describe("the migration is evaluated before the stores are constructed", () => {
       'import { runEmbeddedMigration } from "./embeddedMigration";',
       'import { IS_EMBEDDED_BUILD } from "./embeddedRuntime";',
       'import { logger } from "./log";',
-      'import { isArray, isRecord } from "./guards";',
+      'import { isArray, isObject } from "./guards";',
       'import { logger } from "./log";',
     ]);
   });

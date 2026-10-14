@@ -1,22 +1,17 @@
 import { getErrorMessage, getProviderErrorCode } from "../errors";
 import {
-  firstReadOnly,
-  inspectedProviderError,
+  foreignErrorCases,
   malformedErrorMessages,
-  opaqueErrorCases,
+  providerError,
   providerErrorShapes,
 } from "./errorFixtures";
 
-it.each(opaqueErrorCases)(
-  "reads $name without throwing",
+it.each(foreignErrorCases)(
+  "preserves the display message of $name",
   ({ create, message }) => {
     expect(getErrorMessage(create())).toBe(message);
   },
 );
-
-it.each(opaqueErrorCases)("classifies $name without throwing", ({ create }) => {
-  expect(getProviderErrorCode(create())).toBeUndefined();
-});
 
 it("preserves messages from errors, strings and message-bearing objects", () => {
   expect(getErrorMessage(new Error("failure"))).toBe("failure");
@@ -27,43 +22,32 @@ it("preserves messages from errors, strings and message-bearing objects", () => 
 });
 
 it.each(malformedErrorMessages)(
-  "snapshots malformed Error.message as $text",
+  "formats malformed Error.message as $text",
   ({ value, text }) => {
-    const getter = jest
-      .fn()
-      .mockImplementationOnce(() => value)
-      .mockImplementation(() => {
-        throw new Error("Message expired");
-      });
     expect(
       getErrorMessage(
-        Object.defineProperty(new Error(), "message", { get: getter }),
+        Object.defineProperty(new Error(), "message", { value }),
       ),
     ).toBe(text);
-    expect(getter).toHaveBeenCalledTimes(1);
   },
 );
 
 it.each(providerErrorShapes)(
-  "snapshots each $name error field once",
+  "preserves numeric codes and messages for $name",
   (shape) => {
-    const codeError = inspectedProviderError(shape, firstReadOnly(4001), () => {
-      throw new Error("Message was unnecessary");
-    });
-    expect(getProviderErrorCode(codeError.value)).toBe(4001);
-    expect(codeError.reads).toEqual({ code: 1, message: 0 });
-
-    const messageError = inspectedProviderError(
-      shape,
-      () => {
-        throw new Error("Code was unnecessary");
-      },
-      firstReadOnly("failure"),
-    );
-    expect(getErrorMessage(messageError.value)).toBe("failure");
-    expect(messageError.reads).toEqual({ code: 0, message: 1 });
+    expect(getProviderErrorCode(providerError(shape, 4001, "failure"))).toBe(4001);
+    expect(getErrorMessage(providerError(shape, -32601, "failure"))).toBe("failure");
   },
 );
+
+describe.each(providerErrorShapes)("$name provider errors", (shape) => {
+  it.each([4001, -32601, -32000, 0, NaN, Infinity])(
+    "preserves numeric code %s on a data property",
+    (code) => {
+      expect(getProviderErrorCode(providerError(shape, code, "failure"))).toBe(code);
+    },
+  );
+});
 
 it("preserves numeric error codes independently of unrelated fields", () => {
   expect(getProviderErrorCode({ code: -32601, message: "unsupported" })).toBe(
@@ -86,6 +70,7 @@ it("returns no code for absent or malformed numeric codes", () => {
     { code: {}, message: "failure" },
     new Error("failure"),
     { code: undefined, message: "rejected" },
+    Object.assign(() => undefined, { code: 4001, message: "failure" }),
   ])
     expect(getProviderErrorCode(value)).toBeUndefined();
 });

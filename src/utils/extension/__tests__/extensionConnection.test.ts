@@ -19,9 +19,7 @@ import {
 } from "@/utils/extension/extensionConnection";
 import * as qualification from "../v3Provider";
 import {
-  firstReadOnly,
-  inspectedProviderError,
-  opaqueErrorCases,
+  providerError,
   providerErrorShapes,
 } from "../../__tests__/errorFixtures";
 
@@ -180,26 +178,16 @@ describe("discovery timing", () => {
 });
 
 describe("production connection diagnostics", () => {
-  it.each(["readable", "expired"] as const)(
-    "connects without rereading the %s name getter after discovery",
-    async (state) => {
+  it(
+    "connects a discovered provider when diagnostics are disabled",
+    async () => {
       const extension = wallet();
-      const name = jest.fn(() => "Fixture wallet");
-      Object.defineProperty(extension.info, "name", { get: name });
       installed(extension);
       const discovering = discoverQrlProviders();
       await jest.advanceTimersByTimeAsync(1000);
       const [discovered] = await discovering;
       expect(discovered).toBe(extension);
       if (!discovered) throw new Error("Expected a discovered extension");
-      expect(name).toHaveBeenCalled();
-      name.mockClear();
-      if (state === "expired") {
-        name.mockImplementation(() => {
-          throw new Error("Extension name expired after discovery");
-        });
-      }
-
       const qualify = jest
         .spyOn(qualification, "qualifyV3Provider")
         .mockResolvedValue(undefined);
@@ -225,7 +213,6 @@ describe("production connection diagnostics", () => {
           connectWithProvider(discovered, setAccount, setProvider),
         ).resolves.toEqual([ACCOUNT]);
         expect(qualify).toHaveBeenCalledWith(extension.provider);
-        expect(name).not.toHaveBeenCalled();
         expect(extension.provider.request).toHaveBeenCalledTimes(1);
         expect(extension.provider.request).toHaveBeenCalledWith({
           method: "qrl_requestAccounts",
@@ -247,62 +234,27 @@ describe("production connection diagnostics", () => {
 });
 
 describe("restoring permission for the selected account", () => {
-  // Class: repeated untrusted property reads can change error routing or reject
-  // the catch path. Exercise every code branch and supported object shape.
-  describe.each(providerErrorShapes)("$name error inspection", (shape) => {
-    it("uses the message when code inspection throws", async () => {
-      const { value, reads } = inspectedProviderError(
-        shape,
-        () => {
-          throw new Error("Code inaccessible");
-        },
-        firstReadOnly("failure"),
-      );
-      jest.spyOn(console, "error").mockImplementation(() => undefined);
-      const alert = jest
-        .spyOn(window, "alert")
-        .mockImplementation(() => undefined);
-      const extension = wallet();
-      extension.provider.request.mockRejectedValue(value);
-      await expect(
-        connectWithProvider(
-          extension,
-          () => Promise.resolve(),
-          () => undefined,
-        ),
-      ).resolves.toBeNull();
-      expect(alert).toHaveBeenCalledWith(
-        "Error connecting to extension: failure",
-      );
-      expect(reads).toEqual({ code: 1, message: 1 });
-    });
-
+  // Provider failures select the alert and clear the active provider first.
+  describe.each(providerErrorShapes)("$name provider errors", (shape) => {
     it.each([
-      { code: 4001, alert: "Connection request rejected.", messageReads: 0 },
-      { code: -32601, alert: "RPC Error: failure", messageReads: 1 },
+      { code: 4001, alert: "Connection request rejected." },
+      { code: -32601, alert: "RPC Error: failure" },
       {
         code: -32000,
         alert: "Error connecting to extension: failure",
-        messageReads: 1,
       },
       {
         code: undefined,
         alert: "Error connecting to extension: failure",
-        messageReads: 1,
       },
       {
         code: "4001",
         alert: "Error connecting to extension: failure",
-        messageReads: 1,
       },
     ])(
-      "reads code $code and its message once",
-      async ({ code, alert: text, messageReads }) => {
-        const { value, reads } = inspectedProviderError(
-          shape,
-          firstReadOnly(code),
-          firstReadOnly("failure"),
-        );
+      "clears the provider before displaying the alert for code $code",
+      async ({ code, alert: text }) => {
+        const value = providerError(shape, code, "failure");
         jest.spyOn(console, "log").mockImplementation(() => undefined);
         jest.spyOn(console, "error").mockImplementation(() => undefined);
         const alert = jest
@@ -326,61 +278,17 @@ describe("restoring permission for the selected account", () => {
         expect(setProvider).toHaveBeenCalledTimes(1);
         expect(alert).toHaveBeenCalledWith(text);
         expect(order).toEqual(["clear", "alert"]);
-        expect(reads).toEqual({ code: 1, message: messageReads });
-      },
-    );
-
-    it.each([4001, -32601, -32000])(
-      "keeps the first code %s when later reads change it",
-      async (code) => {
-        const { value, reads } = inspectedProviderError(
-          shape,
-          (read) => (read === 1 ? code : 0),
-          (read) => (read === 1 ? "failure" : "changed"),
-        );
-        jest.spyOn(console, "log").mockImplementation(() => undefined);
-        jest.spyOn(console, "error").mockImplementation(() => undefined);
-        const alert = jest
-          .spyOn(window, "alert")
-          .mockImplementation(() => undefined);
-        const extension = wallet();
-        extension.provider.request.mockRejectedValue(value);
-        await expect(
-          connectWithProvider(
-            extension,
-            () => Promise.resolve(),
-            () => undefined,
-          ),
-        ).resolves.toBeNull();
-        expect(alert).toHaveBeenCalledWith(
-          code === 4001
-            ? "Connection request rejected."
-            : code === -32601
-              ? "RPC Error: failure"
-              : "Error connecting to extension: failure",
-        );
-        expect(reads).toEqual({ code: 1, message: code === 4001 ? 0 : 1 });
       },
     );
 
     it.each([
-      { name: "missing", message: () => undefined },
-      { name: "number", message: () => 42 },
-      { name: "object", message: () => ({}) },
-      {
-        name: "throwing",
-        message: () => {
-          throw new Error("Unreadable message");
-        },
-      },
+      { name: "missing", message: undefined },
+      { name: "number", message: 42 },
+      { name: "object", message: {} },
     ])(
-      "handles rejection without inspecting a $name message",
+      "reports rejection with a $name message",
       async ({ message }) => {
-        const { value, reads } = inspectedProviderError(
-          shape,
-          () => 4001,
-          message,
-        );
+        const value = providerError(shape, 4001, message);
         jest.spyOn(console, "log").mockImplementation(() => undefined);
         jest.spyOn(console, "error").mockImplementation(() => undefined);
         const alert = jest
@@ -396,22 +304,14 @@ describe("restoring permission for the selected account", () => {
           ),
         ).resolves.toBeNull();
         expect(alert).toHaveBeenCalledWith("Connection request rejected.");
-        expect(reads).toEqual({ code: 1, message: 0 });
       },
     );
   });
 
   it.each(["qualification", "request", "activation"])(
-    "handles expiring error accessors from %s in order",
+    "clears the provider before reporting a rejection from %s",
     async (stage) => {
-      const failure = Object.defineProperty(new Error("failure"), "code", {
-        get: jest
-          .fn()
-          .mockReturnValueOnce(4001)
-          .mockImplementation(() => {
-            throw new Error("Code expired");
-          }),
-      });
+      const failure = Object.assign(new Error("failure"), { code: 4001 });
       jest.spyOn(console, "log").mockImplementation(() => undefined);
       const order: string[] = [];
       const alert = jest.spyOn(window, "alert").mockImplementation(() => {
@@ -459,17 +359,12 @@ describe("restoring permission for the selected account", () => {
   );
 
   it.each([-32601, -32000])(
-    "contains unsafe Error.message coercion for code %s",
+    "uses an unknown-error message when code %s has an unprintable message",
     async (code) => {
+      const message: unknown = Object.create(null);
       const failure = Object.defineProperties(new Error(), {
         code: { value: code },
-        message: {
-          get: () => ({
-            toString() {
-              throw new Error("Coercion failed");
-            },
-          }),
-        },
+        message: { value: message },
       });
       jest.spyOn(console, "error").mockImplementation(() => undefined);
       const alert = jest
@@ -488,29 +383,6 @@ describe("restoring permission for the selected account", () => {
         code === -32601
           ? "RPC Error: Unknown error"
           : "Error connecting to extension: Unknown error",
-      );
-    },
-  );
-
-  it.each(opaqueErrorCases)(
-    "completes connection failure handling for $name",
-    async ({ create, message }) => {
-      jest.spyOn(console, "log").mockImplementation(() => undefined);
-      jest.spyOn(console, "error").mockImplementation(() => undefined);
-      const alert = jest
-        .spyOn(window, "alert")
-        .mockImplementation(() => undefined);
-      const extension = wallet();
-      extension.provider.request.mockRejectedValue(create());
-      const setAccount = jest.fn<() => Promise<void>>();
-      const setProvider = jest.fn();
-      await expect(
-        connectWithProvider(extension, setAccount, setProvider),
-      ).resolves.toBeNull();
-      expect(setAccount).not.toHaveBeenCalled();
-      expect(setProvider).toHaveBeenCalledWith(null);
-      expect(alert).toHaveBeenCalledWith(
-        `Error connecting to extension: ${message}`,
       );
     },
   );

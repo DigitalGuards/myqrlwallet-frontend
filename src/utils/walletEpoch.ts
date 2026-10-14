@@ -1,6 +1,6 @@
 import { logger } from "./log";
 import { profileStorageKey } from "@/config/runtimeProfile";
-import { isRecord } from "./guards";
+import { isObjectLike } from "./guards";
 
 // These browser APIs can be absent in older or restricted environments.
 const runtime: { crypto?: Crypto; navigator?: { locks?: LockManager } } =
@@ -82,7 +82,7 @@ function installCrossTabListeners(): void {
     broadcastChannel = new window.BroadcastChannel(WALLET_EPOCH_CHANNEL_NAME);
     broadcastChannel.addEventListener("message", (event) => {
       const data: unknown = event.data;
-      if (!isRecord(data)) return;
+      if (!isObjectLike(data)) return;
       const epoch = data["epoch"];
       if (typeof epoch === "string" && /^[0-9a-f]{32}$/.test(epoch)) {
         if (data["volatile"] === true) {

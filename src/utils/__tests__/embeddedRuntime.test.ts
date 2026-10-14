@@ -19,9 +19,18 @@ describe("embedded runtime flag", () => {
     for (const value of ["true", 1, {}, null, undefined]) {
       expect(isEmbeddedRuntime({ [EMBEDDED_GLOBAL_FLAG]: value })).toBe(false);
     }
-    expect(
-      isEmbeddedRuntime(Object.assign([], { [EMBEDDED_GLOBAL_FLAG]: true })),
-    ).toBe(false);
+  });
+
+  it.each([
+    { name: "object", container: () => ({}) },
+    { name: "array", container: () => [] },
+    { name: "function", container: () => () => undefined },
+    { name: "boxed string", container: () => new String("") },
+  ])("preserves runtime flags on a $name", ({ container }) => {
+    for (const flag of [true, false, "true", 1, null, undefined]) {
+      const scope: unknown = Object.assign(container(), { [EMBEDDED_GLOBAL_FLAG]: flag });
+      expect(isEmbeddedRuntime(scope)).toBe(flag === true);
+    }
   });
 
   it("is false when there is no window at all", () => {

@@ -61,24 +61,21 @@ it("keeps synchronous and asynchronous router calls intact", async () => {
 });
 
 it.each(["desktop", "router"])(
-  "reports a rejected %s navigation",
+  "preserves a rejected %s navigation promise",
   async (kind) => {
     const failure = new Error("navigation rejected");
+    const rejection = Promise.reject(failure);
+    const observed = expect(rejection).rejects.toBe(failure);
     const logged = jest
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
     mockDesktop = kind === "desktop";
-    if (mockDesktop) mockOpenDesktopSettings.mockRejectedValueOnce(failure);
-    else navigate.mockReturnValueOnce(Promise.reject(failure));
+    if (mockDesktop) mockOpenDesktopSettings.mockReturnValueOnce(rejection);
+    else navigate.mockReturnValueOnce(rejection);
 
     navigateTo("/settings", navigate);
-    await Promise.resolve();
-    expect(logged).toHaveBeenCalledWith(
-      mockDesktop
-        ? "Navigation: desktop settings failed"
-        : "Navigation: route change failed",
-      failure,
-    );
+    await observed;
+    expect(logged).not.toHaveBeenCalled();
   },
 );
 

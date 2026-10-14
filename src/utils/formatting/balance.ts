@@ -10,16 +10,10 @@ import { BigNumber } from "bignumber.js";
 export const formatQuantaValue = (value: unknown): string => {
   if (value === undefined || value === null || value === "")
     return `0 ${NATIVE_TOKEN.symbol}`;
-  if (
-    typeof value !== "string" &&
-    typeof value !== "number" &&
-    typeof value !== "bigint" &&
-    typeof value !== "boolean"
-  )
-    return "invalid value";
   try {
-    const planck = BigInt(value);
-    if (planck < 0n) return "invalid value";
+    // Native BigInt also accepts objects through numeric-hint coercion.
+    const planck: unknown = Reflect.apply(BigInt, undefined, [value]);
+    if (typeof planck !== "bigint" || planck < 0n) return "invalid value";
     return `${utils.fromPlanck(planck.toString(), "quanta")} ${NATIVE_TOKEN.symbol}`;
   } catch {
     return "invalid value";

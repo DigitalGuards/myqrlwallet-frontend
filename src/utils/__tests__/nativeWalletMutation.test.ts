@@ -1,49 +1,71 @@
 import { NativeWalletMutationCoordinator } from "../nativeWalletMutation";
 import * as walletEpoch from "../walletEpoch";
-import { opaqueErrorCases, singleReadErrorCases } from "./errorFixtures";
+import {
+  foreignErrorCases,
+  errorShapedCases,
+} from "./errorFixtures";
 
-const rejectionCases = [
-  ...opaqueErrorCases,
-  ...singleReadErrorCases,
+const rejectionCases: {
+  name: string;
+  create: () => unknown;
+}[] = [
+  ...foreignErrorCases,
+  ...errorShapedCases,
   {
     name: "ordinary Error",
     create: () => new Error("cleanup failed"),
-    normalizedMessage: null,
   },
   {
     name: "string",
     create: () => "cleanup rejected",
-    normalizedMessage: "cleanup rejected",
   },
-  { name: "null", create: () => null, normalizedMessage: "null" },
+  { name: "null", create: () => null },
   {
     name: "undefined",
     create: () => undefined,
-    normalizedMessage: "Unknown error",
   },
   {
     name: "object",
     create: () => ({ code: "denied" }),
-    normalizedMessage: '{"code":"denied"}',
+  },
+  { name: "incomplete error shape", create: () => ({ name: "Error" }) },
+  { name: "malformed error shape", create: () => ({ name: "Error", message: 42 }) },
+  { name: "spoofed Error tag", create: () => ({ [Symbol.toStringTag]: "Error" }) },
+  { name: "false", create: () => false },
+  { name: "zero", create: () => 0 },
+  { name: "bigint", create: () => 0n },
+  { name: "function", create: () => () => undefined },
+  {
+    name: "symbol",
+    create: () => Symbol("failure"),
   },
 ];
+
+async function expectCleanupOutcome(
+  clearing: Promise<void>,
+  failure: unknown,
+): Promise<void> {
+  const outcome = await clearing.then(
+    () => ({ status: "fulfilled" as const }),
+    (error: unknown) => ({ status: "rejected" as const, error }),
+  );
+  if (failure === null) {
+    expect(outcome.status).toBe("fulfilled");
+    return;
+  }
+  if (outcome.status !== "rejected")
+    throw new Error("Cleanup failure was lost");
+  expect(Object.is(outcome.error, failure)).toBe(true);
+}
 
 afterEach(() => {
   jest.restoreAllMocks();
 });
 
+// Class: delayed failures preserve thrown values, cleanup order and precedence.
 describe.each(rejectionCases)(
   "cleanup rejection: $name",
-  ({ create, normalizedMessage }) => {
-    const expectRejection = async (
-      clearing: Promise<void>,
-      failure: unknown,
-    ) => {
-      if (normalizedMessage === null)
-        await expect(clearing).rejects.toBe(failure);
-      else await expect(clearing).rejects.toThrow(normalizedMessage);
-    };
-
+  ({ create }) => {
     it.each(
       ["storage-1", "storage-2", "runtime", "storage-3"].flatMap((step) =>
         ["throw", "reject"].map((delivery) => ({ step, delivery })),
@@ -90,7 +112,10 @@ describe.each(rejectionCases)(
           () => runStep(`storage-${++sweeps}`),
           () => runStep("runtime"),
         );
-        const rejected = expectRejection(clearing, failure);
+        const observed = expectCleanupOutcome(
+          clearing,
+          failure,
+        );
         // All coordinator entry points stay blocked until the final sweep.
         const discardedRestore = jest.fn(() => Promise.resolve());
         const discardedMutation = jest.fn(() => Promise.resolve());
@@ -101,7 +126,7 @@ describe.each(rejectionCases)(
           coordinator.enqueueWalletMutation(discardedMutation, discard),
         ];
         releaseRestore();
-        await Promise.all([restore, rejected, ...discarded]);
+        await Promise.all([restore, observed, ...discarded]);
 
         expect(order).toEqual([
           "storage-1",
@@ -134,14 +159,13 @@ describe.each(rejectionCases)(
         .mockImplementationOnce(() => {
           throw failure;
         });
-      const clearStorage = jest.fn(() =>
-        Promise.reject(new Error("later cleanup failure")),
-      );
+      const laterFailure = new Error("later cleanup failure");
+      const clearStorage = jest.fn(() => Promise.reject(laterFailure));
       const clearRuntime = jest.fn();
       const coordinator = new NativeWalletMutationCoordinator();
-      await expectRejection(
+      await expectCleanupOutcome(
         coordinator.clear(clearStorage, clearRuntime),
-        failure,
+        failure === null ? laterFailure : failure,
       );
       expect(clearStorage).toHaveBeenCalledTimes(3);
       expect(clearRuntime).toHaveBeenCalledTimes(1);
@@ -149,36 +173,63 @@ describe.each(rejectionCases)(
       await expect(coordinator.clear(() => undefined)).resolves.toBeUndefined();
     });
 
-    it("reports a lock rejection after the immediate sweep and releases the barrier", async () => {
-      jest.spyOn(console, "error").mockImplementation(() => undefined);
-      const failure = create();
-      jest
-        .spyOn(walletEpoch, "withWalletMutationLock")
-        .mockRejectedValueOnce(failure);
-      const coordinator = new NativeWalletMutationCoordinator();
-      const clearStorage = jest.fn();
-      const clearRuntime = jest.fn();
-      await expectRejection(
-        coordinator.clear(clearStorage, clearRuntime),
-        failure,
-      );
-      expect(clearStorage).toHaveBeenCalledTimes(1);
-      expect(clearRuntime).not.toHaveBeenCalled();
-      await expect(coordinator.clear(() => undefined)).resolves.toBeUndefined();
-    });
+    it.each(["throw", "reject"])(
+      "reports a lock failure by %s after the immediate sweep and releases the barrier",
+      async (delivery) => {
+        jest.spyOn(console, "error").mockImplementation(() => undefined);
+        const failure = create();
+        const lock = jest.spyOn(walletEpoch, "withWalletMutationLock");
+        if (delivery === "throw") {
+          lock.mockImplementationOnce(() => {
+            throw failure;
+          });
+        } else {
+          lock.mockRejectedValueOnce(failure);
+        }
+        const coordinator = new NativeWalletMutationCoordinator();
+        const clearStorage = jest.fn();
+        const clearRuntime = jest.fn();
+        await expectCleanupOutcome(
+          coordinator.clear(clearStorage, clearRuntime),
+          failure,
+        );
+        expect(clearStorage).toHaveBeenCalledTimes(1);
+        expect(clearRuntime).not.toHaveBeenCalled();
+        await expect(coordinator.clear(() => undefined)).resolves.toBeUndefined();
+      },
+    );
   },
 );
 
 describe("native wallet mutation coordination", () => {
+  it.each([null, undefined, false, 0, "first failure"])(
+    "preserves failure precedence after %p",
+    async (firstFailure) => {
+      jest.spyOn(console, "error").mockImplementation(() => undefined);
+      const laterFailure = new Error("later cleanup failure");
+      const clearStorage = jest.fn(() => Promise.resolve());
+      clearStorage
+        .mockRejectedValueOnce(firstFailure)
+        .mockRejectedValueOnce(laterFailure);
+      const clearing = new NativeWalletMutationCoordinator().clear(
+        clearStorage,
+      );
+      await expectCleanupOutcome(
+        clearing,
+        firstFailure ?? laterFailure,
+      );
+      expect(clearStorage).toHaveBeenCalledTimes(3);
+    },
+  );
   it.each([
-    { failure: new Error("cleanup failed"), message: "cleanup failed" },
-    { failure: "cleanup rejected", message: "cleanup rejected" },
-    { failure: null, message: "null" },
-    { failure: undefined, message: "Unknown error" },
-    { failure: { code: "denied" }, message: '{"code":"denied"}' },
+    { failure: new Error("cleanup failed"), name: "Error" },
+    { failure: "cleanup rejected", name: "string" },
+    { failure: null, name: "null sentinel" },
+    { failure: undefined, name: "undefined" },
+    { failure: { code: "denied" }, name: "object" },
   ])(
-    "finishes cleanup and rejects non-successful steps: $message",
-    async ({ failure, message }) => {
+    "finishes cleanup and preserves $name failures",
+    async ({ failure }) => {
       const logged = jest
         .spyOn(console, "error")
         .mockImplementation(() => undefined);
@@ -188,9 +239,7 @@ describe("native wallet mutation coordination", () => {
         clearStorage.mockRejectedValueOnce(failure);
         const clearRuntime = jest.fn(() => Promise.resolve());
         const clearing = coordinator.clear(clearStorage, clearRuntime);
-        if (failure instanceof Error)
-          await expect(clearing).rejects.toBe(failure);
-        else await expect(clearing).rejects.toThrow(message);
+        await expectCleanupOutcome(clearing, failure);
         expect(clearStorage).toHaveBeenCalledTimes(3);
         expect(clearRuntime).toHaveBeenCalledTimes(1);
         expect(logged).toHaveBeenCalledWith(
@@ -201,6 +250,48 @@ describe("native wallet mutation coordination", () => {
       } finally {
         logged.mockRestore();
       }
+    },
+  );
+
+  it.each(["epoch", "storage", "runtime", "lock"])(
+    "preserves a %s failure and cleanup order",
+    async (source) => {
+      jest.spyOn(console, "error").mockImplementation(() => undefined);
+      const order: string[] = [];
+      const failure: unknown = { code: "cleanup_failed", message: "cleanup failed" };
+      const rejectStep = jest
+        .fn(() => Promise.resolve())
+        .mockRejectedValue(failure);
+      if (source === "epoch") {
+        jest
+          .spyOn(walletEpoch, "advanceWalletEpoch")
+          .mockImplementationOnce(() => {
+            throw failure;
+          });
+      }
+      if (source === "lock") {
+        jest
+          .spyOn(walletEpoch, "withWalletMutationLock")
+          .mockRejectedValueOnce(failure);
+      }
+      let sweeps = 0;
+      const clearing = new NativeWalletMutationCoordinator().clear(
+        () => {
+          order.push(`storage-${++sweeps}`);
+          return source === "storage" ? rejectStep() : undefined;
+        },
+        () => {
+          order.push("runtime");
+          return source === "runtime" ? rejectStep() : undefined;
+        },
+      );
+      expect(order).toEqual(["storage-1"]);
+      await expectCleanupOutcome(clearing, failure);
+      expect(order).toEqual(
+        source === "lock"
+          ? ["storage-1"]
+          : ["storage-1", "storage-2", "runtime", "storage-3"],
+      );
     },
   );
 

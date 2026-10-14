@@ -14,7 +14,7 @@
  * the document asks this helper first. The flag name is exported so the build
  * and the runtime check cannot drift apart.
  */
-import { isRecord } from "./guards";
+import { isObjectLike } from "./guards";
 
 export const EMBEDDED_GLOBAL_FLAG = "__QRL_EMBEDDED__";
 
@@ -56,7 +56,7 @@ export const HAS_NATIVE_BRIDGE =
  */
 export function isEmbeddedRuntime(scope?: unknown): boolean {
   const target = scope ?? (typeof window === "undefined" ? undefined : window);
-  return isRecord(target) && target[EMBEDDED_GLOBAL_FLAG] === true;
+  return isObjectLike(target) && target[EMBEDDED_GLOBAL_FLAG] === true;
 }
 
 /**
