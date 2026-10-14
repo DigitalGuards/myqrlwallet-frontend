@@ -23,11 +23,10 @@ export const baseConfig = tseslint.config(
       globals: globals.browser,
       parserOptions: {
         projectService: {
-          // Build tooling and the service worker use the default type-aware project.
+          // Build tooling uses the default type-aware project.
           allowDefaultProject: [
             'config/vite.config.ts',
             'config/vite.config.embedded.ts',
-            'public/background.ts',
           ],
         },
         tsconfigRootDir: fileURLToPath(new URL('..', import.meta.url)),
@@ -193,28 +192,6 @@ export const baseConfig = tseslint.config(
 // Regenerate with npm run lint:ratchet:update after fixing a file/rule pair.
 // BEGIN LINT RATCHET
 export const lintRatchet = [
-  {
-    files: ["config/vite.config.embedded.ts"],
-    rules: {
-      "@typescript-eslint/await-thenable": "off",
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-misused-spread": "off",
-      "@typescript-eslint/no-unnecessary-type-assertion": "off",
-    },
-  },
-  {
-    files: ["config/vite.config.ts"],
-    rules: {
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-    },
-  },
-  {
-    files: ["public/background.ts"],
-    rules: {
-      "no-console": "off",
-    },
-  },
   {
     files: ["src/stores/dappConnectStore.ts"],
     rules: {

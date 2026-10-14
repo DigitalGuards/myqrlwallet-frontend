@@ -17,5 +17,10 @@
     "noUnusedParameters": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["config/vite.config.ts", "src/config/deploymentProfile.ts", "src/config/envGuard.ts"]
+  "include": [
+    "config/vite.config.ts",
+    "config/vite.config.embedded.ts",
+    "src/config/deploymentProfile.ts",
+    "src/config/envGuard.ts"
+  ]
 }
