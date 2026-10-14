@@ -175,7 +175,9 @@ describe("wallet KeyExchange counter discipline", () => {
     const cid = globalThis.crypto.getRandomValues(new Uint8Array(16));
     const cap = globalThis.crypto.getRandomValues(new Uint8Array(32));
     const wrongCap = cap.slice();
-    wrongCap[0] = (wrongCap[0] as number) ^ 0xff;
+    const firstByte = wrongCap[0];
+    if (firstByte === undefined) throw new Error("Expected a capability byte");
+    wrongCap[0] = firstByte ^ 0xff;
     const { pk, sk } = kemKeygen();
     let ss: Uint8Array | null = null;
     try {
@@ -250,8 +252,9 @@ describe("wallet KeyExchange counter discipline", () => {
       plaintexts.map((plaintext) => wallet.encryptMessage(plaintext)),
     );
 
-    for (let index = 0; index < plaintexts.length; index++) {
-      expect(await dapp.decryptMessage(ciphertexts[index] as string)).toBe(
+    expect(ciphertexts).toHaveLength(plaintexts.length);
+    for (const [index, ciphertext] of ciphertexts.entries()) {
+      expect(await dapp.decryptMessage(ciphertext)).toBe(
         plaintexts[index],
       );
     }
@@ -373,15 +376,20 @@ describe("SessionStore v4 migration boundary", () => {
     ]) {
       localStorage.setItem("qrlconnect:sessions", JSON.stringify([malformed]));
       expect(SessionStore.getAll()).toEqual([]);
-      expect(() => SessionStore.save(malformed)).toThrow();
+      expect(() => {
+        SessionStore.save(malformed);
+      }).toThrow();
     }
 
-    expect(() =>
-      SessionStore.save({ ...session, relayUrl: "http://localhost:8787" }),
-    ).not.toThrow();
-    expect(() =>
-      SessionStore.save({ ...session, relayUrl: "http://relay.localhost:8787" }),
-    ).not.toThrow();
+    expect(() => {
+      SessionStore.save({ ...session, relayUrl: "http://localhost:8787" });
+    }).not.toThrow();
+    expect(() => {
+      SessionStore.save({
+        ...session,
+        relayUrl: "http://relay.localhost:8787",
+      });
+    }).not.toThrow();
   });
 
   it("rejects negative, future, and out-of-order session timestamps", async () => {
@@ -398,9 +406,9 @@ describe("SessionStore v4 migration boundary", () => {
     for (const poisoned of malformed) {
       localStorage.setItem("qrlconnect:sessions", JSON.stringify([poisoned]));
       expect(SessionStore.getAll()).toEqual([]);
-      expect(() => SessionStore.save(poisoned)).toThrow(
-        "invalid persisted state",
-      );
+      expect(() => {
+        SessionStore.save(poisoned);
+      }).toThrow("invalid persisted state");
     }
   });
 
@@ -420,9 +428,12 @@ describe("SessionStore v4 migration boundary", () => {
       connectedAccount: "",
     });
 
-    expect(() =>
-      SessionStore.save({ ...pending, connectedAccount: session.connectedAccount }),
-    ).toThrow("invalid connected account");
+    expect(() => {
+      SessionStore.save({
+        ...pending,
+        connectedAccount: session.connectedAccount,
+      });
+    }).toThrow("invalid connected account");
   });
 
   it("propagates checkpoint write failures to the caller", async () => {
@@ -435,7 +446,9 @@ describe("SessionStore v4 migration boundary", () => {
       },
     });
 
-    expect(() => SessionStore.save(session)).toThrow("quota denied");
+    expect(() => {
+      SessionStore.save(session);
+    }).toThrow("quota denied");
   });
 
   it("invalidates all reconnect records if a targeted removal cannot be rewritten", async () => {
@@ -449,7 +462,9 @@ describe("SessionStore v4 migration boundary", () => {
       },
     });
 
-    expect(() => SessionStore.remove(session.id)).toThrow("quota denied");
+    expect(() => {
+      SessionStore.remove(session.id);
+    }).toThrow("quota denied");
     expect(localStorage.getItem("qrlconnect:sessions")).toBeNull();
   });
 
@@ -470,10 +485,11 @@ describe("SessionStore v4 migration boundary", () => {
     SessionStore.save(session);
     const staleWrite = localStorage.getItem("qrlconnect:sessions");
     expect(staleWrite).not.toBeNull();
+    if (staleWrite === null) throw new Error("Expected a stored session");
 
     advanceWalletEpoch();
     SessionStore.clearAll();
-    localStorage.setItem("qrlconnect:sessions", staleWrite as string);
+    localStorage.setItem("qrlconnect:sessions", staleWrite);
 
     expect(SessionStore.getAll()).toEqual([]);
   });
@@ -506,9 +522,9 @@ describe("SessionStore v4 migration boundary", () => {
       );
 
       expect(SessionStore.getAll()).toEqual([]);
-      expect(() =>
-        SessionStore.save({ ...session, connectedAccount: account }),
-      ).toThrow("invalid connected account");
+      expect(() => {
+        SessionStore.save({ ...session, connectedAccount: account });
+      }).toThrow("invalid connected account");
     },
   );
 });
