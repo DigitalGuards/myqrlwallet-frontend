@@ -216,29 +216,10 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/utils/storage/__tests__/seedRevision.test.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
-    files: ["src/utils/storage/autoLock.ts"],
-    rules: {
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
-      "no-console": "off",
-    },
-  },
-  {
     files: ["src/utils/storage/storage.ts"],
     rules: {
       "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-extraneous-class": "off",
       "@typescript-eslint/no-unnecessary-type-parameters": "off",
-      "@typescript-eslint/require-await": "off",
     },
   },
   {
