@@ -181,8 +181,13 @@ export default defineConfig(({ mode, command }) => ({
       transformMixedEsModules: true,
       defaultIsModuleExports(id) {
         try {
-          const module = require(id)
-          if (module?.default) {
+          const module: unknown = require(id)
+          if (
+            (typeof module === 'object' || typeof module === 'function') &&
+            module !== null &&
+            'default' in module &&
+            module.default
+          ) {
             return false
           }
           return 'auto'
