@@ -182,12 +182,13 @@ export default defineConfig(({ mode, command }) => ({
       defaultIsModuleExports(id) {
         try {
           const module: unknown = require(id)
-          if (
-            (typeof module === 'object' || typeof module === 'function') &&
-            module !== null &&
-            'default' in module &&
-            module.default
-          ) {
+          // The same lookup as `module?.default`: one [[Get]] on the module,
+          // and a primitive reads through its wrapper with itself as receiver.
+          const exportedDefault: unknown =
+            module === null || module === undefined
+              ? undefined
+              : Reflect.get(new Object(module), 'default', module)
+          if (exportedDefault) {
             return false
           }
           return 'auto'
