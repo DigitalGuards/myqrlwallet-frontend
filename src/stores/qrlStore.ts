@@ -7,6 +7,8 @@ import { decideActiveAccount, reconcileSignerWallets } from "@/desktop/walletHyd
 import type { AccountListItem, AccountSource } from "@/utils/storage";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
+import { logger } from "@/utils/log";
+import { runAsPromise } from "@/utils/runAsPromise";
 import { getQrlWeb3 } from "@/utils/web3";
 import { getErrorMessage } from "@/utils/errors";
 import { isCallable, isRecord } from "@/utils/guards";
@@ -22,7 +24,7 @@ import {
   FEE_NOT_SHOWN,
   type ApprovedFeeInput,
 } from "@/utils/web3/feePolicy";
-import type { Web3QRLInterface } from "@theqrl/web3";
+import type { DataFormat, Web3QRLInterface } from "@theqrl/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
 import { z } from "zod";
 import { walletMutations } from "@/utils/nativeWalletMutation";
@@ -116,8 +118,15 @@ export interface FeeQuote {
   expectedFeePerGas: bigint;
 }
 
-export type FeeMarketProvider = Pick<Web3QRLInterface, "getGasPrice">
-  & Partial<Pick<Web3QRLInterface, "getMaxPriorityFeePerGas" | "getBlock">>;
+type RpcQuantity = string | number | bigint | boolean;
+
+export type FeeMarketProvider = {
+  getGasPrice(): Promise<RpcQuantity>;
+  getMaxPriorityFeePerGas?: () => Promise<RpcQuantity>;
+  getBlock?: (block: "latest") => Promise<{
+    baseFeePerGas?: RpcQuantity | null;
+  } | null | undefined>;
+};
 
 // EIP-1559 fees for a selector level: the tip scales the node's suggestion,
 // and maxFee = 2 * baseFee + tip leaves headroom for several base-fee rises
@@ -324,7 +333,7 @@ class QrlStore {
 
     // Initialize blockchain asynchronously to avoid blocking constructor
     setTimeout(() => {
-      this.initializeBlockchain();
+      void this.initializeBlockchain();
     }, 0);
   }
 
@@ -339,7 +348,7 @@ class QrlStore {
       // Created inside the try so a throw here still releases the in-flight guard.
       const requestController = new AbortController();
       controller = requestController;
-      timeout = setTimeout(() => requestController.abort(), PRICE_FETCH_TIMEOUT_MS);
+      timeout = setTimeout(() => { requestController.abort(); }, PRICE_FETCH_TIMEOUT_MS);
       const res = await fetch(`${EXPLORER_BASE}/api/overview`, {
         signal: requestController.signal,
       });
@@ -352,7 +361,7 @@ class QrlStore {
       const decoder = new TextDecoder();
       let body = "";
       let bytesRead = 0;
-      while (true) {
+      for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
         bytesRead += value.byteLength;
@@ -543,7 +552,7 @@ class QrlStore {
       // so a wallet the signer can unlock is never shown as "0 wallets".
       if (isDesktop) await this.hydrateDesktopWalletsFromSigner();
       await this.fetchAccounts();
-      this.fetchQrlPrice(); // Fire-and-forget, non-blocking
+      void this.fetchQrlPrice(); // Fire-and-forget, non-blocking
       await this.validateActiveAccount();
 
       // Hand off to TokenStore (and any other domain store wired by Store)
@@ -560,8 +569,8 @@ class QrlStore {
           this.qrlConnection = { ...this.qrlConnection, isConnected: false, isLoading: false };
         });
       }
-      console.error('Failed to initialize blockchain:', error);
-      log("Error initializing blockchain: " + error);
+      logger.error('Failed to initialize blockchain:', error);
+      log("Error initializing blockchain: " + String(error));
     }
   }
 
@@ -590,13 +599,16 @@ class QrlStore {
     // per-account password UX. Never block the renderer-side switch on it.
     if (isDesktop && normalizedActiveAccount) {
       try {
-        const list = await desktopSigner.listWallets();
+        const signer: {
+          listWallets(): Promise<Awaited<ReturnType<typeof desktopSigner.listWallets>> | null | undefined>;
+        } = desktopSigner;
+        const list = await signer.listWallets();
         const wallets = Array.isArray(list?.wallets) ? list.wallets : [];
         if (wallets.some((w) => w.address.toLowerCase() === normalizedActiveAccount.toLowerCase())) {
           await desktopSigner.setActiveWallet(normalizedActiveAccount);
         }
       } catch (error) {
-        console.error('Desktop setActiveWallet failed (continuing with UI switch):', error);
+        logger.error('Desktop setActiveWallet failed (continuing with UI switch):', error);
       }
     }
 
@@ -660,7 +672,7 @@ class QrlStore {
       // Add timeout to prevent hanging on unreachable networks
       const connectionCheckPromise = this.qrlInstance?.net.isListening();
       const timeoutPromise = new Promise<boolean>((_, reject) =>
-        setTimeout(() => reject(new Error('Connection timeout')), 5000)
+        setTimeout(() => { reject(new Error('Connection timeout')); }, 5000)
       );
 
       const isListening = await Promise.race([
@@ -676,7 +688,7 @@ class QrlStore {
         };
       });
     } catch (error) {
-      console.error('Failed to fetch qrl connection:', error);
+      logger.error('Failed to fetch qrl connection:', error);
       runInAction(() => {
         this.qrlConnection = { ...this.qrlConnection, isConnected: false };
       });
@@ -731,13 +743,13 @@ class QrlStore {
               if (after && after !== before) await this.onActiveAccountChanged?.(after);
             })
             .catch((error: unknown) => {
-              console.error('Desktop unlock re-hydration failed:', error);
+              logger.error('Desktop unlock re-hydration failed:', error);
             });
         });
       } catch (error) {
         // A shell predating onLockStateChanged must not abort blockchain init;
         // the one-shot hydration below still runs.
-        console.error('Desktop lock-state listener unavailable:', error);
+        logger.error('Desktop lock-state listener unavailable:', error);
       }
     }
 
@@ -749,7 +761,13 @@ class QrlStore {
     // must never trigger the removal side of the reconcile.
     let authoritative = false;
     try {
-      const { wallets, active } = await desktopSigner.listWallets();
+      const signer: {
+        listWallets(): Promise<{
+          wallets?: Awaited<ReturnType<typeof desktopSigner.listWallets>>['wallets'] | null;
+          active: string | null;
+        }>;
+      } = desktopSigner;
+      const { wallets, active } = await signer.listWallets();
       signerAddresses = (wallets ?? []).map((w) => w.address);
       signerActive = active;
       authoritative = true;
@@ -757,11 +775,14 @@ class QrlStore {
       // Older mains may not implement listWallets: fall back to the single
       // active address from getStatus.
       try {
-        const status = await desktopSigner.getStatus();
+        const signer: {
+          getStatus(): Promise<{ address?: string | null; activeAddress?: string | null }>;
+        } = desktopSigner;
+        const status = await signer.getStatus();
         if (status.address) signerAddresses = [status.address];
         signerActive = status.activeAddress ?? status.address ?? null;
       } catch (error) {
-        console.error('Desktop wallet hydration failed:', error);
+        logger.error('Desktop wallet hydration failed:', error);
         return;
       }
     }
@@ -787,7 +808,10 @@ class QrlStore {
       // builds `from` from the renderer active, so a stale one that differs
       // from the unlocked session is rejected by the signer ("signing account
       // mismatch"). The decision is a pure, unit-tested helper.
-      const storedActive = await StorageUtil.getActiveAccount(blockchain);
+      const storage: {
+        getActiveAccount(blockchain: string): Promise<string | null | undefined>;
+      } = StorageUtil;
+      const storedActive = await storage.getActiveAccount(blockchain);
       const decision = decideActiveAccount({
         list,
         storedActive,
@@ -802,7 +826,7 @@ class QrlStore {
         // wins, so skip this write rather than clobbering it back to the
         // (now stale) signer snapshot. The next lock/unlock re-hydration
         // reconciles from a fresh snapshot.
-        const freshActive = await StorageUtil.getActiveAccount(blockchain);
+        const freshActive = await storage.getActiveAccount(blockchain);
         if ((freshActive ?? '') !== (storedActive ?? '')) {
           log('Desktop hydration: active account changed mid-reconcile; skipping adopt.');
         } else if (decision.action === 'set') {
@@ -812,7 +836,7 @@ class QrlStore {
         }
       }
     } catch (error) {
-      console.error('Desktop wallet hydration: storage reconcile failed:', error);
+      logger.error('Desktop wallet hydration: storage reconcile failed:', error);
     }
   }
 
@@ -906,7 +930,7 @@ class QrlStore {
       const storedActiveKey = storedActiveAccount.toLowerCase();
       const confirmedEntry = storedActiveKey
         ? storedAccountList.find(
-            (item) =>
+            (item: AccountListItem | null | undefined) =>
               typeof item?.address === "string" &&
               item.address.toLowerCase() === storedActiveKey,
           )
@@ -932,8 +956,8 @@ class QrlStore {
         log("Active account validated: " + confirmedExistingActiveAccount);
       }
     } catch (error) {
-      console.error('Failed to validate active account:', error);
-      log("Error validating active account: " + error);
+      logger.error('Failed to validate active account:', error);
+      log("Error validating active account: " + String(error));
     }
   }
 
@@ -971,7 +995,7 @@ class QrlStore {
       const provider = this.qrlInstance;
       if (!provider) throw new Error("Wallet not connected. Please try again.");
       const fees = await quoteFees(provider, feeLevel);
-      gas = BigInt(await provider.estimateGas({
+      gas = BigInt(await provider.estimateGas<DataFormat>({
         from: transfer.from, to: transfer.to, value: value.toString(), type: '0x2',
         maxFeePerGas: `0x${fees.maxFeePerGas.toString(16)}`,
         maxPriorityFeePerGas: `0x${fees.maxPriorityFeePerGas.toString(16)}`,
@@ -997,7 +1021,7 @@ class QrlStore {
     );
     const key = address.toLowerCase();
     const entry = storedAccountList.find(
-      (item) =>
+      (item: AccountListItem | null | undefined) =>
         typeof item?.address === "string" && item.address.toLowerCase() === key,
     );
     if (!entry || entry.source === 'seed') return;
@@ -1027,6 +1051,7 @@ class QrlStore {
     const signingGeneration = walletMutations.captureGeneration();
     const signingProvider = this.qrlInstance;
     const signingBlockchain = this.qrlConnection.blockchain;
+    const currentProvider = (): Web3QRLInterface | undefined => this.qrlInstance;
     const assertSigningCurrent = (): void => {
       if (!walletMutations.isCurrent(signingGeneration)
         || !this.isSendCurrent(attempt)
@@ -1093,7 +1118,7 @@ class QrlStore {
         maxPriorityFeePerGas: utils.toHex(maxPriorityFeePerGas),
         nonce: nonce,
       };
-      const gas = await this.qrlInstance?.estimateGas(transactionObject);
+      const gas = await currentProvider()?.estimateGas<DataFormat>(transactionObject);
       if (gas === undefined) throw new Error("Wallet not connected. Please try again.");
       // Sign the fee the user saw, as a total, or stop and let them look at
       // the new figure. Checked after the gas estimate, because the displayed
@@ -1114,8 +1139,14 @@ class QrlStore {
       // Sign the transaction first to ensure validity before proceeding
       if (IS_V3_PROFILE) await this.assertNetworkReady();
       assertSigningCurrent();
+      const seedSigningProvider: {
+        accounts: {
+          signTransaction(...args: Parameters<Web3QRLInterface['accounts']['signTransaction']>):
+            Promise<Awaited<ReturnType<Web3QRLInterface['accounts']['signTransaction']>> | null | undefined>;
+        };
+      } | undefined = currentProvider();
       const signedTransaction =
-        await this.qrlInstance?.accounts.signTransaction(
+        await seedSigningProvider?.accounts.signTransaction(
           { ...transactionObject, gas },
           privateKey
         );
@@ -1223,7 +1254,7 @@ class QrlStore {
         await StorageUtil.setAccountList(blockchain, filtered);
       }
     } catch (error) {
-      console.error('Failed to prune stale mobile accounts:', error);
+      logger.error('Failed to prune stale mobile accounts:', error);
     }
     await this.setActiveAccount(address, 'mobile');
   }
@@ -1239,7 +1270,7 @@ class QrlStore {
         await StorageUtil.setAccountList(blockchain, filtered);
       }
     } catch (error) {
-      console.error('Failed to remove mobile accounts:', error);
+      logger.error('Failed to remove mobile accounts:', error);
     }
     if (activeWasMobile) {
       await this.setActiveAccount(undefined);
@@ -1248,59 +1279,63 @@ class QrlStore {
     }
   }
 
-  async pollForReceipt(txHash: string, onReceipt?: () => void) {
-    if (!txHash || !this.qrlInstance) return;
-    const provider = this.qrlInstance;
-    const blockchain = this.qrlConnection.blockchain;
-    const from = this.transactionStatus.details?.from ?? this.activeAccount.accountAddress;
-    const attemptId = this._sendAttemptId;
-    let attempts = 0;
-    const { transactionPollingInterval, transactionPollingTimeout } = SEND_TX_POLLING_CONFIG;
-    const maxAttempts = transactionPollingTimeout / transactionPollingInterval;
-    let polling = false;
-    this.cancelReceiptPoller();
-    const stillCurrent = () => attemptId === this._sendAttemptId
-      && provider === this.qrlInstance && blockchain === this.qrlConnection.blockchain
-      && this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash;
-    const interval = setInterval(async () => {
-      if (!stillCurrent()) { clearInterval(interval); return; }
-      if (polling) return;
-      polling = true;
-      attempts += 1;
-      let wireReceipt: unknown;
-      try {
-        wireReceipt = await provider.getTransactionReceipt(txHash);
-      } catch {
-        // Nodes can report an unmined transaction through an RPC error.
-      } finally {
-        polling = false;
-      }
-      if (!stillCurrent()) return;
-      const receipt = readSendReceipt(wireReceipt);
-      if (receipt && historyHash(receipt.transactionHash) === txHash.toLowerCase()) {
-        transactionHistoryStore.settle(blockchain, from, txHash, wireReceipt);
-        this.cancelReceiptPoller();
-        const succeeded = receiptExecutionStatus(receipt.status) === true;
-        runInAction(() => {
-          this.transactionStatus = {
-            ...this.transactionStatus, state: succeeded ? 'confirmed' : 'failed',
-            txHash, receipt,
-            error: succeeded ? null : revertedTransactionMessage(wireReceipt),
-          };
-        });
-        void this.fetchAccounts();
-        onReceipt?.();
-      } else if (attempts >= maxAttempts) {
-        this.cancelReceiptPoller();
-        runInAction(() => {
-          this.transactionStatus = {
-            ...this.transactionStatus, state: 'timeout',
-            error: 'Still waiting for confirmation after 5 minutes. Check History or the explorer before sending again.',
-          };
-        });
-      }
-    }, transactionPollingInterval);
-    this._receiptPollerIntervalId = interval;
+  pollForReceipt(txHash: string, onReceipt?: () => void): Promise<void> {
+    return runAsPromise(() => {
+      if (!txHash || !this.qrlInstance) return;
+      const provider = this.qrlInstance;
+      const blockchain = this.qrlConnection.blockchain;
+      const from = this.transactionStatus.details?.from ?? this.activeAccount.accountAddress;
+      const attemptId = this._sendAttemptId;
+      let attempts = 0;
+      const { transactionPollingInterval, transactionPollingTimeout } = SEND_TX_POLLING_CONFIG;
+      const maxAttempts = transactionPollingTimeout / transactionPollingInterval;
+      let polling = false;
+      this.cancelReceiptPoller();
+      const stillCurrent = () => attemptId === this._sendAttemptId
+        && provider === this.qrlInstance && blockchain === this.qrlConnection.blockchain
+        && this.transactionStatus.state === 'pending' && this.transactionStatus.txHash === txHash;
+      const interval = setInterval(() => {
+        void (async () => {
+          if (!stillCurrent()) { clearInterval(interval); return; }
+          if (polling) return;
+          polling = true;
+          attempts += 1;
+          let wireReceipt: unknown;
+          try {
+            wireReceipt = await provider.getTransactionReceipt(txHash);
+          } catch {
+            // Nodes can report an unmined transaction through an RPC error.
+          } finally {
+            polling = false;
+          }
+          if (!stillCurrent()) return;
+          const receipt = readSendReceipt(wireReceipt);
+          if (receipt && historyHash(receipt.transactionHash) === txHash.toLowerCase()) {
+            transactionHistoryStore.settle(blockchain, from, txHash, wireReceipt);
+            this.cancelReceiptPoller();
+            const succeeded = receiptExecutionStatus(receipt.status) === true;
+            runInAction(() => {
+              this.transactionStatus = {
+                ...this.transactionStatus, state: succeeded ? 'confirmed' : 'failed',
+                txHash, receipt,
+                error: succeeded ? null : revertedTransactionMessage(wireReceipt),
+              };
+            });
+            void this.fetchAccounts();
+            onReceipt?.();
+          } else if (attempts >= maxAttempts) {
+            this.cancelReceiptPoller();
+            runInAction(() => {
+              this.transactionStatus = {
+                ...this.transactionStatus, state: 'timeout',
+                error: 'Still waiting for confirmation after 5 minutes. Check History or the explorer before sending again.',
+              };
+            });
+          }
+        })();
+      }, transactionPollingInterval);
+      this._receiptPollerIntervalId = interval;
+    });
   }
 
   // Native and QRC20 sends share the remote approval and broadcast lifecycle.
@@ -1389,7 +1424,7 @@ class QrlStore {
         if (extension !== this.extensionProvider) throw new Error('Extension changed during identity verification');
       }
       await verifyNetworkIdentity({ request: (args) => provider.requestManager.send(args) }, QRL_PROVIDER.TEST_NET_V3);
-      if (current !== this.qrlInstance || this.qrlConnection.blockchain !== 'TEST_NET_V3') throw new Error('Network changed during identity verification');
+      if (current !== this.qrlInstance || !Object.is(this.qrlConnection.blockchain, 'TEST_NET_V3')) throw new Error('Network changed during identity verification');
       if (account !== this.activeAccount.accountAddress || source !== this.activeAccountSource) throw new Error('Account changed during identity verification');
       assertSupportedAccountSource(this.activeAccountSource);
     } catch (error) {
