@@ -1,3 +1,4 @@
+import { logger } from "./log";
 /**
  * Android hardware back, routed into the page.
  *
@@ -95,7 +96,7 @@ export function resolveNativeBack(
       dismissed = overlay.dismiss();
     } catch (error) {
       // A broken overlay must not strand back. Drop it and keep going.
-      console.error("[back] an overlay failed to dismiss", error);
+      logger.write("error", () => ["[back] an overlay failed to dismiss", error]);
       overlays = overlays.filter((entry) => entry.id !== overlay.id);
       continue;
     }

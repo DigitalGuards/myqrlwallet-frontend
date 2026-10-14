@@ -28,6 +28,9 @@
  * module in the graph is evaluated.
  */
 
+import { isArray, isRecord } from "./guards";
+import { logger } from "./log";
+
 /** Set by the app's bootstrap on the first launches after the upgrade. */
 export const EMBEDDED_MIGRATION_FLAG = "__QRL_EMBEDDED_MIGRATION__";
 
@@ -64,8 +67,6 @@ export const MIGRATION_SESSION_KEYS: readonly string[] = [
  * module needing to know the network list.
  */
 const ACCOUNT_LIST_SUFFIX = "_ACCOUNT_LIST";
-
-type MigrationScope = { [EMBEDDED_MIGRATION_FLAG]?: unknown };
 
 /**
  * Drop remote-signer rows whose pairing session has just been cleared.
@@ -105,18 +106,18 @@ function pruneRemoteSignerAccounts(storage: Storage | undefined): ClearOutcome {
       const raw = storage.getItem(key);
       if (raw === null) continue;
       const parsed: unknown = JSON.parse(raw);
-      if (typeof parsed !== "object" || parsed === null) continue;
-      const wrapper = parsed as { value?: unknown };
-      if (!Array.isArray(wrapper.value)) continue;
+      if (!isRecord(parsed)) continue;
+      const entries = parsed["value"];
+      if (!isArray(entries)) continue;
 
-      const kept = wrapper.value.filter((entry) => {
-        if (typeof entry !== "object" || entry === null) return true;
-        return (entry as { source?: unknown }).source !== "mobile";
+      const kept = entries.filter((entry) => {
+        if (!isRecord(entry)) return true;
+        return entry["source"] !== "mobile";
       });
-      if (kept.length === wrapper.value.length) continue;
+      if (kept.length === entries.length) continue;
 
-      removed += wrapper.value.length - kept.length;
-      storage.setItem(key, JSON.stringify({ ...wrapper, value: kept }));
+      removed += entries.length - kept.length;
+      storage.setItem(key, JSON.stringify({ ...parsed, value: kept }));
     } catch {
       // A malformed entry is left exactly as it is. A write that throws is a
       // real failure, so the migration is not reported as done.
@@ -178,8 +179,11 @@ export function runEmbeddedMigration(): boolean {
   if (alreadyRun) return false;
   if (typeof window === "undefined") return false;
 
-  const scope = window as MigrationScope;
-  if (scope[EMBEDDED_MIGRATION_FLAG] !== true) return false;
+  if (
+    !(EMBEDDED_MIGRATION_FLAG in window) ||
+    window[EMBEDDED_MIGRATION_FLAG] !== true
+  )
+    return false;
   alreadyRun = true;
 
   // `window.localStorage` and `window.sessionStorage` are accessor properties
@@ -202,7 +206,7 @@ export function runEmbeddedMigration(): boolean {
     orphans = accounts.removed;
     failed = local.failed || session.failed || accounts.failed;
   } catch (error) {
-    console.error("[embedded] migration could not reach storage", error);
+    logger.write("error", () => ["[embedded] migration could not reach storage", error]);
     failed = true;
   }
 
@@ -210,16 +214,16 @@ export function runEmbeddedMigration(): boolean {
     // Staying silent is the point: the app keeps its pending marker and tries
     // again on the next launch. Claiming success here would strand a hosted
     // pairing session in the wallet for good.
-    console.error(
+    logger.write("error", () => [
       "[embedded] migration did not complete, leaving it pending for the next launch",
-    );
+    ]);
     return false;
   }
 
-  console.info(
+  logger.write("info", () => [
     `[embedded] migration from the hosted wallet cleared ${removed} pairing session key(s) ` +
       `and ${orphans} orphaned remote-signer account row(s)`,
-  );
+  ]);
   reportDone();
   return true;
 }

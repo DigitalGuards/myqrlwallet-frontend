@@ -1,7 +1,8 @@
+import { logger } from "../log";
 import { QRL_EXTENSION_RDNS } from "@/constants";
 import type { AccountSource } from "@/utils/storage";
 import type { ExtensionProvider } from "@/stores/qrlStore";
-import { getErrorMessage, isProviderRpcError } from "@/utils/errors";
+import { getErrorMessage, getProviderErrorCode } from "@/utils/errors";
 import { qualifyV3Provider } from "./v3Provider";
 import { isValidQrlAddress } from "@/utils/web3/address";
 
@@ -198,9 +199,9 @@ export async function connectWithProvider(
 
   try {
     await qualifyV3Provider(provider);
-    console.log(
+    logger.write("log", () => [
       `Attempting to connect to ${detail.info.name} using qrl_requestAccounts...`,
-    );
+    ]);
     const accounts: unknown = await provider.request({
       method: "qrl_requestAccounts",
     });
@@ -211,32 +212,32 @@ export async function connectWithProvider(
     if (accounts.length > 0) {
       const firstAccount = accounts[0];
       if (!firstAccount) return null; // length > 0 guarantees this; satisfies the index checker
-      console.log("Connected to extension with accounts:", accounts);
+      logger.write("log", () => ["Connected to extension with accounts:", accounts]);
 
-      console.log(`Setting active account to: ${firstAccount}`);
-      console.log("Setting extension provider in store.");
+      logger.write("log", () => [`Setting active account to: ${firstAccount}`]);
+      logger.write("log", () => ["Setting extension provider in store."]);
       setExtensionProvider(provider);
       await setActiveAccount(firstAccount, "extension");
 
       return accounts;
     } else {
-      console.warn("No accounts returned from extension.");
+      logger.write("warn", () => ["No accounts returned from extension."]);
       setExtensionProvider(null); // Clear provider if no accounts approved
       return null;
     }
   } catch (error) {
     setExtensionProvider(null); // Clear provider on error
     // Handle errors, such as user rejection
-    const code = isProviderRpcError(error) ? error.code : undefined;
+    const code = getProviderErrorCode(error);
     if (code === 4001) {
       // EIP-1193 user rejection error
-      console.log("User rejected connection request.");
+      logger.write("log", () => ["User rejected connection request."]);
       alert("Connection request rejected.");
     } else if (code === -32601) {
-      console.error("RPC Error: Method not found", error);
+      logger.write("error", () => ["RPC Error: Method not found", error]);
       alert(`RPC Error: ${getErrorMessage(error)}`);
     } else {
-      console.error("Error connecting to extension:", error);
+      logger.write("error", () => ["Error connecting to extension:", error]);
       alert(`Error connecting to extension: ${getErrorMessage(error)}`);
     }
     return null;

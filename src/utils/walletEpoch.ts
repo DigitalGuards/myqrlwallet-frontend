@@ -1,4 +1,10 @@
+import { logger } from "./log";
 import { profileStorageKey } from "@/config/runtimeProfile";
+import { isRecord } from "./guards";
+
+// These browser APIs can be absent in older or restricted environments.
+const runtime: { crypto?: Crypto; navigator?: { locks?: LockManager } } =
+  globalThis;
 
 export type WalletEpoch = string;
 
@@ -45,7 +51,7 @@ function notifyDifferentEpoch(epoch: WalletEpoch): void {
     try {
       listener(epoch);
     } catch (error) {
-      console.error("[WalletEpoch] Listener failed:", error);
+      logger.write("error", () => ["[WalletEpoch] Listener failed:", error]);
     }
   }
 }
@@ -75,15 +81,12 @@ function installCrossTabListeners(): void {
   try {
     broadcastChannel = new window.BroadcastChannel(WALLET_EPOCH_CHANNEL_NAME);
     broadcastChannel.addEventListener("message", (event) => {
-      const data = event.data as {
-        epoch?: unknown;
-        volatile?: unknown;
-        baseEpoch?: unknown;
-      } | null;
-      const epoch = data?.epoch;
+      const data: unknown = event.data;
+      if (!isRecord(data)) return;
+      const epoch = data["epoch"];
       if (typeof epoch === "string" && /^[0-9a-f]{32}$/.test(epoch)) {
-        if (data?.volatile === true) {
-          const baseEpoch = data.baseEpoch;
+        if (data["volatile"] === true) {
+          const baseEpoch = data["baseEpoch"];
           if (
             (baseEpoch !== INITIAL_WALLET_EPOCH &&
               (typeof baseEpoch !== "string" ||
@@ -103,17 +106,18 @@ function installCrossTabListeners(): void {
   } catch (error) {
     // Storage events remain the compatibility path when BroadcastChannel is
     // unavailable or disabled by the browser's privacy policy.
-    console.warn("[WalletEpoch] BroadcastChannel unavailable:", error);
+    logger.write("warn", () => ["[WalletEpoch] BroadcastChannel unavailable:", error]);
   }
 }
 
 function generateEpoch(): WalletEpoch {
   const bytes = new Uint8Array(16);
-  if (typeof globalThis.crypto?.getRandomValues !== "function") {
+  const crypto = runtime.crypto;
+  if (typeof crypto?.getRandomValues !== "function") {
     throw new Error("Secure wallet epoch randomness is unavailable");
   }
   try {
-    globalThis.crypto.getRandomValues(bytes);
+    crypto.getRandomValues(bytes);
   } catch {
     throw new Error("Secure wallet epoch randomness is unavailable");
   }
@@ -137,8 +141,8 @@ export function isWalletEpochCurrent(epoch: WalletEpoch): boolean {
 
 /**
  * Replace the persistent wallet identity generation before clearing secrets
- * or reconnect checkpoints. Generations are random equality tokens instead
- * of counters: concurrent tabs can write in either order without making a
+ * or reconnect checkpoints. Generations are random equality
+ * tokens: concurrent tabs can write in either order without making a
  * later write look "older" and therefore ignorable.
  */
 export function advanceWalletEpoch(): WalletEpoch {
@@ -172,7 +176,7 @@ export function advanceWalletEpoch(): WalletEpoch {
         baseEpoch: current,
       });
     } catch (error) {
-      console.warn("[WalletEpoch] Could not broadcast volatile epoch:", error);
+      logger.write("warn", () => ["[WalletEpoch] Could not broadcast volatile epoch:", error]);
     }
     throw new Error("Could not persist the wallet clear boundary");
   }
@@ -180,7 +184,7 @@ export function advanceWalletEpoch(): WalletEpoch {
   try {
     broadcastChannel?.postMessage({ epoch: next });
   } catch (error) {
-    console.warn("[WalletEpoch] Could not broadcast wallet epoch:", error);
+    logger.write("warn", () => ["[WalletEpoch] Could not broadcast wallet epoch:", error]);
   }
   return next;
 }
@@ -201,13 +205,11 @@ export function subscribeWalletEpoch(
 export async function withWalletMutationLock<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
-  if (
-    typeof navigator === "undefined" ||
-    typeof navigator.locks?.request !== "function"
-  ) {
+  const locks = runtime.navigator?.locks;
+  if (typeof locks?.request !== "function") {
     return operation();
   }
-  return navigator.locks.request(
+  return locks.request(
     WALLET_MUTATION_LOCK_NAME,
     { mode: "exclusive" },
     operation,

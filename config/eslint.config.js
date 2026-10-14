@@ -1377,167 +1377,9 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/utils/__tests__/clipboardSensitive.test.ts"],
-    rules: {
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-    },
-  },
-  {
-    files: ["src/utils/__tests__/embeddedMigration.test.ts"],
-    rules: {
-      "@typescript-eslint/no-unsafe-assignment": "off",
-    },
-  },
-  {
-    files: ["src/utils/__tests__/embeddedRuntime.test.ts"],
-    rules: {
-      "@typescript-eslint/no-implied-eval": "off",
-      "@typescript-eslint/no-unsafe-call": "off",
-    },
-  },
-  {
-    files: ["src/utils/__tests__/embeddedShell.test.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: ["src/utils/__tests__/logout.test.ts"],
-    rules: {
-      "@typescript-eslint/require-await": "off",
-      "@typescript-eslint/unbound-method": "off",
-    },
-  },
-  {
-    files: ["src/utils/__tests__/logoutEmbedded.test.ts"],
-    rules: {
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/utils/__tests__/nativeAppCorrelation.test.ts"],
-    rules: {
-      "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-    },
-  },
-  {
-    files: ["src/utils/__tests__/nativeAppDeviceCredential.test.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-    },
-  },
-  {
-    files: ["src/utils/__tests__/nativeDocumentBinding.test.ts"],
-    rules: {
-      "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-    },
-  },
-  {
-    files: ["src/utils/__tests__/nativeWalletMutation.test.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/utils/__tests__/walletEpoch.test.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-unnecessary-type-conversion": "off",
-    },
-  },
-  {
-    files: ["src/utils/addressBook.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
-    files: ["src/utils/embeddedMigration.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/utils/embeddedMigrationBoot.ts"],
-    rules: {
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/utils/embeddedRuntime.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
-    files: ["src/utils/errors.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
-    files: ["src/utils/extension/__tests__/extensionConnection.test.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/utils/extension/__tests__/v3Provider.test.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/utils/extension/extensionConnection.ts"],
-    rules: {
-      "no-console": "off",
-    },
-  },
-  {
     files: ["src/utils/formatting/__tests__/address.test.ts"],
     rules: {
       "@typescript-eslint/no-unnecessary-template-expression": "off",
-    },
-  },
-  {
-    files: ["src/utils/formatting/balance.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
-    files: ["src/utils/formatting/string.ts"],
-    rules: {
-      "@typescript-eslint/no-extraneous-class": "off",
-    },
-  },
-  {
-    files: ["src/utils/guards.ts"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
-    },
-  },
-  {
-    files: ["src/utils/log.ts"],
-    rules: {
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/utils/logout.ts"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
-      "no-console": "off",
     },
   },
   {
@@ -1567,25 +1409,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/utils/nativeBack.ts"],
-    rules: {
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/utils/nativeWalletMutation.ts"],
-    rules: {
-      "@typescript-eslint/only-throw-error": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: ["src/utils/navigation.ts"],
-    rules: {
-      "@typescript-eslint/no-floating-promises": "off",
-    },
-  },
-  {
     files: ["src/utils/storage/__tests__/seedRevision.test.ts"],
     rules: {
       "@typescript-eslint/consistent-type-assertions": "off",
@@ -1609,20 +1432,6 @@ export const lintRatchet = [
       "@typescript-eslint/no-extraneous-class": "off",
       "@typescript-eslint/no-unnecessary-type-parameters": "off",
       "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/utils/useBackDismiss.ts"],
-    rules: {
-      "@typescript-eslint/no-invalid-void-type": "off",
-    },
-  },
-  {
-    files: ["src/utils/walletEpoch.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "no-console": "off",
     },
   },
   {

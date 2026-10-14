@@ -6,6 +6,7 @@ import type { NavigateFunction } from "react-router";
 import { isInNativeApp, openNativeSettings } from "@/utils/nativeApp";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { ROUTES } from "@/router/router";
+import { logger } from "./log";
 
 /**
  * Navigate to a route, with special handling for native contexts: on mobile
@@ -19,8 +20,15 @@ export const navigateTo = (url: string, navigate: NavigateFunction): void => {
   if (url === ROUTES.SETTINGS && isInNativeApp()) {
     openNativeSettings();
   } else if (url === ROUTES.SETTINGS && isDesktop) {
-    void desktopSigner.openDesktopSettings();
+    desktopSigner.openDesktopSettings().catch((error: unknown) => {
+      logger.write("error", () => ["Navigation: desktop settings failed", error]);
+    });
   } else {
-    navigate(url);
+    const navigation = navigate(url);
+    if (navigation) {
+      navigation.catch((error: unknown) => {
+        logger.write("error", () => ["Navigation: route change failed", error]);
+      });
+    }
   }
 };

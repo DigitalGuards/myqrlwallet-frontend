@@ -14,6 +14,8 @@
  * the document asks this helper first. The flag name is exported so the build
  * and the runtime check cannot drift apart.
  */
+import { isRecord } from "./guards";
+
 export const EMBEDDED_GLOBAL_FLAG = "__QRL_EMBEDDED__";
 
 declare const __QRL_EMBEDDED_BUILD__: boolean;
@@ -25,7 +27,7 @@ declare const __QRL_EMBEDDED_BUILD__: boolean;
  * run time, this is a build constant: the embedded config defines it as `true`
  * and the base config as `false`, so the minifier folds it and removes the
  * branches it guards. That is what lets the embedded bundle contain no
- * `window.location.reload()` call at all rather than merely not reaching one,
+ * `window.location.reload()` call, including in unreachable branches,
  * which the build then asserts.
  */
 export const IS_EMBEDDED_BUILD =
@@ -47,18 +49,14 @@ export const HAS_NATIVE_BRIDGE =
     ? __QRL_NATIVE_BRIDGE__
     : IS_EMBEDDED_BUILD;
 
-type EmbeddedScope = { [EMBEDDED_GLOBAL_FLAG]?: unknown };
-
 /**
  * True when this document is the app-shipped single-file build.
  *
  * `scope` exists for tests; production callers pass nothing and get `window`.
  */
-export function isEmbeddedRuntime(scope?: EmbeddedScope): boolean {
-  const target =
-    scope ??
-    (typeof window === "undefined" ? undefined : (window as EmbeddedScope));
-  return target?.[EMBEDDED_GLOBAL_FLAG] === true;
+export function isEmbeddedRuntime(scope?: unknown): boolean {
+  const target = scope ?? (typeof window === "undefined" ? undefined : window);
+  return isRecord(target) && target[EMBEDDED_GLOBAL_FLAG] === true;
 }
 
 /**

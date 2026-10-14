@@ -22,10 +22,10 @@ jest.mock("@/utils/crypto/pinAttemptTracker", () => ({
   clearAttemptTracker: jest.fn(),
 }));
 jest.mock("@/utils/crypto/deviceCredential", () => ({
-  clearDeviceCredential: jest.fn(async () => undefined),
+  clearDeviceCredential: jest.fn(() => Promise.resolve(undefined)),
 }));
 jest.mock("@/utils/mobileConnect/mobileConnection", () => ({
-  disconnectMobile: jest.fn(async () => undefined),
+  disconnectMobile: jest.fn(() => Promise.resolve(undefined)),
   hasMobileSession: () => false,
 }));
 jest.mock("@/utils/nativeWalletMutation", () => ({
@@ -40,8 +40,8 @@ jest.mock("@/utils/nativeWalletMutation", () => ({
 jest.mock("@/utils/storage/storage", () => ({
   __esModule: true,
   default: {
-    clearActiveAccount: jest.fn(async () => undefined),
-    clearTransactionValues: jest.fn(async () => undefined),
+    clearActiveAccount: jest.fn(() => Promise.resolve(undefined)),
+    clearTransactionValues: jest.fn(() => Promise.resolve(undefined)),
     clearAllEncryptedSeeds: jest.fn(),
     clearAccountList: jest.fn(),
   },
@@ -51,15 +51,19 @@ jest.mock("@/desktop/bridge", () => ({
     return mockDesktop;
   },
   desktopSigner: {
-    lock: jest.fn(async () => ({
-      hasWallet: true,
-      locked: true,
-      address: "Q",
-    })),
+    lock: jest.fn(() =>
+      Promise.resolve({
+        hasWallet: true,
+        locked: true,
+        address: "Q",
+      }),
+    ),
   },
 }));
 jest.mock("@/services/dappConnect/DAppConnectService", () => ({
-  dappConnectService: { clearAllSessions: jest.fn(async () => undefined) },
+  dappConnectService: {
+    clearAllSessions: jest.fn(() => Promise.resolve(undefined)),
+  },
 }));
 
 import { desktopSigner } from "@/desktop/bridge";
@@ -68,8 +72,9 @@ import { handleLogout, secureDesktopLogout } from "@/utils/logout";
 import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
 import StorageUtil from "@/utils/storage/storage";
 
-const lock = jest.mocked(desktopSigner.lock);
-const clearAllSessions = jest.mocked(dappConnectService.clearAllSessions);
+const lock = jest.spyOn(desktopSigner, "lock");
+const clearAllSessions = jest.spyOn(dappConnectService, "clearAllSessions");
+const clearAccountList = jest.spyOn(StorageUtil, "clearAccountList");
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -101,7 +106,7 @@ it("wipes all pending history with the web account list and preserves unrelated 
   localStorage.setItem("preferences", "keep");
   const navigate = jest.fn();
   await handleLogout(navigate);
-  expect(StorageUtil.clearAccountList).toHaveBeenCalledWith("TEST_NET_V3");
+  expect(clearAccountList).toHaveBeenCalledWith("TEST_NET_V3");
   expect(transactionHistoryStore.getSnapshot().entries).toEqual([]);
   transactionHistoryStore.reload();
   expect(transactionHistoryStore.getSnapshot().entries).toEqual([]);
@@ -119,19 +124,20 @@ it.each(["native", "desktop"])(
     await handleLogout(jest.fn());
     transactionHistoryStore.reload();
     expect(transactionHistoryStore.getSnapshot().entries).toEqual([entry]);
-    expect(StorageUtil.clearAccountList).not.toHaveBeenCalled();
+    expect(clearAccountList).not.toHaveBeenCalled();
   },
 );
 
 describe("secure desktop logout", () => {
   it("locks the isolated signer before clearing relay sessions", async () => {
     const order: string[] = [];
-    lock.mockImplementation(async () => {
+    lock.mockImplementation(() => {
       order.push("lock");
-      return { hasWallet: true, locked: true, address: "Q" };
+      return Promise.resolve({ hasWallet: true, locked: true, address: "Q" });
     });
-    clearAllSessions.mockImplementation(async () => {
+    clearAllSessions.mockImplementation(() => {
       order.push("sessions");
+      return Promise.resolve();
     });
 
     await expect(secureDesktopLogout()).resolves.toBeUndefined();

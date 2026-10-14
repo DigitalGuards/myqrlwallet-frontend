@@ -1,10 +1,215 @@
 import { NativeWalletMutationCoordinator } from "../nativeWalletMutation";
+import * as walletEpoch from "../walletEpoch";
+import { opaqueErrorCases, singleReadErrorCases } from "./errorFixtures";
+
+const rejectionCases = [
+  ...opaqueErrorCases,
+  ...singleReadErrorCases,
+  {
+    name: "ordinary Error",
+    create: () => new Error("cleanup failed"),
+    normalizedMessage: null,
+  },
+  {
+    name: "string",
+    create: () => "cleanup rejected",
+    normalizedMessage: "cleanup rejected",
+  },
+  { name: "null", create: () => null, normalizedMessage: "null" },
+  {
+    name: "undefined",
+    create: () => undefined,
+    normalizedMessage: "Unknown error",
+  },
+  {
+    name: "object",
+    create: () => ({ code: "denied" }),
+    normalizedMessage: '{"code":"denied"}',
+  },
+];
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+describe.each(rejectionCases)(
+  "cleanup rejection: $name",
+  ({ create, normalizedMessage }) => {
+    const expectRejection = async (
+      clearing: Promise<void>,
+      failure: unknown,
+    ) => {
+      if (normalizedMessage === null)
+        await expect(clearing).rejects.toBe(failure);
+      else await expect(clearing).rejects.toThrow(normalizedMessage);
+    };
+
+    it.each(
+      ["storage-1", "storage-2", "runtime", "storage-3"].flatMap((step) =>
+        ["throw", "reject"].map((delivery) => ({ step, delivery })),
+      ),
+    )(
+      "drains an in-flight restore after $step fails by $delivery",
+      async ({ step, delivery }) => {
+        const logged = jest
+          .spyOn(console, "error")
+          .mockImplementation(() => undefined);
+        const failure = create();
+        const rejectStep = jest
+          .fn(() => Promise.resolve())
+          .mockRejectedValue(failure);
+        const coordinator = new NativeWalletMutationCoordinator();
+        const state = new Set(["seed"]);
+        const order: string[] = [];
+        let releaseRestore: () => void = () => undefined;
+        let markStarted: () => void = () => undefined;
+        const blocked = new Promise<void>((resolve) => {
+          releaseRestore = resolve;
+        });
+        const started = new Promise<void>((resolve) => {
+          markStarted = resolve;
+        });
+        const restore = coordinator.enqueueRestore(async () => {
+          markStarted();
+          await blocked;
+          state.add("late-seed");
+          order.push("restore");
+        });
+        await started;
+
+        const runStep = (currentStep: string) => {
+          order.push(currentStep);
+          if (currentStep.startsWith("storage")) state.clear();
+          else state.add("runtime-reaction");
+          if (currentStep !== step) return;
+          if (delivery === "throw") throw failure;
+          return rejectStep();
+        };
+        let sweeps = 0;
+        const clearing = coordinator.clear(
+          () => runStep(`storage-${++sweeps}`),
+          () => runStep("runtime"),
+        );
+        const rejected = expectRejection(clearing, failure);
+        // All coordinator entry points stay blocked until the final sweep.
+        const discardedRestore = jest.fn(() => Promise.resolve());
+        const discardedMutation = jest.fn(() => Promise.resolve());
+        const discard = jest.fn();
+        const discarded = [
+          coordinator.enqueueRestore(discardedRestore),
+          coordinator.enqueuePinChange(discardedMutation, discard),
+          coordinator.enqueueWalletMutation(discardedMutation, discard),
+        ];
+        releaseRestore();
+        await Promise.all([restore, rejected, ...discarded]);
+
+        expect(order).toEqual([
+          "storage-1",
+          "restore",
+          "storage-2",
+          "runtime",
+          "storage-3",
+        ]);
+        expect(state.size).toBe(0);
+        expect(discardedRestore).not.toHaveBeenCalled();
+        expect(discardedMutation).not.toHaveBeenCalled();
+        expect(discard).toHaveBeenCalledTimes(2);
+        expect(logged).toHaveBeenCalledTimes(1);
+        const loggedArgs: unknown[] | undefined = logged.mock.calls[0];
+        expect(loggedArgs?.[0]).toBe(
+          "[WalletMutation] Wallet clear step failed:",
+        );
+        expect(loggedArgs?.[1] === failure).toBe(true);
+        const later = jest.fn(() => Promise.resolve());
+        await coordinator.enqueueRestore(later);
+        expect(later).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("finishes cleanup when epoch publication throws and retains that first failure", async () => {
+      jest.spyOn(console, "error").mockImplementation(() => undefined);
+      const failure = create();
+      const epoch = jest
+        .spyOn(walletEpoch, "advanceWalletEpoch")
+        .mockImplementationOnce(() => {
+          throw failure;
+        });
+      const clearStorage = jest.fn(() =>
+        Promise.reject(new Error("later cleanup failure")),
+      );
+      const clearRuntime = jest.fn();
+      const coordinator = new NativeWalletMutationCoordinator();
+      await expectRejection(
+        coordinator.clear(clearStorage, clearRuntime),
+        failure,
+      );
+      expect(clearStorage).toHaveBeenCalledTimes(3);
+      expect(clearRuntime).toHaveBeenCalledTimes(1);
+      epoch.mockRestore();
+      await expect(coordinator.clear(() => undefined)).resolves.toBeUndefined();
+    });
+
+    it("reports a lock rejection after the immediate sweep and releases the barrier", async () => {
+      jest.spyOn(console, "error").mockImplementation(() => undefined);
+      const failure = create();
+      jest
+        .spyOn(walletEpoch, "withWalletMutationLock")
+        .mockRejectedValueOnce(failure);
+      const coordinator = new NativeWalletMutationCoordinator();
+      const clearStorage = jest.fn();
+      const clearRuntime = jest.fn();
+      await expectRejection(
+        coordinator.clear(clearStorage, clearRuntime),
+        failure,
+      );
+      expect(clearStorage).toHaveBeenCalledTimes(1);
+      expect(clearRuntime).not.toHaveBeenCalled();
+      await expect(coordinator.clear(() => undefined)).resolves.toBeUndefined();
+    });
+  },
+);
 
 describe("native wallet mutation coordination", () => {
+  it.each([
+    { failure: new Error("cleanup failed"), message: "cleanup failed" },
+    { failure: "cleanup rejected", message: "cleanup rejected" },
+    { failure: null, message: "null" },
+    { failure: undefined, message: "Unknown error" },
+    { failure: { code: "denied" }, message: '{"code":"denied"}' },
+  ])(
+    "finishes cleanup and rejects non-successful steps: $message",
+    async ({ failure, message }) => {
+      const logged = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+      try {
+        const coordinator = new NativeWalletMutationCoordinator();
+        const clearStorage = jest.fn(() => Promise.resolve());
+        clearStorage.mockRejectedValueOnce(failure);
+        const clearRuntime = jest.fn(() => Promise.resolve());
+        const clearing = coordinator.clear(clearStorage, clearRuntime);
+        if (failure instanceof Error)
+          await expect(clearing).rejects.toBe(failure);
+        else await expect(clearing).rejects.toThrow(message);
+        expect(clearStorage).toHaveBeenCalledTimes(3);
+        expect(clearRuntime).toHaveBeenCalledTimes(1);
+        expect(logged).toHaveBeenCalledWith(
+          "[WalletMutation] Wallet clear step failed:",
+          failure,
+        );
+        await expect(coordinator.clear(clearStorage)).resolves.toBeUndefined();
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
   it("sweeps state recreated by a restore that was already in flight during wipe", async () => {
     const coordinator = new NativeWalletMutationCoordinator();
     const walletState = new Set<string>();
-    let releaseRestore!: () => void;
+    let releaseRestore: () => void = () => {
+      throw new Error("Missing test resolver");
+    };
     const restoreBlocked = new Promise<void>((resolve) => {
       releaseRestore = resolve;
     });
@@ -17,7 +222,9 @@ describe("native wallet mutation coordination", () => {
       expect(isCurrent()).toBe(false);
     });
 
-    const clear = coordinator.clear(() => walletState.clear());
+    const clear = coordinator.clear(() => {
+      walletState.clear();
+    });
     releaseRestore();
     await Promise.all([restore, clear]);
 
@@ -26,15 +233,18 @@ describe("native wallet mutation coordination", () => {
 
   it("drops restores that arrive after a wipe starts", async () => {
     const coordinator = new NativeWalletMutationCoordinator();
-    let releaseClear!: () => void;
+    let releaseClear: () => void = () => {
+      throw new Error("Missing test resolver");
+    };
     const clearBlocked = new Promise<void>((resolve) => {
       releaseClear = resolve;
     });
     let restoreRan = false;
 
     const clear = coordinator.clear(async () => clearBlocked);
-    await coordinator.enqueueRestore(async () => {
+    await coordinator.enqueueRestore(() => {
       restoreRan = true;
+      return Promise.resolve();
     });
     releaseClear();
     await clear;
@@ -45,18 +255,24 @@ describe("native wallet mutation coordination", () => {
   it("keeps restores blocked through runtime cleanup and the final sweep", async () => {
     const coordinator = new NativeWalletMutationCoordinator();
     const walletState = new Set<string>(["wallet"]);
-    let releaseRuntimeClear!: () => void;
+    let releaseRuntimeClear: () => void = () => {
+      throw new Error("Missing test resolver");
+    };
     const runtimeClearBlocked = new Promise<void>((resolve) => {
       releaseRuntimeClear = resolve;
     });
-    let runtimeClearStarted!: () => void;
+    let runtimeClearStarted: () => void = () => {
+      throw new Error("Missing test resolver");
+    };
     const runtimeClearStart = new Promise<void>((resolve) => {
       runtimeClearStarted = resolve;
     });
     let restoreRan = false;
 
     const clear = coordinator.clear(
-      () => walletState.clear(),
+      () => {
+        walletState.clear();
+      },
       async () => {
         runtimeClearStarted();
         await runtimeClearBlocked;
@@ -66,9 +282,10 @@ describe("native wallet mutation coordination", () => {
     );
     await runtimeClearStart;
 
-    await coordinator.enqueueRestore(async () => {
+    await coordinator.enqueueRestore(() => {
       restoreRan = true;
       walletState.add("ghost-account");
+      return Promise.resolve();
     });
     releaseRuntimeClear();
     await clear;
@@ -81,8 +298,12 @@ describe("native wallet mutation coordination", () => {
     const coordinator = new NativeWalletMutationCoordinator();
     const walletState = new Set<string>(["old-seed"]);
     const responses: string[] = [];
-    let releaseRotation!: () => void;
-    let rotationStarted!: () => void;
+    let releaseRotation: () => void = () => {
+      throw new Error("Missing test resolver");
+    };
+    let rotationStarted: () => void = () => {
+      throw new Error("Missing test resolver");
+    };
     const rotationBlocked = new Promise<void>((resolve) => {
       releaseRotation = resolve;
     });
@@ -105,7 +326,9 @@ describe("native wallet mutation coordination", () => {
     );
     await rotationStart;
 
-    const clear = coordinator.clear(() => walletState.clear());
+    const clear = coordinator.clear(() => {
+      walletState.clear();
+    });
     releaseRotation();
     await Promise.all([rotation, clear]);
 
@@ -116,7 +339,9 @@ describe("native wallet mutation coordination", () => {
   it("serializes timeout compensation behind the original PIN rotation", async () => {
     const coordinator = new NativeWalletMutationCoordinator();
     const order: string[] = [];
-    let releaseOriginal!: () => void;
+    let releaseOriginal: () => void = () => {
+      throw new Error("Missing test resolver");
+    };
     const originalBlocked = new Promise<void>((resolve) => {
       releaseOriginal = resolve;
     });
@@ -130,8 +355,9 @@ describe("native wallet mutation coordination", () => {
       () => undefined,
     );
     const compensation = coordinator.enqueuePinChange(
-      async () => {
+      () => {
         order.push("compensation");
+        return Promise.resolve();
       },
       () => undefined,
     );
@@ -151,8 +377,12 @@ describe("native wallet mutation coordination", () => {
   it("sweeps an account seed write that finishes after clear starts", async () => {
     const coordinator = new NativeWalletMutationCoordinator();
     const walletState = new Set<string>();
-    let releaseEncryption!: () => void;
-    let encryptionStarted!: () => void;
+    let releaseEncryption: () => void = () => {
+      throw new Error("Missing test resolver");
+    };
+    let encryptionStarted: () => void = () => {
+      throw new Error("Missing test resolver");
+    };
     const encryptionBlocked = new Promise<void>((resolve) => {
       releaseEncryption = resolve;
     });
@@ -171,7 +401,9 @@ describe("native wallet mutation coordination", () => {
       () => undefined,
     );
     await encryptionStart;
-    const clear = coordinator.clear(() => walletState.clear());
+    const clear = coordinator.clear(() => {
+      walletState.clear();
+    });
     releaseEncryption();
     await Promise.all([creation, clear]);
 
@@ -202,7 +434,9 @@ describe("native wallet mutation coordination", () => {
     );
     await writeStarted;
 
-    const clear = clearingTab.clear(() => walletState.clear());
+    const clear = clearingTab.clear(() => {
+      walletState.clear();
+    });
     releaseWrite();
     await Promise.all([write, clear]);
 
@@ -219,7 +453,9 @@ describe("native wallet mutation coordination", () => {
       get length() {
         return values.size;
       },
-      clear: () => values.clear(),
+      clear: () => {
+        values.clear();
+      },
       getItem: (key) => values.get(key) ?? null,
       key: (index) => [...values.keys()][index] ?? null,
       removeItem: (key) => values.delete(key),
@@ -247,8 +483,9 @@ describe("native wallet mutation coordination", () => {
 
       let laterMutationRan = false;
       await coordinator.enqueueWalletMutation(
-        async () => {
+        () => {
           laterMutationRan = true;
+          return Promise.resolve();
         },
         () => undefined,
       );

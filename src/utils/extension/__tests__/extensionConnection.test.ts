@@ -17,10 +17,17 @@ import {
   restoreExtensionProvider,
   type EIP6963ProviderDetail,
 } from "@/utils/extension/extensionConnection";
+import * as qualification from "../v3Provider";
+import {
+  firstReadOnly,
+  inspectedProviderError,
+  opaqueErrorCases,
+  providerErrorShapes,
+} from "../../__tests__/errorFixtures";
 
 const detail = (rdns: string, uuid: string): EIP6963ProviderDetail => ({
   info: { uuid, rdns, name: rdns, icon: "data:image/svg+xml;base64," },
-  provider: { request: async () => undefined },
+  provider: { request: () => Promise.resolve(undefined) },
 });
 
 const ACCOUNT = `Q${"a".repeat(128)}`;
@@ -35,9 +42,9 @@ function installed(value: EIP6963ProviderDetail) {
     announce(value);
   };
   window.addEventListener("eip6963:requestProvider", listener);
-  listeners.push(() =>
-    window.removeEventListener("eip6963:requestProvider", listener),
-  );
+  listeners.push(() => {
+    window.removeEventListener("eip6963:requestProvider", listener);
+  });
   announce(value);
 }
 function wallet(
@@ -45,10 +52,10 @@ function wallet(
   rdns = "com.qrlwallet.extension",
 ) {
   const request = jest.fn(
-    async ({ method }: { method: string }): Promise<unknown> => {
+    ({ method }: { method: string }): Promise<unknown> => {
       if (method === "qrl_accounts" || method === "qrl_requestAccounts")
-        return accounts;
-      throw new Error(`Unexpected method: ${method}`);
+        return Promise.resolve(accounts);
+      return Promise.reject(new Error(`Unexpected method: ${method}`));
     },
   );
   return { ...detail(rdns, rdns), provider: { request } };
@@ -126,9 +133,9 @@ describe("discovery timing", () => {
       announce(extension);
     };
     window.addEventListener("eip6963:requestProvider", listener);
-    listeners.push(() =>
-      window.removeEventListener("eip6963:requestProvider", listener),
-    );
+    listeners.push(() => {
+      window.removeEventListener("eip6963:requestProvider", listener);
+    });
     await jest.advanceTimersByTimeAsync(700);
     expect(await result).toEqual([extension]);
   });
@@ -173,6 +180,274 @@ describe("discovery timing", () => {
 });
 
 describe("restoring permission for the selected account", () => {
+  // Class: repeated untrusted property reads can change error routing or reject
+  // the catch path. Exercise every code branch and supported object shape.
+  describe.each(providerErrorShapes)("$name error inspection", (shape) => {
+    it("uses the message when code inspection throws", async () => {
+      const { value, reads } = inspectedProviderError(
+        shape,
+        () => {
+          throw new Error("Code inaccessible");
+        },
+        firstReadOnly("failure"),
+      );
+      jest.spyOn(console, "error").mockImplementation(() => undefined);
+      const alert = jest
+        .spyOn(window, "alert")
+        .mockImplementation(() => undefined);
+      const extension = wallet();
+      extension.provider.request.mockRejectedValue(value);
+      await expect(
+        connectWithProvider(
+          extension,
+          () => Promise.resolve(),
+          () => undefined,
+        ),
+      ).resolves.toBeNull();
+      expect(alert).toHaveBeenCalledWith(
+        "Error connecting to extension: failure",
+      );
+      expect(reads).toEqual({ code: 1, message: 1 });
+    });
+
+    it.each([
+      { code: 4001, alert: "Connection request rejected.", messageReads: 0 },
+      { code: -32601, alert: "RPC Error: failure", messageReads: 1 },
+      {
+        code: -32000,
+        alert: "Error connecting to extension: failure",
+        messageReads: 1,
+      },
+      {
+        code: undefined,
+        alert: "Error connecting to extension: failure",
+        messageReads: 1,
+      },
+      {
+        code: "4001",
+        alert: "Error connecting to extension: failure",
+        messageReads: 1,
+      },
+    ])(
+      "reads code $code and its message once",
+      async ({ code, alert: text, messageReads }) => {
+        const { value, reads } = inspectedProviderError(
+          shape,
+          firstReadOnly(code),
+          firstReadOnly("failure"),
+        );
+        jest.spyOn(console, "log").mockImplementation(() => undefined);
+        jest.spyOn(console, "error").mockImplementation(() => undefined);
+        const alert = jest
+          .spyOn(window, "alert")
+          .mockImplementation(() => undefined);
+        const extension = wallet();
+        extension.provider.request.mockRejectedValue(value);
+        const setAccount = jest.fn<() => Promise<void>>();
+        const order: string[] = [];
+        const setProvider = jest.fn((provider: unknown) => {
+          expect(provider).toBeNull();
+          order.push("clear");
+        });
+        alert.mockImplementation(() => {
+          order.push("alert");
+        });
+        await expect(
+          connectWithProvider(extension, setAccount, setProvider),
+        ).resolves.toBeNull();
+        expect(setAccount).not.toHaveBeenCalled();
+        expect(setProvider).toHaveBeenCalledTimes(1);
+        expect(alert).toHaveBeenCalledWith(text);
+        expect(order).toEqual(["clear", "alert"]);
+        expect(reads).toEqual({ code: 1, message: messageReads });
+      },
+    );
+
+    it.each([4001, -32601, -32000])(
+      "keeps the first code %s when later reads change it",
+      async (code) => {
+        const { value, reads } = inspectedProviderError(
+          shape,
+          (read) => (read === 1 ? code : 0),
+          (read) => (read === 1 ? "failure" : "changed"),
+        );
+        jest.spyOn(console, "log").mockImplementation(() => undefined);
+        jest.spyOn(console, "error").mockImplementation(() => undefined);
+        const alert = jest
+          .spyOn(window, "alert")
+          .mockImplementation(() => undefined);
+        const extension = wallet();
+        extension.provider.request.mockRejectedValue(value);
+        await expect(
+          connectWithProvider(
+            extension,
+            () => Promise.resolve(),
+            () => undefined,
+          ),
+        ).resolves.toBeNull();
+        expect(alert).toHaveBeenCalledWith(
+          code === 4001
+            ? "Connection request rejected."
+            : code === -32601
+              ? "RPC Error: failure"
+              : "Error connecting to extension: failure",
+        );
+        expect(reads).toEqual({ code: 1, message: code === 4001 ? 0 : 1 });
+      },
+    );
+
+    it.each([
+      { name: "missing", message: () => undefined },
+      { name: "number", message: () => 42 },
+      { name: "object", message: () => ({}) },
+      {
+        name: "throwing",
+        message: () => {
+          throw new Error("Unreadable message");
+        },
+      },
+    ])(
+      "handles rejection without inspecting a $name message",
+      async ({ message }) => {
+        const { value, reads } = inspectedProviderError(
+          shape,
+          () => 4001,
+          message,
+        );
+        jest.spyOn(console, "log").mockImplementation(() => undefined);
+        jest.spyOn(console, "error").mockImplementation(() => undefined);
+        const alert = jest
+          .spyOn(window, "alert")
+          .mockImplementation(() => undefined);
+        const extension = wallet();
+        extension.provider.request.mockRejectedValue(value);
+        await expect(
+          connectWithProvider(
+            extension,
+            () => Promise.resolve(),
+            () => undefined,
+          ),
+        ).resolves.toBeNull();
+        expect(alert).toHaveBeenCalledWith("Connection request rejected.");
+        expect(reads).toEqual({ code: 1, message: 0 });
+      },
+    );
+  });
+
+  it.each(["qualification", "request", "activation"])(
+    "handles expiring error accessors from %s in order",
+    async (stage) => {
+      const failure = Object.defineProperty(new Error("failure"), "code", {
+        get: jest
+          .fn()
+          .mockReturnValueOnce(4001)
+          .mockImplementation(() => {
+            throw new Error("Code expired");
+          }),
+      });
+      jest.spyOn(console, "log").mockImplementation(() => undefined);
+      const order: string[] = [];
+      const alert = jest.spyOn(window, "alert").mockImplementation(() => {
+        order.push("alert");
+      });
+      const extension = wallet();
+      jest.spyOn(qualification, "qualifyV3Provider").mockImplementation(() => {
+        order.push("qualification");
+        return stage === "qualification"
+          ? Promise.reject(failure)
+          : Promise.resolve();
+      });
+      extension.provider.request.mockImplementation(() => {
+        order.push("request");
+        return stage === "request"
+          ? Promise.reject(failure)
+          : Promise.resolve([ACCOUNT]);
+      });
+      const setAccount = () => {
+        order.push("activation");
+        return Promise.reject(failure);
+      };
+      const setProvider = (provider: unknown) => {
+        order.push(provider === null ? "clear" : "provider");
+      };
+      await expect(
+        connectWithProvider(extension, setAccount, setProvider),
+      ).resolves.toBeNull();
+      expect(alert).toHaveBeenCalledWith("Connection request rejected.");
+      expect(order).toEqual(
+        stage === "qualification"
+          ? ["qualification", "clear", "alert"]
+          : stage === "request"
+            ? ["qualification", "request", "clear", "alert"]
+            : [
+                "qualification",
+                "request",
+                "provider",
+                "activation",
+                "clear",
+                "alert",
+              ],
+      );
+    },
+  );
+
+  it.each([-32601, -32000])(
+    "contains unsafe Error.message coercion for code %s",
+    async (code) => {
+      const failure = Object.defineProperties(new Error(), {
+        code: { value: code },
+        message: {
+          get: () => ({
+            toString() {
+              throw new Error("Coercion failed");
+            },
+          }),
+        },
+      });
+      jest.spyOn(console, "error").mockImplementation(() => undefined);
+      const alert = jest
+        .spyOn(window, "alert")
+        .mockImplementation(() => undefined);
+      const extension = wallet();
+      extension.provider.request.mockRejectedValue(failure);
+      await expect(
+        connectWithProvider(
+          extension,
+          () => Promise.resolve(),
+          () => undefined,
+        ),
+      ).resolves.toBeNull();
+      expect(alert).toHaveBeenCalledWith(
+        code === -32601
+          ? "RPC Error: Unknown error"
+          : "Error connecting to extension: Unknown error",
+      );
+    },
+  );
+
+  it.each(opaqueErrorCases)(
+    "completes connection failure handling for $name",
+    async ({ create, message }) => {
+      jest.spyOn(console, "log").mockImplementation(() => undefined);
+      jest.spyOn(console, "error").mockImplementation(() => undefined);
+      const alert = jest
+        .spyOn(window, "alert")
+        .mockImplementation(() => undefined);
+      const extension = wallet();
+      extension.provider.request.mockRejectedValue(create());
+      const setAccount = jest.fn<() => Promise<void>>();
+      const setProvider = jest.fn();
+      await expect(
+        connectWithProvider(extension, setAccount, setProvider),
+      ).resolves.toBeNull();
+      expect(setAccount).not.toHaveBeenCalled();
+      expect(setProvider).toHaveBeenCalledWith(null);
+      expect(alert).toHaveBeenCalledWith(
+        `Error connecting to extension: ${message}`,
+      );
+    },
+  );
+
   it("selects the unique authorized wallet and keeps a non-first stored account", async () => {
     const upstream = wallet([OTHER], "theqrl.org");
     const extension = wallet([OTHER, ACCOUNT]);

@@ -3,36 +3,35 @@
  *
  * With `strict` (and `useUnknownInCatchVariables`), caught values are typed
  * `unknown`. These helpers replace the previous `catch (error: any)` pattern
- * with honest narrowing: derive a display message, or guard the EIP-1193
- * provider error shape (`{ code?, message? }`) before reading `code`/`message`.
+ * with honest narrowing: snapshot a display message or an EIP-1193 error code.
  */
 
 /** Best-effort human-readable message from an unknown thrown value. */
 export function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof (error as { message: unknown }).message === "string"
-  ) {
-    return (error as { message: string }).message;
+  try {
+    if (error instanceof Error) {
+      const message: unknown = error.message;
+      return typeof message === "string" ? message : String(message);
+    }
+    if (typeof error === "string") return error;
+    if (typeof error === "object" && error !== null && "message" in error) {
+      const message: unknown = error.message;
+      if (typeof message === "string") return message;
+    }
+    return String(error);
+  } catch {
+    return "Unknown error";
   }
-  return String(error);
 }
 
-/** EIP-1193 provider error: carries a numeric `code` (e.g. 4001 = user reject). */
-export interface ProviderRpcError {
-  code?: number;
-  message?: string;
-}
-
-/** Type guard for an EIP-1193-shaped error before reading `code`/`message`. */
-export function isProviderRpcError(error: unknown): error is ProviderRpcError {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    ("code" in error || "message" in error)
-  );
+/** Read an EIP-1193 code once, preserving the result of an untrusted accessor. */
+export function getProviderErrorCode(error: unknown): number | undefined {
+  try {
+    if (typeof error !== "object" || error === null || !("code" in error))
+      return undefined;
+    const code: unknown = error.code;
+    return typeof code === "number" ? code : undefined;
+  } catch {
+    return undefined;
+  }
 }

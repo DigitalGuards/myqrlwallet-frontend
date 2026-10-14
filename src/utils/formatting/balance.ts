@@ -8,14 +8,22 @@ import { BigNumber } from "bignumber.js";
  * also protects direct/internal callers from crashing the review render.
  */
 export const formatQuantaValue = (value: unknown): string => {
-    if (value === undefined || value === null || value === "") return `0 ${NATIVE_TOKEN.symbol}`;
-    try {
-        const planck = BigInt(value as string);
-        if (planck < 0n) return "invalid value";
-        return `${utils.fromPlanck(planck.toString(), "quanta")} ${NATIVE_TOKEN.symbol}`;
-    } catch {
-        return "invalid value";
-    }
+  if (value === undefined || value === null || value === "")
+    return `0 ${NATIVE_TOKEN.symbol}`;
+  if (
+    typeof value !== "string" &&
+    typeof value !== "number" &&
+    typeof value !== "bigint" &&
+    typeof value !== "boolean"
+  )
+    return "invalid value";
+  try {
+    const planck = BigInt(value);
+    if (planck < 0n) return "invalid value";
+    return `${utils.fromPlanck(planck.toString(), "quanta")} ${NATIVE_TOKEN.symbol}`;
+  } catch {
+    return "invalid value";
+  }
 };
 
 BigNumber.config({

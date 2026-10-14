@@ -1,3 +1,5 @@
+import { logger } from "./log";
+import { toError } from "./guards";
 /**
  * Serializes native restores and PIN rotations, then gives an explicit wallet
  * wipe a final cleanup pass after every mutation that was already running.
@@ -111,23 +113,23 @@ export class NativeWalletMutationCoordinator {
     this.generation += 1;
     // Persist and publish the identity boundary before any async cleanup.
     // Other tabs invalidate queued writes and tear down live dApp sessions.
-    let epochPublicationError: unknown = null;
+    let epochPublicationError: Error | null = null;
     try {
       advanceWalletEpoch();
     } catch (error) {
       // Continue every local cleanup pass, but retain this failure. A volatile
       // generation protects this realm only; reporting durable success would
       // let another tab reload the old persisted epoch and revive stale state.
-      epochPublicationError = error;
-      console.error(
+      epochPublicationError = toError(error);
+      logger.write("error", () => [
         "[WalletMutation] Could not publish wallet clear epoch:",
         error,
-      );
+      ]);
     }
     const pendingMutations = this.mutationQueue.catch(() => undefined);
 
     this.clearPromise = (async () => {
-      let cleanupError: unknown = null;
+      let cleanupError: Error | null = null;
       const attempt = async (
         operation: (() => void | Promise<void>) | undefined,
       ): Promise<void> => {
@@ -135,8 +137,8 @@ export class NativeWalletMutationCoordinator {
         try {
           await operation();
         } catch (error) {
-          cleanupError ??= error;
-          console.error("[WalletMutation] Wallet clear step failed:", error);
+          cleanupError ??= toError(error);
+          logger.write("error", () => ["[WalletMutation] Wallet clear step failed:", error]);
         }
       };
 
@@ -155,8 +157,8 @@ export class NativeWalletMutationCoordinator {
           await attempt(clearStorage);
         });
       } catch (error) {
-        cleanupError ??= error;
-        console.error("[WalletMutation] Wallet clear lock failed:", error);
+        cleanupError ??= toError(error);
+        logger.write("error", () => ["[WalletMutation] Wallet clear lock failed:", error]);
       }
 
       if (epochPublicationError !== null) throw epochPublicationError;

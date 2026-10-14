@@ -10,8 +10,12 @@ const mockLogToNative = jest.fn((_message: string) => undefined);
 // Every member is an arrow so the mocks are dereferenced when called, not
 // when jest hoists this factory above their declarations.
 jest.mock("@/utils/nativeApp", () => ({
-  openExternalUrl: (url: string) => mockOpenExternalUrl(url),
-  logToNative: (message: string) => mockLogToNative(message),
+  openExternalUrl: (url: string) => {
+    mockOpenExternalUrl(url);
+  },
+  logToNative: (message: string) => {
+    mockLogToNative(message);
+  },
   isInNativeApp: () => mockState.inNativeApp,
 }));
 

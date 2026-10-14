@@ -56,6 +56,49 @@ describe("QIP-55 address-book persistence", () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBe(raw);
   });
 
+  it("ignores malformed contact fields while keeping the stored bytes", () => {
+    const raw = JSON.stringify([
+      null,
+      [],
+      {},
+      { id: 1, name: "Bad id", address: LOWER, createdAt: 1 },
+      { id: "bad-name", name: null, address: LOWER, createdAt: 1 },
+      { id: "bad-address", name: "Bad address", address: 42, createdAt: 1 },
+      { id: "bad-time", name: "Bad timestamp", address: LOWER, createdAt: "1" },
+      {
+        id: "good",
+        name: "Current",
+        address: LOWER,
+        createdAt: 2,
+        extra: { keep: true },
+      },
+    ]);
+    localStorage.setItem(STORAGE_KEY, raw);
+
+    expect(loadAddressBook()).toEqual([
+      {
+        id: "good",
+        name: "Current",
+        address: CANONICAL,
+        createdAt: 2,
+        extra: { keep: true },
+      },
+    ]);
+    mergeContacts([null, [], { name: "Incomplete" }]);
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(raw);
+  });
+
+  it("rejects an array carrying contact properties at the native boundary", () => {
+    const contact = Object.assign([], {
+      id: "array-contact",
+      name: "Array",
+      address: LOWER,
+      createdAt: 1,
+    });
+    mergeContacts([contact]);
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
   it("isolates the old address-book namespace for rollback", () => {
     const legacyRaw = JSON.stringify([
       { id: "legacy", name: "Legacy", address: LEGACY_Q40, createdAt: 1 },

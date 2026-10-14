@@ -1,3 +1,4 @@
+import { logger } from "./log";
 import { ROUTES } from "@/router/router";
 import StorageUtil from "./storage/storage";
 import { QRL_PROVIDER } from "@/config";
@@ -55,17 +56,17 @@ const resetEmbeddedState = async (): Promise<void> => {
   // whatever the last job's transferred buffers left on their heap.
   terminateCryptoWorker();
 
-  await clearDeviceCredential().catch((error) =>
-    console.error("Logout: device key cache clear failed", error),
-  );
+  await clearDeviceCredential().catch((error: unknown) => {
+    logger.write("error", () => ["Logout: device key cache clear failed", error]);
+  });
 
   const { store } = await import("@/stores/store");
   store.qrlStore.resetTransactionStatus();
   // setActiveAccount runs the v3 native-context assertion, which throws when
   // an older app ships a newer document. Dropping the in-memory account is the
   // whole point here, so a failed assertion must not leave it populated.
-  await store.qrlStore.setActiveAccount(undefined).catch((error) => {
-    console.error("Logout: clearing the active account did not complete", error);
+  await store.qrlStore.setActiveAccount(undefined).catch((error: unknown) => {
+    logger.write("error", () => ["Logout: clearing the active account did not complete", error]);
     // Same empty shape the store starts from (src/stores/qrlStore.ts).
     store.qrlStore.activeAccount = {
       accountAddress: "",
@@ -88,7 +89,7 @@ const finishLogout = async (
   try {
     await resetEmbeddedState();
   } catch (error) {
-    console.error("Logout: embedded state reset did not complete:", error);
+    logger.write("error", () => ["Logout: embedded state reset did not complete:", error]);
   }
 };
 
@@ -126,7 +127,7 @@ export const handleLogout = async (navigate: (path: string) => void) => {
       await secureDesktopLogout();
       await finishLogout(navigate);
     } catch (error) {
-      console.error("Desktop logout did not complete:", error);
+      logger.write("error", () => ["Desktop logout did not complete:", error]);
     }
     return;
   }
@@ -155,16 +156,16 @@ export const handleLogout = async (navigate: (path: string) => void) => {
       // The coordinator already advanced the shared epoch.
       await dappConnectService.clearAllSessions(false);
       if (hasMobileSession()) {
-        await disconnectMobile().catch((err) =>
-          console.error("Logout: mobile pairing disconnect failed", err),
-        );
+        await disconnectMobile().catch((err: unknown) => {
+          logger.write("error", () => ["Logout: mobile pairing disconnect failed", err]);
+        });
       }
 
       if (!nativeApp) {
         clearAttemptTracker();
-        await clearDeviceCredential().catch((error) =>
-          console.error("Logout: device credential clear failed", error),
-        );
+        await clearDeviceCredential().catch((error: unknown) => {
+          logger.write("error", () => ["Logout: device credential clear failed", error]);
+        });
       }
     });
 
@@ -178,7 +179,7 @@ export const handleLogout = async (navigate: (path: string) => void) => {
     // Navigate home and reset whatever state is still in memory.
     await finishLogout(navigate);
   } catch (error) {
-    console.error("Error during logout:", error);
+    logger.write("error", () => ["Error during logout:", error]);
     // Fallback: navigate and reset anyway.
     await finishLogout(navigate);
   }
