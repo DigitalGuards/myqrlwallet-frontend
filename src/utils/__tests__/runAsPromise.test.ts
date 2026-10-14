@@ -1,5 +1,11 @@
 import { runAsPromise } from "../runAsPromise";
 
+type IsExactly<A, B> = [A] extends [B]
+  ? [B] extends [A]
+    ? true
+    : false
+  : false;
+
 describe("runAsPromise", () => {
   it("runs the body synchronously at call time", () => {
     const calls: string[] = [];
@@ -13,7 +19,9 @@ describe("runAsPromise", () => {
   });
 
   it("resolves with the returned value", async () => {
-    await expect(runAsPromise(() => ({ value: 2 }))).resolves.toEqual({ value: 2 });
+    await expect(runAsPromise(() => ({ value: 2 }))).resolves.toEqual({
+      value: 2,
+    });
     await expect(runAsPromise(() => undefined)).resolves.toBeUndefined();
   });
 
@@ -36,8 +44,18 @@ describe("runAsPromise", () => {
     return expect(result).rejects.toThrow("late");
   });
 
+  it("types a nested thenable result as its settled value", () => {
+    const exact: IsExactly<
+      ReturnType<typeof runAsPromise<PromiseLike<Promise<number>>>>,
+      Promise<number>
+    > = true;
+    expect(exact).toBe(true);
+  });
+
   it("adopts a returned promise", async () => {
-    await expect(runAsPromise(() => Promise.resolve("inner"))).resolves.toBe("inner");
+    await expect(runAsPromise(() => Promise.resolve("inner"))).resolves.toBe(
+      "inner",
+    );
     const inner = new Error("inner failed");
     await expect(runAsPromise(() => Promise.reject(inner))).rejects.toBe(inner);
   });
