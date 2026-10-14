@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "../../../../UI/Button";
 import { Card, CardContent, CardFooter } from "../../../../UI/Card";
@@ -5,14 +6,14 @@ import { ROUTES } from "../../../../../router/router";
 import { getExplorerAddressUrl } from "@/config";
 import { copyToClipboard, openExternalUrl } from "@/utils/nativeApp";
 import { useStore } from "../../../../../stores/store";
-import type { Web3BaseWalletAccount } from "@theqrl/web3";
+import type { ImportedAccount } from "../importedAccount";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 
 type AccountImportSuccessProps = {
-  account?: Web3BaseWalletAccount;
+  account?: ImportedAccount;
 };
 
 const AccountImportSuccess = ({ account }: AccountImportSuccessProps) => {
@@ -82,7 +83,11 @@ const AccountImportSuccess = ({ account }: AccountImportSuccessProps) => {
               className="w-full"
               type="button"
               variant="outline"
-              onClick={onCopy}
+              onClick={() => {
+                onCopy().catch((error: unknown) => {
+                  logger.error("Failed to copy address:", error);
+                });
+              }}
             >
               <Copy className="mr-2 h-4 w-4" />
               {hasJustCopied ? "Copied" : "Copy"}

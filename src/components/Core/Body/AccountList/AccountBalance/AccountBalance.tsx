@@ -10,8 +10,7 @@ type AccountBalanceProps = {
 
 export const AccountBalance = observer(({ accountAddress, className }: AccountBalanceProps) => {
   const { qrlStore } = useStore();
-  const { getAccountBalance } = qrlStore;
-  const balance = getAccountBalance(accountAddress);
+  const balance = qrlStore.getAccountBalance(accountAddress);
 
   return (
     <div className={cn("text-sm text-secondary font-numeric", className)}>

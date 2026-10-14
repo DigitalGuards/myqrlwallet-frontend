@@ -1,3 +1,4 @@
+import type { ImportedAccount } from "./importedAccount";
 import { Card } from "@/components/UI/Card";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { observer } from "mobx-react-lite";
@@ -8,7 +9,6 @@ import { ImportEncryptedWallet } from "./ImportEncryptedWallet/ImportEncryptedWa
 import { ImportHexSeedForm } from "./ImportHexSeedForm/ImportHexSeedForm";
 import AccountImportSuccess from "./AccountImportSuccess/AccountImportSuccess";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/Tabs";
-import type { ExtendedWalletAccount } from "@/utils/crypto";
 import { SEO } from "../../../SEO/SEO";
 import { PinSetup } from "../PinSetup/PinSetup";
 import { useWalletLimit } from "@/hooks/useWalletLimit";
@@ -21,9 +21,9 @@ import { walletMutations } from "@/utils/nativeWalletMutation";
 
 const ImportAccount = observer(() => {
   const { qrlStore } = useStore();
-  const { setActiveAccount, qrlConnection } = qrlStore;
+  const { qrlConnection } = qrlStore;
 
-  const [account, setAccount] = useState<ExtendedWalletAccount>();
+  const [account, setAccount] = useState<ImportedAccount>();
   const [hasAccountImported, setHasAccountImported] = useState(false);
   const [isPinSetupComplete, setIsPinSetupComplete] = useState(false);
 
@@ -31,7 +31,7 @@ const ImportAccount = observer(() => {
     qrlConnection.blockchain,
   );
 
-  const onAccountImported = (importedAccount: ExtendedWalletAccount) => {
+  const onAccountImported = (importedAccount: ImportedAccount) => {
     if (!isDesktop && (!importedAccount.mnemonic || !importedAccount.hexSeed)) {
       throw new Error("The imported wallet is missing its recovery seed");
     }
@@ -48,9 +48,9 @@ const ImportAccount = observer(() => {
       setAccount((prev) =>
         prev ? { ...prev, address: provisionedAddress } : prev,
       );
-      await setActiveAccount(provisionedAddress);
+      await qrlStore.setActiveAccount(provisionedAddress);
     } else if (!isDesktop && account?.address) {
-      await setActiveAccount(account.address);
+      await qrlStore.setActiveAccount(account.address);
     }
     if (!isDesktop && !walletMutations.isCurrent(generation)) {
       throw new Error("Wallet was cleared during account import");
