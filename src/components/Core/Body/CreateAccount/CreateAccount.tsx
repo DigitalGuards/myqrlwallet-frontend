@@ -19,7 +19,7 @@ const MnemonicDisplay = withSuspense(
 
 const CreateAccount = observer(() => {
   const { qrlStore } = useStore();
-  const { setActiveAccount, qrlConnection } = qrlStore;
+  const { qrlConnection } = qrlStore;
 
   const [account, setAccount] = useState<Web3BaseWalletAccount>();
   const [hasAccountCreated, setHasAccountCreated] = useState(false);
@@ -49,7 +49,7 @@ const CreateAccount = observer(() => {
       setAccount(newAccount);
       setDesktopBackup(backup);
       setUserPassword(password);
-      await setActiveAccount(address);
+      await qrlStore.setActiveAccount(address);
       setHasAccountCreated(true);
     }
   };

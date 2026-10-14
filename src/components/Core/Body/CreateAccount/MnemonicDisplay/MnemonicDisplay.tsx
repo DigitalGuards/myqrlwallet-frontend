@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import { Button } from "../../../../UI/Button";
 import {
   Card,
@@ -59,7 +60,9 @@ const MnemonicDisplay = ({
   const [hasJustCopiedMnemonic, setHasJustCopiedMnemonic] = useState(false);
 
   const onProceed = () => {
-    navigate(ROUTES.HOME);
+    Promise.resolve(navigate(ROUTES.HOME)).catch((error: unknown) => {
+      logger.error("Failed to open home:", error);
+    });
   };
 
   const onCopyMnemonic = async () => {
@@ -111,7 +114,7 @@ const MnemonicDisplay = ({
       try {
         await WalletEncryptionUtil.downloadWallet(extendedAccount, userPassword);
       } catch (error) {
-        console.error("Failed to download encrypted wallet:", error);
+        logger.error("Failed to download encrypted wallet:", error);
       }
     }
   };
@@ -126,7 +129,7 @@ const MnemonicDisplay = ({
       try {
         await WalletEncryptionUtil.downloadWallet(extendedAccount);
       } catch (error) {
-        console.error("Failed to download wallet:", error);
+        logger.error("Failed to download wallet:", error);
       }
     }
   };
@@ -151,7 +154,11 @@ const MnemonicDisplay = ({
               type="button"
               variant="outline"
               size="sm"
-              onClick={onCopyAddress}
+              onClick={() => {
+                onCopyAddress().catch((error: unknown) => {
+                  logger.error("Failed to copy address:", error);
+                });
+              }}
             >
               <Copy className="mr-2 h-4 w-4" />
               {hasJustCopiedAddress ? "Copied" : "Copy Address"}
@@ -177,7 +184,7 @@ const MnemonicDisplay = ({
                     bgColor="#000000"
                     fgColor="#ffffff"
                     level="L"
-                    includeMargin={false}
+                    marginSize={0}
                   />
                 </div>
                 <DialogFooter>
@@ -201,7 +208,11 @@ const MnemonicDisplay = ({
             <Button
               type="button"
               variant="outline"
-              onClick={onCopyMnemonic}
+              onClick={() => {
+                onCopyMnemonic().catch((error: unknown) => {
+                  logger.error("Failed to copy mnemonic:", error);
+                });
+              }}
               className="w-full mt-2"
             >
               <Copy className="mr-2 h-4 w-4" />
@@ -219,7 +230,11 @@ const MnemonicDisplay = ({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={onCopyHexSeed}
+                  onClick={() => {
+                    onCopyHexSeed().catch((error: unknown) => {
+                      logger.error("Failed to copy hex seed:", error);
+                    });
+                  }}
                   className="w-full"
                 >
                   {hasJustCopiedSeed ? (
@@ -248,7 +263,11 @@ const MnemonicDisplay = ({
             className="w-full"
             type="button"
             variant="outline"
-            onClick={onDownloadEncrypted}
+            onClick={() => {
+                onDownloadEncrypted().catch((error: unknown) => {
+                  logger.error("Failed to download encrypted wallet:", error);
+                });
+              }}
           >
             <HardDriveDownload className="mr-2 h-4 w-4" />
             <span className="whitespace-nowrap">Download Encrypted Wallet File</span>
@@ -277,7 +296,11 @@ const MnemonicDisplay = ({
                 <Button
                   className="w-full"
                   type="button"
-                  onClick={onDownloadUnencrypted}
+                  onClick={() => {
+                onDownloadUnencrypted().catch((error: unknown) => {
+                  logger.error("Failed to download wallet:", error);
+                });
+              }}
                 >
                   <HardDriveDownload className="mr-2 h-4 w-4" />
                   Download

@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { accountSetupDescription } from "./AccountCreateImport/accountSetupDescription";
 import { withSuspense } from "@/utils/react";
@@ -47,13 +48,15 @@ const Home = observer(() => {
     const load = async () => {
       const s = await StorageUtil.getWalletSettings();
       if (cancelled) return;
-      setShowTokensCard(s.showTokensCard ?? true);
-      setShowNftsCard(s.showNftsCard ?? true);
+      setShowTokensCard(s.showTokensCard);
+      setShowNftsCard(s.showNftsCard);
     };
-    load();
     const handler = () => {
-      load();
+      load().catch((error: unknown) => {
+        logger.error("Failed to load wallet settings:", error);
+      });
     };
+    handler();
     window.addEventListener(STORAGE_EVENT_WALLET_SETTINGS, handler);
     return () => {
       cancelled = true;
@@ -72,17 +75,29 @@ const Home = observer(() => {
   useEffect(() => {
     if (activeAccount.accountAddress) {
       // Refresh immediately on mount
-      qrlStore.fetchAccounts();
-      tokenStore.refreshTokenBalances();
-      qrlStore.fetchQrlPrice();
+      qrlStore.fetchAccounts().catch((error: unknown) => {
+        logger.error("Failed to refresh account balances:", error);
+      });
+      tokenStore.refreshTokenBalances().catch((error: unknown) => {
+        logger.error("Failed to refresh token balances:", error);
+      });
+      qrlStore.fetchQrlPrice().catch((error: unknown) => {
+        logger.error("Failed to refresh QRL price:", error);
+      });
 
       // Set up recurring refresh every 30 seconds
       refreshIntervalRef.current = setInterval(() => {
         // Only refresh if no modals are open
         if (!checkIfModalOpen()) {
-          qrlStore.fetchAccounts();
-          tokenStore.refreshTokenBalances();
-          qrlStore.fetchQrlPrice();
+          qrlStore.fetchAccounts().catch((error: unknown) => {
+            logger.error("Failed to refresh account balances:", error);
+          });
+          tokenStore.refreshTokenBalances().catch((error: unknown) => {
+            logger.error("Failed to refresh token balances:", error);
+          });
+          qrlStore.fetchQrlPrice().catch((error: unknown) => {
+            logger.error("Failed to refresh QRL price:", error);
+          });
         }
       }, 30000); // 30 seconds
     }
@@ -140,7 +155,9 @@ const Home = observer(() => {
                   <div className="relative z-10">
                     <CardContent className="pt-6">
                       <ActiveAccountDisplay
-                        onShowAddress={() => setReceiveOpen(true)}
+                        onShowAddress={() => {
+                          setReceiveOpen(true);
+                        }}
                       />
                     </CardContent>
                     {/* Narrow phones wrap Receive onto its own row, so
@@ -156,7 +173,9 @@ const Home = observer(() => {
                         className="flex-1 px-3 sm:px-4"
                         type="button"
                         variant="outline"
-                        onClick={() => setTxHistoryOpen(true)}
+                        onClick={() => {
+                          setTxHistoryOpen(true);
+                        }}
                       >
                         <History className="mr-2 h-4 w-4" />
                         History
@@ -165,7 +184,9 @@ const Home = observer(() => {
                         className="flex-1 px-3 sm:px-4"
                         type="button"
                         variant="secondary"
-                        onClick={() => setReceiveOpen(true)}
+                        onClick={() => {
+                          setReceiveOpen(true);
+                        }}
                       >
                         <QrCode className="mr-2 h-4 w-4" />
                         Receive
@@ -201,12 +222,16 @@ const Home = observer(() => {
             accountAddress={activeAccount.accountAddress}
             blockchain={blockchain}
             isOpen={txHistoryOpen}
-            onClose={() => setTxHistoryOpen(false)}
+            onClose={() => {
+              setTxHistoryOpen(false);
+            }}
           />
           <ReceivePopup
             accountAddress={activeAccount.accountAddress}
             isOpen={receiveOpen}
-            onClose={() => setReceiveOpen(false)}
+            onClose={() => {
+              setReceiveOpen(false);
+            }}
           />
         </>
       )}

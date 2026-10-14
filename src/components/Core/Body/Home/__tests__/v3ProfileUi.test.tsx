@@ -9,14 +9,20 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { connectWithProvider, discoverQrlProviders } from "@/utils/extension";
+import type { EIP6963ProviderDetail } from "@/utils/extension";
 import { startMobilePairing } from "@/utils/mobileConnect/mobileConnection";
 import ConnectionBadge from "../ConnectionBadge/ConnectionBadge";
 import AccountCreateImport from "../AccountCreateImport/AccountCreateImport";
 import { NetworkSettings } from "../../Settings/NetworkSettings/NetworkSettings";
+import { logger } from "@/utils/log";
+
+const logError = jest.spyOn(logger, "error");
 
 let mockV3Profile = false;
 let mockNativeApp = false;
 const mockNavigate = jest.fn();
+let mockLocationState: unknown = null;
+jest.mock("@/utils/log", () => ({ logger: { error: jest.fn(), log: jest.fn() } }));
 const mockUnsupportedMessage =
   "Extension and mobile signers are unavailable for private v3.";
 const mockDefaultNetworks = [
@@ -86,7 +92,6 @@ jest.mock("@/utils/mobileConnect/mobileConnection", () => ({
   cancelMobilePairing: jest.fn(),
   startMobilePairing: jest.fn(),
 }));
-jest.mock("../AccountCreateImport/ExtensionPickerDialog", () => () => null);
 jest.mock("../AccountCreateImport/MobilePairingDialog", () => () => null);
 jest.mock("@/utils/nativeApp", () => ({ isInNativeApp: () => mockNativeApp }));
 jest.mock("@/desktop/bridge", () => ({ isDesktop: false }));
@@ -113,7 +118,7 @@ jest.mock("react-router", () => ({
       {children}
     </a>
   ),
-  useLocation: () => ({ state: null }),
+  useLocation: () => ({ state: mockLocationState }),
   useNavigate: () => mockNavigate,
 }));
 
@@ -121,6 +126,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockV3Profile = false;
   mockNativeApp = false;
+  mockLocationState = null;
   Object.assign(mockStore.qrlStore.qrlConnection, {
     blockchain: "TEST_NET",
     qrlNetworkName: "QRL Testnet",
@@ -129,6 +135,79 @@ beforeEach(() => {
   });
 });
 afterEach(cleanup);
+
+it.each([
+  null,
+  {},
+  { hasAccountCreationPreference: false },
+  { hasAccountCreationPreference: "true" },
+  { hasAccountCreationPreference: 1 },
+  [true],
+])(
+  "keeps the default setup order for invalid or absent router preferences: %p",
+  (state: unknown) => {
+    mockLocationState = state;
+    const view = render(<AccountCreateImport />);
+    expect(view.container.firstElementChild?.className).toContain("flex-col");
+    expect(view.container.firstElementChild?.className).not.toContain("flex-col-reverse");
+  },
+);
+
+it("accepts an explicit boolean setup preference", () => {
+  mockLocationState = { hasAccountCreationPreference: true };
+  const view = render(<AccountCreateImport />);
+  expect(view.container.firstElementChild?.className).toContain("flex-col-reverse");
+});
+
+it("reports extension discovery rejection", async () => {
+  const error = new Error("Discovery unavailable");
+  jest.mocked(discoverQrlProviders).mockRejectedValueOnce(error);
+  render(<AccountCreateImport />);
+  fireEvent.click(screen.getByRole("button", { name: "Connect Browser Extension" }));
+  await waitFor(() => {
+    expect(logError).toHaveBeenCalledWith("Failed to connect browser extension:", error);
+  });
+  expect(connectWithProvider).not.toHaveBeenCalled();
+});
+
+function provider(name: string): EIP6963ProviderDetail {
+  return {
+    info: { uuid: name, name, icon: "data:image/svg+xml,%3Csvg%2F%3E", rdns: `example.${name}` },
+    provider: { request: () => Promise.resolve([]) },
+  };
+}
+
+it("preserves extension adoption callbacks and contains home-navigation failure", async () => {
+  const detail = provider("fixture");
+  const address = `Q${"12".repeat(64)}`;
+  const error = new Error("Navigation failed");
+  jest.mocked(discoverQrlProviders).mockResolvedValueOnce([detail]);
+  mockNavigate.mockRejectedValueOnce(error);
+  jest.mocked(connectWithProvider).mockImplementationOnce(async (selected, activate, setProvider) => {
+    setProvider(selected.provider);
+    await activate(address, "extension");
+    return [address];
+  });
+  render(<AccountCreateImport />);
+  fireEvent.click(screen.getByRole("button", { name: "Connect Browser Extension" }));
+  await waitFor(() => { expect(logError).toHaveBeenCalledWith("Failed to open home:", error); });
+  expect(mockStore.qrlStore.setExtensionProvider).toHaveBeenCalledWith(detail.provider);
+  expect(mockStore.qrlStore.setActiveAccount).toHaveBeenCalledWith(address, "extension");
+  expect(mockStore.qrlStore.setActiveAccount.mock.contexts[0]).toBe(mockStore.qrlStore);
+  expect(mockStore.qrlStore.setExtensionProvider.mock.contexts[0]).toBe(mockStore.qrlStore);
+  expect(mockNavigate).toHaveBeenCalledWith("/");
+});
+
+it("reports a selected extension connection failure", async () => {
+  const error = new Error("Connection failed");
+  jest.mocked(discoverQrlProviders).mockResolvedValueOnce([provider("first"), provider("second")]);
+  jest.mocked(connectWithProvider).mockRejectedValueOnce(error);
+  render(<AccountCreateImport />);
+  fireEvent.click(screen.getByRole("button", { name: "Connect Browser Extension" }));
+  fireEvent.click(await screen.findByRole("button", { name: "first example.first" }));
+  await waitFor(() => { expect(logError).toHaveBeenCalledWith("Failed to connect browser extension:", error); });
+  expect(mockNavigate).not.toHaveBeenCalled();
+});
 
 function selectV3Profile() {
   mockV3Profile = true;
@@ -249,7 +328,7 @@ it("enables v3 create/import, extension and mobile pairing", async () => {
   expect(connectWithProvider).not.toHaveBeenCalled();
   fireEvent.click(mobile);
   await waitFor(() =>
-    expect(startMobilePairing).toHaveBeenCalledWith(mockStore.qrlStore, false),
+    { expect(startMobilePairing).toHaveBeenCalledWith(mockStore.qrlStore, false); },
   );
 });
 
@@ -272,14 +351,18 @@ it("preserves enabled default-profile extension and mobile connection actions", 
     expect(mobile).toHaveProperty("disabled", false);
     expect(screen.queryByText(mockUnsupportedMessage)).toBeNull();
     fireEvent.click(extension);
-    await waitFor(() => expect(discoverQrlProviders).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(alert).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(discoverQrlProviders).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(alert).toHaveBeenCalledTimes(1);
+    });
     fireEvent.click(mobile);
     await waitFor(() =>
-      expect(startMobilePairing).toHaveBeenCalledWith(
+      { expect(startMobilePairing).toHaveBeenCalledWith(
         mockStore.qrlStore,
         false,
-      ),
+      ); },
     );
   } finally {
     alert.mockRestore();

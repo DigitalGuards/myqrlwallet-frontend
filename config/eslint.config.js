@@ -220,88 +220,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: [
-      "src/components/Core/Body/AccountList/AccountBalance/AccountBalance.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/unbound-method": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/AccountList/ActiveAccount/ActiveAccount.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-deprecated": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/AccountList/CopyAddressButton/CopyAddressButton.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-deprecated": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/require-await": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/AccountList/OtherAccounts/OtherAccounts.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/unbound-method": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/AddressBook/AddressBook.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/AddressBook/AddressBookPicker.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/CreateAccount/AccountCreationForm/AccountCreationForm.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/await-thenable": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/restrict-template-expressions": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/CreateAccount/CreateAccount.tsx"],
-    rules: {
-      "@typescript-eslint/unbound-method": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/CreateAccount/MnemonicDisplay/MnemonicDisplay.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-deprecated": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "no-console": "off",
-    },
-  },
-  {
     files: ["src/components/Core/Body/CreateToken/CreateToken.tsx"],
     rules: {
       "@typescript-eslint/unbound-method": "off",
@@ -328,163 +246,6 @@ export const lintRatchet = [
       "@typescript-eslint/no-unnecessary-condition": "off",
       "@typescript-eslint/no-unnecessary-type-conversion": "off",
       "@typescript-eslint/unbound-method": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Home/AccountCreateImport/AccountCreateImport.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/unbound-method": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Home/AccountCreateImport/ActiveAccountDisplay/ActiveAccountDisplay.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/unbound-method": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Home/AccountCreateImport/ExtensionPickerDialog.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Home/AccountCreateImport/MobilePairingDialog.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Home/ConnectionFailed/ConnectionFailed.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/unbound-method": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Home/DecorativeAccountVideo.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Home/Home.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Home/ReceivePopup.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Home/__tests__/DecorativeAccountVideo.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/Home/__tests__/activeAccountAddressAction.test.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Home/__tests__/receivePopup.test.tsx"],
-    rules: {
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Home/__tests__/v3HeaderLayout.test.tsx"],
-    rules: {
-      "@typescript-eslint/require-await": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/Home/__tests__/v3ProfileUi.test.tsx"],
-    rules: {
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/ImportAccount/AccountImportSuccess/AccountImportSuccess.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/no-misused-promises": "off",
-    },
-  },
-  {
-    files: ["src/components/Core/Body/ImportAccount/ImportAccount.tsx"],
-    rules: {
-      "@typescript-eslint/unbound-method": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/ImportAccount/ImportAccountForm/ImportAccountForm.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/ImportAccount/ImportEncryptedWallet/ImportEncryptedWallet.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "no-console": "off",
-    },
-  },
-  {
-    files: [
-      "src/components/Core/Body/ImportAccount/ImportHexSeedForm/ImportHexSeedForm.tsx",
-    ],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/require-await": "off",
       "no-console": "off",
     },
   },
@@ -830,13 +591,6 @@ export const lintRatchet = [
     },
   },
   {
-    files: ["src/components/Core/MyQRLWallet.tsx"],
-    rules: {
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-    },
-  },
-  {
     files: ["src/components/Core/RouteMonitor/RouteMonitor.tsx"],
     rules: {
       "@typescript-eslint/no-floating-promises": "off",
@@ -1002,12 +756,6 @@ export const lintRatchet = [
     files: ["src/components/UI/switch.tsx"],
     rules: {
       "@typescript-eslint/no-deprecated": "off",
-    },
-  },
-  {
-    files: ["src/components/WebDAppIngress.tsx"],
-    rules: {
-      "no-console": "off",
     },
   },
   {

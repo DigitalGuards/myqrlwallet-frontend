@@ -1,5 +1,6 @@
+import type { ImportedAccount } from "../importedAccount";
+import { logger } from "@/utils/log";
 import { useStore } from "@/stores/store";
-import type { ExtendedWalletAccount } from "@/utils/crypto";
 import { Card, CardContent, CardFooter } from "@/components/UI/Card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormMessage } from "@/components/UI/Form";
 import { Input } from "@/components/UI/Input";
@@ -19,7 +20,7 @@ const FormSchema = z.object({
 });
 
 interface ImportHexSeedFormProps {
-  onAccountImported: (account: ExtendedWalletAccount) => void;
+  onAccountImported: (account: ImportedAccount) => void;
 }
 
 export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps) => {
@@ -39,19 +40,21 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
     formState: { isSubmitting },
   } = form;
 
-  async function onSubmit(formData: z.output<typeof FormSchema>) {
+  function onSubmit(formData: z.output<typeof FormSchema>) {
     try {
       // Desktop: no in-renderer derivation (no seedToAccount, no mnemonic
       // reconstruction). Forward only the hex seed on a placeholder account;
       // PinSetup collects the password, the signer derives address + canonical
       // mnemonic and returns the address (same pattern as the mnemonic form).
       if (isDesktop) {
-        const account = { address: "", hexSeed: formData.hexSeed } as ExtendedWalletAccount;
+        const account: ImportedAccount = { address: "", hexSeed: formData.hexSeed };
         onAccountImported(account);
         return;
       }
 
-      const account = qrlInstance?.accounts.seedToAccount(formData.hexSeed) as ExtendedWalletAccount;
+      const account: ImportedAccount | undefined = qrlInstance?.accounts.seedToAccount(
+        formData.hexSeed,
+      );
 
       if (!account) {
         throw new Error("Failed to create account from hex seed");
@@ -61,7 +64,7 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
       const mnemonic = getMnemonicFromHexSeed(formData.hexSeed);
       if (!mnemonic) {
         // Handle cases where mnemonic generation might fail
-        console.error("Failed to derive mnemonic from hex seed.");
+        logger.error("Failed to derive mnemonic from hex seed.");
         form.setError("hexSeed", {
           message: "Failed to derive mnemonic from hex seed",
         });
@@ -82,7 +85,11 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
 
   return (
     <Form {...form}>
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={(event) => {
+        handleSubmit(onSubmit)(event).catch(() => {
+          form.setError("hexSeed", { message: "Invalid hex seed" });
+        });
+      }}>
         <Card >
           <CardContent className="space-y-8 pt-6">
           <p className="text-sm text-muted-foreground">
