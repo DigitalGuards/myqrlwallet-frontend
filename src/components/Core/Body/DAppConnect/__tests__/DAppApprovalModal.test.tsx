@@ -18,6 +18,8 @@ import type { PendingDAppRequest } from "@/services/dappConnect/types";
 
 import { decryptStoredSeedWithPin } from "@/utils/crypto";
 import { checkLockout, getRemainingAttempts } from "@/utils/crypto/pinAttemptTracker";
+import { PinVerificationError } from "@/utils/crypto/verifyPinWithLimit";
+import { logger } from "@/utils/log";
 let mockDesktop = true;
 const address = `Q${"a".repeat(128)}`;
 let mockDappStore: DAppConnectStore;
@@ -201,8 +203,9 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-async function showApproval(method: string): Promise<PendingDAppRequest> {
+async function showApproval(method: string, params?: unknown[]): Promise<PendingDAppRequest> {
   const pending = request(method);
+  if (params) pending.params = params;
   mockDappStore.pendingRequests = [pending];
   mockDappStore.currentApproval = pending;
   mockDappStore.approvalModalOpen = true;
@@ -219,6 +222,119 @@ async function approve(): Promise<void> {
     return Promise.resolve();
   });
 }
+
+it.each(["", " \t\n"])("shows a fallback for a blank retryable request error (%j)", async (message) => {
+  mockDesktop = false;
+  jest.mocked(decryptStoredSeedWithPin).mockRejectedValueOnce(
+    new PinVerificationError({ isLocked: false, remainingMs: 0, attemptsLeft: 5 }, message),
+  );
+  await showApproval("qrl_signMessage");
+  expect(screen.queryByText("The request failed.")).toBeNull();
+  fireEvent.change(screen.getByPlaceholderText("Enter PIN"), { target: { value: "123456" } });
+  await approve();
+  expect(screen.getByText("The request failed.")).toBeTruthy();
+  expect(rejectRequestSpy).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByPlaceholderText("Enter PIN"), { target: { value: "123457" } });
+  expect(screen.queryByText("The request failed.")).toBeNull();
+});
+
+describe.each(["", " \t\n", "RPC unavailable"])("transaction error display (%j)", (message) => {
+  it.each(["failed", "unknown"] as const)("keeps the %s outcome and original error", async (state) => {
+    await showApproval("qrl_sendTransaction");
+    act(() => { mockDappStore.setTxProgress(state, undefined, message); });
+    const fallback = state === "failed" ? "The request failed." : "Transaction status is unavailable.";
+    expect(screen.getByText(message.trim() ? message : fallback)).toBeTruthy();
+    expect(mockDappStore.txError).toBe(message);
+    expect(mockDappStore.txProgress).toBe(state);
+    expect(rejectRequestSpy).not.toHaveBeenCalled();
+    expect(approveRequestSpy).not.toHaveBeenCalled();
+  });
+});
+
+it.each([
+  ["Payload", "Typed data contains a circular type reference."],
+  [`uint8${"[]".repeat(13)}`, "Typed data is nested too deeply."],
+])("shows consistent typed-data preview errors for %s", async (fieldType, expected) => {
+  await showApproval("qrl_signTypedData", [address, {
+    types: {
+      QRLDomain: [{ name: "name", type: "string" }],
+      Payload: [{ name: "value", type: fieldType }],
+    },
+    primaryType: "Payload",
+    domain: { name: "Validation test" },
+    message: { value: [] },
+  }]);
+  expect(screen.getByText(expected)).toBeTruthy();
+  expect(approveRequestSpy).not.toHaveBeenCalled();
+  expect(rejectRequestSpy).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["cyclic type reference: Loop -> Loop", "Typed data contains a circular type reference."],
+  ["type graph nesting too deep: Root -> Child", "Typed data is nested too deeply."],
+])("keeps the desktop protocol error while displaying %s consistently", async (message, expected) => {
+  jest.spyOn(desktopSigner, "signTypedData").mockRejectedValueOnce(new Error(message));
+  const pending = await showApproval("qrl_signTypedData");
+  await approve();
+  expect(screen.getByRole("alert").textContent).toBe(expected);
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  expect(rejectRequestSpy).toHaveBeenCalledWith(pending.sessionId, pending.id, message, -32603);
+});
+
+it("logs an unavailable chain during typed-data review and keeps approval available", async () => {
+  const error = new Error("RPC unavailable");
+  const warn = jest.spyOn(logger, "warn").mockImplementation(() => undefined);
+  jest.spyOn(mockQrlStore.qrlInstance.requestManager, "send").mockRejectedValueOnce(error);
+  await showApproval("qrl_signTypedData");
+  expect(warn).toHaveBeenCalledWith(
+    "[DAppConnect] Could not read the wallet chain id for typed-data review:", error,
+  );
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByRole("button", { name: "Approve" }).hasAttribute("disabled")).toBe(false);
+  expect(rejectRequestSpy).not.toHaveBeenCalled();
+});
+
+it("logs a chain read failure and retains the network-switch rejection", async () => {
+  mockDesktop = false;
+  const error = new Error("RPC unavailable");
+  const warn = jest.spyOn(logger, "warn").mockImplementation(() => undefined);
+  jest.spyOn(mockQrlStore.qrlInstance.requestManager, "send").mockRejectedValueOnce(error);
+  const pending = await showApproval("wallet_switchQrlChain", [{ chainId: "0x301825" }]);
+  await approve();
+  expect(warn).toHaveBeenCalledWith("[DAppConnect] Could not verify the requested network:", error);
+  expect(rejectRequestSpy).toHaveBeenCalledWith(
+    pending.sessionId, pending.id, "The wallet could not verify the requested network", 4902,
+  );
+  expect(approveRequestSpy).not.toHaveBeenCalled();
+});
+
+it.each(["qrl_sendTransaction", "qrl_signTransaction"])(
+  "retains the logged approval failure for %s when its chain read fails",
+  async (method) => {
+    const error = new Error("RPC unavailable");
+    const log = jest.spyOn(logger, "log").mockImplementation(() => undefined);
+    jest.spyOn(mockQrlStore.qrlInstance.requestManager, "send").mockRejectedValueOnce(error);
+    const pending = await showApproval(method, [{ from: address, to: address, chainId: "0x301825" }]);
+    await approve();
+    expect(log).toHaveBeenCalledWith("[DAppConnect] approval error:", error.message);
+    expect(rejectRequestSpy).toHaveBeenCalledWith(
+      pending.sessionId, pending.id, "Transaction failed. Please verify details and try again.", undefined,
+    );
+    expect(approveRequestSpy).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["", " \t\n", "Relay unavailable"])("keeps connection errors visible (%j)", async (message) => {
+  mockDappStore.desktopConnectUri = "qrlconnect://?q=fixture";
+  jest.spyOn(mockDappStore, "confirmDesktopConnect").mockResolvedValueOnce({ success: false, error: message });
+  render(<DAppConnectConsentModal />);
+  await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+  await act(() => {
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    return Promise.resolve();
+  });
+  expect(screen.getByRole("alert").textContent).toBe(message.trim() ? message : "Connection failed");
+});
 
 describe.each([
   "qrl_signTypedData",

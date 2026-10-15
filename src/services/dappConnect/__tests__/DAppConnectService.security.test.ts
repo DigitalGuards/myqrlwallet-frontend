@@ -13,6 +13,7 @@ import { isRecord } from "@/utils/guards";
 const mockQrlAccount = `Q${"0".repeat(128)}`;
 const mockQrlRecipient = `Q${"1".repeat(128)}`;
 const mockQrlOther = `Q${"2".repeat(128)}`;
+const mockChainIdRequest = jest.fn<() => Promise<string>>(() => Promise.resolve("0x539"));
 
 interface MockSocketHandlers {
   onMessage: (data: RelayMessage) => void;
@@ -222,7 +223,7 @@ jest.mock("@/stores/store", () => ({
       qrlInstance: {
         currentProvider: {
           request: jest.fn(({ method }: { method: string }) => {
-            if (method === "qrl_chainId") return Promise.resolve("0x539");
+            if (method === "qrl_chainId") return mockChainIdRequest();
             return Promise.reject(new Error(`Unexpected RPC method: ${method}`));
           }),
         },
@@ -590,6 +591,7 @@ function approveTracked(
 }
 
 beforeEach(() => {
+  mockChainIdRequest.mockReset().mockResolvedValue("0x539");
   storage = new MemoryStorage();
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
@@ -2211,6 +2213,38 @@ describe("wallet-side direct relay RPC enforcement", () => {
       type: MessageType.JSONRPC,
       id: 14,
       result: [mockQrlAccount],
+    });
+  });
+
+  it("logs a failed account-approval chain read and preserves its protocol rejection", async () => {
+    const pairing = await makePairing("account-consent-chain-unavailable");
+    pairing.session.accountAuthorized = false;
+    pairing.session.connectedAccount = "";
+    const { service, observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+    await deliverEncrypted(pairing, socket, {
+      type: MessageType.JSONRPC,
+      jsonrpc: "2.0",
+      id: 14,
+      method: "qrl_requestAccounts",
+      params: [],
+    });
+    await waitFor(() => observed.pending.length === 1);
+    const error = new Error("RPC unavailable");
+    mockChainIdRequest.mockRejectedValueOnce(error);
+    service.approveRequest(pairing.session.id, 14, [mockQrlAccount]);
+    await waitFor(() => socket.sent.length === 1);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[DAppConnect] Could not read the wallet chain id for account approval:", error,
+    );
+    expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
+      id: 14,
+      error: { code: -32000, message: "Wallet chain id is unavailable" },
+    });
+    expect(SessionStore.get(pairing.session.id)).toMatchObject({
+      accountAuthorized: false,
+      connectedAccount: "",
     });
   });
 

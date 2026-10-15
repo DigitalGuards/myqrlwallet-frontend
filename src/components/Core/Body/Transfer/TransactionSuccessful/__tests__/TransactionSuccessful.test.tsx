@@ -83,6 +83,10 @@ it("keeps full hashes readable and full explorer destinations", () => {
   ).toBe("https://zondscan.com/block/155778");
   expect(screen.getByText("40,500.0 Quanta")).toBeTruthy();
   expect(screen.getByText("0.00002625 Quanta")).toBeTruthy();
+  expect(screen.getByText("Network fee").parentElement?.textContent).toBe(
+    "Network fee0.00002625 Quanta",
+  );
+  expect(screen.queryByText(/gas used/i)).toBeNull();
 });
 
 it.each([
