@@ -1442,7 +1442,8 @@ export class DAppConnectService {
     let chainId: string;
     try {
       chainId = await this.currentWalletChainId();
-    } catch {
+    } catch (error) {
+      logger.error("[DAppConnect] Could not read the wallet chain id for account approval:", error);
       await this.sendJsonRpcResponse(sessionId, {
         jsonrpc: "2.0",
         id: requestId,

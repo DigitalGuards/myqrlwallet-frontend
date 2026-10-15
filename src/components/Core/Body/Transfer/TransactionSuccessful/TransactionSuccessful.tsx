@@ -172,7 +172,7 @@ export const TransactionSuccessful = ({
               </a>
             </div>
             <div className="flex min-w-0 flex-col gap-2">
-              <div>Gas used</div>
+              <div>Network fee</div>
               <div className="font-numeric font-bold text-secondary break-all">
                 {gasInQrl} Quanta
               </div>

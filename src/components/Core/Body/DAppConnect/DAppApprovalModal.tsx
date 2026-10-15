@@ -24,6 +24,7 @@ import { Button } from "@/components/UI/Button";
 import DAppTransactionReview from "./DAppTransactionReview";
 import DAppMessageReview from "./DAppMessageReview";
 import DAppTypedDataReview from "./DAppTypedDataReview";
+import { formatDAppRequestError } from "./requestError";
 import { utils } from "@theqrl/web3";
 import {
   DeviceCredentialUnavailableError,
@@ -252,7 +253,7 @@ const DAppApprovalModalContent = observer(() => {
   /** Bumped by the retry button to re-run a failed preview. */
   const [feePreviewAttempt, setFeePreviewAttempt] = useState(0);
   const [pin, setPin] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [signingFailure, setSigningFailure] = useState<ReturnType<
     typeof desktopSigningError
   > | null>(null);
@@ -302,7 +303,7 @@ const DAppApprovalModalContent = observer(() => {
     if (approveInFlightRef.current) return;
     approveInFlightRef.current = true;
 
-    setError("");
+    setError(null);
     setLoading(true);
 
     // Answer THIS request, never "whatever is current when an await resolves":
@@ -496,7 +497,8 @@ const DAppApprovalModalContent = observer(() => {
             setPin("");
             return;
           }
-        } catch {
+        } catch (error) {
+          logger.warn("[DAppConnect] Could not verify the requested network:", error);
           dappConnectStore.rejectRequestById(
             approvalSessionId,
             approvalId,
@@ -1133,13 +1135,13 @@ const DAppApprovalModalContent = observer(() => {
       signingFailure?.code,
     );
     setPin("");
-    setError("");
+    setError(null);
   }, [dappConnectStore, signingFailure]);
 
   const handleDone = useCallback(() => {
     dappConnectStore.dismissCurrentApproval();
     setPin("");
-    setError("");
+    setError(null);
   }, [dappConnectStore]);
 
   /**
@@ -1210,7 +1212,9 @@ const DAppApprovalModalContent = observer(() => {
       (chainId) => {
         if (!cancelled) setConnectedChainId(chainId);
       },
-      () => undefined,
+      (error: unknown) => {
+        logger.warn("[DAppConnect] Could not read the wallet chain id for typed-data review:", error);
+      },
     );
     return () => {
       cancelled = true;
@@ -1366,7 +1370,7 @@ const DAppApprovalModalContent = observer(() => {
           {/* Transaction progress states */}
           {signingFailure ? (
             <p role="alert" className="break-words text-sm text-destructive">
-              {error}
+              {formatDAppRequestError(error ?? "", method)}
             </p>
           ) : isTxInProgress ? (
             <div className="space-y-4">
@@ -1458,11 +1462,11 @@ const DAppApprovalModalContent = observer(() => {
               )}
 
               {/* Error message for failed state */}
-              {txProgress === "failed" && txError && (
-                <p className="text-sm text-destructive break-all">{txError}</p>
+              {txProgress === "failed" && txError !== null && (
+                <p className="text-sm text-destructive break-all">{formatDAppRequestError(txError, method)}</p>
               )}
-              {txProgress === "unknown" && txError && (
-                <p className="text-sm text-muted-foreground break-all">{txError}</p>
+              {txProgress === "unknown" && txError !== null && (
+                <p className="text-sm text-muted-foreground break-all">{txError.trim() ? txError : "Transaction status is unavailable."}</p>
               )}
             </div>
           ) : (
@@ -1529,7 +1533,7 @@ const DAppApprovalModalContent = observer(() => {
                     Cannot decode this request
                   </p>
                   <p className="text-xs text-muted-foreground break-all">
-                    {signingPreview.reason}
+                    {formatDAppRequestError(signingPreview.reason, method)}
                   </p>
                 </div>
               )}
@@ -1550,7 +1554,7 @@ const DAppApprovalModalContent = observer(() => {
                     value={pin}
                     onChange={(e) => {
                       setPin(e.target.value);
-                      setError("");
+                      setError(null);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && pin && !loading) {
@@ -1564,7 +1568,7 @@ const DAppApprovalModalContent = observer(() => {
                 </div>
               )}
 
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error !== null && <p className="text-sm text-destructive">{formatDAppRequestError(error, method)}</p>}
             </div>
           )}
         </div>

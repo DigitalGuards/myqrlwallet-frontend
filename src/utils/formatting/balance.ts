@@ -15,7 +15,8 @@ export const formatQuantaValue = (value: unknown): string => {
     // Native BigInt also accepts objects through numeric-hint coercion.
     const planck: unknown = Reflect.apply(BigInt, undefined, [value]);
     if (typeof planck !== "bigint" || planck < 0n) return "invalid value";
-    return `${utils.fromPlanck(planck.toString(), "quanta")} ${NATIVE_TOKEN.symbol}`;
+    const quanta = utils.fromPlanck(planck.toString(), "quanta").replace(/\.$/, "");
+    return `${quanta} ${NATIVE_TOKEN.symbol}`;
   } catch {
     return "invalid value";
   }
@@ -135,7 +136,7 @@ export const formatBalance = (
         // Strip trailing zeros beyond the requested minimum decimal count
         // (e.g. 0.240000 → 0.24, 0.249000 → 0.249).
         const trimRe = new RegExp(`(\\.\\d{${decimals}}\\d*?)0+$`);
-        formatted = formatted.replace(trimRe, '$1');
+        formatted = formatted.replace(trimRe, '$1').replace(/\.$/, '');
     }
 
     if (useThousandSeparator) {

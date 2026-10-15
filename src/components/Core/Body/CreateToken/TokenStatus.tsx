@@ -274,7 +274,7 @@ const TokenStatus = observer(() => {
                 </a>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-sm text-muted-foreground">Gas Used</span>
+                <span className="text-sm text-muted-foreground">Network fee</span>
                 <span className="font-numeric font-medium text-secondary">
                   {gasInQrl} Quanta
                 </span>

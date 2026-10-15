@@ -109,7 +109,7 @@ export const ActiveAccountDisplay = observer(({ onShowAddress }: { onShowAddress
       <div className="flex justify-center mt-0.5">
         <span className="font-numeric text-sm font-medium text-muted-foreground">Quanta</span>
       </div>
-      {qrlPrice > 0 && (
+      {qrlStore.qrlConnection.blockchain === "MAIN_NET" && qrlPrice > 0 && (
         <div className="flex items-center justify-center gap-2 text-sm mt-1 mb-4 font-numeric">
           <span className="text-muted-foreground">
             ≈ ${activeAccountBalanceUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

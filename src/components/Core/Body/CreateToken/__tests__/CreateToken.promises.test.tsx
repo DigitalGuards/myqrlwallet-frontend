@@ -219,3 +219,11 @@ it("reports failed receipt copying", async () => {
   });
   expect(mockCopy).toHaveBeenCalledWith(mockStore.tokenStore.createdToken.tx);
 });
+
+it("labels the token creation fee in Quanta as Network fee", () => {
+  render(<TokenStatus />);
+  expect(screen.getByText("Network fee").parentElement?.textContent).toBe(
+    "Network fee0.000021 Quanta",
+  );
+  expect(screen.queryByText(/gas used/i)).toBeNull();
+});
