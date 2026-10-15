@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -44,7 +46,15 @@ jobs:
         run: npm run lint
 
       - name: Check lint ratchet
-        run: npm run lint:ratchet
+        env:
+          LINT_RATCHET_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ "$LINT_RATCHET_BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "lint-ratchet: new branch has no base commit; skipping shrink-only comparison"
+            npm run lint:ratchet
+          else
+            npm run lint:ratchet -- --base-ref "$LINT_RATCHET_BASE"
+          fi
 
       - name: Run typecheck
         run: npm run typecheck
