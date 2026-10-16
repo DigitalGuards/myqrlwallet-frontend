@@ -14,6 +14,13 @@ import {
   strictFiles,
 } from "../config/eslint.config.js";
 
+// With CI=true, typescript-eslint infers a single run and treats a second
+// parse of the same file as an autofix pass: it then lints that file without
+// type information (and stalls on some files). This script lints every file
+// twice, once with bulk suppressions disabled and once for the bookkeeping,
+// so both scans keep the project service in CI, the same as a local run.
+process.env.TSESTREE_SINGLE_RUN = "false";
+
 const root = fileURLToPath(new URL("../", import.meta.url));
 const configPath = path.join(root, "config/eslint.config.js");
 const { values } = parseArgs({
@@ -61,6 +68,32 @@ if (baseRef !== undefined) {
       `lint-ratchet: shrink-only comparison passed against ${baseRef} (${commit})`,
     );
   }
+}
+
+// Match `npm run lint`, including its config discovery and zero-warning policy.
+// ESLint 9 applies bulk suppressions only in the CLI; its Node API has no
+// applySuppressions option and returns findings without bulk suppressions.
+const lint = new ESLint({
+  cwd: root,
+  allowInlineConfig: false,
+  overrideConfig: {
+    linterOptions: { reportUnusedDisableDirectives: "error" },
+  },
+});
+const lintFindings = [];
+for (const result of await lint.lintFiles(["."])) {
+  const file = path.relative(root, result.filePath).split(path.sep).join("/");
+  for (const message of result.messages) {
+    lintFindings.push(
+      `${file}:${message.line}:${message.column}: ${message.ruleId ?? "lint error"}: ${message.message}`,
+    );
+  }
+}
+if (lintFindings.length) {
+  console.error(
+    `lint-ratchet: fix ${lintFindings.length} findings with bulk suppressions disabled:\n${lintFindings.join("\n")}`,
+  );
+  process.exit(1);
 }
 
 const eslint = new ESLint({

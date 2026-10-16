@@ -23,7 +23,7 @@
     "build": "tsc && vite --config config/vite.config.ts build",
     "build:embedded": "tsc && vite --config config/vite.config.embedded.ts build",
     "check:embedded": "node scripts/check-embedded-output.mjs",
-    "lint": "eslint --config config/eslint.config.js . --no-inline-config --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --no-inline-config --report-unused-disable-directives --max-warnings 0",
     "lint:ratchet": "node scripts/lint-ratchet.mjs --check",
     "lint:ratchet:update": "node scripts/lint-ratchet.mjs",
     "test": "jest",
