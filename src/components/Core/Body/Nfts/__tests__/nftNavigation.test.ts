@@ -40,6 +40,7 @@ describe("nftNavigation", () => {
       false,
     );
     expect(openedFromCollectionList(null)).toBe(false);
+    expect(openedFromCollectionList(Object.assign([], { nftCollectionFromList: true }))).toBe(false);
     expect(openedFromCollectionList("collection")).toBe(false);
 
     expect(openedFromCollectionView({ nftDetailFromCollection: true })).toBe(
@@ -50,4 +51,8 @@ describe("nftNavigation", () => {
     );
     expect(openedFromCollectionView(undefined)).toBe(false);
   });
+});
+
+it.each([0, 7, 7n, "0x7", null, undefined])("preserves native replacement text for a stored token ID: %p", (tokenId) => {
+  expect(nftDetailPath("/nft/:contractAddress/:tokenId", CONTRACT, tokenId)).toBe(`/nft/${CONTRACT}/${String(tokenId)}`);
 });

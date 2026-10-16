@@ -1,3 +1,4 @@
+import { expect } from "@jest/globals";
 import {
   normalizeQrnsName,
   normalizeQrnsRecipientName,
@@ -6,6 +7,7 @@ import {
 } from "@/utils/crypto/qrnsNamehash";
 import { normalizeQrlAddress, QRL_ZERO_ADDRESS } from "@/utils/web3/address";
 import {
+  createQrnsHttpProvider,
   parseQrnsNetworkConfig,
   resolveQrnsRecipient,
   type QrnsNetworkConfig,
@@ -42,6 +44,31 @@ function mockProvider(
 }
 
 describe("native QRVM64 QRNS resolution", () => {
+  it("aborts an HTTP request at the existing eight-second timeout", async () => {
+    jest.useFakeTimers();
+    try {
+      const aborted = jest.fn();
+      const fetcher: typeof fetch = (_input, init) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          aborted();
+          reject(Object.assign(new Error("Aborted"), { name: "AbortError" }));
+        });
+      });
+      const provider = createQrnsHttpProvider("https://rpc.example", fetcher);
+      const failure = expect(provider.request({ method: "qrl_chainId" })).rejects.toThrow(
+        "QRNS RPC request timed out",
+      );
+      await jest.advanceTimersByTimeAsync(7_999);
+      expect(aborted).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(1);
+      await failure;
+      expect(aborted).toHaveBeenCalledTimes(1);
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("matches the QNS normalization and namehash vector", () => {
     expect(normalizeQrnsName("ALICE.QRL")).toBe("alice.qrl");
     expect(normalizeQrnsRecipientName("ALICE.QRL")).toBe("alice.qrl");
@@ -88,15 +115,17 @@ describe("native QRVM64 QRNS resolution", () => {
 
   it("verifies the chain and registry code before two native calls", async () => {
     const request: jest.MockedFunction<QrnsRpcProvider["request"]> = jest.fn(
-      async ({ method }) => {
-        if (method === "qrl_chainId") return "0x539";
-        if (method === "qrl_getCode") return "0x01";
+      ({ method }) => {
+        if (method === "qrl_chainId") return Promise.resolve("0x539");
+        if (method === "qrl_getCode") return Promise.resolve("0x01");
         const qrlCallCount = request.mock.calls.filter(
           ([args]) => args.method === "qrl_call",
         ).length;
-        return qrlCallCount === 1
-          ? encodedAddress(RESOLVER)
-          : encodedAddress(RECIPIENT);
+        return Promise.resolve(
+          qrlCallCount === 1
+            ? encodedAddress(RESOLVER)
+            : encodedAddress(RECIPIENT),
+        );
       },
     );
     const result = await resolveQrnsRecipient(
@@ -132,8 +161,8 @@ describe("native QRVM64 QRNS resolution", () => {
   });
 
   it("fails closed when the RPC is on the wrong chain", async () => {
-    const provider = mockProvider(async ({ method }) =>
-      method === "qrl_chainId" ? "0x1" : "0x01",
+    const provider = mockProvider(({ method }) =>
+      Promise.resolve(method === "qrl_chainId" ? "0x1" : "0x01"),
     );
     await expect(
       resolveQrnsRecipient("alice.qrl", CONFIG, provider),
@@ -153,12 +182,12 @@ describe("native QRVM64 QRNS resolution", () => {
 
   it("verifies the configured genesis before querying contract code", async () => {
     const genesisHash = `0x${"ab".repeat(32)}`;
-    const request = jest.fn(async ({ method }: { method: string }) => {
-      if (method === "qrl_chainId") return CONFIG.expectedChainId;
+    const request = jest.fn(({ method }: { method: string }) => {
+      if (method === "qrl_chainId") return Promise.resolve(CONFIG.expectedChainId);
       if (method === "qrl_getBlockByNumber")
-        return { number: "0x0", hash: genesisHash };
-      if (method === "qrl_getCode") return "0x01";
-      return encodedAddress(RECIPIENT);
+        return Promise.resolve({ number: "0x0", hash: genesisHash });
+      if (method === "qrl_getCode") return Promise.resolve("0x01");
+      return Promise.resolve(encodedAddress(RECIPIENT));
     });
     const result = await resolveQrnsRecipient(
       "alice.qrl",
@@ -180,8 +209,8 @@ describe("native QRVM64 QRNS resolution", () => {
     { number: "0x1", hash: `0x${"ab".repeat(32)}` },
     { number: "0x0", hash: `0x${"cd".repeat(32)}` },
   ])("rejects the wrong genesis before resolving: %p", async (block) => {
-    const request = jest.fn(async ({ method }: { method: string }) =>
-      method === "qrl_chainId" ? CONFIG.expectedChainId : block,
+    const request = jest.fn(({ method }: { method: string }) =>
+      Promise.resolve(method === "qrl_chainId" ? CONFIG.expectedChainId : block),
     );
     await expect(
       resolveQrnsRecipient(
@@ -199,8 +228,8 @@ describe("native QRVM64 QRNS resolution", () => {
   it.each(["0x", "0x00", "malformed"])(
     "fails closed when the registry has no usable code: %s",
     async (code) => {
-      const provider = mockProvider(async ({ method }) =>
-        method === "qrl_chainId" ? "0x539" : code,
+      const provider = mockProvider(({ method }) =>
+        Promise.resolve(method === "qrl_chainId" ? "0x539" : code),
       );
       await expect(
         resolveQrnsRecipient("alice.qrl", CONFIG, provider),
@@ -209,23 +238,23 @@ describe("native QRVM64 QRNS resolution", () => {
   );
 
   it("returns no recipient for zero resolver and zero native records", async () => {
-    const zeroResolver = mockProvider(async ({ method }) => {
-      if (method === "qrl_chainId") return "0x539";
-      if (method === "qrl_getCode") return "0x01";
-      return `0x${"0".repeat(128)}`;
+    const zeroResolver = mockProvider(({ method }) => {
+      if (method === "qrl_chainId") return Promise.resolve("0x539");
+      if (method === "qrl_getCode") return Promise.resolve("0x01");
+      return Promise.resolve(`0x${"0".repeat(128)}`);
     });
     await expect(
       resolveQrnsRecipient("alice.qrl", CONFIG, zeroResolver),
     ).resolves.toEqual({ normalizedName: "alice.qrl", address: null });
 
     let callCount = 0;
-    const zeroAddress = mockProvider(async ({ method }) => {
-      if (method === "qrl_chainId") return "0x539";
-      if (method === "qrl_getCode") return "0x01";
+    const zeroAddress = mockProvider(({ method }) => {
+      if (method === "qrl_chainId") return Promise.resolve("0x539");
+      if (method === "qrl_getCode") return Promise.resolve("0x01");
       callCount += 1;
-      return callCount === 1
-        ? encodedAddress(RESOLVER)
-        : `0x${"0".repeat(128)}`;
+      return Promise.resolve(
+        callCount === 1 ? encodedAddress(RESOLVER) : `0x${"0".repeat(128)}`,
+      );
     });
     await expect(
       resolveQrnsRecipient("alice.qrl", CONFIG, zeroAddress),
@@ -235,10 +264,10 @@ describe("native QRVM64 QRNS resolution", () => {
   it.each(["0x12", `0x${"g".repeat(128)}`, 7])(
     "rejects malformed address returns: %s",
     async (result) => {
-      const provider = mockProvider(async ({ method }) => {
-        if (method === "qrl_chainId") return "0x539";
-        if (method === "qrl_getCode") return "0x01";
-        return result;
+      const provider = mockProvider(({ method }) => {
+        if (method === "qrl_chainId") return Promise.resolve("0x539");
+        if (method === "qrl_getCode") return Promise.resolve("0x01");
+        return Promise.resolve(result);
       });
       await expect(
         resolveQrnsRecipient("alice.qrl", CONFIG, provider),
@@ -248,13 +277,13 @@ describe("native QRVM64 QRNS resolution", () => {
 
   it("treats ABI return hex casing as wire encoding", async () => {
     let callCount = 0;
-    const provider = mockProvider(async ({ method }) => {
-      if (method === "qrl_chainId") return "0x539";
-      if (method === "qrl_getCode") return "0x01";
+    const provider = mockProvider(({ method }) => {
+      if (method === "qrl_chainId") return Promise.resolve("0x539");
+      if (method === "qrl_getCode") return Promise.resolve("0x01");
       callCount += 1;
-      return callCount === 1
-        ? encodedAddress(RESOLVER)
-        : `0x${"Aa".repeat(64)}`;
+      return Promise.resolve(
+        callCount === 1 ? encodedAddress(RESOLVER) : `0x${"Aa".repeat(64)}`,
+      );
     });
 
     await expect(
@@ -266,9 +295,7 @@ describe("native QRVM64 QRNS resolution", () => {
   });
 
   it("surfaces RPC failures without producing an address", async () => {
-    const provider = mockProvider(async () => {
-      throw new Error("offline");
-    });
+    const provider = mockProvider(() => Promise.reject(new Error("offline")));
     await expect(
       resolveQrnsRecipient("alice.qrl", CONFIG, provider),
     ).rejects.toThrow("offline");

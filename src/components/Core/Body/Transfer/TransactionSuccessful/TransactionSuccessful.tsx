@@ -1,3 +1,5 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
+import { reportError } from "@/utils/reportError";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "@/components/UI/Button";
 import { Card, CardContent, CardFooter } from "@/components/UI/Card";
@@ -12,9 +14,9 @@ import { useStore } from "@/stores/store";
 
 type TransactionSuccessfulProps = {
   transactionReceipt: SendReceipt;
-  blockchain?: string;
+  blockchain?: BlockchainSelection;
   amount?: string;
-  assetSymbol?: string;
+  assetSymbol?: unknown;
   onDone: () => void;
 };
 
@@ -89,10 +91,10 @@ export const TransactionSuccessful = ({
             <div>Transaction Hash</div>
             <div className="flex min-w-0 items-center gap-2">
               <a
-                href={`${explorerUrl}/tx/${transactionHash}`}
+                href={`${explorerUrl}/tx/${transactionHash.toString()}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={`View transaction ${transactionHash} on explorer`}
+                aria-label={`View transaction ${transactionHash.toString()} on explorer`}
                 className="flex min-w-0 flex-1 items-center gap-2 text-secondary hover:text-secondary/80"
               >
                 <span className="min-w-0 break-all font-mono text-sm font-medium leading-relaxed">
@@ -109,9 +111,11 @@ export const TransactionSuccessful = ({
                     ? "Transaction hash copied"
                     : "Copy transaction hash"
                 }
-                onClick={() =>
-                  copyToClipboard(transactionHash.toString(), "txHash")
-                }
+                onClick={() => {
+                  copyToClipboard(transactionHash.toString(), "txHash").catch((error: unknown) => {
+                    reportError("Failed to copy hash:", error);
+                  });
+                }}
                 className="shrink-0 text-secondary hover:text-secondary/80"
               >
                 {copiedItem === "txHash" ? (
@@ -137,9 +141,11 @@ export const TransactionSuccessful = ({
                     ? "Block hash copied"
                     : "Copy block hash"
                 }
-                onClick={() =>
-                  copyToClipboard(blockHash.toString(), "blockHash")
-                }
+                onClick={() => {
+                  copyToClipboard(blockHash.toString(), "blockHash").catch((error: unknown) => {
+                    reportError("Failed to copy hash:", error);
+                  });
+                }}
                 className="shrink-0 text-secondary hover:text-secondary/80"
               >
                 {copiedItem === "blockHash" ? (
@@ -166,7 +172,7 @@ export const TransactionSuccessful = ({
               </a>
             </div>
             <div className="flex min-w-0 flex-col gap-2">
-              <div>Gas used</div>
+              <div>Network fee</div>
               <div className="font-numeric font-bold text-secondary break-all">
                 {gasInQrl} Quanta
               </div>

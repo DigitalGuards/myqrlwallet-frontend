@@ -2,7 +2,9 @@
 import {
   isQualifiedV3NativeContext,
   isUnsupportedV3Context,
+  readNativeCapabilities,
 } from "../runtimeProfile";
+import { malformed } from "@/test-utils/malformed";
 
 // The native bridge exists only in the embedded build, which the app ships.
 jest.mock("@/utils/embeddedRuntime", () => ({
@@ -32,7 +34,9 @@ jest.mock("../runtimeProfile", () => {
     value: "v3-private",
     configurable: true,
   });
-  return jest.requireActual("../runtimeProfile");
+  return jest.requireActual<typeof import("../runtimeProfile")>(
+    "../runtimeProfile",
+  );
 });
 
 beforeEach(() => {
@@ -56,6 +60,7 @@ afterEach(() => {
 });
 
 it("accepts only the configured v3 mobile profile", () => {
+  expect(readNativeCapabilities()).toEqual(capabilities);
   expect(isQualifiedV3NativeContext()).toBe(true);
   expect(isUnsupportedV3Context()).toBe(false);
 });
@@ -79,9 +84,37 @@ it.each([null, "", "{", "null", "[]", "{}", "x".repeat(4097)])(
   "rejects missing or malformed injected metadata: %s",
   (value) => {
     nativeBridge().injectedObjectJson = () => value;
+    expect(readNativeCapabilities()).toBeNull();
     expect(isQualifiedV3NativeContext()).toBe(false);
   },
 );
+
+it.each([null, true, 1, "capabilities", []])(
+  "rejects a non-record capability value: %p",
+  (value) => {
+    nativeBridge().injectedObjectJson = () =>
+      JSON.stringify({ qrlWalletCapabilities: value });
+    expect(readNativeCapabilities()).toBeNull();
+    expect(isUnsupportedV3Context()).toBe(true);
+  },
+);
+
+it.each([true, 1, {}, []])(
+  "rejects a non-string injection result: %p",
+  (value) => {
+    nativeBridge().injectedObjectJson = () => malformed<string>(value);
+    expect(readNativeCapabilities()).toBeNull();
+    expect(isUnsupportedV3Context()).toBe(true);
+  },
+);
+
+it("preserves additional capability fields while checking the required identity", () => {
+  const extended = { ...capabilities, deviceCredential: true };
+  nativeBridge().injectedObjectJson = () =>
+    JSON.stringify({ qrlWalletCapabilities: extended });
+  expect(readNativeCapabilities()).toEqual(extended);
+  expect(isQualifiedV3NativeContext()).toBe(true);
+});
 
 it("keeps old native builds blocked and permits a later capability injection", () => {
   delete nativeBridge().injectedObjectJson;

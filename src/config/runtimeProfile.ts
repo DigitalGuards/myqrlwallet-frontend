@@ -1,3 +1,6 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
+import { isRecord } from "@/utils/guards";
+
 declare const __QRL_WALLET_PROFILE__: string | undefined;
 declare const __QRL_NATIVE_NETWORK__:
   | { chainId: string; genesisHash: string }
@@ -23,21 +26,12 @@ export function readNativeCapabilities(): Record<string, unknown> | null {
   try {
     const bridge = window.ReactNativeWebView;
     if (typeof bridge?.postMessage !== "function") return null;
-    const json = bridge.injectedObjectJson?.();
+    const json: unknown = bridge.injectedObjectJson?.();
     if (typeof json !== "string" || json.length > 4096) return null;
     const injected: unknown = JSON.parse(json);
-    if (!injected || typeof injected !== "object" || Array.isArray(injected))
-      return null;
-    const capabilities = (injected as Record<string, unknown>)[
-      "qrlWalletCapabilities"
-    ];
-    if (
-      !capabilities ||
-      typeof capabilities !== "object" ||
-      Array.isArray(capabilities)
-    )
-      return null;
-    return capabilities as Record<string, unknown>;
+    if (!isRecord(injected)) return null;
+    const capabilities = injected["qrlWalletCapabilities"];
+    return isRecord(capabilities) ? capabilities : null;
   } catch {
     return null;
   }
@@ -73,7 +67,7 @@ export const profileStorageKey = (key: string): string =>
   IS_V3_PROFILE ? `qrlwallet:v3:${key}` : key;
 
 export function historyNetwork(
-  blockchain: string,
+  blockchain: BlockchainSelection,
 ): "testnet" | "mainnet" | null {
   if (IS_V3_PROFILE) return blockchain === "TEST_NET_V3" ? "testnet" : null;
   if (blockchain === "TEST_NET") return "testnet";

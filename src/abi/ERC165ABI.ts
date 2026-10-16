@@ -1,4 +1,4 @@
-// Minimal ERC-165 — only the introspection method we actually call.
+// Minimal ERC-165 : only the introspection method we actually call.
 // Used to discriminate ERC-721 (interfaceId 0x80ac58cd), ERC-1155
 // (0xd9b67a26), and ERC721Enumerable (0x780e9d63) before falling
 // through to ERC-20 behaviour.
@@ -10,7 +10,7 @@ export const erc165ABI = [
     stateMutability: "view",
     type: "function",
   },
-];
+] as const;
 
 export const ERC165_INTERFACE_IDS = {
   ERC721: "0x80ac58cd",

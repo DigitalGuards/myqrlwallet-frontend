@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
 import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
@@ -8,7 +9,7 @@ import { formatUnits } from "@/utils/web3/units";
  * Single source of truth for all dApp request approvals.
  */
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { toJS } from "mobx";
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
@@ -23,6 +24,7 @@ import { Button } from "@/components/UI/Button";
 import DAppTransactionReview from "./DAppTransactionReview";
 import DAppMessageReview from "./DAppMessageReview";
 import DAppTypedDataReview from "./DAppTypedDataReview";
+import { formatDAppRequestError } from "./requestError";
 import { utils } from "@theqrl/web3";
 import {
   DeviceCredentialUnavailableError,
@@ -251,7 +253,7 @@ const DAppApprovalModalContent = observer(() => {
   /** Bumped by the retry button to re-run a failed preview. */
   const [feePreviewAttempt, setFeePreviewAttempt] = useState(0);
   const [pin, setPin] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [signingFailure, setSigningFailure] = useState<ReturnType<
     typeof desktopSigningError
   > | null>(null);
@@ -301,7 +303,7 @@ const DAppApprovalModalContent = observer(() => {
     if (approveInFlightRef.current) return;
     approveInFlightRef.current = true;
 
-    setError("");
+    setError(null);
     setLoading(true);
 
     // Answer THIS request, never "whatever is current when an await resolves":
@@ -411,7 +413,7 @@ const DAppApprovalModalContent = observer(() => {
           succeeded ? undefined : "Transaction has been reverted by the QRVM",
         );
       } catch (error) {
-        console.log(
+        logger.log(
           "[DAppConnect] watching an unknown transaction did not complete:",
           error instanceof Error ? error.message : String(error),
         );
@@ -439,7 +441,7 @@ const DAppApprovalModalContent = observer(() => {
         : undefined;
 
       if (method === "qrl_requestAccounts") {
-        const activeAddress = qrlStore.activeAccount?.accountAddress;
+        const activeAddress = qrlStore.activeAccount.accountAddress;
         dappConnectStore.approveRequestById(
           approvalSessionId,
           approvalId,
@@ -495,7 +497,8 @@ const DAppApprovalModalContent = observer(() => {
             setPin("");
             return;
           }
-        } catch {
+        } catch (error) {
+          logger.warn("[DAppConnect] Could not verify the requested network:", error);
           dappConnectStore.rejectRequestById(
             approvalSessionId,
             approvalId,
@@ -518,7 +521,7 @@ const DAppApprovalModalContent = observer(() => {
         method === "qrl_sendTransaction" ||
         method === "qrl_signTransaction"
       ) {
-        const activeAddress = qrlStore.activeAccount?.accountAddress;
+        const activeAddress = qrlStore.activeAccount.accountAddress;
         if (!activeAddress) {
           setError("No active account");
           setLoading(false);
@@ -540,7 +543,7 @@ const DAppApprovalModalContent = observer(() => {
           firstParamRecord(params),
           qrlStore.qrlInstance,
         );
-        if (!isStillCurrent() || qrlStore.activeAccount?.accountAddress !== activeAddress) {
+        if (!isStillCurrent() || qrlStore.activeAccount.accountAddress !== activeAddress) {
           throw new Error("Wallet changed while verifying the transaction chain");
         }
 
@@ -626,7 +629,7 @@ const DAppApprovalModalContent = observer(() => {
             throw new Error("Transaction has been reverted by the QRVM");
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
-            console.log("[DAppConnect] desktop tx error:", errMsg);
+            logger.log("[DAppConnect] desktop tx error:", errMsg);
             const userError = toUserFacingError(errMsg);
             setCurrentTxProgress("failed", undefined, userError);
             // A no-op once the hash was answered: a revert after a successful
@@ -837,9 +840,9 @@ const DAppApprovalModalContent = observer(() => {
           },
           onFailure: (txErrMsg) => {
             // Log the raw node/broadcast reason (bridges to Metro as a
-            // [WebView] line; console.error does not bridge) since
+            // [WebView] line; logger.error does not bridge) since
             // toUserFacingError intentionally hides it from the UI.
-            console.log("[DAppConnect] tx broadcast error:", txErrMsg);
+            logger.log("[DAppConnect] tx broadcast error:", txErrMsg);
             const userError = toUserFacingError(txErrMsg);
             setCurrentTxProgress("failed", undefined, userError);
             // Only a broadcast that never produced a hash is a rejection. A
@@ -875,7 +878,7 @@ const DAppApprovalModalContent = observer(() => {
           return;
         }
         const [signerParam, messageHex] = parsed.data;
-        const activeAddress = qrlStore.activeAccount?.accountAddress;
+        const activeAddress = qrlStore.activeAccount.accountAddress;
         if (!activeAddress) {
           setError("No active account");
           setLoading(false);
@@ -978,7 +981,7 @@ const DAppApprovalModalContent = observer(() => {
           return;
         }
         const [signerParam, payload] = parsed.data;
-        const activeAddress = qrlStore.activeAccount?.accountAddress;
+        const activeAddress = qrlStore.activeAccount.accountAddress;
         if (!activeAddress) {
           setError("No active account");
           setLoading(false);
@@ -1088,7 +1091,7 @@ const DAppApprovalModalContent = observer(() => {
       const errMsg = err instanceof Error ? err.message : String(err);
       // Log the raw cause (bridges to Metro) before toUserFacingError flattens
       // it for display.
-      console.log("[DAppConnect] approval error:", errMsg);
+      logger.log("[DAppConnect] approval error:", errMsg);
       // A revert the wallet caught before signing is a specific, useful
       // answer. Flattening it to "Transaction failed" and code 4001 told the
       // user nothing and told the dApp the user had rejected the request.
@@ -1132,13 +1135,13 @@ const DAppApprovalModalContent = observer(() => {
       signingFailure?.code,
     );
     setPin("");
-    setError("");
+    setError(null);
   }, [dappConnectStore, signingFailure]);
 
   const handleDone = useCallback(() => {
     dappConnectStore.dismissCurrentApproval();
     setPin("");
-    setError("");
+    setError(null);
   }, [dappConnectStore]);
 
   /**
@@ -1209,7 +1212,9 @@ const DAppApprovalModalContent = observer(() => {
       (chainId) => {
         if (!cancelled) setConnectedChainId(chainId);
       },
-      () => undefined,
+      (error: unknown) => {
+        logger.warn("[DAppConnect] Could not read the wallet chain id for typed-data review:", error);
+      },
     );
     return () => {
       cancelled = true;
@@ -1250,20 +1255,22 @@ const DAppApprovalModalContent = observer(() => {
   // its content instead.
   const reviewedTxKey = JSON.stringify(reviewedTxParams);
   const feePreviewKey = `${approvalKey}|${reviewedTxKey}`;
+  const readReviewedTxParams = useEffectEvent(() => reviewedTxParams);
   useEffect(() => {
-    if (reviewedTxParams === null) {
+    const quoteParams = readReviewedTxParams();
+    if (quoteParams === null) {
       setFeePreview(null);
       return;
     }
-    let cancelled = false;
+    const cancellation = new AbortController();
     setFeePreview({ status: "loading", requestKey: feePreviewKey });
     void (async () => {
       try {
         const web3 = qrlStore.qrlInstance;
         if (!web3) throw new Error("Wallet not connected");
         const quote = await quoteFees(web3, DAPP_FEE_LEVEL);
-        const gasLimit = await resolveDAppGasLimit(web3, reviewedTxParams);
-        if (cancelled) return;
+        const gasLimit = await resolveDAppGasLimit(web3, quoteParams);
+        if (cancellation.signal.aborted) return;
         setFeePreview({
           status: "ready",
           requestKey: feePreviewKey,
@@ -1275,16 +1282,14 @@ const DAppApprovalModalContent = observer(() => {
         // A quote the wallet refuses, or a node that will not answer. Approve
         // stays disabled: signing here would mean signing a fee that was never
         // shown. The user can retry the quote.
-        if (!cancelled) {
+        if (!cancellation.signal.aborted) {
           setFeePreview({ status: "failed", requestKey: feePreviewKey });
         }
       }
     })();
     return () => {
-      cancelled = true;
+      cancellation.abort();
     };
-    // reviewedTxParams is covered by reviewedTxKey, inside feePreviewKey.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feePreviewKey, qrlStore.qrlInstance, feePreviewAttempt]);
 
   /**
@@ -1365,7 +1370,7 @@ const DAppApprovalModalContent = observer(() => {
           {/* Transaction progress states */}
           {signingFailure ? (
             <p role="alert" className="break-words text-sm text-destructive">
-              {error}
+              {formatDAppRequestError(error ?? "", method)}
             </p>
           ) : isTxInProgress ? (
             <div className="space-y-4">
@@ -1457,11 +1462,11 @@ const DAppApprovalModalContent = observer(() => {
               )}
 
               {/* Error message for failed state */}
-              {txProgress === "failed" && txError && (
-                <p className="text-sm text-destructive break-all">{txError}</p>
+              {txProgress === "failed" && txError !== null && (
+                <p className="text-sm text-destructive break-all">{formatDAppRequestError(txError, method)}</p>
               )}
-              {txProgress === "unknown" && txError && (
-                <p className="text-sm text-muted-foreground break-all">{txError}</p>
+              {txProgress === "unknown" && txError !== null && (
+                <p className="text-sm text-muted-foreground break-all">{txError.trim() ? txError : "Transaction status is unavailable."}</p>
               )}
             </div>
           ) : (
@@ -1528,7 +1533,7 @@ const DAppApprovalModalContent = observer(() => {
                     Cannot decode this request
                   </p>
                   <p className="text-xs text-muted-foreground break-all">
-                    {signingPreview.reason}
+                    {formatDAppRequestError(signingPreview.reason, method)}
                   </p>
                 </div>
               )}
@@ -1549,7 +1554,7 @@ const DAppApprovalModalContent = observer(() => {
                     value={pin}
                     onChange={(e) => {
                       setPin(e.target.value);
-                      setError("");
+                      setError(null);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && pin && !loading) {
@@ -1563,7 +1568,7 @@ const DAppApprovalModalContent = observer(() => {
                 </div>
               )}
 
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error !== null && <p className="text-sm text-destructive">{formatDAppRequestError(error, method)}</p>}
             </div>
           )}
         </div>

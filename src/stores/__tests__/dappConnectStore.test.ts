@@ -7,7 +7,7 @@
  * The DAppConnectService singleton is mocked at the module seam: its real
  * module transitively imports the whole wallet store graph (qrlStore,
  * import.meta.env config), which jest's node runtime cannot load, and these
- * tests are about the store's contract with the service, not the service.
+ * tests cover the store's contract with the service.
  */
 
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
@@ -21,27 +21,27 @@ jest.mock("@/services/dappConnect/DAppConnectService", () => {
   const dappConnectService = {
     setHandlers: jest.fn(),
     getActiveSessions: jest.fn(() => []),
-    reconnectAll: jest.fn(async () => undefined),
-    handleConnectionURI: jest.fn(async () => ({ success: true })),
+    reconnectAll: jest.fn(() => Promise.resolve(undefined)),
+    handleConnectionURI: jest.fn(() => Promise.resolve({ success: true })),
     approveRequest: jest.fn(),
     rejectRequest: jest.fn(),
-    disconnectSession: jest.fn(async () => undefined),
-    disconnectAll: jest.fn(async () => undefined),
+    disconnectSession: jest.fn(() => Promise.resolve(undefined)),
+    disconnectAll: jest.fn(() => Promise.resolve(undefined)),
   };
-  class DAppConnectService {
+  const DAppConnectService = {
     // Mirrors the real static (a one-line scheme regex); re-declared here so
     // the mock factory does not have to load the real module graph.
-    static isConnectionURI(uri: string): boolean {
+    isConnectionURI(uri: string): boolean {
       return /^qrlconnect:/i.test(uri);
-    }
-  }
+    },
+  };
   return { dappConnectService, DAppConnectService };
 });
 
 jest.mock("@/desktop/bridge", () => ({
   isDesktop: false,
   desktopSigner: {
-    dappRequestAttention: jest.fn(async () => undefined),
+    dappRequestAttention: jest.fn(() => Promise.resolve(undefined)),
   },
 }));
 
@@ -100,15 +100,15 @@ beforeEach(() => {
 describe("constructor wiring", () => {
   it("registers service handlers and runs migration/reconnect maintenance when none stored", () => {
     new DAppConnectStore();
-    expect(mockService.setHandlers).toHaveBeenCalledTimes(1);
-    expect(mockService.reconnectAll).toHaveBeenCalledTimes(1);
+    expect(mockService.setHandlers.mock.calls).toHaveLength(1);
+    expect(mockService.reconnectAll.mock.calls).toHaveLength(1);
   });
 
   it("auto-reconnects when stored sessions exist", () => {
     mockService.getActiveSessions.mockReturnValue([makeSession()]);
     const store = new DAppConnectStore();
     expect(store.sessionCount).toBe(1);
-    expect(mockService.reconnectAll).toHaveBeenCalledTimes(1);
+    expect(mockService.reconnectAll.mock.calls).toHaveLength(1);
   });
 });
 
@@ -135,6 +135,9 @@ describe("requestDesktopConnect", () => {
       store.requestDesktopConnect("https://evil.example/?q=x", "deeplink");
       expect(store.desktopConnectUri).toBeNull();
       expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "[DAppConnect] ignoring non-qrlconnect desktop connect URI",
+      );
     } finally {
       warn.mockRestore();
     }
@@ -178,7 +181,7 @@ describe("confirmDesktopConnect", () => {
     const store = new DAppConnectStore();
     const result = await store.confirmDesktopConnect();
     expect(result).toEqual({ success: false, error: "No pending connection" });
-    expect(mockService.handleConnectionURI).not.toHaveBeenCalled();
+    expect(mockService.handleConnectionURI.mock.calls).toHaveLength(0);
   });
 
   it("maps a deeplink source to the deeplink origin and clears on success", async () => {
@@ -186,10 +189,10 @@ describe("confirmDesktopConnect", () => {
     store.requestDesktopConnect(URI_A, "deeplink");
     const result = await store.confirmDesktopConnect();
     expect(result.success).toBe(true);
-    expect(mockService.handleConnectionURI).toHaveBeenCalledWith(
+    expect(mockService.handleConnectionURI.mock.calls).toContainEqual([
       URI_A,
       "deeplink",
-    );
+    ]);
     expect(store.desktopConnectUri).toBeNull();
   });
 
@@ -197,14 +200,20 @@ describe("confirmDesktopConnect", () => {
     const store = new DAppConnectStore();
     store.requestDesktopConnect(URI_A, "paste");
     await store.confirmDesktopConnect();
-    expect(mockService.handleConnectionURI).toHaveBeenCalledWith(URI_A, "qr");
+    expect(mockService.handleConnectionURI.mock.calls).toContainEqual([
+      URI_A,
+      "qr",
+    ]);
   });
 
   it("maps a web link source to the qr origin (dApp may be in another tab)", async () => {
     const store = new DAppConnectStore();
     store.requestDesktopConnect(URI_A, "link");
     await store.confirmDesktopConnect();
-    expect(mockService.handleConnectionURI).toHaveBeenCalledWith(URI_A, "qr");
+    expect(mockService.handleConnectionURI.mock.calls).toContainEqual([
+      URI_A,
+      "qr",
+    ]);
   });
 
   it("keeps the staged URI when the connect fails (modal shows the error)", async () => {
@@ -225,9 +234,9 @@ describe("confirmDesktopConnect", () => {
     // modal would never appear and the request would vanish silently.
     const store = new DAppConnectStore();
     store.requestDesktopConnect(URI_A, "deeplink");
-    mockService.handleConnectionURI.mockImplementation(async () => {
+    mockService.handleConnectionURI.mockImplementation(() => {
       store.requestDesktopConnect(URI_B, "deeplink");
-      return { success: true };
+      return Promise.resolve({ success: true });
     });
     const result = await store.confirmDesktopConnect();
     expect(result.success).toBe(true);
@@ -246,13 +255,13 @@ describe("approval queue passthrough", () => {
 
     store.approveCurrentRequest("0xresult");
 
-    expect(mockService.approveRequest).toHaveBeenCalledWith(
+    expect(mockService.approveRequest.mock.calls).toContainEqual([
       "session-1",
       1,
       "0xresult",
-    );
+    ]);
     // mobx wraps queued requests in observable proxies; compare identity.
-    expect(store.currentApproval?.id).toBe(second.id);
+    expect(store.currentApproval).toMatchObject({ id: second.id });
     expect(store.approvalModalOpen).toBe(true);
   });
 
@@ -267,12 +276,12 @@ describe("approval queue passthrough", () => {
       4902,
     );
 
-    expect(mockService.rejectRequest).toHaveBeenCalledWith(
+    expect(mockService.rejectRequest.mock.calls).toContainEqual([
       "session-1",
       1,
       "The desktop wallet is pinned to its configured chain",
       4902,
-    );
+    ]);
     expect(store.currentApproval).toBeNull();
     expect(store.approvalModalOpen).toBe(false);
   });
@@ -285,12 +294,12 @@ describe("approval queue passthrough", () => {
 
     store.rejectCurrentRequest("User rejected");
 
-    expect(mockService.rejectRequest).toHaveBeenCalledWith(
+    expect(mockService.rejectRequest.mock.calls).toContainEqual([
       "session-1",
       1,
       "User rejected",
       undefined,
-    );
+    ]);
   });
 
   it("sendApprovalResultById keeps the modal open (progress UI)", () => {
@@ -302,12 +311,12 @@ describe("approval queue passthrough", () => {
 
     store.sendApprovalResultById(req.sessionId, req.id, "0xhash");
 
-    expect(mockService.approveRequest).toHaveBeenCalledWith(
+    expect(mockService.approveRequest.mock.calls).toContainEqual([
       "session-1",
       1,
       "0xhash",
-    );
-    expect(store.currentApproval?.id).toBe(req.id);
+    ]);
+    expect(store.currentApproval).toMatchObject({ id: req.id });
     expect(store.approvalModalOpen).toBe(true);
   });
 
@@ -329,10 +338,10 @@ describe("approval queue passthrough", () => {
     ).toBe(false);
     expect(store.txProgress).toBe("idle");
     expect(store.txHash).toBeNull();
-    expect(store.currentApproval?.id).toBe(reqB.id);
+    expect(store.currentApproval).toMatchObject({ id: reqB.id });
   });
 
-  it("approveRequestById answers the captured request, not the promoted one", () => {
+  it("approveRequestById answers the captured request after queue promotion", () => {
     // The wrong-request race: request A is approved, its async signing is in
     // flight, A's session disconnects and request B becomes current. The
     // resolution must answer A (already gone) and leave B untouched.
@@ -352,12 +361,12 @@ describe("approval queue passthrough", () => {
 
     store.approveRequestById(sessionId, id, "0xsig");
 
-    expect(mockService.approveRequest).toHaveBeenCalledWith(
+    expect(mockService.approveRequest.mock.calls).toContainEqual([
       "session-1",
       1,
       "0xsig",
-    );
-    expect(store.currentApproval?.id).toBe(reqB.id);
+    ]);
+    expect(store.currentApproval).toMatchObject({ id: reqB.id });
     expect(store.approvalModalOpen).toBe(true);
     expect(store.pendingRequests).toEqual([reqB]);
   });
@@ -366,8 +375,8 @@ describe("approval queue passthrough", () => {
     const store = new DAppConnectStore();
     store.approveCurrentRequest("x");
     store.rejectCurrentRequest("y", 4001);
-    expect(mockService.approveRequest).not.toHaveBeenCalled();
-    expect(mockService.rejectRequest).not.toHaveBeenCalled();
+    expect(mockService.approveRequest.mock.calls).toHaveLength(0);
+    expect(mockService.rejectRequest.mock.calls).toHaveLength(0);
   });
 });
 
@@ -375,11 +384,12 @@ describe("service handler callbacks", () => {
   function capturedHandlers() {
     const call = mockService.setHandlers.mock.calls[0];
     if (!call) throw new Error("setHandlers not called");
-    return call[0] as {
-      onPendingRequest: (r: PendingDAppRequest) => void;
-      onSessionDisconnected: (sessionId: string) => void;
-      hasPendingApprovalsForChannel: (channelId: string) => boolean;
-    };
+    const handlers = call[0];
+    const { hasPendingApprovalsForChannel } = handlers;
+    if (!hasPendingApprovalsForChannel) {
+      throw new Error("Pending-approval handler not registered");
+    }
+    return { ...handlers, hasPendingApprovalsForChannel };
   }
 
   it("onPendingRequest queues and auto-shows the first request only", () => {
@@ -392,7 +402,7 @@ describe("service handler callbacks", () => {
     handlers.onPendingRequest(second);
 
     expect(store.pendingRequests).toHaveLength(2);
-    expect(store.currentApproval?.id).toBe(first.id);
+    expect(store.currentApproval).toMatchObject({ id: first.id });
     expect(store.approvalModalOpen).toBe(true);
   });
 
@@ -408,7 +418,7 @@ describe("service handler callbacks", () => {
     handlers.onSessionDisconnected("session-1");
 
     expect(store.pendingRequests.map((r) => r.id)).toEqual([other.id]);
-    expect(store.currentApproval?.id).toBe(other.id);
+    expect(store.currentApproval).toMatchObject({ id: other.id });
     expect(store.approvalModalOpen).toBe(true);
     expect(store.txProgress).toBe("idle");
     expect(store.txHash).toBeNull();

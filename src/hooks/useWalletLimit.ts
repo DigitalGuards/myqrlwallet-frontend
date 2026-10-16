@@ -1,5 +1,7 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 import { useState, useEffect } from 'react';
 import { StorageUtil } from '@/utils/storage';
+import { logger } from '@/utils/log';
 
 interface WalletLimitState {
   isWalletLimitReached: boolean;
@@ -12,7 +14,7 @@ interface WalletLimitState {
  * Hook to check wallet limit status for a given blockchain.
  * Eliminates duplicated wallet limit checking logic across components.
  */
-export function useWalletLimit(blockchain: string | undefined): WalletLimitState {
+export function useWalletLimit(blockchain: BlockchainSelection | undefined): WalletLimitState {
   const [isWalletLimitReached, setIsWalletLimitReached] = useState(false);
   const [walletCount, setWalletCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,7 +32,9 @@ export function useWalletLimit(blockchain: string | undefined): WalletLimitState
         setIsLoading(false);
       }
     };
-    checkWalletLimit();
+    checkWalletLimit().catch((error: unknown) => {
+      logger.error('Failed to check wallet limit:', error);
+    });
   }, [blockchain]);
 
   return { isWalletLimitReached, walletCount, maxWallets, isLoading };

@@ -1,3 +1,5 @@
+import { isRecord } from "../guards";
+
 // The native bridge exists only in the embedded build, which the app ships.
 jest.mock("@/utils/embeddedRuntime", () => ({
   ...jest.requireActual<typeof import("@/utils/embeddedRuntime")>(
@@ -15,12 +17,12 @@ const originalNavigator = Object.getOwnPropertyDescriptor(
 
 describe("native device credential request protocol", () => {
   let eventTarget: EventTarget;
-  let postMessage: jest.Mock;
+  let postMessage: jest.Mock<undefined, [string]>;
 
   beforeEach(() => {
     jest.resetModules();
     eventTarget = new EventTarget();
-    postMessage = jest.fn();
+    postMessage = jest.fn((_message: string) => undefined);
     Object.assign(eventTarget, { ReactNativeWebView: { postMessage } });
     Object.defineProperty(globalThis, "window", {
       configurable: true,
@@ -41,6 +43,34 @@ describe("native device credential request protocol", () => {
     else Reflect.deleteProperty(globalThis, "navigator");
   });
 
+  function parsePostedMessage(wire: string | undefined): {
+    payload: Record<string, unknown> & {
+      documentId: string;
+      requestId: string;
+    };
+  } {
+    if (wire === undefined)
+      throw new Error("Native bridge message was not posted");
+    const message: unknown = JSON.parse(wire);
+    if (!isRecord(message) || !isRecord(message["payload"])) {
+      throw new Error("Invalid native message envelope");
+    }
+    const payload = message["payload"];
+    if (
+      typeof payload["documentId"] !== "string" ||
+      typeof payload["requestId"] !== "string"
+    )
+      throw new Error("Missing native correlation identifiers");
+    return {
+      ...message,
+      payload: {
+        ...payload,
+        documentId: payload["documentId"],
+        requestId: payload["requestId"],
+      },
+    };
+  }
+
   async function waitForPostedMessage(): Promise<string> {
     for (let attempt = 0; attempt < 100; attempt += 1) {
       const posted = postMessage.mock.calls[0]?.[0];
@@ -58,7 +88,7 @@ describe("native device credential request protocol", () => {
       candidate,
     });
     expect(postMessage).toHaveBeenCalledTimes(1);
-    const sent = JSON.parse(postMessage.mock.calls[0]?.[0] as string);
+    const sent = parsePostedMessage(postMessage.mock.calls[0]?.[0]);
     expect(sent).toMatchObject({
       type: "DEVICE_CREDENTIAL_REQUEST",
       payload: { createIfMissing: true, candidate },
@@ -82,7 +112,7 @@ describe("native device credential request protocol", () => {
   it("reports a missing credential without asking native to create one", async () => {
     const { requestNativeDeviceCredential } = await import("../nativeApp");
     const request = requestNativeDeviceCredential({ createIfMissing: false });
-    const sent = JSON.parse(postMessage.mock.calls[0]?.[0] as string);
+    const sent = parsePostedMessage(postMessage.mock.calls[0]?.[0]);
     expect(sent.payload).not.toHaveProperty("candidate");
     eventTarget.dispatchEvent(
       new CustomEvent("nativeMessage", {
@@ -110,7 +140,7 @@ describe("native device credential request protocol", () => {
       blockchain: "TEST_NET",
       revision: 9,
     });
-    const sent = JSON.parse(await waitForPostedMessage());
+    const sent = parsePostedMessage(await waitForPostedMessage());
     expect(sent).toMatchObject({
       type: "SEED_STORED",
       payload: { revision: 9, ciphertextHash },
@@ -141,7 +171,7 @@ describe("native device credential request protocol", () => {
       blockchain: "MAIN_NET",
       revision: 3,
     });
-    const sent = JSON.parse(await waitForPostedMessage());
+    const sent = parsePostedMessage(await waitForPostedMessage());
 
     eventTarget.dispatchEvent(
       new CustomEvent("nativeMessage", {
@@ -152,7 +182,7 @@ describe("native device credential request protocol", () => {
             requestId: sent.payload.requestId,
             success: true,
             revision: 2,
-            ciphertextHash: sent.payload.ciphertextHash,
+            ciphertextHash: sent.payload["ciphertextHash"],
           },
         },
       }),

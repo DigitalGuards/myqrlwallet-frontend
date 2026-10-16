@@ -2,7 +2,7 @@ import { formatUnits, parseUnits } from "./units";
 
 /** Bootstrap with one base unit, then verify Max under the signer's fee policy. */
 export async function nativeMaxReserve(
-  balance: string,
+  balance: unknown,
   estimateFee: (value: string) => Promise<string>,
 ): Promise<string> {
   const available = parseUnits(balance, 18);

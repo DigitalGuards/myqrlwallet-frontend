@@ -1,5 +1,5 @@
 /**
- * Post-quantum handshake — wallet side.
+ * Post-quantum handshake - wallet side.
  *
  * The wallet's entry point is receiveQR(cid, pk, cap): the service fetches
  * the dApp's ML-KEM-768 public key from the relay only after verifying the
@@ -12,7 +12,7 @@
  * -------------------------
  * exportPersisted() emits the derived AES-256 session key as raw bytes so
  * SessionStore can write it to `localStorage` and survive a page reload.
- * The trust boundary is the browser origin — same as the ECIES private key
+ * The trust boundary is the browser origin - same as the ECIES private key
  * held by v1 sessions. Anyone with read access to `localStorage` for the
  * wallet origin can decrypt traffic for an active pairing.
  *
@@ -47,6 +47,7 @@ import {
   zeroize,
 } from './PQCrypto';
 import { KeyExchangeMessageType } from './types';
+import { isRecord } from '@/utils/guards';
 
 export const PROTOCOL_VERSION = 3;
 
@@ -80,6 +81,8 @@ export interface PersistedSession {
 }
 
 interface DecodedPersistedSession {
+  sendSeq: number;
+  recvSeq: number;
   cid: Uint8Array;
   kAeadRaw: Uint8Array;
   htx: Uint8Array;
@@ -105,16 +108,18 @@ function decodeExactBase64(value: unknown, byteLength: number): Uint8Array {
   return decoded;
 }
 
-function decodePersistedSession(p: PersistedSession): DecodedPersistedSession {
+function decodePersistedSession(p: unknown): DecodedPersistedSession {
   if (
-    !p ||
-    p.protocolVersion !== PROTOCOL_VERSION ||
-    !Number.isSafeInteger(p.sendSeq) ||
-    p.sendSeq < 0 ||
-    p.sendSeq >= Number.MAX_SAFE_INTEGER ||
-    !Number.isSafeInteger(p.recvSeq) ||
-    p.recvSeq < 0 ||
-    p.recvSeq >= Number.MAX_SAFE_INTEGER
+    !isRecord(p) ||
+    p['protocolVersion'] !== PROTOCOL_VERSION ||
+    typeof p['sendSeq'] !== 'number' ||
+    typeof p['recvSeq'] !== 'number' ||
+    !Number.isSafeInteger(p['sendSeq']) ||
+    p['sendSeq'] < 0 ||
+    p['sendSeq'] >= Number.MAX_SAFE_INTEGER ||
+    !Number.isSafeInteger(p['recvSeq']) ||
+    p['recvSeq'] < 0 ||
+    p['recvSeq'] >= Number.MAX_SAFE_INTEGER
   ) {
     throw new Error('KeyExchange: invalid persisted session');
   }
@@ -126,25 +131,29 @@ function decodePersistedSession(p: PersistedSession): DecodedPersistedSession {
     return bytes;
   };
   try {
-    const cid = decode(p.cid, CID_LEN);
-    const kAeadRaw = decode(p.kAeadRaw, 32);
-    const htx = decode(p.htx, 32);
-    const sendDir = decode(p.sendDir, 4);
-    const recvDir = decode(p.recvDir, 4);
+    const cid = decode(p['cid'], CID_LEN);
+    const kAeadRaw = decode(p['kAeadRaw'], 32);
+    const htx = decode(p['htx'], 32);
+    const sendDir = decode(p['sendDir'], 4);
+    const recvDir = decode(p['recvDir'], 4);
     if (
       !constantTimeEquals(sendDir, DIR_WALLET_TX) ||
       !constantTimeEquals(recvDir, DIR_DAPP_TX)
     ) {
       throw new Error('KeyExchange: invalid persisted directions');
     }
-    return { cid, kAeadRaw, htx, sendDir, recvDir };
+    return {
+      cid, kAeadRaw, htx, sendDir, recvDir,
+      sendSeq: p['sendSeq'],
+      recvSeq: p['recvSeq'],
+    };
   } catch (error) {
     for (const value of decoded) zeroize(value);
     throw error;
   }
 }
 
-export function isPersistedSessionEncodingValid(p: PersistedSession): boolean {
+export function isPersistedSessionEncodingValid(p: unknown): boolean {
   let decoded: DecodedPersistedSession | null = null;
   try {
     decoded = decodePersistedSession(p);
@@ -173,6 +182,15 @@ export interface AckMessage {
   type: KeyExchangeMessageType.ACK;
   c1: string;
   v: number;
+}
+
+export function isAckMessage(value: unknown): value is AckMessage {
+  return (
+    isRecord(value) &&
+    value['type'] === KeyExchangeMessageType.ACK &&
+    typeof value['c1'] === 'string' &&
+    typeof value['v'] === 'number'
+  );
 }
 
 interface KeyExchangeOptions {
@@ -267,7 +285,7 @@ export class KeyExchange {
   }
 
   /** Verify the dApp's ACK and finalize the session. */
-  async onAck(msg: AckMessage): Promise<void> {
+  async onAck(msg: unknown): Promise<void> {
     if (!this.awaitingAck) return;
     if (!this.session) {
       throw new Error('KeyExchange: onAck without a session');
@@ -277,10 +295,8 @@ export class KeyExchange {
     let hello: Uint8Array | null = null;
     try {
       if (
-        !msg ||
-        msg.type !== KeyExchangeMessageType.ACK ||
+        !isAckMessage(msg) ||
         msg.v !== PROTOCOL_VERSION ||
-        typeof msg.c1 !== 'string' ||
         msg.c1.length !== ACK_CIPHERTEXT_B64_LEN
       ) {
         throw new Error(`KeyExchange: ACK must use protocol v${PROTOCOL_VERSION}`);
@@ -427,7 +443,7 @@ export class KeyExchange {
     }
   }
 
-  static async sessionFromPersisted(p: PersistedSession): Promise<Session> {
+  static async sessionFromPersisted(p: unknown): Promise<Session> {
     const decoded = decodePersistedSession(p);
     let retained = false;
     try {
@@ -439,8 +455,8 @@ export class KeyExchange {
         htx: decoded.htx,
         sendDir: decoded.sendDir,
         recvDir: decoded.recvDir,
-        sendSeq: p.sendSeq,
-        recvSeq: p.recvSeq,
+        sendSeq: decoded.sendSeq,
+        recvSeq: decoded.recvSeq,
       };
     } finally {
       zeroize(decoded.kAeadRaw);

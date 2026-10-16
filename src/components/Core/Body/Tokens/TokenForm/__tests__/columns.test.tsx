@@ -1,20 +1,24 @@
 /** @jest-environment jsdom */
 
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-import type { ColumnDef } from "@tanstack/react-table";
+import { flexRender, type ColumnDef } from "@tanstack/react-table";
 import type { TokenInterface } from "@/constants";
 import { copyToClipboard } from "@/utils/nativeApp";
+import { reportError } from "@/utils/reportError";
 import { columns } from "../columns";
+import { CopyableText, BalanceCell, HideTokenButton } from "../TokenCells";
 import { DataTable } from "../data-table";
 
-const mockNavigate = jest.fn();
+const mockNavigate = jest.fn<Promise<void> | void, [string]>();
+jest.mock("@/utils/reportError", () => ({ reportError: jest.fn() }));
 
 jest.mock("@/utils/nativeApp", () => ({
-  copyToClipboard: jest.fn(async () => true),
+  copyToClipboard: jest.fn(() => Promise.resolve(true)),
 }));
 
+const mockHide = jest.fn<Promise<void>, [string]>();
 jest.mock("@/stores/store", () => ({
-  useStore: jest.fn(),
+  useStore: () => ({ tokenStore: { hideToken: mockHide, isRefreshingBalances: false } }),
 }));
 jest.mock("react-router", () => ({ useNavigate: () => mockNavigate }));
 jest.mock("@/router/router", () => ({ ROUTES: { TRANSFER: "/transfer" } }));
@@ -46,7 +50,7 @@ function renderAddressCells() {
   const observedColumn: ColumnDef<TokenInterface> = {
     ...addressColumn,
     cell: (context) =>
-      renderCell({
+      flexRender(renderCell, {
         ...context,
         row: {
           ...context.row,
@@ -66,11 +70,10 @@ function renderAddressCells() {
   return { ...view, onRowClick, onTokenSelected };
 }
 
+beforeEach(() => { jest.clearAllMocks(); });
+afterEach(cleanup);
+
 describe("token address column", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-  afterEach(cleanup);
 
   it("uses a start/end address and opens transfer once without expanding or bubbling", async () => {
     const view = renderAddressCells();
@@ -81,7 +84,7 @@ describe("token address column", () => {
     if (!showFull) throw new Error("Expected the first token address action");
     fireEvent.click(showFull);
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledTimes(1));
+    await waitFor(() => { expect(mockNavigate).toHaveBeenCalledTimes(1); });
     expect(mockNavigate).toHaveBeenCalledWith(`/transfer?asset=${ADDRESS}`);
     expect(view.onTokenSelected).toHaveBeenCalledTimes(1);
     expect(view.onTokenSelected).toHaveBeenCalledWith(ADDRESS, true);
@@ -102,7 +105,7 @@ describe("token address column", () => {
     if (!showFull) throw new Error("Expected the second token address action");
     fireEvent.click(showFull);
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledTimes(1));
+    await waitFor(() => { expect(mockNavigate).toHaveBeenCalledTimes(1); });
     expect(mockNavigate).toHaveBeenCalledWith(
       `/transfer?asset=${SECOND_ADDRESS}`,
     );
@@ -117,7 +120,7 @@ describe("token address column", () => {
     if (!copy) throw new Error("Expected the first token copy action");
     fireEvent.click(copy);
 
-    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledTimes(1));
+    await waitFor(() => { expect(copyToClipboard).toHaveBeenCalledTimes(1); });
     expect(copyToClipboard).toHaveBeenCalledWith(ADDRESS);
     expect(mockNavigate).not.toHaveBeenCalled();
     expect(view.onTokenSelected).not.toHaveBeenCalled();
@@ -129,4 +132,53 @@ describe("token address column", () => {
       view.container.querySelector('[data-address-mode="full"]'),
     ).toBeNull();
   });
+});
+
+it("clears selection so the same token can be opened again", async () => {
+  const view = renderAddressCells();
+  const [open] = view.getAllByRole("button", { name: "Show full" });
+  if (!open) throw new Error("Missing token action");
+  fireEvent.click(open);
+  await waitFor(() => { expect(mockNavigate).toHaveBeenCalledTimes(1); });
+  fireEvent.click(open);
+  await waitFor(() => { expect(mockNavigate).toHaveBeenCalledTimes(2); });
+});
+
+it("reports rejected navigation and keeps the token available", async () => {
+  jest.clearAllMocks();
+  const error = new Error("Navigation unavailable");
+  mockNavigate.mockRejectedValueOnce(error);
+  const view = renderAddressCells();
+  const [open] = view.getAllByRole("button", { name: "Show full" });
+  if (!open) throw new Error("Missing token action");
+  fireEvent.click(open);
+  await waitFor(() => { expect(reportError).toHaveBeenCalledWith("Failed to open transfer:", error); });
+  expect(view.getByText(SHORT_ADDRESS)).toBeTruthy();
+  expect(mockNavigate).toHaveBeenCalledTimes(1);
+});
+
+it("handles rejected token text and balance copies", async () => {
+  const error = new Error("Clipboard unavailable");
+  jest.mocked(copyToClipboard).mockRejectedValue(error);
+  const view = render(<><CopyableText text="Token" /><BalanceCell amount="1" /></>);
+  for (const copy of view.container.querySelectorAll("svg")) fireEvent.click(copy);
+  await waitFor(() => {
+    expect(reportError).toHaveBeenCalledWith("Failed to copy token text:", error);
+    expect(reportError).toHaveBeenCalledWith("Failed to copy token balance:", error);
+  });
+  jest.mocked(copyToClipboard).mockResolvedValue(true);
+});
+
+it("reports a failed hide without selecting or navigating", async () => {
+  const error = new Error("Storage unavailable");
+  mockHide.mockRejectedValueOnce(error);
+  const onRowClick = jest.fn();
+  const view = render(<div onClick={onRowClick}><HideTokenButton tokenAddress={ADDRESS} /></div>);
+  const hide = view.container.querySelector("svg");
+  if (!hide) throw new Error("Missing hide token action");
+  fireEvent.click(hide);
+  await waitFor(() => { expect(reportError).toHaveBeenCalledWith("Failed to hide token:", error); });
+  expect(mockHide).toHaveBeenCalledWith(ADDRESS);
+  expect(onRowClick).not.toHaveBeenCalled();
+  expect(mockNavigate).not.toHaveBeenCalled();
 });

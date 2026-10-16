@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 /**
  * NativeAppBridge Component
  *
@@ -12,7 +13,6 @@ import {
   isInNativeApp,
   subscribeToNativeMessages,
   type NativeMessage,
-  type NativeToWebMessageType,
   logToNative,
   setNativeInjectedPin,
   hasNativeInjectedPin,
@@ -57,6 +57,7 @@ import {
   disconnectMobile,
   hasMobileSession,
 } from "@/utils/mobileConnect/mobileConnection";
+import { logError, logInfo, logWarning } from "@/utils/log";
 import { isQrlAccount } from "@/services/dappConnect/accountBinding";
 
 const REQUEST_ID_PATTERN = /^[0-9a-f]{32}$/;
@@ -90,7 +91,7 @@ const PIN_CHANGE_ERRORS = {
  * Updates MobX store directly instead of reloading the page.
  */
 async function restoreAccountState(
-  blockchain: string,
+  blockchain: BlockchainSelection,
   address: string,
 ): Promise<void> {
   try {
@@ -124,7 +125,7 @@ async function restoreAccountState(
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error("[Bridge] Error restoring account state:", error);
+    logError("[Bridge] Error restoring account state:", error);
     logToNative(`Error restoring account state: ${errorMsg}`);
   }
 }
@@ -168,7 +169,7 @@ async function handleChangePinRequest(
     if (hasNativeInjectedPin()) setNativeInjectedPin(newPin);
     sendPinChanged(requestId, true, newPin);
   } catch (error) {
-    console.error("[Bridge] Error changing PIN:", error);
+    logError("[Bridge] Error changing PIN:", error);
 
     if (!isCurrent()) {
       logToNative("PIN change failed because the wallet was cleared");
@@ -233,9 +234,9 @@ async function handleCorrelatedPinVerification(
   try {
     await walletMutations.enqueueWalletMutation(
       async (isCurrent) => {
-        let blockchain: string;
+        let blockchain: BlockchainSelection;
         let activeAccount: string;
-        let encryptedSeed: string;
+        let encryptedSeed: unknown;
         try {
           blockchain = await StorageUtil.getBlockChain();
           const storedAccount = await StorageUtil.getActiveAccount(blockchain);
@@ -262,7 +263,7 @@ async function handleCorrelatedPinVerification(
           }
           encryptedSeed = storedSeed;
         } catch (error) {
-          console.error("[Bridge] Storage error during PIN verification:", error);
+          logError("[Bridge] Storage error during PIN verification:", error);
           sendPinVerified(requestId, false, "Storage error");
           return;
         }
@@ -352,6 +353,18 @@ async function assertWalletClearPostconditions(): Promise<void> {
 const NativeAppBridge: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const navigateFromNative = useCallback(
+    (path: string): void => {
+      const navigation = navigate(path);
+      if (navigation) {
+        navigation.catch((error: unknown) => {
+          logError("[Bridge] Navigation failed:", error);
+          logToNative("Navigation failed");
+        });
+      }
+    },
+    [navigate],
+  );
   const documentChallengeEchoed = useRef(false);
   const readyRetryTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -370,20 +383,20 @@ const NativeAppBridge: React.FC = () => {
       // A non-challenge arriving after our exact echo proves native activated
       // this document, so READY retries are no longer needed.
       if (
-        type !== ("WEB_DOCUMENT_CHALLENGE" as NativeToWebMessageType) &&
+        type !== "WEB_DOCUMENT_CHALLENGE" &&
         documentChallengeEchoed.current
       ) {
         stopReadyRetries();
       }
 
       switch (type) {
-        case "WEB_DOCUMENT_CHALLENGE" as NativeToWebMessageType: {
+        case "WEB_DOCUMENT_CHALLENGE": {
           const challengeId = payload?.["challengeId"];
           if (
             typeof challengeId !== "string" ||
             !REQUEST_ID_PATTERN.test(challengeId)
           ) {
-            console.warn("[Bridge] Invalid web document challenge");
+            logWarning("[Bridge] Invalid web document challenge");
             return;
           }
           if (confirmWebDocumentReady(challengeId)) {
@@ -395,7 +408,7 @@ const NativeAppBridge: React.FC = () => {
         case "QR_RESULT": {
           const address = payload?.["address"];
           if (typeof address !== "string" || !address) {
-            console.warn("[Bridge] QR result missing or invalid address");
+            logWarning("[Bridge] QR result missing or invalid address");
             return;
           }
 
@@ -435,14 +448,14 @@ const NativeAppBridge: React.FC = () => {
           // Otherwise, navigate to transfer page with the address
           const searchParams = new URLSearchParams(location.search);
           searchParams.set("to", address);
-          navigate(`${ROUTES.TRANSFER}?${searchParams.toString()}`);
+          navigateFromNative(`${ROUTES.TRANSFER}?${searchParams.toString()}`);
           break;
         }
 
         case "BIOMETRIC_SUCCESS": {
           const authenticated = payload?.["authenticated"];
           if (typeof authenticated !== "boolean") {
-            console.warn(
+            logWarning(
               "[Bridge] BIOMETRIC_SUCCESS missing or invalid authenticated flag",
             );
             return;
@@ -459,7 +472,7 @@ const NativeAppBridge: React.FC = () => {
             state !== "background" &&
             state !== "inactive"
           ) {
-            console.warn("[Bridge] APP_STATE missing or invalid state");
+            logWarning("[Bridge] APP_STATE missing or invalid state");
             return;
           }
           // The injected PIN must never survive a lock. Only 'background' is
@@ -476,7 +489,10 @@ const NativeAppBridge: React.FC = () => {
           logToNative(`App state changed: ${state}`);
           // Reconnect dApp sessions when app returns to foreground
           if (state === "active") {
-            dappConnectService.reconnectAll();
+            dappConnectService.reconnectAll().catch((error: unknown) => {
+              logError("[Bridge] Error reconnecting dApp sessions:", error);
+              logToNative("DApp reconnection failed");
+            });
           }
           break;
         }
@@ -490,10 +506,10 @@ const NativeAppBridge: React.FC = () => {
         }
 
         // Deep link URI from native app (qrlconnect:// scheme)
-        case "DAPP_URI" as NativeToWebMessageType: {
+        case "DAPP_URI": {
           const uri = payload?.["uri"];
           if (typeof uri !== "string" || !uri) {
-            console.warn("[Bridge] DAPP_URI missing or invalid uri");
+            logWarning("[Bridge] DAPP_URI missing or invalid uri");
             return;
           }
           if (!DAppConnectService.isConnectionURI(uri)) {
@@ -512,7 +528,7 @@ const NativeAppBridge: React.FC = () => {
         }
 
         // Native requests disconnect of a specific dApp session
-        case "DAPP_DISCONNECT" as NativeToWebMessageType: {
+        case "DAPP_DISCONNECT": {
           const requestId = payload?.["requestId"];
           const channelId = payload?.["channelId"];
           if (
@@ -521,7 +537,7 @@ const NativeAppBridge: React.FC = () => {
             typeof channelId !== "string" ||
             !CHANNEL_ID_PATTERN.test(channelId)
           ) {
-            console.warn("[Bridge] DAPP_DISCONNECT has invalid correlation fields");
+            logWarning("[Bridge] DAPP_DISCONNECT has invalid correlation fields");
             return;
           }
           if (pendingDAppDisconnects.has(requestId)) return;
@@ -548,15 +564,14 @@ const NativeAppBridge: React.FC = () => {
           break;
         }
 
-        case "SET_DISPLAY_PREFS" as NativeToWebMessageType: {
+        case "SET_DISPLAY_PREFS": {
           // The native app's own Settings tab drives the Home Tokens/NFTs card
           // toggles. Merge the provided booleans into wallet settings;
           // setWalletSettings dispatches STORAGE_EVENT_WALLET_SETTINGS, which
           // Home listens for, so the cards update without a reload.
-          (async () => {
+          void (async () => {
             try {
-              const { showTokensCard, showNftsCard } = (payload ||
-                {}) as Record<string, unknown>;
+              const { showTokensCard, showNftsCard } = payload ?? {};
               const current = await StorageUtil.getWalletSettings();
               const next = { ...current };
 
@@ -570,7 +585,7 @@ const NativeAppBridge: React.FC = () => {
             } catch (error) {
               const errorMsg =
                 error instanceof Error ? error.message : String(error);
-              console.error(
+              logError(
                 "[Bridge] Error applying SET_DISPLAY_PREFS:",
                 error,
               );
@@ -580,15 +595,15 @@ const NativeAppBridge: React.FC = () => {
           break;
         }
 
-        case "RESTORE_CONTACTS" as NativeToWebMessageType: {
+        case "RESTORE_CONTACTS": {
           // Native pushes its address-book backup on boot; merge it in
           // (union by address, local wins) so contacts survive WebView
           // data loss. mergeContacts syncs the union back to native.
           try {
-            const { contacts } = (payload || {}) as Record<string, unknown>;
+            const { contacts } = payload ?? {};
             mergeContacts(contacts);
           } catch (error) {
-            console.error("[Bridge] Error restoring contacts:", error);
+            logError("[Bridge] Error restoring contacts:", error);
             logToNative(
               `Error restoring contacts: ${error instanceof Error ? error.message : String(error)}`,
             );
@@ -596,48 +611,48 @@ const NativeAppBridge: React.FC = () => {
           break;
         }
 
-        case "NATIVE_BACK" as NativeToWebMessageType: {
+        case "NATIVE_BACK": {
           // Android's hardware back, resolved by the page: close the topmost
           // overlay, else walk the in-memory route stack, else report that
           // there is nothing left so the app can background itself. Exactly
           // one answer per request. An overlay closes through its own dismiss
           // path, so an approval sheet rejects and can never approve.
           const outcome = resolveNativeBack(
-            (path) => navigate(path),
+            navigateFromNative,
             window.location.hash.replace(/^#/, "") || "/",
           );
           sendToNative(outcome === "handled" ? "BACK_HANDLED" : "BACK_AT_ROOT");
           break;
         }
 
-        case "NAVIGATE" as NativeToWebMessageType: {
+        case "NAVIGATE": {
           // Native settings rows deep-link into web routes (e.g. the
           // Address Book). Only plain in-app paths are accepted.
-          const { path } = (payload || {}) as Record<string, unknown>;
+          const { path } = payload ?? {};
           if (
             typeof path === "string" &&
             path.startsWith("/") &&
             !path.startsWith("//")
           ) {
-            navigate(path);
+            navigateFromNative(path);
           } else {
-            console.warn("[Bridge] Ignored NAVIGATE with invalid path:", path);
+            logWarning("[Bridge] Ignored NAVIGATE with invalid path:", path);
           }
           break;
         }
 
         case "CLIPBOARD_SUCCESS":
           // Could show a toast notification
-          console.log("[Bridge] Clipboard success");
+          logInfo("[Bridge] Clipboard success");
           break;
 
         case "SHARE_SUCCESS":
           // Could show a toast notification
-          console.log("[Bridge] Share success");
+          logInfo("[Bridge] Share success");
           break;
 
         case "ERROR":
-          console.error("[Bridge] Native error:", payload?.["message"]);
+          logError("[Bridge] Native error:", payload?.["message"]);
           break;
 
         // Seed persistence messages
@@ -647,7 +662,7 @@ const NativeAppBridge: React.FC = () => {
             typeof pin !== "string" ||
             !WalletEncryptionUtil.validatePin(pin)
           ) {
-            console.warn("[Bridge] UNLOCK_WITH_PIN missing or invalid pin");
+            logWarning("[Bridge] UNLOCK_WITH_PIN missing or invalid pin");
             return;
           }
           logToNative("PIN received from native app");
@@ -678,7 +693,7 @@ const NativeAppBridge: React.FC = () => {
               (typeof ciphertextHash !== "string" ||
                 !/^[0-9a-f]{64}$/.test(ciphertextHash)))
           ) {
-            console.warn(
+            logWarning(
               "[Bridge] RESTORE_SEED missing or invalid required fields",
             );
             return;
@@ -688,7 +703,7 @@ const NativeAppBridge: React.FC = () => {
             `Considering native seed revision ${revision} for ${address}`,
           );
 
-          void walletMutations.enqueueRestore(async (isCurrent) => {
+          walletMutations.enqueueRestore(async (isCurrent) => {
             try {
               if (revision > 0) {
                 const actualHash = await hashEncryptedSeed(encryptedSeed);
@@ -716,12 +731,15 @@ const NativeAppBridge: React.FC = () => {
             } catch (error) {
               const errorMsg =
                 error instanceof Error ? error.message : String(error);
-              console.error(
+              logError(
                 `[Bridge] Error restoring seed for ${address}:`,
                 error,
               );
               logToNative(`Error restoring seed: ${errorMsg}`);
             }
+          }).catch((error: unknown) => {
+            logError("[Bridge] Error scheduling seed restore:", error);
+            logToNative("Error restoring seed");
           });
           break;
         }
@@ -732,7 +750,7 @@ const NativeAppBridge: React.FC = () => {
             typeof requestId !== "string" ||
             !REQUEST_ID_PATTERN.test(requestId)
           ) {
-            console.warn("[Bridge] CLEAR_WALLET missing or invalid requestId");
+            logWarning("[Bridge] CLEAR_WALLET missing or invalid requestId");
             return;
           }
           if (pendingWalletClears.has(requestId)) return;
@@ -763,13 +781,13 @@ const NativeAppBridge: React.FC = () => {
               await dappConnectService.clearAllSessions(false);
               await disconnectMobile();
               await qrlStore.setActiveAccount(undefined);
-              navigate(ROUTES.HOME);
+              await navigate(ROUTES.HOME);
             });
             await assertWalletClearPostconditions();
             confirmWalletCleared(requestId, true);
             logToNative("Wallet cleared, navigated to home");
-          })().catch((error) => {
-            console.error("[Bridge] Error clearing wallet:", error);
+          })().catch((error: unknown) => {
+            logError("[Bridge] Error clearing wallet:", error);
             logToNative("Error clearing wallet data");
             confirmWalletCleared(
               requestId,
@@ -793,14 +811,14 @@ const NativeAppBridge: React.FC = () => {
             typeof requestId !== "string" ||
             !REQUEST_ID_PATTERN.test(requestId)
           ) {
-            console.warn("[Bridge] VERIFY_PIN missing or invalid requestId");
+            logWarning("[Bridge] VERIFY_PIN missing or invalid requestId");
             return;
           }
           if (
             typeof pin !== "string" ||
             !WalletEncryptionUtil.validatePin(pin)
           ) {
-            console.warn("[Bridge] VERIFY_PIN missing or invalid pin");
+            logWarning("[Bridge] VERIFY_PIN missing or invalid pin");
             sendPinVerified(
               requestId,
               false,
@@ -808,7 +826,11 @@ const NativeAppBridge: React.FC = () => {
             );
             return;
           }
-          void handleCorrelatedPinVerification(requestId, pin);
+          handleCorrelatedPinVerification(requestId, pin).catch((error: unknown) => {
+            logError("[Bridge] Error verifying PIN:", error);
+            logToNative("PIN verification failed");
+            sendPinVerified(requestId, false, "Storage error");
+          });
           break;
         }
 
@@ -828,7 +850,7 @@ const NativeAppBridge: React.FC = () => {
             typeof requestId !== "string" ||
             !/^[0-9a-f]{32}$/.test(requestId)
           ) {
-            console.warn("[Bridge] CHANGE_PIN missing or invalid requestId");
+            logWarning("[Bridge] CHANGE_PIN missing or invalid requestId");
             return;
           }
 
@@ -836,7 +858,7 @@ const NativeAppBridge: React.FC = () => {
             typeof oldPin !== "string" ||
             !WalletEncryptionUtil.validatePin(oldPin)
           ) {
-            console.warn("[Bridge] CHANGE_PIN missing or invalid oldPin");
+            logWarning("[Bridge] CHANGE_PIN missing or invalid oldPin");
             sendPinChanged(
               requestId,
               false,
@@ -850,7 +872,7 @@ const NativeAppBridge: React.FC = () => {
             typeof newPin !== "string" ||
             !WalletEncryptionUtil.validatePin(newPin)
           ) {
-            console.warn("[Bridge] CHANGE_PIN missing or invalid newPin");
+            logWarning("[Bridge] CHANGE_PIN missing or invalid newPin");
             sendPinChanged(
               requestId,
               false,
@@ -861,7 +883,7 @@ const NativeAppBridge: React.FC = () => {
           }
 
           logToNative("Changing PIN for all encrypted seeds...");
-          void walletMutations.enqueuePinChange(
+          walletMutations.enqueuePinChange(
             (isCurrent) =>
               handleChangePinRequest(
                 requestId,
@@ -878,15 +900,24 @@ const NativeAppBridge: React.FC = () => {
                 "Wallet clear is in progress.",
               );
             },
-          );
+          ).catch((error: unknown) => {
+            logError("[Bridge] Error scheduling PIN change:", error);
+            logToNative("PIN change failed");
+            sendPinChanged(
+              requestId,
+              false,
+              undefined,
+              "An unexpected error occurred during PIN change.",
+            );
+          });
           break;
         }
 
         default:
-          console.warn("[Bridge] Unknown message type:", type);
+          logWarning("[Bridge] Unknown message type:", type);
       }
     },
-    [navigate, location.search, stopReadyRetries],
+    [navigate, navigateFromNative, location.search, stopReadyRetries],
   );
 
   useEffect(() => {
@@ -895,7 +926,7 @@ const NativeAppBridge: React.FC = () => {
       return;
     }
 
-    console.log(
+    logInfo(
       "[NativeAppBridge] Running in native app, setting up listeners",
     );
     logToNative("Web app bridge initialized");

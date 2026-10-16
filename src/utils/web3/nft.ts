@@ -1,15 +1,13 @@
+import { integerArgument, stringValue, toBigInt, toTemplateString } from "@/utils/guards";
 import type { default as Web3Type } from "@theqrl/web3";
 import { getQrlWeb3 } from "./web3Lazy";
-import {
-  contractMethods,
-  type Erc165Methods,
-  type Erc721Methods,
-  type Erc1155Methods,
-} from "./contractFactory";
+import { contractMethods } from "./contractFactory";
 import { erc165ABI, ERC165_INTERFACE_IDS } from "@/abi/ERC165ABI";
 import { erc721ABI } from "@/abi/ERC721ABI";
 import { erc1155ABI } from "@/abi/ERC1155ABI";
 import { SERVER_URL } from "@/config";
+import { isArray, isObject } from "@/utils/guards";
+import { logger } from "@/utils/log";
 
 export type NftStandard = "ERC721" | "ERC1155";
 
@@ -25,7 +23,7 @@ export interface NftMetadata {
   description?: string;
   image?: string;
   external_url?: string;
-  attributes?: Array<{ trait_type?: string; value: string | number }>;
+  attributes?: unknown[];
 }
 
 // IPFS gateway: route through the wallet's own backend (`/api/ipfs/:cid`)
@@ -50,8 +48,8 @@ async function safeSupportsInterface(
   interfaceId: string,
 ): Promise<boolean> {
   try {
-    const methods = contractMethods<Erc165Methods>(web3, erc165ABI, contractAddress);
-    const result = await methods.supportsInterface(interfaceId).call();
+    const methods = contractMethods(web3, erc165ABI, contractAddress);
+    const result: unknown = await methods.supportsInterface(interfaceId).call();
     return Boolean(result);
   } catch {
     return false;
@@ -93,7 +91,7 @@ export async function fetchNftCollectionInfo(
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
 
   if (standard === "ERC721") {
-    const methods = contractMethods<Erc721Methods>(web3, erc721ABI, contractAddress);
+    const methods = contractMethods(web3, erc721ABI, contractAddress);
     let name: string | undefined;
     let symbol: string | undefined;
     try {
@@ -146,27 +144,19 @@ export function isTransientRpcError(error: unknown): boolean {
       if (TRANSIENT_RPC_ERROR_PATTERN.test(current)) return true;
       break;
     }
-    if (typeof current !== "object") break;
-    const candidate = current as {
-      name?: unknown;
-      message?: unknown;
-      code?: unknown;
-      statusCode?: unknown;
-      status?: unknown;
-      cause?: unknown;
-      innerError?: unknown;
-    };
-    for (const field of [candidate.name, candidate.message, candidate.code]) {
+    if (!isObject(current)) break;
+    const candidate = current;
+    for (const field of [candidate["name"], candidate["message"], candidate["code"]]) {
       if (typeof field === "string" && TRANSIENT_RPC_ERROR_PATTERN.test(field)) {
         return true;
       }
     }
-    for (const field of [candidate.statusCode, candidate.status]) {
+    for (const field of [candidate["statusCode"], candidate["status"]]) {
       if (typeof field === "number" && TRANSIENT_RPC_STATUS.has(field)) {
         return true;
       }
     }
-    current = candidate.cause ?? candidate.innerError;
+    current = candidate["cause"] ?? candidate["innerError"];
   }
   return false;
 }
@@ -198,7 +188,7 @@ export async function fetchCollectionNameSymbol(
 ): Promise<CollectionNameSymbol> {
   const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
-  const methods = contractMethods<Erc721Methods>(
+  const methods = contractMethods(
     web3,
     erc721ABI,
     contractAddress,
@@ -241,7 +231,7 @@ export async function fetchOwned721Ids(
   );
   if (!supportsEnumerable) return null;
 
-  const methods = contractMethods<Erc721Methods>(web3, erc721ABI, contractAddress);
+  const methods = contractMethods(web3, erc721ABI, contractAddress);
   const checksum = web3.utils.toChecksumAddress(ownerAddress);
   const balanceRaw = await methods.balanceOf(checksum).call();
   const balance = BigInt(balanceRaw);
@@ -253,7 +243,7 @@ export async function fetchOwned721Ids(
       const id = await methods.tokenOfOwnerByIndex(checksum, i).call();
       ids.push(BigInt(id).toString());
     } catch (err) {
-      console.error(`tokenOfOwnerByIndex(${i}) failed:`, err);
+      logger.error(`tokenOfOwnerByIndex(${i}) failed:`, err);
       break;
     }
   }
@@ -262,16 +252,16 @@ export async function fetchOwned721Ids(
 
 /** Confirm `owner` still holds an ERC-721 tokenId. */
 export async function isErc721Owner(
-  contractAddress: string,
+  contractAddress: unknown,
   ownerAddress: string,
-  tokenId: string,
+  tokenId: unknown,
   rpcUrl: string,
 ): Promise<boolean> {
   const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
   try {
-    const methods = contractMethods<Erc721Methods>(web3, erc721ABI, contractAddress);
-    const actual = await methods.ownerOf(tokenId).call();
+    const methods = contractMethods(web3, erc721ABI, contractAddress);
+    const actual = await methods.ownerOf(integerArgument(tokenId)).call();
     return actual.toLowerCase() === web3.utils.toChecksumAddress(ownerAddress).toLowerCase();
   } catch {
     return false;
@@ -280,16 +270,16 @@ export async function isErc721Owner(
 
 /** Fetch ERC-1155 balance for (owner, id). */
 export async function fetchErc1155Balance(
-  contractAddress: string,
+  contractAddress: unknown,
   ownerAddress: string,
-  tokenId: string,
+  tokenId: unknown,
   rpcUrl: string,
 ): Promise<bigint> {
   const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
-  const methods = contractMethods<Erc1155Methods>(web3, erc1155ABI, contractAddress);
+  const methods = contractMethods(web3, erc1155ABI, contractAddress);
   const checksum = web3.utils.toChecksumAddress(ownerAddress);
-  const raw = await methods.balanceOf(checksum, tokenId).call();
+  const raw = await methods.balanceOf(checksum, integerArgument(tokenId)).call();
   return BigInt(raw);
 }
 
@@ -299,28 +289,28 @@ export async function fetchErc1155Balance(
  * clients substitute with the 64-char zero-padded hex token id.
  */
 export async function fetchTokenUri(
-  contractAddress: string,
-  tokenId: string,
+  contractAddress: unknown,
+  tokenId: unknown,
   rpcUrl: string,
-  standard: NftStandard,
+  standard: unknown,
 ): Promise<string | null> {
   const { default: Web3 } = await getQrlWeb3();
   const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
   try {
     if (standard === "ERC721") {
-      const methods = contractMethods<Erc721Methods>(web3, erc721ABI, contractAddress);
-      const uri = await methods.tokenURI(tokenId).call();
+      const methods = contractMethods(web3, erc721ABI, contractAddress);
+      const uri = await methods.tokenURI(integerArgument(tokenId)).call();
       return uri || null;
     }
-    const methods = contractMethods<Erc1155Methods>(web3, erc1155ABI, contractAddress);
-    let uri = await methods.uri(tokenId).call();
+    const methods = contractMethods(web3, erc1155ABI, contractAddress);
+    let uri = await methods.uri(integerArgument(tokenId)).call();
     if (uri && uri.includes("{id}")) {
-      const hexId = BigInt(tokenId).toString(16).padStart(64, "0");
+      const hexId = toBigInt(tokenId).toString(16).padStart(64, "0");
       uri = uri.replace(/\{id\}/g, hexId);
     }
     return uri || null;
   } catch (err) {
-    console.error("Failed to fetch tokenURI:", err);
+    logger.error("Failed to fetch tokenURI:", err);
     return null;
   }
 }
@@ -337,6 +327,17 @@ export function resolveIpfsUri(uri: string): string {
     return `${IPFS_GATEWAY}${uri.slice("ipfs://".length)}`;
   }
   return uri;
+}
+
+// These optional reads also work on arrays and boxed JSON primitives.
+function hasMetadataFields(value: unknown): value is {
+  image?: unknown;
+  name?: unknown;
+  description?: unknown;
+  external_url?: unknown;
+  attributes?: unknown;
+} {
+  return value !== null && value !== undefined;
 }
 
 /**
@@ -357,12 +358,17 @@ export async function fetchNftMetadata(uri: string): Promise<NftMetadata | null>
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), METADATA_FETCH_TIMEOUT_MS);
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, METADATA_FETCH_TIMEOUT_MS);
 
   try {
     const res = await fetch(resolved, { signal: controller.signal });
     if (!res.ok) return null;
-    const json = (await res.json()) as Partial<NftMetadata> & Record<string, unknown>;
+    const json: unknown = await res.json();
+    if (!hasMetadataFields(json)) {
+      throw new TypeError(`Cannot read properties of ${String(json)} (reading 'image')`);
+    }
 
     let image = typeof json.image === "string" ? json.image : undefined;
     if (image) {
@@ -391,12 +397,10 @@ export async function fetchNftMetadata(uri: string): Promise<NftMetadata | null>
       image,
       external_url:
         typeof json.external_url === "string" ? json.external_url : undefined,
-      attributes: Array.isArray(json.attributes)
-        ? (json.attributes as NftMetadata["attributes"])
-        : undefined,
+      attributes: isArray(json.attributes) ? json.attributes : undefined,
     };
   } catch (err) {
-    console.error("fetchNftMetadata failed:", err);
+    logger.error("fetchNftMetadata failed:", err);
     return null;
   } finally {
     clearTimeout(timeout);
@@ -407,6 +411,6 @@ export async function fetchNftMetadata(uri: string): Promise<NftMetadata | null>
  * Composite key for an NFT (contract + tokenId). Used as the persistence
  * key in `hiddenNfts` and as the React list key in the gallery.
  */
-export function nftKey(contractAddress: string, tokenId: string): string {
-  return `${contractAddress.toLowerCase()}:${tokenId}`;
+export function nftKey(contractAddress: unknown, tokenId: unknown): string {
+  return `${stringValue(contractAddress).toLowerCase()}:${toTemplateString(tokenId)}`;
 }

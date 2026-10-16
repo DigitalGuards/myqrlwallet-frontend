@@ -2,11 +2,18 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
-// Imported directly rather than through the `@/utils` barrel: the barrel
+// Imported directly: the `@/utils` barrel
 // re-exports logout, which reaches the router, and a UI primitive has no
 // business pulling the whole application in behind it.
 import { cn } from "@/utils/cn";
 import { useBackDismiss } from "@/utils/useBackDismiss";
+
+type DialogProps = Omit<
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Root>,
+  "onOpenChange"
+> & {
+  onOpenChange?: (open: boolean) => void;
+};
 
 /**
  * Android's back button closes the topmost open overlay.
@@ -21,7 +28,7 @@ const Dialog = ({
   open,
   onOpenChange,
   ...props
-}: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Root>) => {
+}: DialogProps) => {
   useBackDismiss(open === true, () => {
     if (onOpenChange === undefined) return false;
     onOpenChange(false);
@@ -37,7 +44,7 @@ const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;
 
 const DialogOverlay = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Overlay>,
+  React.ComponentRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
@@ -52,7 +59,7 @@ const DialogOverlay = React.forwardRef<
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Content>,
+  React.ComponentRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => (
   <DialogPortal>
@@ -104,7 +111,7 @@ const DialogFooter = ({
 DialogFooter.displayName = "DialogFooter";
 
 const DialogTitle = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Title>,
+  React.ComponentRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
@@ -119,7 +126,7 @@ const DialogTitle = React.forwardRef<
 DialogTitle.displayName = DialogPrimitive.Title.displayName;
 
 const DialogDescription = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Description>,
+  React.ComponentRef<typeof DialogPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description

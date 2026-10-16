@@ -21,6 +21,6 @@ export const navigateTo = (url: string, navigate: NavigateFunction): void => {
   } else if (url === ROUTES.SETTINGS && isDesktop) {
     void desktopSigner.openDesktopSettings();
   } else {
-    navigate(url);
+    void navigate(url);
   }
 };

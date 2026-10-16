@@ -11,6 +11,7 @@ import {
 } from "@testing-library/react";
 import { useState } from "react";
 import axios from "axios";
+import { deferred } from "@/test-utils/deferred";
 import TransactionHistory from "../TransactionHistory";
 import { TransactionHistoryPopup } from "../../AccountList/ActiveAccount/TransactionHistoryPopup";
 import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
@@ -57,7 +58,7 @@ beforeEach(() => {
   transactionHistoryStore.reload();
   mockStore.qrlStore.activeAccount.accountAddress = from;
   mockStore.qrlStore.qrlConnection.blockchain = "TEST_NET";
-  jest.mocked(axios.post).mockResolvedValue({ data: { transactions: [] } });
+  jest.mocked(axios).post.mockResolvedValue({ data: { transactions: [] } });
   mockRpc.mockResolvedValue(null);
 });
 afterEach(() => {
@@ -67,7 +68,7 @@ afterEach(() => {
 });
 
 it("shows amount, recipient, hash and plain pending status while backend history is loading", () => {
-  jest.mocked(axios.post).mockReturnValue(new Promise(() => undefined));
+  jest.mocked(axios).post.mockReturnValue(new Promise(() => undefined));
   transactionHistoryStore.record(details);
   render(<TransactionHistory />);
   expect(screen.getByText("Pending")).toBeTruthy();
@@ -109,7 +110,7 @@ it.each([
     await screen.findByText(label);
     expect(screen.queryByText("Pending")).toBeNull();
     view.unmount();
-    jest.mocked(axios.post).mockResolvedValue({
+    jest.mocked(axios).post.mockResolvedValue({
       data: {
         transactions: [
           {
@@ -137,7 +138,7 @@ it.each([
 
 it("keeps recent local transactions visible when the backend is unavailable", async () => {
   transactionHistoryStore.record(details);
-  jest.mocked(axios.post).mockRejectedValue(new Error("offline"));
+  jest.mocked(axios).post.mockRejectedValue(new Error("offline"));
   render(
     <TransactionHistoryPopup
       accountAddress={from}
@@ -159,8 +160,8 @@ it("keeps recent local transactions visible when the backend is unavailable", as
 it("fails closed on malformed history and retains the local send", async () => {
   transactionHistoryStore.record(details);
   jest
-    .mocked(axios.post)
-    .mockResolvedValue({ data: { transactions: [{ Amount: {} }] } });
+    .mocked(axios)
+    .post.mockResolvedValue({ data: { transactions: [{ Amount: {} }] } });
   render(<TransactionHistory />);
   await screen.findByRole("alert");
   expect(screen.getByText("Pending")).toBeTruthy();
@@ -169,12 +170,8 @@ it("fails closed on malformed history and retains the local send", async () => {
 
 it("isolates account and network switches and ignores an old in-flight receipt", async () => {
   transactionHistoryStore.record(details);
-  let resolve: (value: unknown) => void = () => undefined;
-  mockRpc.mockReturnValueOnce(
-    new Promise((done) => {
-      resolve = done;
-    }),
-  );
+  const receipt = deferred<unknown>();
+  mockRpc.mockReturnValueOnce(receipt.promise);
   const view = render(<TransactionHistory />);
   await screen.findByRole("button", { name: "No more transactions" });
   mockStore.qrlStore.activeAccount.accountAddress = to;
@@ -183,8 +180,9 @@ it("isolates account and network switches and ignores an old in-flight receipt",
   mockStore.qrlStore.activeAccount.accountAddress = from;
   mockStore.qrlStore.qrlConnection.blockchain = "MAIN_NET";
   view.rerender(<TransactionHistory />);
-  await act(async () => {
-    resolve({ transactionHash: hash, blockNumber: "0x42", status: "0x1" });
+  await act(() => {
+    receipt.resolve({ transactionHash: hash, blockNumber: "0x42", status: "0x1" });
+    return receipt.promise;
   });
   expect(screen.queryByText("Pending")).toBeNull();
   expect(transactionHistoryStore.getSnapshot().entries[0]?.state).toBe(
@@ -246,12 +244,8 @@ it.each(["page", "popup"])(
 it("keeps one request in flight across views and discards it after both close", async () => {
   jest.useFakeTimers();
   transactionHistoryStore.record(details);
-  let resolve: (value: unknown) => void = () => undefined;
-  mockRpc.mockReturnValueOnce(
-    new Promise((done) => {
-      resolve = done;
-    }),
-  );
+  const receipt = deferred<unknown>();
+  mockRpc.mockReturnValueOnce(receipt.promise);
   const page = render(<TransactionHistory />);
   const popup = render(
     <TransactionHistoryPopup
@@ -267,8 +261,9 @@ it("keeps one request in flight across views and discards it after both close", 
   expect(mockRpc).toHaveBeenCalledTimes(1);
   page.unmount();
   popup.unmount();
-  await act(async () => {
-    resolve({ transactionHash: hash, blockNumber: "0x42", status: "0x1" });
+  await act(() => {
+    receipt.resolve({ transactionHash: hash, blockNumber: "0x42", status: "0x1" });
+    return receipt.promise;
   });
   expect(transactionHistoryStore.getSnapshot().entries[0]?.state).toBe(
     "pending",
@@ -283,11 +278,11 @@ it("keeps local entries searchable and displays persistence failures", async () 
     transactionHistoryStore.record(details);
   });
   render(<TransactionHistory />);
-  await waitFor(() =>
+  await waitFor(() => {
     expect(screen.getByRole("alert").textContent).toContain(
       "could not be saved",
-    ),
-  );
+    );
+  });
   fireEvent.change(
     screen.getByPlaceholderText("Search loaded transactions..."),
     { target: { value: to } },

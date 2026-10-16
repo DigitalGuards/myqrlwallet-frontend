@@ -1,3 +1,6 @@
+import { blockchainKey } from "@/utils/storage/storage";
+import { renderValue, stringAttribute } from "@/utils/guards";
+import { reportError } from "@/utils/reportError";
 import { useEffect, useMemo, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { Loader2, Sparkles } from "lucide-react";
@@ -75,7 +78,9 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
   // NftGallery card mounted long ago.
   useEffect(() => {
     if (!isOpen || !accountAddress) return;
-    void nftStore.discoverNftsForReview(accountAddress);
+    nftStore.discoverNftsForReview(accountAddress).catch((error: unknown) => {
+      reportError("Failed to discover NFTs:", error);
+    });
   }, [isOpen, accountAddress, nftStore]);
 
   // Selection is per collection, keyed by lowercased contract address.
@@ -129,6 +134,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
   // Re-run detection on contract-address change once the format looks valid.
   useEffect(() => {
     let cancelled = false;
+    const isCancelled = () => cancelled;
     const detect = async () => {
       setDetection(null);
       if (!isValidQrlAddress(contractAddress)) return;
@@ -136,9 +142,9 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
       setIsDetecting(true);
       try {
         const blockchain = await StorageUtil.getBlockChain();
-        const rpcUrl = QRL_PROVIDER[blockchain].url;
+        const rpcUrl = QRL_PROVIDER[blockchainKey(blockchain)].url;
         const standard = await detectTokenStandard(contractAddress, rpcUrl);
-        if (cancelled) return;
+        if (isCancelled()) return;
         if (!standard) {
           setError(
             "This address doesn't look like an ERC-721 or ERC-1155 contract.",
@@ -151,20 +157,20 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
           rpcUrl,
           standard,
         );
-        if (cancelled) return;
+        if (isCancelled()) return;
         setDetection({ standard, info });
       } catch (err) {
-        if (cancelled) return;
+        if (isCancelled()) return;
         setError(
           err instanceof Error
             ? `Detection failed: ${err.message}`
             : "Detection failed.",
         );
       } finally {
-        if (!cancelled) setIsDetecting(false);
+        if (!isCancelled()) setIsDetecting(false);
       }
     };
-    detect();
+    void detect();
     return () => {
       cancelled = true;
     };
@@ -180,7 +186,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
     setError(null);
     try {
       const blockchain = await StorageUtil.getBlockChain();
-      const rpcUrl = QRL_PROVIDER[blockchain].url;
+      const rpcUrl = QRL_PROVIDER[blockchainKey(blockchain)].url;
 
       let ids: string[] = [];
       // ERC-1155 balance cache so the metadata loop below doesn't re-fetch
@@ -270,7 +276,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
             }
           }
         } catch (err) {
-          console.error(`fetchTokenUri/Metadata failed for ${id}:`, err);
+          reportError(`fetchTokenUri/Metadata failed for ${id}:`, err);
         }
 
         const nft: NFTInterface = {
@@ -358,12 +364,12 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
                     <Checkbox
                       id={`discovered-collection-${key}`}
                       checked={checked}
-                      onCheckedChange={() => toggleSelection(key)}
+                      onCheckedChange={() => { toggleSelection(key); }}
                       disabled={isAddingPicks}
                     />
                     {cover ? (
                       <img
-                        src={cover}
+                        src={stringAttribute(cover)}
                         alt=""
                         className="h-10 w-10 shrink-0 rounded object-cover"
                         loading="lazy"
@@ -378,12 +384,12 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
                       className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5"
                     >
                       <span className="truncate text-sm font-medium">
-                        {collectionDisplayName(collection)}
-                        {collection.symbol && collection.name && (
+                        {renderValue(collectionDisplayName(collection))}
+                        {renderValue(collection.symbol && collection.name && (
                           <span className="ml-1 text-muted-foreground">
-                            ({collection.symbol})
+                            ({renderValue(collection.symbol)})
                           </span>
-                        )}
+                        ))}
                       </span>
                       <span className="truncate text-xs text-muted-foreground">
                         {collection.tokenCount} item
@@ -404,7 +410,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
               size="sm"
               className="mt-3 w-full"
               disabled={selectedKeys.size === 0 || isAddingPicks}
-              onClick={addSelected}
+              onClick={() => { void addSelected(); }}
             >
               {isAddingPicks ? (
                 <>
@@ -488,7 +494,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
             type="button"
             className="w-full"
             disabled={!detection || isAdding || isDetecting}
-            onClick={onAdd}
+            onClick={() => { void onAdd(); }}
           >
             {isAdding ? (
               <>

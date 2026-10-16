@@ -21,6 +21,7 @@
  */
 import { runEmbeddedMigration } from "./embeddedMigration";
 import { IS_EMBEDDED_BUILD } from "./embeddedRuntime";
+import { logger } from "./log";
 
 // Only the app-shipped build has an app to migrate from; the hosted build
 // compiles this away.
@@ -31,6 +32,6 @@ if (IS_EMBEDDED_BUILD) {
     // `runEmbeddedMigration` already reports its own failures and does not tell
     // the app it finished, so the app retries on the next launch. Anything that
     // still escapes lands here and the wallet boots regardless.
-    console.error("[embedded] migration threw, continuing boot", error);
+    logger.error("[embedded] migration threw, continuing boot", error);
   }
 }

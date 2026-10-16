@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 import {
   useCallback,
   useEffect,
@@ -45,7 +46,7 @@ export interface RecipientSubmission {
 
 export interface UseQrnsRecipientOptions {
   input: string;
-  blockchain: string;
+  blockchain: BlockchainSelection;
   accountAddress: string;
   configuration: QrnsNetworkConfiguration;
   provider: QrnsRpcProvider | null;
@@ -68,7 +69,7 @@ const EMPTY_STATE: QrnsRecipientState = {
 
 function makeBindingKey(
   input: string,
-  blockchain: string,
+  blockchain: BlockchainSelection,
   accountAddress: string,
   configuration: QrnsNetworkConfiguration,
   provider: QrnsRpcProvider | null,

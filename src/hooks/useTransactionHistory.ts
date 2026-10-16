@@ -1,3 +1,4 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 import { useEffect, useSyncExternalStore } from "react";
 import { useStore } from "@/stores/store";
 import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
@@ -5,7 +6,7 @@ import { mergeHistory } from "@/utils/transactionHistory";
 import type { HistoryRow } from "@/utils/transactionHistory";
 
 export function useTransactionHistory(
-  blockchain: string,
+  blockchain: BlockchainSelection,
   account: string,
   backend: HistoryRow[],
   enabled = true,

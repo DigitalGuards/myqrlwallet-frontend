@@ -1,16 +1,21 @@
 /** @jest-environment jsdom */
-import React from "react";
+import type React from "react";
 import { act, render, screen } from "@testing-library/react";
 import App from "../App";
-import { store } from "../stores/store";
 import { isUnsupportedV3Context } from "../config/runtimeProfile";
+
+const mockInitializeBlockchain = jest
+  .fn<Promise<void>, []>()
+  .mockResolvedValue(undefined);
 
 jest.mock("../config/runtimeProfile", () => ({
   isUnsupportedV3Context: jest.fn(),
   V3_UNSUPPORTED_SIGNER_MESSAGE: "Update the native app",
 }));
 jest.mock("../stores/store", () => ({
-  store: { qrlStore: { initializeBlockchain: jest.fn(async () => undefined) } },
+  store: {
+    qrlStore: { initializeBlockchain: () => mockInitializeBlockchain() },
+  },
   StoreProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 jest.mock("../router/router", () => ({
@@ -45,7 +50,7 @@ it("also waits for delayed creation of the native bridge", () => {
     jest.advanceTimersByTime(100);
   });
   expect(screen.getByText("Qualified wallet")).toBeTruthy();
-  expect(store.qrlStore.initializeBlockchain).toHaveBeenCalledTimes(1);
+  expect(mockInitializeBlockchain).toHaveBeenCalledTimes(1);
 });
 
 it("retries delayed injection while keeping the wallet gated", () => {
@@ -54,13 +59,13 @@ it("retries delayed injection while keeping the wallet gated", () => {
   act(() => {
     jest.advanceTimersByTime(200);
   });
-  expect(store.qrlStore.initializeBlockchain).not.toHaveBeenCalled();
+  expect(mockInitializeBlockchain).not.toHaveBeenCalled();
   jest.mocked(isUnsupportedV3Context).mockReturnValue(false);
   act(() => {
     jest.advanceTimersByTime(100);
   });
   expect(screen.getByText("Qualified wallet")).toBeTruthy();
-  expect(store.qrlStore.initializeBlockchain).toHaveBeenCalledTimes(1);
+  expect(mockInitializeBlockchain).toHaveBeenCalledTimes(1);
   expect(jest.getTimerCount()).toBe(0);
 });
 
@@ -70,7 +75,7 @@ it("ends retries for an old build and cancels timers on unmount", () => {
     jest.advanceTimersByTime(10000);
   });
   expect(screen.queryByText("Qualified wallet")).toBeNull();
-  expect(store.qrlStore.initializeBlockchain).not.toHaveBeenCalled();
+  expect(mockInitializeBlockchain).not.toHaveBeenCalled();
   expect(jest.getTimerCount()).toBe(0);
   view.unmount();
   const second = render(<App />);

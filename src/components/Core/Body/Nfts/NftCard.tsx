@@ -1,3 +1,5 @@
+import { isArray, isRecord, stringValue, renderValue, toBigInt, toNumber, toTemplateString } from "@/utils/guards";
+import { reportError } from "@/utils/reportError";
 import { useNavigate } from "react-router";
 import { EyeOff } from "lucide-react";
 import type { NFTInterface } from "@/constants";
@@ -18,24 +20,28 @@ export function NftCard({ nft }: NftCardProps) {
   const navigate = useNavigate();
   const key = nftKey(nft.contractAddress, nft.tokenId);
 
-  const onHide = async (e: React.MouseEvent) => {
+  const onHide = (e: React.MouseEvent) => {
     e.stopPropagation();
-    await nftStore.hideNft(key);
+    nftStore.hideNft(key).catch((error: unknown) => {
+      reportError("Failed to hide NFT:", error);
+    });
   };
 
   const onOpen = () => {
     // Record that the previous history entry is this NFT's collection
     // view, so the detail page's Back button pops back into it instead of
     // guessing a route.
-    void navigate(
-      nftDetailPath(ROUTES.NFT_DETAIL, nft.contractAddress, nft.tokenId),
+    Promise.resolve(navigate(
+      nftDetailPath(ROUTES.NFT_DETAIL, stringValue(nft.contractAddress), nft.tokenId),
       { state: { nftDetailFromCollection: true } satisfies NftNavState },
-    );
+    )).catch((error: unknown) => {
+      reportError("Failed to open NFT:", error);
+    });
   };
 
   const subtitle = nft.collectionName
-    ? `${nft.collectionName} • #${truncateId(nft.tokenId)}`
-    : `${formatAddressFingerprint(nft.contractAddress)} • #${truncateId(nft.tokenId)}`;
+    ? `${toTemplateString(nft.collectionName)} • #${truncateId(nft.tokenId)}`
+    : `${formatAddressFingerprint(stringValue(nft.contractAddress))} • #${truncateId(nft.tokenId)}`;
 
   return (
     <div
@@ -53,7 +59,7 @@ export function NftCard({ nft }: NftCardProps) {
       <div className="relative overflow-hidden rounded-md border border-border transition-colors group-hover:border-secondary/60">
         <NftImage
           src={nft.image}
-          alt={nft.name ?? `Token #${nft.tokenId}`}
+          alt={nft.name ?? `Token #${toTemplateString(nft.tokenId)}`}
           blur
           className="aspect-square w-full bg-gradient-to-br from-secondary/15 to-background"
         />
@@ -67,15 +73,15 @@ export function NftCard({ nft }: NftCardProps) {
         >
           <EyeOff className="h-4 w-4" />
         </Button>
-        {nft.standard === "ERC1155" && nft.balance && BigInt(nft.balance) > 1n && (
+        {renderValue(nft.standard === "ERC1155" && nft.balance && toBigInt(nft.balance) > 1n && (
           <span className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 font-numeric text-xs font-medium backdrop-blur-sm">
-            ×{nft.balance}
+            ×{renderValue(nft.balance)}
           </span>
-        )}
+        ))}
       </div>
       <div className="space-y-0.5">
         <div className="truncate text-sm font-medium">
-          {nft.name ?? `Token #${truncateId(nft.tokenId)}`}
+          {renderValue(nft.name ?? `Token #${truncateId(nft.tokenId)}`)}
         </div>
         <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
       </div>
@@ -83,7 +89,9 @@ export function NftCard({ nft }: NftCardProps) {
   );
 }
 
-function truncateId(id: string) {
-  if (id.length <= 12) return id;
-  return `${id.slice(0, 6)}…${id.slice(-4)}`;
+function truncateId(value: unknown) {
+  if (isRecord(value) && toNumber(value["length"]) <= 12) return toTemplateString(value);
+  if (typeof value !== "string" && !isArray(value)) throw new TypeError("Invalid token ID");
+  if (value.length <= 12) return toTemplateString(value);
+  return `${toTemplateString(value.slice(0, 6))}…${toTemplateString(value.slice(-4))}`;
 }

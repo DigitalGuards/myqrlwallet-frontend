@@ -44,7 +44,9 @@ function dispatchStorageEvent(key: string | null) {
   window.dispatchEvent(event);
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 afterEach(() => jest.restoreAllMocks());
 
 it("persists exact broadcast details and reloads with the original submission time", () => {
@@ -328,9 +330,9 @@ it("discards a receipt after its polling scope is cancelled", async () => {
   store.record(details);
   let cancelled = false;
   const rpc: HistoryRpc = {
-    request: async () => {
+    request: () => {
       cancelled = true;
-      return receipt;
+      return Promise.resolve(receipt);
     },
   };
   await store.reconcile(details.blockchain, from, rpc, () => cancelled);
@@ -427,7 +429,9 @@ it("reports a failed wipe and clears its in-memory history", () => {
   jest.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
     throw new Error("storage denied");
   });
-  expect(() => store.clear()).toThrow("storage denied");
+  expect(() => {
+    store.clear();
+  }).toThrow("storage denied");
   expect(store.getSnapshot()).toEqual({
     entries: [],
     storageUnavailable: true,
@@ -437,10 +441,10 @@ it("reports a failed wipe and clears its in-memory history", () => {
 it("discards a pre-wipe receipt even when the same hash is recorded again", async () => {
   const store = new TransactionHistoryStore();
   store.record(details);
-  const rpc = request().mockImplementation(async () => {
+  const rpc = request().mockImplementation(() => {
     store.clear();
     store.record(details);
-    return receipt;
+    return Promise.resolve(receipt);
   });
   await store.reconcile(
     details.blockchain,
@@ -513,8 +517,8 @@ it.each([undefined, 7n])(
     const now = jest.spyOn(Date, "now").mockReturnValue(1000);
     const store = new TransactionHistoryStore();
     store.record({ ...details, nonce });
-    const rpc = request().mockImplementation(async ({ method }) =>
-      method === "qrl_getTransactionCount" ? "0x7" : null,
+    const rpc = request().mockImplementation(({ method }) =>
+      Promise.resolve(method === "qrl_getTransactionCount" ? "0x7" : null),
     );
     now.mockReturnValue(1000 + 24 * 60 * 60 * 1000 - 1);
     await store.reconcile(
@@ -543,8 +547,8 @@ it("limits reconciliation to 20 entries per pass and eventually checks every ent
   for (let index = 0; index < 45; index++) {
     store.record({ ...details, hash: numberedHash(index) });
   }
-  const rpc = request().mockImplementation(async ({ method }) =>
-    method === "qrl_getTransactionCount" ? "0x8" : null,
+  const rpc = request().mockImplementation(({ method }) =>
+    Promise.resolve(method === "qrl_getTransactionCount" ? "0x8" : null),
   );
   await store.reconcile(
     details.blockchain,

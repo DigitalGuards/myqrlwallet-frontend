@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { RelayMessage } from "../types";
+import { isCallable } from "@/utils/guards";
 
 const mockEmit = jest.fn<(...args: unknown[]) => unknown>();
 const mockParticipantsChanged = jest.fn();
 const mockIo = jest.fn(() => mockSocket);
 const mockSocket = {
   connected: true,
-  on: jest.fn(),
-  once: jest.fn(),
+  on: jest.fn<(event: string, listener: (...args: unknown[]) => void) => void>(),
+  once: jest.fn<(event: string, listener: (...args: unknown[]) => void) => void>(),
   off: jest.fn(),
   emit: mockEmit,
   disconnect: jest.fn(),
@@ -74,7 +75,7 @@ describe("wallet relay acknowledgement boundary", () => {
     // for and this bound would never be exercised.
     mockEmit.mockImplementation((...args: unknown[]) => {
       const ack = args[2];
-      if (typeof ack === "function") {
+      if (isCallable(ack)) {
         ack({
           success: true,
           bufferedMessages: [],
@@ -103,7 +104,7 @@ describe("wallet relay acknowledgement boundary", () => {
     };
     mockEmit.mockImplementation((...args: unknown[]) => {
         const ack = args[2];
-        if (typeof ack !== "function") throw new Error("Expected relay ack");
+        if (!isCallable(ack)) throw new Error("Expected relay ack");
         ack({
           success: true,
           bufferedMessages: Array.from({ length: 51 }, () => frame),
@@ -117,7 +118,7 @@ describe("wallet relay acknowledgement boundary", () => {
 
     mockEmit.mockImplementation((...args: unknown[]) => {
         const ack = args[2];
-        if (typeof ack !== "function") throw new Error("Expected relay ack");
+        if (!isCallable(ack)) throw new Error("Expected relay ack");
         ack({
           success: true,
           bufferedMessages: [{ arbitrary: true }],
@@ -135,7 +136,7 @@ describe("wallet relay acknowledgement boundary", () => {
     await client.connect();
     mockEmit.mockImplementation((...args: unknown[]) => {
       const ack = args[2];
-      if (typeof ack !== "function") throw new Error("Expected relay ack");
+      if (!isCallable(ack)) throw new Error("Expected relay ack");
       ack({
         success: true,
         bufferedMessages: [
@@ -158,9 +159,7 @@ describe("wallet relay acknowledgement boundary", () => {
   it("forwards only exact dApp participant events", async () => {
     const client = makeClient();
     await client.connect();
-    const calls = Object(mockSocket.on.mock.calls) as Array<
-      [string, (data: unknown) => void]
-    >;
+    const calls = mockSocket.on.mock.calls;
     const listener = calls.find(([event]) => event === "participants_changed")?.[1];
     if (!listener) throw new Error("Expected participants_changed listener");
 
@@ -188,11 +187,10 @@ describe("wallet relay acknowledgement boundary", () => {
     let resolveConnect: () => void = () => {
       throw new Error("Expected a pending connect callback");
     };
-    mockSocket.once.mockImplementation((event: unknown, callback: unknown) => {
-      if (event === "connect" && typeof callback === "function") {
-        resolveConnect = callback as () => void;
+    mockSocket.once.mockImplementation((event, callback) => {
+      if (event === "connect") {
+        resolveConnect = callback;
       }
-      return mockSocket;
     });
     const client = makeClient();
 
@@ -209,13 +207,16 @@ describe("wallet relay acknowledgement boundary", () => {
   });
 
   it("cancels a connect while the dynamic socket import is still pending", async () => {
+    const socketModule = await import("socket.io-client");
     let releaseImport: () => void = () => {
       throw new Error("Expected a pending socket import");
     };
     _setSocketIoLoaderForTests(
       () =>
         new Promise((resolve) => {
-          releaseImport = () => resolve({ io: mockIo as never });
+          releaseImport = () => {
+            resolve(socketModule);
+          };
         }),
     );
     const client = makeClient();
@@ -237,8 +238,11 @@ describe("wallet relay acknowledgement boundary", () => {
       throw new Error("Expected a pending join acknowledgement");
     };
     mockEmit.mockImplementation((...args: unknown[]) => {
-      if (args[0] === "join_channel" && typeof args[2] === "function") {
-        acknowledge = args[2] as (response: unknown) => void;
+      const ack = args[2];
+      if (args[0] === "join_channel" && isCallable(ack)) {
+        acknowledge = (response) => {
+          ack(response);
+        };
       }
     });
 
@@ -261,14 +265,14 @@ describe("wallet relay acknowledgement boundary", () => {
     await client.connect();
     mockEmit.mockImplementation((...args: unknown[]) => {
       const ack = args[2];
-      if (args[0] === "join_channel" && typeof ack === "function") {
+      if (args[0] === "join_channel" && isCallable(ack)) {
         ack({
           success: true,
           bufferedMessages: [],
           channelPublicKey: null,
           terminated: false,
         });
-      } else if (args[0] === "close_channel" && typeof ack === "function") {
+      } else if (args[0] === "close_channel" && isCallable(ack)) {
         ack({ success: true, terminated: false });
       }
     });
@@ -278,9 +282,9 @@ describe("wallet relay acknowledgement boundary", () => {
     await client.joinChannel(outbound.id);
     mockEmit.mockImplementation((...args: unknown[]) => {
       const ack = args[2];
-      if (args[0] === "close_channel" && typeof ack === "function") {
+      if (args[0] === "close_channel" && isCallable(ack)) {
         ack({ success: true, terminated: true });
-      } else if (args[0] === "join_channel" && typeof ack === "function") {
+      } else if (args[0] === "join_channel" && isCallable(ack)) {
         ack({
           success: true,
           bufferedMessages: [],

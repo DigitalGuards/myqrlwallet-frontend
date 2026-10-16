@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import { Button } from "../../../../UI/Button";
 import {
   Card,
@@ -12,7 +13,6 @@ import { observer } from "mobx-react-lite";
 
 const ConnectionFailed = observer(() => {
   const { qrlStore } = useStore();
-  const { fetchQrlConnection } = qrlStore;
 
   return (
     <Card>
@@ -27,7 +27,11 @@ const ConnectionFailed = observer(() => {
         <Button
           className="w-full"
           type="button"
-          onClick={() => fetchQrlConnection()}
+          onClick={() => {
+            qrlStore.fetchQrlConnection().catch((error: unknown) => {
+              logger.error("Failed to retry blockchain connection:", error);
+            });
+          }}
         >
           <RefreshCw className="mr-2 h-4 w-4" />
           Retry

@@ -23,6 +23,8 @@ const assertNoBrowserSeed = (mode: string, command: string) => {
   if (profile && profile !== 'v3-private') throw new Error('Unknown VITE_WALLET_PROFILE')
   const network = profile === 'v3-private' ? v3Deployment(publicEnv).network : null
   return { define: {
+    // Match dropConsole when guarding diagnostic-only argument evaluation.
+    __QRL_DIAGNOSTICS__: JSON.stringify(command !== 'build' || mode !== 'production'),
     // False here and overridden to true by config/vite.config.embedded.ts.
     // It is a constant so the minifier folds it and drops the branches it
     // guards, which is how the embedded bundle ends up with no
@@ -181,8 +183,14 @@ export default defineConfig(({ mode, command }) => ({
       transformMixedEsModules: true,
       defaultIsModuleExports(id) {
         try {
-          const module = require(id)
-          if (module?.default) {
+          const module: unknown = require(id)
+          // The same lookup as `module?.default`: one [[Get]] on the module,
+          // and a primitive reads through its wrapper with itself as receiver.
+          const exportedDefault: unknown =
+            module === null || module === undefined
+              ? undefined
+              : Reflect.get(new Object(module), 'default', module)
+          if (exportedDefault) {
             return false
           }
           return 'auto'

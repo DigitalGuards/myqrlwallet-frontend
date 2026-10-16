@@ -43,17 +43,31 @@ import {
   OutdatedWalletFormatError,
   DeviceCredentialUnavailableError,
   type EncryptedWallet,
-  type ExtendedWalletAccount,
   type WalletData,
 } from '../walletEncryption';
 import { getDeviceEncryptionKey } from '../deviceCredential';
 import { isInNativeApp, shareContent } from '@/utils/nativeApp';
+import { isRecord } from '@/utils/guards';
 
-const mockGetDeviceEncryptionKey = getDeviceEncryptionKey as jest.MockedFunction<
-  typeof getDeviceEncryptionKey
->;
-const mockIsInNativeApp = isInNativeApp as jest.MockedFunction<typeof isInNativeApp>;
-const mockShareContent = shareContent as jest.MockedFunction<typeof shareContent>;
+const mockGetDeviceEncryptionKey = jest.mocked(getDeviceEncryptionKey);
+const mockIsInNativeApp = jest.mocked(isInNativeApp);
+const mockShareContent = jest.mocked(shareContent);
+
+function parseEnvelope(json: string) {
+  const value: unknown = JSON.parse(json);
+  if (!isRecord(value) || typeof value['version'] !== 'string' ||
+      typeof value['iv'] !== 'string' || typeof value['encryptedData'] !== 'string') {
+    throw new Error('Invalid test encryption envelope');
+  }
+  return {
+    ...value,
+    version: value['version'],
+    iv: value['iv'],
+    encryptedData: value['encryptedData'],
+    deviceKeyVersion: value['deviceKeyVersion'],
+    salt: value['salt'],
+  };
+}
 
 const MNEMONIC =
   'absorb absurd abuse access accident account accuse achieve acid acoustic acquire across';
@@ -118,7 +132,7 @@ beforeEach(() => {
 describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
   it('writes pin_v5 and round-trips only after obtaining the device key', async () => {
     const blob = await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN);
-    const parsed = JSON.parse(blob);
+    const parsed = parseEnvelope(blob);
     expect(parsed.version).toBe('pin_v5');
     expect(parsed.deviceKeyVersion).toBe('device_v1');
     expect(parsed.salt).toBeUndefined();
@@ -130,8 +144,8 @@ describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
   });
 
   it('produces a fresh random device nonce and ciphertext per encryption', async () => {
-    const a = JSON.parse(await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN));
-    const b = JSON.parse(await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN));
+    const a = parseEnvelope(await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN));
+    const b = parseEnvelope(await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN));
     expect(a.iv).not.toEqual(b.iv);
     expect(a.encryptedData).not.toEqual(b.encryptedData);
   });
@@ -144,7 +158,7 @@ describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
   });
 
   it('detects outer ciphertext tampering before treating the failure as a bad PIN', async () => {
-    const parsed = JSON.parse(await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN));
+    const parsed = parseEnvelope(await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, HEX_SEED, PIN));
     // Flip the first nibble of the ciphertext; GCM must reject on the tag check.
     parsed.encryptedData =
       (parsed.encryptedData[0] === '0' ? '1' : '0') + parsed.encryptedData.slice(1);
@@ -184,11 +198,11 @@ describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
     await expect(WalletEncryptionUtil.reEncryptSeed(legacy, PIN, '654321')).rejects.toBeInstanceOf(
       DeviceCredentialUnavailableError,
     );
-    expect(JSON.parse(legacy).version).toBe('pin_v4');
+    expect(parseEnvelope(legacy).version).toBe('pin_v4');
 
     mockGetDeviceEncryptionKey.mockResolvedValue(deviceKey);
     const migrated = await WalletEncryptionUtil.reEncryptSeed(legacy, PIN, '654321');
-    expect(JSON.parse(migrated).version).toBe('pin_v5');
+    expect(parseEnvelope(migrated).version).toBe('pin_v5');
     await expect(WalletEncryptionUtil.decryptSeedWithPin(migrated, '654321')).resolves.toEqual({
       mnemonic: MNEMONIC,
       hexSeed: HEX_SEED,
@@ -249,6 +263,35 @@ describe('WalletEncryptionUtil password wallet file (WebCrypto AES-GCM)', () => 
     hexSeed: HEX_SEED,
   };
 
+  it('rejects an array masquerading as a wallet envelope', () => {
+    const envelope = {
+      address: walletData.address,
+      encryptedData: 'aa'.repeat(16),
+      salt: 'bb'.repeat(16),
+      iv: 'cc'.repeat(12),
+      timestamp: 0,
+      version: 'v2',
+    };
+    expect(WalletEncryptionUtil.parseEncryptedWallet(envelope)).toEqual(envelope);
+    expect(() => WalletEncryptionUtil.parseEncryptedWallet(Object.assign([], envelope)))
+      .toThrow('Invalid encrypted wallet format');
+  });
+
+  it.each([undefined, null, '0', false, -1, 0.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1])(
+    'rejects an invalid wallet timestamp before key derivation: %s', timestamp => {
+      const envelope = {
+        address: walletData.address,
+        encryptedData: 'aa'.repeat(16),
+        salt: 'bb'.repeat(16),
+        iv: 'cc'.repeat(12),
+        timestamp,
+        version: 'v2',
+      };
+      expect(() => WalletEncryptionUtil.parseEncryptedWallet(envelope))
+        .toThrow('Invalid encrypted wallet format');
+    },
+  );
+
   it('writes version v2 and round-trips with the correct password', async () => {
     const encrypted: EncryptedWallet = await WalletEncryptionUtil.encryptWallet(walletData, PASSWORD);
     expect(encrypted.version).toBe('v2');
@@ -298,12 +341,13 @@ describe('WalletEncryptionUtil password wallet file (WebCrypto AES-GCM)', () => 
   it('uses the standard fingerprint only in the native share title', async () => {
     mockIsInNativeApp.mockReturnValue(true);
 
-    await WalletEncryptionUtil.downloadWallet(walletData as ExtendedWalletAccount);
+    await WalletEncryptionUtil.downloadWallet(walletData);
 
     expect(mockShareContent).toHaveBeenCalledTimes(1);
     const shared = mockShareContent.mock.calls[0]?.[0];
     expect(shared?.title).toBe('QRL Wallet - Q11111111...11111111...11111111');
-    expect(JSON.parse(shared?.text ?? '{}').address).toBe(walletData.address);
+    const sharedWallet: unknown = JSON.parse(shared?.text ?? '{}');
+    expect(sharedWallet).toMatchObject({ address: walletData.address });
   });
 });
 

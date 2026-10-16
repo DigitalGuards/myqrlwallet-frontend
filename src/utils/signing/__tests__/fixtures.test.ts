@@ -15,8 +15,7 @@
  * docs/POST-QUANTUM-SIGNING-PLAN.md) and bump SCHEME_VERSION_*.
  */
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readCanonical } from "./canonicalFixtures";
 import {
   newWalletFromExtendedSeed,
   toChecksumAddress,
@@ -34,49 +33,8 @@ import {
   typeHash,
   verifyMessage,
 } from "..";
-import type { TypedDataPayload } from "..";
-
-interface MessageVector {
-  label: string;
-  messageHex: string;
-  digestHex: string;
-}
-
-interface TypedVector {
-  label: string;
-  payload: TypedDataPayload;
-  encodeTypeString: string;
-  typeHashHex: string;
-  domainHashHex: string;
-  messageHashHex: string;
-  digestHex: string;
-}
-
-interface SigningVector {
-  label: string;
-  hexSeed: string;
-  messageHex?: string;
-  payload?: TypedDataPayload;
-  signature: string;
-  publicKey: string;
-  signer: string;
-  digest: string;
-}
-
-interface Canonical {
-  schemeVersionMsg: "QRL-SIGN-MSG-v1";
-  schemeVersionTyped: "QRL-SIGN-TYPED-v1";
-  messageVectors: MessageVector[];
-  typedVectors: TypedVector[];
-  signingVectors: SigningVector[];
-}
-
-const CANONICAL_PATH = join(__dirname, "..", "__fixtures__", "canonical.json");
-
 describe("canonical fixtures", () => {
-  const canonical: Canonical = JSON.parse(
-    readFileSync(CANONICAL_PATH, "utf-8"),
-  );
+  const canonical = readCanonical();
 
   it("messageDigest agrees with every locked vector", () => {
     expect(canonical.messageVectors.length).toBeGreaterThan(0);

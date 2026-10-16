@@ -84,7 +84,7 @@ const DAppConnectConsentModal = observer(() => {
       if (result.success) {
         void navigate('/dapp-sessions');
       } else {
-        setError(result.error || 'Connection failed');
+        setError(result.error?.trim() ? result.error : 'Connection failed');
       }
     } finally {
       setConnecting(false);

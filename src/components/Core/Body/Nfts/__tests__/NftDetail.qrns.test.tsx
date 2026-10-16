@@ -4,7 +4,6 @@ jest.mock("@/components/SEO/SEO", () => ({ SEO: () => null }));
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useParams } from "react-router";
-import { useStore } from "@/stores/store";
 import { useNetworkQrnsRecipient } from "@/hooks/useNetworkQrnsRecipient";
 import type { UseQrnsRecipientResult } from "@/hooks/useQrnsRecipient";
 import { normalizeQrlAddress } from "@/utils/web3/address";
@@ -16,20 +15,21 @@ import { decryptStoredSeedWithPin } from "@/utils/crypto";
 import { getRemainingAttempts, checkLockout } from "@/utils/crypto/pinAttemptTracker";
 let mockDesktop = true;
 jest.mock("@/components/UI/PinInput/PinInput", () => ({
-  PinInput: ({ value, onChange, error }: { value: string; onChange: (pin: string) => void; error?: string }) => <div><input aria-label="PIN" value={value} onChange={(event) => onChange(event.target.value)} />{error && <p>{error}</p>}</div>,
+  PinInput: ({ value, onChange, error }: { value: string; onChange: (pin: string) => void; error?: string }) => <div><input aria-label="PIN" value={value} onChange={(event) => { onChange(event.target.value); }} />{error && <p>{error}</p>}</div>,
 }));
 jest.mock("react-router", () => ({
   useNavigate: jest.fn(() => jest.fn()),
   useParams: jest.fn(),
   useLocation: jest.fn(() => ({ pathname: "/", search: "", state: null })),
 }));
-jest.mock("@/stores/store", () => ({ useStore: jest.fn() }));
+const mockUseStore = jest.fn<unknown, []>();
+jest.mock("@/stores/store", () => ({ useStore: () => mockUseStore() }));
 jest.mock("@/utils", () => ({
   cn: (...values: unknown[]) =>
     values.filter((value) => typeof value === "string").join(" "),
 }));
 jest.mock("@/router/router", () => ({ ROUTES: { HOME: "/" } }));
-jest.mock("@/utils/storage", () => ({ StorageUtil: { getBlockChain: async () => "TEST_NET", getEncryptedSeed: async () => "fixture" } }));
+jest.mock("@/utils/storage", () => ({ StorageUtil: { getBlockChain: () => Promise.resolve("TEST_NET"), getEncryptedSeed: () => Promise.resolve("fixture") } }));
 jest.mock("@/hooks/useNetworkQrnsRecipient", () => ({
   useNetworkQrnsRecipient: jest.fn(),
 }));
@@ -103,8 +103,8 @@ describe("NftDetail QRNS recipient flow", () => {
         name: "QRNS test NFT",
         balance: standard === "ERC1155" ? "5" : undefined,
       };
-      const transferNft = jest.fn(async () => true);
-      const mockStore = Object.assign(Object.create(null), {
+      const transferNft = jest.fn(() => Promise.resolve(true));
+      const mockStore = {
         qrlStore: {
           activeAccount: { accountAddress: ACCOUNT },
           activeAccountSource: "seed",
@@ -118,8 +118,8 @@ describe("NftDetail QRNS recipient flow", () => {
           resetTransactionStatus: jest.fn(),
         },
         nftStore: { nftList: [nft], transferNft },
-      });
-      jest.mocked(useStore).mockReturnValue(mockStore);
+      };
+      mockUseStore.mockReturnValue(mockStore);
       jest.mocked(useParams).mockReturnValue({
         contractAddress: CONTRACT,
         tokenId: "7",
@@ -138,7 +138,7 @@ describe("NftDetail QRNS recipient flow", () => {
       }
       fireEvent.click(view.getByRole("button", { name: "Transfer" }));
 
-      await waitFor(() => expect(transferNft).toHaveBeenCalledTimes(1));
+      await waitFor(() => { expect(transferNft).toHaveBeenCalledTimes(1); });
       expect(captureSubmission).toHaveBeenCalledWith("alice.qrl");
       expect(revalidateSubmission).toHaveBeenCalledTimes(1);
       expect(transferNft).toHaveBeenCalledWith(
@@ -165,8 +165,8 @@ it("counts wrong NFT transfer PINs and locks after five failures", async () => {
     standard: "ERC721",
     name: "Test NFT",
   };
-  jest.mocked(useStore).mockReturnValue(
-    Object.assign(Object.create(null), {
+  mockUseStore.mockReturnValue(
+    {
       qrlStore: {
         activeAccount: { accountAddress: ACCOUNT },
         activeAccountSource: "seed",
@@ -175,7 +175,7 @@ it("counts wrong NFT transfer PINs and locks after five failures", async () => {
         resetTransactionStatus: jest.fn(),
       },
       nftStore: { nftList: [nft], transferNft },
-    }),
+    },
   );
   jest
     .mocked(useParams)
@@ -194,8 +194,9 @@ it("counts wrong NFT transfer PINs and locks after five failures", async () => {
     fireEvent.change(screen.getByLabelText("PIN"), {
       target: { value: `99999${attempt}` },
     });
-    await act(async () => {
+    await act(() => {
       fireEvent.click(screen.getByRole("button", { name: "Transfer" }));
+      return Promise.resolve();
     });
     const failures = Math.min(attempt, 5);
     expect(getRemainingAttempts()).toBe(5 - failures);
@@ -210,4 +211,24 @@ it("counts wrong NFT transfer PINs and locks after five failures", async () => {
   }
   expect(checkLockout().isLocked).toBe(true);
   expect(transferNft).not.toHaveBeenCalled();
+});
+
+it("shows invalid stored balance errors before attempting an NFT transfer", async () => {
+  const nft: NFTInterface = { contractAddress: CONTRACT, tokenId: "7", standard: "ERC1155", balance: "invalid" };
+  const transferNft = jest.fn();
+  mockUseStore.mockReturnValue({
+    qrlStore: {
+      activeAccount: { accountAddress: ACCOUNT }, activeAccountSource: "seed", qrlConnection: { blockchain: "TEST_NET" },
+      transactionStatus: { state: "idle" }, resetTransactionStatus: jest.fn(),
+    },
+    nftStore: { nftList: [nft], transferNft },
+  });
+  jest.mocked(useParams).mockReturnValue({ contractAddress: CONTRACT, tokenId: "7" });
+  jest.mocked(useNetworkQrnsRecipient).mockReturnValue(resolvedRecipient());
+  render(<NftDetail />);
+  fireEvent.change(screen.getByLabelText("Recipient address or QNS name"), { target: { value: "alice.qrl" } });
+  fireEvent.click(screen.getByRole("button", { name: "Transfer" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("BigInt");
+  expect(transferNft).not.toHaveBeenCalled();
+  expect(nft.balance).toBe("invalid");
 });

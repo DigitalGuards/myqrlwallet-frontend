@@ -9,11 +9,13 @@ import {
   typedDataSchemeVersion,
 } from '../typedData';
 import { SignTypedDataParamsSchema } from '../types';
+import { malformed } from '@/test-utils/malformed';
+import type { TypeMap } from '../typedData';
 
 const SIGNER = `Q${'0'.repeat(128)}`;
 const LEGACY_Q40 = `Q${'0'.repeat(40)}`;
 
-function payloadWith(fieldType: string, value: unknown): unknown {
+function payloadWith(fieldType: string, value: unknown) {
   return {
     types: {
       QRLDomain: [{ name: 'name', type: 'string' }],
@@ -66,6 +68,24 @@ describe('typed data base type names', () => {
 });
 
 describe('typed data deterministic resource limits', () => {
+  it.each([null, [], 'types'])(
+    'rejects malformed type maps in direct encoder calls: %j', value => {
+      const types = malformed<TypeMap>(value);
+      expect(() => encodeType('Payload', types)).toThrow('struct types');
+      expect(() => hashStruct('Payload', {}, types)).toThrow('struct types');
+      expect(() => encodeField('uint8', 1, types)).toThrow('struct types');
+    },
+  );
+
+  it.each([null, {}, { name: 1, type: 'uint8' }, { name: 'value', type: null }])(
+    'rejects malformed field definitions in direct encoder calls: %j', field => {
+      const types = malformed<TypeMap>({ Payload: [field] });
+      expect(() => encodeType('Payload', types)).toThrow('bad field');
+      expect(() => hashStruct('Payload', { value: 1 }, types)).toThrow('bad field');
+      expect(() => encodeField('uint8', 1, types)).toThrow('bad field');
+    },
+  );
+
   it('rejects a 1 MB field type in under 100 ms with a bounded error', () => {
     const fieldType = '[]'.repeat(500_000) + 'x';
     const payload = payloadWith(fieldType, []);
@@ -138,18 +158,20 @@ describe('typed data deterministic resource limits', () => {
 
   it('rejects unsigned top-level and type-definition display fields', () => {
     const topLevelExtra = {
-      ...(payloadWith('uint8', 1) as Record<string, unknown>),
+      ...payloadWith('uint8', 1),
       displayName: 'Approve harmless login',
     };
     expect(() => computeTypedDataDigest(topLevelExtra)).toThrow(/unknown top-level fields/);
     expect(SignTypedDataParamsSchema.safeParse([SIGNER, topLevelExtra]).success).toBe(false);
 
-    const payload = payloadWith('uint8', 1) as {
-      types: Record<string, Array<Record<string, unknown>>>;
+    const base = payloadWith('uint8', 1);
+    const payload = {
+      ...base,
+      types: {
+        ...base.types,
+        Payload: [{ name: 'value', type: 'uint8', displayType: 'string' }],
+      },
     };
-    const field = payload.types['Payload']?.[0];
-    if (!field) throw new Error('test fixture is missing Payload.value');
-    field['displayType'] = 'string';
     expect(() => computeTypedDataDigest(payload)).toThrow(/struct map/);
     expect(SignTypedDataParamsSchema.safeParse([SIGNER, payload]).success).toBe(false);
   });

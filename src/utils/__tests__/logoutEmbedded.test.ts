@@ -17,7 +17,7 @@ jest.mock("@/config/runtimeProfile", () => ({ IS_V3_PROFILE: false }));
 jest.mock("@/utils/storage/storage", () => ({ __esModule: true, default: {} }));
 jest.mock("@/desktop/bridge", () => ({
   isDesktop: false,
-  desktopSigner: { lock: jest.fn(async () => undefined) },
+  desktopSigner: { lock: jest.fn(() => Promise.resolve(undefined)) },
 }));
 jest.mock("@/utils/nativeApp", () => ({
   // The embedded build always runs inside the native app.
@@ -33,14 +33,16 @@ jest.mock("@/utils/crypto/pinAttemptTracker", () => ({
   clearAttemptTracker: jest.fn(),
 }));
 jest.mock("@/utils/crypto/deviceCredential", () => ({
-  clearDeviceCredential: jest.fn(async () => undefined),
+  clearDeviceCredential: jest.fn(() => Promise.resolve(undefined)),
 }));
 jest.mock("@/utils/mobileConnect/mobileConnection", () => ({
-  disconnectMobile: jest.fn(async () => undefined),
+  disconnectMobile: jest.fn(() => Promise.resolve(undefined)),
   hasMobileSession: () => false,
 }));
 jest.mock("@/services/dappConnect/DAppConnectService", () => ({
-  dappConnectService: { clearAllSessions: jest.fn(async () => undefined) },
+  dappConnectService: {
+    clearAllSessions: jest.fn(() => Promise.resolve(undefined)),
+  },
 }));
 jest.mock("@/utils/embeddedShell", () => ({
   // The real one returns false in the embedded build, where its reload branch
@@ -65,8 +67,8 @@ jest.mock("@/utils/embeddedRuntime", () => ({
 // jest hoists mock factories above these declarations, so the names it closes
 // over must carry the `mock` prefix it allows.
 const mockResetTransactionStatus = jest.fn();
-const mockSetActiveAccount = jest.fn(
-  async (_address?: string) => undefined,
+const mockSetActiveAccount = jest.fn((_address?: string) =>
+  Promise.resolve(undefined),
 );
 const mockQrlStore: {
   resetTransactionStatus: () => void;

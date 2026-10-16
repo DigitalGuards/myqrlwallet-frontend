@@ -1,3 +1,5 @@
+import { isRecord, toTemplateString } from "@/utils/guards";
+
 /**
  * Navigation helpers shared by the NFT gallery, the collection rows, and
  * the NFT detail page.
@@ -26,8 +28,8 @@ export interface NftNavState {
 }
 
 function readFlag(state: unknown, key: keyof NftNavState): boolean {
-  if (typeof state !== "object" || state === null) return false;
-  return (state as Record<string, unknown>)[key] === true;
+  if (!isRecord(state)) return false;
+  return state[key] === true;
 }
 
 /** True when the previous history entry is the collection list. */
@@ -64,9 +66,9 @@ export function nftCollectionPath(
 export function nftDetailPath(
   detailRoute: string,
   contractAddress: string,
-  tokenId: string,
+  tokenId: unknown,
 ): string {
   return detailRoute
     .replace(":contractAddress", contractAddress)
-    .replace(":tokenId", tokenId);
+    .replace(":tokenId", toTemplateString(tokenId));
 }

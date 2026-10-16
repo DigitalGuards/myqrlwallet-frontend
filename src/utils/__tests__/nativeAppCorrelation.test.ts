@@ -21,10 +21,10 @@ const DOCUMENT_ID = getCurrentNativeDocumentId();
 
 describe("native bridge correlation envelopes", () => {
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
-  let postMessage: jest.Mock;
+  let postMessage: jest.Mock<undefined, [string]>;
 
   beforeEach(() => {
-    postMessage = jest.fn();
+    postMessage = jest.fn((_message: string) => undefined);
     Object.defineProperty(globalThis, "window", {
       configurable: true,
       value: Object.assign(new EventTarget(), {
@@ -45,7 +45,9 @@ describe("native bridge correlation envelopes", () => {
     expect(sendPinVerified(FIRST_ID, true)).toBe(true);
     expect(sendPinVerified(SECOND_ID, false, "Incorrect PIN")).toBe(true);
 
-    expect(postMessage.mock.calls.map(([wire]) => JSON.parse(wire))).toEqual([
+    expect(
+      postMessage.mock.calls.map(([wire]): unknown => JSON.parse(wire)),
+    ).toEqual([
       {
         type: "PIN_VERIFIED",
         payload: { requestId: FIRST_ID, success: true, documentId: DOCUMENT_ID },
@@ -73,7 +75,9 @@ describe("native bridge correlation envelopes", () => {
       ),
     ).toBe(true);
 
-    expect(postMessage.mock.calls.map(([wire]) => JSON.parse(wire))).toEqual([
+    expect(
+      postMessage.mock.calls.map(([wire]): unknown => JSON.parse(wire)),
+    ).toEqual([
       {
         type: "WALLET_CLEARED",
         payload: { requestId: FIRST_ID, success: true, documentId: DOCUMENT_ID },

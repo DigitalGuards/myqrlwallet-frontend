@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Copy, RefreshCw } from "lucide-react";
@@ -37,7 +38,9 @@ const MobilePairingDialog = ({ uri, installHint, onClose, onNewCode }: Props) =>
     const success = await copyToClipboard(uri);
     if (success) {
       setHasJustCopied(true);
-      setTimeout(() => setHasJustCopied(false), 1000);
+      setTimeout(() => {
+        setHasJustCopied(false);
+      }, 1000);
     }
   };
 
@@ -46,7 +49,7 @@ const MobilePairingDialog = ({ uri, installHint, onClose, onNewCode }: Props) =>
     try {
       await onNewCode();
     } catch (error) {
-      console.error("Failed to rotate pairing code:", error);
+      logger.error("Failed to rotate pairing code:", error);
     } finally {
       setIsRotating(false);
     }
@@ -56,7 +59,11 @@ const MobilePairingDialog = ({ uri, installHint, onClose, onNewCode }: Props) =>
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open) void onClose();
+        if (!open) {
+          Promise.resolve(onClose()).catch((error: unknown) => {
+            logger.error("Failed to close mobile pairing:", error);
+          });
+        }
       }}
     >
       <DialogContent className="max-w-md">
@@ -78,7 +85,16 @@ const MobilePairingDialog = ({ uri, installHint, onClose, onNewCode }: Props) =>
             <p className="text-center text-xs text-muted-foreground">{status}</p>
           )}
           <div className="flex w-full gap-4">
-            <Button className="w-full" type="button" variant="outline" onClick={handleCopy}>
+            <Button
+              className="w-full"
+              type="button"
+              variant="outline"
+              onClick={() => {
+                handleCopy().catch((error: unknown) => {
+                  logger.error("Failed to copy pairing code:", error);
+                });
+              }}
+            >
               <Copy className="mr-2 h-4 w-4" />
               {hasJustCopied ? "Copied" : "Copy code"}
             </Button>
@@ -86,7 +102,11 @@ const MobilePairingDialog = ({ uri, installHint, onClose, onNewCode }: Props) =>
               className="w-full"
               type="button"
               variant="outline"
-              onClick={handleNewCode}
+              onClick={() => {
+                handleNewCode().catch((error: unknown) => {
+                  logger.error("Failed to rotate pairing code:", error);
+                });
+              }}
               disabled={isRotating}
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${isRotating ? "animate-spin" : ""}`} />

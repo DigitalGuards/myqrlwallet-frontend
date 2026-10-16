@@ -84,45 +84,58 @@ describe("committed embedded profile", () => {
 
 describe("embedded profile assertion", () => {
   it("accepts the profile this build is meant to ship", () => {
-    expect(() => assertEmbeddedProfile(shippable)).not.toThrow();
+    expect(() => {
+      assertEmbeddedProfile(shippable);
+    }).not.toThrow();
   });
 
   it("rejects the v2 fallback the device test hit", () => {
-    expect(() => assertEmbeddedProfile(unset)).toThrow(/default v2 profile/);
+    expect(() => {
+      assertEmbeddedProfile(unset);
+    }).toThrow(/default v2 profile/);
   });
 
   it("rejects a wrong network, chain id or genesis hash", () => {
-    expect(() =>
-      assertEmbeddedProfile({ ...shippable, networkId: "TEST_NET" }),
-    ).toThrow(/expected TEST_NET_V3/);
-    expect(() =>
-      assertEmbeddedProfile({ ...shippable, chainId: "0x539" }),
-    ).toThrow(/expected 0x301825 \(3151909\)/);
-    expect(() =>
-      assertEmbeddedProfile({ ...shippable, genesisHash: `0x${"0".repeat(64)}` }),
-    ).toThrow(/genesis hash/);
+    expect(() => {
+      assertEmbeddedProfile({ ...shippable, networkId: "TEST_NET" });
+    }).toThrow(/expected TEST_NET_V3/);
+    expect(() => {
+      assertEmbeddedProfile({ ...shippable, chainId: "0x539" });
+    }).toThrow(/expected 0x301825 \(3151909\)/);
+    expect(() => {
+      assertEmbeddedProfile({
+        ...shippable,
+        genesisHash: `0x${"0".repeat(64)}`,
+      });
+    }).toThrow(/genesis hash/);
   });
 
   it("rejects an endpoint that was repointed elsewhere", () => {
     // Chain identity survives an injected VITE_V3_RPC_URL: only pinning the
     // endpoints catches a document aimed at someone else's node.
-    expect(() =>
-      assertEmbeddedProfile({ ...shippable, rpcUrl: "https://evil.example/rpc" }),
-    ).toThrow(/VITE_V3_RPC_URL resolved to https:\/\/evil\.example\/rpc/);
-    expect(() =>
-      assertEmbeddedProfile({ ...shippable, serverUrl: "https://evil.example" }),
-    ).toThrow(/VITE_V3_SERVER_URL/);
-    expect(() =>
-      assertEmbeddedProfile({ ...shippable, explorerUrl: "" }),
-    ).toThrow(/VITE_V3_EXPLORER_URL resolved to nothing/);
+    expect(() => {
+      assertEmbeddedProfile({
+        ...shippable,
+        rpcUrl: "https://evil.example/rpc",
+      });
+    }).toThrow(/VITE_V3_RPC_URL resolved to https:\/\/evil\.example\/rpc/);
+    expect(() => {
+      assertEmbeddedProfile({
+        ...shippable,
+        serverUrl: "https://evil.example",
+      });
+    }).toThrow(/VITE_V3_SERVER_URL/);
+    expect(() => {
+      assertEmbeddedProfile({ ...shippable, explorerUrl: "" });
+    }).toThrow(/VITE_V3_EXPLORER_URL resolved to nothing/);
   });
 
   it("compares the genesis hash without regard to case", () => {
-    expect(() =>
+    expect(() => {
       assertEmbeddedProfile({
         ...shippable,
         genesisHash: EMBEDDED_GENESIS_HASH.toUpperCase().replace("0X", "0x"),
-      }),
-    ).not.toThrow();
+      });
+    }).not.toThrow();
   });
 });

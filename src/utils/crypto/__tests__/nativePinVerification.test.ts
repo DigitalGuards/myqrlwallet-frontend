@@ -56,7 +56,9 @@ jest.mock("@/utils/crypto/deviceCredential", () => {
   };
 });
 jest.mock("@/utils/crypto", () =>
-  jest.requireActual("@/utils/crypto/cryptoWorkerClient"),
+  jest.requireActual<typeof import("@/utils/crypto/cryptoWorkerClient")>(
+    "@/utils/crypto/cryptoWorkerClient",
+  ),
 );
 jest.mock("../cryptoWorker?worker", () => jest.fn(), {
   virtual: true,
@@ -80,6 +82,8 @@ jest.mock("@/config", () => ({
 jest.mock("@/stores/store", () => ({ store: {} }));
 jest.mock("@/utils/mobileConnect/mobileConnection", () => ({}));
 jest.mock("@/services/dappConnect/accountBinding", () => ({}));
+
+const mockedStorage = jest.mocked(StorageUtil);
 
 const BLOCKCHAIN = "TEST_NET_V3";
 const PIN = "123456";
@@ -115,7 +119,9 @@ async function bounded<T>(operation: Promise<T>): Promise<T> {
       operation,
       new Promise<never>((_, reject) => {
         timer = setTimeout(
-          () => reject(new Error("Verification did not settle")),
+          () => {
+            reject(new Error("Verification did not settle"));
+          },
           2000,
         );
       }),
@@ -189,7 +195,7 @@ beforeAll(async () => {
   v4 = await makeLegacyCiphertext();
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   const data = new Map<string, string>();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
     getItem: (key: string) => data.get(key) ?? null,
@@ -200,12 +206,11 @@ beforeEach(() => {
   ciphertext = v5;
   revision = 1;
   jest.mocked(getDeviceEncryptionKey).mockResolvedValue(deviceKey);
-  jest.mocked(StorageUtil.getBlockChain).mockResolvedValue(BLOCKCHAIN);
-  jest.mocked(StorageUtil.getActiveAccount).mockResolvedValue(ADDRESS);
-  jest
-    .mocked(StorageUtil.getEncryptedSeed)
-    .mockImplementation(async () => ciphertext);
-  jest.mocked(StorageUtil.getAllEncryptedSeeds).mockImplementation(async () =>
+  mockedStorage.getBlockChain.mockResolvedValue(BLOCKCHAIN);
+  mockedStorage.getActiveAccount.mockResolvedValue(ADDRESS);
+  mockedStorage.getEncryptedSeed
+    .mockImplementation(() => Promise.resolve(ciphertext));
+  mockedStorage.getAllEncryptedSeeds.mockImplementation(() => Promise.resolve(
     ciphertext
       ? [
           {
@@ -216,18 +221,17 @@ beforeEach(() => {
           },
         ]
       : [],
-  );
-  jest
-    .mocked(StorageUtil.migrateEncryptedSeed)
-    .mockImplementation(async (_network, address, expected, next) => {
-      if (ciphertext !== expected) return null;
+  ));
+  mockedStorage.migrateEncryptedSeed
+    .mockImplementation((_network, address, expected, next) => {
+      if (ciphertext !== expected) return Promise.resolve(null);
       ciphertext = next;
-      return {
+      return Promise.resolve({
         address,
         encryptedSeed: next,
         revision: ++revision,
         lastAccessed: 1,
-      };
+      });
     });
   jest
     .mocked(notifySeedStored)
@@ -237,11 +241,12 @@ beforeEach(() => {
     return () => undefined;
   });
   jest.mocked(useEffect).mockImplementation((effect) => {
-    dispose = effect() as (() => void) | undefined;
+    const cleanup = effect();
+    dispose = typeof cleanup === "function" ? cleanup : undefined;
   });
   jest.spyOn(console, "log").mockImplementation(() => undefined);
   jest.spyOn(console, "error").mockImplementation(() => undefined);
-  NativeAppBridge({});
+  await NativeAppBridge({});
 });
 
 afterEach(() => {
@@ -253,10 +258,10 @@ it("verifies real pin_v5 encryption under the real coordinator without nested wr
   const requestId = verify();
   expect(await response()).toEqual([requestId, true]);
   expect(getDeviceEncryptionKey).toHaveBeenCalledWith(false);
-  expect(StorageUtil.migrateEncryptedSeed).not.toHaveBeenCalled();
+  expect(mockedStorage.migrateEncryptedSeed).not.toHaveBeenCalled();
   expect(notifySeedStored).not.toHaveBeenCalled();
   expect(ciphertext).toBe(v5);
-  const restored = jest.fn(async () => undefined);
+  const restored = jest.fn(() => Promise.resolve());
   await bounded(walletMutations.enqueueRestore(restored));
   expect(restored).toHaveBeenCalledTimes(1);
   await bounded(
@@ -274,7 +279,7 @@ it("returns a correlated wrong-PIN failure and leaves the queue usable", async (
     false,
     "Incorrect PIN. 4 attempts remaining.",
   ]);
-  await bounded(walletMutations.enqueueRestore(async () => undefined));
+  await bounded(walletMutations.enqueueRestore(() => Promise.resolve()));
   expect(ciphertext).toBe(v5);
   expect(notifySeedStored).not.toHaveBeenCalled();
 });
@@ -292,11 +297,11 @@ it("reports a missing device factor without creating it or modifying ciphertext"
   expect(getDeviceEncryptionKey).toHaveBeenCalledWith(false);
   expect(getRemainingAttempts()).toBe(5);
   expect(ciphertext).toBe(v5);
-  expect(StorageUtil.migrateEncryptedSeed).not.toHaveBeenCalled();
+  expect(mockedStorage.migrateEncryptedSeed).not.toHaveBeenCalled();
 });
 
 it("checks decrypted account binding before PIN success", async () => {
-  jest.mocked(StorageUtil.getActiveAccount).mockResolvedValue(OTHER_ADDRESS);
+  mockedStorage.getActiveAccount.mockResolvedValue(OTHER_ADDRESS);
   const requestId = verify();
   expect(await response()).toEqual([requestId, false, "Incorrect PIN"]);
   expect(getRemainingAttempts()).toBe(5);
@@ -315,12 +320,13 @@ it("returns no secret material from the verification API", async () => {
 });
 
 it("drains verification after a concurrent clear without restoring state or reporting success", async () => {
-  let release!: (key: CryptoKey) => void;
-  let started!: () => void;
+  let release: ((key: CryptoKey) => void) | undefined;
+  let started: (() => void) | undefined;
   const decryptStarted = new Promise<void>((resolve) => {
     started = resolve;
   });
   jest.mocked(getDeviceEncryptionKey).mockImplementationOnce(() => {
+    if (!started) throw new Error("Missing decryption start callback");
     started();
     return new Promise((resolve) => {
       release = resolve;
@@ -331,6 +337,7 @@ it("drains verification after a concurrent clear without restoring state or repo
   const clear = walletMutations.clear(() => {
     ciphertext = null;
   });
+  if (!release) throw new Error("Missing device key callback");
   release(deviceKey);
   await bounded(clear);
   expect(await response()).toEqual([
@@ -339,9 +346,9 @@ it("drains verification after a concurrent clear without restoring state or repo
     "Wallet changed during PIN verification",
   ]);
   expect(ciphertext).toBeNull();
-  expect(StorageUtil.migrateEncryptedSeed).not.toHaveBeenCalled();
+  expect(mockedStorage.migrateEncryptedSeed).not.toHaveBeenCalled();
   expect(notifySeedStored).not.toHaveBeenCalled();
-  await bounded(walletMutations.enqueueRestore(async () => undefined));
+  await bounded(walletMutations.enqueueRestore(() => Promise.resolve()));
 });
 
 it("verifies legacy v4 without factor creation, then retains normal unlock migration", async () => {
@@ -353,7 +360,7 @@ it("verifies legacy v4 without factor creation, then retains normal unlock migra
   expect(await response()).toEqual([requestId, true]);
   expect(getDeviceEncryptionKey).not.toHaveBeenCalled();
   expect(ciphertext).toBe(v4);
-  expect(StorageUtil.migrateEncryptedSeed).not.toHaveBeenCalled();
+  expect(mockedStorage.migrateEncryptedSeed).not.toHaveBeenCalled();
   expect(notifySeedStored).not.toHaveBeenCalled();
 
   jest.mocked(getDeviceEncryptionKey).mockResolvedValue(deviceKey);
@@ -361,7 +368,8 @@ it("verifies legacy v4 without factor creation, then retains normal unlock migra
     bounded(decryptStoredSeedWithPin(BLOCKCHAIN, ADDRESS, v4, PIN)),
   ).resolves.toEqual(SEED);
   expect(getDeviceEncryptionKey).toHaveBeenCalledWith(true);
-  expect(JSON.parse(ciphertext ?? "{}").version).toBe("pin_v5");
+  const migrated: unknown = JSON.parse(ciphertext);
+  expect(migrated).toMatchObject({ version: "pin_v5" });
   expect(notifySeedStored).toHaveBeenCalledTimes(1);
 });
 
@@ -399,7 +407,7 @@ it("limits native PIN changes and reports attempts in PIN_CHANGED", async () => 
       type: "CHANGE_PIN",
       payload: { requestId, oldPin: "654321", newPin: "112233" },
     });
-    await bounded(walletMutations.enqueueRestore(async () => undefined));
+    await bounded(walletMutations.enqueueRestore(() => Promise.resolve()));
     expect(sendPinChanged).toHaveBeenLastCalledWith(
       requestId,
       false,

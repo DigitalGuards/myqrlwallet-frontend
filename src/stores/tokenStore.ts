@@ -1,12 +1,18 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
+import { blockchainKey } from "@/utils/storage/storage";
+import { tokenListValue } from "@/constants/tokens";
+import { arrayValue, iterableValue, propertyValue, stringValue } from "@/utils/guards";
 import { QRL_PROVIDER, TOKEN_FACTORY_ADDRESS } from "@/config";
 import { IS_V3_PROFILE, profileStorageKey } from '@/config/runtimeProfile';
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { StorageUtil } from "@/utils/storage";
 import { log } from "@/utils";
+import { logger } from "@/utils/log";
 import { encodeTokenTransfer } from "@/utils/web3/tokenTransfer";
 import { SEND_TX_POLLING_CONFIG } from "@/utils/web3/txPolling";
-import { isRecord } from "@/utils/guards";
+import { isRecord, toBigInt, toNumber, toTemplateString } from "@/utils/guards";
+import { runAsPromise } from "@/utils/runAsPromise";
 import type { TransactionReceipt } from "@theqrl/web3";
 import { getQrlWeb3 } from "@/utils/web3";
 import { action, computed, makeAutoObservable, observable, runInAction } from "mobx";
@@ -20,16 +26,16 @@ import {
   FEE_NOT_SHOWN,
   type ApprovedFeeInput,
 } from "@/utils/web3/feePolicy";
-const formatUnits = (value: bigint | string | unknown, decimals: number): string => {
-  let v = BigInt(value as string | bigint);
+const formatUnits = (value: unknown, decimals: unknown): string => {
+  let v = toBigInt(value);
   const isNegative = v < 0n;
   if (isNegative) v = -v;
-  const divisor = BigInt(10) ** BigInt(decimals);
+  const divisor = BigInt(10) ** toBigInt(decimals);
   const intPart = v / divisor;
   const fracPart = v % divisor;
   const prefix = isNegative ? '-' : '';
   if (fracPart === 0n) return `${prefix}${intPart}`;
-  return `${prefix}${intPart}.${fracPart.toString().padStart(decimals, '0').replace(/0+$/, '')}`;
+  return `${prefix}${intPart}.${fracPart.toString().padStart(toNumber(decimals), '0').replace(/0+$/, '')}`;
 };
 import { getOptimalTokenBalance } from "@/utils/formatting";
 import type QrlStore from "./qrlStore";
@@ -45,6 +51,8 @@ import {
   findQrlVm64Log,
   requestQrlVm64Logs,
 } from "@/utils/web3/vm64Logs";
+
+declare const __QRL_DIAGNOSTICS__: boolean | undefined;
 
 type CreatingTokenType = {
   name: string;
@@ -78,7 +86,7 @@ class TokenStore {
     blockHash: "",
   };
   tokenList: TokenInterface[] = [];
-  hiddenTokens: string[] = [];
+  hiddenTokens: unknown = [];
   // Phase 3b opt-in: the explorer's view of what this address holds.
   // Populated by discoverTokensForReview(); never auto-merged into
   // tokenList. The UI surfaces these as picker rows ("Explorer
@@ -129,8 +137,8 @@ class TokenStore {
   get visibleTokenList(): TokenInterface[] {
     return this.tokenList.filter(
       (token) =>
-        !this.hiddenTokens.some(
-          (hidden) => hidden.toLowerCase() === token.address.toLowerCase(),
+        !arrayValue(this.hiddenTokens).some(
+          (hidden) => stringValue(hidden).toLowerCase() === token.address.toLowerCase(),
         ),
     );
   }
@@ -150,11 +158,11 @@ class TokenStore {
     );
   }
 
-  // Token storage is now keyed by `${blockchain}_${account}` (see
+  // Token storage is now keyed by `${toTemplateString(blockchain)}_${account}` (see
   // StorageUtil), mirroring the NFT list. Reads from the wrong scope are
   // impossible, but we still need the scope to write. Pulls live values
   // from qrlStore at the call site.
-  private get scope(): { blockchain: string; account: string } {
+  private get scope(): { blockchain: BlockchainSelection; account: string } {
     return {
       blockchain: this.qrlStore.qrlConnection.blockchain,
       account: this.qrlStore.activeAccount.accountAddress,
@@ -173,7 +181,7 @@ class TokenStore {
     // Seed KNOWN_TOKEN_LIST into the persisted list if not already present.
     // Use a local copy to avoid multiple re-renders and potential races
     // during the loop.
-    const initialList = [...persistedList];
+    const initialList = tokenListValue([...iterableValue(persistedList)]);
     const seen = new Set(initialList.map((t) => t.address.toLowerCase()));
     for (const token of KNOWN_TOKEN_LIST) {
       if (!seen.has(token.address.toLowerCase())) {
@@ -198,17 +206,19 @@ class TokenStore {
   // wipe the legacy global TOKEN_LIST once on first load post-migration.
   // The discovery picker (PR #143) repopulates legitimate holdings on the
   // user's explicit say-so.
-  private async migrateLegacyAutoAddedTokens() {
-    const FLAG = profileStorageKey("TOKEN_LIST_GATE_MIGRATED_V1");
-    if (localStorage.getItem(FLAG)) return;
-    StorageUtil.clearLegacyGlobalTokenData();
-    localStorage.setItem(FLAG, "1");
-    log("Migration: wiped pre-gate tokenList; flag set");
+  private migrateLegacyAutoAddedTokens(): Promise<void> {
+    return runAsPromise(() => {
+      const FLAG = profileStorageKey("TOKEN_LIST_GATE_MIGRATED_V1");
+      if (localStorage.getItem(FLAG)) return;
+      StorageUtil.clearLegacyGlobalTokenData();
+      localStorage.setItem(FLAG, "1");
+      log("Migration: wiped pre-gate tokenList; flag set");
+    });
   }
 
   // One-shot migration: the token list used to live under a single global
   // key shared across every account/chain. It is now scoped per
-  // `${blockchain}_${account}` like the NFT list. Move whatever the user
+  // `${toTemplateString(blockchain)}_${account}` like the NFT list. Move whatever the user
   // currently has under the global key into the active account's scope,
   // then drop the global key. Deferred (flag not set) until an account is
   // active so we never discard the legacy list before we can re-home it.
@@ -219,25 +229,25 @@ class TokenStore {
     if (!blockchain || !account) return;
 
     const legacyTokens = StorageUtil.getLegacyGlobalTokenList();
-    if (legacyTokens.length > 0) {
+    if (Number(propertyValue(legacyTokens, "length")) > 0) {
       const existing = await StorageUtil.getTokenList(blockchain, account);
-      const seen = new Set(existing.map((t) => t.address.toLowerCase()));
+      const seen = new Set(tokenListValue(existing).map((t) => t.address.toLowerCase()));
       const merged = [
-        ...existing,
-        ...legacyTokens.filter((t) => !seen.has(t.address.toLowerCase())),
+        ...tokenListValue(existing),
+        ...tokenListValue(legacyTokens).filter((t) => !seen.has(t.address.toLowerCase())),
       ];
       await StorageUtil.updateTokenList(blockchain, account, merged);
     }
 
     const legacyHidden = StorageUtil.getLegacyGlobalHiddenTokens();
-    for (const addr of legacyHidden) {
-      await StorageUtil.hideToken(blockchain, account, addr);
+    for (const addr of iterableValue(legacyHidden)) {
+      await StorageUtil.hideToken(blockchain, account, stringValue(addr));
     }
 
     StorageUtil.clearLegacyGlobalTokenData();
     localStorage.setItem(FLAG, "1");
     log(
-      `Migration: moved ${legacyTokens.length} global tokens to ${blockchain}_${account}; flag set`,
+      `Migration: moved ${toTemplateString(propertyValue(legacyTokens, "length"))} global tokens to ${toTemplateString(blockchain)}_${account}; flag set`,
     );
   }
 
@@ -267,7 +277,7 @@ class TokenStore {
     const hidden = await StorageUtil.getHiddenTokens(blockchain, newActiveAccount);
 
     // Sync KNOWN_TOKEN_LIST into the persisted list for the new account.
-    const initialList = [...persisted];
+    const initialList = tokenListValue([...iterableValue(persisted)]);
     const seen = new Set(initialList.map((t) => t.address.toLowerCase()));
     for (const token of KNOWN_TOKEN_LIST) {
       if (!seen.has(token.address.toLowerCase())) {
@@ -292,8 +302,10 @@ class TokenStore {
     void this.refreshTokenBalances();
   }
 
-  async setCreatingToken(name: string, creating: boolean, error?: string) {
-    this.creatingToken = { name, creating, error };
+  setCreatingToken(name: string, creating: boolean, error?: string): Promise<void> {
+    return runAsPromise(() => {
+      this.creatingToken = { name, creating, error };
+    });
   }
 
   async setCreatedToken(
@@ -341,8 +353,8 @@ class TokenStore {
       return token;
     }
 
-    const isHidden = this.hiddenTokens.some(
-      (addr) => addr.toLowerCase() === token.address.toLowerCase(),
+    const isHidden = arrayValue(this.hiddenTokens).some(
+      (addr) => stringValue(addr).toLowerCase() === token.address.toLowerCase(),
     );
     if (isHidden) {
       await this.unhideToken(token.address);
@@ -421,7 +433,7 @@ class TokenStore {
       if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady();
       assertSigningCurrent();
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { url } = QRL_PROVIDER[selectedBlockChain];
+      const { url } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
       const { default: Web3 } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       const contract = new web3.qrl.Contract(CustomERC20ABI, token.address);
@@ -460,7 +472,7 @@ class TokenStore {
       const { maxFeePerGas, maxPriorityFeePerGas } = signingQuote;
       const estimateGas = await web3.qrl.estimateGas({ from, to: token.address, data });
       if (approvedFee !== FEE_NOT_SHOWN) {
-        assertSignedFeeWithinApproved({ quote: signingQuote, gasLimit: BigInt(estimateGas) }, approvedFee);
+        assertSignedFeeWithinApproved({ quote: signingQuote, gasLimit: toBigInt(estimateGas) }, approvedFee);
       }
       assertSigningCurrent();
       if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady(web3.qrl);
@@ -502,10 +514,10 @@ class TokenStore {
       }
     };
     try {
-      this.setCreatingToken(tokenName, true);
+      void this.setCreatingToken(tokenName, true);
       if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady();
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { url } = QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
+      const { url } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
       const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
 
@@ -588,13 +600,13 @@ class TokenStore {
               tokenAddressTopic = matchingLog.topics[1];
             }
           } catch (err) {
-            console.error("Failed to fetch logs via qrl_getLogs:", err);
+            logger.error("Failed to fetch logs via qrl_getLogs:", err);
           }
         }
 
         if (!tokenAddressTopic) {
-          console.error("Token address not found in transaction receipt or logs");
-          this.setCreatingToken(
+          logger.error("Token address not found in transaction receipt or logs");
+          void this.setCreatingToken(
             "",
             false,
             "Token address not found in transaction receipt",
@@ -603,7 +615,7 @@ class TokenStore {
         }
         const erc20TokenAddress = qrlAddressFromIndexedTopic(tokenAddressTopic);
         if (!erc20TokenAddress) {
-          this.setCreatingToken(
+          void this.setCreatingToken(
             "",
             false,
             "Token receipt contains an invalid QIP-55 address topic",
@@ -619,7 +631,7 @@ class TokenStore {
           erc20TokenAddress,
           url,
         );
-        this.setCreatedToken(
+        void this.setCreatedToken(
           name,
           symbol,
           parseInt(tokenDecimals.toString()),
@@ -630,12 +642,12 @@ class TokenStore {
           effectiveGasPrice,
           utils.bytesToHex(blockHash),
         );
-        this.setCreatingToken("", false);
+        void this.setCreatingToken("", false);
       };
 
       const errorHandler = (error: Error) => {
-        console.error("Token creation error:", error);
-        this.setCreatingToken("", false, error.message || "Transaction failed");
+        logger.error("Token creation error:", error);
+        void this.setCreatingToken("", false, error.message || "Transaction failed");
       };
 
       const customERC20Factorycontract = new web3.qrl.Contract(
@@ -675,7 +687,7 @@ class TokenStore {
           const rcpt = await web3.qrl.getTransactionReceipt(transactionHash).catch(() => null);
           if (rcpt) {
             receiptFound = true;
-            await receiptHandler(rcpt as TransactionReceipt);
+            await receiptHandler(rcpt);
           } else {
             await new Promise((resolve) => setTimeout(resolve, pollInterval));
           }
@@ -690,8 +702,8 @@ class TokenStore {
         from: fromAddress,
       });
       const gas = (estimatedGas * 12n) / 10n;
-      const currentGasPrice = await web3.qrl.getGasPrice();
-      const gasPrice = (BigInt(currentGasPrice) * 11n) / 10n;
+      const currentGasPrice: unknown = await web3.qrl.getGasPrice();
+      const gasPrice = (toBigInt(currentGasPrice) * 11n) / 10n;
 
       const txObj = {
         gas,
@@ -714,10 +726,10 @@ class TokenStore {
         .on("receipt", receiptHandler)
         .on("error", errorHandler);
     } catch (error) {
-      console.error("Failed to create token:", error);
+      logger.error("Failed to create token:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Token creation failed";
-      this.setCreatingToken("", false, errorMessage);
+      void this.setCreatingToken("", false, errorMessage);
       throw error;
     }
   }
@@ -740,7 +752,12 @@ class TokenStore {
       // reflects what we set out to refresh.
       const startList = this.tokenList;
       const snapshot = [...startList];
-      const rpcUrl = QRL_PROVIDER[startBlockchain as keyof typeof QRL_PROVIDER].url;
+      const providers: Readonly<Record<string, { url: string }>> = QRL_PROVIDER;
+      const providerConfig = providers[toTemplateString(startBlockchain)];
+      if (providerConfig === undefined) {
+        throw new TypeError("Cannot read properties of undefined (reading 'url')");
+      }
+      const rpcUrl = providerConfig.url;
 
       const updatedTokenList = await Promise.all(
         snapshot.map(async (token) => {
@@ -752,7 +769,10 @@ class TokenStore {
               amount: getOptimalTokenBalance(balanceStr, token.symbol, false),
             };
           } catch (err) {
-            console.error(`Error fetching balance for token ${token.symbol}:`, err);
+            // Production removes diagnostics and their argument evaluation.
+            if (typeof __QRL_DIAGNOSTICS__ === "undefined" || __QRL_DIAGNOSTICS__) {
+              logger.error(`Error fetching balance for token ${toTemplateString(token.symbol)}:`, err);
+            }
             return { ...token, amount: "Error" };
           }
         })
@@ -775,7 +795,7 @@ class TokenStore {
 
       await this.setTokenList(updatedTokenList);
     } catch (error) {
-      console.error("Error refreshing token balances:", error);
+      logger.error("Error refreshing token balances:", error);
     }
   }
 
@@ -817,8 +837,8 @@ class TokenStore {
         await this.setTokenList(mergedTokens);
       }
     } catch (error) {
-      console.error("Error discovering tokens:", error);
-      log(`Token discovery failed: ${error}`);
+      logger.error("Error discovering tokens:", error);
+      log(`Token discovery failed: ${toTemplateString(error)}`);
     }
   }
 
@@ -849,8 +869,8 @@ class TokenStore {
       );
       return discovered;
     } catch (error) {
-      console.error("discoverTokensForReview:", error);
-      log(`discoverTokensForReview failed: ${error}`);
+      logger.error("discoverTokensForReview:", error);
+      log(`discoverTokensForReview failed: ${toTemplateString(error)}`);
       runInAction(() => {
         this.discoveredTokens = [];
       });
@@ -868,10 +888,10 @@ class TokenStore {
     
     // Capture state once to ensure consistency during the loop
     const currentTokenList = [...this.tokenList];
-    const currentHiddenTokens = [...this.hiddenTokens];
+    const currentHiddenTokens = [...iterableValue(this.hiddenTokens)];
     
     const owned = new Set(currentTokenList.map((t) => t.address.toLowerCase()));
-    const hidden = new Set(currentHiddenTokens.map((a) => a.toLowerCase()));
+    const hidden = new Set(currentHiddenTokens.map((a) => stringValue(a).toLowerCase()));
     
     const additions: TokenInterface[] = [];
     const unhides: string[] = [];
@@ -914,10 +934,10 @@ class TokenStore {
         return;
       }
 
-      const drop = new Set(unhides.map((a) => a.toLowerCase()));
+      const drop = new Set(unhides.map((a) => stringValue(a).toLowerCase()));
       runInAction(() => {
-        this.hiddenTokens = this.hiddenTokens.filter(
-          (addr) => !drop.has(addr.toLowerCase()),
+        this.hiddenTokens = arrayValue(this.hiddenTokens).filter(
+          (addr) => !drop.has(stringValue(addr).toLowerCase()),
         );
       });
     }
@@ -945,11 +965,11 @@ class TokenStore {
     runInAction(() => {
       const lowerCaseAddress = tokenAddress.toLowerCase();
       if (
-        !this.hiddenTokens.some(
-          (addr) => addr.toLowerCase() === lowerCaseAddress,
+        !arrayValue(this.hiddenTokens).some(
+          (addr) => stringValue(addr).toLowerCase() === lowerCaseAddress,
         )
       ) {
-        this.hiddenTokens = [...this.hiddenTokens, lowerCaseAddress];
+        this.hiddenTokens = [...iterableValue(this.hiddenTokens), lowerCaseAddress];
       }
     });
     log(`Token hidden: ${tokenAddress}`);
@@ -959,8 +979,8 @@ class TokenStore {
     const { blockchain, account } = this.scope;
     await StorageUtil.unhideToken(blockchain, account, tokenAddress);
     runInAction(() => {
-      this.hiddenTokens = this.hiddenTokens.filter(
-        (addr) => addr.toLowerCase() !== tokenAddress.toLowerCase(),
+      this.hiddenTokens = arrayValue(this.hiddenTokens).filter(
+        (addr) => stringValue(addr).toLowerCase() !== tokenAddress.toLowerCase(),
       );
     });
     log(`Token unhidden: ${tokenAddress}`);

@@ -58,38 +58,27 @@ const MAIN_SEED: EncryptedSeedData = {
   revision: 5,
 };
 
-const mockGetAll = StorageUtil.getAllEncryptedSeeds as jest.MockedFunction<
-  typeof StorageUtil.getAllEncryptedSeeds
->;
-const mockReplace =
-  StorageUtil.replaceEncryptedSeedSetIfUnchanged as jest.MockedFunction<
-    typeof StorageUtil.replaceEncryptedSeedSetIfUnchanged
-  >;
-const mockDecrypt = decryptSeedAsync as jest.MockedFunction<
-  typeof decryptSeedAsync
->;
-const mockEncrypt = encryptSeedAsync as jest.MockedFunction<
-  typeof encryptSeedAsync
->;
-const mockDeriveAddress =
-  deriveCanonicalAddressFromHexSeed as jest.MockedFunction<
-    typeof deriveCanonicalAddressFromHexSeed
-  >;
+const mockedStorageUtil = jest.mocked(StorageUtil);
+
+const mockGetAll = mockedStorageUtil.getAllEncryptedSeeds;
+const mockReplace = mockedStorageUtil.replaceEncryptedSeedSetIfUnchanged;
+const mockDecrypt = jest.mocked(decryptSeedAsync);
+const mockEncrypt = jest.mocked(encryptSeedAsync);
+const mockDeriveAddress = jest.mocked(deriveCanonicalAddressFromHexSeed);
 
 describe("cross-network PIN rotation", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorage.clear();
-    mockGetAll.mockImplementation(async (blockchain) =>
-      blockchain === "TEST_NET" ? [{ ...TEST_SEED }] : [{ ...MAIN_SEED }],
+    mockGetAll.mockImplementation((blockchain) =>
+      Promise.resolve(blockchain === "TEST_NET" ? [{ ...TEST_SEED }] : [{ ...MAIN_SEED }]),
     );
-    mockDecrypt.mockImplementation(async (encryptedSeed) => ({
-      mnemonic:
-        encryptedSeed === "old-test" ? "mnemonic-test" : "mnemonic-main",
+    mockDecrypt.mockImplementation((encryptedSeed) => Promise.resolve({
+      mnemonic: encryptedSeed === "old-test" ? "mnemonic-test" : "mnemonic-main",
       hexSeed: encryptedSeed === "old-test" ? "hex-test" : "hex-main",
     }));
     mockEncrypt.mockImplementation(
-      async (_mnemonic, hexSeed) => `new-${hexSeed}`,
+      (_mnemonic, hexSeed) => Promise.resolve(`new-${hexSeed}`),
     );
     mockDeriveAddress.mockImplementation((hexSeed) =>
       hexSeed === "hex-test" ? TEST_ADDRESS : MAIN_ADDRESS,
@@ -136,14 +125,14 @@ describe("cross-network PIN rotation", () => {
       lastAccessed: 10,
       revision: 1,
     }));
-    mockGetAll.mockImplementation(async (blockchain) =>
-      blockchain === "TEST_NET" ? seeds.map((seed) => ({ ...seed })) : [],
+    mockGetAll.mockImplementation((blockchain) =>
+      Promise.resolve(blockchain === "TEST_NET" ? seeds.map((seed) => ({ ...seed })) : []),
     );
-    mockDecrypt.mockImplementation(async (encryptedSeed) => ({
-      mnemonic: `m-${encryptedSeed}`,
-      hexSeed: encryptedSeed,
+    mockDecrypt.mockImplementation((encryptedSeed) => Promise.resolve({
+      mnemonic: `m-${String(encryptedSeed)}`,
+      hexSeed: String(encryptedSeed),
     }));
-    mockEncrypt.mockImplementation(async (_m, hexSeed) => `new-${hexSeed}`);
+    mockEncrypt.mockImplementation((_m, hexSeed) => Promise.resolve(`new-${hexSeed}`));
     mockDeriveAddress.mockImplementation((hexSeed) => {
       const index = Number(hexSeed.slice(4));
       return seeds[index]?.address ?? TEST_ADDRESS;
@@ -184,14 +173,14 @@ describe("cross-network PIN rotation", () => {
   it("restores old ciphertext under a higher revision when any native ACK fails", async () => {
     const backup = jest
       .fn<Promise<unknown>, [PinRotationBackupRecord]>()
-      .mockImplementation(async (record) => {
+      .mockImplementation((record) => {
         if (
           record.blockchain === "MAIN_NET" &&
           record.encryptedSeed.startsWith("new-")
         ) {
-          throw new Error("native disk full");
+          return Promise.reject(new Error("native disk full"));
         }
-        return {};
+        return Promise.resolve({});
       });
 
     await expect(

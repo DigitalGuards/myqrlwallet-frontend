@@ -14,7 +14,7 @@ const hash = `0x${"c".repeat(64)}`;
 const contract = `Q${"d".repeat(128)}`;
 const mockParseUnits = parseUnits;
 let mockDesktop = false;
-const mockDesktopSend = jest.fn();
+const mockDesktopSend = jest.fn<Promise<unknown>, unknown[]>();
 class Events {
   listeners = new Map<string, ((value: unknown) => void)[]>();
   on(event: string, listener: (value: unknown) => void) {
@@ -27,14 +27,15 @@ class Events {
 }
 let mockEvents = new Events();
 const mockRpc = {
-  getTransactionCount: async () => 7n,
-  getGasPrice: async () => 1000000000n,
-  estimateGas: async () => 21000n,
+  getTransactionCount: () => Promise.resolve(7n),
+  getGasPrice: () => Promise.resolve(1000000000n),
+  estimateGas: () => Promise.resolve(21000n),
   accounts: {
-    signTransaction: async () => ({
-      rawTransaction: "0x01",
-      transactionHash: hash,
-    }),
+    signTransaction: () =>
+      Promise.resolve({
+        rawTransaction: "0x01",
+        transactionHash: hash,
+      }),
     seedToAccount: () => ({ address: from }),
   },
   wallet: { add: () => undefined },
@@ -44,7 +45,7 @@ const mockRpc = {
     methods = {
       transfer: () => ({
         encodeABI: () => "0x1234",
-        estimateGas: async () => 21000n,
+        estimateGas: () => Promise.resolve(21000n),
       }),
     };
   },
@@ -56,7 +57,7 @@ jest.mock("@/config", () => ({
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({
-  deriveHexSeedAsync: async () => "test-seed",
+  deriveHexSeedAsync: () => Promise.resolve("test-seed"),
 }));
 jest.mock("@/desktop/bridge", () => ({
   get isDesktop() {
@@ -68,22 +69,23 @@ jest.mock("@/desktop/bridge", () => ({
 }));
 jest.mock("@/desktop/walletHydration", () => ({}));
 jest.mock("@/utils/storage", () => ({
-  StorageUtil: { getBlockChain: async () => "TEST_NET" },
+  StorageUtil: { getBlockChain: () => Promise.resolve("TEST_NET") },
 }));
 jest.mock("@/utils/web3", () => ({
-  getQrlWeb3: async () => ({
-    default: class {
-      static providers: { HttpProvider: new (url: string) => object } = {
-        HttpProvider: class {},
-      };
-      qrl = mockRpc;
-    },
-    utils: {
-      toPlanck: (value: string) => mockParseUnits(value).toString(),
-      toHex: (value: bigint) => `0x${value.toString(16)}`,
-      bytesToHex: (value: unknown) => value,
-    },
-  }),
+  getQrlWeb3: () =>
+    Promise.resolve({
+      default: class {
+        static providers: { HttpProvider: new (url: string) => object } = {
+          HttpProvider: jest.fn<object, [string]>(() => ({})),
+        };
+        qrl = mockRpc;
+      },
+      utils: {
+        toPlanck: (value: string) => mockParseUnits(value).toString(),
+        toHex: (value: bigint) => `0x${value.toString(16)}`,
+        bytesToHex: (value: unknown) => value,
+      },
+    }),
 }));
 jest.mock("@/utils/nativeWalletMutation", () => ({
   walletMutations: { captureGeneration: () => 0, isCurrent: () => true },
@@ -181,11 +183,11 @@ it.each(["extension", "mobile"] as const)(
     const wallet = store();
     wallet.activeAccount.source = source;
     const provider = {
-      request: jest.fn(async ({ method }: { method: string }) => {
-        if (method === "qrl_accounts") return [from];
+      request: jest.fn(({ method }: { method: string }) => {
+        if (method === "qrl_accounts") return Promise.resolve([from]);
         wallet.activeAccount.accountAddress = to;
         wallet.qrlConnection.blockchain = "MAIN_NET";
-        return hash;
+        return Promise.resolve(hash);
       }),
     };
     Object.assign(
@@ -218,8 +220,8 @@ it("does not record a rejected remote send", async () => {
   wallet.activeAccount.source = "mobile";
   Object.assign(wallet, {
     mobileProvider: {
-      request: async () => {
-        throw new Error("rejected");
+      request: () => {
+        return Promise.reject(new Error("rejected"));
       },
     },
   });
@@ -260,11 +262,11 @@ it("records token sends using the reviewed token amount and recipient", async ()
 it("records NFT sends using the recipient and token identifier", async () => {
   const wallet = store();
   const nfts = new NftStore(wallet, new TokenStore(wallet));
-  const nft: NFTInterface = {
+  const nft = {
     contractAddress: contract,
     tokenId: "7",
     standard: "ERC721",
-  };
+  } satisfies NFTInterface;
   await nfts.transferNft(nft, to, "test-seed", 1n, "medium", FEE_NOT_SHOWN);
   mockEvents.emit("transactionHash", hash);
   expect(transactionHistoryStore.getSnapshot().entries[0]).toMatchObject({

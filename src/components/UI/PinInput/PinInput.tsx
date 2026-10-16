@@ -1,4 +1,5 @@
-import React, { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
+import type React from "react";
+import { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import { cn } from "@/utils/cn";
 
 interface PinInputProps {
@@ -59,7 +60,9 @@ export const PinInput = forwardRef<PinInputHandle, PinInputProps>(({
   };
 
   useImperativeHandle(ref, () => ({
-    focus: () => focusCell(Math.min(value.length, length - 1)),
+    focus: () => {
+      focusCell(Math.min(value.length, length - 1));
+    },
   }));
 
   useEffect(() => {

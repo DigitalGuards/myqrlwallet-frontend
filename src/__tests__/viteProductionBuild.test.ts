@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
+import { isArray, isRecord } from "@/utils/guards";
 
 interface BuildResult {
   mode: string;
@@ -13,6 +14,27 @@ interface BuildResult {
 interface BuildReport {
   builds: BuildResult[];
   seedErrors: string[];
+}
+
+function isBuildResult(value: unknown): value is BuildResult {
+  return (
+    isRecord(value) &&
+    typeof value["mode"] === "string" &&
+    typeof value["desktop"] === "boolean" &&
+    typeof value["base"] === "string" &&
+    typeof value["sourcemap"] === "boolean" &&
+    typeof value["code"] === "string"
+  );
+}
+
+function isBuildReport(value: unknown): value is BuildReport {
+  return (
+    isRecord(value) &&
+    isArray(value["builds"]) &&
+    value["builds"].every(isBuildResult) &&
+    isArray(value["seedErrors"]) &&
+    value["seedErrors"].every((error) => typeof error === "string")
+  );
 }
 
 // Exercise the installed ESM compiler in Node, outside Jest's module transforms.
@@ -79,7 +101,7 @@ describe("Vite production diagnostic stripping", () => {
   let report: BuildReport;
 
   beforeAll(() => {
-    report = JSON.parse(
+    const parsed: unknown = JSON.parse(
       execFileSync(
         process.execPath,
         ["--input-type=module", "--eval", buildScript],
@@ -91,8 +113,38 @@ describe("Vite production diagnostic stripping", () => {
           maxBuffer: 2 * 1024 * 1024,
         },
       ),
-    ) as BuildReport;
+    );
+    if (!isBuildReport(parsed)) throw new Error("Invalid Vite build report");
+    report = parsed;
   }, 65_000);
+
+  it.each([
+    null,
+    [],
+    {},
+    { builds: [], seedErrors: [null] },
+    { builds: [null], seedErrors: [] },
+    {
+      builds: [
+        { mode: "production", desktop: false, base: "/", sourcemap: false },
+      ],
+      seedErrors: [],
+    },
+    {
+      builds: [
+        {
+          mode: "production",
+          desktop: "false",
+          base: "/",
+          sourcemap: false,
+          code: "",
+        },
+      ],
+      seedErrors: [],
+    },
+  ])("rejects malformed build reports: %p", (value) => {
+    expect(isBuildReport(value)).toBe(false);
+  });
 
   it.each(["production", "development", "staging"])(
     "preserves the %s mode policy in web and desktop output",

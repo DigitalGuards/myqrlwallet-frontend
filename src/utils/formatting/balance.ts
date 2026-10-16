@@ -1,3 +1,4 @@
+import { toTemplateString } from "@/utils/guards";
 import { NATIVE_TOKEN } from "@/constants";
 import { utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
@@ -8,14 +9,17 @@ import { BigNumber } from "bignumber.js";
  * also protects direct/internal callers from crashing the review render.
  */
 export const formatQuantaValue = (value: unknown): string => {
-    if (value === undefined || value === null || value === "") return `0 ${NATIVE_TOKEN.symbol}`;
-    try {
-        const planck = BigInt(value as string);
-        if (planck < 0n) return "invalid value";
-        return `${utils.fromPlanck(planck.toString(), "quanta")} ${NATIVE_TOKEN.symbol}`;
-    } catch {
-        return "invalid value";
-    }
+  if (value === undefined || value === null || value === "")
+    return `0 ${NATIVE_TOKEN.symbol}`;
+  try {
+    // Native BigInt also accepts objects through numeric-hint coercion.
+    const planck: unknown = Reflect.apply(BigInt, undefined, [value]);
+    if (typeof planck !== "bigint" || planck < 0n) return "invalid value";
+    const quanta = utils.fromPlanck(planck.toString(), "quanta").replace(/\.$/, "");
+    return `${quanta} ${NATIVE_TOKEN.symbol}`;
+  } catch {
+    return "invalid value";
+  }
 };
 
 BigNumber.config({
@@ -60,15 +64,16 @@ export const getOptimalGasFee = (gas: string, tokenSymbol?: string) => {
 };
 
 export const getOptimalTokenBalance = (
-    balance: string,
-    tokenSymbol?: string,
+    balance: unknown,
+    tokenSymbol?: unknown,
     includeSymbol: boolean = true,
 ) => {
     const symbol = tokenSymbol ?? NATIVE_TOKEN.symbol;
     try {
-        const bigNumber = new BigNumber(balance);
+        const bigNumber: unknown = Reflect.construct(BigNumber, [balance]);
+        if (!(bigNumber instanceof BigNumber)) throw new TypeError("Invalid BigNumber result");
         if (bigNumber.isNaN() || bigNumber.isZero()) {
-            return includeSymbol ? `0.0 ${symbol}` : "0.0";
+            return includeSymbol ? `0.0 ${toTemplateString(symbol)}` : "0.0";
         }
 
         let formatted = bigNumber
@@ -79,9 +84,9 @@ export const getOptimalTokenBalance = (
             formatted += ".0";
         }
 
-        return includeSymbol ? `${formatted} ${symbol}` : formatted;
+        return includeSymbol ? `${formatted} ${toTemplateString(symbol)}` : formatted;
     } catch {
-        return includeSymbol ? `0.0 ${symbol}` : "0.0";
+        return includeSymbol ? `0.0 ${toTemplateString(symbol)}` : "0.0";
     }
 };
 
@@ -107,11 +112,12 @@ export const getOptimalTokenBalance = (
  * because token decimals vary.
  */
 export const formatBalance = (
-    balance: string | number,
+    balance: unknown,
     decimals: number = 2,
     useThousandSeparator: boolean = true
 ): string => {
-    const bn = new BigNumber(balance);
+    const bn: unknown = Reflect.construct(BigNumber, [balance]);
+    if (!(bn instanceof BigNumber)) throw new TypeError("Invalid BigNumber result");
 
     if (bn.isNaN()) return '0';
 
@@ -130,7 +136,7 @@ export const formatBalance = (
         // Strip trailing zeros beyond the requested minimum decimal count
         // (e.g. 0.240000 → 0.24, 0.249000 → 0.249).
         const trimRe = new RegExp(`(\\.\\d{${decimals}}\\d*?)0+$`);
-        formatted = formatted.replace(trimRe, '$1');
+        formatted = formatted.replace(trimRe, '$1').replace(/\.$/, '');
     }
 
     if (useThousandSeparator) {

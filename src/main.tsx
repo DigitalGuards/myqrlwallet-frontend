@@ -32,6 +32,7 @@ import { isRetiredNativeApp } from '@/utils/nativeApp'
 import { HAS_NATIVE_BRIDGE } from '@/utils/embeddedRuntime'
 import RetiredAppNotice from '@/components/RetiredAppNotice'
 import WalletLoadFailed from '@/components/WalletLoadFailed'
+import { logger } from '@/utils/log'
 // Self-hosted variable fonts (CSP-safe, bundled by Vite): Sora = display,
 // Instrument Sans = body, Inter = numeric (balances/amounts/fees),
 // JetBrains Mono = data (addresses/hashes/seeds). Imported here, outside
@@ -69,7 +70,7 @@ if (!HAS_NATIVE_BRIDGE && isRetiredNativeApp()) {
     .catch((error: unknown) => {
       // A chunk that fails to load (for example a deploy replacing hashed
       // files mid-visit) would otherwise leave a blank page.
-      console.error('[boot] could not load the wallet', error)
+      logger.error('[boot] could not load the wallet', error)
       root.render(<WalletLoadFailed />)
     })
 }

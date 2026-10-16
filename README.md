@@ -63,6 +63,8 @@ npm run typecheck   # Check app and build-tool TypeScript
 npm test            # Run tests
 ```
 
+The lint ratchet in `config/eslint.config.js` lists all remaining findings as exact file/rule pairs, including tests, and only shrinks. After fixing a pair, run `npm run lint:ratchet:update`; CI runs `npm run lint:ratchet` to reject new pairs, stale entries, and noncanonical formatting.
+
 ## Docker Deployment
 
 ### Build Image

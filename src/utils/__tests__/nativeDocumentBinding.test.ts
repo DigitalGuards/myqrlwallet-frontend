@@ -12,12 +12,12 @@ const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
 
 describe("native WebView document binding", () => {
   let eventTarget: EventTarget;
-  let postMessage: jest.Mock;
+  let postMessage: jest.Mock<undefined, [string]>;
 
   beforeEach(() => {
     jest.resetModules();
     eventTarget = new EventTarget();
-    postMessage = jest.fn();
+    postMessage = jest.fn((_message: string) => undefined);
     Object.assign(eventTarget, { ReactNativeWebView: { postMessage } });
     Object.defineProperty(globalThis, "window", {
       configurable: true,
@@ -41,7 +41,9 @@ describe("native WebView document binding", () => {
     expect(nativeApp.notifyWebAppReady()).toBe(true);
     expect(nativeApp.confirmWebDocumentReady("11".repeat(16))).toBe(true);
 
-    expect(postMessage.mock.calls.map(([wire]) => JSON.parse(wire))).toEqual([
+    expect(
+      postMessage.mock.calls.map(([wire]): unknown => JSON.parse(wire)),
+    ).toEqual([
       { type: "WEB_APP_READY", payload: { documentId } },
       {
         type: "WEB_DOCUMENT_READY",
@@ -97,7 +99,9 @@ describe("native WebView document binding", () => {
     second.notifyWebAppReady();
 
     expect(secondId).not.toBe(firstId);
-    expect(postMessage.mock.calls.map(([wire]) => JSON.parse(wire))).toEqual([
+    expect(
+      postMessage.mock.calls.map(([wire]): unknown => JSON.parse(wire)),
+    ).toEqual([
       { type: "WEB_APP_READY", payload: { documentId: firstId } },
       { type: "WEB_APP_READY", payload: { documentId: secondId } },
     ]);

@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import { Button } from "../../../../UI/Button";
 import { Label } from "../../../../UI/Label";
 import {
@@ -65,58 +66,49 @@ export const CopyAddressButton = ({
       const svgDataUrl = "data:image/svg+xml;base64," + base64;
 
       const img = new Image();
-      img.onload = async () => {
-        const canvas = document.createElement("canvas");
-        // Add padding for better QR scanning
-        const padding = 20;
-        canvas.width = img.width + padding * 2;
-        canvas.height = img.height + padding * 2;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => {
+          resolve();
+        };
+        img.onerror = () => {
+          reject(new Error("Failed to load QR code image"));
+        };
+        img.src = svgDataUrl;
+      });
+      const canvas = document.createElement("canvas");
+      const padding = 20;
+      canvas.width = img.width + padding * 2;
+      canvas.height = img.height + padding * 2;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-        // White background
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        // Draw QR code centered
-        ctx.drawImage(img, padding, padding);
-
-        // Convert to blob and copy
-        canvas.toBlob(async (blob) => {
-          if (!blob) return;
-          try {
-            await navigator.clipboard.write([
-              new ClipboardItem({ "image/png": blob }),
-            ]);
-            setQrCopied(true);
-            setTimeout(() => setQrCopied(false), 1500);
-          } catch (_err) {
-            // No image clipboard, which is the usual case in a WebView. The
-            // native share sheet is the path that works there. A detached
-            // <a download> click reaches no download handler in the app, so
-            // reporting success for it told the user the QR was copied when
-            // nothing had happened.
-            if (isInNativeApp()) {
-              shareContent({
-                title: "QRL address",
-                text: accountAddress,
-              });
-              setQrCopied(true);
-              setTimeout(() => setQrCopied(false), 1500);
-              return;
-            }
-            const dataUrl = canvas.toDataURL("image/png");
-            const a = document.createElement("a");
-            a.href = dataUrl;
-            a.download = `address-${accountAddress.slice(0, 8)}.png`;
-            a.click();
-            setQrCopied(true);
-            setTimeout(() => setQrCopied(false), 1500);
-          }
-        }, "image/png");
-      };
-      img.src = svgDataUrl;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, padding, padding);
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, "image/png");
+      });
+      if (!blob) return;
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      } catch {
+        // WebViews use the native share sheet for the public address.
+        if (isInNativeApp()) {
+          shareContent({ title: "QRL address", text: accountAddress });
+        } else {
+          const dataUrl = canvas.toDataURL("image/png");
+          const a = document.createElement("a");
+          a.href = dataUrl;
+          a.download = `address-${accountAddress.slice(0, 8)}.png`;
+          a.click();
+        }
+      }
+      setQrCopied(true);
+      setTimeout(() => {
+        setQrCopied(false);
+      }, 1500);
     } catch (err) {
-      console.error("Failed to copy QR code:", err);
+      logger.error("Failed to copy QR code:", err);
     }
   };
 
@@ -129,7 +121,11 @@ export const CopyAddressButton = ({
               className="hover:text-secondary"
               variant="outline"
               size="icon"
-              onClick={copyAccount}
+              onClick={() => {
+                copyAccount().catch((error: unknown) => {
+                  logger.error("Failed to copy address:", error);
+                });
+              }}
               aria-label={copied ? "Address copied" : "Copy address"}
             >
               <Copy size={18} />
@@ -166,7 +162,7 @@ export const CopyAddressButton = ({
               bgColor="#ffffff"
               fgColor="#000000"
               level="L"
-              includeMargin
+              marginSize={4}
             />
             <QrlAddress
               address={accountAddress}
@@ -178,7 +174,11 @@ export const CopyAddressButton = ({
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={copyQrCode}
+              onClick={() => {
+                copyQrCode().catch((error: unknown) => {
+                  logger.error("Failed to copy QR code:", error);
+                });
+              }}
             >
               {qrCopied ? (
                 "Copied!"

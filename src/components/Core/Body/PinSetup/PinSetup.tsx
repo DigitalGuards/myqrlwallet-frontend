@@ -1,3 +1,4 @@
+import type { EncryptedSeedData } from "@/utils/storage/storage";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { useState, useEffect, useRef } from "react";
@@ -29,6 +30,7 @@ import { isInNativeApp, notifySeedStored } from "@/utils/nativeApp";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import { DeviceCredentialRecovery } from "./DeviceCredentialRecovery";
+import { logger } from "@/utils/log";
 
 // Password must match the signer's policy; same regex the create form uses.
 const passwordValidation = z
@@ -170,7 +172,14 @@ const DesktopPasswordSetup = ({
       seoTitle="Import Account"
     >
       <Form {...form}>
-        <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+        <form
+          className="w-full"
+          onSubmit={(event) => {
+            void handleSubmit(onSubmit)(event).catch((error: unknown) => {
+              logger.error("Failed to submit wallet password:", error);
+            });
+          }}
+        >
           <Card>
             <CardContent className="space-y-6 pt-6">
               <FormField
@@ -246,7 +255,7 @@ const WebPinSetup = ({
     null,
   );
   const [existingSeeds, setExistingSeeds] = useState<
-    { address: string; encryptedSeed: string }[]
+    EncryptedSeedData[]
   >([]);
 
   // Check for existing encrypted seeds on mount
@@ -256,7 +265,9 @@ const WebPinSetup = ({
       setHasExistingSeeds(seeds.length > 0);
       setExistingSeeds(seeds);
     };
-    checkExistingSeeds();
+    void checkExistingSeeds().catch((error: unknown) => {
+      logger.error("Failed to load encrypted seeds:", error);
+    });
   }, [blockchain]);
 
   // Use dynamic schema - require PIN confirmation only for new users
@@ -358,7 +369,7 @@ const WebPinSetup = ({
     } catch (error) {
       setIsStoringPin(false);
       setError("pin", {
-        message: `${error} There was an error while setting up the PIN`,
+        message: `${String(error)} There was an error while setting up the PIN`,
       });
     }
   }
@@ -382,7 +393,14 @@ const WebPinSetup = ({
       seoTitle="Import Account"
     >
       <Form {...form}>
-        <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+        <form
+          className="w-full"
+          onSubmit={(event) => {
+            void handleSubmit(onSubmit)(event).catch((error: unknown) => {
+              logger.error("Failed to submit wallet PIN:", error);
+            });
+          }}
+        >
           <Card>
             <CardContent className="space-y-8 pt-6">
               <div>

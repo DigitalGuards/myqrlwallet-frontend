@@ -69,7 +69,7 @@ interface HarnessProps {
   accountAddress?: string;
   configuration?: QrnsNetworkConfiguration;
   provider: QrnsRpcProvider | null;
-  onResult(result: UseQrnsRecipientResult): void;
+  onResult: (result: UseQrnsRecipientResult) => void;
 }
 
 function Harness({
@@ -94,7 +94,9 @@ function Harness({
 describe("useQrnsRecipient", () => {
   it("shows QRL address wording for a malformed recipient without any RPC request", () => {
     const request: jest.MockedFunction<QrnsRpcProvider["request"]> = jest.fn();
-    const latest = { current: null as UseQrnsRecipientResult | null };
+    const latest: { current: UseQrnsRecipientResult | null } = {
+      current: null,
+    };
     const invalid = `q${RECIPIENT_A.slice(1)}`;
     const view = render(
       <Harness
@@ -115,7 +117,9 @@ describe("useQrnsRecipient", () => {
   it("accepts a direct QIP-55 address without any RPC request", async () => {
     const request: jest.MockedFunction<QrnsRpcProvider["request"]> = jest.fn();
     const provider: QrnsRpcProvider = { identity: "direct-test", request };
-    const latest = { current: null as UseQrnsRecipientResult | null };
+    const latest: { current: UseQrnsRecipientResult | null } = {
+      current: null,
+    };
     const view = render(
       <Harness
         input={RECIPIENT_A}
@@ -126,7 +130,9 @@ describe("useQrnsRecipient", () => {
       />,
     );
 
-    await waitFor(() => expect(view.getByRole("status")).toBeTruthy());
+    await waitFor(() => {
+      expect(view.getByRole("status")).toBeTruthy();
+    });
     expect(view.getByLabelText(`QRL address ${RECIPIENT_A}`)).toBeTruthy();
     expect(request).not.toHaveBeenCalled();
     expect(latest.current?.captureSubmission(RECIPIENT_A)?.address).toBe(
@@ -135,7 +141,9 @@ describe("useQrnsRecipient", () => {
   });
 
   it("shows QRNS unavailable while direct addresses remain independent", async () => {
-    const latest = { current: null as UseQrnsRecipientResult | null };
+    const latest: { current: UseQrnsRecipientResult | null } = {
+      current: null,
+    };
     const view = render(
       <Harness
         input="alice.qrl"
@@ -147,9 +155,9 @@ describe("useQrnsRecipient", () => {
       />,
     );
 
-    await waitFor(() =>
-      expect(view.getByText(UNAVAILABLE.reason)).toBeTruthy(),
-    );
+    await waitFor(() => {
+      expect(view.getByText(UNAVAILABLE.reason)).toBeTruthy();
+    });
     expect(latest.current?.status).toBe("unavailable");
     expect(latest.current?.address).toBeNull();
   });
@@ -160,7 +168,9 @@ describe("useQrnsRecipient", () => {
       const request: jest.MockedFunction<QrnsRpcProvider["request"]> =
         jest.fn();
       const provider: QrnsRpcProvider = { identity: "suffix-test", request };
-      const latest = { current: null as UseQrnsRecipientResult | null };
+      const latest: { current: UseQrnsRecipientResult | null } = {
+        current: null,
+      };
       const view = render(
         <Harness
           input={input}
@@ -171,11 +181,11 @@ describe("useQrnsRecipient", () => {
         />,
       );
 
-      await waitFor(() =>
+      await waitFor(() => {
         expect(
           view.getByText("QRNS recipient names must end in .qrl."),
-        ).toBeTruthy(),
-      );
+        ).toBeTruthy();
+      });
       expect(latest.current?.status).toBe("error");
       expect(latest.current?.address).toBeNull();
       expect(request).not.toHaveBeenCalled();
@@ -184,20 +194,24 @@ describe("useQrnsRecipient", () => {
 
   it("normalizes and resolves a recipient with the canonical .qrl suffix", async () => {
     const request: jest.MockedFunction<QrnsRpcProvider["request"]> = jest.fn(
-      async ({ method, params }) => {
-        if (method === "qrl_chainId") return "0x539";
-        if (method === "qrl_getCode") return "0x01";
+      ({ method, params }) => {
+        if (method === "qrl_chainId") return Promise.resolve("0x539");
+        if (method === "qrl_getCode") return Promise.resolve("0x01");
         const call = params?.[0];
         if (typeof call !== "object" || call === null || !("to" in call)) {
-          throw new Error("Missing qrl_call request");
+          return Promise.reject(new Error("Missing qrl_call request"));
         }
-        return call.to === REGISTRY
-          ? encodedAddress(RESOLVER_A)
-          : encodedAddress(RECIPIENT_A);
+        return Promise.resolve(
+          call.to === REGISTRY
+            ? encodedAddress(RESOLVER_A)
+            : encodedAddress(RECIPIENT_A),
+        );
       },
     );
     const provider: QrnsRpcProvider = { identity: "valid-suffix", request };
-    const latest = { current: null as UseQrnsRecipientResult | null };
+    const latest: { current: UseQrnsRecipientResult | null } = {
+      current: null,
+    };
     const view = render(
       <Harness
         input="Alice.QRL"
@@ -208,9 +222,9 @@ describe("useQrnsRecipient", () => {
       />,
     );
 
-    await waitFor(() =>
-      expect(view.getByLabelText(`QRL address ${RECIPIENT_A}`)).toBeTruthy(),
-    );
+    await waitFor(() => {
+      expect(view.getByLabelText(`QRL address ${RECIPIENT_A}`)).toBeTruthy();
+    });
     expect(latest.current?.normalizedName).toBe("alice.qrl");
     expect(latest.current?.captureSubmission("Alice.QRL")?.address).toBe(
       RECIPIENT_A,
@@ -241,7 +255,9 @@ describe("useQrnsRecipient", () => {
       },
     );
     const provider: QrnsRpcProvider = { identity: "stale-input", request };
-    const latest = { current: null as UseQrnsRecipientResult | null };
+    const latest: { current: UseQrnsRecipientResult | null } = {
+      current: null,
+    };
     const onResult = (result: UseQrnsRecipientResult) => {
       latest.current = result;
     };
@@ -249,21 +265,21 @@ describe("useQrnsRecipient", () => {
       <Harness input="alice.qrl" provider={provider} onResult={onResult} />,
     );
 
-    await waitFor(() =>
+    await waitFor(() => {
       expect(
         request.mock.calls.some(
           ([args]) =>
             args.method === "qrl_call" &&
             JSON.stringify(args.params).includes(aliceNode),
         ),
-      ).toBe(true),
-    );
+      ).toBe(true);
+    });
     view.rerender(
       <Harness input="bob.qrl" provider={provider} onResult={onResult} />,
     );
-    await waitFor(() =>
-      expect(view.getByLabelText(`QRL address ${RECIPIENT_B}`)).toBeTruthy(),
-    );
+    await waitFor(() => {
+      expect(view.getByLabelText(`QRL address ${RECIPIENT_B}`)).toBeTruthy();
+    });
     const bobSubmission = latest.current?.captureSubmission("bob.qrl");
     expect(bobSubmission?.address).toBe(RECIPIENT_B);
 
@@ -278,14 +294,18 @@ describe("useQrnsRecipient", () => {
   it("invalidates a captured recipient immediately after network or account change", async () => {
     const request: jest.MockedFunction<QrnsRpcProvider["request"]> = jest.fn();
     const provider: QrnsRpcProvider = { identity: "binding-test", request };
-    const latest = { current: null as UseQrnsRecipientResult | null };
+    const latest: { current: UseQrnsRecipientResult | null } = {
+      current: null,
+    };
     const onResult = (result: UseQrnsRecipientResult) => {
       latest.current = result;
     };
     const view = render(
       <Harness input={RECIPIENT_A} provider={provider} onResult={onResult} />,
     );
-    await waitFor(() => expect(latest.current?.status).toBe("success"));
+    await waitFor(() => {
+      expect(latest.current?.status).toBe("success");
+    });
     const captured = latest.current?.captureSubmission(RECIPIENT_A);
     if (!captured) throw new Error("Expected a captured recipient");
 
@@ -303,11 +323,14 @@ describe("useQrnsRecipient", () => {
   });
 
   it("invalidates a captured recipient when the configured genesis changes", async () => {
+    const request: jest.MockedFunction<QrnsRpcProvider["request"]> = jest.fn();
     const provider: QrnsRpcProvider = {
       identity: "genesis-binding",
-      request: jest.fn(),
+      request,
     };
-    const latest = { current: null as UseQrnsRecipientResult | null };
+    const latest: { current: UseQrnsRecipientResult | null } = {
+      current: null,
+    };
     const onResult = (result: UseQrnsRecipientResult) => {
       latest.current = result;
     };
@@ -323,7 +346,9 @@ describe("useQrnsRecipient", () => {
         onResult={onResult}
       />,
     );
-    await waitFor(() => expect(latest.current?.status).toBe("success"));
+    await waitFor(() => {
+      expect(latest.current?.status).toBe("success");
+    });
     const captured = latest.current?.captureSubmission(RECIPIENT_A);
     if (!captured) throw new Error("Expected a captured recipient");
     view.rerender(
@@ -338,7 +363,7 @@ describe("useQrnsRecipient", () => {
       />,
     );
     expect(latest.current?.revalidateSubmission(captured)).toBeNull();
-    expect(provider.request).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
   });
 
   it("discards a late result from the previously selected network", async () => {
@@ -373,30 +398,36 @@ describe("useQrnsRecipient", () => {
     };
     const newProvider: QrnsRpcProvider = {
       identity: "new-network",
-      request: async ({ method, params }) => {
-        if (method === "qrl_chainId") return "0x2";
-        if (method === "qrl_getCode") return "0x01";
+      request: ({ method, params }) => {
+        if (method === "qrl_chainId") return Promise.resolve("0x2");
+        if (method === "qrl_getCode") return Promise.resolve("0x01");
         const call = params?.[0];
         if (typeof call !== "object" || call === null || !("to" in call)) {
-          throw new Error("Missing new-network qrl_call request");
+          return Promise.reject(
+            new Error("Missing new-network qrl_call request"),
+          );
         }
-        return call.to === newRegistry
-          ? encodedAddress(RESOLVER_B)
-          : encodedAddress(RECIPIENT_B);
+        return Promise.resolve(
+          call.to === newRegistry
+            ? encodedAddress(RESOLVER_B)
+            : encodedAddress(RECIPIENT_B),
+        );
       },
     };
-    const latest = { current: null as UseQrnsRecipientResult | null };
+    const latest: { current: UseQrnsRecipientResult | null } = {
+      current: null,
+    };
     const onResult = (result: UseQrnsRecipientResult) => {
       latest.current = result;
     };
     const view = render(
       <Harness input="alice.qrl" provider={oldProvider} onResult={onResult} />,
     );
-    await waitFor(() =>
+    await waitFor(() => {
       expect(
         oldRequest.mock.calls.some(([args]) => args.method === "qrl_call"),
-      ).toBe(true),
-    );
+      ).toBe(true);
+    });
 
     view.rerender(
       <Harness
@@ -407,9 +438,9 @@ describe("useQrnsRecipient", () => {
         onResult={onResult}
       />,
     );
-    await waitFor(() =>
-      expect(view.getByLabelText(`QRL address ${RECIPIENT_B}`)).toBeTruthy(),
-    );
+    await waitFor(() => {
+      expect(view.getByLabelText(`QRL address ${RECIPIENT_B}`)).toBeTruthy();
+    });
 
     await act(async () => {
       oldResolver.resolve(encodedAddress(RESOLVER_A));
@@ -423,11 +454,11 @@ describe("useQrnsRecipient", () => {
   it("renders RPC failures as an error and exposes no submission address", async () => {
     const provider: QrnsRpcProvider = {
       identity: "offline-test",
-      request: async () => {
-        throw new Error("RPC offline");
-      },
+      request: () => Promise.reject(new Error("RPC offline")),
     };
-    const latest = { current: null as UseQrnsRecipientResult | null };
+    const latest: { current: UseQrnsRecipientResult | null } = {
+      current: null,
+    };
     const view = render(
       <Harness
         input="alice.qrl"
@@ -438,7 +469,9 @@ describe("useQrnsRecipient", () => {
       />,
     );
 
-    await waitFor(() => expect(view.getByRole("alert")).toBeTruthy());
+    await waitFor(() => {
+      expect(view.getByRole("alert")).toBeTruthy();
+    });
     expect(view.getByText("RPC offline")).toBeTruthy();
     expect(latest.current?.captureSubmission("alice.qrl")).toBeNull();
   });

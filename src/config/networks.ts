@@ -1,5 +1,7 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
 import { IS_V3_PROFILE } from "./runtimeProfile";
 import { v3Deployment } from "./deploymentProfile";
+import type { NetworkConfig } from "./deploymentProfile";
 
 const IS_PRODUCTION = import.meta.env.PROD;
 
@@ -86,14 +88,24 @@ export const DEFAULT_NETWORK_ID = IS_V3_PROFILE ? "TEST_NET_V3" : "TEST_NET";
 export const isAvailableNetwork = (id: string): boolean =>
   AVAILABLE_NETWORKS.some((network) => network.id === id);
 
-export const getExplorerAddressUrl = (address: string, blockchain: string) => {
-  const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
+export function getNetworkConfig(blockchain: BlockchainSelection): NetworkConfig | undefined {
+  return Object.values(QRL_PROVIDER).find((network) => network.id === blockchain);
+}
+
+function requireNetworkConfig(blockchain: BlockchainSelection): NetworkConfig {
+  const network = getNetworkConfig(blockchain);
+  if (!network) throw new Error("Unknown wallet network");
+  return network;
+}
+
+export const getExplorerAddressUrl = (address: string, blockchain: BlockchainSelection) => {
+  const provider = requireNetworkConfig(blockchain);
   return `${provider.explorer}/address/${address}`;
 };
 
 // New function to get explorer URL for a transaction hash
-export const getExplorerTxUrl = (txHash: string, blockchain: string) => {
-  const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
+export const getExplorerTxUrl = (txHash: string, blockchain: BlockchainSelection) => {
+  const provider = requireNetworkConfig(blockchain);
   // Assuming the explorer path for transactions is /tx/
   return `${provider.explorer}/tx/${txHash}`;
 };
@@ -106,9 +118,9 @@ export const getExplorerTxUrl = (txHash: string, blockchain: string) => {
 // "Amount: 0" for every NFT row.
 export const getTokenDiscoveryApiUrl = (
   address: string,
-  blockchain: string,
+  blockchain: BlockchainSelection,
 ) => {
-  const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
+  const provider = requireNetworkConfig(blockchain);
   return `${provider.explorer}/api/address/${address}/tokens?standard=ERC-20`;
 };
 
@@ -117,7 +129,7 @@ export const getTokenDiscoveryApiUrl = (
 // metadata (collectionName / collectionSymbol) AND per-token metadata
 // from Phase 3b (name / image / description / attributes), so a single
 // call powers the wallet's NFT picker with thumbnails and names.
-export const getNFTDiscoveryApiUrl = (address: string, blockchain: string) => {
-  const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
+export const getNFTDiscoveryApiUrl = (address: string, blockchain: BlockchainSelection) => {
+  const provider = requireNetworkConfig(blockchain);
   return `${provider.explorer}/api/address/${address}/nfts`;
 };

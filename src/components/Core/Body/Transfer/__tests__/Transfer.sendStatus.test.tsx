@@ -13,6 +13,7 @@ import type { TransactionStatus } from "@/stores/qrlStore";
 import type { SendSigner } from "@/utils/sendStatus";
 import type { ApprovedFee } from "@/utils/web3/feePolicy";
 import { copyToClipboard } from "@/utils/nativeApp";
+import { reportError } from "@/utils/reportError";
 import Transfer from "../Transfer";
 import { SendStatus } from "../SendStatus";
 
@@ -23,6 +24,8 @@ const FROM = `Q${"1".repeat(128)}`;
 const TO = `Q${"2".repeat(128)}`;
 const CONTRACT = `Q${"3".repeat(128)}`;
 const HASH = `0x${"a".repeat(64)}`;
+const mockFetchBalance = jest.fn<Promise<unknown>, []>();
+jest.mock("@/utils/reportError", () => ({ reportError: jest.fn() }));
 let mockDesktop = false;
 let mockAsset = "native";
 let mockStore: ReturnType<typeof fixture>;
@@ -57,20 +60,20 @@ jest.mock("@/desktop/bridge", () => ({
 }));
 jest.mock("@/utils/storage", () => ({
   StorageUtil: {
-    getBlockChain: async () => "TEST_NET",
-    getEncryptedSeed: async () => "fixture",
+    getBlockChain: () => Promise.resolve("TEST_NET"),
+    getEncryptedSeed: () => Promise.resolve("fixture"),
   },
 }));
 jest.mock("@/utils/crypto", () => ({
   DeviceCredentialUnavailableError: class extends Error {},
-  decryptStoredSeedWithPin: jest.fn(async () => ({ mnemonic: "fixture" })),
-  getAddressFromMnemonicAsync: async () => `Q${"1".repeat(128)}`,
+  decryptStoredSeedWithPin: jest.fn(() => Promise.resolve({ mnemonic: "fixture" })),
+  getAddressFromMnemonicAsync: () => Promise.resolve(`Q${"1".repeat(128)}`),
 }));
 jest.mock("@/utils/nativeWalletMutation", () => ({
   walletMutations: { captureGeneration: () => 0, isCurrent: () => true },
 }));
 jest.mock("@/utils/nativeApp", () => ({
-  copyToClipboard: jest.fn(async () => true),
+  copyToClipboard: jest.fn(() => Promise.resolve(true)),
   openExternalUrl: jest.fn(),
   isInNativeApp: () => false,
   requestQRScan: jest.fn(),
@@ -78,7 +81,7 @@ jest.mock("@/utils/nativeApp", () => ({
   triggerHaptic: jest.fn(),
 }));
 jest.mock("@/utils/web3", () => ({
-  fetchBalance: async () => 10000000n,
+  fetchBalance: () => mockFetchBalance(),
   isValidQrlAddress: () => true,
 }));
 jest.mock("@/hooks/useNetworkQrnsRecipient", () => ({
@@ -119,7 +122,9 @@ jest.mock("@/components/UI/PinInput/PinInput", () => ({
     <input
       aria-label="PIN"
       value={value}
-      onChange={(event) => onChange(event.target.value)}
+      onChange={(event) => {
+        onChange(event.target.value);
+      }}
     />
   ),
 }));
@@ -142,7 +147,7 @@ function fixture(signer: SendSigner, token: boolean) {
       qrlConnection: { blockchain: "TEST_NET" },
       qrlInstance: {},
       getAccountBalance: () => "10",
-      estimateNativeTransferFee: async () => "0.001",
+      estimateNativeTransferFee: () => Promise.resolve("0.001"),
       transactionStatus: idle(),
       resetTransactionStatus: () => {
         runInAction(() => {
@@ -166,7 +171,7 @@ function fixture(signer: SendSigner, token: boolean) {
     ],
     sendToken: jest.fn<Promise<boolean>, unknown[]>(),
   };
-  const fail = async () => {
+  const fail = () => {
     runInAction(() => {
       qrlStore.transactionStatus = {
         ...idle(),
@@ -177,7 +182,7 @@ function fixture(signer: SendSigner, token: boolean) {
             : "The approval request was cancelled.",
       };
     });
-    return false;
+    return Promise.resolve(false);
   };
   qrlStore.signAndSendTransaction.mockImplementation(fail);
   qrlStore.sendTransactionViaProvider.mockImplementation(fail);
@@ -192,6 +197,7 @@ class MockResizeObserver {
 }
 beforeEach(() => {
   localStorage.clear();
+  mockFetchBalance.mockResolvedValue(10000000n);
   jest.mocked(decryptStoredSeedWithPin).mockResolvedValue({ mnemonic: "fixture", hexSeed: "00" });
   Object.defineProperty(globalThis, "ResizeObserver", {
     configurable: true,
@@ -263,10 +269,9 @@ it("shows and copies the broadcast hash and links to the full explorer URL", asy
   expect(screen.getByRole("link").getAttribute("href")).toBe(
     `https://explorer.example/tx/${HASH}`,
   );
-  await act(async () => {
-    fireEvent.click(
-      screen.getByRole("button", { name: "Copy transaction hash" }),
-    );
+  await act(() => {
+    fireEvent.click(screen.getByRole("button", { name: "Copy transaction hash" }));
+    return Promise.resolve();
   });
   expect(copyToClipboard).toHaveBeenCalledWith(HASH);
   expect(
@@ -280,11 +285,10 @@ it.each([false, true])(
     for (const signer of ["seed", "extension", "mobile", "desktop"] as const) {
       mockStore = fixture(signer, token);
       render(<Transfer />);
-      await act(async () => {
-        fireEvent.change(
-          screen.getByPlaceholderText("QRL address or QNS name"),
-          { target: { value: TO } },
-        );
+      await act(() => {
+        fireEvent.change(screen.getByPlaceholderText("QRL address or QNS name"), {
+          target: { value: TO },
+        });
         fireEvent.change(screen.getByPlaceholderText("Enter amount"), {
           target: { value: "1.234567" },
         });
@@ -292,19 +296,24 @@ it.each([false, true])(
           fireEvent.change(screen.getByLabelText("PIN"), {
             target: { value: "123456" },
           });
+        return Promise.resolve();
       });
       const submit = screen.getByRole("button", {
         name: token ? "Send TOK" : "Send Quanta",
       });
-      await waitFor(() => expect(submit.hasAttribute("disabled")).toBe(false));
-      await act(async () => {
+      await waitFor(() => {
+        expect(submit.hasAttribute("disabled")).toBe(false);
+      });
+      await act(() => {
         fireEvent.click(submit);
+        return Promise.resolve();
       });
       expect(screen.getByRole("heading").textContent).toBe(
         signer === "seed" ? "Transaction failed" : "Transaction rejected",
       );
-      await act(async () => {
+      await act(() => {
         fireEvent.click(screen.getByRole("button", { name: "Back to form" }));
+        return Promise.resolve();
       });
       expect(screen.getByDisplayValue(TO)).toBeTruthy();
       expect(screen.getByDisplayValue("1.234567")).toBeTruthy();
@@ -408,29 +417,31 @@ describe.each([false, true])("returning during a send (token=%s)", (token) => {
         return new Promise<boolean>(() => undefined);
       });
       render(<Transfer />);
-      await act(async () => {
-        fireEvent.change(
-          screen.getByPlaceholderText("QRL address or QNS name"),
-          {
-            target: { value: TO },
-          },
-        );
+      await act(() => {
+        fireEvent.change(screen.getByPlaceholderText("QRL address or QNS name"), {
+          target: { value: TO },
+        });
         fireEvent.change(screen.getByPlaceholderText("Enter amount"), {
           target: { value: "1.234567" },
         });
+        return Promise.resolve();
       });
       const submit = screen.getByRole("button", {
         name: token ? "Send TOK" : "Send Quanta",
       });
-      await waitFor(() => expect(submit.hasAttribute("disabled")).toBe(false));
-      await act(async () => {
+      await waitFor(() => {
+        expect(submit.hasAttribute("disabled")).toBe(false);
+      });
+      await act(() => {
         fireEvent.click(submit);
+        return Promise.resolve();
       });
       expect(screen.getByRole("heading").textContent).toBe(
         state === "pending" ? "Signed and sent" : "Waiting for approval",
       );
-      await act(async () => {
+      await act(() => {
         fireEvent.click(screen.getByRole("button", { name: "Back to form" }));
+        return Promise.resolve();
       });
       expect(mockStore.qrlStore.transactionStatus.state).toBe("idle");
       expect(screen.getByDisplayValue(TO)).toBeTruthy();
@@ -450,7 +461,7 @@ describe.each([false, true])("returning during a send (token=%s)", (token) => {
 
 it("clears the form when Done closes an unconfirmed broadcast", async () => {
   render(<Transfer />);
-  await act(async () => {
+  await act(() => {
     fireEvent.change(screen.getByPlaceholderText("Enter amount"), {
       target: { value: "1.234567" },
     });
@@ -461,9 +472,11 @@ it("clears the form when Done closes an unconfirmed broadcast", async () => {
         txHash: HASH,
       };
     });
+    return Promise.resolve();
   });
-  await act(async () => {
+  await act(() => {
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    return Promise.resolve();
   });
   expect(screen.queryByDisplayValue("1.234567")).toBeNull();
 });
@@ -492,9 +505,12 @@ it.each([false, true])(
       const submit = screen.getByRole("button", {
         name: token ? "Send TOK" : "Send Quanta",
       });
-      await waitFor(() => expect(submit.hasAttribute("disabled")).toBe(false));
-      await act(async () => {
+      await waitFor(() => {
+        expect(submit.hasAttribute("disabled")).toBe(false);
+      });
+      await act(() => {
         fireEvent.click(submit);
+        return Promise.resolve();
       });
       const failures = Math.min(attempt, 5);
       expect(getRemainingAttempts()).toBe(5 - failures);
@@ -512,3 +528,38 @@ it.each([false, true])(
     expect(mockStore.tokenStore.sendToken).not.toHaveBeenCalled();
   },
 );
+
+it.each([false, true])("surfaces a rejected remote send and retains the entered values (token=%s)", async (token) => {
+  mockStore = fixture("mobile", token);
+  const send = token ? mockStore.tokenStore.sendToken : mockStore.qrlStore.sendTransactionViaProvider;
+  send.mockRejectedValueOnce(new Error("Signer disconnected"));
+  render(<Transfer />);
+  fireEvent.change(screen.getByPlaceholderText("QRL address or QNS name"), { target: { value: TO } });
+  fireEvent.change(screen.getByPlaceholderText("Enter amount"), { target: { value: "1.234567" } });
+  const submit = screen.getByRole("button", { name: token ? "Send TOK" : "Send Quanta" });
+  await waitFor(() => { expect(submit.hasAttribute("disabled")).toBe(false); });
+  fireEvent.click(submit);
+  expect(await screen.findByText("Transfer failed: Signer disconnected")).toBeTruthy();
+  expect(screen.getByDisplayValue(TO)).toBeTruthy();
+  expect(screen.getByDisplayValue("1.234567")).toBeTruthy();
+  expect(send).toHaveBeenCalledTimes(1);
+});
+
+it("rejects a malformed token balance and leaves the balance at zero", async () => {
+  mockStore = fixture("mobile", true);
+  mockFetchBalance.mockResolvedValueOnce({ balance: "10000000" });
+  render(<Transfer />);
+  await waitFor(() => {
+    expect(reportError).toHaveBeenCalledWith("Error fetching token balance:", new Error("Invalid token balance."));
+  });
+  expect(screen.getByText("0.0 TOK")).toBeTruthy();
+  expect(mockStore.tokenStore.sendToken).not.toHaveBeenCalled();
+});
+
+it("reports failed address copying", async () => {
+  const error = new Error("Clipboard unavailable");
+  jest.mocked(copyToClipboard).mockRejectedValueOnce(error);
+  render(<Transfer />);
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  await waitFor(() => { expect(reportError).toHaveBeenCalledWith("Failed to copy address:", error); });
+});

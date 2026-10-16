@@ -90,10 +90,10 @@ describe("orphaned remote-signer rows", () => {
     setFlag(true);
     runEmbeddedMigration();
 
-    const stored: { value: unknown[] } = JSON.parse(
+    const stored: unknown = JSON.parse(
       localStorage.getItem(ACCOUNT_LIST_KEY) ?? "{}",
     );
-    expect(stored.value).toEqual([
+    expect(stored).toHaveProperty("value", [
       { address: "Q01", source: "seed" },
       { address: "Q03", source: "extension" },
       // A bare string is the legacy spelling of a seed account.
@@ -105,30 +105,55 @@ describe("orphaned remote-signer rows", () => {
     setFlag(true);
     runEmbeddedMigration();
 
-    const legacy: { value: unknown[] } = JSON.parse(
+    const legacy: unknown = JSON.parse(
       localStorage.getItem(LEGACY_ACCOUNT_LIST_KEY) ?? "{}",
     );
-    expect(legacy.value).toEqual([]);
+    expect(legacy).toHaveProperty("value", []);
   });
 
   it("keeps the storage wrapper intact", () => {
     setFlag(true);
     runEmbeddedMigration();
 
-    const stored: Record<string, unknown> = JSON.parse(
+    const stored: unknown = JSON.parse(
       localStorage.getItem(ACCOUNT_LIST_KEY) ?? "{}",
     );
-    expect(typeof stored["timestamp"]).toBe("number");
-    expect(stored["version"]).toBe("1");
+    expect(stored).toMatchObject({
+      timestamp: expect.any(Number),
+      version: "1",
+    });
+  });
+
+  it("preserves unknown rows, their order and extra wrapper fields", () => {
+    const retained = [
+      null,
+      7,
+      {},
+      ["legacy"],
+      { source: "future", data: { nested: true } },
+    ];
+    const wrapper = {
+      value: [retained[0], { source: "mobile" }, ...retained.slice(1)],
+      timestamp: 123,
+      version: "future",
+      extra: { keep: true },
+    };
+    localStorage.setItem(ACCOUNT_LIST_KEY, JSON.stringify(wrapper));
+    setFlag(true);
+
+    expect(runEmbeddedMigration()).toBe(true);
+    expect(localStorage.getItem(ACCOUNT_LIST_KEY)).toBe(
+      JSON.stringify({ ...wrapper, value: retained }),
+    );
   });
 
   it("removes nothing without the flag", () => {
     expect(runEmbeddedMigration()).toBe(false);
 
-    const stored: { value: unknown[] } = JSON.parse(
+    const stored: unknown = JSON.parse(
       localStorage.getItem(ACCOUNT_LIST_KEY) ?? "{}",
     );
-    expect(stored.value).toEqual(MIXED_ACCOUNTS);
+    expect(stored).toHaveProperty("value", MIXED_ACCOUNTS);
   });
 
   it("leaves a list with no mobile row byte-identical", () => {
@@ -157,6 +182,17 @@ describe("orphaned remote-signer rows", () => {
     );
     expect(localStorage.getItem("TEST_NET_C_ACCOUNT_LIST")).toBe("null");
   });
+
+  it.each([null, true, 1, "legacy", [], [null, "legacy"], {}, { value: [] }])(
+    "preserves bytes for an untouched wrapper: %p",
+    (wrapper) => {
+      const raw = JSON.stringify(wrapper);
+      localStorage.setItem(ACCOUNT_LIST_KEY, raw);
+      setFlag(true);
+      expect(runEmbeddedMigration()).toBe(true);
+      expect(localStorage.getItem(ACCOUNT_LIST_KEY)).toBe(raw);
+    },
+  );
 
   it("does not touch the encrypted seeds beside it", () => {
     setFlag(true);
@@ -368,10 +404,13 @@ describe("the migration is evaluated before the stores are constructed", () => {
     const imports = [...`${boot}\n${migration}`.matchAll(/^import\s.*$/gm)].map(
       (m) => m[0],
     );
-    // embeddedRuntime is a leaf module holding only the build constant.
+    // Runtime guards and logging are independent of the store graph.
     expect(imports).toEqual([
       'import { runEmbeddedMigration } from "./embeddedMigration";',
       'import { IS_EMBEDDED_BUILD } from "./embeddedRuntime";',
+      'import { logger } from "./log";',
+      'import { isArray, isObject } from "./guards";',
+      'import { logger } from "./log";',
     ]);
   });
 });

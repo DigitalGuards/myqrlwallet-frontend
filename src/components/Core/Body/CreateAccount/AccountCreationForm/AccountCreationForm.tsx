@@ -1,3 +1,6 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
+import type { EncryptedSeedData } from "@/utils/storage/storage";
+import { logger } from "@/utils/log";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { useState, useEffect, useRef } from "react";
 import { ShinyButton } from "@/components/UI/ShinyButton";
@@ -125,8 +128,8 @@ type InnerFormProps = {
     desktopBackup?: { address: string; mnemonic: string },
   ) => void | Promise<void>;
   hasExistingSeeds: boolean;
-  existingSeeds: { address: string; encryptedSeed: string }[];
-  blockchain: string;
+  existingSeeds: EncryptedSeedData[];
+  blockchain: BlockchainSelection;
 };
 
 /**
@@ -238,7 +241,7 @@ const InnerForm = observer(
         }
 
         // Create the account
-        const newAccount = await qrlInstance?.accounts.create();
+        const newAccount = await Promise.resolve(qrlInstance?.accounts.create());
         if (!newAccount || !newAccount.seed) {
           throw new Error("Failed to create account");
         }
@@ -291,7 +294,7 @@ const InnerForm = observer(
       } catch (error) {
         setIsEncrypting(false);
         setError("root", {
-          message: `${error} There was an error while creating the account`,
+          message: `${String(error)} There was an error while creating the account`,
         });
       }
     }
@@ -305,7 +308,16 @@ const InnerForm = observer(
 
     return (
       <Form {...form}>
-        <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+        <form
+          className="w-full"
+          onSubmit={(event) => {
+            handleSubmit(onSubmit)(event).catch((error: unknown) => {
+              setError("root", {
+                message: `${String(error)} There was an error while creating the account`,
+              });
+            });
+          }}
+        >
           <Card>
             <CardContent className="space-y-8 pt-6">
               <div>
@@ -465,8 +477,10 @@ export const AccountCreationForm = observer(
       null,
     );
     const [existingSeeds, setExistingSeeds] = useState<
-      { address: string; encryptedSeed: string }[]
+      EncryptedSeedData[]
     >([]);
+
+    const [loadError, setLoadError] = useState(false);
 
     // Check for existing encrypted seeds on mount
     useEffect(() => {
@@ -475,8 +489,15 @@ export const AccountCreationForm = observer(
         setHasExistingSeeds(seeds.length > 0);
         setExistingSeeds(seeds);
       };
-      checkExistingSeeds();
+      checkExistingSeeds().catch((error: unknown) => {
+        logger.error("Failed to load existing wallets:", error);
+        setLoadError(true);
+      });
     }, [blockchain]);
+
+    if (loadError) {
+      return <p role="alert">Could not load existing wallets. Please reload and try again.</p>;
+    }
 
     // Show loading state while checking for existing seeds
     if (hasExistingSeeds === null) {

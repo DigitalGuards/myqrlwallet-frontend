@@ -11,11 +11,11 @@
 import { describe, it, expect, jest } from '@jest/globals';
 
 jest.mock('@/services/dappConnect/DAppConnectService', () => {
-  class DAppConnectService {
-    static isConnectionURI(uri: string): boolean {
+  const DAppConnectService = {
+    isConnectionURI(uri: string): boolean {
       return /^qrlconnect:/i.test(uri);
-    }
-  }
+    },
+  };
   return { DAppConnectService };
 });
 

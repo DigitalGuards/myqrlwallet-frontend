@@ -1,3 +1,4 @@
+import { reportError } from "@/utils/reportError";
 import {
     Card,
     CardContent,
@@ -39,38 +40,40 @@ const TokenForm = observer(() => {
     const [refreshSuccess, setRefreshSuccess] = useState(false);
 
     // Refresh balances of the tokens already in the user's list. Does NOT
-    // re-discover from the explorer — that would re-introduce the spam
+    // re-discover from the explorer: that would re-introduce the spam
     // vector the gate (PR #142) closes. To find tokens the explorer sees
-    // but the user hasn't added, open "Add Existing Token" — the modal
+    // but the user hasn't added, open "Add Existing Token": the modal
     // surfaces a picker built from pendingDiscoveredTokens.
     const refreshTokens = async () => {
         setIsRefreshing(true);
-        // Slot-cascade is user-initiated only — toggle the store flag
+        // Slot-cascade is user-initiated only: toggle the store flag
         // here, not inside refreshTokenBalances (which also fires on
         // account-switch / mount and shouldn't animate then).
         tokenStore.setRefreshingBalances(true);
         try {
             await tokenStore.refreshTokenBalances();
         } catch (error) {
-            console.error("Failed to refresh tokens:", error);
+            reportError("Failed to refresh tokens:", error);
         } finally {
             setIsRefreshing(false);
             setRefreshSuccess(true);
-            setTimeout(() => setRefreshSuccess(false), 1500);
+            setTimeout(() => { setRefreshSuccess(false); }, 1500);
             // Hold the cascade for 1200ms past fetch completion so the
             // digits visibly settle, matching the QRL refresher.
-            setTimeout(() => tokenStore.setRefreshingBalances(false), 1200);
+            setTimeout(() => { tokenStore.setRefreshingBalances(false); }, 1200);
         }
     };
 
     // Populate the discovery cache so the empty-state ("Explorer found N
     // tokens") and the AddTokenModal picker have data without any user
     // gesture. The result lands in tokenStore.discoveredTokens, NOT
-    // tokenList — adding to the live list still requires an explicit
+    // tokenList: adding to the live list still requires an explicit
     // pick.
     useEffect(() => {
         if (!activeAccountAddress) return;
-        void tokenStore.discoverTokensForReview(activeAccountAddress);
+        tokenStore.discoverTokensForReview(activeAccountAddress).catch((error: unknown) => {
+            reportError("Failed to discover tokens:", error);
+        });
     }, [activeAccountAddress, tokenStore]);
 
     return (
@@ -84,7 +87,7 @@ const TokenForm = observer(() => {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={refreshTokens}
+                                    onClick={() => { void refreshTokens(); }}
                                     disabled={isRefreshing || refreshSuccess}
                                 >
                                     {refreshSuccess ? (
@@ -108,11 +111,15 @@ const TokenForm = observer(() => {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setIsAddTokenModalOpen(true)}>
+                            <DropdownMenuItem onClick={() => { setIsAddTokenModalOpen(true); }}>
                                 <Import className="mr-2 h-4 w-4" />
                                 Add Existing Token
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(ROUTES.CREATE_TOKEN)}>
+                            <DropdownMenuItem onClick={() => {
+                                Promise.resolve(navigate(ROUTES.CREATE_TOKEN)).catch((error: unknown) => {
+                                    reportError("Failed to open token creation:", error);
+                                });
+                            }}>
                                 <Coins className="mr-2 h-4 w-4" />
                                 Create New Token
                             </DropdownMenuItem>
@@ -127,13 +134,17 @@ const TokenForm = observer(() => {
                     emptyMessage={
                         <TokensEmptyState
                             discoveredCount={pendingDiscoveredTokens.length}
-                            onAddExisting={() => setIsAddTokenModalOpen(true)}
-                            onCreateNew={() => navigate(ROUTES.CREATE_TOKEN)}
+                            onAddExisting={() => { setIsAddTokenModalOpen(true); }}
+                            onCreateNew={() => {
+                                Promise.resolve(navigate(ROUTES.CREATE_TOKEN)).catch((error: unknown) => {
+                                    reportError("Failed to open token creation:", error);
+                                });
+                            }}
                         />
                     }
                 />
             </CardContent>
-            <AddTokenModal isOpen={isAddTokenModalOpen} onClose={() => setIsAddTokenModalOpen(false)} />
+            <AddTokenModal isOpen={isAddTokenModalOpen} onClose={() => { setIsAddTokenModalOpen(false); }} />
         </Card>
     );
 });

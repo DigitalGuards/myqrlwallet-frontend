@@ -9,13 +9,19 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import type { TransactionReceipt } from "@theqrl/web3";
-import { useStore } from "@/stores/store";
+import type { SendReceipt } from "@/utils/sendStatus";
 import { copyToClipboard } from "@/utils/nativeApp";
 import { TransactionSuccessful } from "../TransactionSuccessful";
 
-jest.mock("@/stores/store", () => ({ useStore: jest.fn() }));
-jest.mock("@/utils", () => jest.requireActual("@/utils/cn"));
+let mockBlockchain = "TEST_NET_V3";
+jest.mock("@/stores/store", () => ({
+  useStore: () => ({
+    qrlStore: { qrlConnection: { blockchain: mockBlockchain } },
+  }),
+}));
+jest.mock("@/utils", () =>
+  jest.requireActual<typeof import("@/utils/cn")>("@/utils/cn"),
+);
 jest.mock("@/config", () => ({
   QRL_PROVIDER: {
     TEST_NET_V3: { explorer: "https://zondscan.com" },
@@ -23,23 +29,22 @@ jest.mock("@/config", () => ({
   },
 }));
 jest.mock("@/utils/nativeApp", () => ({
-  copyToClipboard: jest.fn(async () => true),
+  copyToClipboard: jest.fn(() => Promise.resolve(true)),
 }));
 
 const TX_HASH = `0x${"a1".repeat(32)}`;
 const BLOCK_HASH = `0x${"b2".repeat(32)}`;
-const RECEIPT = {
+const RECEIPT: SendReceipt = {
   transactionHash: TX_HASH,
   blockHash: BLOCK_HASH,
   blockNumber: 155778n,
   gasUsed: 21000n,
   effectiveGasPrice: 1250000000n,
-} as TransactionReceipt;
+  status: 1n,
+};
 
 beforeEach(() => {
-  jest.mocked(useStore).mockReturnValue({
-    qrlStore: { qrlConnection: { blockchain: "TEST_NET_V3" } },
-  } as never);
+  mockBlockchain = "TEST_NET_V3";
 });
 
 afterEach(() => {
@@ -78,6 +83,10 @@ it("keeps full hashes readable and full explorer destinations", () => {
   ).toBe("https://zondscan.com/block/155778");
   expect(screen.getByText("40,500.0 Quanta")).toBeTruthy();
   expect(screen.getByText("0.00002625 Quanta")).toBeTruthy();
+  expect(screen.getByText("Network fee").parentElement?.textContent).toBe(
+    "Network fee0.00002625 Quanta",
+  );
+  expect(screen.queryByText(/gas used/i)).toBeNull();
 });
 
 it.each([
@@ -89,7 +98,7 @@ it.each([
     fixture();
     const button = screen.getByRole("button", { name: `Copy ${kind} hash` });
     expect(button.getAttribute("type")).toBe("button");
-    await act(async () => fireEvent.click(button));
+    await act(() => Promise.resolve(fireEvent.click(button)));
     expect(copyToClipboard).toHaveBeenCalledTimes(1);
     expect(copyToClipboard).toHaveBeenCalledWith(hash);
     expect(screen.getByRole("button", { name: feedback })).toBeTruthy();
@@ -99,10 +108,11 @@ it.each([
 it("does not show copied feedback if the clipboard fails", async () => {
   jest.mocked(copyToClipboard).mockResolvedValueOnce(false);
   fixture();
-  await act(async () => {
+  await act(() => {
     fireEvent.click(
       screen.getByRole("button", { name: "Copy transaction hash" }),
     );
+    return Promise.resolve();
   });
   expect(
     screen.queryByRole("button", { name: "Transaction hash copied" }),
@@ -128,9 +138,7 @@ it("supports receipts without a displayed amount", () => {
 });
 
 it("keeps the selected network's custom explorer", () => {
-  jest.mocked(useStore).mockReturnValue({
-    qrlStore: { qrlConnection: { blockchain: "MAIN_NET" } },
-  } as never);
+  mockBlockchain = "MAIN_NET";
   fixture();
   expect(
     screen

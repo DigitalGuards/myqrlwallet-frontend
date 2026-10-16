@@ -240,16 +240,17 @@ function assertWalletPasswordInput(password: string): void {
 }
 
 function parseEncryptedWalletEnvelope(encryptedWallet: unknown): EncryptedWallet {
-  if (!encryptedWallet || typeof encryptedWallet !== 'object') {
+  if (!isRecord(encryptedWallet)) {
     throw new Error('Invalid encrypted wallet format');
   }
-  const envelope = encryptedWallet as Record<string, unknown>;
+  const envelope = encryptedWallet;
   if (
     envelope['version'] !== CURRENT_WALLET_VERSION ||
     typeof envelope['address'] !== 'string' ||
     envelope['address'].length > 129 ||
+    typeof envelope['timestamp'] !== 'number' ||
     !Number.isSafeInteger(envelope['timestamp']) ||
-    (envelope['timestamp'] as number) < 0 ||
+    envelope['timestamp'] < 0 ||
     !isExactHex(envelope['salt'], SALT_BYTES) ||
     !isExactHex(envelope['iv'], IV_BYTES) ||
     !isBoundedCiphertext(envelope['encryptedData'])
@@ -262,7 +263,7 @@ function parseEncryptedWalletEnvelope(encryptedWallet: unknown): EncryptedWallet
     salt: envelope['salt'],
     iv: envelope['iv'],
     version: CURRENT_WALLET_VERSION,
-    timestamp: envelope['timestamp'] as number,
+    timestamp: envelope['timestamp'],
   };
 }
 
@@ -387,8 +388,8 @@ async function decryptPinV4(
   return parseSeedJson(json);
 }
 
-export class WalletEncryptionUtil {
-  static async encryptWallet(walletData: WalletData, password: string): Promise<EncryptedWallet> {
+export const WalletEncryptionUtil = {
+  async encryptWallet(walletData: WalletData, password: string): Promise<EncryptedWallet> {
     assertWalletPasswordInput(password);
     parseSeedJson(JSON.stringify({ mnemonic: walletData.mnemonic, hexSeed: walletData.hexSeed }));
     const env = await aesGcmEncrypt(
@@ -403,10 +404,10 @@ export class WalletEncryptionUtil {
       version: CURRENT_WALLET_VERSION,
       timestamp: Date.now(),
     };
-  }
+  },
 
-  static async decryptWallet(
-    encryptedWallet: EncryptedWallet,
+  async decryptWallet(
+    encryptedWallet: unknown,
     password: string,
   ): Promise<WalletData> {
     // Deliberately NOT desktop-guarded: encrypted-file import is the desktop
@@ -434,15 +435,15 @@ export class WalletEncryptionUtil {
     } catch (_error) {
       throw new Error('Failed to decrypt wallet. Invalid password or corrupted data.');
     }
-  }
+  },
 
   /** Cheap, KDF-free validation used by wallet-file import routing. */
-  static parseEncryptedWallet(encryptedWallet: unknown): EncryptedWallet {
+  parseEncryptedWallet(encryptedWallet: unknown): EncryptedWallet {
     return parseEncryptedWalletEnvelope(encryptedWallet);
-  }
+  },
 
-  static async downloadWallet(
-    account: ExtendedWalletAccount | undefined,
+  async downloadWallet(
+    account: Pick<ExtendedWalletAccount, 'address' | 'mnemonic' | 'hexSeed'> | undefined,
     password?: string,
   ): Promise<void> {
     if (!account) {
@@ -503,9 +504,9 @@ export class WalletEncryptionUtil {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }
+  },
 
-  static validatePassword(password: string): boolean {
+  validatePassword(password: string): boolean {
     // Minimum requirements:
     // - At least 8 characters
     // - Contains at least one uppercase letter
@@ -525,10 +526,10 @@ export class WalletEncryptionUtil {
       hasNumbers &&
       hasSpecialChar
     );
-  }
+  },
 
   // PIN + device-factor encryption for local at-rest seed storage.
-  static async encryptSeedWithPin(mnemonic: string, hexSeed: string, pin: string): Promise<string> {
+  async encryptSeedWithPin(mnemonic: string, hexSeed: string, pin: string): Promise<string> {
     if (isDesktop) {
       throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
     }
@@ -537,10 +538,10 @@ export class WalletEncryptionUtil {
     }
 
     return encryptPinV5(JSON.stringify({ mnemonic, hexSeed }), pin);
-  }
+  },
 
-  static async decryptSeedWithPinVersioned(
-    encryptedData: string,
+  async decryptSeedWithPinVersioned(
+    encryptedData: unknown,
     pin: string,
   ): Promise<VersionedSeedDecryption> {
     if (isDesktop) {
@@ -577,22 +578,22 @@ export class WalletEncryptionUtil {
     // crypto-js pin_v3 and earlier remain unauthenticated and cannot safely be
     // migrated. Surface this distinctly so the UI asks for a seed re-import.
     throw new OutdatedWalletFormatError();
-  }
+  },
 
-  static async decryptSeedWithPin(
-    encryptedData: string,
+  async decryptSeedWithPin(
+    encryptedData: unknown,
     pin: string,
   ): Promise<{ mnemonic: string; hexSeed: string }> {
     return (await this.decryptSeedWithPinVersioned(encryptedData, pin)).seed;
-  }
+  },
 
   // Simple PIN validation (4-6 digits)
-  static validatePin(pin: string): boolean {
+  validatePin(pin: string): boolean {
     return /^\d{4,6}$/.test(pin);
-  }
+  },
 
   // Re-encrypt a seed with a new PIN (for Change PIN feature)
-  static async reEncryptSeed(encryptedSeed: string, oldPin: string, newPin: string): Promise<string> {
+  async reEncryptSeed(encryptedSeed: string, oldPin: string, newPin: string): Promise<string> {
     if (isDesktop) {
       throw new Error(DESKTOP_SEED_GUARD_MESSAGE);
     }
@@ -601,5 +602,5 @@ export class WalletEncryptionUtil {
 
     // Re-encrypt with new PIN
     return this.encryptSeedWithPin(decrypted.mnemonic, decrypted.hexSeed, newPin);
-  }
-}
+  },
+};

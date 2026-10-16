@@ -1,4 +1,4 @@
-// Minimal ERC-1155 ABI — metadata URI + balanceOf(owner, id) + the
+// Minimal ERC-1155 ABI: metadata URI + balanceOf(owner, id) + the
 // non-batched safeTransferFrom. ERC-1155 has no on-chain name/symbol.
 export const erc1155ABI = [
   {
@@ -31,4 +31,4 @@ export const erc1155ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
-];
+] as const;

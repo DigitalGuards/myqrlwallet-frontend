@@ -1,3 +1,4 @@
+import { toNumber } from "@/utils/guards";
 import { PinVerificationError } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "../../../UI/Button";
@@ -40,6 +41,7 @@ import { QRL_PROVIDER } from "@/config";
 import { isDesktop } from "@/desktop/bridge";
 import { withSuspense } from "@/utils/react";
 import { cn } from "@/utils/cn";
+import { logger } from "@/utils/log";
 import { SettingsIconTile, SettingsRow, SettingsSection } from "./SettingsList";
 import { ExportWalletFile } from "./ExportWalletFile";
 import {
@@ -55,13 +57,20 @@ const DAppSessionsList = withSuspense(
     lazy(() => import("../DAppConnect/DAppSessionsList")),
 );
 
-const SettingsFormSchema = z.object({
+type SettingsFormValues = {
+    autoLockTimeout: number;
+    showTokensCard: unknown;
+    showNftsCard: unknown;
+};
+
+const SettingsFormSchema: z.ZodType<SettingsFormValues, SettingsFormValues> = z.object({
     autoLockTimeout: z.number().min(1).max(60),
     showTokensCard: z.boolean(),
     showNftsCard: z.boolean(),
 });
 
-type SettingsFormValues = z.infer<typeof SettingsFormSchema>;
+// Async form defaults leave switch values unset until storage resolves.
+const preferenceChecked = (value: unknown) => Boolean(value ?? true);
 
 // Separate schema for Change PIN form
 const ChangePinSchema = z.object({
@@ -107,7 +116,9 @@ const Settings = observer(() => {
             ).some(Boolean);
             setHasEncryptedSeeds(hasSeeds);
         };
-        checkSeeds();
+        void checkSeeds().catch((error: unknown) => {
+            logger.error("Failed to check encrypted seeds:", error);
+        });
     }, []);
 
     // Check and update lockout status
@@ -129,7 +140,9 @@ const Settings = observer(() => {
             }
         }, 1000);
 
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+        };
     }, []);
 
     // Last persisted auto-lock value: the fallback when a save must proceed
@@ -142,12 +155,12 @@ const Settings = observer(() => {
         shouldFocusError: false,
         defaultValues: async () => {
             const settings = await StorageUtil.getWalletSettings();
-            const minutes = settings.autoLockTimeout ? Math.floor(settings.autoLockTimeout / (60 * 1000)) : 15;
+            const minutes = settings.autoLockTimeout ? Math.floor(toNumber(settings.autoLockTimeout) / (60 * 1000)) : 15;
             lastSavedTimerRef.current = minutes;
             return {
                 autoLockTimeout: minutes,
-                showTokensCard: settings.showTokensCard ?? true,
-                showNftsCard: settings.showNftsCard ?? true,
+                showTokensCard: settings.showTokensCard,
+                showNftsCard: settings.showNftsCard,
             };
         },
     });
@@ -183,13 +196,19 @@ const Settings = observer(() => {
         const timer = form.getValues("autoLockTimeout");
         const invalid = !Number.isFinite(timer) || timer < 1 || timer > 60;
         if (invalid && !sanitizeTimer) {
-            void form.trigger("autoLockTimeout");
+            void form.trigger("autoLockTimeout").catch((error: unknown) => {
+                logger.error("Failed to validate wallet settings:", error);
+                setSettingsSaveError("There was an error saving your settings.");
+            });
             return;
         }
         if (invalid) {
             form.setValue("autoLockTimeout", lastSavedTimerRef.current, { shouldValidate: true });
         }
-        void form.handleSubmit(onSubmit)();
+        void form.handleSubmit(onSubmit)().catch((error: unknown) => {
+            logger.error("Failed to submit wallet settings:", error);
+            setSettingsSaveError("There was an error saving your settings.");
+        });
     }, [form, onSubmit]);
 
     const queueSave = (delayMs: number, sanitizeTimer = false) => {
@@ -202,23 +221,39 @@ const Settings = observer(() => {
         }, delayMs);
     };
 
-    // Flush (not discard) a pending save on unmount, so a toggle followed by
-    // an immediate navigation still persists.
+    // Flush a pending save on unmount or when the page is hidden.
     useEffect(() => {
-        return () => {
+        const flushPendingSave = () => {
             if (saveTimer.current !== null) {
                 window.clearTimeout(saveTimer.current);
                 saveTimer.current = null;
                 flushSave(true);
             }
         };
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "hidden") {
+                flushPendingSave();
+            }
+        };
+
+        window.addEventListener("pagehide", flushPendingSave);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            window.removeEventListener("pagehide", flushPendingSave);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            flushPendingSave();
+        };
     }, [flushSave]);
 
     // Transient "Saved" chip in the Preferences section header
     useEffect(() => {
         if (!settingsSaveSuccess) return;
-        const timeout = setTimeout(() => setSettingsSaveSuccess(false), 2500);
-        return () => clearTimeout(timeout);
+        const timeout = setTimeout(() => {
+            setSettingsSaveSuccess(false);
+        }, 2500);
+        return () => {
+            clearTimeout(timeout);
+        };
     }, [settingsSaveSuccess]);
 
     // Change PIN form
@@ -251,7 +286,7 @@ const Settings = observer(() => {
             // Reset form
             changePinForm.reset();
         } catch (error) {
-            console.error("Error changing PIN:", error);
+            logger.error("Error changing PIN:", error);
             if (
                 error instanceof CryptoOperationError &&
                 error.code === CryptoErrorCode.DEVICE_CREDENTIAL_UNAVAILABLE
@@ -308,7 +343,9 @@ const Settings = observer(() => {
                                             />
                                         </>
                                     }
-                                    onClick={() => setShowPinForm((open) => !open)}
+                                    onClick={() => {
+                                        setShowPinForm((open) => !open);
+                                    }}
                                     // Collapsing mid-change would hide the outcome banner.
                                     disabled={isChangingPin}
                                     ariaExpanded={showPinForm}
@@ -318,7 +355,12 @@ const Settings = observer(() => {
                                     <div id="change-pin-panel" className="px-4 pb-4 pt-3">
                                         <Form {...changePinForm}>
                                             <form
-                                                onSubmit={changePinForm.handleSubmit(onChangePinSubmit)}
+                                                onSubmit={(event) => {
+                                                    void changePinForm.handleSubmit(onChangePinSubmit)(event).catch((error: unknown) => {
+                                                        logger.error("Error changing PIN:", error);
+                                                        setChangePinError("An unexpected error occurred while changing your PIN. Please try again.");
+                                                    });
+                                                }}
                                                 className="space-y-4"
                                             >
                                                 {pinLockout.isLocked && (
@@ -514,7 +556,7 @@ const Settings = observer(() => {
                                             </div>
                                             <FormControl>
                                                 <Switch
-                                                    checked={field.value ?? true}
+                                                    checked={preferenceChecked(field.value)}
                                                     onCheckedChange={(checked) => {
                                                         field.onChange(checked);
                                                         queueSave(200, true);
@@ -544,7 +586,7 @@ const Settings = observer(() => {
                                             </div>
                                             <FormControl>
                                                 <Switch
-                                                    checked={field.value ?? true}
+                                                    checked={preferenceChecked(field.value)}
                                                     onCheckedChange={(checked) => {
                                                         field.onChange(checked);
                                                         queueSave(200, true);
@@ -564,7 +606,11 @@ const Settings = observer(() => {
                                 title="Address Book"
                                 subtitle="Manage saved recipients for quick transfers"
                                 right={<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                                onClick={() => navigate(ROUTES.ADDRESS_BOOK)}
+                                onClick={() => {
+                                    void Promise.resolve(navigate(ROUTES.ADDRESS_BOOK)).catch((error: unknown) => {
+                                        logger.error("Failed to open address book:", error);
+                                    });
+                                }}
                             />
                         </SettingsSection>
 

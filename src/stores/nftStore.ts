@@ -1,3 +1,8 @@
+import type { BlockchainSelection } from "@/utils/storage/storage";
+import { blockchainKey } from "@/utils/storage/storage";
+import { nftValue } from "@/constants/nft";
+import { arrayValue, iterableValue, propertyValue, stringValue } from "@/utils/guards";
+import { incrementStoredNumber, integerArgument, toNumber } from "@/utils/guards";
 import { transactionHistoryStore } from "./transactionHistoryStore";
 import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
 import {
@@ -9,6 +14,8 @@ import {
 } from "mobx";
 import type { TransactionReceipt } from "@theqrl/web3";
 import { log } from "@/utils";
+import { logger } from "@/utils/log";
+import { toBigInt, toTemplateString } from "@/utils/guards";
 import { getErrorMessage } from "@/utils/errors";
 import { getQrlWeb3 } from "@/utils/web3";
 import { IS_V3_PROFILE } from '@/config/runtimeProfile';
@@ -40,11 +47,7 @@ import {
   type CollectionNameOverride,
   type NftCollectionGroup,
 } from "@/utils/web3/nftCollections";
-import {
-  contractMethods,
-  type Erc721Methods,
-  type Erc1155Methods,
-} from "@/utils/web3/contractFactory";
+import { contractMethods } from "@/utils/web3/contractFactory";
 import { discoverNFTs } from "@/utils/web3";
 import { isValidQrlAddress } from "@/utils/web3/address";
 import type QrlStore from "./qrlStore";
@@ -58,8 +61,8 @@ import {
 } from "@/utils/web3/feePolicy";
 
 class NftStore {
-  nftList: NFTInterface[] = [];
-  hiddenNfts: string[] = [];
+  nftList: unknown = [];
+  hiddenNfts: unknown = [];
   // Phase 3b opt-in: the explorer's view of what NFTs this address
   // holds. Populated by discoverNftsForReview(); never auto-merged into
   // nftList. The UI renders pendingDiscoveredNfts as picker rows so a
@@ -79,11 +82,11 @@ class NftStore {
   // list under another scope's storage key. (activeAccount flips before
   // handleActiveAccountChanged swaps the list, so comparing the live
   // account alone is not enough.)
-  private nftListScope: { blockchain: string; account: string } | null = null;
+  private nftListScope: { blockchain: BlockchainSelection; account: string } | null = null;
 
   // Network the collectionInfo cache was built against. Contract
   // metadata does not survive a network switch.
-  private collectionInfoBlockchain: string | null = null;
+  private collectionInfoBlockchain: BlockchainSelection | null = null;
 
   // Contracts whose name()/symbol() read failed in transport (RPC down,
   // timeout, gateway error), keyed like collectionInfo and holding the
@@ -109,11 +112,11 @@ class NftStore {
   // forced metadata refresh chains behind the in-flight run instead, so
   // it actually executes against the new state.
   private balancesRefresh: {
-    scope: { blockchain: string; account: string };
+    scope: { blockchain: BlockchainSelection; account: string };
     done: Promise<void>;
   } | null = null;
   private metadataRefresh: {
-    scope: { blockchain: string; account: string };
+    scope: { blockchain: BlockchainSelection; account: string };
     done: Promise<void>;
   } | null = null;
 
@@ -122,7 +125,7 @@ class NftStore {
   // each), so without this the per-run lookup cap would be multiplied by
   // however many callers happen to be mounted.
   private discoveryRun: {
-    scope: { blockchain: string; account: string };
+    scope: { blockchain: BlockchainSelection; account: string };
     done: Promise<NFTInterface[]>;
   } | null = null;
 
@@ -162,12 +165,12 @@ class NftStore {
     log("NftStore initialized");
   }
 
-  get visibleNftList(): NFTInterface[] {
-    return this.nftList.filter(
+  get visibleNftList(): unknown[] {
+    return arrayValue(this.nftList).filter(
       (nft) =>
-        !this.hiddenNfts.some(
+        !arrayValue(this.hiddenNfts).some(
           (k) =>
-            k.toLowerCase() === nftKey(nft.contractAddress, nft.tokenId),
+            stringValue(k).toLowerCase() === nftKey(nftValue(nft).contractAddress, nftValue(nft).tokenId),
         ),
     );
   }
@@ -179,12 +182,12 @@ class NftStore {
   get pendingDiscoveredNfts(): NFTInterface[] {
     const visible = new Set(
       this.visibleNftList.map((n) =>
-        nftKey(n.contractAddress, n.tokenId).toLowerCase(),
+        nftKey(nftValue(n).contractAddress, nftValue(n).tokenId).toLowerCase(),
       ),
     );
     return this.discoveredNfts.filter(
       (n) =>
-        !visible.has(nftKey(n.contractAddress, n.tokenId).toLowerCase()),
+        !visible.has(nftKey(nftValue(n).contractAddress, nftValue(n).tokenId).toLowerCase()),
     );
   }
 
@@ -210,7 +213,7 @@ class NftStore {
   // Storage is now keyed by `${blockchain}_${account}` (see StorageUtil)
   // so reads from the wrong scope are impossible, but we still need the
   // scope to write. Pulls live values from qrlStore at the call site.
-  private get scope(): { blockchain: string; account: string } {
+  private get scope(): { blockchain: BlockchainSelection; account: string } {
     return {
       blockchain: this.qrlStore.qrlConnection.blockchain,
       account: this.qrlStore.activeAccount.accountAddress,
@@ -218,8 +221,8 @@ class NftStore {
   }
 
   private static scopesEqual(
-    a: { blockchain: string; account: string },
-    b: { blockchain: string; account: string },
+    a: { blockchain: BlockchainSelection; account: string },
+    b: { blockchain: BlockchainSelection; account: string },
   ): boolean {
     return a.blockchain === b.blockchain && a.account === b.account;
   }
@@ -228,7 +231,7 @@ class NftStore {
   // that scope's storage key and not superseded since. Refresh loops must
   // check this before iterating AND before persisting.
   private nftListSettledFor(scope: {
-    blockchain: string;
+    blockchain: BlockchainSelection;
     account: string;
   }): boolean {
     return (
@@ -275,11 +278,11 @@ class NftStore {
     void this.refreshNftBalances()
       .then(() => this.refreshNftMetadata())
       .catch((err: unknown) => {
-        console.error("post-switch NFT refresh failed:", err);
+        logger.error("post-switch NFT refresh failed:", err);
       });
   }
 
-  async setNftList(list: NFTInterface[]) {
+  async setNftList(list: unknown) {
     const { blockchain, account } = this.scope;
     await StorageUtil.updateNftList(blockchain, account, list);
     runInAction(() => {
@@ -290,27 +293,27 @@ class NftStore {
 
   async addNft(nft: NFTInterface) {
     const key = nftKey(nft.contractAddress, nft.tokenId);
-    const existing = this.nftList.find(
-      (n) => nftKey(n.contractAddress, n.tokenId) === key,
+    const existing = arrayValue(this.nftList).find(
+      (n) => nftKey(nftValue(n).contractAddress, nftValue(n).tokenId) === key,
     );
     if (existing) {
       // If hidden, treat add-again as unhide.
-      const isHidden = this.hiddenNfts.some(
-        (k) => k.toLowerCase() === key,
+      const isHidden = arrayValue(this.hiddenNfts).some(
+        (k) => stringValue(k).toLowerCase() === key,
       );
       if (isHidden) {
         await this.unhideNft(key);
       }
       return existing;
     }
-    const next = [...this.nftList, nft];
+    const next = [...iterableValue(this.nftList), nft];
     await this.setNftList(next);
     return nft;
   }
 
   async removeNft(key: string) {
-    const next = this.nftList.filter(
-      (n) => nftKey(n.contractAddress, n.tokenId) !== key.toLowerCase(),
+    const next = arrayValue(this.nftList).filter(
+      (n) => nftKey(nftValue(n).contractAddress, nftValue(n).tokenId) !== key.toLowerCase(),
     );
     await this.setNftList(next);
   }
@@ -328,8 +331,8 @@ class NftStore {
     await StorageUtil.hideNft(blockchain, account, key);
     runInAction(() => {
       const lower = key.toLowerCase();
-      if (!this.hiddenNfts.some((k) => k.toLowerCase() === lower)) {
-        this.hiddenNfts = [...this.hiddenNfts, lower];
+      if (!arrayValue(this.hiddenNfts).some((k) => stringValue(k).toLowerCase() === lower)) {
+        this.hiddenNfts = [...iterableValue(this.hiddenNfts), lower];
       }
     });
   }
@@ -338,8 +341,8 @@ class NftStore {
     const { blockchain, account } = this.scope;
     await StorageUtil.unhideNft(blockchain, account, key);
     runInAction(() => {
-      this.hiddenNfts = this.hiddenNfts.filter(
-        (k) => k.toLowerCase() !== key.toLowerCase(),
+      this.hiddenNfts = arrayValue(this.hiddenNfts).filter(
+        (k) => stringValue(k).toLowerCase() !== key.toLowerCase(),
       );
     });
   }
@@ -375,11 +378,11 @@ class NftStore {
 
   private async runBalancesRefresh(): Promise<void> {
     const scope = this.scope;
-    if (!scope.account || this.nftList.length === 0) return;
+    if (!scope.account || propertyValue(this.nftList, "length") === 0) return;
     if (!this.nftListSettledFor(scope)) return;
     const selectedBlockChain = await StorageUtil.getBlockChain();
     const rpcUrl =
-      QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url;
+      QRL_PROVIDER[blockchainKey(selectedBlockChain)].url;
 
     // Decide per-entry from a snapshot, then merge the decisions into
     // the CURRENT list. A wholesale overwrite of this.nftList would
@@ -387,7 +390,8 @@ class NftStore {
     // while the ownership checks are in flight.
     const drops = new Set<string>();
     const balances = new Map<string, string>();
-    for (const nft of this.nftList) {
+    for (const value of iterableValue(this.nftList)) {
+      const nft = nftValue(value);
       const key = nftKey(nft.contractAddress, nft.tokenId);
       try {
         if (nft.standard === "ERC721") {
@@ -414,8 +418,8 @@ class NftStore {
       } catch (err) {
         // Keep entries on transient errors so a flaky RPC doesn't wipe
         // the gallery; log + carry on.
-        console.error(
-          `refreshNftBalances: ${nft.contractAddress}#${nft.tokenId}`,
+        logger.error(
+          `refreshNftBalances: ${toTemplateString(nft.contractAddress)}#${toTemplateString(nft.tokenId)}`,
           err,
         );
       }
@@ -425,12 +429,12 @@ class NftStore {
       log("refreshNftBalances: scope changed mid-refresh, dropping result");
       return;
     }
-    const merged = this.nftList
-      .filter((n) => !drops.has(nftKey(n.contractAddress, n.tokenId)))
+    const merged = arrayValue(this.nftList)
+      .filter((n) => !drops.has(nftKey(nftValue(n).contractAddress, nftValue(n).tokenId)))
       .map((n) => {
-        const bal = balances.get(nftKey(n.contractAddress, n.tokenId));
-        return bal !== undefined && bal !== n.balance
-          ? { ...n, balance: bal }
+        const bal = balances.get(nftKey(nftValue(n).contractAddress, nftValue(n).tokenId));
+        return bal !== undefined && bal !== nftValue(n).balance
+          ? { ...nftValue(n), balance: bal }
           : n;
       });
     await this.setNftList(merged);
@@ -481,34 +485,35 @@ class NftStore {
 
   private async runMetadataRefresh(force: boolean): Promise<void> {
     const scope = this.scope;
-    if (!scope.account || this.nftList.length === 0) return;
+    if (!scope.account || propertyValue(this.nftList, "length") === 0) return;
     if (!this.nftListSettledFor(scope)) return;
     const selectedBlockChain = await StorageUtil.getBlockChain();
     const rpcUrl =
-      QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER].url;
+      QRL_PROVIDER[blockchainKey(selectedBlockChain)].url;
 
     const now = Date.now();
     const updates = new Map<string, NFTInterface>();
     const markFailed = (nft: NFTInterface) => {
       updates.set(nftKey(nft.contractAddress, nft.tokenId), {
         ...nft,
-        fetchRetryCount: (nft.fetchRetryCount ?? 0) + 1,
+        fetchRetryCount: incrementStoredNumber(nft.fetchRetryCount ?? 0),
         fetchFailedAt: Date.now(),
       });
     };
     let attempts = 0;
-    for (const nft of this.nftList) {
+    for (const value of iterableValue(this.nftList)) {
+      const nft = nftValue(value);
       if (attempts >= NFT_METADATA_MAX_PER_RUN) break;
       const stale =
-        !nft.fetchedAt || now - nft.fetchedAt > NFT_METADATA_TTL_MS;
+        !nft.fetchedAt || now - toNumber(nft.fetchedAt) > NFT_METADATA_TTL_MS;
       if (!force && !stale) continue;
       if (!force && nft.fetchFailedAt) {
         const backoff = Math.min(
           NFT_METADATA_RETRY_BASE_MS *
-            2 ** Math.max((nft.fetchRetryCount ?? 1) - 1, 0),
+            2 ** Math.max(toNumber(nft.fetchRetryCount ?? 1) - 1, 0),
           NFT_METADATA_RETRY_MAX_MS,
         );
-        if (now - nft.fetchFailedAt < backoff) continue;
+        if (now - toNumber(nft.fetchFailedAt) < backoff) continue;
       }
       attempts++;
       try {
@@ -538,8 +543,8 @@ class NftStore {
         });
       } catch (err) {
         markFailed(nft);
-        console.error(
-          `refreshNftMetadata: ${nft.contractAddress}#${nft.tokenId}`,
+        logger.error(
+          `refreshNftMetadata: ${toTemplateString(nft.contractAddress)}#${toTemplateString(nft.tokenId)}`,
           err,
         );
       }
@@ -555,11 +560,11 @@ class NftStore {
     // Merge into the CURRENT list rather than the snapshot we iterated:
     // entries added/removed while fetches were in flight stay untouched,
     // and refreshNftBalances ownership decisions win.
-    const merged = this.nftList.map((n) => {
-      const u = updates.get(nftKey(n.contractAddress, n.tokenId));
+    const merged = arrayValue(this.nftList).map((n) => {
+      const u = updates.get(nftKey(nftValue(n).contractAddress, nftValue(n).tokenId));
       if (!u) return n;
       return {
-        ...n,
+        ...nftValue(n),
         name: u.name,
         description: u.description,
         image: u.image,
@@ -578,7 +583,7 @@ class NftStore {
    * Transfer UX (status banners, history) just works.
    */
   async transferNft(
-    nft: NFTInterface,
+    nft: NFTInterface & { contractAddress: string },
     toAddress: string,
     mnemonicPhrases: string,
     amount: bigint = 1n,
@@ -593,7 +598,7 @@ class NftStore {
     const historyDetails = {
       to: toAddress,
       amount: amount.toString(),
-      asset: `NFT #${nft.tokenId}`,
+      asset: `NFT #${toTemplateString(nft.tokenId)}`,
     };
     this.qrlStore.resetTransactionStatus();
     const signingGeneration = walletMutations.captureGeneration();
@@ -620,23 +625,23 @@ class NftStore {
       try {
         const selectedBlockChain = await StorageUtil.getBlockChain();
         const { url } =
-          QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
+          QRL_PROVIDER[blockchainKey(selectedBlockChain)];
         const { default: Web3 } = await getQrlWeb3();
         const web3 = new Web3(new Web3.providers.HttpProvider(url));
         const from = this.qrlStore.activeAccount.accountAddress;
 
         let data: string;
         if (nft.standard === "ERC721") {
-          const methods = contractMethods<Erc721Methods>(
+          const methods = contractMethods(
             web3,
             erc721ABI,
             nft.contractAddress,
           );
           data = methods
-            .safeTransferFrom(from, toAddress, nft.tokenId)
+            .safeTransferFrom(from, toAddress, integerArgument(nft.tokenId))
             .encodeABI();
         } else {
-          const methods = contractMethods<Erc1155Methods>(
+          const methods = contractMethods(
             web3,
             erc1155ABI,
             nft.contractAddress,
@@ -645,7 +650,7 @@ class NftStore {
             .safeTransferFrom(
               from,
               toAddress,
-              nft.tokenId,
+              integerArgument(nft.tokenId),
               amount.toString(),
               "0x",
             )
@@ -671,8 +676,8 @@ class NftStore {
           ...historyDetails, blockchain: selectedBlockChain, from, hash: transactionHash,
         });
         log(`Desktop NFT transfer broadcast: ${transactionHash}`);
-        this.qrlStore.pollForReceipt(transactionHash);
-        this.refreshNftBalances();
+        void this.qrlStore.pollForReceipt(transactionHash);
+        void this.refreshNftBalances();
         return true;
       } catch (error) {
         const message = getErrorMessage(error);
@@ -698,7 +703,7 @@ class NftStore {
       );
       const selectedBlockChain = await StorageUtil.getBlockChain();
       const { url } =
-        QRL_PROVIDER[selectedBlockChain as keyof typeof QRL_PROVIDER];
+        QRL_PROVIDER[blockchainKey(selectedBlockChain)];
       const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
       assertSigningCurrent();
@@ -717,16 +722,16 @@ class NftStore {
 
       let data: string;
       if (nft.standard === "ERC721") {
-        const methods = contractMethods<Erc721Methods>(
+        const methods = contractMethods(
           web3,
           erc721ABI,
           nft.contractAddress,
         );
         data = methods
-          .safeTransferFrom(acc.address, toAddress, nft.tokenId)
+          .safeTransferFrom(acc.address, toAddress, integerArgument(nft.tokenId))
           .encodeABI();
       } else {
-        const methods = contractMethods<Erc1155Methods>(
+        const methods = contractMethods(
           web3,
           erc1155ABI,
           nft.contractAddress,
@@ -735,7 +740,7 @@ class NftStore {
           .safeTransferFrom(
             acc.address,
             toAddress,
-            nft.tokenId,
+            integerArgument(nft.tokenId),
             amount.toString(),
             "0x",
           )
@@ -755,14 +760,14 @@ class NftStore {
       // implementations; fall back to a sane 200k cap if estimation fails.
       let gas: bigint;
       try {
-        const estimated = await web3.qrl.estimateGas({
+        const estimated: unknown = await web3.qrl.estimateGas({
           from: acc.address,
           to: nft.contractAddress,
           data,
         });
-        gas = (BigInt(estimated) * 12n) / 10n;
+        gas = (toBigInt(estimated) * 12n) / 10n;
       } catch (err) {
-        log(`estimateGas failed for NFT transfer, using fallback: ${err}`);
+        log(`estimateGas failed for NFT transfer, using fallback: ${toTemplateString(err)}`);
         gas = 200_000n;
       }
 
@@ -816,8 +821,8 @@ class NftStore {
             log(`NFT transfer confirmed: ${txHashString}`);
             // Refresh ownership state so the transferred NFT drops out
             // of the gallery on its own.
-            this.refreshNftBalances();
-            this.qrlStore.fetchAccounts();
+            void this.refreshNftBalances();
+            void this.qrlStore.fetchAccounts();
           });
         })
         .on("error", (error: Error) => {
@@ -889,7 +894,7 @@ class NftStore {
 
   private async runDiscoveryForReview(
     address: string,
-    blockchain: string,
+    blockchain: BlockchainSelection,
   ): Promise<NFTInterface[]> {
     // Synchronously reset before the await so any picker that observes
     // pendingDiscoveredNfts while the fetch is in flight sees an empty
@@ -909,8 +914,8 @@ class NftStore {
       await this.resolveCollectionNames();
       return discovered;
     } catch (error) {
-      console.error("discoverNftsForReview:", error);
-      log(`discoverNftsForReview failed: ${error}`);
+      logger.error("discoverNftsForReview:", error);
+      log(`discoverNftsForReview failed: ${toTemplateString(error)}`);
       runInAction(() => {
         this.discoveredNfts = [];
       });
@@ -928,9 +933,9 @@ class NftStore {
     if (picks.length === 0) return;
     const startAccount = this.qrlStore.activeAccount.accountAddress;
     const owned = new Set(
-      this.nftList.map((n) => nftKey(n.contractAddress, n.tokenId)),
+      arrayValue(this.nftList).map((n) => nftKey(nftValue(n).contractAddress, nftValue(n).tokenId)),
     );
-    const hidden = new Set(this.hiddenNfts.map((k) => k.toLowerCase()));
+    const hidden = new Set(arrayValue(this.hiddenNfts).map((k) => stringValue(k).toLowerCase()));
     const additions: NFTInterface[] = [];
     const unhides: string[] = [];
     for (const pick of picks) {
@@ -957,7 +962,7 @@ class NftStore {
       return;
     }
     if (additions.length > 0) {
-      await this.setNftList([...this.nftList, ...additions]);
+      await this.setNftList([...iterableValue(this.nftList), ...additions]);
     }
     if (unhides.length > 0) {
       // Persist each unhide (StorageUtil.unhideNft is O(read+write) per
@@ -969,8 +974,8 @@ class NftStore {
       }
       const drop = new Set(unhides);
       runInAction(() => {
-        this.hiddenNfts = this.hiddenNfts.filter(
-          (k) => !drop.has(k.toLowerCase()),
+        this.hiddenNfts = arrayValue(this.hiddenNfts).filter(
+          (k) => !drop.has(stringValue(k).toLowerCase()),
         );
       });
     }
@@ -1005,7 +1010,8 @@ class NftStore {
   async resolveCollectionNames(): Promise<void> {
     const { blockchain, account } = this.scope;
     if (!blockchain) return;
-    const provider = QRL_PROVIDER[blockchain as keyof typeof QRL_PROVIDER];
+    const providers: Readonly<Record<string, { url: string }>> = QRL_PROVIDER;
+    const provider = providers[toTemplateString(blockchain)];
     const rpcUrl = provider?.url;
     if (!rpcUrl) return;
 
@@ -1067,7 +1073,7 @@ class NftStore {
       } catch (error) {
         // A dead RPC must not break the picker, and must not be recorded
         // as "this contract has no name" either.
-        log(`resolveCollectionNames failed for ${group.key}: ${error}`);
+        log(`resolveCollectionNames failed for ${group.key}: ${toTemplateString(error)}`);
       }
       const live = this.scope;
       if (live.blockchain !== blockchain || live.account !== account) return;

@@ -1,3 +1,7 @@
+import { nftValue, type NFTInterface } from "@/constants/nft";
+import { arrayValue, stringValue } from "@/utils/guards";
+import { renderValue, toBigInt, toTemplateString } from "@/utils/guards";
+import { reportError } from "@/utils/reportError";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { observer } from "mobx-react-lite";
@@ -42,10 +46,10 @@ const NftDetail = observer(() => {
 
   const nft = useMemo(
     () =>
-      nftStore.nftList.find(
-        (n) =>
-          n.contractAddress.toLowerCase() === contractAddress.toLowerCase() &&
-          n.tokenId === tokenId,
+      arrayValue(nftStore.nftList).find(
+        (n): n is NFTInterface & { contractAddress: string } =>
+          stringValue(nftValue(n).contractAddress).toLowerCase() === contractAddress.toLowerCase() &&
+          nftValue(n).tokenId === tokenId,
       ),
     [nftStore.nftList, contractAddress, tokenId],
   );
@@ -55,9 +59,9 @@ const NftDetail = observer(() => {
   // away) has no collection to return to, which leaves the home page.
   const walletHoldsCollection = useMemo(
     () =>
-      nftStore.nftList.some(
+      arrayValue(nftStore.nftList).some(
         (n) =>
-          n.contractAddress.toLowerCase() === contractAddress.toLowerCase(),
+          stringValue(nftValue(n).contractAddress).toLowerCase() === contractAddress.toLowerCase(),
       ),
     [nftStore.nftList, contractAddress],
   );
@@ -68,15 +72,19 @@ const NftDetail = observer(() => {
   // collection view (replacing this entry, which leaves no dead end).
   const onBack = () => {
     if (openedFromCollectionView(location.state)) {
-      void navigate(-1);
+      Promise.resolve(navigate(-1)).catch((error: unknown) => {
+        reportError("Failed to navigate back:", error);
+      });
       return;
     }
-    void navigate(
+    Promise.resolve(navigate(
       walletHoldsCollection
         ? nftCollectionPath(ROUTES.HOME, contractAddress)
         : ROUTES.HOME,
       { replace: true },
-    );
+    )).catch((error: unknown) => {
+      reportError("Failed to open NFT collection:", error);
+    });
   };
 
   const [toAddress, setToAddress] = useState("");
@@ -122,8 +130,8 @@ const NftDetail = observer(() => {
   }
 
   const explorerUrl =
-    QRL_PROVIDER[qrlStore.qrlConnection.blockchain as keyof typeof QRL_PROVIDER]
-      ?.explorer ?? "https://zondscan.com";
+    Object.entries(QRL_PROVIDER).find(([id]) => id === blockchain)?.[1].explorer
+      ?? "https://zondscan.com";
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,8 +170,8 @@ const NftDetail = observer(() => {
       setSendError("Amount must be positive.");
       return;
     }
-    if (nft.balance && BigInt(nft.balance) < amountBig) {
-      setSendError(`You only hold ${nft.balance} of this token.`);
+    if (nft.balance && toBigInt(nft.balance) < amountBig) {
+      setSendError(`You only hold ${toTemplateString(nft.balance)} of this token.`);
       return;
     }
 
@@ -301,10 +309,10 @@ const NftDetail = observer(() => {
 
   return (
     <PageShell
-      title={nft.name ?? `Token #${nft.tokenId}`}
-      subtitle={nft.collectionName ? `${nft.collectionName}${nft.collectionSymbol ? ` (${nft.collectionSymbol})` : ""}` : undefined}
+      title={renderValue(nft.name ?? `Token #${toTemplateString(nft.tokenId)}`)}
+      subtitle={nft.collectionName ? `${toTemplateString(nft.collectionName)}${nft.collectionSymbol ? ` (${toTemplateString(nft.collectionSymbol)})` : ""}` : undefined}
       width="wide"
-      seoTitle={nft.name ?? `Token #${nft.tokenId}`}
+      seoTitle={nft.name ?? `Token #${toTemplateString(nft.tokenId)}`}
       action={<Button
         variant="ghost"
         size="sm"
@@ -318,13 +326,13 @@ const NftDetail = observer(() => {
       <div className="grid gap-4 md:grid-cols-2 md:gap-8">
         <NftImage
           src={nft.image}
-          alt={nft.name ?? `Token #${nft.tokenId}`}
+          alt={nft.name ?? `Token #${toTemplateString(nft.tokenId)}`}
           className="aspect-square w-full rounded-lg"
         />
         <div className="min-w-0">
           <div className="space-y-3 text-sm">
-            <Row label="Standard" value={nft.standard} />
-            <Row label="Token ID" value={nft.tokenId} mono />
+            <Row label="Standard" value={renderValue(nft.standard)} />
+            <Row label="Token ID" value={renderValue(nft.tokenId)} mono />
             <Row
               label="Contract"
               value={
@@ -339,10 +347,10 @@ const NftDetail = observer(() => {
                 />
               }
             />
-            {nft.standard === "ERC1155" && nft.balance && (
-              <Row label="Balance" value={nft.balance} numeric />
-            )}
-            {nft.description && (
+            {renderValue(nft.standard === "ERC1155" && nft.balance && (
+              <Row label="Balance" value={renderValue(nft.balance)} numeric />
+            ))}
+            {renderValue(nft.description && (
               <>
                 <Separator />
                 <div>
@@ -350,11 +358,11 @@ const NftDetail = observer(() => {
                     Description
                   </div>
                   <p className="mt-1 whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">
-                    {nft.description}
+                    {renderValue(nft.description)}
                   </p>
                 </div>
               </>
-            )}
+            ))}
           </div>
         </div>
       </div>
@@ -364,7 +372,11 @@ const NftDetail = observer(() => {
         <CardHeader>
           <CardTitle className="text-lg">Transfer</CardTitle>
         </CardHeader>
-        <form onSubmit={onSubmit}>
+        <form onSubmit={(event) => {
+          onSubmit(event).catch((error: unknown) => {
+            setSendError(error instanceof Error ? error.message : "Unexpected transfer error.");
+          });
+        }}>
           <CardContent className="space-y-4">
             {sendError && (
               <div
@@ -423,15 +435,15 @@ const NftDetail = observer(() => {
                 <Input
                   id="nft-amount"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value.trim())}
+                  onChange={(e) => { setAmount(e.target.value.trim()); }}
                   inputMode="numeric"
                   disabled={isSending}
                 />
-                {nft.balance && (
+                {renderValue(nft.balance && (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Holding: {nft.balance}
+                    Holding: {renderValue(nft.balance)}
                   </p>
-                )}
+                ))}
               </div>
             )}
 

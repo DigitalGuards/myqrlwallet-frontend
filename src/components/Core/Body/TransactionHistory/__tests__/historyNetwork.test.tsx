@@ -11,6 +11,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import axios from "axios";
+import { deferred } from "@/test-utils/deferred";
 import TransactionHistory from "../TransactionHistory";
 import { TransactionHistoryPopup } from "../../AccountList/ActiveAccount/TransactionHistoryPopup";
 
@@ -43,7 +44,7 @@ jest.mock("@/utils", () => ({
   cn: (...values: unknown[]) => values.filter(Boolean).join(" "),
 }));
 
-const post = jest.mocked(axios.post);
+const post = jest.spyOn(axios, "post");
 const row = (id: string) => ({
   ID: id,
   InOut: 1,
@@ -89,13 +90,8 @@ it("sorts loaded amounts numerically and labels unverified historical fees unava
 });
 
 it("resets network pagination and prevents an old network response replacing new history", async () => {
-  let resolveOld!: (value: unknown) => void;
-  post.mockImplementationOnce(
-    () =>
-      new Promise((resolve) => {
-        resolveOld = resolve;
-      }),
-  );
+  const oldResponse = deferred<unknown>();
+  post.mockReturnValueOnce(oldResponse.promise);
   post.mockResolvedValueOnce({
     data: { transactions: [row("mainnet-history")] },
   });
@@ -107,28 +103,29 @@ it("resets network pagination and prevents an old network response replacing new
   const oldOptions = post.mock.calls[0]?.[2];
   mockStore.qrlStore.qrlConnection.blockchain = "MAIN_NET";
   view.rerender(<TransactionHistory />);
-  await waitFor(() =>
-    expect(screen.getAllByText("mainnet-history").length).toBeGreaterThan(0),
-  );
+  await waitFor(() => {
+    expect(screen.getAllByText("mainnet-history").length).toBeGreaterThan(0);
+  });
   expect(post.mock.calls[1]?.[1]).toMatchObject({
     network: "mainnet",
     page: 1,
   });
   expect(oldOptions?.signal?.aborted).toBe(true);
-  await act(async () =>
-    resolveOld({ data: { transactions: [row("obsolete-history")] } }),
-  );
+  await act(() => {
+    oldResponse.resolve({ data: { transactions: [row("obsolete-history")] } });
+    return oldResponse.promise;
+  });
   expect(screen.queryByText("obsolete-history")).toBeNull();
 });
 
 it("resets exhausted pagination for a different account and retries the failed page", async () => {
   post.mockResolvedValueOnce({ data: { transactions: [] } });
   const view = render(<TransactionHistory />);
-  await waitFor(() =>
+  await waitFor(() => {
     expect(
       screen.getByRole("button", { name: "No more transactions" }),
-    ).toHaveProperty("disabled", true),
-  );
+    ).toHaveProperty("disabled", true);
+  });
   post.mockResolvedValueOnce({
     data: {
       transactions: Array.from({ length: 5 }, (_, i) => row(`new-${i}`)),
@@ -136,20 +133,20 @@ it("resets exhausted pagination for a different account and retries the failed p
   });
   mockStore.qrlStore.activeAccount.accountAddress = "Q" + "2".repeat(128);
   view.rerender(<TransactionHistory />);
-  await waitFor(() =>
+  await waitFor(() => {
     expect(screen.getByRole("button", { name: "Load More" })).toHaveProperty(
       "disabled",
       false,
-    ),
-  );
+    );
+  });
   post.mockRejectedValueOnce(new Error("temporary failure"));
   fireEvent.click(screen.getByRole("button", { name: "Load More" }));
   await screen.findByRole("button", { name: "Retry" });
   post.mockResolvedValueOnce({ data: { transactions: [row("retried-page")] } });
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-  await waitFor(() =>
-    expect(screen.getAllByText("retried-page").length).toBeGreaterThan(0),
-  );
+  await waitFor(() => {
+    expect(screen.getAllByText("retried-page").length).toBeGreaterThan(0);
+  });
   expect(post.mock.calls[2]?.[1]).toMatchObject({ page: 2 });
   expect(post.mock.calls[3]?.[1]).toMatchObject({ page: 2 });
 });
@@ -174,13 +171,8 @@ it("shows unavailable history explicitly and does not relabel it as empty", asyn
 });
 
 it("cancels popup history when the network changes or the popup closes", async () => {
-  let resolveOld!: (value: unknown) => void;
-  post.mockImplementationOnce(
-    () =>
-      new Promise((resolve) => {
-        resolveOld = resolve;
-      }),
-  );
+  const oldResponse = deferred<unknown>();
+  post.mockReturnValueOnce(oldResponse.promise);
   post.mockResolvedValueOnce({ data: { transactions: [] } });
   const props = {
     accountAddress: "Q1",
@@ -194,9 +186,10 @@ it("cancels popup history when the network changes or the popup closes", async (
   view.rerender(<TransactionHistoryPopup {...props} blockchain="MAIN_NET" />);
   await screen.findByText("No transactions found");
   expect(oldOptions?.signal?.aborted).toBe(true);
-  await act(async () =>
-    resolveOld({ data: { transactions: [row("old-popup")] } }),
-  );
+  await act(() => {
+    oldResponse.resolve({ data: { transactions: [row("old-popup")] } });
+    return oldResponse.promise;
+  });
   expect(screen.queryByText("Received")).toBeNull();
   view.rerender(
     <TransactionHistoryPopup {...props} blockchain="MAIN_NET" isOpen={false} />,

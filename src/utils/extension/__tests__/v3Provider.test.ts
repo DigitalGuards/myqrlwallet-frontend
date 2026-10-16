@@ -22,13 +22,14 @@ function fixture() {
     genesisHash: HASH,
   };
   const request = jest.fn(
-    async ({ method }: { method: string }): Promise<unknown> => {
-      if (method === "qrl_walletCapabilities") return capabilities;
-      if (method === "qrl_chainId") return "0x301825";
+    ({ method }: { method: string }): Promise<unknown> => {
+      if (method === "qrl_walletCapabilities")
+        return Promise.resolve(capabilities);
+      if (method === "qrl_chainId") return Promise.resolve("0x301825");
       if (method === "qrl_getBlockByNumber")
-        return { number: "0x0", hash: HASH };
-      if (method === "qrl_requestAccounts") return [ACCOUNT];
-      throw new Error("Unexpected RPC method");
+        return Promise.resolve({ number: "0x0", hash: HASH });
+      if (method === "qrl_requestAccounts") return Promise.resolve([ACCOUNT]);
+      return Promise.reject(new Error("Unexpected RPC method"));
     },
   );
   const provider: ExtensionProvider = { request };
@@ -45,16 +46,17 @@ afterEach(() => jest.restoreAllMocks());
 it("requires capabilities plus chain and genesis verification before account access", async () => {
   const { provider, request } = fixture();
   const order: string[] = [];
-  const account = jest.fn(async () => {
+  const account = jest.fn(() => {
     order.push("account");
+    return Promise.resolve();
   });
   const setProvider = jest.fn(() => {
     assertQualifiedV3Provider(provider);
     order.push("provider");
   });
-  expect(() => assertQualifiedV3Provider(provider)).toThrow(
-    "not yet qualified",
-  );
+  expect(() => {
+    assertQualifiedV3Provider(provider);
+  }).toThrow("not yet qualified");
   expect(
     await connectWithProvider(
       {
@@ -87,7 +89,9 @@ it.each(["addressScheme", "chainId", "genesisHash"])(
     await expect(qualifyV3Provider(provider)).rejects.toThrow(
       "not yet qualified",
     );
-    expect(() => assertQualifiedV3Provider(provider)).toThrow();
+    expect(() => {
+      assertQualifiedV3Provider(provider);
+    }).toThrow();
     expect(request).toHaveBeenCalledTimes(1);
   },
 );
@@ -95,16 +99,22 @@ it.each(["addressScheme", "chainId", "genesisHash"])(
 it("revokes qualification if the extension changes networks", async () => {
   const { provider, request } = fixture();
   await qualifyV3Provider(provider);
-  expect(() => assertQualifiedV3Provider(provider)).not.toThrow();
-  request.mockImplementation(async ({ method }) =>
-    method === "qrl_walletCapabilities"
-      ? { addressScheme: "qip55-64", chainId: "0x301825", genesisHash: HASH }
-      : "0x539",
+  expect(() => {
+    assertQualifiedV3Provider(provider);
+  }).not.toThrow();
+  request.mockImplementation(({ method }) =>
+    Promise.resolve(
+      method === "qrl_walletCapabilities"
+        ? { addressScheme: "qip55-64", chainId: "0x301825", genesisHash: HASH }
+        : "0x539",
+    ),
   );
   await expect(qualifyV3Provider(provider)).rejects.toThrow(
     "chain identity mismatch",
   );
-  expect(() => assertQualifiedV3Provider(provider)).toThrow();
+  expect(() => {
+    assertQualifiedV3Provider(provider);
+  }).toThrow();
 });
 
 it("rejects legacy addresses even after network qualification", async () => {
@@ -148,7 +158,9 @@ it("times out an unresponsive extension before account access", async () => {
     );
     await jest.advanceTimersByTimeAsync(10000);
     await result;
-    expect(() => assertQualifiedV3Provider(provider)).toThrow();
+    expect(() => {
+      assertQualifiedV3Provider(provider);
+    }).toThrow();
   } finally {
     jest.useRealTimers();
   }
@@ -175,7 +187,9 @@ it.each([false, true])(
     );
     const first = qualifyV3Provider(provider);
     const second = qualifyV3Provider(provider);
-    expect(() => assertQualifiedV3Provider(provider)).not.toThrow();
+    expect(() => {
+      assertQualifiedV3Provider(provider);
+    }).not.toThrow();
     release(fail ? {} : capabilities);
     const results = await Promise.allSettled([first, second]);
     expect(results.map((result) => result.status)).toEqual(
@@ -186,7 +200,13 @@ it.each([false, true])(
         ([args]) => args.method === "qrl_walletCapabilities",
       ),
     ).toHaveLength(1);
-    if (fail) expect(() => assertQualifiedV3Provider(provider)).toThrow();
-    else expect(() => assertQualifiedV3Provider(provider)).not.toThrow();
+    if (fail)
+      expect(() => {
+        assertQualifiedV3Provider(provider);
+      }).toThrow();
+    else
+      expect(() => {
+        assertQualifiedV3Provider(provider);
+      }).not.toThrow();
   },
 );

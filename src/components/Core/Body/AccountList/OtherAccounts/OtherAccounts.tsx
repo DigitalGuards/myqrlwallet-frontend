@@ -1,3 +1,4 @@
+import { logger } from "@/utils/log";
 import { Button } from "../../../../UI/Button";
 import { Card } from "../../../../UI/Card";
 import { Label } from "../../../../UI/Label";
@@ -23,7 +24,6 @@ export const OtherAccounts = observer(() => {
   const {
     qrlAccounts,
     activeAccount: { accountAddress: activeAccountAddress },
-    setActiveAccount,
     qrlConnection: { blockchain },
   } = qrlStore;
   const { accounts } = qrlAccounts;
@@ -63,7 +63,9 @@ export const OtherAccounts = observer(() => {
                         className="hover:text-secondary"
                         variant="outline"
                         size="icon"
-                        onClick={() => viewInExplorer(accountAddress)}
+                        onClick={() => {
+                          viewInExplorer(accountAddress);
+                        }}
                       >
                         <ExternalLink size={18} />
                       </Button>
@@ -82,7 +84,13 @@ export const OtherAccounts = observer(() => {
                         className="hover:text-secondary"
                         variant="outline"
                         size="icon"
-                        onClick={() => setActiveAccount(accountAddress, source)}
+                        onClick={() => {
+                          qrlStore
+                            .setActiveAccount(accountAddress, source)
+                            .catch((error: unknown) => {
+                              logger.error("Failed to switch account:", error);
+                            });
+                        }}
                       >
                         <ArrowRight size={18} />
                       </Button>
