@@ -76,6 +76,12 @@ export const baseConfig = tseslint.config(
           'ts-expect-error': true,
         },
       ],
+      // TypeScript applies @ts-nocheck in any letter case and after extra
+      // slashes, while ban-ts-comment matches only the lower-case form.
+      'no-warning-comments': [
+        'error',
+        { terms: ['@ts-nocheck'], location: 'start', decoration: ['/'] },
+      ],
       // Wire input is `unknown` narrowed by runtime guards; hand-written
       // assertions are the laundering this rule forbids. `as const` stays legal.
       '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'never' }],
