@@ -16,19 +16,20 @@
  * @type {import('jest').Config}
  */
 module.exports = {
-  testEnvironment: 'node',
-  roots: ['<rootDir>/src'],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/.dapp-example-cache/'],
+  testEnvironment: "node",
+  setupFilesAfterEnv: ["<rootDir>/src/i18n/index.ts"],
+  roots: ["<rootDir>/src"],
+  testPathIgnorePatterns: ["/node_modules/", "/dist/", "/.dapp-example-cache/"],
   // Suites are named `*.test.*` / `*.spec.*` only, so a `__tests__`
   // directory can also hold shared helpers (e.g. the NFT tests' fake
   // router history) without jest collecting them as empty suites.
-  testMatch: ['**/?(*.)+(spec|test).[jt]s?(x)'],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'json'],
+  testMatch: ["**/?(*.)+(spec|test).[jt]s?(x)"],
+  moduleFileExtensions: ["ts", "tsx", "js", "jsx", "mjs", "cjs", "json"],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
+    "^@/(.*)$": "<rootDir>/src/$1",
   },
   transform: {
-    '^.+\\.(t|j)sx?$': 'babel-jest',
+    "^.+\\.(t|j)sx?$": "babel-jest",
   },
-  transformIgnorePatterns: ['/node_modules/(?!(@noble|@theqrl)/)'],
+  transformIgnorePatterns: ["/node_modules/(?!(@noble|@theqrl)/)"],
 };

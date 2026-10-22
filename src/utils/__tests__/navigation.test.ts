@@ -35,22 +35,17 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-it("keeps mobile settings ahead of desktop and web routing", () => {
-  mockNative = true;
-  mockDesktop = true;
-  navigateTo("/settings", navigate);
-  expect(mockOpenNativeSettings).toHaveBeenCalledTimes(1);
-  expect(mockOpenDesktopSettings).not.toHaveBeenCalled();
-  expect(navigate).not.toHaveBeenCalled();
-});
-
-it("routes desktop settings through the signer", async () => {
-  mockDesktop = true;
-  navigateTo("/settings", navigate);
-  await Promise.resolve();
-  expect(mockOpenDesktopSettings).toHaveBeenCalledTimes(1);
-  expect(navigate).not.toHaveBeenCalled();
-});
+it.each(["mobile", "desktop"])(
+  "opens renderer Settings on %s so language is reachable",
+  (platform) => {
+    mockNative = platform === "mobile";
+    mockDesktop = platform === "desktop";
+    navigateTo("/settings", navigate);
+    expect(navigate).toHaveBeenCalledWith("/settings");
+    expect(mockOpenNativeSettings).not.toHaveBeenCalled();
+    expect(mockOpenDesktopSettings).not.toHaveBeenCalled();
+  },
+);
 
 it("keeps synchronous and asynchronous router calls intact", async () => {
   navigateTo("/settings", navigate);
@@ -70,8 +65,7 @@ it.each(["desktop", "router"])(
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
     mockDesktop = kind === "desktop";
-    if (mockDesktop) mockOpenDesktopSettings.mockReturnValueOnce(rejection);
-    else navigate.mockReturnValueOnce(rejection);
+    navigate.mockReturnValueOnce(rejection);
 
     navigateTo("/settings", navigate);
     await observed;

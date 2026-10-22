@@ -1,18 +1,27 @@
-import { LogOut, Lock, Wallet, ArrowRight, Settings as SettingsIcon, Plug, BookUser } from "lucide-react"
-import { observer } from "mobx-react-lite"
-import { useStore } from "@/stores/store"
+import { useTranslation } from "react-i18next";
+import {
+  LogOut,
+  Lock,
+  Wallet,
+  ArrowRight,
+  Settings as SettingsIcon,
+  Plug,
+  BookUser,
+} from "lucide-react";
+import { observer } from "mobx-react-lite";
+import { useStore } from "@/stores/store";
 
 import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarGroup,
-    SidebarGroupContent,
-    // SidebarGroupLabel,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-} from "@/components/UI/sidebar"
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  // SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/UI/sidebar";
 import { useNavigate, useLocation } from "react-router";
 import { ROUTES } from "@/router/router";
 import MyQRLWalletLogo from "../Header/MyQRLWalletLogo/MyQRLWalletLogo";
@@ -25,162 +34,172 @@ import { logger } from "@/utils/log";
 
 // Menu items.
 const sidebarItems = [
-    {
-        title: "Account List",
-        url: ROUTES.ACCOUNT_LIST,
-        label: "Wallets",
-        icon: Wallet,
-    },
-    {
-        title: "Send",
-        url: ROUTES.TRANSFER,
-        label: "Send",
-        icon: ArrowRight,
-    },
-    {
-        title: "Address Book",
-        url: ROUTES.ADDRESS_BOOK,
-        label: "Contacts",
-        icon: BookUser,
-    },
-    {
-        title: "Settings",
-        url: ROUTES.SETTINGS,
-        label: "Settings",
-        icon: SettingsIcon,
-    },
-]
+  {
+    url: ROUTES.ACCOUNT_LIST,
+    labelKey: "wallets",
+    icon: Wallet,
+  },
+  {
+    url: ROUTES.TRANSFER,
+    labelKey: "send",
+    icon: ArrowRight,
+  },
+  {
+    url: ROUTES.ADDRESS_BOOK,
+    labelKey: "contacts",
+    icon: BookUser,
+  },
+  {
+    url: ROUTES.SETTINGS,
+    labelKey: "settings",
+    icon: SettingsIcon,
+  },
+] as const;
 
 export const AppSidebar = observer(function AppSidebar() {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { dappConnectStore } = useStore();
-    const onLogoutClick = () => {
-        void handleLogout((path) => {
-            void Promise.resolve(navigate(path)).catch((error: unknown) => {
-                logger.error("Failed to navigate after logout:", error);
-            });
-        }).catch((error: unknown) => {
-            logger.error("Error during logout:", error);
-        });
-    };
-    // Desktop: there is no "logout" (the seed lives in the signer, not here).
-    // The footer button locks the signer session instead; main then shows the
-    // native unlock window. Removing the wallet entirely is a separate,
-    // confirmed action under Settings.
-    const onLockClick = () => {
-        void desktopSigner.lock().catch((error: unknown) => {
-            logger.error("Failed to lock desktop wallet:", error);
-        });
-    };
-    const isActive = (url: string) =>
-        location.pathname === url || location.pathname.startsWith(`${url}/`);
+  const { t } = useTranslation("common");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { dappConnectStore } = useStore();
+  const onLogoutClick = () => {
+    void handleLogout((path) => {
+      void Promise.resolve(navigate(path)).catch((error: unknown) => {
+        logger.error("Failed to navigate after logout:", error);
+      });
+    }).catch((error: unknown) => {
+      logger.error("Error during logout:", error);
+    });
+  };
+  // Desktop: there is no "logout" (the seed lives in the signer, not here).
+  // The footer button locks the signer session instead; main then shows the
+  // native unlock window. Removing the wallet entirely is a separate,
+  // confirmed action under Settings.
+  const onLockClick = () => {
+    void desktopSigner.lock().catch((error: unknown) => {
+      logger.error("Failed to lock desktop wallet:", error);
+    });
+  };
+  const isActive = (url: string) =>
+    location.pathname === url || location.pathname.startsWith(`${url}/`);
 
-    return (
-        <Sidebar className="h-[calc(100vh-2.5rem)] !border-r border-r-sidebar-border bg-sidebar/80 backdrop-blur-md">
-            <SidebarContent>
-                {/* px-0 so the active item is full-bleed: its accent right
+  return (
+    <Sidebar className="h-[calc(100vh-2.5rem)] !border-r border-r-sidebar-border bg-sidebar/80 backdrop-blur-md">
+      <SidebarContent>
+        {/* px-0 so the active item is full-bleed: its accent right
                     edge sits flush with the rail border instead of floating
                     inset as a second parallel line. */}
-                <SidebarGroup className="px-0">
-                    {/* <SidebarGroupLabel>Application</SidebarGroupLabel> */}
-                    <SidebarGroupContent className="mt-5">
-                        <SidebarMenu>
-                            <SidebarMenuItem
-                                className="cursor-pointer flex justify-center py-5"
-                                onClick={() => {
-                                    void Promise.resolve(navigate(ROUTES.HOME)).catch((error: unknown) => {
-                                        logger.error("Failed to open home:", error);
-                                    });
-                                }}
-                            >
-                                <MyQRLWalletLogo showText={false} size="lg" />
-                            </SidebarMenuItem>
-                            {sidebarItems.map((item) => {
-                                const active = isActive(item.url);
-                                return (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton
-                                        onClick={() => {
-                                            navigateTo(item.url, navigate);
-                                        }}
-                                        // Semantic <button> (no asChild) for native keyboard support.
-                                        // Override shadcn's rounded-md so the active accent reads as a
-                                        // flat full-bleed block with a straight accent edge; keep a
-                                        // keyboard-only inset focus ring (mouse clicks don't show it).
-                                        className={cn(
-                                            "flex flex-col justify-evenly items-center gap-1 py-2 h-auto rounded-none border-r-2 border-r-transparent transition-colors [&>svg]:!size-8",
-                                            "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
-                                            active
-                                                ? "bg-gradient-to-l from-primary/15 to-transparent border-r-primary text-foreground [&>svg]:text-primary [&>svg]:drop-shadow-[0_0_10px_hsl(199_78%_55%/0.5)]"
-                                                : "text-muted-foreground hover:text-foreground",
-                                        )}
-                                    >
-                                        <item.icon className="size-8" />
-                                        <span className="block text-xs font-medium">{item.label}</span>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                                );
-                            })}
-                            {/* Desktop replaces the floating connection banner
+        <SidebarGroup className="px-0">
+          {/* <SidebarGroupLabel>Application</SidebarGroupLabel> */}
+          <SidebarGroupContent className="mt-5">
+            <SidebarMenu>
+              <SidebarMenuItem
+                className="cursor-pointer flex justify-center py-5"
+                onClick={() => {
+                  void Promise.resolve(navigate(ROUTES.HOME)).catch(
+                    (error: unknown) => {
+                      logger.error("Failed to open home:", error);
+                    },
+                  );
+                }}
+              >
+                <MyQRLWalletLogo showText={false} size="lg" />
+              </SidebarMenuItem>
+              {sidebarItems.map((item) => {
+                const active = isActive(item.url);
+                return (
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton
+                      onClick={() => {
+                        navigateTo(item.url, navigate);
+                      }}
+                      // Semantic <button> (no asChild) for native keyboard support.
+                      // Override shadcn's rounded-md so the active accent reads as a
+                      // flat full-bleed block with a straight accent edge; keep a
+                      // keyboard-only inset focus ring (mouse clicks don't show it).
+                      className={cn(
+                        "flex flex-col justify-evenly items-center gap-1 py-2 h-auto rounded-none border-r-2 border-r-transparent transition-colors [&>svg]:!size-8",
+                        "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
+                        active
+                          ? "bg-gradient-to-l from-primary/15 to-transparent border-r-primary text-foreground [&>svg]:text-primary [&>svg]:drop-shadow-[0_0_10px_hsl(199_78%_55%/0.5)]"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <item.icon className="size-8" />
+                      <span className="block max-w-full whitespace-normal break-words text-center text-[10px] font-medium">
+                        {t(item.labelKey)}
+                      </span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+              {/* Desktop replaces the floating connection banner
                                 with this rail item: connected-dApp count at a
                                 glance, click through to manage sessions. */}
-                            {isDesktop && (
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton
-                                        onClick={() => {
-                                            navigateTo(ROUTES.DAPP_SESSIONS, navigate);
-                                        }}
-                                        className={cn(
-                                            "flex flex-col justify-evenly items-center gap-1 py-2 h-auto rounded-none border-r-2 border-r-transparent transition-colors",
-                                            "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
-                                            isActive(ROUTES.DAPP_SESSIONS)
-                                                ? "bg-gradient-to-l from-primary/15 to-transparent border-r-primary text-foreground [&_svg]:text-primary [&_svg]:drop-shadow-[0_0_10px_hsl(199_78%_55%/0.5)]"
-                                                : "text-muted-foreground hover:text-foreground",
-                                        )}
-                                    >
-                                        <span className="relative">
-                                            <Plug className="!size-8" />
-                                            {dappConnectStore.sessionCount > 0 && (
-                                                <span
-                                                    aria-label={`${dappConnectStore.sessionCount} connected dApp${dappConnectStore.sessionCount === 1 ? "" : "s"}`}
-                                                    className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground shadow-[0_0_10px_hsl(199_78%_55%/0.6)]"
-                                                >
-                                                    {dappConnectStore.sessionCount}
-                                                </span>
-                                            )}
-                                        </span>
-                                        <span className="block text-xs font-medium">dApps</span>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            )}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-            </SidebarContent>
-            {/* Native app hides this entirely (wallet removal lives in native
+              {isDesktop && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => {
+                      navigateTo(ROUTES.DAPP_SESSIONS, navigate);
+                    }}
+                    className={cn(
+                      "flex flex-col justify-evenly items-center gap-1 py-2 h-auto rounded-none border-r-2 border-r-transparent transition-colors",
+                      "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
+                      isActive(ROUTES.DAPP_SESSIONS)
+                        ? "bg-gradient-to-l from-primary/15 to-transparent border-r-primary text-foreground [&_svg]:text-primary [&_svg]:drop-shadow-[0_0_10px_hsl(199_78%_55%/0.5)]"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <span className="relative">
+                      <Plug className="!size-8" />
+                      {dappConnectStore.sessionCount > 0 && (
+                        <span
+                          aria-label={t("connectedDapps", {
+                            count: dappConnectStore.sessionCount,
+                          })}
+                          className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground shadow-[0_0_10px_hsl(199_78%_55%/0.6)]"
+                        >
+                          {dappConnectStore.sessionCount}
+                        </span>
+                      )}
+                    </span>
+                    <span className="block max-w-full whitespace-normal break-words text-center text-[10px] font-medium">
+                      {t("dapps")}
+                    </span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      {/* Native app hides this entirely (wallet removal lives in native
                 settings). Desktop shows Lock (not Logout): the seed stays in the
                 signer and locking surfaces the native unlock window. Web keeps
                 the seed-wiping Logout. */}
-            {!isInNativeApp() && (
-                <SidebarFooter>
-                    <SidebarMenu>
-                        <SidebarMenuItem className="py-2">
-                            <SidebarMenuButton
-                                asChild
-                                className="py-2 h-auto"
-                                onClick={isDesktop ? onLockClick : onLogoutClick}
-                                tooltip={{ side: "right", children: isDesktop ? "Lock wallet" : "Log out of wallet" }}
-                            >
-                                <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground">
-                                    {isDesktop ? <Lock /> : <LogOut />}
-                                    <span className="block text-xs font-medium">{isDesktop ? "Lock" : "Logout"}</span>
-                                </div>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    </SidebarMenu>
-                </SidebarFooter>
-            )}
-        </Sidebar>
-    )
-})
+      {!isInNativeApp() && (
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem className="py-2">
+              <SidebarMenuButton
+                asChild
+                className="py-2 h-auto"
+                onClick={isDesktop ? onLockClick : onLogoutClick}
+                tooltip={{
+                  side: "right",
+                  children: isDesktop ? t("lockWallet") : t("logoutWallet"),
+                }}
+              >
+                <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground">
+                  {isDesktop ? <Lock /> : <LogOut />}
+                  <span className="block max-w-full whitespace-normal break-words text-center text-[10px] font-medium">
+                    {isDesktop ? t("lock") : t("logout")}
+                  </span>
+                </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      )}
+    </Sidebar>
+  );
+});

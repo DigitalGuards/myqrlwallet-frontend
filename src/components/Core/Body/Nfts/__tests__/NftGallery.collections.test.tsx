@@ -4,7 +4,13 @@
  * collection's tokens, the way the browser extension's NFT collections
  * list does.
  */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import type { NFTInterface } from "@/constants";
 import { groupNftsByCollection } from "@/utils/web3/nftCollections";
 import { reportError } from "@/utils/reportError";
@@ -91,24 +97,32 @@ it("lists collections with item counts, standard, and short contract address", (
 
 it("counts collections, not tokens, in the discovery empty state", () => {
   mountWith([], ownedNfts);
+  expect(screen.getByText(/Explorer found this address to own/)).toBeTruthy();
   expect(
-    screen.getByText(/Explorer found this address to own/),
+    screen.getByText("Explorer found this address to own 2 NFT collections."),
   ).toBeTruthy();
-  expect(screen.getByText("2")).toBeTruthy();
   expect(screen.getByText(/NFT\s*collections/)).toBeTruthy();
 });
 
 it("reports refresh failures, preserves the collection rows, and allows retry", async () => {
   const { store } = mountWith(ownedNfts);
-  await waitFor(() => { expect(store.nftStore.refreshNftMetadata).toHaveBeenCalledTimes(1); });
+  await waitFor(() => {
+    expect(store.nftStore.refreshNftMetadata).toHaveBeenCalledTimes(1);
+  });
   const error = new Error("RPC unavailable");
   store.nftStore.refreshNftBalances.mockRejectedValueOnce(error);
-  const refresh = screen.getByRole("button", { name: "Refresh ownership, balances, and metadata" });
+  const refresh = screen.getByRole("button", {
+    name: "Refresh ownership, balances, and metadata",
+  });
   fireEvent.click(refresh);
-  await waitFor(() => { expect(reportError).toHaveBeenCalledWith("Failed to refresh NFTs:", error); });
+  await waitFor(() => {
+    expect(reportError).toHaveBeenCalledWith("Failed to refresh NFTs:", error);
+  });
   expect(refresh.getAttribute("disabled")).toBeNull();
   expect(screen.getByText("2 collections")).toBeTruthy();
   expect(store.nftStore.refreshNftMetadata).toHaveBeenCalledTimes(1);
   fireEvent.click(refresh);
-  await waitFor(() => { expect(store.nftStore.refreshNftMetadata).toHaveBeenLastCalledWith(true); });
+  await waitFor(() => {
+    expect(store.nftStore.refreshNftMetadata).toHaveBeenLastCalledWith(true);
+  });
 });

@@ -150,7 +150,7 @@ it("shows a failed persistence error and retains the entered token for retry", a
   await screen.findByDisplayValue("Test token");
   fireEvent.click(screen.getByRole("button", { name: "Add Token" }));
   expect((await screen.findByRole("alert")).textContent).toBe(
-    "Add failed: Storage unavailable",
+    "Failed to add tokens. Please try again.",
   );
   expect(screen.getByDisplayValue(ADDRESS)).toBeTruthy();
   expect(screen.getByDisplayValue("Test token")).toBeTruthy();

@@ -1,0 +1,22 @@
+{
+  "title": "Letzte Transaktionen",
+  "description": "Die letzten Transaktionen dieses Kontos.",
+  "unavailable": "Der Transaktionsverlauf ist für dieses Netzwerk nicht verfügbar.",
+  "loadError": "Der Transaktionsverlauf konnte nicht geladen werden. Bitte erneut versuchen.",
+  "storageError": "Der Transaktionsverlauf konnte nicht gespeichert werden. Diese Seite bis zur Bestätigung geöffnet lassen.",
+  "empty": "Keine Transaktionen gefunden",
+  "view": "Transaktion im Explorer anzeigen",
+  "viewAll": "Alle im Explorer anzeigen",
+  "received": "Empfangen",
+  "sent": "Gesendet",
+  "from": "Von <address/>",
+  "to": "An <address/>",
+  "unknownSender": "Unbekannter Absender",
+  "contractCreation": "Vertragserstellung",
+  "unknownTime": "Unbekannte Zeit",
+  "confirmed": "Bestätigt",
+  "pending": "Ausstehend",
+  "failed": "Fehlgeschlagen",
+  "dropped": "Fehlgeschlagen (verworfen oder ersetzt)",
+  "unknown": "Nicht verfügbar"
+}

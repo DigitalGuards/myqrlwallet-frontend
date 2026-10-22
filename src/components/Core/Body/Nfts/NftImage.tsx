@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { stringAttribute, stringValue, toTemplateString } from "@/utils/guards";
 import { useMemo, useState } from "react";
 import { Skeleton } from "@/components/UI/skeleton";
@@ -27,7 +28,15 @@ export function NftImage({ src, alt, className, blur = false }: NftImageProps) {
   if (!imageSrc) {
     return <Fallback wrapper={wrapper} alt={alt} />;
   }
-  return <Inner key={imageSrc} wrapper={wrapper} src={imageSrc} alt={alt} blur={blur} />;
+  return (
+    <Inner
+      key={imageSrc}
+      wrapper={wrapper}
+      src={imageSrc}
+      alt={alt}
+      blur={blur}
+    />
+  );
 }
 
 function Inner({
@@ -58,8 +67,12 @@ function Inner({
         src={src}
         alt={stringAttribute(alt)}
         loading="lazy"
-        onLoad={() => { setStatus("loaded"); }}
-        onError={() => { setStatus("error"); }}
+        onLoad={() => {
+          setStatus("loaded");
+        }}
+        onError={() => {
+          setStatus("error");
+        }}
         className={`h-full w-full object-cover transition-opacity ${
           status === "loaded" ? "opacity-100" : "opacity-0"
         } ${blur ? "scale-110 blur-[3px]" : ""}`}
@@ -69,11 +82,12 @@ function Inner({
 }
 
 function Fallback({ wrapper, alt }: { wrapper: string; alt: unknown }) {
+  const { t } = useTranslation("home");
   return (
     <div
       className={`${wrapper} flex items-center justify-center text-muted-foreground`}
       role="img"
-      aria-label={`${toTemplateString(alt)} (image unavailable)`}
+      aria-label={t("imageUnavailable", { name: toTemplateString(alt) })}
     >
       <ImageIcon className="h-10 w-10 opacity-50" />
     </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { renderValue } from "@/utils/guards";
 import { logger } from "@/utils/log";
 import { PageShell } from "@/components/Core/Layout/PageShell";
@@ -32,6 +33,7 @@ const TokenForm = withSuspense(
 const NftGallery = withSuspense(lazy(() => import("../Nfts/NftGallery")));
 
 const Home = observer(() => {
+  const { t } = useTranslation(["home", "common"]);
   const { qrlStore, tokenStore } = useStore();
   const { qrlConnection, activeAccount } = qrlStore;
   const { isLoading, isConnected, blockchain } = qrlConnection;
@@ -113,21 +115,21 @@ const Home = observer(() => {
   return (
     <>
       <SEO
-        title="Home"
-        description="Welcome to the QRL 2.0 Web Wallet. Create or import your quantum-resistant wallet and start managing your QRL assets securely."
-        keywords="QRL Wallet, Create Wallet, Import Wallet, Quantum Resistant, Web3"
+        title={t("common:home")}
+        description={t("home:seoDescription")}
+        keywords={t("home:seoKeywords")}
       />
       <PageShell
         title={
           activeAccount.accountAddress
-            ? "Active account"
+            ? t("home:activeAccount")
             : isConnected
-              ? "Let's start"
-              : "Home"
+              ? t("home:start")
+              : t("common:home")
         }
         subtitle={
           isConnected && !activeAccount.accountAddress
-            ? accountSetupDescription()
+            ? t(accountSetupDescription())
             : undefined
         }
         action={
@@ -136,7 +138,7 @@ const Home = observer(() => {
               <button
                 onClick={() => requestQRScan()}
                 className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Scan QR code"
+                aria-label={t("home:scan")}
               >
                 <ScanLine className="h-6 w-6" />
               </button>
@@ -164,14 +166,17 @@ const Home = observer(() => {
                     {/* Narrow phones wrap Receive onto its own row, so
                           Transfer stays inside the card. */}
                     <CardFooter className="flex-wrap justify-end gap-2">
-                      <Link className="flex-1" to={ROUTES.TRANSFER}>
+                      <Link
+                        className="min-w-0 flex-[1_1_8rem]"
+                        to={ROUTES.TRANSFER}
+                      >
                         <Button className="w-full px-3 sm:px-4" type="button">
                           <Send className="mr-2 h-4 w-4" />
-                          Transfer
+                          {t("home:transfer")}
                         </Button>
                       </Link>
                       <Button
-                        className="flex-1 px-3 sm:px-4"
+                        className="min-w-0 flex-[1_1_8rem] px-3 sm:px-4"
                         type="button"
                         variant="outline"
                         onClick={() => {
@@ -179,10 +184,10 @@ const Home = observer(() => {
                         }}
                       >
                         <History className="mr-2 h-4 w-4" />
-                        History
+                        {t("home:history")}
                       </Button>
                       <Button
-                        className="flex-1 px-3 sm:px-4"
+                        className="min-w-0 flex-[1_1_8rem] px-3 sm:px-4"
                         type="button"
                         variant="secondary"
                         onClick={() => {
@@ -190,22 +195,26 @@ const Home = observer(() => {
                         }}
                       >
                         <QrCode className="mr-2 h-4 w-4" />
-                        Receive
+                        {t("home:receive")}
                       </Button>
                     </CardFooter>
                   </div>
                 </Card>
               )}
-              {renderValue(activeAccount.accountAddress && showTokensCard && (
-                <div className="relative z-10">
-                  <TokenForm />
-                </div>
-              ))}
-              {renderValue(activeAccount.accountAddress && showNftsCard && (
-                <div className="relative z-10">
-                  <NftGallery />
-                </div>
-              ))}
+              {renderValue(
+                activeAccount.accountAddress && showTokensCard && (
+                  <div className="relative z-10">
+                    <TokenForm />
+                  </div>
+                ),
+              )}
+              {renderValue(
+                activeAccount.accountAddress && showNftsCard && (
+                  <div className="relative z-10">
+                    <NftGallery />
+                  </div>
+                ),
+              )}
               {!isConnected ? (
                 <ConnectionFailed />
               ) : (

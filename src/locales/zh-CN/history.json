@@ -1,0 +1,22 @@
+{
+  "title": "最近交易",
+  "description": "此账户的最近交易。",
+  "unavailable": "此网络暂不支持交易历史记录。",
+  "loadError": "无法加载交易历史记录。请重试。",
+  "storageError": "无法保存交易历史记录。请保持此页面打开，直到交易确认。",
+  "empty": "未找到交易",
+  "view": "在浏览器中查看交易",
+  "viewAll": "在浏览器中查看全部",
+  "received": "已收款",
+  "sent": "已发送",
+  "from": "来自 <address/>",
+  "to": "发往 <address/>",
+  "unknownSender": "未知发送方",
+  "contractCreation": "合约创建",
+  "unknownTime": "时间未知",
+  "confirmed": "已确认",
+  "pending": "待确认",
+  "failed": "失败",
+  "dropped": "失败（已丢弃或替换）",
+  "unknown": "不可用"
+}
