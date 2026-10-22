@@ -29,7 +29,8 @@ jest.mock("@/utils", () => ({
 const mockStore = {
   qrlStore: { activeAccount: { accountAddress: mockHolder } },
   tokenStore: {
-    pendingDiscoveredTokens: [],
+    pendingDiscoveredTokens: new Array<TokenInterface>(),
+    addDiscoveredTokens: jest.fn<Promise<void>, [TokenInterface[]]>(),
     addToken: mockAddToken,
     discoverTokensForReview: mockDiscover,
   },
@@ -51,6 +52,7 @@ jest.mock("@/utils/reportError", () => ({ reportError: jest.fn() }));
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockStore.tokenStore.pendingDiscoveredTokens = [];
   mockFetchInfo.mockResolvedValue({
     name: "Test token",
     symbol: "TOK",
@@ -172,3 +174,55 @@ it("reports a rejected discovery request", async () => {
     );
   });
 });
+
+it.each([
+  [
+    new Error("RPC refused <request>"),
+    "Could not fetch token info. The address may not be a QRC-20 token contract. (RPC refused <request>)",
+  ],
+  [
+    "offline",
+    "Could not fetch token info. The address may not be a token contract.",
+  ],
+])(
+  "preserves origin/dev token lookup failure details (%s)",
+  async (reason, expected) => {
+    mockFetchInfo.mockRejectedValueOnce(reason);
+    enterContract();
+    expect((await screen.findByRole("alert")).textContent).toBe(expected);
+  },
+);
+
+it("preserves origin/dev non-Error add failure", async () => {
+  mockAddToken.mockRejectedValueOnce("offline");
+  enterContract();
+  await screen.findByDisplayValue("Test token");
+  fireEvent.click(screen.getByRole("button", { name: "Add Token" }));
+  expect((await screen.findByRole("alert")).textContent).toBe("Add failed.");
+});
+
+it.each([
+  [
+    new Error("Storage unavailable"),
+    "Failed to add picks: Storage unavailable",
+  ],
+  ["offline", "Failed to add picks."],
+])(
+  "preserves origin/dev discovered-token failure details (%s)",
+  async (reason, expected) => {
+    mockStore.tokenStore.pendingDiscoveredTokens = [
+      {
+        address: ADDRESS,
+        name: "Pick",
+        symbol: "PICK",
+        decimals: 6,
+        amount: "1",
+      },
+    ];
+    mockStore.tokenStore.addDiscoveredTokens.mockRejectedValueOnce(reason);
+    render(<AddTokenModal isOpen onClose={onClose} />);
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Add Selected (1)" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(expected);
+  },
+);

@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from "react-i18next";
 import { stringValue } from "@/utils/guards";
 import { renderValue, toTemplateString } from "@/utils/guards";
 import { reportError } from "@/utils/reportError";
@@ -5,12 +6,7 @@ import { observer } from "mobx-react-lite";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Loader2, Plus, RefreshCw, Sparkles } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/UI/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/UI/Card";
 import { Button } from "@/components/UI/Button";
 import {
   Tooltip,
@@ -34,6 +30,7 @@ import {
 } from "./nftNavigation";
 
 const NftGallery = observer(() => {
+  const { t } = useTranslation(["home", "tokens"]);
   const { qrlStore, nftStore } = useStore();
   const { accountAddress: activeAccountAddress } = qrlStore.activeAccount;
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -61,16 +58,19 @@ const NftGallery = observer(() => {
     );
   };
 
-  const closeCollection = useCallback((replace: boolean) => {
-    setSearchParams(
-      (previous) => {
-        const next = new URLSearchParams(previous);
-        next.delete(NFT_COLLECTION_PARAM);
-        return next;
-      },
-      { replace },
-    );
-  }, [setSearchParams]);
+  const closeCollection = useCallback(
+    (replace: boolean) => {
+      setSearchParams(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          next.delete(NFT_COLLECTION_PARAM);
+          return next;
+        },
+        { replace },
+      );
+    },
+    [setSearchParams],
+  );
 
   // Pop the pushed entry when the list is one step back, so the in-app
   // Back button and the browser Back button land in the same place. A
@@ -114,9 +114,11 @@ const NftGallery = observer(() => {
   // Populate the review picker once per account; adding remains an explicit choice.
   useEffect(() => {
     if (!activeAccountAddress) return;
-    nftStore.discoverNftsForReview(activeAccountAddress).catch((error: unknown) => {
-      reportError("Failed to discover NFTs:", error);
-    });
+    nftStore
+      .discoverNftsForReview(activeAccountAddress)
+      .catch((error: unknown) => {
+        reportError("Failed to discover NFTs:", error);
+      });
   }, [activeAccountAddress, nftStore]);
 
   const onRefresh = async () => {
@@ -139,11 +141,11 @@ const NftGallery = observer(() => {
     null;
 
   const headerCount = openCollection
-    ? `${openCollection.tokenCount} item${openCollection.tokenCount === 1 ? "" : "s"}`
-    : `${collections.length} collection${collections.length === 1 ? "" : "s"}`;
+    ? t("home:items", { count: openCollection.tokenCount })
+    : t("home:collections", { count: collections.length });
 
   return (
-    <Card >
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div className="flex min-w-0 items-center gap-3">
           {openCollection && (
@@ -151,14 +153,18 @@ const NftGallery = observer(() => {
               variant="ghost"
               size="icon"
               className="h-8 w-8 shrink-0"
-              aria-label="Back to collections"
+              aria-label={t("home:backCollections")}
               onClick={onBackToCollections}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
           <CardTitle className="truncate text-2xl font-bold">
-            {renderValue(openCollection ? collectionDisplayName(openCollection) : "NFTs")}
+            {renderValue(
+              openCollection
+                ? collectionDisplayName(openCollection)
+                : t("home:nfts"),
+            )}
           </CardTitle>
           {collections.length > 0 && (
             <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
@@ -173,9 +179,11 @@ const NftGallery = observer(() => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => { void onRefresh(); }}
+                  onClick={() => {
+                    void onRefresh();
+                  }}
                   disabled={isRefreshing}
-                  aria-label="Refresh ownership, balances, and metadata"
+                  aria-label={t("home:nftRefresh")}
                 >
                   {isRefreshing ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -185,15 +193,17 @@ const NftGallery = observer(() => {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Refresh ownership, balances, and metadata</p>
+                <p>{t("home:nftRefresh")}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { setIsAddOpen(true); }}
-            aria-label="Add NFT"
+            onClick={() => {
+              setIsAddOpen(true);
+            }}
+            aria-label={t("home:addNft")}
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -217,7 +227,9 @@ const NftGallery = observer(() => {
           </div>
         ) : collections.length === 0 ? (
           <EmptyState
-            onAdd={() => { setIsAddOpen(true); }}
+            onAdd={() => {
+              setIsAddOpen(true);
+            }}
             discoveredCollectionCount={
               nftStore.pendingDiscoveredNftCollections.length
             }
@@ -228,13 +240,20 @@ const NftGallery = observer(() => {
               <NftCollectionRow
                 key={collection.key}
                 collection={collection}
-                onOpen={(picked) => { openCollectionByKey(picked.key); }}
+                onOpen={(picked) => {
+                  openCollectionByKey(picked.key);
+                }}
               />
             ))}
           </div>
         )}
       </CardContent>
-      <AddNftModal isOpen={isAddOpen} onClose={() => { setIsAddOpen(false); }} />
+      <AddNftModal
+        isOpen={isAddOpen}
+        onClose={() => {
+          setIsAddOpen(false);
+        }}
+      />
     </Card>
   );
 });
@@ -246,27 +265,28 @@ function EmptyState({
   onAdd: () => void;
   discoveredCollectionCount: number;
 }) {
+  const { t } = useTranslation(["home", "tokens"]);
   return (
     <div className="flex flex-col items-center gap-2 py-4 text-center">
       {discoveredCollectionCount > 0 ? (
         <div className="flex items-center gap-2 text-sm">
           <Sparkles className="h-4 w-4 text-muted-foreground/70" />
-          Explorer found this address to own{" "}
-          <span className="font-medium">{discoveredCollectionCount}</span> NFT
-          collection
-          {discoveredCollectionCount === 1 ? "" : "s"}.
+          <Trans
+            t={t}
+            i18nKey="home:foundCollections"
+            count={discoveredCollectionCount}
+            components={{ count: <span className="font-medium" /> }}
+          />
         </div>
       ) : (
         <div>
-          <p className="text-sm font-medium">No collectibles yet</p>
-          <p className="text-xs text-muted-foreground">
-            Paste an ERC-721 or ERC-1155 contract address to add one.
-          </p>
+          <p className="text-sm font-medium">{t("home:noNfts")}</p>
+          <p className="text-xs text-muted-foreground">{t("home:nftHint")}</p>
         </div>
       )}
       <Button variant="outline" size="sm" onClick={onAdd}>
         <Plus className="mr-2 h-4 w-4" />
-        {discoveredCollectionCount > 0 ? "Review and add" : "Add NFT"}
+        {discoveredCollectionCount > 0 ? t("tokens:review") : t("home:addNft")}
       </Button>
     </div>
   );

@@ -1,3 +1,6 @@
+import type { ParseKeys } from "i18next";
+import { historyStatusKey } from "@/i18n/historyStatusKey";
+import { Trans, useTranslation } from "react-i18next";
 import type { BlockchainSelection } from "@/utils/storage/storage";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 import { parseHistoryResponse } from "@/utils/transactionHistory";
@@ -41,11 +44,14 @@ export const TransactionHistoryPopup = observer(
     isOpen,
     onClose,
   }: TransactionHistoryPopupProps) => {
+    const { t } = useTranslation(["history", "common"]);
     const [backendTransactions, setTransactions] = useState<HistoryRow[]>([]);
     const contentRef = useRef<HTMLDivElement>(null);
     const openerRef = useRef<HTMLElement | null>(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<ParseKeys<["history", "common"]> | null>(
+      null,
+    );
     const network = historyNetwork(blockchain);
     const { transactions, storageUnavailable } = useTransactionHistory(
       blockchain,
@@ -66,7 +72,7 @@ export const TransactionHistoryPopup = observer(
       }
       if (!network) {
         setLoading(false);
-        setError("Transaction history is unavailable for this network.");
+        setError("history:unavailable");
         return () => {
           controller.abort();
         };
@@ -90,11 +96,7 @@ export const TransactionHistoryPopup = observer(
           if (controller.signal.aborted) return;
           const unavailable =
             axios.isAxiosError(cause) && cause.response?.status === 501;
-          setError(
-            unavailable
-              ? "Transaction history is unavailable for this network."
-              : "Unable to load transaction history. Please try again.",
-          );
+          setError(unavailable ? "history:unavailable" : "history:loadError");
         } finally {
           if (!controller.signal.aborted) setLoading(false);
         }
@@ -138,30 +140,29 @@ export const TransactionHistoryPopup = observer(
           className="max-h-[85dvh] focus:outline-none focus-visible:outline-none w-[calc(100%-2rem)] max-w-md gap-0 overflow-y-auto rounded-lg p-4 sm:p-5"
         >
           <DialogTitle className="pr-8 text-xl font-bold">
-            Recent Transactions
+            {t("history:title")}
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Your latest transactions for this account.
+            {t("history:description")}
           </DialogDescription>
 
           {storageUnavailable && (
             <p role="alert" className="mt-3 text-sm text-red-400">
-              Transaction history could not be saved. Keep this page open until
-              confirmation.
+              {t("history:storageError")}
             </p>
           )}
           {error && (
             <div role="alert" className="mt-3 text-sm text-red-400">
-              {error}
+              {t(error)}
             </div>
           )}
           {loading && transactions.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
-              Loading...
+              {t("common:loading")}
             </div>
           ) : transactions.length === 0 && !error ? (
             <div className="py-8 text-center text-muted-foreground">
-              No transactions found
+              {t("history:empty")}
             </div>
           ) : (
             <ul className="mt-3 divide-y divide-border">
@@ -171,7 +172,7 @@ export const TransactionHistoryPopup = observer(
                   <li key={tx.ID}>
                     <button
                       type="button"
-                      title="View transaction on Explorer"
+                      title={t("history:view")}
                       onClick={() => {
                         openExternalUrl(
                           getExplorerTxUrl(tx.TxHash, blockchain),
@@ -180,26 +181,45 @@ export const TransactionHistoryPopup = observer(
                       className="flex w-full items-start justify-between gap-3 rounded-md px-1 py-3 text-left transition-colors hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <div className="min-w-0">
-                        <div className="text-sm font-medium">{view.title}</div>
+                        <div className="text-sm font-medium">
+                          {t(
+                            view.title === "Received"
+                              ? "history:received"
+                              : "history:sent",
+                          )}
+                        </div>
                         <div className="text-xs text-muted-foreground">
                           {view.counterparty ? (
-                            <>
-                              {view.counterpartyLabel}{" "}
-                              <CompactAddressText address={view.counterparty} />
-                            </>
+                            <Trans
+                              t={t}
+                              i18nKey={
+                                view.title === "Received"
+                                  ? "history:from"
+                                  : "history:to"
+                              }
+                              components={{
+                                address: (
+                                  <CompactAddressText
+                                    address={view.counterparty}
+                                  />
+                                ),
+                              }}
+                            />
                           ) : view.title === "Received" ? (
-                            "Unknown sender"
+                            t("history:unknownSender")
                           ) : (
-                            "Contract creation"
+                            t("history:contractCreation")
                           )}
                         </div>
                         <div
                           className={`mt-1 text-xs ${TONE_CLASS[view.statusTone]}`}
                         >
-                          {view.status}
+                          {t(historyStatusKey(tx))}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {view.time}
+                          {view.time === "Unknown time"
+                            ? t("history:unknownTime")
+                            : view.time}
                         </div>
                         <div className="mt-1 break-all font-data text-[11px] text-muted-foreground">
                           {view.hash}
@@ -224,7 +244,7 @@ export const TransactionHistoryPopup = observer(
 
           <div className="mt-4 flex justify-center">
             <Button variant="outline" onClick={viewAllTransactions}>
-              View All in Explorer
+              {t("history:viewAll")}
             </Button>
           </div>
         </DialogContent>

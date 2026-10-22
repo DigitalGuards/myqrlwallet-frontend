@@ -1,0 +1,22 @@
+{
+  "title": "Transacciones recientes",
+  "description": "Tus últimas transacciones de esta cuenta.",
+  "unavailable": "El historial de transacciones no está disponible para esta red.",
+  "loadError": "No se pudo cargar el historial de transacciones. Inténtalo de nuevo.",
+  "storageError": "No se pudo guardar el historial de transacciones. Mantén esta página abierta hasta la confirmación.",
+  "empty": "No se han encontrado transacciones",
+  "view": "Ver transacción en el explorador",
+  "viewAll": "Ver todas en el explorador",
+  "received": "Recibido",
+  "sent": "Enviado",
+  "from": "De <address/>",
+  "to": "A <address/>",
+  "unknownSender": "Remitente desconocido",
+  "contractCreation": "Creación de contrato",
+  "unknownTime": "Hora desconocida",
+  "confirmed": "Confirmada",
+  "pending": "Pendiente",
+  "failed": "Fallida",
+  "dropped": "Fallida (descartada o reemplazada)",
+  "unknown": "No disponible"
+}

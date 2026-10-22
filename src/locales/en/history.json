@@ -1,0 +1,22 @@
+{
+  "title": "Recent Transactions",
+  "description": "Your latest transactions for this account.",
+  "unavailable": "Transaction history is unavailable for this network.",
+  "loadError": "Unable to load transaction history. Please try again.",
+  "storageError": "Transaction history could not be saved. Keep this page open until confirmation.",
+  "empty": "No transactions found",
+  "view": "View transaction on Explorer",
+  "viewAll": "View All in Explorer",
+  "received": "Received",
+  "sent": "Sent",
+  "from": "From <address/>",
+  "to": "To <address/>",
+  "unknownSender": "Unknown sender",
+  "contractCreation": "Contract creation",
+  "unknownTime": "Unknown time",
+  "confirmed": "Confirmed",
+  "pending": "Pending",
+  "failed": "Failed",
+  "dropped": "Failed (dropped or replaced)",
+  "unknown": "Unavailable"
+}

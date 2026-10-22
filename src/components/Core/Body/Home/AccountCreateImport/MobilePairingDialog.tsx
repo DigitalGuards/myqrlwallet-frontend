@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { logger } from "@/utils/log";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
@@ -27,7 +28,38 @@ interface Props {
  * signer: renders the qrlconnect:// URI as a QR for the phone to scan.
  * The parent closes it when the store adopts the paired account.
  */
-const MobilePairingDialog = ({ uri, installHint, onClose, onNewCode }: Props) => {
+const MobilePairingDialog = ({
+  uri,
+  installHint,
+  onClose,
+  onNewCode,
+}: Props) => {
+  const { t } = useTranslation(["home", "common", "settings"]);
+  const statusText = (value: string) => {
+    switch (value) {
+      case "disconnected":
+        return t("home:pairingDisconnected");
+      case "connecting":
+        return t("home:pairingConnecting");
+      case "waiting":
+        return t("home:pairingWaiting");
+      case "key_exchange":
+        return t("home:pairingKeyExchange");
+      case "connected":
+        return t("home:pairingConnected");
+      case "reconnecting":
+        return t("home:pairingReconnecting");
+      case "Your phone did not respond. Open MyQRLWallet on your phone and try again.":
+        return t("home:mobileUnresponsive");
+      case "This MyQRLWallet app is not yet qualified for Testnet v3. Update the app and pair again.":
+        return t("home:mobileUnqualified");
+      default:
+        return value;
+    }
+  };
+  const installUrl = installHint?.match(
+    /^MyQRLWallet app not detected\. Install it \((.*)\) or scan the code with the app on another device\.$/,
+  )?.[1];
   const [status, setStatus] = useState<string>("");
   const [hasJustCopied, setHasJustCopied] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
@@ -68,21 +100,30 @@ const MobilePairingDialog = ({ uri, installHint, onClose, onNewCode }: Props) =>
     >
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Connect Mobile App</DialogTitle>
-          <DialogDescription>
-            Open MyQRLWallet on your phone and scan this code to use the app
-            as the signer for this session.
-          </DialogDescription>
+          <DialogTitle>{t("home:connectMobile")}</DialogTitle>
+          <DialogDescription>{t("home:pairingHint")}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4">
           <div className="rounded-lg bg-white p-3">
-            <QRCodeSVG value={uri} size={220} bgColor="#ffffff" fgColor="#000000" level="L" />
+            <QRCodeSVG
+              value={uri}
+              size={220}
+              bgColor="#ffffff"
+              fgColor="#000000"
+              level="L"
+            />
           </div>
           {installHint && (
-            <p className="text-center text-sm text-yellow-200">{installHint}</p>
+            <p className="text-center text-sm text-yellow-200">
+              {installUrl
+                ? t("home:installMobile", { url: installUrl })
+                : installHint}
+            </p>
           )}
           {status && (
-            <p className="text-center text-xs text-muted-foreground">{status}</p>
+            <p className="text-center text-xs text-muted-foreground">
+              {statusText(status)}
+            </p>
           )}
           <div className="flex w-full gap-4">
             <Button
@@ -96,7 +137,7 @@ const MobilePairingDialog = ({ uri, installHint, onClose, onNewCode }: Props) =>
               }}
             >
               <Copy className="mr-2 h-4 w-4" />
-              {hasJustCopied ? "Copied" : "Copy code"}
+              {hasJustCopied ? t("common:copied") : t("home:copyCode")}
             </Button>
             <Button
               className="w-full"
@@ -109,8 +150,10 @@ const MobilePairingDialog = ({ uri, installHint, onClose, onNewCode }: Props) =>
               }}
               disabled={isRotating}
             >
-              <RefreshCw className={`mr-2 h-4 w-4 ${isRotating ? "animate-spin" : ""}`} />
-              New code
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${isRotating ? "animate-spin" : ""}`}
+              />
+              {t("home:newCode")}
             </Button>
           </div>
         </div>

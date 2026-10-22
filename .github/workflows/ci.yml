@@ -75,6 +75,9 @@ jobs:
       - name: Boot smoke (serve dist, render home and create-account)
         run: npm run smoke:boot
 
+      - name: Language and phone layout smoke
+        run: npm run smoke:i18n
+
   docker:
     needs: lint-and-build
     runs-on: ubuntu-latest

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState } from "react";
 import { Check, Copy, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/utils/cn";
@@ -35,6 +36,7 @@ export function AddressDisclosure({
   fingerprintClassName,
   fullAddressClassName,
 }: AddressDisclosureProps) {
+  const { t } = useTranslation("common");
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const fullAddressId = useId();
@@ -86,8 +88,8 @@ export function AddressDisclosure({
         <button
           type="button"
           className={ICON_BUTTON_CLASS}
-          aria-label={copied ? "Address copied" : "Copy address"}
-          title={copied ? "Address copied" : "Copy address"}
+          aria-label={copied ? t("addressCopied") : t("copyAddress")}
+          title={copied ? t("addressCopied") : t("copyAddress")}
           onClick={() => {
             void onCopy().catch((error: unknown) => {
               logError("Failed to copy text to clipboard:", error);
@@ -105,8 +107,8 @@ export function AddressDisclosure({
           className={ICON_BUTTON_CLASS}
           aria-controls={fullAddressId}
           aria-expanded={expanded}
-          aria-label={expanded ? "Hide full address" : "Show full address"}
-          title={expanded ? "Hide full address" : "Show full address"}
+          aria-label={expanded ? t("hideAddress") : t("showAddress")}
+          title={expanded ? t("hideAddress") : t("showAddress")}
           onClick={() => {
             setExpanded((value) => !value);
           }}
@@ -119,7 +121,7 @@ export function AddressDisclosure({
         </button>
       </div>
       <span aria-live="polite" className="sr-only">
-        {copied ? "Address copied to clipboard" : ""}
+        {copied ? t("addressClipboard") : ""}
       </span>
       {expanded && (
         <div

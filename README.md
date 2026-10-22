@@ -38,6 +38,7 @@ cp .env.example .env
 ```
 
 Edit `.env` with your settings:
+
 - `VITE_RPC_URL_*` - QRL blockchain RPC endpoints
 - `VITE_SERVER_URL_*` - Backend API endpoints
 - `VITE_CUSTOMERC20FACTORY_ADDRESS` - Token factory contract address
@@ -65,6 +66,10 @@ npm test            # Run tests
 
 The lint ratchet in `config/eslint.config.js` lists all remaining findings as exact file/rule pairs, including tests, and only shrinks. After fixing a pair, run `npm run lint:ratchet:update`; CI runs `npm run lint:ratchet` to reject new pairs, stale entries, and noncanonical formatting.
 
+## Languages
+
+The renderer supports English, German, Spanish, Russian and Simplified Chinese on the first converted screens. Choose a language in Settings. See [the localization guide](docs/I18N.md) for catalog structure, terminology, checks and the remaining areas.
+
 ## Docker Deployment
 
 ### Build Image
@@ -85,6 +90,7 @@ docker run -d -p 8080:8080 myqrlwallet-frontend:latest
 ```
 
 The container:
+
 - Uses `nginx-unprivileged` (runs as non-root, UID 101)
 - Serves on port 8080
 - Includes health check at `/health`
@@ -117,15 +123,15 @@ kubectl apply -f deploy/k8s/cluster-issuer.yaml  # Once per cluster
 
 ### Manifests
 
-| File | Description |
-|------|-------------|
-| `namespace.yaml` | Creates `myqrlwallet` namespace |
-| `deployment.yaml` | 2 replicas with health checks, resource limits |
-| `service.yaml` | ClusterIP service (port 80 → 8080) |
-| `hpa.yaml` | Horizontal Pod Autoscaler (2-10 replicas) |
-| `ingress.yaml` | nginx ingress with TLS, routes `/` and `/api` |
-| `certificate.yaml` | Let's Encrypt TLS certificate |
-| `cluster-issuer.yaml` | Let's Encrypt ClusterIssuer |
+| File                  | Description                                    |
+| --------------------- | ---------------------------------------------- |
+| `namespace.yaml`      | Creates `myqrlwallet` namespace                |
+| `deployment.yaml`     | 2 replicas with health checks, resource limits |
+| `service.yaml`        | ClusterIP service (port 80 → 8080)             |
+| `hpa.yaml`            | Horizontal Pod Autoscaler (2-10 replicas)      |
+| `ingress.yaml`        | nginx ingress with TLS, routes `/` and `/api`  |
+| `certificate.yaml`    | Let's Encrypt TLS certificate                  |
+| `cluster-issuer.yaml` | Let's Encrypt ClusterIssuer                    |
 
 ## CI/CD
 
@@ -148,6 +154,7 @@ Both CI and embedded builds run `node scripts/audit-gate.mjs` immediately after 
 ### Required GitHub Configuration
 
 **Variables** (Settings → Secrets and variables → Actions → Variables):
+
 - `VITE_RPC_URL_PRODUCTION`
 - `VITE_SERVER_URL_PRODUCTION`
 - `VITE_EXPLORER_URL_PRODUCTION`
@@ -155,19 +162,20 @@ Both CI and embedded builds run `node scripts/audit-gate.mjs` immediately after 
 - `VITE_DEPLOYER`
 
 **Secrets**:
+
 - `KUBECONFIG` - Base64-encoded kubeconfig for deployment
 
 ## Technology Stack
 
-| Category | Technology |
-|----------|------------|
-| Framework | React 19 + TypeScript |
-| Build | Vite 7 |
-| Styling | TailwindCSS 4 + Shadcn/ui |
-| State | MobX |
-| Routing | React Router 7 |
-| Blockchain | @theqrl/web3 |
-| Container | nginx-unprivileged (Alpine) |
+| Category   | Technology                  |
+| ---------- | --------------------------- |
+| Framework  | React 19 + TypeScript       |
+| Build      | Vite 7                      |
+| Styling    | TailwindCSS 4 + Shadcn/ui   |
+| State      | MobX                        |
+| Routing    | React Router 7              |
+| Blockchain | @theqrl/web3                |
+| Container  | nginx-unprivileged (Alpine) |
 
 `@theqrl/web3` is intentionally pinned to `1.0.1`: the deployed wallet and
 testnet v2 use canonical `Q` + 40-hex account addresses. Expanded-address
@@ -223,13 +231,13 @@ When running inside the [MyQRLWallet App](https://github.com/DigitalGuards/myqrl
 
 The wallet pairs with web dApps over an E2E-encrypted relay channel driven by [`@qrlwallet/connect`](https://github.com/DigitalGuards/myqrlwallet-connect). The dApp publishes a `qrlconnect://` URI (rendered as a QR code or a mobile deep-link button), the wallet joins the channel, and all subsequent dApp ↔ wallet traffic (account requests, transaction signing, `accountsChanged` events) flows encrypted end-to-end.
 
-**Entry points** — one of:
+**Entry points** : one of:
 
 - **QR scan from the mobile app**: tapping "Scan dApp" in MyQRLWallet App opens the native camera; the URI is forwarded to the web wallet as `DAPP_URI`.
 - **Deep link**: tapping a `qrlconnect://…` link in the mobile browser opens MyQRLWallet App, which forwards the URI to the web wallet.
 - **Paste in desktop**: on desktop, a user can paste a `qrlconnect://…` URI into the wallet's dApp Connect screen directly.
 
-**Approval UX** is rendered in the web wallet only — a single source of truth for session approval, signing prompts, and disconnect. The mobile shell is a passive transport.
+**Approval UX** is rendered in the web wallet only : a single source of truth for session approval, signing prompts, and disconnect. The mobile shell is a passive transport.
 
 **Handshake**: post-quantum key exchange (ML-KEM-768) + fingerprint verification against the PK the dApp published to the relay. SYN / SYNACK / ACK is idempotent (duplicate or late messages don't double-connect).
 

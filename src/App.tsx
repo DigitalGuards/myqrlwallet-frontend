@@ -1,3 +1,4 @@
+import { useLanguagePreference } from "@/i18n/useLanguagePreference";
 import { store, StoreProvider } from "./stores/store";
 import { AppRouter } from "./router/router";
 import {
@@ -7,6 +8,7 @@ import {
 import { useEffect, useState } from "react";
 
 function App() {
+  useLanguagePreference();
   const [unsupported, setUnsupported] = useState(isUnsupportedV3Context);
   useEffect(() => {
     if (

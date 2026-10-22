@@ -8,140 +8,161 @@ import { copyToClipboard } from "@/utils/nativeApp";
 import { SlotBalance } from "./SlotBalance";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 
-export const ActiveAccountDisplay = observer(({ onShowAddress }: { onShowAddress: () => void }) => {
-  const { qrlStore } = useStore();
-  const {
-    activeAccount,
-    activeAccountBalance,
-    activeAccountBalanceUsd,
-    qrlPrice,
-    qrlPriceChange24h,
-  } = qrlStore;
-  const { accountAddress } = activeAccount;
-  const [copiedItem, setCopiedItem] = useState<'balance' | 'address' | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshSuccess, setRefreshSuccess] = useState(false);
-  const [isSlotSpinning, setIsSlotSpinning] = useState(false);
+export const ActiveAccountDisplay = observer(
+  ({ onShowAddress }: { onShowAddress: () => void }) => {
+    const { qrlStore } = useStore();
+    const {
+      activeAccount,
+      activeAccountBalance,
+      activeAccountBalanceUsd,
+      qrlPrice,
+      qrlPriceChange24h,
+    } = qrlStore;
+    const { accountAddress } = activeAccount;
+    const [copiedItem, setCopiedItem] = useState<"balance" | "address" | null>(
+      null,
+    );
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [refreshSuccess, setRefreshSuccess] = useState(false);
+    const [isSlotSpinning, setIsSlotSpinning] = useState(false);
 
-  const handleCopy = async (text: unknown, type: 'balance' | 'address') => {
-    const success = await copyToClipboard(text);
-    if (success) {
-      setCopiedItem(type);
-      setTimeout(() => {
-        setCopiedItem(null);
-      }, 1500);
-    }
-  };
+    const handleCopy = async (text: unknown, type: "balance" | "address") => {
+      const success = await copyToClipboard(text);
+      if (success) {
+        setCopiedItem(type);
+        setTimeout(() => {
+          setCopiedItem(null);
+        }, 1500);
+      }
+    };
 
-  const refreshBalance = async () => {
-    setIsRefreshing(true);
-    setIsSlotSpinning(true);
-    try {
-      await qrlStore.fetchAccounts();
-      qrlStore.fetchQrlPrice().catch((error: unknown) => {
-        logger.error("Failed to refresh QRL price:", error);
-      });
-    } finally {
-      setIsRefreshing(false);
-      // Let the slot animation finish its cascade before clearing
-      setTimeout(() => {
-        setIsSlotSpinning(false);
-      }, 1200);
-      setRefreshSuccess(true);
-      setTimeout(() => {
-        setRefreshSuccess(false);
-      }, 1500);
-    }
-  };
+    const refreshBalance = async () => {
+      setIsRefreshing(true);
+      setIsSlotSpinning(true);
+      try {
+        await qrlStore.fetchAccounts();
+        qrlStore.fetchQrlPrice().catch((error: unknown) => {
+          logger.error("Failed to refresh QRL price:", error);
+        });
+      } finally {
+        setIsRefreshing(false);
+        // Let the slot animation finish its cascade before clearing
+        setTimeout(() => {
+          setIsSlotSpinning(false);
+        }, 1200);
+        setRefreshSuccess(true);
+        setTimeout(() => {
+          setRefreshSuccess(false);
+        }, 1500);
+      }
+    };
 
-  return (
-    <div className="flex flex-col">
-      <div
-        className="flex justify-center text-2xl md:text-3xl font-semibold text-foreground group font-numeric"
-      >
-        {/* The icons hang off the number via absolute positioning so the
+    return (
+      <div className="flex flex-col">
+        <div className="flex justify-center text-2xl md:text-3xl font-semibold text-foreground group font-numeric">
+          {/* The icons hang off the number via absolute positioning so the
             number itself is what gets centered; putting them in the flex
             row would shift the number left of the Quanta/fiat lines. */}
-        <div className="relative">
+          <div className="relative">
+            <div
+              className="cursor-pointer"
+              onClick={() => {
+                handleCopy(activeAccountBalance, "balance").catch(
+                  (error: unknown) => {
+                    logger.error("Failed to copy balance:", error);
+                  },
+                );
+              }}
+            >
+              <SlotBalance
+                value={formatBalance(activeAccountBalance)}
+                spinning={isSlotSpinning}
+              />
+            </div>
+            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 flex items-center gap-1">
+              {copiedItem === "balance" ? (
+                <Check className="w-4 h-4 text-success" />
+              ) : (
+                <Copy
+                  className="w-4 h-4 cursor-pointer text-muted-foreground transition-colors group-hover:text-foreground"
+                  onClick={() => {
+                    handleCopy(activeAccountBalance, "balance").catch(
+                      (error: unknown) => {
+                        logger.error("Failed to copy balance:", error);
+                      },
+                    );
+                  }}
+                />
+              )}
+              <button
+                className="p-1 rounded-full hover:bg-foreground/10 flex items-center justify-center transition-colors"
+                onClick={() => {
+                  refreshBalance().catch((error: unknown) => {
+                    logger.error("Failed to refresh account balances:", error);
+                  });
+                }}
+                disabled={isRefreshing || refreshSuccess}
+              >
+                {refreshSuccess ? (
+                  <Check className="w-4 h-4 text-success" />
+                ) : isRefreshing ? (
+                  <RefreshCw className="w-4 h-4 text-foreground animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-center mt-0.5">
+          <span className="font-numeric text-sm font-medium text-muted-foreground">
+            Quanta
+          </span>
+        </div>
+        {qrlStore.qrlConnection.blockchain === "MAIN_NET" && qrlPrice > 0 && (
+          <div className="flex items-center justify-center gap-2 text-sm mt-1 mb-4 font-numeric">
+            <span className="text-muted-foreground">
+              ≈ $
+              {activeAccountBalanceUsd.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </span>
+            {qrlPriceChange24h !== 0 && (
+              <span
+                className={
+                  qrlPriceChange24h > 0 ? "text-success" : "text-red-400"
+                }
+              >
+                {qrlPriceChange24h > 0 ? "▲" : "▼"}{" "}
+                {qrlPriceChange24h > 0 ? "+" : ""}
+                {qrlPriceChange24h.toFixed(2)}%
+              </span>
+            )}
+          </div>
+        )}
+        <div className="flex justify-center">
           <div
-            className="cursor-pointer"
+            className="active-account-address inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-identity-accent/30 bg-identity-accent/[0.08] px-3 sm:px-4 py-1.5 text-[clamp(0.6rem,2.5vw,0.875rem)] group cursor-pointer backdrop-blur-sm transition-colors hover:border-identity-accent/60"
             onClick={() => {
-              handleCopy(activeAccountBalance, "balance").catch((error: unknown) => {
-                logger.error("Failed to copy balance:", error);
+              handleCopy(accountAddress, "address").catch((error: unknown) => {
+                logger.error("Failed to copy address:", error);
               });
             }}
           >
-            <SlotBalance value={formatBalance(activeAccountBalance)} spinning={isSlotSpinning} />
-          </div>
-          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 flex items-center gap-1">
-            {copiedItem === 'balance' ? (
-              <Check className="w-4 h-4 text-success" />
+            <QrlAddress
+              address={accountAddress}
+              onShowFull={onShowAddress}
+              addressClassName="text-identity-accent"
+            />
+            {copiedItem === "address" ? (
+              <Check className="w-3.5 h-3.5 text-success" />
             ) : (
-              <Copy
-                className="w-4 h-4 cursor-pointer text-muted-foreground transition-colors group-hover:text-foreground"
-                onClick={() => {
-                  handleCopy(activeAccountBalance, "balance").catch((error: unknown) => {
-                    logger.error("Failed to copy balance:", error);
-                  });
-                }}
-              />
+              <Copy className="w-3.5 h-3.5 text-identity-accent/60" />
             )}
-            <button
-              className="p-1 rounded-full hover:bg-foreground/10 flex items-center justify-center transition-colors"
-              onClick={() => {
-                refreshBalance().catch((error: unknown) => {
-                  logger.error("Failed to refresh account balances:", error);
-                });
-              }}
-              disabled={isRefreshing || refreshSuccess}
-            >
-              {refreshSuccess ? (
-                <Check className="w-4 h-4 text-success" />
-              ) : isRefreshing ? (
-                <RefreshCw className="w-4 h-4 text-foreground animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4 text-muted-foreground" />
-              )}
-            </button>
           </div>
         </div>
       </div>
-      <div className="flex justify-center mt-0.5">
-        <span className="font-numeric text-sm font-medium text-muted-foreground">Quanta</span>
-      </div>
-      {qrlStore.qrlConnection.blockchain === "MAIN_NET" && qrlPrice > 0 && (
-        <div className="flex items-center justify-center gap-2 text-sm mt-1 mb-4 font-numeric">
-          <span className="text-muted-foreground">
-            ≈ ${activeAccountBalanceUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </span>
-          {qrlPriceChange24h !== 0 && (
-            <span className={qrlPriceChange24h > 0 ? "text-success" : "text-red-400"}>
-              {qrlPriceChange24h > 0 ? "▲" : "▼"} {qrlPriceChange24h > 0 ? "+" : ""}{qrlPriceChange24h.toFixed(2)}%
-            </span>
-          )}
-        </div>
-      )}
-      <div className="flex justify-center">
-        <div
-          className="active-account-address inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-identity-accent/30 bg-identity-accent/[0.08] px-3 sm:px-4 py-1.5 text-[clamp(0.6rem,2.5vw,0.875rem)] group cursor-pointer backdrop-blur-sm transition-colors hover:border-identity-accent/60"
-          onClick={() => {
-            handleCopy(accountAddress, "address").catch((error: unknown) => {
-              logger.error("Failed to copy address:", error);
-            });
-          }}
-        >
-          <QrlAddress
-            address={accountAddress}
-            onShowFull={onShowAddress}
-            addressClassName="text-identity-accent"
-          />
-          {copiedItem === 'address' ? (
-            <Check className="w-3.5 h-3.5 text-success" />
-          ) : (
-            <Copy className="w-3.5 h-3.5 text-identity-accent/60" />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-});
+    );
+  },
+);
