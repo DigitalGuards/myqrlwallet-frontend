@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { logger } from "@/utils/log";
 import { Button } from "../../../../UI/Button";
 import { Card } from "../../../../UI/Card";
@@ -20,6 +21,7 @@ import { MobileBadge } from "../MobileBadge/MobileBadge";
 import { CopyAddressButton } from "../CopyAddressButton/CopyAddressButton";
 
 export const OtherAccounts = observer(() => {
+  const { t } = useTranslation(["accounts", "common"]);
   const { qrlStore } = useStore();
   const {
     qrlAccounts,
@@ -28,7 +30,7 @@ export const OtherAccounts = observer(() => {
   } = qrlStore;
   const { accounts } = qrlAccounts;
 
-  const otherAccountsLabel = activeAccountAddress ? "Other accounts" : "Your accounts";
+  const otherAccountsLabel = activeAccountAddress ? t("accounts:other") : t("accounts:yours");
   const otherAccounts = accounts.filter(
     ({ accountAddress }) => accountAddress !== activeAccountAddress
   );
@@ -71,7 +73,7 @@ export const OtherAccounts = observer(() => {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      <Label>View on Explorer</Label>
+                      <Label>{t("accounts:viewExplorer")}</Label>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -96,7 +98,7 @@ export const OtherAccounts = observer(() => {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      <Label>Switch to this account</Label>
+                      <Label>{t("accounts:switch")}</Label>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

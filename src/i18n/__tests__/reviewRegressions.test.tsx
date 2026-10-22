@@ -243,3 +243,26 @@ it("migrates language without extending settings expiration or changing card pre
   });
   expect(localStorage.getItem("WALLET_LANGUAGE")).toBe('"de"');
 });
+
+it("retries a rejected language from the selector without replacing the app", async () => {
+  legacyLanguage("en");
+  const view = render(<App />);
+  await flush();
+  const root = view.container.firstChild;
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "de" } });
+  await flush();
+  await act(async () => {
+    mockDownload.reject(new Error("catalog unavailable"));
+    await jest.advanceTimersByTimeAsync(0);
+  });
+  expect(screen.getByRole("alert")).toBeTruthy();
+  mockDownload = deferred<typeof german>();
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "de" } });
+  await act(async () => {
+    mockDownload.resolve(german);
+    await jest.advanceTimersByTimeAsync(0);
+  });
+  expect(document.documentElement.lang).toBe("de");
+  expect(view.container.firstChild).toBe(root);
+  expect(screen.queryByRole("alert")).toBeNull();
+});

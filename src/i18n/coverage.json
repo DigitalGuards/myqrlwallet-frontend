@@ -4,7 +4,6 @@
   "src/components/Core/Body/Home/",
   "src/components/Core/Body/Settings/",
   "src/components/Core/Body/Tokens/",
-  "src/components/Core/Body/AccountList/ActiveAccount/TransactionHistoryPopup.tsx",
   "src/components/Core/Body/DAppConnect/DAppSessionsList.tsx",
   "src/components/UI/AddressDisclosure.tsx",
   "src/components/UI/QrlAddress.tsx",
@@ -13,5 +12,10 @@
   "src/components/Core/Body/Nfts/NftGallery.tsx",
   "src/components/Core/Body/Nfts/NftCollectionRow.tsx",
   "src/components/Core/Body/Nfts/NftCard.tsx",
-  "src/components/Core/Body/Nfts/NftImage.tsx"
+  "src/components/Core/Body/Nfts/NftImage.tsx",
+  "src/components/Core/Body/Transfer/",
+  "src/components/Core/Body/TransactionHistory/",
+  "src/components/Core/Body/AccountList/",
+  "src/components/Core/Body/AddressBook/",
+  "src/components/Core/RecipientResolutionStatus.tsx"
 ]

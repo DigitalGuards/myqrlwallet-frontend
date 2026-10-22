@@ -1,3 +1,5 @@
+import { transferMessage } from "@/i18n/transferMessage";
+import { useTranslation } from "react-i18next";
 import { describeUnknown } from "@/utils/guards";
 import { unsignedQuantity } from "@/utils/transactionHistory";
 import { useStore } from "@/stores/store";
@@ -10,11 +12,11 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import { getOptimalGasFee } from "@/utils/formatting";
 import { cn } from "@/utils/cn";
 
-const FEE_DISPLAY: Record<FeeLevel, { label: string }> = {
-  low:    { label: "Slow" },
-  medium: { label: "Medium" },
-  high:   { label: "Fast" },
-};
+const FEE_DISPLAY = {
+  low:    { labelKey: "transfer:slow" },
+  medium: { labelKey: "transfer:medium" },
+  high:   { labelKey: "transfer:fast" },
+} as const;
 
 type GasFeeNoticeProps = {
   from: string;
@@ -55,6 +57,7 @@ export const GasFeeNotice = ({
   onFeeLevelChange,
   onQuote,
 }: GasFeeNoticeProps) => {
+  const { t } = useTranslation(["transfer", "common", "settings"]);
   const { qrlStore } = useStore();
   const { qrlInstance } = qrlStore;
   const hasValuesForGasCalculation = !!from && !!to && !!value;
@@ -122,18 +125,18 @@ export const GasFeeNotice = ({
   return (
     <div className={gasFeeNoticeClasses({ isSubmitting })}>
         <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span className="font-medium">Network fee</span>
+          <span className="font-medium">{t("transfer:networkFee")}</span>
           {!hasValuesForGasCalculation ? (
             <span className="text-xs text-muted-foreground/70">
-              Enter recipient and amount to estimate
+              {t("transfer:estimateHint")}
             </span>
           ) : gasFee.isLoading ? (
             <span className="flex items-center gap-2">
               <Loader className="h-4 w-4 animate-spin" />
-              Estimating fee...
+              {t("transfer:estimating")}
             </span>
           ) : gasFee.error ? (
-            <span className="text-destructive">{gasFee.error}</span>
+            <span className="text-destructive">{transferMessage(gasFee.error, t)}</span>
           ) : (
             <span className="font-numeric text-foreground">≈ {gasFee.estimatedGas}</span>
           )}
@@ -155,7 +158,7 @@ export const GasFeeNotice = ({
                     : "border-input bg-background text-muted-foreground hover:text-foreground",
                 )}
               >
-                {FEE_DISPLAY[level].label}
+                {t(FEE_DISPLAY[level].labelKey)}
               </button>
             );
           })}

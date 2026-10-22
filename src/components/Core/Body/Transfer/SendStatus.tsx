@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { transferMessage } from "@/i18n/transferMessage";
 import type { BlockchainSelection } from "@/utils/storage/storage";
 import { renderValue } from "@/utils/guards";
 import { PageShell } from "@/components/Core/Layout/PageShell";
@@ -18,6 +20,7 @@ export function SendStatus({
   blockchain: BlockchainSelection;
   onBack: () => void;
 }) {
+  const { t } = useTranslation(["transfer", "common", "settings"]);
   const { copiedItem, copyToClipboard } = useCopyToClipboard<"hash">();
   const { state, details, txHash } = status;
   const failed = state === "failed";
@@ -28,30 +31,30 @@ export function SendStatus({
     state === "pending";
   const approval =
     details?.signer === "mobile"
-      ? "Approve this transaction in the MyQRLWallet app on your phone"
+      ? t("transfer:approveMobile")
       : details?.signer === "desktop"
-        ? "Approve this transaction in the MyQRLWallet desktop signer"
-        : "Approve this transaction in the MyQRLWallet extension";
+        ? t("transfer:approveDesktop")
+        : t("transfer:approveExtension");
   const title =
     state === "awaiting-approval"
-      ? "Waiting for approval"
+      ? t("transfer:waitingApproval")
       : sent
-        ? "Signed and sent"
+        ? t("transfer:signedSent")
         : state === "timeout"
-          ? "Signed and sent: still waiting for confirmation"
+          ? t("transfer:stillWaiting")
           : state === "rejected"
-            ? "Transaction rejected"
+            ? t("transfer:rejected")
             : failed
-              ? "Transaction failed"
-              : "Preparing transaction";
+              ? t("transfer:failed")
+              : t("transfer:preparingTitle");
   const message =
     state === "awaiting-approval"
       ? approval
       : sent
-        ? "Your transaction was signed and broadcast. It is waiting to be included in a block."
+        ? t("transfer:broadcast")
         : state === "preparing" || state === "pending"
-          ? "Preparing your transaction."
-          : status.error;
+          ? t("transfer:preparing")
+          : transferMessage(status.error, t);
 
   return (
     <PageShell
@@ -72,7 +75,7 @@ export function SendStatus({
           {title}
         </span>
       }
-      seoTitle="Transfer"
+      seoTitle={t("transfer:title")}
     >
       <Card className="w-full">
         <CardContent className="space-y-6 pt-6">
@@ -85,19 +88,19 @@ export function SendStatus({
           {details && (
             <dl className="space-y-6">
               <div className="space-y-2">
-                <dt>Amount</dt>
+                <dt>{t("transfer:amount")}</dt>
                 <dd className="font-numeric break-all font-bold text-secondary">
                   {details.amount} {renderValue(details.asset)}
                 </dd>
               </div>
               <div className="space-y-2">
-                <dt>Recipient</dt>
+                <dt>{t("transfer:recipient")}</dt>
                 <dd>
                   <QrlAddress
                     address={details.to}
                     mode="full"
                     copyable
-                    copyLabel="Copy recipient address"
+                    copyLabel={t("transfer:copyRecipient")}
                   />
                 </dd>
               </div>
@@ -105,7 +108,7 @@ export function SendStatus({
           )}
           {txHash && (
             <div className="space-y-2">
-              <div>Transaction hash</div>
+              <div>{t("transfer:hash")}</div>
               <div className="flex min-w-0 items-center gap-2">
                 <a
                   href={getExplorerTxUrl(
@@ -115,7 +118,7 @@ export function SendStatus({
                   target="_blank"
                   rel="noopener noreferrer"
                   title={txHash}
-                  aria-label={`View transaction ${txHash} on explorer`}
+                  aria-label={t("transfer:viewTransaction", { hash: txHash })}
                   className="flex min-w-0 items-center gap-2 text-secondary hover:text-secondary/80"
                 >
                   <span className="break-all font-mono text-sm">
@@ -132,8 +135,8 @@ export function SendStatus({
                   size="icon"
                   aria-label={
                     copiedItem === "hash"
-                      ? "Transaction hash copied"
-                      : "Copy transaction hash"
+                      ? t("transfer:hashCopied")
+                      : t("transfer:copyHash")
                   }
                   onClick={() => {
                     void copyToClipboard(txHash, "hash");
@@ -153,13 +156,12 @@ export function SendStatus({
           <CardFooter className="flex-col gap-3">
             {state === "awaiting-approval" && (
               <p className="text-sm text-muted-foreground">
-                Your signer may still complete this request. Check your signer
-                and History before sending again.
+                {t("transfer:checkSigner")}
               </p>
             )}
             {sent && (
               <p className="text-sm text-muted-foreground">
-                You can follow confirmation in History.
+                {t("transfer:followHistory")}
               </p>
             )}
             <Button
@@ -168,7 +170,7 @@ export function SendStatus({
               onClick={onBack}
               className="w-full"
             >
-              {state === "timeout" ? "Done" : "Back to form"}
+              {state === "timeout" ? t("transfer:done") : t("transfer:back")}
             </Button>
           </CardFooter>
         )}

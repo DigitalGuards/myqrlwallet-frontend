@@ -1,3 +1,5 @@
+import { catalogUrls } from "./catalogUrls";
+import { isRecord } from "@/utils/guards";
 import { createInstance } from "i18next";
 import { initReactI18next } from "react-i18next";
 import english from "@/locales/en";
@@ -10,6 +12,9 @@ export const namespaces = [
   "settings",
   "tokens",
   "history",
+  "transfer",
+  "accounts",
+  "contacts",
 ] as const;
 export const i18n = createInstance();
 
@@ -37,6 +42,27 @@ const loaders = {
 };
 
 export const CATALOG_TIMEOUT_MS = 3000;
+const catalogAttempts = new Map<Language, number>();
+
+function catalogResources(
+  value: unknown,
+): Record<string, Record<string, string>> {
+  if (!isRecord(value) || !isRecord(value["default"]))
+    throw new Error("Invalid language catalog");
+  const resources: Record<string, Record<string, string>> = {};
+  for (const ns of namespaces) {
+    const entries = value["default"][ns];
+    if (!isRecord(entries)) throw new Error("Invalid language namespace");
+    const messages: Record<string, string> = {};
+    for (const [key, message] of Object.entries(entries)) {
+      if (typeof message !== "string")
+        throw new Error("Invalid language message");
+      messages[key] = message;
+    }
+    resources[ns] = messages;
+  }
+  return resources;
+}
 
 export async function loadLanguage(language: Language): Promise<void> {
   await i18nReady;
@@ -45,21 +71,36 @@ export async function loadLanguage(language: Language): Promise<void> {
     namespaces.every((ns) => i18n.hasResourceBundle(language, ns))
   )
     return;
-  const catalog = loaders[language]();
+  const attempt = catalogAttempts.get(language) ?? 0;
+  const url = catalogUrls[language];
+  // Browsers cache a failed module fetch by URL. Retry the same build-owned
+  // chunk under a fresh URL, without reloading the wallet or accepting a late result.
+  const catalog: Promise<unknown> =
+    url && attempt > 0
+      ? import(/* @vite-ignore */ `${url}?catalog-retry=${attempt}`)
+      : loaders[language]();
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_resolve, reject) => {
     timeout = setTimeout(() => {
       reject(new Error("Language catalog timed out"));
     }, CATALOG_TIMEOUT_MS);
   });
-  const { default: resources } = await Promise.race([
-    catalog,
-    deadline,
-  ]).finally(() => {
-    clearTimeout(timeout);
-  });
-  for (const ns of namespaces)
-    i18n.addResourceBundle(language, ns, resources[ns]);
+  const loaded = await Promise.race([catalog, deadline])
+    .catch((error: unknown) => {
+      catalogAttempts.set(
+        language,
+        Math.max(catalogAttempts.get(language) ?? 0, attempt + 1),
+      );
+      throw error;
+    })
+    .finally(() => {
+      clearTimeout(timeout);
+    });
+  const resources = catalogResources(loaded);
+  for (const ns of namespaces) {
+    const messages = resources[ns];
+    if (messages) i18n.addResourceBundle(language, ns, messages);
+  }
 }
 
 let languageRequest = 0;

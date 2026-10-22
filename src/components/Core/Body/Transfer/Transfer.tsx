@@ -1,3 +1,6 @@
+import { transferError } from "@/i18n/transferError";
+import { transferMessage } from "@/i18n/transferMessage";
+import { Trans, useTranslation } from "react-i18next";
 import { blockchainKey } from "@/utils/storage/storage";
 import { renderValue, toNumber, toTemplateString } from "@/utils/guards";
 import { reportError } from "@/utils/reportError";
@@ -88,6 +91,7 @@ import { nativeMaxReserve } from "@/utils/web3/nativeMaxReserve";
 import { BigNumber } from "bignumber.js";
 
 const Transfer = observer(() => {
+  const { t } = useTranslation(["transfer", "common", "settings"]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { qrlStore, tokenStore } = useStore();
@@ -112,10 +116,10 @@ const Transfer = observer(() => {
     () =>
       z
         .object({
-          asset: z.string().min(1, "Please select an asset"),
-          receiverAddress: z.string().min(1, "Receiver address is required"),
-          amount: z.string().regex(/^\d*\.?\d+$/, "Enter a decimal amount")
-            .refine((value) => new BigNumber(value).gt(0), "Amount should be more than 0"),
+          asset: z.string().min(1, "transfer:selectAssetRequired"),
+          receiverAddress: z.string().min(1, "transfer:receiverRequired"),
+          amount: z.string().regex(/^\d*\.?\d+$/, "transfer:decimalAmount")
+            .refine((value) => new BigNumber(value).gt(0), "transfer:positiveAmount"),
           pin: z.string().optional(),
         })
         .superRefine((fields, ctx) => {
@@ -125,9 +129,11 @@ const Transfer = observer(() => {
           try {
             parseUnits(fields.amount, decimals);
           } catch {
+            const digits = toTemplateString(decimals);
+            const count = Number(digits);
             ctx.addIssue({
               code: "custom",
-              message: `Enter an amount with at most ${toTemplateString(decimals)} decimal places`,
+              message: transferError({ key: "transfer:decimals", count: Number.isFinite(count) ? count : 0, digits }),
               path: ["amount"],
             });
           }
@@ -138,7 +144,7 @@ const Transfer = observer(() => {
             if (!fields.pin || fields.pin.length < 4 || fields.pin.length > 6) {
               ctx.addIssue({
                 code: "custom",
-                message: "PIN must be between 4 to 6 digits",
+                message: "transfer:pinFormat",
                 path: ["pin"],
               });
             }
@@ -370,7 +376,7 @@ const Transfer = observer(() => {
           // Invalid address - show error haptic
           triggerHaptic("error");
           control.setError("receiverAddress", {
-            message: "Scanned QR does not contain a valid QRL address",
+            message: "transfer:invalidQr",
           });
         }
       } else if (message.type === "QR_CANCELLED") {
@@ -388,19 +394,19 @@ const Transfer = observer(() => {
   if (!accountAddress) {
     return (
       <>
-        <PageShell title="Transfer" subtitle="Send Quanta or tokens to another wallet" seoTitle="Transfer">
+        <PageShell title={t("transfer:title")} subtitle={t("transfer:subtitle")} seoTitle={t("transfer:title")}>
             <Card className="w-full">
               <CardContent className="pt-6">
                 <div className="flex flex-col items-center justify-center p-8 text-center">
                   <p className="text-muted-foreground mb-4">
-                    You need to import an account before making transfers.
+                    {t("transfer:noAccount")}
                   </p>
                   <Button onClick={() => {
                     Promise.resolve(navigate(ROUTES.IMPORT_ACCOUNT)).catch((error: unknown) => {
                       reportError("Failed to open account import:", error);
                     });
                   }}>
-                    Import Account
+                    {t("transfer:importAccount")}
                   </Button>
                 </div>
               </CardContent>
@@ -432,7 +438,7 @@ const Transfer = observer(() => {
     if (!recipientAddress) {
       control.setError("receiverAddress", {
         message:
-          "Recipient resolution changed. Verify the recipient again before signing.",
+          "transfer:recipientChanged",
       });
     }
     return recipientAddress;
@@ -447,7 +453,7 @@ const Transfer = observer(() => {
       control.setError("receiverAddress", {
         message:
           recipientResolution.message ??
-          "Enter a valid QRL address or a resolved QNS name.",
+          "transfer:validRecipient",
       });
       return;
     }
@@ -486,7 +492,7 @@ const Transfer = observer(() => {
         window.scrollTo(0, 0);
       } catch (error) {
         control.setError("receiverAddress", {
-          message: `Transaction failed: ${error instanceof Error ? error.message : String(error)}`,
+          message: transferError({ key: "transfer:transactionFailed", reason: error instanceof Error ? error.message : String(error) }),
         });
       }
     } else if (isUsingRemoteSigner) {
@@ -507,7 +513,7 @@ const Transfer = observer(() => {
         );
         if (!encryptedSeed) {
           control.setError("pin", {
-            message: "No stored seed found. Please import your account again.",
+            message: "transfer:noSeed",
           });
           return;
         }
@@ -530,8 +536,8 @@ const Transfer = observer(() => {
               error instanceof PinVerificationError
                 ? error.message
                 : error instanceof DeviceCredentialUnavailableError
-                  ? "This wallet's device security credential is unavailable. Restore it on the original device or re-import the seed."
-                  : "Failed to unlock the seed. Please try again.",
+                  ? "transfer:credentialUnavailable"
+                  : "transfer:unlockFailed",
           });
           return;
         }
@@ -542,7 +548,7 @@ const Transfer = observer(() => {
         const qrlInstance = qrlStore.qrlInstance;
         if (!qrlInstance) {
           control.setError("pin", {
-            message: "Wallet not connected. Please try again.",
+            message: "transfer:notConnected",
           });
           return;
         }
@@ -553,7 +559,7 @@ const Transfer = observer(() => {
         if (senderAddress !== accountAddress) {
           control.setError("pin", {
             message:
-              "Security error: seed mismatch detected. Please re-import this account.",
+              "transfer:seedMismatch",
           });
           return;
         }
@@ -575,7 +581,7 @@ const Transfer = observer(() => {
         window.scrollTo(0, 0);
       } catch (error) {
         control.setError("pin", {
-          message: `Transaction failed: ${error instanceof Error ? error.message : String(error)}`,
+          message: transferError({ key: "transfer:transactionFailed", reason: error instanceof Error ? error.message : String(error) }),
         });
       }
     }
@@ -632,7 +638,7 @@ const Transfer = observer(() => {
         window.scrollTo(0, 0);
       } catch (error) {
         control.setError("receiverAddress", {
-          message: `Transfer failed: ${error instanceof Error ? error.message : String(error)}`,
+          message: transferError({ key: "transfer:transferFailed", reason: error instanceof Error ? error.message : String(error) }),
         });
       }
       return;
@@ -646,7 +652,7 @@ const Transfer = observer(() => {
       );
       if (!encryptedSeed) {
         control.setError("pin", {
-          message: "No stored seed found. Please import your account again.",
+          message: "transfer:noSeed",
         });
         return;
       }
@@ -669,8 +675,8 @@ const Transfer = observer(() => {
             error instanceof PinVerificationError
               ? error.message
               : error instanceof DeviceCredentialUnavailableError
-                ? "This wallet's device security credential is unavailable. Restore it on the original device or re-import the seed."
-                : "Failed to unlock the seed. Please try again.",
+                ? "transfer:credentialUnavailable"
+                : "transfer:unlockFailed",
         });
         return;
       }
@@ -678,7 +684,7 @@ const Transfer = observer(() => {
       const qrlInstance = qrlStore.qrlInstance;
       if (!qrlInstance) {
         control.setError("pin", {
-          message: "Wallet not connected. Please try again.",
+          message: "transfer:notConnected",
         });
         return;
       }
@@ -687,7 +693,7 @@ const Transfer = observer(() => {
         qrlInstance,
       );
       if (senderAddress !== accountAddress) {
-        control.setError("pin", { message: "PIN decrypted an invalid seed." });
+        control.setError("pin", { message: "transfer:invalidSeed" });
         return;
       }
 
@@ -713,7 +719,7 @@ const Transfer = observer(() => {
       window.scrollTo(0, 0);
     } catch (error) {
       control.setError("pin", {
-        message: `Transfer failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: transferError({ key: "transfer:transferFailed", reason: error instanceof Error ? error.message : String(error) }),
       });
     }
   }
@@ -821,12 +827,12 @@ const Transfer = observer(() => {
   // Main Form
   return (
     <>
-      <PageShell title="Transfer" subtitle="Send Quanta or tokens to another wallet" seoTitle="Transfer">
+      <PageShell title={t("transfer:title")} subtitle={t("transfer:subtitle")} seoTitle={t("transfer:title")}>
           <Form {...form}>
             <form className="w-full" onSubmit={(event) => {
               handleSubmit(onSubmit)(event).catch((error: unknown) => {
                 control.setError("receiverAddress", {
-                  message: `Transfer failed: ${error instanceof Error ? error.message : "Unexpected transfer error."}`,
+                  message: transferError({ key: "transfer:transferFailed", reason: error instanceof Error ? error.message : "transfer:unexpectedError" }),
                 });
               });
             }}>
@@ -838,21 +844,21 @@ const Transfer = observer(() => {
                     name="asset"
                     render={({ field }) => (
                       <FormItem>
-                        <Label>Asset</Label>
+                        <Label>{t("transfer:asset")}</Label>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select asset to send" />
+                              <SelectValue placeholder={t("transfer:selectAsset")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="native">
                               <div className="flex items-center gap-2">
                                 <Coins className="h-4 w-4" />
-                                <span>Quanta (Native)</span>
+                                <span>{t("transfer:native")}</span>
                               </div>
                             </SelectItem>
                             {visibleTokenList.map((token) => (
@@ -872,19 +878,19 @@ const Transfer = observer(() => {
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormMessage />
+                        <FormMessage translateMessage={(message) => transferMessage(message, t) ?? undefined} />
                       </FormItem>
                     )}
                   />
 
                   {selectedToken && (
                     <div className="flex flex-col gap-2">
-                      <Label>Token contract</Label>
+                      <Label>{t("transfer:tokenContract")}</Label>
                       <QrlAddress
                         address={selectedToken.address}
                         mode="full"
                         copyable
-                        copyLabel="Copy token contract address"
+                        copyLabel={t("transfer:copyContract")}
                         className="w-full"
                       />
                     </div>
@@ -894,7 +900,7 @@ const Transfer = observer(() => {
 
                   {/* From Address */}
                   <div className="flex flex-col gap-2">
-                    <Label>From</Label>
+                    <Label>{t("transfer:from")}</Label>
                     <QrlAddress
                       address={accountAddress}
                       mode="full"
@@ -902,10 +908,7 @@ const Transfer = observer(() => {
                       addressClassName="font-bold text-identity-accent"
                     />
                     <div className="text-sm text-muted-foreground">
-                      Available:{" "}
-                      <span className="font-numeric">
-                        {getOptimalTokenBalance(accountBalance, assetSymbol)}
-                      </span>
+                      <Trans t={t} i18nKey="transfer:available" components={{ balance: <span className="font-numeric">{getOptimalTokenBalance(accountBalance, assetSymbol)}</span> }} />
                     </div>
                     <div className="flex gap-4">
                       <Button
@@ -919,7 +922,7 @@ const Transfer = observer(() => {
                         }}
                       >
                         <Copy className="mr-2 h-4 w-4" />
-                        {hasJustCopied ? "Copied" : "Copy"}
+                        {hasJustCopied ? t("common:copied") : t("common:copy")}
                       </Button>
                       <Button
                         className="w-full"
@@ -928,7 +931,7 @@ const Transfer = observer(() => {
                         onClick={onViewInExplorer}
                       >
                         <ExternalLink className="mr-2 h-4 w-4" />
-                        View on Explorer
+                        {t("transfer:viewExplorer")}
                       </Button>
                     </div>
                   </div>
@@ -941,7 +944,7 @@ const Transfer = observer(() => {
                     name="receiverAddress"
                     render={({ field }) => (
                       <FormItem>
-                        <Label htmlFor="transfer-recipient">Send to</Label>
+                        <Label htmlFor="transfer-recipient">{t("transfer:sendTo")}</Label>
                         <FormControl>
                           <div className="relative">
                             <Input
@@ -953,7 +956,7 @@ const Transfer = observer(() => {
                                 clearErrors("receiverAddress");
                               }}
                               disabled={isSubmitting || isScanning}
-                              placeholder="QRL address or QNS name"
+                              placeholder={t("transfer:recipientPlaceholder")}
                               className={isInNativeApp() ? "pr-16" : "pr-10"}
                             />
                             <button
@@ -961,7 +964,7 @@ const Transfer = observer(() => {
                               onClick={() => { setAddressBookOpen(true); }}
                               disabled={isSubmitting || isScanning}
                               className={`absolute ${isInNativeApp() ? "right-9" : "right-2"} top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-accent transition-colors disabled:opacity-50`}
-                              title="Address book"
+                              title={t("transfer:addressBook")}
                             >
                               <BookUser className="h-5 w-5 text-muted-foreground hover:text-foreground" />
                             </button>
@@ -971,7 +974,7 @@ const Transfer = observer(() => {
                                 onClick={handleScanQR}
                                 disabled={isSubmitting || isScanning}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-accent transition-colors disabled:opacity-50"
-                                title="Scan QR code"
+                                title={t("transfer:scanQr")}
                               >
                                 {scanSuccess ? (
                                   <Check className="h-5 w-5 text-success animate-pulse" />
@@ -986,25 +989,24 @@ const Transfer = observer(() => {
                         </FormControl>
                         {isScanning && (
                           <div className="text-sm text-muted-foreground animate-pulse">
-                            Scanning for QRL address...
+                            {t("transfer:scanning")}
                           </div>
                         )}
                         {scanSuccess && scannedAddressPreview && (
                           <div className="flex items-center gap-2 text-sm text-green-600">
                             <Check className="h-4 w-4" />
-                            <span>Scanned: {scannedAddressPreview}</span>
+                            <span>{t("transfer:scanned", { address: scannedAddressPreview })}</span>
                           </div>
                         )}
                         {!isScanning && !scanSuccess && (
                           <FormDescription>
-                            Enter a QRL address or QNS name, or pick a contact
-                            {isInNativeApp() ? ", or scan QR" : ""}
+                            {t(isInNativeApp() ? "transfer:recipientHintNative" : "transfer:recipientHint")}
                           </FormDescription>
                         )}
                         <RecipientResolutionStatus
                           resolution={recipientResolution}
                         />
-                        <FormMessage />
+                        <FormMessage translateMessage={(message) => transferMessage(message, t) ?? undefined} />
                       </FormItem>
                     )}
                   />
@@ -1028,9 +1030,9 @@ const Transfer = observer(() => {
                       <FormItem>
                         <FormControl>
                           <div className="space-y-2">
-                            <Label>Amount</Label>
+                            <Label>{t("transfer:amount")}</Label>
                             <Input
-                              placeholder="Enter amount"
+                              placeholder={t("transfer:enterAmount")}
                               type="text"
                               inputMode="decimal"
                               disabled={isSubmitting}
@@ -1063,7 +1065,7 @@ const Transfer = observer(() => {
 
                         <div className="mt-4 space-y-4">
                           <div className="flex justify-between">
-                            <Label>Percentage of balance</Label>
+                            <Label>{t("transfer:percentage")}</Label>
                             <span className="font-numeric text-sm text-muted-foreground">
                               {sliderValue}%
                             </span>
@@ -1090,20 +1092,20 @@ const Transfer = observer(() => {
                                 disabled={isSubmitting || !percentageReady}
                                 className="flex-1"
                               >
-                                {pct === 100 ? "Max" : `${pct}%`}
+                                {pct === 100 ? t("transfer:max") : `${pct}%`}
                               </Button>
                             ))}
                           </div>
                           {isNativeTransfer && !percentageReady && (
                             <p className="text-xs text-muted-foreground">
                               {isUsingMobile
-                                ? "Enter an amount manually. Your paired phone calculates the fee."
-                                : "Max requires a current fee quote for the recipient. You can enter an amount manually."}
+                                ? t("transfer:manualMobile")
+                                : t("transfer:maxQuote")}
                             </p>
                           )}
                         </div>
 
-                        <FormMessage />
+                        <FormMessage translateMessage={(message) => transferMessage(message, t) ?? undefined} />
                       </FormItem>
                     )}
                   />
@@ -1117,7 +1119,7 @@ const Transfer = observer(() => {
                       name="pin"
                       render={({ field }) => (
                         <FormItem className="space-y-2">
-                          <Label>Transaction PIN</Label>
+                          <Label>{t("transfer:pin")}</Label>
                           <FormControl>
                             <PinInput
                               length={6}
@@ -1127,9 +1129,9 @@ const Transfer = observer(() => {
                             />
                           </FormControl>
                           <FormDescription>
-                            Enter the PIN used to encrypt your wallet seed
+                            {t("transfer:pinHint")}
                           </FormDescription>
-                          <FormMessage />
+                          <FormMessage translateMessage={(message) => transferMessage(message, t) ?? undefined} />
                         </FormItem>
                       )}
                     />
@@ -1140,8 +1142,7 @@ const Transfer = observer(() => {
                       presents the fee in its confirmation screen. */}
                   {isNativeTransfer && isUsingMobile && (
                     <p className="text-sm text-muted-foreground">
-                      The network fee is estimated and confirmed in the mobile
-                      app.
+                      {t("transfer:mobileFee")}
                     </p>
                   )}
                   {isNativeTransfer && !isUsingMobile && (
@@ -1163,7 +1164,7 @@ const Transfer = observer(() => {
                     onClick={cancelTransaction}
                   >
                     <X className="mr-2 h-4 w-4" />
-                    Cancel
+                    {t("common:cancel")}
                   </Button>
                   <ShinyButton
                     disabled={
@@ -1177,8 +1178,8 @@ const Transfer = observer(() => {
                   >
                     <Send className="mr-2 h-4 w-4" />
                     {isSubmitting
-                      ? `Sending ${toTemplateString(assetSymbol)}...`
-                      : `Send ${toTemplateString(assetSymbol)}`}
+                      ? t("transfer:sending", { asset: toTemplateString(assetSymbol) })
+                      : t("transfer:send", { asset: toTemplateString(assetSymbol) })}
                   </ShinyButton>
                 </CardFooter>
               </Card>

@@ -1,3 +1,5 @@
+import { transferMessage } from "@/i18n/transferMessage";
+import { useTranslation } from "react-i18next";
 import { Check, Loader2, TriangleAlert } from "lucide-react";
 import type { QrnsRecipientState } from "@/hooks/useQrnsRecipient";
 import { QrlAddress } from "@/components/UI/QrlAddress";
@@ -10,6 +12,7 @@ interface RecipientResolutionStatusProps {
 export function RecipientResolutionStatus({
   resolution,
 }: RecipientResolutionStatusProps) {
+  const { t } = useTranslation(["transfer", "common", "settings"]);
   if (resolution.status === "idle") return null;
 
   if (resolution.status === "pending") {
@@ -20,7 +23,7 @@ export function RecipientResolutionStatus({
         className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"
       >
         <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
-        <span>{resolution.message}</span>
+        <span>{transferMessage(resolution.message, t)}</span>
       </div>
     );
   }
@@ -34,7 +37,7 @@ export function RecipientResolutionStatus({
       >
         <div className="flex items-center gap-2 font-medium text-success">
           <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{resolution.message}</span>
+          <span>{transferMessage(resolution.message, t)}</span>
         </div>
         <QrlAddress
           address={resolution.address}
@@ -58,7 +61,7 @@ export function RecipientResolutionStatus({
       }
     >
       <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-      <span>{resolution.message}</span>
+      <span>{transferMessage(resolution.message, t)}</span>
     </div>
   );
 }

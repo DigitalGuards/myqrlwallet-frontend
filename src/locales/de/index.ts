@@ -1,7 +1,19 @@
+import contacts from "./contacts.json";
+import accounts from "./accounts.json";
+import transfer from "./transfer.json";
 import common from "./common.json";
 import home from "./home.json";
 import settings from "./settings.json";
 import tokens from "./tokens.json";
 import history from "./history.json";
 
-export default { common, home, settings, tokens, history };
+export default {
+  contacts,
+  accounts,
+  transfer,
+  common,
+  home,
+  settings,
+  tokens,
+  history,
+};
