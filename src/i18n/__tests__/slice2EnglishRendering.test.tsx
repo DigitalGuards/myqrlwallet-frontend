@@ -63,6 +63,7 @@ let mockCapture = true;
 let mockRevalidate = true;
 let mockNativeListener: ((message: NativeMessage) => void) | undefined;
 const mockEstimate = jest.fn<Promise<unknown>, []>();
+let estimate: ReturnType<typeof deferred<unknown>>;
 const mockSend = jest.fn<Promise<boolean>, unknown[]>();
 const mockDecrypt = jest.fn<Promise<{ mnemonic: string }>, []>();
 const mockPost = jest.fn<Promise<{ data: unknown }>, unknown[]>();
@@ -248,6 +249,8 @@ class ResizeObserverFixture {
   disconnect() {}
 }
 beforeEach(() => {
+  // Invalid amounts and missing providers must also stay before the debounce.
+  jest.useFakeTimers();
   document.title = "";
   jest.clearAllMocks();
   localStorage.clear();
@@ -272,7 +275,9 @@ beforeEach(() => {
     message: "Recipient address verified.",
     bindingKey: "recipient",
   };
-  mockEstimate.mockResolvedValue(21000n);
+  // Keep every Transfer oracle in its intended pending state until released.
+  estimate = deferred<unknown>();
+  mockEstimate.mockReturnValue(estimate.promise);
   mockSend.mockResolvedValue(true);
   mockDecrypt.mockResolvedValue({ mnemonic: "fixture" });
   mockPost.mockResolvedValue({ data: { transactions: [] } });
@@ -590,10 +595,6 @@ it("Receipt without effective gas price", async () => {
 it.each(["empty", "loading", "success", "error", "invalid"])(
   "GasFeeNotice: %s",
   async (state) => {
-    jest.useFakeTimers();
-    if (state === "error")
-      mockEstimate.mockRejectedValue(new Error("Estimate detail"));
-    if (state === "invalid") mockEstimate.mockResolvedValue({ invalid: true });
     await show(
       <GasFeeNotice
         from={FROM}
@@ -604,13 +605,38 @@ it.each(["empty", "loading", "success", "error", "invalid"])(
         onFeeLevelChange={jest.fn()}
       />,
     );
-    if (!["empty", "loading"].includes(state))
+    await act(() => jest.advanceTimersByTimeAsync(500));
+    if (state === "empty") {
+      expect(mockEstimate).not.toHaveBeenCalled();
+    } else {
+      expect(mockEstimate).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("Estimating fee...")).toBeTruthy();
+    }
+    if (!["empty", "loading"].includes(state)) {
       await act(async () => {
-        await jest.advanceTimersByTimeAsync(600);
+        if (state === "error") estimate.reject(new Error("Estimate detail"));
+        else estimate.resolve(state === "invalid" ? { invalid: true } : 21000n);
+        await estimate.promise.catch(() => undefined);
       });
+      expect(screen.queryByText("Estimating fee...")).toBeNull();
+    }
     snapshot();
   },
 );
+
+it("Transfer keeps estimating until the fee estimate resolves", async () => {
+  await show(<Transfer />);
+  await fillTransfer();
+  await act(() => jest.advanceTimersByTimeAsync(500));
+  expect(mockEstimate).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("Estimating fee...")).toBeTruthy();
+  await act(async () => {
+    estimate.resolve(21000n);
+    await estimate.promise;
+  });
+  expect(screen.queryByText("Estimating fee...")).toBeNull();
+  expect(screen.getByText("≈ 0.000000000000063 Quanta")).toBeTruthy();
+});
 
 it.each(["empty", "loading", "unavailable", "failure", "501", "storage"])(
   "History: %s",
@@ -938,7 +964,6 @@ it("Transfer remote non-Error fallback", async () => {
   snapshot();
 });
 it("GasFeeNotice without a provider", async () => {
-  jest.useFakeTimers();
   Object.defineProperty(mockStore.qrlStore, "qrlInstance", { value: null });
   await show(
     <GasFeeNotice
@@ -950,9 +975,7 @@ it("GasFeeNotice without a provider", async () => {
       onFeeLevelChange={jest.fn()}
     />,
   );
-  await act(async () => {
-    await jest.advanceTimersByTimeAsync(600);
-  });
+  await act(() => jest.advanceTimersByTimeAsync(500));
   snapshot();
 });
 it("Contacts picker duplicate saved after the last render", async () => {

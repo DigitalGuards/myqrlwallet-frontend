@@ -14,8 +14,9 @@ import { transferError } from "../transferError";
 import AddressBook from "@/components/Core/Body/AddressBook/AddressBook";
 import { SendStatus } from "@/components/Core/Body/Transfer/SendStatus";
 import { GasFeeNotice } from "@/components/Core/Body/Transfer/GasFeeNotice/GasFeeNotice";
+import { deferred } from "@/test-utils/deferred";
 
-const mockEstimate = jest.fn(() => Promise.resolve(21000n));
+const mockEstimate = jest.fn<Promise<bigint>, []>();
 const mockProvider = { estimateGas: mockEstimate };
 jest.mock("@/stores/store", () => ({
   useStore: () => ({ qrlStore: { qrlInstance: mockProvider } }),
@@ -107,6 +108,8 @@ it("updates an existing send outcome and preserves the hash and explorer target"
 
 it("keeps the existing fee quote when changing language", async () => {
   jest.useFakeTimers();
+  const estimate = deferred<bigint>();
+  mockEstimate.mockReturnValue(estimate.promise);
   render(
     <GasFeeNotice
       from="sender"
@@ -117,14 +120,16 @@ it("keeps the existing fee quote when changing language", async () => {
       onFeeLevelChange={jest.fn()}
     />,
   );
+  await act(() => jest.advanceTimersByTimeAsync(500));
+  expect(mockEstimate).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("Estimating fee...")).toBeTruthy();
   await act(async () => {
-    await jest.advanceTimersByTimeAsync(600);
+    estimate.resolve(21000n);
+    await estimate.promise;
   });
   const amount = screen.getByText(/^≈/).textContent;
   await act(() => applyLanguage("de"));
-  await act(async () => {
-    await jest.advanceTimersByTimeAsync(600);
-  });
+  await act(() => jest.advanceTimersByTimeAsync(500));
   expect(screen.getByText("Netzwerkgebühr")).toBeTruthy();
   expect(screen.getByText(/^≈/).textContent).toBe(amount);
   // The store/provider fixture must stay stable across language renders.
