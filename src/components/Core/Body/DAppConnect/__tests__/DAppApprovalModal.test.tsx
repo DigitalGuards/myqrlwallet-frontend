@@ -223,6 +223,67 @@ async function approve(): Promise<void> {
   });
 }
 
+it.each(["review", "message"])("blocks click and PIN Enter while the %s is scrolled", async (target) => {
+  mockDesktop = false;
+  await showApproval("qrl_signMessage");
+  const review = screen.getByRole("region", { name: "Request details" });
+  const scroller = target === "review" ? review : screen.getByText("hello");
+  const button = screen.getByRole("button", { name: "Approve" });
+  const pin = screen.getByPlaceholderText("Enter PIN");
+  fireEvent.change(pin, { target: { value: "123456" } });
+  // Check the synchronous guard before the browser dispatches its scroll event.
+  scroller.scrollTop = 100;
+  await act(async () => {
+    fireEvent.click(button);
+    fireEvent.keyDown(pin, { key: "Enter" });
+    await Promise.resolve();
+  });
+  expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+  expect(approveRequestSpy).not.toHaveBeenCalled();
+  fireEvent.scroll(scroller);
+  expect(button.classList.contains("invisible")).toBe(true);
+  scroller.scrollTop = 0;
+  fireEvent.scroll(scroller);
+  expect(button.classList.contains("invisible")).toBe(false);
+  jest.mocked(decryptStoredSeedWithPin).mockRejectedValueOnce(
+    new PinVerificationError({ isLocked: false, remainingMs: 0, attemptsLeft: 5 }, "Test PIN refusal"),
+  );
+  await approve();
+  expect(decryptStoredSeedWithPin).toHaveBeenCalledTimes(1);
+});
+
+it("starts each queued approval with a fresh review and visible Approve", async () => {
+  await showApproval("qrl_signTypedData");
+  const review = screen.getByRole("region", { name: "Request details" });
+  review.scrollTop = 100;
+  fireEvent.scroll(review);
+  act(() => {
+    const next = request("qrl_signMessage", 2);
+    mockDappStore.pendingRequests = [next];
+    mockDappStore.currentApproval = next;
+  });
+  expect(screen.getByRole("region", { name: "Request details" }).scrollTop).toBe(0);
+  expect(screen.getByRole("button", { name: "Approve" }).classList.contains("invisible")).toBe(false);
+});
+
+it("restores Approve after closing a scrolled raw-content disclosure", async () => {
+  await showApproval("qrl_signMessage");
+  const raw = screen.getByText("0x68656c6c6f");
+  const disclosure = raw.closest("details");
+  if (!disclosure) throw new Error("Raw bytes disclosure missing");
+  const button = screen.getByRole("button", { name: "Approve" });
+  disclosure.open = true;
+  raw.scrollTop = 100;
+  fireEvent.scroll(raw);
+  expect(button.classList.contains("invisible")).toBe(true);
+  disclosure.open = false;
+  fireEvent(disclosure, new Event("toggle"));
+  expect(button.classList.contains("invisible")).toBe(false);
+  disclosure.open = true;
+  fireEvent(disclosure, new Event("toggle"));
+  expect(button.classList.contains("invisible")).toBe(true);
+});
+
 it.each(["", " \t\n"])("shows a fallback for a blank retryable request error (%j)", async (message) => {
   mockDesktop = false;
   jest.mocked(decryptStoredSeedWithPin).mockRejectedValueOnce(

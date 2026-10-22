@@ -13,7 +13,14 @@ export const minimumIdentityWidths = {
 };
 
 /** Measure the rendered identity even when it has collapsed to zero width. */
-export async function assertApprovalIdentity(page, { language, method }) {
+export async function assertApprovalIdentity(
+  page,
+  {
+    language,
+    method,
+    metadata = { name: "Example dApp", url: "https://dapp.example" },
+  },
+) {
   await page.evaluate(() => document.fonts.ready);
   const header = await page.getByRole("dialog").evaluate((dialog) => {
     const title = dialog.querySelector("h2");
@@ -49,6 +56,8 @@ export async function assertApprovalIdentity(page, { language, method }) {
         rect.top + rect.height / 2,
       );
       return {
+        top: rect.top,
+        bottom: rect.bottom,
         width: rect.width,
         height: rect.height,
         fontSize: parseFloat(style.fontSize),
@@ -78,15 +87,28 @@ export async function assertApprovalIdentity(page, { language, method }) {
       `${language}/${method}: ${part} must remain visible and at least ${minimum}px wide: ${JSON.stringify(box)}`,
     );
   }
-  assert.equal(header.name.text, "Example dApp");
-  assert.equal(header.origin.text, "https://dapp.example");
+  assert.equal(header.name.text, metadata.name);
+  assert.equal(header.origin.text, metadata.url);
   assert.ok(
     header.name.fontSize >= 16 && header.origin.fontSize >= 12,
     `${language}/${method}: identity text is smaller than the English baseline`,
   );
   assert.ok(
-    !header.label.clipped && header.label.inViewport,
+    !header.label.clipped &&
+      header.label.visible &&
+      header.label.inViewport &&
+      header.label.top >= header.identity.bottom,
     `${language}/${method}: request title must wrap within the header`,
   );
-  return { language, method, minimum, ...header };
+  return {
+    language,
+    method,
+    minimum,
+    ...Object.fromEntries(
+      Object.entries(header).map(([key, box]) => [
+        key,
+        { ...box, text: box.text.slice(0, 80), textLength: box.text.length },
+      ]),
+    ),
+  };
 }

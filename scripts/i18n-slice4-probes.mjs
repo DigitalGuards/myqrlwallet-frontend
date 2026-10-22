@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { assertApprovalIdentity } from "./i18n-approval-identity.mjs";
+import { assertApprovalBounds } from "./i18n-approval-bounds.mjs";
+import { approvalMetadataCases } from "../src/services/dappConnect/__tests__/approvalMetadataFixtures.ts";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -161,9 +163,17 @@ export async function slice4Screens({
     ["wallet_switchQrlChain", [{ chainId: "0x301825" }], "switchNetwork"],
   ];
   let id = 0;
-  const show = async (method, params) => {
+  const show = async (
+    method,
+    params,
+    metadata = {
+      name: "Example dApp",
+      url: "https://dapp.example",
+      chainId: "0x301825",
+    },
+  ) => {
     await page.evaluate(
-      ({ method, params, id }) => {
+      ({ method, params, id, metadata }) => {
         const s = window.__APP_STORE__.dappConnectStore;
         const approval = {
           id,
@@ -171,18 +181,14 @@ export async function slice4Screens({
           params,
           sessionId: "language-fixture",
           timestamp: Date.now(),
-          dappInfo: {
-            name: "Example dApp",
-            url: "https://dapp.example",
-            chainId: "0x301825",
-          },
+          dappInfo: metadata,
         };
         s.resetTxProgress();
         s.pendingRequests = [approval];
         s.currentApproval = approval;
         s.approvalModalOpen = true;
       },
-      { method, params, id: ++id },
+      { method, params, id: ++id, metadata },
     );
     await page.getByRole("dialog").waitFor();
   };
@@ -230,6 +236,27 @@ export async function slice4Screens({
       await approvalSnapshot("approval-pin-error", method);
     }
     await clear();
+  }
+  for (const { name, metadata } of approvalMetadataCases) {
+    for (const [method, params, key] of approvals) {
+      await show(method, params, metadata);
+      await page.getByText(c[key], { exact: true }).waitFor();
+      if (method.includes("Transaction"))
+        await page
+          .getByText(embedded ? c.feeUnavailable : c.maxFee, { exact: true })
+          .waitFor();
+      await snapshot(`approval-${name}-${method}`);
+      const bounds = await assertApprovalBounds(page, {
+        language: catalogs.code,
+        method,
+        metadata,
+        approve: c.approve,
+      });
+      console.log(
+        `approval-bounds: ${JSON.stringify({ fixture: name, ...bounds })}`,
+      );
+      await clear();
+    }
   }
   if (full) {
     for (const [name, method, params] of [

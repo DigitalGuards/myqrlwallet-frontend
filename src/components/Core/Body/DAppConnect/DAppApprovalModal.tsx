@@ -152,6 +152,17 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+function reviewHasScrolled(review: HTMLDivElement | null): boolean {
+  return (
+    review !== null &&
+    [review, ...review.querySelectorAll("*")].some(
+      (element) =>
+        !element.closest("details:not([open])") &&
+        (element.scrollTop > 0 || Math.abs(element.scrollLeft) > 0),
+    )
+  );
+}
+
 /**
  * The gas limit a dApp transaction will be signed with.
  *
@@ -284,6 +295,22 @@ const DAppApprovalModalContent = observer(() => {
     typeof desktopSigningError
   > | null>(null);
   const [loading, setLoading] = useState(false);
+  const reviewRef = useRef<HTMLDivElement>(null);
+  const [reviewAtStart, setReviewAtStart] = useState(true);
+  const bindReviewRef = useCallback((review: HTMLDivElement | null) => {
+    reviewRef.current = review;
+    if (!review) return;
+    // A closed disclosure retains its scroll offset. Recheck when it toggles.
+    const updateReviewPosition = () => {
+      setReviewAtStart(!reviewHasScrolled(review));
+    };
+    review.addEventListener("toggle", updateReviewPosition, true);
+    updateReviewPosition();
+    return () => {
+      review.removeEventListener("toggle", updateReviewPosition, true);
+      reviewRef.current = null;
+    };
+  }, []);
   // Device Login can finish while this dialog is open; the PIN field must
   // follow the injected PIN as it arrives or is cleared.
   const hasNativePin = useHasNativeInjectedPin();
@@ -322,6 +349,8 @@ const DAppApprovalModalContent = observer(() => {
 
   const handleApprove = useCallback(async () => {
     if (!currentApproval) return;
+    // Enter in the PIN field follows the same visibility rule as Approve.
+    if (reviewHasScrolled(reviewRef.current)) return;
     // Synchronous, because `loading` is React state and does not update until
     // the next render: a second Enter in the same tick would otherwise start a
     // second sign and broadcast, and pay twice.
@@ -1416,23 +1445,27 @@ const DAppApprovalModalContent = observer(() => {
     >
       {/* Outside clicks leave the decision pending. Escape and X reject it. */}
       <DialogContent
-        className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0"
+        className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0"
         aria-describedby={undefined}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          reviewRef.current?.focus({ preventScroll: true });
+        }}
         onInteractOutside={(e) => {
           e.preventDefault();
         }}
       >
         {/* dApp Identity Header */}
-        <div className="shrink-0 bg-gradient-to-r from-primary/10 to-transparent p-4 pr-10">
+        <div className="max-h-32 shrink-0 overflow-hidden bg-gradient-to-r from-primary/10 to-transparent p-4 pr-10">
           <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/10">
               <Globe className="h-5 w-5 text-secondary" />
             </div>
             <div className="min-w-0">
-              <DialogTitle className="break-words text-base font-semibold leading-normal text-foreground">
+              <DialogTitle className="truncate text-base font-semibold leading-normal text-foreground">
                 {dappInfo.name}
               </DialogTitle>
-              <p className="break-all text-xs text-muted-foreground">
+              <p className="truncate text-xs text-muted-foreground" dir="ltr">
                 {dappInfo.url}
               </p>
             </div>
@@ -1447,9 +1480,14 @@ const DAppApprovalModalContent = observer(() => {
 
         {/* Approval details and transaction progress */}
         <div
+          ref={bindReviewRef}
           role="region"
+          tabIndex={-1}
           aria-label={t("dapps:requestDetails")}
-          className="min-h-0 space-y-4 overflow-y-auto overscroll-contain p-6"
+          className="min-h-0 space-y-4 overflow-y-auto overscroll-contain p-6 outline-none"
+          onScrollCapture={() => {
+            setReviewAtStart(!reviewHasScrolled(reviewRef.current));
+          }}
         >
           {/* Transaction progress states */}
           {signingFailure ? (
@@ -1573,7 +1611,7 @@ const DAppApprovalModalContent = observer(() => {
             /* Normal approval content (before tx progress starts) */
             <div className="space-y-4">
               {method === "qrl_requestAccounts" && (
-                <p className="text-sm text-muted-foreground">
+                <p className="min-h-10 text-sm text-muted-foreground">
                   {t("dapps:accountAccess")}
                 </p>
               )}
@@ -1669,7 +1707,6 @@ const DAppApprovalModalContent = observer(() => {
                     }}
                     placeholder={t("dapps:enterPin")}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    autoFocus
                   />
                 </div>
               )}
@@ -1705,6 +1742,7 @@ const DAppApprovalModalContent = observer(() => {
                 {t("dapps:reject")}
               </Button>
               <Button
+                className={reviewAtStart ? undefined : "invisible"}
                 onClick={() => {
                   void handleApprove();
                 }}
