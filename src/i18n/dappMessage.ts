@@ -1,4 +1,3 @@
-import { signingMessage } from "./signingMessage";
 import type { TFunction } from "i18next";
 
 export type DAppTranslator = TFunction<
@@ -12,56 +11,6 @@ export function dappMessage(message: string, t: DAppTranslator): string {
   switch (message) {
     case "Connection failed":
       return t("dapps:connectionFailed");
-    case "The request failed.":
-      return t("dapps:requestFailed");
-    case "Typed data contains a circular type reference.":
-      return t("dapps:circularType");
-    case "Typed data is nested too deeply.":
-      return t("dapps:deepType");
-    case "Insufficient funds for this transaction.":
-      return t("dapps:insufficientFunds");
-    case "Transaction nonce is too low. Please retry.":
-      return t("dapps:nonceLow");
-    case "This transaction was already submitted.":
-      return t("dapps:alreadySubmitted");
-    case "Request was rejected.":
-      return t("dapps:requestRejected");
-    case "Transaction failed. Please verify details and try again.":
-      return t("dapps:transactionFailed");
-    case "Please enter your PIN":
-      return t("dapps:pinRequired");
-    case "Wallet changed while preparing the request":
-      return t("dapps:walletChanged");
-    case "No encrypted seed found":
-      return t("dapps:noSeed");
-    case "Wallet device security credential unavailable; re-import the seed":
-      return t("dapps:credentialUnavailable");
-    case "No active account":
-      return t("dapps:noAccount");
-    case "Signer mismatch: request is for a different account":
-      return t("dapps:signerMismatch");
-    case "Web3 not initialized":
-      return t("dapps:web3Unavailable");
-    case "Failed to sign transaction":
-      return t("dapps:signFailed");
-    case "Transaction has been reverted by the QRVM":
-      return t("dapps:revertedQrvm");
-    case "Transaction status is unavailable.":
-      return t("dapps:statusUnavailable");
-    case "Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again.":
-      return t("dapps:broadcastUnconfirmed");
-    case "Transaction confirmation is unavailable. Check the explorer before sending again.":
-      return t("dapps:confirmationUnavailable");
-    case "This transaction is already in the network queue. Check the explorer before sending it again.":
-      return t("dapps:alreadyQueued");
-    case "The network did not confirm whether this transaction was accepted. Check the explorer before sending it again.":
-      return t("dapps:broadcastUnknown");
-    case "This transaction would fail on chain, so it was not sent.":
-      return t("dapps:wouldRevert");
-    case "the stored seed does not match the requested signer":
-      return t("dapps:storedSignerMismatch");
-    case "the desktop signer does not match the requested signer":
-      return t("dapps:desktopSignerMismatch");
     case "No pending connection":
       return t("dapps:noPending");
     case "Wallet identity is changing; retry the connection":
@@ -134,46 +83,9 @@ export function dappMessage(message: string, t: DAppTranslator): string {
       return t("dapps:base45Group");
     case "base45: decoded byte exceeds 0xFF":
       return t("dapps:base45Byte");
-    case "Failed to unlock the seed. Please try again.":
-      return t("transfer:unlockFailed");
-    case "Another PIN check is still running. Please try again.":
-      return t("settings:pinBusy");
   }
-  const attempts = /^Incorrect PIN\. (\d+) attempts? remaining\.$/.exec(
-    message,
-  );
-  if (attempts)
-    return t("settings:incorrectPin", { count: Number(attempts[1]) });
-  const lockout =
-    /^Too many failed attempts\. Please wait (\d+) minutes?\.$/.exec(message);
-  if (lockout) return t("settings:lockout", { count: Number(lockout[1]) });
-  if (message.startsWith("Message signing failed: "))
-    return t("dapps:messageSigningFailed", {
-      reason: dappMessage(message.slice(24), t),
-    });
-  if (message.startsWith("Typed data signing failed: "))
-    return t("dapps:typedSigningFailed", {
-      reason: dappMessage(message.slice(27), t),
-    });
-  if (message.startsWith("Typed-data signing failed: "))
-    return t("dapps:desktopTypedSigningFailed", {
-      reason: dappMessage(message.slice(27), t),
-    });
-  if (message.startsWith("Invalid qrl_signMessage params: "))
-    return t("dapps:invalidMessageParams", { reason: message.slice(32) });
-  if (message.startsWith("Invalid qrl_signTypedData params: "))
-    return t("dapps:invalidTypedParams", { reason: message.slice(34) });
-  if (message.startsWith("This transaction would fail on chain: "))
-    return t("dapps:wouldRevertReason", { reason: message.slice(38) });
   if (message.startsWith("qrUri: base45 decode failed: "))
     return t("dapps:uriBase45", { reason: dappMessage(message.slice(29), t) });
-  const scheme =
-    /^the desktop signer used (.*), the payload requires (.*)$/.exec(message);
-  if (scheme)
-    return t("dapps:desktopSchemeMismatch", {
-      actual: scheme[1],
-      required: scheme[2],
-    });
   const uriLong = /^qrUri: URI exceeds (\d+) characters$/.exec(message);
   if (uriLong) return t("dapps:uriTooLong", { limit: uriLong[1] });
   const payloadLong = /^qrUri: PQP3 payload exceeds (\d+) characters$/.exec(
@@ -187,5 +99,5 @@ export function dappMessage(message: string, t: DAppTranslator): string {
       message,
     );
   if (legacy) return t("dapps:uriLegacyPqp", { version: legacy[1] });
-  return signingMessage(message, t);
+  return message;
 }

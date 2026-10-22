@@ -40,15 +40,8 @@ For account setup, English mnemonic/seed phrase labels refer to the recovery phr
 
 For device credential recovery, preserve every condition: independently usable backups for every wallet, earlier network profiles, keeping all data if any backup is missing, authentication and confirmation before permanent native removal, and retaining the original browser profile until every wallet is recovered. Encrypted and unencrypted wallet downloads must remain distinguishable, and the prohibition on sharing an unencrypted wallet file is absolute.
 
-| English          | Deutsch            | Español                     | Русский                      | 简体中文       |
-| ---------------- | ------------------ | --------------------------- | ---------------------------- | -------------- |
-| pair             | koppeln            | vincular                    | связать                      | 配对           |
-| sign             | signieren          | firmar                      | подписать                    | 签署           |
-| typed data       | typisierte Daten   | datos tipados               | типизированные данные        | 类型化数据     |
-| signed domain    | signierte Domain   | dominio firmado             | подписываемый домен          | 签署域         |
-| chain ID         | Chain-ID           | ID de cadena                | ID цепи                      | 链 ID          |
-| raw signed bytes | signierte Rohbytes | bytes firmados sin procesar | исходные подписываемые байты | 签署的原始字节 |
+| English | Deutsch | Español  | Русский | 简体中文 |
+| ------- | ------- | -------- | ------- | -------- |
+| pair    | koppeln | vincular | связать | 配对     |
 
-Pairing establishes an encrypted channel and requires a separate account-access approval. Account approval exposes an address. A signing request authorizes the shown bytes or structured payload. Keep these scopes distinct. A signed typed-data domain is part of the signature and may differ from the website origin or connected chain. Preserve both chain identifiers in mismatch warnings, the warning for absent chain binding, and the consequence that a signed challenge can authenticate as the user.
-
-Translate wallet-owned field labels only. DApp-supplied names, origins, addresses, values, message text, field/type names, hex data and canonical JSON retain their exact rendering. Never translate a supplied value just because it matches a UI word. Preserve existing visual-control escaping. The maximum network fee is a total monetary ceiling; the desktop gas minimum is an execution limit floor. Unknown transaction acceptance or confirmation must retain the instruction to check the explorer before sending again. In Simplified Chinese, use 区块浏览器 for a block explorer and 浏览器 for the web browser.
+Pairing establishes an encrypted channel and requires a separate account-access approval. Account approval exposes an address. Keep these scopes distinct. DApp-supplied names, origins and addresses retain their exact rendering and visual-control escaping. Unknown pairing errors remain verbatim. In Simplified Chinese, use 区块浏览器 for a block explorer and 浏览器 for the web browser.

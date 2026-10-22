@@ -1,14 +1,11 @@
 import assert from "node:assert/strict";
-import { assertApprovalIdentity } from "./i18n-approval-identity.mjs";
-import { assertApprovalBounds } from "./i18n-approval-bounds.mjs";
-import { approvalMetadataCases } from "../src/services/dappConnect/__tests__/approvalMetadataFixtures.ts";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const rawKey =
   /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*|{{/;
 
-/** Display-only synthetic requests. No pairing handshake, signature or broadcast. */
+/** Display-only session and consent fixtures. No pairing handshake. */
 export async function slice4Screens({
   page,
   origin,
@@ -42,10 +39,6 @@ export async function slice4Screens({
   const clear = async () => {
     await page.evaluate(() => {
       const s = window.__APP_STORE__.dappConnectStore;
-      s.pendingRequests = [];
-      s.currentApproval = null;
-      s.approvalModalOpen = false;
-      s.resetTxProgress();
       s.desktopConnectUri = null;
       s.activeSessions = [];
     });
@@ -118,176 +111,6 @@ export async function slice4Screens({
         await page.getByRole("alert").waitFor();
         await snapshot("dapp-consent-error");
       }
-      await clear();
-    }
-  }
-  const typed = (chain = true) => ({
-    types: {
-      QRLDomain: [
-        { name: "name", type: "string" },
-        ...(chain ? [{ name: "chainId", type: "uint256" }] : []),
-      ],
-      Challenge: [
-        { name: "challengeText", type: "string" },
-        { name: "accounts", type: "address[]" },
-      ],
-    },
-    primaryType: "Challenge",
-    domain: chain
-      ? { name: "Example domain", chainId: "1" }
-      : { name: "Example domain" },
-    message: {
-      challengeText: "Authenticate 123",
-      accounts: [address, address, address],
-    },
-  });
-  const tx = {
-    from: address,
-    to: address,
-    value: "0x1",
-    gas: "0x5208",
-    data: "0xabcd",
-    chainId: "0x301825",
-  };
-  const approvals = [
-    ["qrl_requestAccounts", [], "connectAccount"],
-    ["qrl_sendTransaction", [tx], "sendTransaction"],
-    ["qrl_signTransaction", [tx], "signTransaction"],
-    ["qrl_signMessage", [address, "0x68656c6c6f"], "signMessage"],
-    ["qrl_signTypedData", [address, typed()], "signTypedData"],
-    [
-      "wallet_addQrlChain",
-      [{ chainId: "0x301825", chainName: "Example network" }],
-      "addNetwork",
-    ],
-    ["wallet_switchQrlChain", [{ chainId: "0x301825" }], "switchNetwork"],
-  ];
-  let id = 0;
-  const show = async (
-    method,
-    params,
-    metadata = {
-      name: "Example dApp",
-      url: "https://dapp.example",
-      chainId: "0x301825",
-    },
-  ) => {
-    await page.evaluate(
-      ({ method, params, id, metadata }) => {
-        const s = window.__APP_STORE__.dappConnectStore;
-        const approval = {
-          id,
-          method,
-          params,
-          sessionId: "language-fixture",
-          timestamp: Date.now(),
-          dappInfo: metadata,
-        };
-        s.resetTxProgress();
-        s.pendingRequests = [approval];
-        s.currentApproval = approval;
-        s.approvalModalOpen = true;
-      },
-      { method, params, id: ++id, metadata },
-    );
-    await page.getByRole("dialog").waitFor();
-  };
-  const approvalSnapshot = async (name, method) => {
-    await snapshot(name);
-    const identity = await assertApprovalIdentity(page, {
-      language: catalogs.code,
-      method,
-    });
-    console.log(
-      `approval-identity: ${JSON.stringify({ screen: name, ...identity })}`,
-    );
-  };
-  for (const [method, params, key] of approvals) {
-    await show(method, params);
-    await page.getByText(c[key], { exact: true }).waitFor();
-    if (method.includes("Transaction"))
-      await page
-        .getByText(embedded ? c.feeUnavailable : c.maxFee, { exact: true })
-        .waitFor();
-    await approvalSnapshot(`approval-${method}`, method);
-    if (method === "qrl_signTypedData") {
-      await page.getByText("challengeText", { exact: true }).waitFor();
-      assert.ok(
-        (await page.getByRole("dialog").innerText()).includes(
-          '"Authenticate 123"',
-        ),
-      );
-      const region = page.getByRole("region", { name: c.requestDetails });
-      await region.evaluate((element) => {
-        element.scrollTop = element.scrollHeight;
-      });
-      await approvalSnapshot("approval-typed-bottom", method);
-      await page.getByText(c.fullPayload, { exact: true }).click();
-      assert.ok(
-        (await page.locator("pre").innerText()).includes(
-          '"challengeText": "Authenticate 123"',
-        ),
-      );
-      if (full) await approvalSnapshot("approval-typed-canonical", method);
-    }
-    if (full && method === "qrl_signMessage") {
-      await page.getByRole("button", { name: c.approve, exact: true }).click();
-      await page.getByText(c.pinRequired, { exact: true }).waitFor();
-      await approvalSnapshot("approval-pin-error", method);
-    }
-    await clear();
-  }
-  for (const { name, metadata } of approvalMetadataCases) {
-    for (const [method, params, key] of approvals) {
-      await show(method, params, metadata);
-      await page.getByText(c[key], { exact: true }).waitFor();
-      if (method.includes("Transaction"))
-        await page
-          .getByText(embedded ? c.feeUnavailable : c.maxFee, { exact: true })
-          .waitFor();
-      await snapshot(`approval-${name}-${method}`);
-      const bounds = await assertApprovalBounds(page, {
-        language: catalogs.code,
-        method,
-        metadata,
-        approve: c.approve,
-      });
-      console.log(
-        `approval-bounds: ${JSON.stringify({ fixture: name, ...bounds })}`,
-      );
-      await clear();
-    }
-  }
-  if (full) {
-    for (const [name, method, params] of [
-      ["binary", "qrl_signMessage", [address, "0xff00e280ae"]],
-      ["no-chain", "qrl_signTypedData", [address, typed(false)]],
-      ["invalid-message", "qrl_signMessage", [address, "invalid"]],
-      ["invalid-typed", "qrl_signTypedData", [address, {}]],
-    ]) {
-      await show(method, params);
-      await approvalSnapshot(`approval-${name}`, method);
-      await clear();
-    }
-    for (const progress of [
-      "signing",
-      "broadcasting",
-      "confirming",
-      "confirmed",
-      "failed",
-      "unknown",
-    ]) {
-      await show("qrl_sendTransaction", [tx]);
-      await page.evaluate((progress) => {
-        window.__APP_STORE__.dappConnectStore.setTxProgress(
-          progress,
-          `0x${"ab".repeat(32)}`,
-          progress === "unknown"
-            ? "Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again."
-            : "Insufficient funds for this transaction.",
-        );
-      }, progress);
-      await approvalSnapshot(`approval-${progress}`, "qrl_sendTransaction");
       await clear();
     }
   }

@@ -1,11 +1,5 @@
-import { useTranslation } from "react-i18next";
-import { dappMessage, type DAppTranslator } from "@/i18n/dappMessage";
-import type { ParseKeys } from "i18next";
 import { logger } from "@/utils/log";
-import {
-  PinVerificationError,
-  verifyPinWithLimit,
-} from "@/utils/crypto/verifyPinWithLimit";
+import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
 import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
 import { unsignedQuantity } from "@/utils/transactionHistory";
@@ -15,14 +9,7 @@ import { formatUnits } from "@/utils/web3/units";
  * Single source of truth for all dApp request approvals.
  */
 
-import {
-  useState,
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useMemo,
-  useRef,
-} from "react";
+import { useState, useCallback, useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { toJS } from "mobx";
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
@@ -57,10 +44,12 @@ import {
 } from "./approvalFeeGate";
 import StorageUtil from "@/utils/storage/storage";
 import { getExplorerTxUrl, QRL_PROVIDER } from "@/config";
-import { IS_V3_PROFILE } from "@/config/runtimeProfile";
+import { IS_V3_PROFILE } from '@/config/runtimeProfile';
 import { formatQuantaValue } from "@/utils/formatting";
 import { QrlAddress } from "@/components/UI/QrlAddress";
-import { waitForTransactionReceipt } from "@/utils/web3/txPolling";
+import {
+  waitForTransactionReceipt,
+} from "@/utils/web3/txPolling";
 import {
   bytesToHex,
   computeMessageDigest,
@@ -88,10 +77,7 @@ import {
   canonicalChainId,
   readWalletChainId,
 } from "@/services/dappConnect/rpcProvider";
-import {
-  getDAppReceiptStatus,
-  waitForDAppBroadcastSettlement,
-} from "./dappBroadcastSettlement";
+import { getDAppReceiptStatus, waitForDAppBroadcastSettlement } from "./dappBroadcastSettlement";
 import {
   walletMutations,
   type WalletMutationToken,
@@ -109,7 +95,7 @@ import {
   requestedGasLimit,
 } from "./dappTransaction";
 
-function formatZodIssues(error: ZodError, t?: DAppTranslator): string {
+function formatZodIssues(error: ZodError): string {
   // path segments can be symbols (e.g. a MobX admin key surfaced by zod's
   // record key check); String() coerces them safely whereas Array.join would
   // throw "Cannot convert a Symbol value to a string" and crash the render.
@@ -117,23 +103,20 @@ function formatZodIssues(error: ZodError, t?: DAppTranslator): string {
     error.issues
       .map(
         (i) =>
-          `${i.path.length ? i.path.map(String).join(".") : t ? t("dapps:schemaRoot") : "(root)"}: ${t ? dappMessage(i.message, t) : i.message}`,
+          `${i.path.length ? i.path.map(String).join(".") : "(root)"}: ${i.message}`,
       )
-      .join("; ") || (t ? t("dapps:schemaMalformed") : "malformed params")
+      .join("; ") || "malformed params"
   );
 }
 
-const METHOD_LABELS: Record<
-  string,
-  ParseKeys<["dapps", "common", "settings", "transfer"]>
-> = {
-  qrl_requestAccounts: "dapps:connectAccount",
-  qrl_sendTransaction: "dapps:sendTransaction",
-  qrl_signTransaction: "dapps:signTransaction",
-  qrl_signMessage: "dapps:signMessage",
-  qrl_signTypedData: "dapps:signTypedData",
-  wallet_addQrlChain: "dapps:addNetwork",
-  wallet_switchQrlChain: "dapps:switchNetwork",
+const METHOD_LABELS: Record<string, string> = {
+  qrl_requestAccounts: "Connect Account",
+  qrl_sendTransaction: "Send Transaction",
+  qrl_signTransaction: "Sign Transaction",
+  qrl_signMessage: "Sign Message",
+  qrl_signTypedData: "Sign Typed Data",
+  wallet_addQrlChain: "Add Network",
+  wallet_switchQrlChain: "Switch Network",
 };
 
 const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
@@ -141,26 +124,13 @@ const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
 const DAPP_FEE_LEVEL: FeeLevel = "medium";
 
 /** The first request parameter as a record, or an empty record when it is absent or malformed. */
-function firstParamRecord(
-  params: unknown[] | undefined,
-): Record<string, unknown> {
+function firstParamRecord(params: unknown[] | undefined): Record<string, unknown> {
   const first = params?.[0];
   return isRecord(first) ? first : {};
 }
 
 function optionalString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
-}
-
-function reviewHasScrolled(review: HTMLDivElement | null): boolean {
-  return (
-    review !== null &&
-    [review, ...review.querySelectorAll("*")].some(
-      (element) =>
-        !element.closest("details:not([open])") &&
-        (element.scrollTop > 0 || Math.abs(element.scrollLeft) > 0),
-    )
-  );
 }
 
 /**
@@ -192,6 +162,7 @@ async function resolveDAppGasLimit(
 function formatMaxNetworkFee(gasLimit: number, maxFeePerGas: bigint): string {
   return formatQuantaValue(BigInt(gasLimit) * maxFeePerGas);
 }
+
 
 function toUserFacingError(error: string): string {
   const msg = error.toLowerCase();
@@ -264,7 +235,6 @@ function assertSigningGenerationCurrent(token: WalletMutationToken): void {
 }
 
 const DAppApprovalModalContent = observer(() => {
-  const { t } = useTranslation(["dapps", "common", "settings", "transfer"]);
   const { dappConnectStore, qrlStore } = useStore();
   const { currentApproval, approvalModalOpen, txProgress, txHash, txError } =
     dappConnectStore;
@@ -283,34 +253,11 @@ const DAppApprovalModalContent = observer(() => {
   /** Bumped by the retry button to re-run a failed preview. */
   const [feePreviewAttempt, setFeePreviewAttempt] = useState(0);
   const [pin, setPin] = useState("");
-  const [error, setError] = useState<
-    | string
-    | {
-        key: "dapps:invalidMessageParams" | "dapps:invalidTypedParams";
-        issues: ZodError;
-      }
-    | null
-  >(null);
+  const [error, setError] = useState<string | null>(null);
   const [signingFailure, setSigningFailure] = useState<ReturnType<
     typeof desktopSigningError
   > | null>(null);
   const [loading, setLoading] = useState(false);
-  const reviewRef = useRef<HTMLDivElement>(null);
-  const [reviewAtStart, setReviewAtStart] = useState(true);
-  const bindReviewRef = useCallback((review: HTMLDivElement | null) => {
-    reviewRef.current = review;
-    if (!review) return;
-    // A closed disclosure retains its scroll offset. Recheck when it toggles.
-    const updateReviewPosition = () => {
-      setReviewAtStart(!reviewHasScrolled(review));
-    };
-    review.addEventListener("toggle", updateReviewPosition, true);
-    updateReviewPosition();
-    return () => {
-      review.removeEventListener("toggle", updateReviewPosition, true);
-      reviewRef.current = null;
-    };
-  }, []);
   // Device Login can finish while this dialog is open; the PIN field must
   // follow the injected PIN as it arrives or is cleared.
   const hasNativePin = useHasNativeInjectedPin();
@@ -325,6 +272,7 @@ const DAppApprovalModalContent = observer(() => {
    * would start two signs and two broadcasts.
    */
   const approveInFlightRef = useRef(false);
+
 
   // When the current approval changes (a queued request gets promoted after
   // the previous one is answered), briefly ignore dismissals: a double-click
@@ -349,8 +297,6 @@ const DAppApprovalModalContent = observer(() => {
 
   const handleApprove = useCallback(async () => {
     if (!currentApproval) return;
-    // Enter in the PIN field follows the same visibility rule as Approve.
-    if (reviewHasScrolled(reviewRef.current)) return;
     // Synchronous, because `loading` is React state and does not update until
     // the next render: a second Enter in the same tick would otherwise start a
     // second sign and broadcast, and pay twice.
@@ -405,34 +351,19 @@ const DAppApprovalModalContent = observer(() => {
     //
     // Confirmation stays in the wallet as progress, which is a local concern.
     const dAppRequest = createDAppRequestAnswer({
-      approve: (result) => {
-        dappConnectStore.sendApprovalResultById(
-          approvalSessionId,
-          approvalId,
-          result,
-        );
-      },
-      reject: (message) => {
-        dappConnectStore.sendRejectionResultById(
-          approvalSessionId,
-          approvalId,
-          message,
-        );
-      },
+      approve: (result) =>
+        { dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, result); },
+      reject: (message) =>
+        { dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, message); },
     });
-    let broadcastDetails:
-      | Omit<Parameters<typeof transactionHistoryStore.record>[0], "hash">
-      | undefined;
+    let broadcastDetails: Omit<Parameters<typeof transactionHistoryStore.record>[0], "hash"> | undefined;
     const answerDApp = (hash: string): void => {
-      if (broadcastDetails)
-        transactionHistoryStore.record({ ...broadcastDetails, hash });
+      if (broadcastDetails) transactionHistoryStore.record({ ...broadcastDetails, hash });
       dAppRequest.answer(hash);
     };
     // Never after an answer: the dApp holds a hash for a transaction that is
     // on its way, and a later revert is something it observes on chain.
-    const rejectDApp = (message: string): void => {
-      dAppRequest.reject(message);
-    };
+    const rejectDApp = (message: string): void => { dAppRequest.reject(message); };
 
     const reportUnknownTransaction = (hash: string, message: string) => {
       setCurrentTxProgress("unknown", hash, message);
@@ -471,12 +402,7 @@ const DAppApprovalModalContent = observer(() => {
         );
         if (outcome.status !== "receipt") return;
         if (broadcastDetails) {
-          transactionHistoryStore.settle(
-            broadcastDetails.blockchain,
-            broadcastDetails.from,
-            hash,
-            outcome.receipt,
-          );
+          transactionHistoryStore.settle(broadcastDetails.blockchain, broadcastDetails.from, hash, outcome.receipt);
         }
         const succeeded = getDAppReceiptStatus(outcome.receipt, hash);
         if (succeeded === undefined) return;
@@ -572,10 +498,7 @@ const DAppApprovalModalContent = observer(() => {
             return;
           }
         } catch (error) {
-          logger.warn(
-            "[DAppConnect] Could not verify the requested network:",
-            error,
-          );
+          logger.warn("[DAppConnect] Could not verify the requested network:", error);
           dappConnectStore.rejectRequestById(
             approvalSessionId,
             approvalId,
@@ -620,13 +543,8 @@ const DAppApprovalModalContent = observer(() => {
           firstParamRecord(params),
           qrlStore.qrlInstance,
         );
-        if (
-          !isStillCurrent() ||
-          qrlStore.activeAccount.accountAddress !== activeAddress
-        ) {
-          throw new Error(
-            "Wallet changed while verifying the transaction chain",
-          );
+        if (!isStillCurrent() || qrlStore.activeAccount.accountAddress !== activeAddress) {
+          throw new Error("Wallet changed while verifying the transaction chain");
         }
 
         const historyParams = firstParamRecord(params);
@@ -634,10 +552,7 @@ const DAppApprovalModalContent = observer(() => {
         const historyTo = historyParams["to"] ?? "";
         if (historyValue !== null && typeof historyTo === "string") {
           broadcastDetails = {
-            blockchain,
-            from: activeAddress,
-            to: historyTo,
-            amount: formatUnits(historyValue),
+            blockchain, from: activeAddress, to: historyTo, amount: formatUnits(historyValue),
           };
         }
 
@@ -688,10 +603,7 @@ const DAppApprovalModalContent = observer(() => {
 
             const web3ForReceipt = qrlStore.qrlInstance;
             if (!web3ForReceipt) {
-              reportUnknownTransaction(
-                transactionHash,
-                "Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again.",
-              );
+              reportUnknownTransaction(transactionHash, "Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again.");
               return;
             }
 
@@ -701,22 +613,12 @@ const DAppApprovalModalContent = observer(() => {
             );
 
             if (outcome.status === "receipt") {
-              transactionHistoryStore.settle(
-                blockchain,
-                activeAddress,
-                transactionHash,
-                outcome.receipt,
-              );
+              transactionHistoryStore.settle(blockchain, activeAddress, transactionHash, outcome.receipt);
             }
-            const succeeded =
-              outcome.status === "receipt"
-                ? getDAppReceiptStatus(outcome.receipt, transactionHash)
-                : undefined;
+            const succeeded = outcome.status === "receipt"
+              ? getDAppReceiptStatus(outcome.receipt, transactionHash) : undefined;
             if (succeeded === undefined) {
-              reportUnknownTransaction(
-                transactionHash,
-                "Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again.",
-              );
+              reportUnknownTransaction(transactionHash, "Transaction was broadcast, but confirmation is unavailable. Check the explorer before sending again.");
               return;
             }
             if (succeeded) {
@@ -864,15 +766,9 @@ const DAppApprovalModalContent = observer(() => {
         if (IS_V3_PROFILE) await qrlStore.assertNetworkReady(web3);
         await assertRequestedTransactionChain(txParams, web3);
         assertSigningGenerationCurrent(signingGeneration);
-        const signedTx = await web3.accounts.signTransaction(
-          {
-            ...txObject,
-            ...(IS_V3_PROFILE
-              ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId }
-              : {}),
-          },
-          hexSeed,
-        );
+        const signedTx = await web3.accounts.signTransaction({ ...txObject,
+          ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+        }, hexSeed);
         assertSigningGenerationCurrent(signingGeneration);
 
         if (!signedTx.rawTransaction) {
@@ -924,40 +820,40 @@ const DAppApprovalModalContent = observer(() => {
         await waitForDAppBroadcastSettlement(
           promiEvent,
           {
-            onUnknown: reportUnknownTransaction,
-            onTransactionHash: (hash) => {
-              // The node accepted the broadcast, so the dApp gets its hash now.
-              // Everything below this point is the wallet's own progress UI.
-              setCurrentTxProgress("confirming", hash);
-              answerDApp(hash);
-            },
-            onSuccess: (hash) => {
-              // Normally a no-op, because the hash already answered. It is the
-              // backstop for a missed or non-string transactionHash event,
-              // which would otherwise leave the request unanswered for good.
-              answerDApp(hash);
-              setCurrentTxProgress("confirmed", hash);
-              if (isStillCurrent()) {
-                setPin("");
-                setLoading(false);
-              }
-            },
-            onFailure: (txErrMsg) => {
-              // Log the raw node/broadcast reason (bridges to Metro as a
-              // [WebView] line; logger.error does not bridge) since
-              // toUserFacingError intentionally hides it from the UI.
-              logger.log("[DAppConnect] tx broadcast error:", txErrMsg);
-              const userError = toUserFacingError(txErrMsg);
-              setCurrentTxProgress("failed", undefined, userError);
-              // Only a broadcast that never produced a hash is a rejection. A
-              // revert after the node accepted the transaction is not: the dApp
-              // already holds the hash and observes the outcome on chain.
-              rejectDApp(`Transaction failed: ${userError}`);
-              if (isStillCurrent()) {
-                setPin("");
-                setLoading(false);
-              }
-            },
+          onUnknown: reportUnknownTransaction,
+          onTransactionHash: (hash) => {
+            // The node accepted the broadcast, so the dApp gets its hash now.
+            // Everything below this point is the wallet's own progress UI.
+            setCurrentTxProgress("confirming", hash);
+            answerDApp(hash);
+          },
+          onSuccess: (hash) => {
+            // Normally a no-op, because the hash already answered. It is the
+            // backstop for a missed or non-string transactionHash event,
+            // which would otherwise leave the request unanswered for good.
+            answerDApp(hash);
+            setCurrentTxProgress("confirmed", hash);
+            if (isStillCurrent()) {
+              setPin("");
+              setLoading(false);
+            }
+          },
+          onFailure: (txErrMsg) => {
+            // Log the raw node/broadcast reason (bridges to Metro as a
+            // [WebView] line; logger.error does not bridge) since
+            // toUserFacingError intentionally hides it from the UI.
+            logger.log("[DAppConnect] tx broadcast error:", txErrMsg);
+            const userError = toUserFacingError(txErrMsg);
+            setCurrentTxProgress("failed", undefined, userError);
+            // Only a broadcast that never produced a hash is a rejection. A
+            // revert after the node accepted the transaction is not: the dApp
+            // already holds the hash and observes the outcome on chain.
+            rejectDApp(`Transaction failed: ${userError}`);
+            if (isStillCurrent()) {
+              setPin("");
+              setLoading(false);
+            }
+          },
           },
           {
             // Derived from the signed bytes, so it is known before the
@@ -975,7 +871,9 @@ const DAppApprovalModalContent = observer(() => {
       if (method === "qrl_signMessage") {
         const parsed = SignMessageParamsSchema.safeParse(params);
         if (!parsed.success) {
-          setError({ key: "dapps:invalidMessageParams", issues: parsed.error });
+          setError(
+            `Invalid qrl_signMessage params: ${formatZodIssues(parsed.error)}`,
+          );
           setLoading(false);
           return;
         }
@@ -1076,7 +974,9 @@ const DAppApprovalModalContent = observer(() => {
       if (method === "qrl_signTypedData") {
         const parsed = SignTypedDataParamsSchema.safeParse(params);
         if (!parsed.success) {
-          setError({ key: "dapps:invalidTypedParams", issues: parsed.error });
+          setError(
+            `Invalid qrl_signTypedData params: ${formatZodIssues(parsed.error)}`,
+          );
           setLoading(false);
           return;
         }
@@ -1266,7 +1166,6 @@ const DAppApprovalModalContent = observer(() => {
         return {
           kind: "invalid" as const,
           reason: formatZodIssues(parsed.error),
-          issues: parsed.error,
         };
       }
       try {
@@ -1288,7 +1187,6 @@ const DAppApprovalModalContent = observer(() => {
         return {
           kind: "invalid" as const,
           reason: formatZodIssues(parsed.error),
-          issues: parsed.error,
         };
       }
       try {
@@ -1315,10 +1213,7 @@ const DAppApprovalModalContent = observer(() => {
         if (!cancelled) setConnectedChainId(chainId);
       },
       (error: unknown) => {
-        logger.warn(
-          "[DAppConnect] Could not read the wallet chain id for typed-data review:",
-          error,
-        );
+        logger.warn("[DAppConnect] Could not read the wallet chain id for typed-data review:", error);
       },
     );
     return () => {
@@ -1329,12 +1224,7 @@ const DAppApprovalModalContent = observer(() => {
   if (!currentApproval) return null;
 
   const { method, params, dappInfo } = currentApproval;
-  const errorText =
-    error !== null && typeof error !== "string"
-      ? t(error.key, { reason: formatZodIssues(error.issues, t) })
-      : dappMessage(formatDAppRequestError(error ?? "", method), t);
-  const methodKey = METHOD_LABELS[method];
-  const label = methodKey ? t(methodKey) : method;
+  const label = METHOD_LABELS[method] || method;
   const needsPin =
     method !== "qrl_requestAccounts" &&
     method !== "wallet_addQrlChain" &&
@@ -1349,13 +1239,12 @@ const DAppApprovalModalContent = observer(() => {
     handedBackToDApp:
       dappConnectStore.returnHandedBackSessionId === currentApproval.sessionId,
   });
-  const isTxTerminal =
-    txProgress === "confirmed" ||
-    txProgress === "failed" ||
-    txProgress === "unknown";
+  const isTxTerminal = txProgress === "confirmed" || txProgress === "failed" || txProgress === "unknown";
 
   // Transaction details for display during progress
-  const txParams = isTransaction ? firstParamRecord(params) : undefined;
+  const txParams = isTransaction
+    ? firstParamRecord(params)
+    : undefined;
   const txDisplayValue = formatQuantaValue(txParams?.["value"]);
 
   // Quote the fee for the transaction under review, so the approval screen can
@@ -1445,33 +1334,27 @@ const DAppApprovalModalContent = observer(() => {
     >
       {/* Outside clicks leave the decision pending. Escape and X reject it. */}
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0"
+        className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0"
         aria-describedby={undefined}
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          reviewRef.current?.focus({ preventScroll: true });
-        }}
-        onInteractOutside={(e) => {
-          e.preventDefault();
-        }}
+        onInteractOutside={(e) => { e.preventDefault(); }}
       >
         {/* dApp Identity Header */}
-        <div className="max-h-32 shrink-0 overflow-hidden bg-gradient-to-r from-primary/10 to-transparent p-4 pr-10">
-          <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
+        <div className="shrink-0 bg-gradient-to-r from-primary/10 to-transparent p-4 pr-10">
+          <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/10">
               <Globe className="h-5 w-5 text-secondary" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <DialogTitle className="truncate text-base font-semibold leading-normal text-foreground">
                 {dappInfo.name}
               </DialogTitle>
-              <p className="truncate text-xs text-muted-foreground" dir="ltr">
+              <p className="text-xs text-muted-foreground truncate">
                 {dappInfo.url}
               </p>
             </div>
-            <div className="col-start-2 flex w-fit max-w-full items-center gap-1 rounded-2xl bg-secondary/10 px-2 py-1">
-              <Shield className="h-3 w-3 shrink-0 text-secondary" />
-              <span className="min-w-0 break-words text-xs text-secondary font-medium">
+            <div className="flex items-center gap-1 rounded-full bg-secondary/10 px-2 py-1">
+              <Shield className="h-3 w-3 text-secondary" />
+              <span className="text-xs text-secondary font-medium">
                 {label}
               </span>
             </div>
@@ -1480,19 +1363,14 @@ const DAppApprovalModalContent = observer(() => {
 
         {/* Approval details and transaction progress */}
         <div
-          ref={bindReviewRef}
           role="region"
-          tabIndex={-1}
-          aria-label={t("dapps:requestDetails")}
-          className="min-h-0 space-y-4 overflow-y-auto overscroll-contain p-6 outline-none"
-          onScrollCapture={() => {
-            setReviewAtStart(!reviewHasScrolled(reviewRef.current));
-          }}
+          aria-label="Request details"
+          className="min-h-0 space-y-4 overflow-y-auto overscroll-contain p-6"
         >
           {/* Transaction progress states */}
           {signingFailure ? (
             <p role="alert" className="break-words text-sm text-destructive">
-              {errorText}
+              {formatDAppRequestError(error ?? "", method)}
             </p>
           ) : isTxInProgress ? (
             <div className="space-y-4">
@@ -1502,7 +1380,7 @@ const DAppApprovalModalContent = observer(() => {
                   <>
                     <Loader className="h-5 w-5 animate-spin text-primary" />
                     <span className="text-sm font-medium">
-                      {t("dapps:signing")}
+                      Signing transaction...
                     </span>
                   </>
                 )}
@@ -1510,7 +1388,7 @@ const DAppApprovalModalContent = observer(() => {
                   <>
                     <Loader className="h-5 w-5 animate-spin text-primary" />
                     <span className="text-sm font-medium">
-                      {t("dapps:broadcasting")}
+                      Broadcasting to network...
                     </span>
                   </>
                 )}
@@ -1518,7 +1396,7 @@ const DAppApprovalModalContent = observer(() => {
                   <>
                     <Loader className="h-5 w-5 animate-spin text-primary" />
                     <span className="text-sm font-medium">
-                      {t("dapps:confirming")}
+                      Awaiting confirmation...
                     </span>
                   </>
                 )}
@@ -1526,7 +1404,7 @@ const DAppApprovalModalContent = observer(() => {
                   <>
                     <Check className="h-5 w-5 text-success" />
                     <span className="text-sm font-medium text-success">
-                      {t("dapps:confirmed")}
+                      Transaction Confirmed
                     </span>
                   </>
                 )}
@@ -1534,13 +1412,13 @@ const DAppApprovalModalContent = observer(() => {
                   <>
                     <X className="h-5 w-5 text-destructive" />
                     <span className="text-sm font-medium text-destructive">
-                      {t("dapps:failed")}
+                      Transaction Failed
                     </span>
                   </>
                 )}
                 {txProgress === "unknown" && (
                   <span className="text-sm font-medium text-muted-foreground">
-                    {t("dapps:unknown")}
+                    Outcome unknown, check the explorer
                   </span>
                 )}
               </div>
@@ -1548,7 +1426,7 @@ const DAppApprovalModalContent = observer(() => {
               {/* Same-device iOS: nothing brings the browser forward there. */}
               {promptReturnToBrowser && (
                 <p className="text-sm text-muted-foreground">
-                  {t("dapps:returnBrowser")}
+                  Return to your browser to continue.
                 </p>
               )}
 
@@ -1560,8 +1438,7 @@ const DAppApprovalModalContent = observer(() => {
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
                 >
-                  {t("transfer:viewExplorer")}{" "}
-                  <ExternalLink className="h-4 w-4" />
+                  View on Explorer <ExternalLink className="h-4 w-4" />
                 </a>
               )}
 
@@ -1569,9 +1446,7 @@ const DAppApprovalModalContent = observer(() => {
               {txParams && (
                 <div className="rounded border bg-muted p-4 text-sm space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      {t("dapps:to")}
-                    </span>
+                    <span className="text-muted-foreground">To</span>
                     <QrlAddress
                       address={optionalString(txParams["to"]) || ""}
                       mode="full"
@@ -1580,39 +1455,26 @@ const DAppApprovalModalContent = observer(() => {
                     />
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      {t("dapps:value")}
-                    </span>
-                    <span className="font-numeric font-semibold">
-                      {txDisplayValue}
-                    </span>
+                    <span className="text-muted-foreground">Value</span>
+                    <span className="font-numeric font-semibold">{txDisplayValue}</span>
                   </div>
                 </div>
               )}
 
               {/* Error message for failed state */}
               {txProgress === "failed" && txError !== null && (
-                <p className="text-sm text-destructive break-all">
-                  {dappMessage(formatDAppRequestError(txError, method), t)}
-                </p>
+                <p className="text-sm text-destructive break-all">{formatDAppRequestError(txError, method)}</p>
               )}
               {txProgress === "unknown" && txError !== null && (
-                <p className="text-sm text-muted-foreground break-all">
-                  {dappMessage(
-                    txError.trim()
-                      ? txError
-                      : "Transaction status is unavailable.",
-                    t,
-                  )}
-                </p>
+                <p className="text-sm text-muted-foreground break-all">{txError.trim() ? txError : "Transaction status is unavailable."}</p>
               )}
             </div>
           ) : (
             /* Normal approval content (before tx progress starts) */
             <div className="space-y-4">
               {method === "qrl_requestAccounts" && (
-                <p className="min-h-10 text-sm text-muted-foreground">
-                  {t("dapps:accountAccess")}
+                <p className="text-sm text-muted-foreground">
+                  This dApp wants to view your account address.
                 </p>
               )}
 
@@ -1630,23 +1492,22 @@ const DAppApprovalModalContent = observer(() => {
               {isTransaction && feePreview?.status === "loading" && (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader className="h-4 w-4 animate-spin" />
-                  {t("dapps:checkingFee")}
+                  Checking the network fee...
                 </p>
               )}
 
               {isTransaction && feePreview?.status === "failed" && (
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm text-destructive">
-                    {t("dapps:feeUnavailable")}
+                    The network fee could not be checked, so this cannot be
+                    approved yet.
                   </p>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setFeePreviewAttempt((count) => count + 1);
-                    }}
+                    onClick={() => { setFeePreviewAttempt((count) => count + 1); }}
                   >
-                    {t("dapps:retry")}
+                    Retry
                   </Button>
                 </div>
               )}
@@ -1669,15 +1530,10 @@ const DAppApprovalModalContent = observer(() => {
               {signingPreview?.kind === "invalid" && (
                 <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
                   <p className="mb-1 font-medium text-destructive">
-                    {t("dapps:cannotDecode")}
+                    Cannot decode this request
                   </p>
                   <p className="text-xs text-muted-foreground break-all">
-                    {signingPreview.issues
-                      ? formatZodIssues(signingPreview.issues, t)
-                      : dappMessage(
-                          formatDAppRequestError(signingPreview.reason, method),
-                          t,
-                        )}
+                    {formatDAppRequestError(signingPreview.reason, method)}
                   </p>
                 </div>
               )}
@@ -1687,7 +1543,7 @@ const DAppApprovalModalContent = observer(() => {
               {needsPin && !hasNativePin && !isDesktop && (
                 <div>
                   <label className="mb-1 block text-sm font-medium">
-                    {t("dapps:pinToSign")}
+                    Enter PIN to sign
                   </label>
                   <input
                     type="password"
@@ -1705,15 +1561,14 @@ const DAppApprovalModalContent = observer(() => {
                         void handleApprove();
                       }
                     }}
-                    placeholder={t("dapps:enterPin")}
+                    placeholder="Enter PIN"
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    autoFocus
                   />
                 </div>
               )}
 
-              {error !== null && (
-                <p className="text-sm text-destructive">{errorText}</p>
-              )}
+              {error !== null && <p className="text-sm text-destructive">{formatDAppRequestError(error, method)}</p>}
             </div>
           )}
         </div>
@@ -1722,15 +1577,15 @@ const DAppApprovalModalContent = observer(() => {
         <div className="shrink-0 border-t border-border px-4 py-4">
           {signingFailure ? (
             <Button onClick={handleReject} className="w-full">
-              {t("common:close")}
+              Close
             </Button>
           ) : isTxTerminal ? (
             <Button onClick={handleDone} className="w-full">
-              {t(txProgress === "confirmed" ? "transfer:done" : "common:close")}
+              {txProgress === "confirmed" ? "Done" : "Close"}
             </Button>
           ) : isTxInProgress ? (
             <p className="text-center text-xs text-muted-foreground">
-              {t("dapps:processingTransaction")}
+              Please wait while the transaction is being processed...
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-4">
@@ -1739,10 +1594,9 @@ const DAppApprovalModalContent = observer(() => {
                 onClick={handleReject}
                 disabled={loading}
               >
-                {t("dapps:reject")}
+                Reject
               </Button>
               <Button
-                className={reviewAtStart ? undefined : "invisible"}
                 onClick={() => {
                   void handleApprove();
                 }}
@@ -1750,9 +1604,13 @@ const DAppApprovalModalContent = observer(() => {
                 // A transaction cannot be approved before its fee is on
                 // screen: approving while the quote is loading or failed is
                 // approving a cost the user was never shown.
-                title={feeApprovalPending ? t("dapps:waitingFee") : undefined}
+                title={
+                  feeApprovalPending
+                    ? "Waiting for the network fee"
+                    : undefined
+                }
               >
-                {t(loading ? "dapps:processing" : "dapps:approve")}
+                {loading ? "Processing..." : "Approve"}
               </Button>
             </div>
           )}
