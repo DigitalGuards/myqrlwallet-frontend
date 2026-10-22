@@ -1,15 +1,12 @@
-import { useTranslation } from "react-i18next";
+import { useBootNoticeTranslation } from "@/i18n/useBootNoticeTranslation";
 /**
  * Shown by the hosted build when it is opened inside an app version that
  * loaded qrlwallet.com over the network. Current app versions ship the wallet
  * inside the app, so the hosted page never has a native bridge to talk to.
  * See `isRetiredNativeApp`.
  */
-import { useLanguagePreference } from "@/i18n/useLanguagePreference";
-
 const RetiredAppNotice = () => {
-  useLanguagePreference();
-  const { t } = useTranslation("notices");
+  const t = useBootNoticeTranslation();
   return (
     <main className="p-8">
       <h1>{t("update")}</h1>

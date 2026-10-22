@@ -10,13 +10,7 @@ const phrase = wallet.getMnemonic();
 const fixtureAddress = toChecksumAddress(wallet.getAddressStr());
 wallet.zeroize();
 
-export async function slice3Screens({
-  page,
-  origin,
-  catalogs,
-  snapshot,
-  full,
-}) {
+export async function slice3Screens({ page, origin, catalogs, snapshot }) {
   const c = catalogs.onboarding;
   const go = async (path) => {
     await page.evaluate((path) => {
@@ -56,53 +50,48 @@ export async function slice3Screens({
   await page.getByPlaceholder(c.password, { exact: true }).fill("short");
   await page.getByText(c.passwordMin, { exact: true }).waitFor();
   await snapshot("create-password-error");
-  if (full) {
-    await page.getByPlaceholder(c.password, { exact: true }).fill("Password1!");
-    await page
-      .getByPlaceholder(c.passwordRepeat, { exact: true })
-      .fill("Password1!");
-    await fillPin("123456");
-    await fillPin("654321", 1);
-    await page.getByText(c.pinMismatch, { exact: true }).waitFor();
-    await snapshot("create-pin-error");
-    await fillPin("123456", 1);
-    await page.evaluate(
-      ({ hexSeed, fixtureAddress }) => {
-        window.__APP_STORE__.qrlStore.qrlInstance.accounts.create = () => ({
-          address: fixtureAddress,
-          seed: hexSeed,
-        });
-      },
-      { hexSeed, fixtureAddress },
-    );
-    await click(c.create);
-    await page
-      .getByRole("heading", { name: c.recoveryTitle, exact: true })
-      .waitFor();
-    await page
-      .getByText(phrase.split(" ")[0], { exact: true })
-      .first()
-      .waitFor();
-    await snapshot("recovery-phrase");
-    await page
-      .getByRole("button", { name: c.downloadUnencrypted, exact: true })
-      .scrollIntoViewIfNeeded();
-    await snapshot("recovery-downloads");
-    await click(c.viewQr);
-    await snapshot("recovery-address-qr");
-    await click(catalogs.common.close);
-    await click(c.downloadUnencrypted);
-    await snapshot("recovery-unencrypted-warning");
-    await click(catalogs.common.cancel);
-    await click(c.done);
-    await snapshot("recovery-backup-confirmation");
-    await click(c.goBack);
-    // Every recovery word, its order, and the copied hex seed are data in all languages.
-    const words = await page
-      .locator(".font-data .text-foreground")
-      .allTextContents();
-    assert.equal(words.join(" "), phrase);
-  }
+  await page.getByPlaceholder(c.password, { exact: true }).fill("Password1!");
+  await page
+    .getByPlaceholder(c.passwordRepeat, { exact: true })
+    .fill("Password1!");
+  await fillPin("123456");
+  await fillPin("654321", 1);
+  await page.getByText(c.pinMismatch, { exact: true }).waitFor();
+  await snapshot("create-pin-error");
+  await fillPin("123456", 1);
+  await page.evaluate(
+    ({ hexSeed, fixtureAddress }) => {
+      window.__APP_STORE__.qrlStore.qrlInstance.accounts.create = () => ({
+        address: fixtureAddress,
+        seed: hexSeed,
+      });
+    },
+    { hexSeed, fixtureAddress },
+  );
+  await click(c.create);
+  await page
+    .getByRole("heading", { name: c.recoveryTitle, exact: true })
+    .waitFor();
+  await page.getByText(phrase.split(" ")[0], { exact: true }).first().waitFor();
+  await snapshot("recovery-phrase");
+  await page
+    .getByRole("button", { name: c.downloadUnencrypted, exact: true })
+    .scrollIntoViewIfNeeded();
+  await snapshot("recovery-downloads");
+  await click(c.viewQr);
+  await snapshot("recovery-address-qr");
+  await click(catalogs.common.close);
+  await click(c.downloadUnencrypted);
+  await snapshot("recovery-unencrypted-warning");
+  await click(catalogs.common.cancel);
+  await click(c.done);
+  await snapshot("recovery-backup-confirmation");
+  await click(c.goBack);
+  // Every recovery word, its order, and the copied hex seed are data in all languages.
+  const words = await page
+    .locator(".font-data .text-foreground")
+    .allTextContents();
+  assert.equal(words.join(" "), phrase);
   await cleanInventory();
   await go("/import-account");
   await snapshot("import-mnemonic");
@@ -118,46 +107,44 @@ export async function slice3Screens({
   });
   await page.getByText(c.fileInvalid, { exact: true }).waitFor();
   await snapshot("import-file-error");
-  if (full) {
-    const keystore = {
-      version: 1,
-      crypto: {
-        cipher: "aes-256-gcm",
-        cipherparams: { iv: "00".repeat(12) },
-        ciphertext: "00".repeat(67),
-        kdf: "argon2id",
-        kdfparams: { m: 300000, t: 2, p: 1, dklen: 32, salt: "00".repeat(16) },
-      },
-    };
-    await page.locator("#walletFile").setInputFiles({
-      name: "extension-backup.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(
-        JSON.stringify({
-          keystores: [keystore, { ...keystore, address: fixtureAddress }],
-        }),
-      ),
-    });
-    await page
-      .getByText(c.keystoreBounds.replace("{{number}}", "1"), { exact: true })
-      .waitFor();
-    await snapshot("import-file-kdf-bounds");
-    keystore.crypto.kdfparams.m = 4096;
-    await page.locator("#walletFile").setInputFiles({
-      name: "extension-backup.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(
-        JSON.stringify({
-          keystores: [keystore, { ...keystore, address: fixtureAddress }],
-        }),
-      ),
-    });
-    await page.getByText(c.extensionPassword, { exact: true }).waitFor();
-    await snapshot("import-file-accounts");
-    await page.getByRole("combobox").click();
-    await snapshot("import-file-account-picker");
-    await page.keyboard.press("Escape");
-  }
+  const keystore = {
+    version: 1,
+    crypto: {
+      cipher: "aes-256-gcm",
+      cipherparams: { iv: "00".repeat(12) },
+      ciphertext: "00".repeat(67),
+      kdf: "argon2id",
+      kdfparams: { m: 300000, t: 2, p: 1, dklen: 32, salt: "00".repeat(16) },
+    },
+  };
+  await page.locator("#walletFile").setInputFiles({
+    name: "extension-backup.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        keystores: [keystore, { ...keystore, address: fixtureAddress }],
+      }),
+    ),
+  });
+  await page
+    .getByText(c.keystoreBounds.replace("{{number}}", "1"), { exact: true })
+    .waitFor();
+  await snapshot("import-file-kdf-bounds");
+  keystore.crypto.kdfparams.m = 4096;
+  await page.locator("#walletFile").setInputFiles({
+    name: "extension-backup.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        keystores: [keystore, { ...keystore, address: fixtureAddress }],
+      }),
+    ),
+  });
+  await page.getByText(c.extensionPassword, { exact: true }).waitFor();
+  await snapshot("import-file-accounts");
+  await page.getByRole("combobox").click();
+  await snapshot("import-file-account-picker");
+  await page.keyboard.press("Escape");
   await page.getByRole("tab", { name: c.importHex, exact: true }).click();
   await snapshot("import-hex");
   await page
@@ -176,79 +163,75 @@ export async function slice3Screens({
   await fillPin("654321", 1);
   await page.getByText(c.pinMismatch, { exact: true }).waitFor();
   await snapshot("pin-setup-error");
-  if (full) {
-    await fillPin("123456", 1);
-    await click(c.setPin);
-    await page
-      .getByRole("heading", { name: c.imported, exact: true })
-      .waitFor();
-    await snapshot("import-success");
-    await go("/import-account");
-    await page
-      .getByPlaceholder(c.mnemonicPlaceholder, { exact: true })
-      .fill(phrase);
-    await click(c.importTitle);
-    await page
-      .getByRole("heading", { name: c.enterWalletPin, exact: true })
-      .waitFor();
-    await snapshot("pin-entry");
-    await fillPin("999999");
-    await click(c.importWallet);
-    await page
-      .getByText(
-        (catalogs.code === "ru"
-          ? catalogs.settings.incorrectPin_few
-          : catalogs.settings.incorrectPin_other
-        ).replace("{{count}}", "4"),
-        { exact: true },
-      )
-      .waitFor();
-    await snapshot("pin-entry-error");
-    // A structurally valid, unauthenticatable device envelope exercises recovery.
-    await page.evaluate(
-      ({ fixtureAddress }) => {
-        const encryptedSeed = JSON.stringify({
-          version: "pin_v5",
-          deviceKeyVersion: "device_v1",
-          timestamp: 1,
-          iv: "00".repeat(12),
-          encryptedData: "00".repeat(32),
-        });
-        for (const network of ["TEST_NET", "TEST_NET_V3"])
-          localStorage.setItem(
-            `${network}_ENCRYPTED_SEEDS`,
-            JSON.stringify({
-              value: [
-                {
-                  address: fixtureAddress,
-                  encryptedSeed,
-                  lastAccessed: Date.now(),
-                },
-              ],
-              timestamp: Date.now(),
-              version: "v1",
-            }),
-          );
-      },
-      { fixtureAddress },
-    );
-    await go("/create-account");
-    await page.getByPlaceholder(c.password, { exact: true }).fill("Password1!");
-    await page
-      .getByPlaceholder(c.passwordRepeat, { exact: true })
-      .fill("Password1!");
-    await fillPin("123456");
-    await click(c.create);
-    await page.getByRole("alert", { name: c.recoveryLabel }).waitFor();
-    await page
-      .getByRole("alert", { name: c.recoveryLabel })
-      .scrollIntoViewIfNeeded();
-    await snapshot("pin-recovery");
-    await page
-      .getByRole("button", { name: c.create, exact: true })
-      .scrollIntoViewIfNeeded();
-    await snapshot("pin-recovery-bottom");
-  }
+  await fillPin("123456", 1);
+  await click(c.setPin);
+  await page.getByRole("heading", { name: c.imported, exact: true }).waitFor();
+  await snapshot("import-success");
+  await go("/import-account");
+  await page
+    .getByPlaceholder(c.mnemonicPlaceholder, { exact: true })
+    .fill(phrase);
+  await click(c.importTitle);
+  await page
+    .getByRole("heading", { name: c.enterWalletPin, exact: true })
+    .waitFor();
+  await snapshot("pin-entry");
+  await fillPin("999999");
+  await click(c.importWallet);
+  await page
+    .getByText(
+      (catalogs.code === "ru"
+        ? catalogs.settings.incorrectPin_few
+        : catalogs.settings.incorrectPin_other
+      ).replace("{{count}}", "4"),
+      { exact: true },
+    )
+    .waitFor();
+  await snapshot("pin-entry-error");
+  // A structurally valid, unauthenticatable device envelope exercises recovery.
+  await page.evaluate(
+    ({ fixtureAddress }) => {
+      const encryptedSeed = JSON.stringify({
+        version: "pin_v5",
+        deviceKeyVersion: "device_v1",
+        timestamp: 1,
+        iv: "00".repeat(12),
+        encryptedData: "00".repeat(32),
+      });
+      for (const network of ["TEST_NET", "TEST_NET_V3"])
+        localStorage.setItem(
+          `${network}_ENCRYPTED_SEEDS`,
+          JSON.stringify({
+            value: [
+              {
+                address: fixtureAddress,
+                encryptedSeed,
+                lastAccessed: Date.now(),
+              },
+            ],
+            timestamp: Date.now(),
+            version: "v1",
+          }),
+        );
+    },
+    { fixtureAddress },
+  );
+  await go("/create-account");
+  await page.getByPlaceholder(c.password, { exact: true }).fill("Password1!");
+  await page
+    .getByPlaceholder(c.passwordRepeat, { exact: true })
+    .fill("Password1!");
+  await fillPin("123456");
+  await click(c.create);
+  await page.getByRole("alert", { name: c.recoveryLabel }).waitFor();
+  await page
+    .getByRole("alert", { name: c.recoveryLabel })
+    .scrollIntoViewIfNeeded();
+  await snapshot("pin-recovery");
+  await page
+    .getByRole("button", { name: c.create, exact: true })
+    .scrollIntoViewIfNeeded();
+  await snapshot("pin-recovery-bottom");
   const legalPages = [
     "/terms",
     "/privacy",
@@ -256,9 +239,7 @@ export async function slice3Screens({
     "/disclaimer",
     "/legal",
   ];
-  for (const path of full
-    ? legalPages
-    : [legalPages[["de", "es", "ru", "zh-CN"].indexOf(catalogs.code)]]) {
+  for (const path of legalPages) {
     await go(path);
     const notice = page.getByText(catalogs.common.englishOnly, { exact: true });
     if (catalogs.code === "en") assert.equal(await notice.count(), 0);

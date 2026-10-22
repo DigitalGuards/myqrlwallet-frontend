@@ -6,6 +6,7 @@
 // so a dependency bump that type-checks and bundles but breaks at runtime
 // is rejected before it can auto-merge to main.
 import { chromium } from 'playwright';
+import { bootNoticeFailureProbes } from './boot-notice-probes.mjs';
 import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
@@ -95,7 +96,8 @@ try {
     if (issues.length > 0) fail(`PIN layout at ${viewport.width}px: ${issues.join(' | ')}`);
   }
   if (pageErrors.length > 0) fail(`uncaught page errors: ${pageErrors.join(' | ').slice(0, 500)}`);
-  console.log('smoke-boot: OK (home, create-account, PIN rows at 320x640 and 390x844)');
+  await bootNoticeFailureProbes({ browser, origin: ORIGIN });
+  console.log('smoke-boot: OK (home, create-account, PIN rows at 320x640 and 390x844, boot notices with translation 404s in all five languages)');
   await browser.close();
 } finally {
   stop();

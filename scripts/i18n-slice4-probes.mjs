@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertApprovalIdentity } from "./i18n-approval-identity.mjs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -159,19 +160,6 @@ export async function slice4Screens({
     ],
     ["wallet_switchQrlChain", [{ chainId: "0x301825" }], "switchNetwork"],
   ];
-  const selected = full
-    ? approvals
-    : approvals.filter(
-        ([, , key]) =>
-          key === "signTypedData" ||
-          key ===
-            ({
-              de: "sendTransaction",
-              es: "signMessage",
-              ru: "addNetwork",
-              "zh-CN": "switchNetwork",
-            }[catalogs.code] ?? "connectAccount"),
-      );
   let id = 0;
   const show = async (method, params) => {
     await page.evaluate(
@@ -198,14 +186,24 @@ export async function slice4Screens({
     );
     await page.getByRole("dialog").waitFor();
   };
-  for (const [method, params, key] of selected) {
+  const approvalSnapshot = async (name, method) => {
+    await snapshot(name);
+    const identity = await assertApprovalIdentity(page, {
+      language: catalogs.code,
+      method,
+    });
+    console.log(
+      `approval-identity: ${JSON.stringify({ screen: name, ...identity })}`,
+    );
+  };
+  for (const [method, params, key] of approvals) {
     await show(method, params);
     await page.getByText(c[key], { exact: true }).waitFor();
     if (method.includes("Transaction"))
       await page
         .getByText(embedded ? c.feeUnavailable : c.maxFee, { exact: true })
         .waitFor();
-    await snapshot(`approval-${method}`);
+    await approvalSnapshot(`approval-${method}`, method);
     if (method === "qrl_signTypedData") {
       await page.getByText("challengeText", { exact: true }).waitFor();
       assert.ok(
@@ -217,19 +215,19 @@ export async function slice4Screens({
       await region.evaluate((element) => {
         element.scrollTop = element.scrollHeight;
       });
-      await snapshot("approval-typed-bottom");
+      await approvalSnapshot("approval-typed-bottom", method);
       await page.getByText(c.fullPayload, { exact: true }).click();
       assert.ok(
         (await page.locator("pre").innerText()).includes(
           '"challengeText": "Authenticate 123"',
         ),
       );
-      if (full) await snapshot("approval-typed-canonical");
+      if (full) await approvalSnapshot("approval-typed-canonical", method);
     }
     if (full && method === "qrl_signMessage") {
       await page.getByRole("button", { name: c.approve, exact: true }).click();
       await page.getByText(c.pinRequired, { exact: true }).waitFor();
-      await snapshot("approval-pin-error");
+      await approvalSnapshot("approval-pin-error", method);
     }
     await clear();
   }
@@ -241,7 +239,7 @@ export async function slice4Screens({
       ["invalid-typed", "qrl_signTypedData", [address, {}]],
     ]) {
       await show(method, params);
-      await snapshot(`approval-${name}`);
+      await approvalSnapshot(`approval-${name}`, method);
       await clear();
     }
     for (const progress of [
@@ -262,7 +260,7 @@ export async function slice4Screens({
             : "Insufficient funds for this transaction.",
         );
       }, progress);
-      await snapshot(`approval-${progress}`);
+      await approvalSnapshot(`approval-${progress}`, "qrl_sendTransaction");
       await clear();
     }
   }
@@ -270,11 +268,9 @@ export async function slice4Screens({
 }
 
 /** Standalone boot errors render before the wallet store is constructed. */
-export async function slice4NoticeProbes({ browser, origin, output, full }) {
+export async function slice4NoticeProbes({ browser, origin, output }) {
   const results = [];
-  for (const language of full
-    ? ["en", "de", "es", "ru", "zh-CN"]
-    : ["en", "de"]) {
+  for (const language of ["en", "de", "es", "ru", "zh-CN"]) {
     const c = JSON.parse(
       await readFile(`src/locales/${language}/notices.json`, "utf8"),
     );

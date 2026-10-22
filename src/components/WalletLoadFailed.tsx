@@ -1,13 +1,10 @@
-import { useTranslation } from "react-i18next";
+import { useBootNoticeTranslation } from "@/i18n/useBootNoticeTranslation";
 /**
  * Rendered by main.tsx when the wallet code fails to load, so the visitor
  * sees what happened and how to recover.
  */
-import { useLanguagePreference } from "@/i18n/useLanguagePreference";
-
 const WalletLoadFailed = () => {
-  useLanguagePreference();
-  const { t } = useTranslation("notices");
+  const t = useBootNoticeTranslation();
   return (
     <main className="p-8">
       <h1>{t("loadFailed")}</h1>

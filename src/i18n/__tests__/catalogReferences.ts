@@ -34,6 +34,11 @@ export function catalogReferences(paths: string[]): Set<string> {
     const scanNamespaces = (node: ts.Node) => {
       if (
         ts.isCallExpression(node) &&
+        node.expression.getText(source) === "useBootNoticeTranslation"
+      )
+        namespaces.add("notices");
+      if (
+        ts.isCallExpression(node) &&
         ts.isIdentifier(node.expression) &&
         node.expression.text === "t"
       ) {

@@ -14,7 +14,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  lint-and-build:
+  lint-test-build:
     runs-on: ubuntu-latest
 
     permissions:
@@ -75,8 +75,52 @@ jobs:
       - name: Boot smoke (serve dist, render home and create-account)
         run: npm run smoke:boot
 
+  language-smoke:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [22.22.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run build
+        run: npm run build
+
+      - name: Install Chromium for the language smoke
+        run: npx playwright install --with-deps chromium
+
       - name: Language and phone layout smoke
         run: npm run smoke:i18n
+
+  # Preserve the existing required check, including its matrix context name.
+  # Both parallel jobs must succeed before auto-merge or Docker publication.
+  lint-and-build:
+    needs: [lint-test-build, language-smoke]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22.22.x]
+    steps:
+      - name: Require all CI checks
+        env:
+          CHECKS_RESULT: ${{ needs.lint-test-build.result }}
+          LANGUAGE_RESULT: ${{ needs.language-smoke.result }}
+        run: |
+          test "$CHECKS_RESULT" = success
+          test "$LANGUAGE_RESULT" = success
 
   docker:
     needs: lint-and-build

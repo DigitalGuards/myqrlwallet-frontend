@@ -8,7 +8,7 @@ const catalogKey =
   /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*/;
 
 /** Exercise real routes, including the shared navigation in unconverted pages. */
-export async function helperRouteProbes(browser, origin, { full = true } = {}) {
+export async function helperRouteProbes(browser, origin) {
   const routerSource = await readFile("src/router/router.tsx", "utf8");
   const routes = [...routerSource.matchAll(/^  (\w+): "(\/[^"]*)",$/gm)].map(
     ([, , path]) =>
@@ -18,7 +18,7 @@ export async function helperRouteProbes(browser, origin, { full = true } = {}) {
     routes.includes("/add-account") && routes.includes("/account-list"),
   );
   const records = [];
-  for (const width of full ? [390, 1280] : [360]) {
+  for (const width of [390, 1280]) {
     for (const active of [false, true]) {
       for (const path of active
         ? routes

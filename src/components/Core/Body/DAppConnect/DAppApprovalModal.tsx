@@ -1424,21 +1424,21 @@ const DAppApprovalModalContent = observer(() => {
       >
         {/* dApp Identity Header */}
         <div className="shrink-0 bg-gradient-to-r from-primary/10 to-transparent p-4 pr-10">
-          <div className="flex items-center gap-3">
+          <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/10">
               <Globe className="h-5 w-5 text-secondary" />
             </div>
-            <div className="min-w-0 flex-1">
-              <DialogTitle className="truncate text-base font-semibold leading-normal text-foreground">
+            <div className="min-w-0">
+              <DialogTitle className="break-words text-base font-semibold leading-normal text-foreground">
                 {dappInfo.name}
               </DialogTitle>
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="break-all text-xs text-muted-foreground">
                 {dappInfo.url}
               </p>
             </div>
-            <div className="flex items-center gap-1 rounded-full bg-secondary/10 px-2 py-1">
-              <Shield className="h-3 w-3 text-secondary" />
-              <span className="text-xs text-secondary font-medium">
+            <div className="col-start-2 flex w-fit max-w-full items-center gap-1 rounded-2xl bg-secondary/10 px-2 py-1">
+              <Shield className="h-3 w-3 shrink-0 text-secondary" />
+              <span className="min-w-0 break-words text-xs text-secondary font-medium">
                 {label}
               </span>
             </div>
