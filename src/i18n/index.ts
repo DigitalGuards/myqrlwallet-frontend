@@ -7,6 +7,7 @@ import type { Language } from "./languages";
 
 export const defaultNS = "common";
 export const namespaces = [
+  "onboarding",
   "common",
   "home",
   "settings",

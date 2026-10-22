@@ -10,12 +10,12 @@ const AccountCreateImport = withSuspense(
 );
 
 const AddAccount = observer(() => {
-  const { t } = useTranslation(["home", "common"]);
+  const { t } = useTranslation(["onboarding", "home", "common"]);
   return (
     <PageShell
-      title="Add accounts"
+      title={t("onboarding:addAccounts")}
       subtitle={t(accountSetupDescription())}
-      seoTitle="Add Account"
+      seoTitle={t("onboarding:addTitle")}
     >
       <div className="relative z-10">
         <AccountCreateImport showHeading={false} />

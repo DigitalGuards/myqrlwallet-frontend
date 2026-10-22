@@ -1,5 +1,10 @@
+import { onboardingError, onboardingMessage } from "@/i18n/onboardingMessage";
+import { useTranslation } from "react-i18next";
 import type { EncryptedSeedData } from "@/utils/storage/storage";
-import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
+import {
+  PinVerificationError,
+  verifyPinWithLimit,
+} from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardFooter } from "../../../UI/Card";
@@ -35,21 +40,18 @@ import { logger } from "@/utils/log";
 // Password must match the signer's policy; same regex the create form uses.
 const passwordValidation = z
   .string()
-  .min(8, "Password must be at least 8 characters")
-  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-  .regex(/\d/, "Password must contain at least one number")
-  .regex(
-    /[!@#$%^&*(),.?":{}|<>]/,
-    'Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)',
-  );
+  .min(8, "onboarding:passwordMin")
+  .regex(/[A-Z]/, "onboarding:passwordUpper")
+  .regex(/[a-z]/, "onboarding:passwordLower")
+  .regex(/\d/, "onboarding:passwordNumber")
+  .regex(/[!@#$%^&*(),.?":{}|<>]/, "onboarding:passwordSpecial");
 
 // Base PIN validation
 const pinValidation = z
   .string()
-  .min(4, "PIN must be at least 4 digits")
-  .max(6, "PIN must be at most 6 digits")
-  .regex(/^\d+$/, "PIN must contain only digits");
+  .min(4, "onboarding:pinMin")
+  .max(6, "onboarding:pinMax")
+  .regex(/^\d+$/, "onboarding:pinDigits");
 
 // Unified schema - reEnteredPin validation handled conditionally
 const FormSchema = z.object({
@@ -65,7 +67,7 @@ const createSchema = (requireConfirmation: boolean) => {
     return FormSchema.extend({
       reEnteredPin: pinValidation,
     }).refine((data) => data.pin === data.reEnteredPin, {
-      message: "PINs don't match",
+      message: "onboarding:pinMismatch",
       path: ["reEnteredPin"],
     });
   }
@@ -117,10 +119,10 @@ type DesktopPasswordValues = {
 const DesktopPasswordSchema = z
   .object({
     password: passwordValidation,
-    reEnteredPassword: z.string().min(1, "Please re-enter your password"),
+    reEnteredPassword: z.string().min(1, "onboarding:passwordRepeatRequired"),
   })
   .refine((data) => data.password === data.reEnteredPassword, {
-    message: "Passwords don't match",
+    message: "onboarding:passwordMismatch",
     path: ["reEnteredPassword"],
   });
 
@@ -133,6 +135,7 @@ const DesktopPasswordSetup = ({
   hexSeed?: string;
   onPinSetupComplete: (provisionedAddress?: string) => void | Promise<void>;
 }) => {
+  const { t } = useTranslation(["onboarding", "common", "settings"]);
   const [isProvisioning, setIsProvisioning] = useState(false);
   const form = useForm<DesktopPasswordValues>({
     resolver: zodResolver(DesktopPasswordSchema),
@@ -160,16 +163,19 @@ const DesktopPasswordSetup = ({
     } catch (error) {
       setIsProvisioning(false);
       setError("password", {
-        message: `${error instanceof Error ? error.message : String(error)} There was an error importing your wallet`,
+        message: onboardingError({
+          key: "onboarding:importFailed",
+          reason: error instanceof Error ? error.message : String(error),
+        }),
       });
     }
   }
 
   return (
     <PageShell
-      title="Set Wallet Password"
-      subtitle="This password unlocks your wallet on this device. The signer encrypts your seed with it; it never leaves your machine."
-      seoTitle="Import Account"
+      title={t("onboarding:setPassword")}
+      subtitle={t("onboarding:setPasswordHelp")}
+      seoTitle={t("onboarding:importTitle")}
     >
       <Form {...form}>
         <form
@@ -191,15 +197,18 @@ const DesktopPasswordSetup = ({
                       <Input
                         {...field}
                         disabled={isSubmitting || isProvisioning}
-                        placeholder="Password"
+                        placeholder={t("onboarding:password")}
                         type="password"
                       />
                     </FormControl>
                     <FormDescription>
-                      Must include uppercase, lowercase, number, and special
-                      character
+                      {t("onboarding:passwordRules")}
                     </FormDescription>
-                    <FormMessage />
+                    <FormMessage
+                      translateMessage={(message) =>
+                        onboardingMessage(message, t)
+                      }
+                    />
                   </FormItem>
                 )}
               />
@@ -212,12 +221,18 @@ const DesktopPasswordSetup = ({
                       <Input
                         {...field}
                         disabled={isSubmitting || isProvisioning}
-                        placeholder="Re-enter the password"
+                        placeholder={t("onboarding:passwordRepeat")}
                         type="password"
                       />
                     </FormControl>
-                    <FormDescription>Re-enter the password</FormDescription>
-                    <FormMessage />
+                    <FormDescription>
+                      {t("onboarding:passwordRepeat")}
+                    </FormDescription>
+                    <FormMessage
+                      translateMessage={(message) =>
+                        onboardingMessage(message, t)
+                      }
+                    />
                   </FormItem>
                 )}
               />
@@ -229,7 +244,9 @@ const DesktopPasswordSetup = ({
                 className="w-full"
                 type="submit"
               >
-                {isProvisioning ? "Importing..." : "Import Wallet"}
+                {isProvisioning
+                  ? t("onboarding:importing")
+                  : t("onboarding:importWallet")}
               </ShinyButton>
             </CardFooter>
           </Card>
@@ -245,6 +262,7 @@ const WebPinSetup = ({
   hexSeed,
   onPinSetupComplete,
 }: PinSetupProps) => {
+  const { t } = useTranslation(["onboarding", "common", "settings"]);
   const { qrlStore } = useStore();
   const { qrlConnection } = qrlStore;
   const { blockchain } = qrlConnection;
@@ -254,9 +272,7 @@ const WebPinSetup = ({
   const [hasExistingSeeds, setHasExistingSeeds] = useState<boolean | null>(
     null,
   );
-  const [existingSeeds, setExistingSeeds] = useState<
-    EncryptedSeedData[]
-  >([]);
+  const [existingSeeds, setExistingSeeds] = useState<EncryptedSeedData[]>([]);
 
   // Check for existing encrypted seeds on mount
   useEffect(() => {
@@ -321,11 +337,11 @@ const WebPinSetup = ({
             err instanceof PinVerificationError
               ? err.message
               : err instanceof CryptoOperationError &&
-                err.code === CryptoErrorCode.OUTDATED_FORMAT
-                ? "This wallet was saved in an older format and must be re-imported."
+                  err.code === CryptoErrorCode.OUTDATED_FORMAT
+                ? "onboarding:olderFormat"
                 : missingDeviceCredential
-                  ? "The device security credential is unavailable. Review the recovery steps below."
-                  : "Failed to unlock the seed. Please try again.";
+                  ? "onboarding:credentialUnavailable"
+                  : "onboarding:unlockFailed";
           setError("pin", { message });
           setIsStoringPin(false);
           return;
@@ -369,7 +385,10 @@ const WebPinSetup = ({
     } catch (error) {
       setIsStoringPin(false);
       setError("pin", {
-        message: `${String(error)} There was an error while setting up the PIN`,
+        message: onboardingError({
+          key: "onboarding:setupFailed",
+          reason: String(error),
+        }),
       });
     }
   }
@@ -377,7 +396,10 @@ const WebPinSetup = ({
   // Show loading state while checking for existing seeds
   if (hasExistingSeeds === null) {
     return (
-      <PageShell title="Secure your wallet" seoTitle="Import Account">
+      <PageShell
+        title={t("onboarding:secureWallet")}
+        seoTitle={t("onboarding:importTitle")}
+      >
         <Card>
           <CardContent className="flex items-center justify-center p-6">
             <Loader className="h-6 w-6 animate-spin" />
@@ -389,8 +411,12 @@ const WebPinSetup = ({
 
   return (
     <PageShell
-      title={hasExistingSeeds ? "Enter Your Wallet PIN" : "Set Transaction PIN"}
-      seoTitle="Import Account"
+      title={
+        hasExistingSeeds
+          ? t("onboarding:enterWalletPin")
+          : t("onboarding:setTransactionPin")
+      }
+      seoTitle={t("onboarding:importTitle")}
     >
       <Form {...form}>
         <form
@@ -406,8 +432,8 @@ const WebPinSetup = ({
               <div>
                 <p className="text-sm text-muted-foreground mb-4">
                   {hasExistingSeeds
-                    ? "Enter your existing PIN to add this wallet. All wallets use the same PIN for security."
-                    : "Set a PIN to approve transactions. Your seed phrase will be encrypted with this PIN and stored securely."}
+                    ? t("onboarding:existingPinHelp")
+                    : t("onboarding:setPinHelp")}
                 </p>
                 <div className="space-y-4">
                   <FormField
@@ -418,18 +444,21 @@ const WebPinSetup = ({
                         length={6}
                         placeholder={
                           hasExistingSeeds
-                            ? "Enter your existing PIN"
-                            : "Enter PIN (4-6 digits)"
+                            ? t("onboarding:enterExistingPin")
+                            : t("onboarding:enterPin")
                         }
                         value={field.value}
                         onChange={field.onChange}
                         disabled={isSubmitting || isStoringPin}
                         description={
                           hasExistingSeeds
-                            ? "Your existing wallet PIN"
-                            : "Enter a 4-6 digit PIN"
+                            ? t("onboarding:existingWalletPin")
+                            : t("onboarding:pinLengthHelp")
                         }
-                        error={form.formState.errors.pin?.message}
+                        error={onboardingMessage(
+                          form.formState.errors.pin?.message,
+                          t,
+                        )}
                         onComplete={() => reEnterPinRef.current?.focus()}
                       />
                     )}
@@ -442,12 +471,15 @@ const WebPinSetup = ({
                         <PinInput
                           ref={reEnterPinRef}
                           length={6}
-                          placeholder="Re-enter PIN"
+                          placeholder={t("onboarding:repeatPin")}
                           value={field.value ?? ""}
                           onChange={field.onChange}
                           disabled={isSubmitting || isStoringPin}
-                          description="Re-enter your PIN"
-                          error={form.formState.errors.reEnteredPin?.message}
+                          description={t("onboarding:repeatPinHelp")}
+                          error={onboardingMessage(
+                            form.formState.errors.reEnteredPin?.message,
+                            t,
+                          )}
                         />
                       )}
                     />
@@ -468,10 +500,10 @@ const WebPinSetup = ({
                 type="submit"
               >
                 {isStoringPin
-                  ? "Encrypting..."
+                  ? t("onboarding:encrypting")
                   : hasExistingSeeds
-                    ? "Import Wallet"
-                    : "Set PIN"}
+                    ? t("onboarding:importWallet")
+                    : t("onboarding:setPin")}
               </ShinyButton>
             </CardFooter>
           </Card>

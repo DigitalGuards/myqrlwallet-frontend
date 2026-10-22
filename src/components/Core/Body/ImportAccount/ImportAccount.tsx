@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ImportedAccount } from "./importedAccount";
 import { Card } from "@/components/UI/Card";
 import { PageShell } from "@/components/Core/Layout/PageShell";
@@ -20,6 +21,7 @@ import { isDesktop } from "@/desktop/bridge";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 
 const ImportAccount = observer(() => {
+  const { t } = useTranslation(["onboarding", "common", "settings"]);
   const { qrlStore } = useStore();
   const { qrlConnection } = qrlStore;
 
@@ -82,17 +84,17 @@ const ImportAccount = observer(() => {
   return (
     <>
       <SEO
-        title="Import Account"
-        description="Import your existing QRL account using a mnemonic phrase or encrypted wallet file. Securely access your quantum-resistant assets."
-        keywords="Import QRL Account, Restore Wallet, Mnemonic Recovery, Encrypted Wallet Import"
+        title={t("onboarding:importTitle")}
+        description={t("onboarding:importDescription")}
+        keywords={t("onboarding:importKeywords")}
       />
       <PageShell
-        title={isWalletLimitReached ? "Wallet Limit Reached" : "Import Account"}
-        subtitle={
+        title={
           isWalletLimitReached
-            ? undefined
-            : "Restore your wallet with a recovery phrase, encrypted wallet file, or hex seed."
+            ? t("onboarding:limitTitle")
+            : t("onboarding:importTitle")
         }
+        subtitle={isWalletLimitReached ? undefined : t("onboarding:importHelp")}
       >
         <div className="relative z-10">
           {isWalletLimitReached ? (
@@ -100,15 +102,16 @@ const ImportAccount = observer(() => {
               <AlertCircle className="h-12 w-12 text-destructive" />
               <div className="flex flex-col gap-2">
                 <p className="text-muted-foreground">
-                  You have reached the maximum limit of {maxWallets} wallets.
-                  Please remove an existing wallet before importing a new one.
+                  {t("onboarding:importLimit", { maxWallets })}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Current wallets: {walletCount} / {maxWallets}
+                  {t("onboarding:walletCount", { walletCount, maxWallets })}
                 </p>
               </div>
               <Link to={ROUTES.ACCOUNT_LIST}>
-                <Button variant="outline">Manage Wallets</Button>
+                <Button variant="outline">
+                  {t("onboarding:manageWallets")}
+                </Button>
               </Link>
             </Card>
           ) : (
@@ -118,7 +121,7 @@ const ImportAccount = observer(() => {
                   value="mnemonic"
                   className="w-full text-sm py-3 px-4 rounded-lg border border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.08] data-[state=active]:border-primary/50 data-[state=active]:bg-primary/10 data-[state=active]:text-primary transition-colors"
                 >
-                  Import with Mnemonic
+                  {t("onboarding:importMnemonic")}
                 </TabsTrigger>
                 {/* Encrypted-wallet-file restore and raw hex-seed import work
                       on desktop too: both forms recover the secret in-page
@@ -128,13 +131,13 @@ const ImportAccount = observer(() => {
                   value="encrypted"
                   className="w-full text-sm py-3 px-4 rounded-lg border border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.08] data-[state=active]:border-primary/50 data-[state=active]:bg-primary/10 data-[state=active]:text-primary transition-colors"
                 >
-                  Import Encrypted Wallet
+                  {t("onboarding:importEncrypted")}
                 </TabsTrigger>
                 <TabsTrigger
                   value="hexseed"
                   className="w-full text-sm py-3 px-4 rounded-lg border border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.08] data-[state=active]:border-primary/50 data-[state=active]:bg-primary/10 data-[state=active]:text-primary transition-colors"
                 >
-                  Import with Hex Seed
+                  {t("onboarding:importHex")}
                 </TabsTrigger>
               </TabsList>
               <TabsContent

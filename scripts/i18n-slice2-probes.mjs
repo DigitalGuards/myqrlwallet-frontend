@@ -7,6 +7,7 @@ export async function slice2Screens({
   catalogs,
   snapshot,
   address,
+  full = true,
 }) {
   const recipient = `Q${"2".repeat(128)}`;
   const hash = `0x${"a".repeat(64)}`;
@@ -23,6 +24,34 @@ export async function slice2Screens({
   };
   const click = (name) =>
     page.getByRole("button", { name, exact: true }).click();
+  if (!full) {
+    await go("/address-book");
+    await snapshot("contacts-empty");
+    await click(catalogs.contacts.add);
+    await snapshot("contacts-add");
+    await click(catalogs.common.cancel);
+    await go("/account-list");
+    await snapshot("accounts");
+    await page
+      .getByRole("button", { name: catalogs.accounts.showQr, exact: true })
+      .first()
+      .click();
+    await snapshot("accounts-qr");
+    await click(catalogs.common.close);
+    await go("/transfer");
+    await snapshot("transfer");
+    await page
+      .getByPlaceholder(catalogs.transfer.enterAmount, { exact: true })
+      .fill("0");
+    await page
+      .getByText(catalogs.transfer.positiveAmount, { exact: true })
+      .waitFor();
+    await snapshot("transfer-error");
+    await go("/tx-history");
+    await snapshot("history-full-empty");
+    await go("/settings");
+    return;
+  }
   await go("/address-book");
   await snapshot("contacts-empty");
   await click(catalogs.contacts.add);

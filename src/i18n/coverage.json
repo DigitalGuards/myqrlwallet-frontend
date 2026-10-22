@@ -17,5 +17,10 @@
   "src/components/Core/Body/TransactionHistory/",
   "src/components/Core/Body/AccountList/",
   "src/components/Core/Body/AddressBook/",
-  "src/components/Core/RecipientResolutionStatus.tsx"
+  "src/components/Core/RecipientResolutionStatus.tsx",
+  "src/components/Core/Body/CreateAccount/",
+  "src/components/Core/Body/ImportAccount/",
+  "src/components/Core/Body/PinSetup/",
+  "src/components/Core/Body/AddAccount/",
+  "src/components/Core/Layout/LegalLanguageNote.tsx"
 ]

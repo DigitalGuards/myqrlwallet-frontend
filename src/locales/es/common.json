@@ -43,5 +43,6 @@
   "testnetBadge": "RED DE PRUEBA",
   "mainnetFull": "QRL 2.0 Red principal",
   "testnetFull": "QRL 2.0 Red de prueba",
-  "testnetV3": "QRL Red de prueba v3 (Privada)"
+  "testnetV3": "QRL Red de prueba v3 (Privada)",
+  "englishOnly": "Esta página solo está disponible en inglés."
 }

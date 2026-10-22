@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { logger } from "@/utils/log";
 import { Button } from "../../../../UI/Button";
 import {
@@ -32,7 +33,7 @@ import { isDesktop } from "@/desktop/bridge";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 
 const MnemonicWordListing = withSuspense(
-  lazy(() => import("./MnemonicWordListing/MnemonicWordListing"))
+  lazy(() => import("./MnemonicWordListing/MnemonicWordListing")),
 );
 
 type MnemonicDisplayProps = {
@@ -49,12 +50,15 @@ const MnemonicDisplay = ({
   userPassword,
   desktopBackup,
 }: MnemonicDisplayProps) => {
+  const { t } = useTranslation(["onboarding", "common", "settings"]);
   const navigate = useNavigate();
   // On desktop the address + mnemonic come from the signer; the hex seed is
   // never available in the renderer.
   const accountAddress = isDesktop ? desktopBackup?.address : account?.address;
   const accountHexSeed = isDesktop ? undefined : account?.seed;
-  const mnemonic = isDesktop ? (desktopBackup?.mnemonic ?? "") : getMnemonicFromHexSeed(accountHexSeed);
+  const mnemonic = isDesktop
+    ? (desktopBackup?.mnemonic ?? "")
+    : getMnemonicFromHexSeed(accountHexSeed);
   const [hasJustCopiedSeed, setHasJustCopiedSeed] = useState(false);
   const [hasJustCopiedAddress, setHasJustCopiedAddress] = useState(false);
   const [hasJustCopiedMnemonic, setHasJustCopiedMnemonic] = useState(false);
@@ -109,10 +113,13 @@ const MnemonicDisplay = ({
       const extendedAccount = {
         ...account,
         mnemonic,
-        hexSeed: accountHexSeed
+        hexSeed: accountHexSeed,
       };
       try {
-        await WalletEncryptionUtil.downloadWallet(extendedAccount, userPassword);
+        await WalletEncryptionUtil.downloadWallet(
+          extendedAccount,
+          userPassword,
+        );
       } catch (error) {
         logger.error("Failed to download encrypted wallet:", error);
       }
@@ -124,7 +131,7 @@ const MnemonicDisplay = ({
       const extendedAccount = {
         ...account,
         mnemonic,
-        hexSeed: accountHexSeed
+        hexSeed: accountHexSeed,
       };
       try {
         await WalletEncryptionUtil.downloadWallet(extendedAccount);
@@ -134,9 +141,8 @@ const MnemonicDisplay = ({
     }
   };
 
-  const cardDescription = "Don't lose this recovery information. Download it right now. You may need this someday to import or recover your new account";
-  const continueWarning =
-    "You should only continue if you have downloaded the recovery information. If you haven't, go back, download, and then continue. There is no going back once you click the continue button.";
+  const cardDescription = t("onboarding:backupNow");
+  const continueWarning = t("onboarding:backupConfirm");
 
   return (
     <Card className="w-full">
@@ -161,20 +167,22 @@ const MnemonicDisplay = ({
               }}
             >
               <Copy className="mr-2 h-4 w-4" />
-              {hasJustCopiedAddress ? "Copied" : "Copy Address"}
+              {hasJustCopiedAddress
+                ? t("common:copied")
+                : t("onboarding:copyAddress")}
             </Button>
             <Dialog>
               <DialogTrigger asChild>
                 <Button type="button" variant="outline" size="sm">
                   <QrCode className="mr-2 h-4 w-4" />
-                  View QR
+                  {t("onboarding:viewQr")}
                 </Button>
               </DialogTrigger>
               <DialogContent className="w-fit rounded-md">
                 <DialogHeader className="text-left">
-                  <DialogTitle>Wallet Address QR Code</DialogTitle>
+                  <DialogTitle>{t("onboarding:addressQr")}</DialogTitle>
                   <DialogDescription>
-                    Scan this QR code to get the wallet address
+                    {t("onboarding:scanAddress")}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="flex justify-center p-4">
@@ -190,7 +198,7 @@ const MnemonicDisplay = ({
                 <DialogFooter>
                   <DialogClose asChild>
                     <Button type="button" variant="outline" className="w-full">
-                      Close
+                      {t("common:close")}
                     </Button>
                   </DialogClose>
                 </DialogFooter>
@@ -202,8 +210,12 @@ const MnemonicDisplay = ({
       <CardContent className="space-y-6">
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold">Mnemonic Phrases</h3>
-            <p className="text-sm text-muted-foreground">These words can be used to recover your account</p>
+            <h3 className="text-lg font-semibold">
+              {t("onboarding:mnemonicTitle")}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {t("onboarding:mnemonicHelp")}
+            </p>
             <MnemonicWordListing mnemonic={mnemonic} />
             <Button
               type="button"
@@ -216,15 +228,21 @@ const MnemonicDisplay = ({
               className="w-full mt-2"
             >
               <Copy className="mr-2 h-4 w-4" />
-              {hasJustCopiedMnemonic ? "Copied" : "Copy Mnemonic"}
+              {hasJustCopiedMnemonic
+                ? t("common:copied")
+                : t("onboarding:copyMnemonic")}
             </Button>
           </div>
           {/* Hex seed is web/native only: on desktop it never leaves the
               signer, so there is nothing to display or copy here. */}
           {!isDesktop && (
             <div>
-              <h3 className="text-lg font-semibold">Hex Seed</h3>
-              <p className="text-sm text-muted-foreground">Alternative method to recover your account</p>
+              <h3 className="text-lg font-semibold">
+                {t("onboarding:hexSeed")}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {t("onboarding:hexHelp")}
+              </p>
               <div className="mt-2 flex flex-col gap-2">
                 {accountHexSeed && <HexSeedListing hexSeed={accountHexSeed} />}
                 <Button
@@ -240,12 +258,12 @@ const MnemonicDisplay = ({
                   {hasJustCopiedSeed ? (
                     <>
                       <Copy className="mr-2 h-4 w-4" />
-                      Copied
+                      {t("common:copied")}
                     </>
                   ) : (
                     <>
                       <Copy className="mr-2 h-4 w-4" />
-                      Copy Hex Seed
+                      {t("onboarding:copyHex")}
                     </>
                   )}
                 </Button>
@@ -258,80 +276,84 @@ const MnemonicDisplay = ({
         {/* Wallet-file downloads require the hex seed, which the renderer does
             not have on desktop. Hidden there; the mnemonic above is the backup. */}
         {!isDesktop && (
-        <div className="flex flex-col sm:flex-row w-full gap-3">
-          <Button
-            className="w-full"
-            type="button"
-            variant="outline"
-            onClick={() => {
+          <div className="flex flex-col sm:flex-row w-full gap-3">
+            <Button
+              className="w-full"
+              type="button"
+              variant="outline"
+              onClick={() => {
                 onDownloadEncrypted().catch((error: unknown) => {
                   logger.error("Failed to download encrypted wallet:", error);
                 });
               }}
-          >
-            <HardDriveDownload className="mr-2 h-4 w-4" />
-            <span className="whitespace-nowrap">Download Encrypted Wallet File</span>
-          </Button>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="w-full" type="button" variant="outline">
-                <HardDriveDownload className="mr-2 h-4 w-4" />
-                <span className="whitespace-nowrap">Download Unencrypted Wallet File</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-80 rounded-md">
-              <DialogHeader className="text-left">
-                <DialogTitle>Warning!</DialogTitle>
-                <DialogDescription>
-                  You are about to download an unencrypted wallet file. This file will contain sensitive information and should never be shared. Are you sure you want to proceed?
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="flex flex-row gap-4">
-                <DialogClose asChild>
-                  <Button className="w-full" type="button" variant="outline">
-                    <Undo className="mr-2 h-4 w-4" />
-                    Cancel
-                  </Button>
-                </DialogClose>
-                <Button
-                  className="w-full"
-                  type="button"
-                  onClick={() => {
-                onDownloadUnencrypted().catch((error: unknown) => {
-                  logger.error("Failed to download wallet:", error);
-                });
-              }}
-                >
+            >
+              <HardDriveDownload className="mr-2 h-4 w-4" />
+              <span className="whitespace-nowrap">
+                {t("onboarding:downloadEncrypted")}
+              </span>
+            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="w-full" type="button" variant="outline">
                   <HardDriveDownload className="mr-2 h-4 w-4" />
-                  Download
+                  <span className="whitespace-nowrap">
+                    {t("onboarding:downloadUnencrypted")}
+                  </span>
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+              </DialogTrigger>
+              <DialogContent className="w-80 rounded-md">
+                <DialogHeader className="text-left">
+                  <DialogTitle>{t("onboarding:warning")}</DialogTitle>
+                  <DialogDescription>
+                    {t("onboarding:unencryptedWarning")}
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="flex flex-row gap-4">
+                  <DialogClose asChild>
+                    <Button className="w-full" type="button" variant="outline">
+                      <Undo className="mr-2 h-4 w-4" />
+                      {t("common:cancel")}
+                    </Button>
+                  </DialogClose>
+                  <Button
+                    className="w-full"
+                    type="button"
+                    onClick={() => {
+                      onDownloadUnencrypted().catch((error: unknown) => {
+                        logger.error("Failed to download wallet:", error);
+                      });
+                    }}
+                  >
+                    <HardDriveDownload className="mr-2 h-4 w-4" />
+                    {t("onboarding:download")}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         )}
         <Dialog>
           <DialogTrigger asChild>
             <Button className="w-full" type="button">
               <Check className="mr-2 h-4 w-4" />
-              Done
+              {t("onboarding:done")}
             </Button>
           </DialogTrigger>
           <DialogContent className="w-80 rounded-md">
             <DialogHeader className="text-left">
-              <DialogTitle>Warning!</DialogTitle>
+              <DialogTitle>{t("onboarding:warning")}</DialogTitle>
               <DialogDescription>{continueWarning}</DialogDescription>
             </DialogHeader>
             <DialogFooter className="flex flex-row gap-4">
               <DialogClose asChild>
                 <Button className="w-full" type="button" variant="outline">
                   <Undo className="mr-2 h-4 w-4" />
-                  Go Back
+                  {t("onboarding:goBack")}
                 </Button>
               </DialogClose>
               <Button className="w-full" type="button" onClick={onProceed}>
                 <Check className="mr-2 h-4 w-4" />
-                Done
+                {t("onboarding:done")}
               </Button>
             </DialogFooter>
           </DialogContent>
