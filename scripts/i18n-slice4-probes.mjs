@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { bannerVisibilityProbes } from "./i18n-banner-probes.mjs";
 
 const rawKey =
   /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*|{{/;
 
-/** Display-only session and consent fixtures. No pairing handshake. */
+/** Display-only session fixtures. No pairing handshake. */
 export async function slice4Screens({
   page,
   origin,
@@ -39,10 +40,8 @@ export async function slice4Screens({
   const clear = async () => {
     await page.evaluate(() => {
       const s = window.__APP_STORE__.dappConnectStore;
-      s.desktopConnectUri = null;
       s.activeSessions = [];
     });
-    await page.getByRole("dialog").waitFor({ state: "hidden" });
   };
   await go("/qr-view", catalogs.accounts.qrTitle);
   await snapshot("qr-view");
@@ -91,29 +90,7 @@ export async function slice4Screens({
     await snapshot(`dapp-session-${status}`);
   }
   await clear();
-  // The native app's QR scan supplies pairing consent; web and desktop use this dialog.
-  if (!embedded) {
-    for (const source of full ? ["paste", "link", "deeplink"] : ["link"]) {
-      await page.evaluate((source) => {
-        const s = window.__APP_STORE__.dappConnectStore;
-        s.desktopConnectUri = "qrlconnect://?q=display-fixture";
-        s.desktopConnectSource = source;
-      }, source);
-      await page
-        .getByRole("heading", { name: c.consentTitle, exact: true })
-        .waitFor();
-      await snapshot(`dapp-consent-${source}`);
-      if (full && source === "paste") {
-        // Invalid synthetic URI fails before a relay is contacted.
-        await page
-          .getByRole("button", { name: catalogs.settings.connect, exact: true })
-          .click();
-        await page.getByRole("alert").waitFor();
-        await snapshot("dapp-consent-error");
-      }
-      await clear();
-    }
-  }
+  if (full) await bannerVisibilityProbes({ page, snapshot, address });
   await go("/settings", catalogs.common.settings);
 }
 

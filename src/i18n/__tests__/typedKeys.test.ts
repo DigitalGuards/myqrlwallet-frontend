@@ -7,7 +7,7 @@ it("rejects missing and misspelled keys, including calls with a default value", 
     import { i18n } from './index';
     const t = i18n.getFixedT('en', 'home');
     t('activeAccount');
-    i18n.getFixedT('en', 'dapps')('consentWarning');
+    i18n.getFixedT('en', 'dapps')('sessionsSubtitle');
     i18n.getFixedT('en', 'telegram')('security');
     i18n.getFixedT('en', 'notices')('unsupportedV3');
     i18n.getFixedT('en', 'dapps')('missingApproval', { defaultValue: 'fallback' });

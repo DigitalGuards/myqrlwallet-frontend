@@ -1,16 +1,9 @@
 /** @jest-environment jsdom */
 // English oracle: run this harness unchanged on origin/dev at
 // 6b1e544c21d278a0aa8a8614828cc563b91f130f with TZ=UTC.
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import type { ComponentProps, ReactElement } from "react";
 import { HelmetProvider } from "react-helmet-async";
-import DAppConnectConsentModal from "@/components/Core/Body/DAppConnect/DAppConnectConsentModal";
 import DAppConnectionBanner from "@/components/Core/Body/DAppConnect/DAppConnectionBanner";
 import DAppSessionsPage from "@/components/Core/Body/DAppConnect/DAppSessionsPage";
 import QRView from "@/components/Core/Body/QRView/QRView";
@@ -31,10 +24,6 @@ const ADDRESS = `Q${"a".repeat(128)}`;
 let mockDesktop = false;
 let mockNative = false;
 let mockMobile = false;
-const mockConnect = jest.fn<
-  Promise<{ success: boolean; error?: string }>,
-  []
->();
 const mockFetch = jest.fn();
 const mockStore: {
   qrlStore: {
@@ -44,15 +33,11 @@ const mockStore: {
     qrlInstance: { requestManager: { send: () => Promise<string> } } | null;
   };
   dappConnectStore: {
-    desktopConnectUri: string | null;
-    desktopConnectSource: string;
     activeSessions: Pick<
       DAppSession,
       "id" | "status" | "dappInfo" | "createdAt" | "connectedAccount"
     >[];
     returnHandedBackSessionId: string | null;
-    confirmDesktopConnect: typeof mockConnect;
-    clearDesktopConnect: () => void;
     disconnectSession: () => void;
     disconnectAll: () => void;
   };
@@ -66,12 +51,8 @@ const mockStore: {
     },
   },
   dappConnectStore: {
-    desktopConnectUri: null,
-    desktopConnectSource: "paste",
     activeSessions: [],
     returnHandedBackSessionId: null,
-    confirmDesktopConnect: mockConnect,
-    clearDesktopConnect: () => undefined,
     disconnectSession: () => undefined,
     disconnectAll: () => undefined,
   },
@@ -91,10 +72,6 @@ jest.mock("react-router", () => ({
 jest.mock("@/services/dappConnect/DAppConnectService", () => ({
   DEFAULT_RELAY_URL: "https://relay.example",
   DAppConnectService: { isConnectionURI: () => false },
-}));
-jest.mock("@/services/dappConnect/qrUri", () => ({
-  parseConnectionURI: () =>
-    Promise.resolve({ relayUrl: "https://relay.example" }),
 }));
 jest.mock("@/desktop/bridge", () => ({
   ...jest.requireActual<typeof import("@/desktop/bridge")>("@/desktop/bridge"),
@@ -153,12 +130,6 @@ async function show(element: ReactElement) {
     await Promise.resolve();
   });
 }
-async function click(name: string) {
-  await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name }));
-    await Promise.resolve();
-  });
-}
 function snapshot() {
   const copy = document.body.cloneNode(true);
   if (!(copy instanceof HTMLElement)) throw new Error("Missing body");
@@ -180,6 +151,13 @@ function snapshot() {
   }).toMatchSnapshot();
 }
 beforeEach(async () => {
+  Object.defineProperty(globalThis, "ResizeObserver", {
+    configurable: true,
+    value: class {
+      observe() {}
+      disconnect() {}
+    },
+  });
   jest.clearAllMocks();
   mockDesktop = false;
   mockNative = false;
@@ -192,11 +170,9 @@ beforeEach(async () => {
     requestManager: { send: () => Promise.resolve("0x301825") },
   };
   Object.assign(mockStore.dappConnectStore, {
-    desktopConnectUri: null,
     activeSessions: [],
     returnHandedBackSessionId: null,
   });
-  mockConnect.mockResolvedValue({ success: false, error: "Connection failed" });
   mockFetch.mockReturnValue(new Promise(() => undefined));
   Object.defineProperty(globalThis, "fetch", {
     configurable: true,
@@ -210,43 +186,6 @@ afterEach(() => {
   document.title = "";
 });
 
-it.each(["paste", "link", "protocol"])("pairing consent %s", async (source) => {
-  mockStore.dappConnectStore.desktopConnectUri = "qrlconnect://?q=fixture";
-  mockStore.dappConnectStore.desktopConnectSource = source;
-  await show(<DAppConnectConsentModal />);
-  snapshot();
-  await click("Connect");
-  snapshot();
-});
-it.each([
-  "missing",
-  "hydrating",
-  "connecting",
-  "external-error",
-  "blank-error",
-])("pairing state %s", async (state) => {
-  mockStore.dappConnectStore.desktopConnectUri = "qrlconnect://?q=fixture";
-  mockStore.dappConnectStore.desktopConnectSource = "paste";
-  if (state === "missing" || state === "hydrating")
-    mockStore.qrlStore.activeAccount.accountAddress = "";
-  if (state === "hydrating") mockStore.qrlStore.qrlAccounts.isLoading = true;
-  if (state === "connecting")
-    mockConnect.mockReturnValue(new Promise(() => undefined));
-  if (state === "external-error")
-    mockConnect.mockResolvedValue({
-      success: false,
-      error: "External relay failure 123",
-    });
-  if (state === "blank-error")
-    mockConnect.mockResolvedValue({ success: false, error: " " });
-  await show(<DAppConnectConsentModal />);
-  if (!["missing", "hydrating"].includes(state))
-    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
-  await act(async () => {
-    await Promise.resolve();
-  });
-  snapshot();
-});
 it.each(Object.values(SessionStatus))(
   "session banner and list %s",
   async (status) => {

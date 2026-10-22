@@ -5,6 +5,7 @@ import { isPendingDAppInfo } from "@/services/dappConnect/dappMetadata";
  */
 
 import { useTranslation } from "react-i18next";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
 import { SessionStatus } from "@/services/dappConnect/types";
@@ -56,6 +57,44 @@ const DAppPulsingDot = ({ status }: { status: SessionStatus }) => {
   );
 };
 
+function BannerRow({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const row = ref.current;
+    if (!row) return;
+    const button = row.querySelector("button");
+    const info = row.firstElementChild;
+    if (!button || !info) return;
+    // Preserve the existing layout whenever its action fits the viewport,
+    // including rows whose text uses the trailing padding. Measure again on
+    // translation, metadata, font or viewport changes before allowing wrapping.
+    const measure = () => {
+      delete row.dataset["wrap"];
+      const bounds = button.getBoundingClientRect();
+      if (bounds.right > window.innerWidth || bounds.left < 0)
+        row.dataset["wrap"] = "true";
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    observer.observe(info);
+    observer.observe(button);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [children]);
+  return (
+    <div
+      ref={ref}
+      className="group/banner flex items-center justify-between rounded-md bg-muted/50 px-3 py-1.5 text-xs"
+    >
+      {children}
+    </div>
+  );
+}
+
 const DAppConnectionBanner = observer(() => {
   const { t } = useTranslation("settings");
   const { dappConnectStore } = useStore();
@@ -74,13 +113,10 @@ const DAppConnectionBanner = observer(() => {
         }
       `}</style>
       {activeSessions.map((session) => (
-        <div
-          key={session.id}
-          className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-1.5 text-xs"
-        >
-          <div className="flex items-center gap-2">
+        <BannerRow key={session.id}>
+          <div className="flex items-center gap-2 group-data-[wrap=true]/banner:min-w-0 group-data-[wrap=true]/banner:flex-wrap group-data-[wrap=true]/banner:gap-y-1">
             <DAppPulsingDot status={session.status} />
-            <span className="font-medium">
+            <span className="font-medium group-data-[wrap=true]/banner:min-w-0 group-data-[wrap=true]/banner:break-all">
               {!session.originatorInfoReceived &&
               isPendingDAppInfo(session.dappInfo)
                 ? t("connecting")
@@ -94,11 +130,11 @@ const DAppConnectionBanner = observer(() => {
             onClick={() => {
               dappConnectStore.disconnectSession(session.id);
             }}
-            className="text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-destructive group-data-[wrap=true]/banner:shrink-0"
           >
             {t("disconnect")}
           </button>
-        </div>
+        </BannerRow>
       ))}
     </div>
   );
