@@ -62,6 +62,42 @@ export function onboardingMessage(
       return t("onboarding:browserCredentialRace");
     case "Native secure storage failed.":
       return t("onboarding:nativeStorageFailed");
+    case "The native app did not confirm secure wallet storage. Update the app and try again.":
+      return t("onboarding:nativeStorageUnconfirmed");
+    case "Native secure seed backup failed.":
+      return t("onboarding:nativeSeedBackupFailed");
+    case "Native acknowledged a different seed backup revision.":
+      return t("onboarding:nativeSeedBackupMismatch");
+    case "Native secure seed backup is unavailable.":
+      return t("onboarding:nativeSeedBackupUnavailable");
+    case "A valid encrypted-seed revision is required.":
+      return t("onboarding:nativeSeedRevisionInvalid");
+    case "The native app did not confirm the secure seed backup.":
+      return t("onboarding:nativeSeedBackupUnconfirmed");
+    case "The native wallet bridge is unavailable.":
+      return t("onboarding:nativeBridgeUnavailable");
+    case "Native secure storage could not provide the wallet credential.":
+      return t("onboarding:nativeCredentialFailed");
+    case "Native returned an invalid wallet credential response.":
+      return t("onboarding:nativeCredentialResponseInvalid");
+    case "Native secure storage is unavailable.":
+      return t("onboarding:nativeStorageUnavailable");
+    case "A valid device credential candidate is required.":
+      return t("onboarding:nativeCredentialCandidateInvalid");
+    case "Invalid stored value":
+      return t("onboarding:storedValueInvalid");
+    case "Expected an array":
+      return t("onboarding:storedArrayExpected");
+    case "Expected a string":
+      return t("onboarding:storedStringExpected");
+    case "Invalid token list":
+      return t("onboarding:storedTokenListInvalid");
+    case "Active account must be a valid QIP-55 address":
+      return t("onboarding:activeAccountInvalid");
+    case "Account list contains an invalid QIP-55 account":
+      return t("onboarding:accountListInvalid");
+    case "desktop: window.qrlWallet bridge is not available":
+      return t("onboarding:desktopBridgeUnavailable");
     case "Invalid PIN format":
       return t("onboarding:pinFormatInvalid");
     case "Unknown crypto error":
@@ -205,6 +241,12 @@ export function onboardingMessage(
     const translated = onboardingMessage(reason, t);
     if (translated !== reason)
       return t("onboarding:errorReason", { reason: translated });
+  }
+  if (message.startsWith("TypeError: ")) {
+    const reason = message.slice("TypeError: ".length);
+    const translated = onboardingMessage(reason, t);
+    if (translated !== reason)
+      return t("onboarding:typeErrorReason", { reason: translated });
   }
   const keystoreHex = /^Invalid hex in keystore ([\s\S]+)\.$/.exec(message);
   if (keystoreHex)

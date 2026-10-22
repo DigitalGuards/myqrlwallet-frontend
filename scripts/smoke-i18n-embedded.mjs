@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { readFile, mkdir } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
+import { nativeStorageScreens } from "./i18n-native-storage-probes.mjs";
 
 const html = await readFile("dist-embedded/index.html", "utf8");
 const output = join(
@@ -195,6 +196,7 @@ try {
       await context.close();
     }
   }
+  await nativeStorageScreens({ browser, html, output });
   console.log(
     "smoke-i18n-embedded: 5 languages rendered offline, zero external executable requests or page errors",
   );
