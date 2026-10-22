@@ -1,3 +1,5 @@
+import nfts from "./nfts.json";
+import creation from "./creation.json";
 import notices from "./notices.json";
 import telegram from "./telegram.json";
 import dapps from "./dapps.json";
@@ -12,6 +14,8 @@ import tokens from "./tokens.json";
 import history from "./history.json";
 
 export default {
+  nfts,
+  creation,
   notices,
   telegram,
   dapps,

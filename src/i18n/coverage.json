@@ -31,5 +31,10 @@
   "src/components/WalletLoadFailed.tsx",
   "src/components/UI/sheet.tsx",
   "src/components/UI/sidebar.tsx",
-  "src/App.tsx"
+  "src/App.tsx",
+  "src/components/Core/Body/CreateToken/",
+  "src/components/Core/Body/Nfts/AddNftModal.tsx",
+  "src/components/Core/Body/Nfts/NftDetail.tsx",
+  "src/router/router.tsx",
+  "src/components/UI/Input.tsx"
 ]

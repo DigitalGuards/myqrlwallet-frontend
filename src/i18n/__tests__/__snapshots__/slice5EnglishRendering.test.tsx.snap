@@ -1,0 +1,5489 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`ERC721 amount guard after changing displayed standard 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC721Token ID42ContractQ33333333...33333333...33333333CopyDescriptionMetadata <b>stays</b> verbatimTransferERC-721 transfers are always 1 token.Recipient address or QNS nameRecipient address verified.Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`NFT detail 721 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC721Token ID42ContractQ33333333...33333333...33333333CopyDescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Wallet PINTransfer",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`NFT detail 1155 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "",
+    "1",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`NFT detail confirmed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferTransfer confirmed. View on explorerRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "",
+    "1",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`NFT detail desktop 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "",
+    "1",
+  ],
+}
+`;
+
+exports[`NFT detail extension 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "",
+    "1",
+  ],
+}
+`;
+
+exports[`NFT detail fallback 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Token #42 (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Token #42BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7TransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "",
+    "1",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`NFT detail missing 1`] = `
+{
+  "labels": [],
+  "text": "NFT detailsBackNFT not found in your wallet. Add it from the Home page first.",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`NFT detail pending 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferBroadcasting transaction…Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "",
+    "1",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`NFT detection failure non-error 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Detection failed.Contract AddressAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT detection failure reason 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Detection failed: RPC detail 0xffContract AddressAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import 1155 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "e.g. 42",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC1155Collection: Collection example (EX)Token IDAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "",
+  ],
+}
+`;
+
+exports[`NFT import 1155 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "e.g. 42",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC1155Collection: Collection example (EX)Token IDAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "42",
+  ],
+}
+`;
+
+exports[`NFT import 1155-id 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "e.g. 42",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC1155Collection: Collection example (EX)Token IDAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "",
+  ],
+}
+`;
+
+exports[`NFT import 1155-id 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "e.g. 42",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.ERC-1155 contracts need a Token ID.Contract AddressStandard: ERC1155Collection: Collection example (EX)Token IDAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "",
+  ],
+}
+`;
+
+exports[`NFT import adding 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import adding 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdding…",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import detecting 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressDetecting contract standard…Add NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import detecting 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.This address doesn't look like an ERC-721 or ERC-1155 contract.Contract AddressAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import empty 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "",
+  ],
+}
+`;
+
+exports[`NFT import empty 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import empty 3`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.This account doesn't own any token in that collection.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import enumerated 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import enumerated 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import failure 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import failure 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Add failed: Storage detail 0xffContract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import manual 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "e.g. 42",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: noToken IDAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "",
+  ],
+}
+`;
+
+exports[`NFT import manual 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "e.g. 42",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: noToken IDAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "42",
+  ],
+}
+`;
+
+exports[`NFT import missing-id 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "e.g. 42",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: noToken IDAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "",
+  ],
+}
+`;
+
+exports[`NFT import missing-id 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "e.g. 42",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.This contract doesn't expose ownership enumeration. Please enter a Token ID.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: noToken IDAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "",
+  ],
+}
+`;
+
+exports[`NFT import no-account 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import no-account 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Connect an account first.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import non-error 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import non-error 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Add failed.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+  ],
+}
+`;
+
+exports[`NFT import wrong-owner 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "e.g. 42",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: noToken IDAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "",
+  ],
+}
+`;
+
+exports[`NFT import wrong-owner 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "e.g. 42",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.This account does not own that token ID.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: noToken IDAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "42",
+  ],
+}
+`;
+
+exports[`NFT import zero 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "e.g. 42",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC1155Collection: Collection example (EX)Token IDAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "",
+  ],
+}
+`;
+
+exports[`NFT import zero 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "e.g. 42",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.This account holds 0 of that token.Contract AddressStandard: ERC1155Collection: Collection example (EX)Token IDAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "42",
+  ],
+}
+`;
+
+exports[`NFT picks adding 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (0)Contract AddressAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "",
+  ],
+}
+`;
+
+exports[`NFT picks adding 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdding…Contract AddressAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "",
+  ],
+}
+`;
+
+exports[`NFT picks non-error 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (0)Contract AddressAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "",
+  ],
+}
+`;
+
+exports[`NFT picks non-error 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Failed to add picks.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (1)Contract AddressAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "",
+  ],
+}
+`;
+
+exports[`NFT picks reason 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (0)Contract AddressAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "",
+  ],
+}
+`;
+
+exports[`NFT picks reason 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Failed to add picks: Storage detail 0xffDiscovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (1)Contract AddressAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "",
+  ],
+}
+`;
+
+exports[`NFT picks success 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (0)Contract AddressAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "",
+  ],
+}
+`;
+
+exports[`NFT picks success 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Q…",
+      ],
+    ],
+  ],
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (0)Contract AddressAdd NFT",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "",
+  ],
+}
+`;
+
+exports[`NFT transfer balance 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferYou only hold 7 of this token.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "8",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer busy 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINAnother PIN check is still running. Please try again.Transfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer changed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferWallet changed while preparing the NFT transferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer credential 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINThis wallet's device security credential is unavailable. Re-import the seed.Transfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer desktop 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+  ],
+}
+`;
+
+exports[`NFT transfer disconnected 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINWallet not connected. Please try again.Transfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer extension 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferExtension-signed NFT transfers are coming soon. Switch to an imported account to transfer for now.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+  ],
+}
+`;
+
+exports[`NFT transfer external 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferNode detail <b>0xff</b>Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer failed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferTransfer failed.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer failed-reason 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferNFT transfer failed: signer detail 0xffRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer fraction 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferAmount must be a whole number.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1.5",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer locked 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINToo many failed attempts. Please wait 2 minutes.Transfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer negative 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferAmount must be positive.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "-1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer no-seed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINNo stored seed for this account. Re-import to set up a PIN.Transfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer non-error 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferUnexpected transfer error.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer pin 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINEnter your PIN to sign the transfer.Transfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`NFT transfer recipient 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Recipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer recipient-changed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Recipient resolution changed. Verify the recipient again before signing.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer recipient-fallback 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameEnter a valid QRL address or a resolved QNS name.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer self 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Cannot send to your own address.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer sending 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINSending…",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer unlock 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINFailed to unlock the seed. Please try again.Transfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer wrong-pin 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINIncorrect PIN. 2 attempts remaining.Transfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer wrong-wallet 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINPIN decrypted an invalid seed. Re-import this account.Transfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "1",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`NFT transfer zero 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Untranslated NFT (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy contract address",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferAmount must be positive.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "title": "Untranslated NFT | MyQRLWallet",
+  "values": [
+    "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`creation all fields and real value 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 999,999,999,999,999,999",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Q followed by 128 hex characters",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 999,999,999,999,999,999",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 999,999,999,999,999,999",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableMax SupplyReal Value: 1.0Change Initial recipientRecipient AddressMax Wallet AmountMax Wallet AmountMax Transaction LimitMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1000000000000000000",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`creation all fields and real value 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 999,999,999,999,999,999",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Q followed by 128 hex characters",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 999,999,999,999,999,999",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 999,999,999,999,999,999",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableMax SupplyReal Value: Invalid valueChange Initial recipientRecipient AddressMax Wallet AmountMax Wallet AmountMax Transaction LimitMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "invalid",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`creation desktop 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "",
+    "",
+    "0",
+    "18",
+  ],
+}
+`;
+
+exports[`creation empty 1`] = `
+{
+  "labels": [],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkYou need to import an account before creating tokens.Import Account",
+  "title": "",
+  "values": [],
+}
+`;
+
+exports[`creation extension 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitToken creation is currently only supported for imported seed accounts. Please import an account with a seed phrase to create tokens.Create Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "",
+    "",
+    "0",
+    "18",
+  ],
+}
+`;
+
+exports[`creation mobile 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitToken creation is currently only supported for imported seed accounts. Please import an account with a seed phrase to create tokens.Create Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "",
+    "",
+    "0",
+    "18",
+  ],
+}
+`;
+
+exports[`creation security busy 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationAnother PIN check is still running. Please try again.Create Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`creation security changed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkAn error occurred while creating the token. Please try again.Token NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`creation security credential 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationThis wallet's device security credential is unavailable. Re-import the seed.Create Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`creation security desktop 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+  ],
+}
+`;
+
+exports[`creation security disconnected 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationWallet not connected. Please try again.Create Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`creation security extension 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken creation with connected wallets is not yet supported. Please use an imported seed account.Token NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitToken creation is currently only supported for imported seed accounts. Please import an account with a seed phrase to create tokens.Create Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+  ],
+}
+`;
+
+exports[`creation security external 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkAn error occurred while creating the token. Please try again.Token NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`creation security locked 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationToo many failed attempts. Please wait 2 minutes.Create Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`creation security no-seed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationNo stored seed found for this account. Please import your account again to set up a PIN.Create Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`creation security non-error 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkAn error occurred while creating the token. Please try again.Token NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`creation security pin 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationPIN is requiredCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`creation security unlock 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationFailed to unlock the seed. Please try again.Create Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`creation security wrong-pin 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationIncorrect PIN. 2 attempts remaining.Create Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`creation security wrong-wallet 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationPIN decrypted an invalid seed. Please import your account again.Create Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`creation seed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "",
+    "",
+    "0",
+    "18",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`creation service Factory contract address not configured. Please set VITE_CUSTOMERC20FACTORY_ADDRESS. 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongFactory contract address not configured. Please set VITE_CUSTOMERC20FACTORY_ADDRESS.Try Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`creation service Factory contract not deployed at address: Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongFactory contract not deployed at address: Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333Try Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`creation service The signing seed does not match the active account 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongThe signing seed does not match the active accountTry Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`creation service Token creation confirmation timed out. 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongToken creation confirmation timed out.Try Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`creation service Token creation failed 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongToken creation failedTry Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`creation service TokenCreated event signature is not a 32-byte hash 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongTokenCreated event signature is not a 32-byte hashTry Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`creation service Transaction failed 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongTransaction failedTry Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`creation service Wallet changed while preparing token creation 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongWallet changed while preparing token creationTry Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`creation validation decimals 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsDecimals is requiredMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "0",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`creation validation profanity 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameThis name contains language that isn't allowed. Please choose a different name.Token SymbolThis name contains language that isn't allowed. Please choose a different name.Initial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "fuck",
+    "fuck",
+    "0",
+    "18",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`creation validation recipient 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Q followed by 128 hex characters",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientRecipient AddressInvalid recipient address. Use Q followed by 128 hex characters with a valid checksumMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "invalid",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`creation validation required 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken name is requiredToken SymbolToken symbol is requiredInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "",
+    "",
+    "0",
+    "18",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
+}
+`;
+
+exports[`creation while unlocking 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Example: MyQRLWallet",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: MQW",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 1000000000",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Example: 18",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreating Token...",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [
+    "Untranslated Token",
+    "EX",
+    "0",
+    "18",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+  ],
+}
+`;
+
+exports[`shared service Account changed during identity verification 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongAccount changed during identity verificationTry Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`shared service Network changed during identity verification 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongNetwork changed during identity verificationTry Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`shared service Network identity is not configured 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongNetwork identity is not configuredTry Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`shared service Testnet v3 chain identity mismatch 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongTestnet v3 chain identity mismatchTry Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`shared service Testnet v3 genesis identity mismatch 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongTestnet v3 genesis identity mismatchTry Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`shared service Testnet v3 network identity has not been verified 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongTestnet v3 network identity has not been verifiedTry Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`shared service The network fee quoted for this transaction is far above what this network normally charges, so the wallet stopped. Try again in a moment, and tell us if it keeps happening. 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongThe network fee quoted for this transaction is far above what this network normally charges, so the wallet stopped. Try again in a moment, and tell us if it keeps happening.Try Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`shared service This account is signed by the extension wallet. Confirm the transfer there. 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongThis account is signed by the extension wallet. Confirm the transfer there.Try Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`shared service This account is signed by the paired mobile app. Confirm the transfer there. 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongThis account is signed by the paired mobile app. Confirm the transfer there.Try Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`shared service Unknown error 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongUnknown errorTry Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`token status creating 1`] = `
+{
+  "labels": [],
+  "text": "Creating TokenUntranslated TokenDeploying your token to the blockchain...",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`token status error 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongNode detail <b>0xff</b>Try Again",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`token status idle 1`] = `
+{
+  "labels": [],
+  "text": "Token StatusNo token creation in progress.Create Token",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`token status success 1`] = `
+{
+  "labels": [],
+  "text": "Token CreatedTransaction Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaToken AddressQ333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 33NameUntranslated TokenSymbolEXDecimals18Block Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBlock Number42Network fee0.000021 QuantaDone",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`token status success 2`] = `
+{
+  "labels": [],
+  "text": "Token CreatedTransaction Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaToken AddressQ333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 33NameUntranslated TokenSymbolEXDecimals18Block Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBlock Number42Network fee0.000021 QuantaDone",
+  "title": "Create QRC20 Token | MyQRLWallet",
+  "values": [],
+}
+`;

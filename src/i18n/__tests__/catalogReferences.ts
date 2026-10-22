@@ -73,7 +73,7 @@ export function catalogReferences(paths: string[]): Set<string> {
     scanNamespaces(source);
     const add = (text: string) => {
       if (
-        /^(common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[\w.]+$/.test(
+        /^(common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices|creation|nfts):[\w.]+$/.test(
           text,
         )
       )
@@ -90,7 +90,7 @@ export function catalogReferences(paths: string[]): Set<string> {
       // Fully qualified literals also cover typed navigation/error/status models.
       if (
         ts.isStringLiteralLike(node) &&
-        /^(common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[\w.]+$/.test(
+        /^(common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices|creation|nfts):[\w.]+$/.test(
           node.text,
         )
       )

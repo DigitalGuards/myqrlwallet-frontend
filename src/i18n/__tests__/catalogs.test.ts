@@ -93,7 +93,7 @@ it("ships importable translator notes for ambiguous and security-sensitive messa
       (key) => `onboarding:${key.replace(/_(one|few|many|other)$/, "")}`,
     ),
     "common:englishOnly",
-    ...["dapps", "telegram", "notices"].flatMap((ns) =>
+    ...["dapps", "telegram", "notices", "creation", "nfts"].flatMap((ns) =>
       Object.keys(readCatalog("en", ns)).map(
         (key) => `${ns}:${key.replace(/_(one|few|many|other)$/, "")}`,
       ),

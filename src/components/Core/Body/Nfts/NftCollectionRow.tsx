@@ -25,6 +25,7 @@ export function NftCollectionRow({
 }: NftCollectionRowProps) {
   const { t } = useTranslation("home");
   const title = collectionDisplayName(collection);
+  const addressTitle = !collection.name && !collection.symbol;
   const cover = collection.tokens.find((token) => token.image)?.image;
 
   return (
@@ -47,7 +48,9 @@ export function NftCollectionRow({
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <div className="truncate text-sm font-medium">
+        <div
+          className={`${addressTitle ? "[overflow-wrap:anywhere]" : "truncate"} text-sm font-medium`}
+        >
           {renderValue(title)}
           {renderValue(
             collection.symbol && collection.name && (
@@ -57,7 +60,9 @@ export function NftCollectionRow({
             ),
           )}
         </div>
-        <div className="truncate text-xs text-muted-foreground">
+        <div
+          className={`${addressTitle ? "[overflow-wrap:anywhere]" : "truncate"} text-xs text-muted-foreground`}
+        >
           {t("items", { count: collection.tokenCount })} ·{" "}
           {collectionStandardLabel(collection.standard)} ·{" "}
           {formatAddressFingerprint(collection.contractAddress)}
