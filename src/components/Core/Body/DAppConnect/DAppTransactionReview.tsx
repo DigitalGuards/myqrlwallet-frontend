@@ -14,6 +14,7 @@ interface TransactionReviewProps {
    * wallet refused it.
    */
   maxNetworkFee?: string | undefined;
+  feeReviewValue?: string | undefined;
 }
 
 function formatGasLimit(gas: unknown): string {
@@ -41,6 +42,7 @@ function stringParam(value: unknown): string | undefined {
 const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
   params,
   maxNetworkFee,
+  feeReviewValue,
 }) => {
   const from = stringParam(params["from"]) || "Unknown";
   const to = stringParam(params["to"]) || "Unknown";
@@ -52,7 +54,7 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
 
   return (
     <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm">
-      <div className="flex justify-between">
+      <div data-review-block className="flex justify-between">
         <span className="text-muted-foreground">From</span>
         {from === "Unknown" ? (
           <span className="text-xs">Unknown</span>
@@ -65,7 +67,7 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
           />
         )}
       </div>
-      <div className="flex justify-between">
+      <div data-review-block className="flex justify-between">
         <span className="text-muted-foreground">To</span>
         {to === "Unknown" ? (
           <span className="text-xs">Unknown</span>
@@ -78,12 +80,12 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
           />
         )}
       </div>
-      <div className="flex justify-between">
+      <div data-review-block data-review-value={value} className="flex justify-between gap-2">
         <span className="text-muted-foreground">Value</span>
         <span className="font-numeric font-semibold">{displayValue}</span>
       </div>
       {gas != null && (
-        <div className="flex justify-between">
+        <div data-review-block className="flex justify-between gap-2">
           {/* On desktop the shell resolves max(this value, its own buffered
               estimate), so the number the dApp asked for is a floor. The web
               and mobile paths sign the requested limit as given. */}
@@ -94,7 +96,7 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
         </div>
       )}
       {maxNetworkFee !== undefined && (
-        <div className="flex justify-between">
+        <div data-review-block data-review-value={feeReviewValue} className="flex justify-between gap-2">
           {/* The ceiling, so the user sees the worst case before approving.
               Unused headroom in the base fee is refunded. */}
           <span className="text-muted-foreground">Max network fee</span>
@@ -102,15 +104,15 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
         </div>
       )}
       {typeof params['chainId'] === 'string' && (
-        <div className="flex justify-between">
+        <div data-review-block className="flex justify-between gap-2">
           <span className="text-muted-foreground">Chain ID</span>
           <span>{params['chainId']}</span>
         </div>
       )}
       {data && data !== "0x" && (
         <div>
-          <span className="text-muted-foreground">Data</span>
-          <div className="mt-1 max-h-20 overflow-auto rounded bg-muted p-2 font-mono text-xs break-all">
+          <span data-review-block className="block text-muted-foreground">Data</span>
+          <div data-review-block className="mt-1 max-h-20 overflow-auto rounded bg-muted p-2 font-mono text-xs break-all">
             {data}
           </div>
         </div>

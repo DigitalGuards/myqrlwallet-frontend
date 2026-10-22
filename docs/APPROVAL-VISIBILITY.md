@@ -1,0 +1,27 @@
+# Approval visibility
+
+Approvals and pairing consent remain English. The existing signing, connection, error and progress paths retain their behavior. The new hint explains the visibility requirement and is announced through a status region and the disabled action's accessible description.
+
+The dialog keeps its 90dvh cap and scrolls vertically. The details region retains up to 128 CSS pixels of minimum height (shorter content keeps its original fitted height). When the header, details minimum and footer exceed the cap, the outer dialog scrolls. Identity text wraps, and the header can wrap its columns at narrow or zoomed widths. The full name and URL remain reachable.
+
+`reviewVisibility.ts` observes invisible, noninteractive rectangles covering each required block in slices of at most 16 vertical CSS pixels. This covers the middle of a long body as well as its ends. Every target is at least 1 pixel tall. The IntersectionObserver uses the viewport root (`root: null`), so the dialog, details region and nested message/calldata scrollers all clip intersections. Credit requires `isIntersecting`, exactly full intersection and positive target dimensions. The dialog and details region must also have positive dimensions. Scroll offsets never grant credit.
+
+Coverage is remembered per block and its value. Text changes, raw transaction amount changes and exact fee quote changes invalidate that block. New blocks start unseen, and request or consent-URI replacement starts a fresh review. PIN edits, unrelated store updates and completed blocks' layout changes preserve coverage. Mutation and resize observers reconcile browser changes; layout effects reconcile React commits before paint. Action handlers check coverage synchronously, and approval also compares the live request with its rendered content to reject a same-tick change before React commits. Consent waits for the URI's relay preview. Missing observer support leaves the action disabled.
+
+Required blocks include identity, review rows, the complete primary message (decoded text or binary hex), typed domain/message values, amounts, fees and warnings. The existing optional digest and duplicate raw/canonical disclosures retain their behavior. The gate covers the complete primary representation without requiring those duplicate disclosures to be opened.
+
+Account access now displays the full account address. Add/switch network reviews display the supplied parameters as JSON. These three screens previously omitted those values; they are explicit exceptions to the fitted English comparison. Existing English copy remains unchanged apart from the two new scroll hints.
+
+## Evidence
+
+`npm run smoke:approvals` serves the production build and uses headless Chromium with synthetic requests and local network replies. It exercises all seven approval methods and pairing consent, each with short and maximal fixtures, at 320 x 320, 360 x 320, 360 x 640, 390 x 844 and 1280 x 800. A temporary extension sets actual browser zoom to 200% at 360 x 640 and verifies the resulting 180 x 320 CSS viewport. This gives 96 cases. It never signs or broadcasts.
+
+Maximal fixtures use 128-character dApp names, 2048-character URLs, full 128-hex-digit addresses, a long printable message, 4096-byte calldata, long network parameters, and typed data with a 16 KiB string plus 256 array entries. The identity, string and array dimensions exercise their configured limits; message and transaction fixtures are bounded long-content cases.
+
+The probe independently measures clipped rectangles, tracks real intersections, scrolls each unseen slice into view, checks controls for clipping and overlapping elements, verifies both scrolling modes, and asserts that the action stays disabled until coverage completes. It also changes a reviewed message, identity and typed-data chain warning, and checks empty-message, empty-account and missing-network-parameter reviews. Empty message content is represented by the existing zero-byte count. Eight forced-zero-height controls must remain disabled. Separate zero-height targets reproduce Chromium's fully-intersecting zero-area report during those controls.
+
+The probe stays local because the maximal cases require substantial scrolling. `APPROVAL_ARTIFACTS` selects the evidence directory (default: the system temporary directory's `approval-visibility` folder). `results.json` records the duration, dimensions, scrolling modes, coverage, changes and negative controls. Failure screenshots are saved there. `APPROVAL_CASE` selects a diagnostic subset.
+
+Seven English copy/control snapshots were generated from an untouched archive of `fadf59e`, whose production files match `origin/dev` at `b1785b8`. Mock observers settle before those captures, so fitted actions are enabled. Browser bounds from the same archive additionally compare the four signing screens and consent: `APPROVAL_BASELINE=1` captures the base, and `APPROVAL_BASE_BOUNDS` points to its `english-base-bounds.json` when running the changed build. The comparison checks exact text, painted text-range bounds and control bounds/states. The account/network additions are listed explicitly above.
+
+jsdom tests mock geometry and IntersectionObserver and prove the gate's state machine, value invalidation, stale callbacks, click/keyboard/submit guards and dismissal. The headless browser probe supplies the evidence for real visibility. These renderer checks do not qualify physical devices or native confirmation windows.

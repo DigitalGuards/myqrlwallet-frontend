@@ -22,7 +22,7 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
 
   return (
     <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm">
-      <div className="flex justify-between text-xs">
+      <div data-review-block className="flex justify-between text-xs">
         <span className="text-muted-foreground">Message</span>
         <span className="text-muted-foreground">
           {byteLength} byte{byteLength === 1 ? '' : 's'}
@@ -31,6 +31,7 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
       {decoded.ok ? (
         <>
           <p
+            data-review-block={decoded.text ? true : undefined} data-review-value={messageHex}
             className="max-h-32 overflow-auto break-words font-mono text-sm"
             dir="ltr"
           >
@@ -47,10 +48,11 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
         </>
       ) : (
         <div>
-          <p className="text-xs text-muted-foreground italic">
+          <p data-review-block className="text-xs text-muted-foreground italic">
             Not a safely printable UTF-8 string, showing raw hex.
           </p>
           <p
+            data-review-block
             className="mt-1 max-h-32 overflow-auto break-all font-mono text-xs"
             dir="ltr"
           >

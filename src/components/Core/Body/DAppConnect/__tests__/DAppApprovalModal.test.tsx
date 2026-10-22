@@ -20,6 +20,8 @@ import { decryptStoredSeedWithPin } from "@/utils/crypto";
 import { checkLockout, getRemainingAttempts } from "@/utils/crypto/pinAttemptTracker";
 import { PinVerificationError } from "@/utils/crypto/verifyPinWithLimit";
 import { logger } from "@/utils/log";
+import { mockReviewObservers } from "@/test-utils/reviewObserver";
+let visibility: ReturnType<typeof mockReviewObservers>;
 let mockDesktop = true;
 const address = `Q${"a".repeat(128)}`;
 let mockDappStore: DAppConnectStore;
@@ -136,6 +138,7 @@ beforeEach(() => {
   configure({ enforceActions: "never" });
   jest.useFakeTimers();
   jest.clearAllMocks();
+  visibility = mockReviewObservers();
   jest.mocked(quoteFees).mockReset().mockResolvedValue({
     maxFeePerGas: 1n,
     maxPriorityFeePerGas: 1n,
@@ -194,11 +197,13 @@ describe("fee preview lifetime", () => {
       await jest.advanceTimersByTimeAsync(1);
     });
     expect(quoteFees).toHaveBeenCalledTimes(2);
+    act(() => { visibility.settle(); });
     expect(screen.getByRole("button", { name: "Approve" }).hasAttribute("disabled")).toBe(false);
   });
 });
 afterEach(() => {
   cleanup();
+  visibility.restore();
   jest.restoreAllMocks();
   jest.useRealTimers();
 });
@@ -213,15 +218,125 @@ async function showApproval(method: string, params?: unknown[]): Promise<Pending
   await act(async () => {
     await jest.advanceTimersByTimeAsync(400);
   });
+  act(() => { visibility.settle(); });
   return pending;
 }
 
 async function approve(): Promise<void> {
+  act(() => { visibility.settle(); });
   await act(() => {
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
     return Promise.resolve();
   });
 }
+
+describe('visibility gate', () => {
+  it.each(['qrl_requestAccounts', 'wallet_addQrlChain', 'wallet_switchQrlChain', 'qrl_sendTransaction', 'qrl_signTransaction', 'qrl_signMessage', 'qrl_signTypedData'])(
+    'blocks %s until seen and keeps rejection working', async (method) => {
+      visibility.hold();
+      const pending = await showApproval(method);
+      const button = screen.getByRole('button', { name: 'Approve' });
+      expect(button.hasAttribute('disabled')).toBe(true);
+      expect(screen.getByRole('status').textContent).toBe('Scroll to see every detail before approving');
+      fireEvent.click(button);
+      fireEvent.submit(screen.getByRole('dialog'));
+      expect(approveRequestSpy).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Reject' }));
+      expect(rejectRequestSpy).toHaveBeenCalledWith(pending.sessionId, pending.id, undefined, undefined);
+    },
+  );
+
+  it('blocks PIN Enter and exposes only a button action', async () => {
+    visibility.hold(); mockDesktop = false;
+    await showApproval('qrl_signMessage');
+    const input = screen.getByPlaceholderText('Enter PIN');
+    fireEvent.change(input, { target: { value: '123456' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Approve' }).getAttribute('type')).toBe('button');
+  });
+
+  it('requires a newly arrived fee even after every earlier row was seen', async () => {
+    visibility.hold(); mockDesktop = false;
+    let finish: (quote: FeeQuote) => void = () => { throw new Error('Quote not started'); };
+    jest.mocked(quoteFees).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    await showApproval('qrl_sendTransaction');
+    act(() => { visibility.emit(); });
+    expect(screen.getByRole('button', { name: 'Approve' }).hasAttribute('disabled')).toBe(true);
+    await act(async () => {
+      finish({ maxFeePerGas: 2n, maxPriorityFeePerGas: 1n, expectedFeePerGas: 1n });
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('button', { name: 'Approve' }).hasAttribute('disabled')).toBe(true);
+    act(() => { visibility.emit(visibility.targets.filter((target) => target.parentElement?.textContent.includes('Max network fee'))); });
+    expect(screen.getByRole('button', { name: 'Approve' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('re-gates in-place message edits without resetting seen identity', async () => {
+    visibility.hold();
+    mockDesktop = false;
+    await showApproval('qrl_signMessage');
+    fireEvent.change(screen.getByPlaceholderText('Enter PIN'), { target: { value: '123456' } });
+    act(() => { visibility.emit(); });
+    act(() => {
+      const approval = mockDappStore.currentApproval;
+      if (approval?.params) approval.params[1] = '0x776f726c64';
+      fireEvent.keyDown(screen.getByPlaceholderText('Enter PIN'), { key: 'Enter' });
+    });
+    expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+    expect(screen.getByText('world')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Approve' }).hasAttribute('disabled')).toBe(true);
+    act(() => { visibility.emit(visibility.targets.filter((target) => target.parentElement?.textContent === 'world')); });
+    expect(screen.getByRole('button', { name: 'Approve' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it.each(['Escape', 'Close', 'Cancel'])('keeps consent %s available while gated', async (action) => {
+    visibility.hold();
+    mockDappStore.desktopConnectUri = 'qrlconnect://?q=fixture';
+    const connect = jest.spyOn(mockDappStore, 'confirmDesktopConnect');
+    render(<DAppConnectConsentModal />);
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    const button = screen.getByRole('button', { name: 'Connect' });
+    expect(button.hasAttribute('disabled')).toBe(true);
+    expect(button.getAttribute('type')).toBe('button');
+    fireEvent.click(button);
+    fireEvent.submit(screen.getByRole('dialog'));
+    expect(connect).not.toHaveBeenCalled();
+    if (action === 'Escape') fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    else fireEvent.click(screen.getByRole('button', { name: action }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+// Oracle generated on the unchanged fadf59e base (production files match
+// origin/dev b1785b8). Settle mock IO before capture: fitted content is enabled.
+describe('English fitted rendering', () => {
+  function snapshot(action: 'Approve' | 'Connect') {
+    act(() => { visibility.settle(); });
+    expect(screen.getByRole('button', { name: action }).hasAttribute('disabled')).toBe(false);
+    const copy = screen.getByRole('dialog').cloneNode(true);
+    if (!(copy instanceof HTMLElement)) throw new Error('Missing dialog');
+    copy.querySelectorAll('[aria-hidden=true], .sr-only').forEach((element) => { element.remove(); });
+    expect({ text: copy.textContent,
+      controls: [...copy.querySelectorAll('button,input')].map((element) => ({
+        text: element.textContent, label: element.getAttribute('aria-label'),
+        title: element.getAttribute('title'), placeholder: element.getAttribute('placeholder'),
+        disabled: element.hasAttribute('disabled'),
+      })),
+    }).toMatchSnapshot();
+  }
+  it.each(['qrl_sendTransaction', 'qrl_signTransaction', 'qrl_signMessage', 'qrl_signTypedData'])('%s', async (method) => {
+    await showApproval(method);
+    snapshot('Approve');
+  });
+  it.each(['paste', 'link', 'deeplink'] as const)('consent %s', async (source) => {
+    mockDappStore.desktopConnectUri = 'qrlconnect://?q=fixture';
+    mockDappStore.desktopConnectSource = source;
+    render(<DAppConnectConsentModal />);
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    snapshot('Connect');
+  });
+});
 
 it.each(["", " \t\n"])("shows a fallback for a blank retryable request error (%j)", async (message) => {
   mockDesktop = false;

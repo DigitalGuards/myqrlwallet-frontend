@@ -24,6 +24,7 @@ import { Button } from "@/components/UI/Button";
 import DAppTransactionReview from "./DAppTransactionReview";
 import DAppMessageReview from "./DAppMessageReview";
 import DAppTypedDataReview from "./DAppTypedDataReview";
+import { useReviewVisibility } from "./useReviewVisibility";
 import { formatDAppRequestError } from "./requestError";
 import { utils } from "@theqrl/web3";
 import {
@@ -64,6 +65,7 @@ import {
 } from "@/utils/signing";
 import { Loader, Check, X, ExternalLink, Shield, Globe } from "lucide-react";
 import type { TxProgressState } from "@/stores/dappConnectStore";
+import type { PendingDAppRequest } from "@/services/dappConnect/types";
 import type { ZodError } from "zod";
 import {
   isDesktop,
@@ -122,6 +124,14 @@ const METHOD_LABELS: Record<string, string> = {
 const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
 // dApp requests carry no fee selector; sign at the send screen's default level.
 const DAPP_FEE_LEVEL: FeeLevel = "medium";
+
+function reviewContentKey(request: PendingDAppRequest | null, account: string, chain: unknown): string {
+  return JSON.stringify(
+    [request?.sessionId, request?.id, request?.method, toJS(request?.params),
+      request?.dappInfo.name, request?.dappInfo.url, account, chain],
+    (_key, value: unknown) => typeof value === 'bigint' ? { bigint: value.toString() } : value,
+  );
+}
 
 /** The first request parameter as a record, or an empty record when it is absent or malformed. */
 function firstParamRecord(params: unknown[] | undefined): Record<string, unknown> {
@@ -294,9 +304,15 @@ const DAppApprovalModalContent = observer(() => {
   }, [approvalKey]);
 
   const blockchain = qrlStore.qrlConnection.blockchain;
+  const { ref: reviewRef, ready: reviewReady, canApprove } = useReviewVisibility(approvalKey);
+  const reviewedContent = reviewContentKey(currentApproval, qrlStore.activeAccount.accountAddress, blockchain);
 
   const handleApprove = useCallback(async () => {
-    if (!currentApproval) return;
+    if (!currentApproval || !canApprove()) return;
+    // A store update and a keyboard event can share a tick before React commits
+    // the new review. Bind this action to the content of its rendered review.
+    if (reviewedContent !== reviewContentKey(dappConnectStore.currentApproval,
+      qrlStore.activeAccount.accountAddress, qrlStore.qrlConnection.blockchain)) return;
     // Synchronous, because `loading` is React state and does not update until
     // the next render: a second Enter in the same tick would otherwise start a
     // second sign and broadcast, and pay twice.
@@ -1127,7 +1143,7 @@ const DAppApprovalModalContent = observer(() => {
       approveInFlightRef.current = false;
       if (isStillCurrent()) setLoading(false);
     }
-  }, [currentApproval, pin, dappConnectStore, qrlStore, blockchain]);
+  }, [currentApproval, pin, dappConnectStore, qrlStore, blockchain, canApprove, reviewedContent]);
 
   const handleReject = useCallback(() => {
     dappConnectStore.rejectCurrentRequest(
@@ -1145,15 +1161,13 @@ const DAppApprovalModalContent = observer(() => {
   }, [dappConnectStore]);
 
   /**
-   * Preview state for the two signing methods. Recomputed when the pending
-   * request changes; we pre-validate so the user sees a clear "this request
+   * Preview for the two signing methods. Read nested observable params on
+   * every render so an in-place edit updates the review and its visibility
+   * requirement. Pre-validate so the user sees a clear "this request
    * is malformed" reason rather than only learning at Approve time.
    *
-   * Must live above the early-return guard below: hook count has to stay
-   * stable across renders or React throws #310 ("Rendered more hooks than
-   * during the previous render") the first time an approval arrives.
    */
-  const signingPreview = useMemo(() => {
+  const signingPreview = (() => {
     if (!currentApproval) return null;
     const { method } = currentApproval;
     // De-proxy the observable params (see handleApprove): zod's record key
@@ -1201,7 +1215,7 @@ const DAppApprovalModalContent = observer(() => {
       }
     }
     return null;
-  }, [currentApproval]);
+  })();
 
   const [connectedChainId, setConnectedChainId] = useState<string>();
   useEffect(() => {
@@ -1334,27 +1348,28 @@ const DAppApprovalModalContent = observer(() => {
     >
       {/* Outside clicks leave the decision pending. Escape and X reject it. */}
       <DialogContent
-        className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0"
+        ref={reviewRef}
+        className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-y-auto p-0"
         aria-describedby={undefined}
         onInteractOutside={(e) => { e.preventDefault(); }}
       >
         {/* dApp Identity Header */}
         <div className="shrink-0 bg-gradient-to-r from-primary/10 to-transparent p-4 pr-10">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/10">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/10">
               <Globe className="h-5 w-5 text-secondary" />
             </div>
-            <div className="min-w-0 flex-1">
-              <DialogTitle className="truncate text-base font-semibold leading-normal text-foreground">
+            <div className="min-w-[4rem] flex-1">
+              <DialogTitle data-review-block className="text-base font-semibold leading-normal text-foreground [overflow-wrap:anywhere]">
                 {dappInfo.name}
               </DialogTitle>
-              <p className="text-xs text-muted-foreground truncate">
+              <p data-review-block className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
                 {dappInfo.url}
               </p>
             </div>
-            <div className="flex items-center gap-1 rounded-full bg-secondary/10 px-2 py-1">
+            <div className="flex max-w-full items-center gap-1 rounded-full bg-secondary/10 px-2 py-1">
               <Shield className="h-3 w-3 text-secondary" />
-              <span className="text-xs text-secondary font-medium">
+              <span data-review-block className="text-xs text-secondary font-medium">
                 {label}
               </span>
             </div>
@@ -1365,7 +1380,8 @@ const DAppApprovalModalContent = observer(() => {
         <div
           role="region"
           aria-label="Request details"
-          className="min-h-0 space-y-4 overflow-y-auto overscroll-contain p-6"
+          data-review-region
+          className="space-y-4 overflow-y-auto overscroll-contain p-6 max-[240px]:p-3"
         >
           {/* Transaction progress states */}
           {signingFailure ? (
@@ -1473,9 +1489,22 @@ const DAppApprovalModalContent = observer(() => {
             /* Normal approval content (before tx progress starts) */
             <div className="space-y-4">
               {method === "qrl_requestAccounts" && (
-                <p className="text-sm text-muted-foreground">
-                  This dApp wants to view your account address.
-                </p>
+                <div className="space-y-4">
+                  <p data-review-block className="text-sm text-muted-foreground">
+                    This dApp wants to view your account address.
+                  </p>
+                  {qrlStore.activeAccount.accountAddress && (
+                    <div data-review-block>
+                      <QrlAddress address={qrlStore.activeAccount.accountAddress} mode="full" />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {(method === "wallet_addQrlChain" || method === "wallet_switchQrlChain") && (
+                <pre data-review-block className="whitespace-pre-wrap break-all font-mono text-xs" dir="ltr">
+                  {JSON.stringify(params ?? [], null, 2)}
+                </pre>
               )}
 
               {isTransaction && params?.[0] != null && (
@@ -1486,11 +1515,12 @@ const DAppApprovalModalContent = observer(() => {
                       ? feePreview.display
                       : undefined
                   }
+                  feeReviewValue={approvedFee ? `${approvedFee.gasLimit.toString()}:${approvedFee.quote.maxFeePerGas.toString()}:${approvedFee.quote.maxPriorityFeePerGas.toString()}` : undefined}
                 />
               )}
 
               {isTransaction && feePreview?.status === "loading" && (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                <p data-review-block className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader className="h-4 w-4 animate-spin" />
                   Checking the network fee...
                 </p>
@@ -1498,7 +1528,7 @@ const DAppApprovalModalContent = observer(() => {
 
               {isTransaction && feePreview?.status === "failed" && (
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm text-destructive">
+                  <p data-review-block className="text-sm text-destructive">
                     The network fee could not be checked, so this cannot be
                     approved yet.
                   </p>
@@ -1528,7 +1558,7 @@ const DAppApprovalModalContent = observer(() => {
               )}
 
               {signingPreview?.kind === "invalid" && (
-                <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
+                <div data-review-block className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
                   <p className="mb-1 font-medium text-destructive">
                     Cannot decode this request
                   </p>
@@ -1542,7 +1572,7 @@ const DAppApprovalModalContent = observer(() => {
                   already unlocked and signing does not re-prompt. */}
               {needsPin && !hasNativePin && !isDesktop && (
                 <div>
-                  <label className="mb-1 block text-sm font-medium">
+                  <label data-review-block className="mb-1 block text-sm font-medium">
                     Enter PIN to sign
                   </label>
                   <input
@@ -1557,8 +1587,9 @@ const DAppApprovalModalContent = observer(() => {
                       setError(null);
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && pin && !loading) {
-                        void handleApprove();
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (pin && !loading && !feeApprovalPending) void handleApprove();
                       }
                     }}
                     placeholder="Enter PIN"
@@ -1568,13 +1599,18 @@ const DAppApprovalModalContent = observer(() => {
                 </div>
               )}
 
-              {error !== null && <p className="text-sm text-destructive">{formatDAppRequestError(error, method)}</p>}
+              {error !== null && <p data-review-block className="text-sm text-destructive">{formatDAppRequestError(error, method)}</p>}
             </div>
           )}
         </div>
 
         {/* Footer buttons */}
         <div className="shrink-0 border-t border-border px-4 py-4">
+          {!reviewReady && !signingFailure && !isTxInProgress && (
+            <p id="approval-visibility-hint" role="status" className="mb-2 text-xs text-muted-foreground">
+              Scroll to see every detail before approving
+            </p>
+          )}
           {signingFailure ? (
             <Button onClick={handleReject} className="w-full">
               Close
@@ -1597,10 +1633,12 @@ const DAppApprovalModalContent = observer(() => {
                 Reject
               </Button>
               <Button
+                type="button"
                 onClick={() => {
                   void handleApprove();
                 }}
-                disabled={loading || feeApprovalPending}
+                disabled={loading || feeApprovalPending || !reviewReady}
+                aria-describedby={!reviewReady ? "approval-visibility-hint" : undefined}
                 // A transaction cannot be approved before its fee is on
                 // screen: approving while the quote is loading or failed is
                 // approving a cost the user was never shown.
