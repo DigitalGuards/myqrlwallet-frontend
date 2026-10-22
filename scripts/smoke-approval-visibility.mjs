@@ -10,6 +10,7 @@ import {
   address,
   consentURI,
   fixture,
+  ignoredNetworkFields,
   methods,
   rpcAnswer,
 } from "./approval-fixtures.mjs";
@@ -27,6 +28,7 @@ let collapsedControls = 0;
 const changes = [];
 const zeroAreaReports = [];
 const emptyCases = [];
+const networkReviews = [];
 const server = spawn(
   process.execPath,
   [
@@ -124,6 +126,7 @@ try {
   await page.evaluate(() => document.fonts.ready);
 
   async function open(method, maximal, id, empty = false) {
+    const approval = fixture(method, maximal);
     await page.evaluate(
       ({ approval, uri, address, id, empty }) => {
         const { dappConnectStore: store, qrlStore } = window.__APP_STORE__;
@@ -151,7 +154,7 @@ try {
         }
       },
       {
-        approval: fixture(method, maximal),
+        approval,
         uri: consentURI(maximal),
         address,
         id,
@@ -166,6 +169,36 @@ try {
         .count(),
       0,
     );
+    if (!baseline && ["wallet_addQrlChain", "wallet_switchQrlChain"].includes(method)) {
+      const chainId = method === "wallet_switchQrlChain" && !empty
+        ? approval.params[0].chainId
+        : undefined;
+      const region = page.getByRole("region", { name: "Request details" });
+      assert.equal(
+        await region.textContent(),
+        chainId === undefined ? "" : `Requested chain ID${chainId}`,
+        `${method}: unexpected network review content`,
+      );
+      const values = await region.locator("dd").evaluateAll((elements) =>
+        elements.map((element) => ({
+          text: element.textContent,
+          direction: getComputedStyle(element).direction,
+          monospace: getComputedStyle(element).fontFamily.includes("mono"),
+        })),
+      );
+      assert.deepEqual(values, chainId === undefined ? [] : [
+        { text: chainId, direction: "ltr", monospace: true },
+      ]);
+      const markup = await page.getByRole("dialog").evaluate((dialog) => dialog.outerHTML);
+      for (const untrusted of [
+        "chainName", "rpcUrls", "\u202e",
+        ignoredNetworkFields.chainName, ...ignoredNetworkFields.rpcUrls,
+      ]) {
+        assert.ok(!markup.includes(untrusted), `${method}: ignored network field rendered`);
+      }
+      assert.equal(await region.locator("pre").count(), 0);
+      networkReviews.push({ method, maximal, empty, chainId: chainId ?? null });
+    }
   }
 
   async function close() {
@@ -429,9 +462,10 @@ try {
     }, origin);
     await page.setViewportSize({ width: 360, height: 320 });
     await page.waitForFunction(() => innerWidth === 360);
-    for (const kind of ["message", "identity", "chain-warning"]) {
+    for (const kind of ["message", "identity", "chain-warning", "switch-chain-id"]) {
       const method =
-        kind === "chain-warning" ? "qrl_signTypedData" : "qrl_signMessage";
+        kind === "switch-chain-id" ? "wallet_switchQrlChain"
+          : kind === "chain-warning" ? "qrl_signTypedData" : "qrl_signMessage";
       await open(method, false, `change-${kind}`);
       await inspectAndRead(false);
       await page.evaluate((kind) => {
@@ -439,6 +473,8 @@ try {
         if (kind === "message") approval.params[1] = `0x${"6869".repeat(512)}`;
         else if (kind === "identity")
           approval.dappInfo.url = `https://changed.example/${"a".repeat(300)}`;
+        else if (kind === "switch-chain-id")
+          approval.params[0].chainId = `0x${"fF".repeat(32)}`;
         else approval.params[1].domain.chainId = "1";
       }, kind);
       await page.waitForFunction(() =>
@@ -540,6 +576,7 @@ try {
         zeroAreaReports,
         changes,
         emptyCases,
+        networkReviews,
         results,
       },
       null,
@@ -555,7 +592,6 @@ try {
       await readFile(process.env.APPROVAL_BASE_BOUNDS, "utf8"),
     );
     const exceptions = [
-      "wallet_addQrlChain",
       "wallet_switchQrlChain",
       "qrl_requestAccounts",
     ];
@@ -572,13 +608,13 @@ try {
       );
       matched++;
     }
-    assert.equal(matched, 5, "Incomplete English fitted comparison");
+    assert.equal(matched, 6, "Incomplete English fitted comparison");
     console.log(
-      "approval-visibility: 5 fitted English screens match base text, text-range bounds and controls exactly; 3 explicit value-display additions",
+      "approval-visibility: 6 fitted English screens match base text, text-range bounds and controls exactly; account address and validated switch ID are the 2 explicit value-display additions",
     );
   }
   console.log(
-    `approval-visibility: ${results.length} cases, ${collapsedControls} collapsed controls; ${durationSeconds}s`,
+    `approval-visibility: ${results.length} cases, ${networkReviews.length} network content checks, ${collapsedControls} collapsed controls; ${durationSeconds}s`,
   );
 } finally {
   await context?.close();

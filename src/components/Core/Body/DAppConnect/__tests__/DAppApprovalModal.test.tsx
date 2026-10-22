@@ -11,6 +11,7 @@ import DAppApprovalModal from "../DAppApprovalModal";
 import DAppConnectConsentModal from "../DAppConnectConsentModal";
 import DAppConnectStore from "@/stores/dappConnectStore";
 import { dappConnectService } from "@/services/dappConnect/DAppConnectService";
+import { RequestHandler } from "@/services/dappConnect/RequestHandler";
 import { desktopSigner } from "@/desktop/bridge";
 import { quoteFees, type FeeQuote } from "@/stores/qrlStore";
 import type { SignatureResult } from "@/desktop/bridge";
@@ -117,7 +118,9 @@ function request(method: string, id = 1): PendingDAppRequest {
         ? [address, "0x68656c6c6f"]
         : method === "qrl_requestAccounts"
           ? []
-          : [{ from: address, to: address, value: "0x0" }];
+          : method === "wallet_switchQrlChain" || method === "wallet_addQrlChain"
+            ? [{ chainId: "0x301825" }]
+            : [{ from: address, to: address, value: "0x0" }];
   return {
     id,
     sessionId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
@@ -230,6 +233,101 @@ async function approve(): Promise<void> {
   });
 }
 
+describe("network request details", () => {
+  it.each(["0x003018aB", `0x${"aB".repeat(32)}`])(
+    "shows the validated switch ID %s as received without reading the network",
+    async (chainId) => {
+      const send = jest.spyOn(mockQrlStore.qrlInstance.requestManager, "send");
+      const params = [{ chainId }];
+      RequestHandler.validateRestrictedRequest("wallet_switchQrlChain", params);
+      await showApproval("wallet_switchQrlChain", params);
+      const value = screen.getByText(chainId);
+      expect(value.getAttribute("dir")).toBe("ltr");
+      expect(value.classList.contains("font-mono")).toBe(true);
+      expect(value.closest("[data-review-block]")?.textContent).toBe(`Requested chain ID${chainId}`);
+      expect(screen.queryByText("Wallet chain ID")).toBeNull();
+      expect(send).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["wallet_switchQrlChain", "wallet_addQrlChain"])(
+    "%s never renders extra chainName or rpcUrls with bidi controls and a 10 kB string",
+    async (method) => {
+      const chainId = "0x003018aB";
+      const chainName = "Untrusted network name";
+      const rpcUrls = ["https://rpc.example/\u202euntrusted-network", "x".repeat(10 * 1024)];
+      const params = [{ chainId, chainName, rpcUrls }];
+      if (method === "wallet_switchQrlChain") {
+        RequestHandler.validateRestrictedRequest(method, params);
+      }
+      await showApproval(method, params);
+      const dialog = screen.getByRole("dialog");
+      expect(screen.getByRole("region", { name: "Request details" }).textContent).toBe(
+        method === "wallet_switchQrlChain" ? `Requested chain ID${chainId}` : "",
+      );
+      for (const untrusted of ["chainName", "rpcUrls", chainName, ...rpcUrls, "\u202e"]) {
+        expect(dialog.outerHTML).not.toContain(untrusted);
+      }
+      expect(dialog.querySelector("pre")).toBeNull();
+      if (method === "wallet_addQrlChain") expect(dialog.outerHTML).not.toContain(chainId);
+    },
+  );
+
+  it.each([undefined, "0x", "0x12\u202e34", `0x${"f".repeat(65)}`, 123])(
+    "omits an unvalidated switch ID (%s)",
+    async (chainId) => {
+      await showApproval("wallet_switchQrlChain", [{ chainId }]);
+      expect(screen.getByRole("region", { name: "Request details" }).textContent).toBe("");
+    },
+  );
+
+  it("requires fresh visibility when the requested switch ID changes", async () => {
+    visibility.hold();
+    await showApproval("wallet_switchQrlChain");
+    act(() => { visibility.emit(); });
+    expect(screen.getByRole("button", { name: "Approve" }).hasAttribute("disabled")).toBe(false);
+    act(() => {
+      const approval = mockDappStore.currentApproval;
+      if (approval) approval.params = [{ chainId: "0x003018aB" }];
+      fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    });
+    expect(approveRequestSpy).not.toHaveBeenCalled();
+    expect(rejectRequestSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Approve" }).hasAttribute("disabled")).toBe(true);
+    act(() => {
+      visibility.emit(visibility.targets.filter((target) => target.parentElement?.textContent === "Requested chain ID0x003018aB"));
+    });
+    expect(screen.getByRole("button", { name: "Approve" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  it.each([false, true])("keeps add-network rejection (desktop=%s)", async (desktop) => {
+    mockDesktop = desktop;
+    const pending = await showApproval("wallet_addQrlChain");
+    await approve();
+    expect(rejectRequestSpy).toHaveBeenCalledWith(
+      pending.sessionId, pending.id, "Adding networks is not supported by this wallet", 4200,
+    );
+    expect(approveRequestSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { desktop: false, chainId: "0x00301825", accepted: true },
+    { desktop: false, chainId: "0x1", accepted: false },
+    { desktop: true, chainId: "0x301825", accepted: false },
+  ])("keeps switch behavior for $chainId (desktop=$desktop)", async ({ desktop, chainId, accepted }) => {
+    mockDesktop = desktop;
+    const pending = await showApproval("wallet_switchQrlChain", [{ chainId }]);
+    await approve();
+    if (accepted) {
+      expect(approveRequestSpy).toHaveBeenCalledWith(pending.sessionId, pending.id, null);
+      expect(rejectRequestSpy).not.toHaveBeenCalled();
+    } else {
+      expect(rejectRequestSpy).toHaveBeenCalledWith(pending.sessionId, pending.id, expect.any(String), 4902);
+      expect(approveRequestSpy).not.toHaveBeenCalled();
+    }
+  });
+});
+
 describe('visibility gate', () => {
   it.each(['qrl_requestAccounts', 'wallet_addQrlChain', 'wallet_switchQrlChain', 'qrl_sendTransaction', 'qrl_signTransaction', 'qrl_signMessage', 'qrl_signTypedData'])(
     'blocks %s until seen and keeps rejection working', async (method) => {
@@ -325,7 +423,12 @@ describe('English fitted rendering', () => {
       })),
     }).toMatchSnapshot();
   }
-  it.each(['qrl_sendTransaction', 'qrl_signTransaction', 'qrl_signMessage', 'qrl_signTypedData'])('%s', async (method) => {
+  it.each(['qrl_sendTransaction', 'qrl_signTransaction', 'qrl_signMessage', 'qrl_signTypedData', 'wallet_addQrlChain'])('%s', async (method) => {
+    await showApproval(method);
+    snapshot('Approve');
+  });
+  // These two screens add the account address and validated switch ID to the base.
+  it.each(['qrl_requestAccounts', 'wallet_switchQrlChain'])('%s', async (method) => {
     await showApproval(method);
     snapshot('Approve');
   });

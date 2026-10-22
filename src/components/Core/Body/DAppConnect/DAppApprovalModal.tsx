@@ -1238,6 +1238,15 @@ const DAppApprovalModalContent = observer(() => {
   if (!currentApproval) return null;
 
   const { method, params, dappInfo } = currentApproval;
+  // RequestHandler validates the switch ID at ingress. Only that bounded hex
+  // value belongs in the review; all other network parameters are ignored.
+  const switchChainId = method === "wallet_switchQrlChain"
+    ? firstParamRecord(params)["chainId"]
+    : undefined;
+  const requestedChainId = typeof switchChainId === "string"
+    && switchChainId.length <= 66 && /^0x[0-9a-fA-F]+$/.test(switchChainId)
+    ? switchChainId
+    : undefined;
   const label = METHOD_LABELS[method] || method;
   const needsPin =
     method !== "qrl_requestAccounts" &&
@@ -1501,10 +1510,13 @@ const DAppApprovalModalContent = observer(() => {
                 </div>
               )}
 
-              {(method === "wallet_addQrlChain" || method === "wallet_switchQrlChain") && (
-                <pre data-review-block className="whitespace-pre-wrap break-all font-mono text-xs" dir="ltr">
-                  {JSON.stringify(params ?? [], null, 2)}
-                </pre>
+              {requestedChainId !== undefined && (
+                <dl data-review-block className="grid gap-1 text-sm">
+                  <dt className="text-muted-foreground">Requested chain ID</dt>
+                  <dd className="break-all font-mono text-xs" dir="ltr">
+                    {requestedChainId}
+                  </dd>
+                </dl>
               )}
 
               {isTransaction && params?.[0] != null && (

@@ -87,6 +87,35 @@ exports[`English fitted rendering consent paste 1`] = `
 }
 `;
 
+exports[`English fitted rendering qrl_requestAccounts 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Reject",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Approve",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Test dApphttps://dapp.exampleConnect AccountThis dApp wants to view your account address.QaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaRejectApprove",
+}
+`;
+
 exports[`English fitted rendering qrl_sendTransaction 1`] = `
 {
   "controls": [
@@ -240,5 +269,63 @@ exports[`English fitted rendering qrl_signTypedData 1`] = `
     ]
   }
 }Only sign data from sites you trust. A signed challenge can be used to authenticate as you.Advanced: 64-byte SHAKE256 digest0x7b30638cb00782f6e7ccbccb7c3348b43c77f895aacda0b6189f00438e1804a48dcff2fd45b7b559e835e0378a1690ecab8143226a2f1baf011d27cdd3bd175dRejectApprove",
+}
+`;
+
+exports[`English fitted rendering wallet_addQrlChain 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Reject",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Approve",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Test dApphttps://dapp.exampleAdd NetworkRejectApprove",
+}
+`;
+
+exports[`English fitted rendering wallet_switchQrlChain 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Reject",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Approve",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Test dApphttps://dapp.exampleSwitch NetworkRequested chain ID0x301825RejectApprove",
 }
 `;

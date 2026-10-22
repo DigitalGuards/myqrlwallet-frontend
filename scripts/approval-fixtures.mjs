@@ -1,4 +1,11 @@
 export const address = `Q${"a".repeat(128)}`;
+export const ignoredNetworkFields = {
+  chainName: "Untrusted network name",
+  rpcUrls: [
+    "https://rpc.example/\u202euntrusted-network",
+    `https://rpc.example/${"x".repeat(10 * 1024)}`,
+  ],
+};
 export const methods = [
   "qrl_sendTransaction",
   "qrl_signTransaction",
@@ -57,10 +64,14 @@ export function fixture(method, maximal = false) {
                     : "https://rpc.example",
                 ],
                 nativeCurrency: { name: "Quanta", symbol: "QRL", decimals: 18 },
+                ...(maximal ? ignoredNetworkFields : {}),
               },
             ]
           : method === "wallet_switchQrlChain"
-            ? [{ chainId: maximal ? `0x${"f".repeat(64)}` : "0x301825" }]
+            ? [{
+                chainId: maximal ? `0x${"fF".repeat(32)}` : "0x00301825",
+                ...(maximal ? ignoredNetworkFields : {}),
+              }]
             : [];
   return {
     method,
