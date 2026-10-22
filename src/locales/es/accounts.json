@@ -24,5 +24,8 @@
   "showQr": "Mostrar QR de la dirección",
   "walletAddress": "Dirección de la billetera",
   "scanCopy": "Escanea o copia la dirección completa de abajo.",
-  "copyQr": "Copiar QR"
+  "copyQr": "Copiar QR",
+  "qrTitle": "Código QR de la cuenta",
+  "qrSeo": "Código QR de la cuenta",
+  "qrScan": "Escanea para abrir en el explorador"
 }

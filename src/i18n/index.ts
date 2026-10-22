@@ -7,6 +7,9 @@ import type { Language } from "./languages";
 
 export const defaultNS = "common";
 export const namespaces = [
+  "dapps",
+  "telegram",
+  "notices",
   "onboarding",
   "common",
   "home",

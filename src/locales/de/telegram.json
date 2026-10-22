@@ -1,0 +1,18 @@
+{
+  "checking": "Netzwerk wird geprüft",
+  "operational": "Betriebsbereit",
+  "degraded": "Beeinträchtigt",
+  "title": "Kontrollzentrum",
+  "subtitle": "Dienste überwachen und Wallet-Aktionen sicher öffnen.",
+  "networkStatus": "Netzwerkstatus",
+  "actions": "Wallet-Aktionen",
+  "openWallet": "Wallet öffnen",
+  "accountsBalance": "Konten und Guthaben anzeigen",
+  "activity": "Aktivität",
+  "history": "Wallet-Verlauf prüfen",
+  "apps": "Verbundene Apps",
+  "sessions": "Aktive dApp-Sitzungen prüfen",
+  "settings": "Hinweise und Einstellungen",
+  "configure": "Wallet konfigurieren",
+  "security": "Seeds, private Schlüssel, PINs und das Signieren bleiben innerhalb von MyQRLWallet. Der Telegram-Bot fordert sie niemals an."
+}

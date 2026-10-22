@@ -1,0 +1,13 @@
+{
+  "update": "更新 MyQRLWallet",
+  "retired": "此版本的 MyQRLWallet 应用已不再受支持。请安装最新版本以继续使用钱包。",
+  "regularBrowser": "在其他应用内打开了此页面？请在常用浏览器中打开 qrlwallet.com。",
+  "loadFailed": "无法加载钱包",
+  "reload": "请检查网络连接并重新加载页面。",
+  "updateV3": "更新 MyQRLWallet 以使用测试网 v3",
+  "unsupportedV3": "测试网 v3 支持此网页钱包及更新后的 MyQRLWallet 移动端、桌面端和扩展版本。旧版原生应用尚未通过适用性验证。",
+  "installV3": "安装最新应用，或在常用浏览器中打开此网站，以创建或导入 v3 账户。",
+  "sidebar": "侧边栏",
+  "sidebarDescription": "显示移动端侧边栏。",
+  "toggleSidebar": "切换侧边栏"
+}

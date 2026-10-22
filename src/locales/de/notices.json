@@ -1,0 +1,13 @@
+{
+  "update": "MyQRLWallet aktualisieren",
+  "retired": "Diese Version der MyQRLWallet-App wird nicht mehr unterstützt. Die neueste Version installieren, um Ihre Wallet weiter zu nutzen.",
+  "regularBrowser": "Diese Seite in einer anderen App geöffnet? qrlwallet.com im regulären Browser öffnen.",
+  "loadFailed": "Die Wallet konnte nicht geladen werden",
+  "reload": "Verbindung prüfen und die Seite neu laden.",
+  "updateV3": "MyQRLWallet für Testnetz v3 aktualisieren",
+  "unsupportedV3": "Testnetz v3 unterstützt diese Web-Wallet sowie aktualisierte Mobil-, Desktop- und Erweiterungsversionen von MyQRLWallet. Ältere native Apps sind noch nicht qualifiziert.",
+  "installV3": "Die neueste App installieren oder diese Website in einem regulären Browser öffnen, um ein v3-Konto zu erstellen oder zu importieren.",
+  "sidebar": "Seitenleiste",
+  "sidebarDescription": "Zeigt die mobile Seitenleiste an.",
+  "toggleSidebar": "Seitenleiste umschalten"
+}

@@ -1,0 +1,18 @@
+{
+  "checking": "正在检查网络",
+  "operational": "运行正常",
+  "degraded": "服务降级",
+  "title": "控制中心",
+  "subtitle": "监控服务并安全地打开钱包操作。",
+  "networkStatus": "网络状态",
+  "actions": "钱包操作",
+  "openWallet": "打开钱包",
+  "accountsBalance": "查看账户和余额",
+  "activity": "活动",
+  "history": "查看钱包历史记录",
+  "apps": "已连接应用",
+  "sessions": "查看活跃的 dApp 会话",
+  "settings": "提醒和设置",
+  "configure": "配置你的钱包",
+  "security": "种子、私钥、PIN 和签署操作始终保留在 MyQRLWallet 内。Telegram 机器人绝不会索取它们。"
+}

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { isCallable, isRecord } from "@/utils/guards";
@@ -36,6 +37,7 @@ function getTelegramWebApp(): TelegramWebApp | null {
 }
 
 export default function TelegramControlCenter() {
+  const { t } = useTranslation("telegram");
   const [health, setHealth] = useState<HealthState>("loading");
   const navigate = useNavigate();
 
@@ -70,10 +72,10 @@ export default function TelegramControlCenter() {
 
   const statusLabel =
     health === "loading"
-      ? "Checking network"
+      ? t("checking")
       : health === "ok"
-        ? "Operational"
-        : "Degraded";
+        ? t("operational")
+        : t("degraded");
   const statusColor =
     health === "ok"
       ? "bg-success"
@@ -89,10 +91,10 @@ export default function TelegramControlCenter() {
             MyQRLWallet
           </p>
           <h1 className="font-display text-3xl font-semibold tracking-tight">
-            Control center
+            {t("title")}
           </h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Monitor services and open wallet actions securely.
+            {t("subtitle")}
           </p>
         </header>
 
@@ -104,7 +106,9 @@ export default function TelegramControlCenter() {
                 aria-hidden="true"
               />
               <div>
-                <p className="text-xs text-muted-foreground">Network status</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("networkStatus")}
+                </p>
                 <p className="font-display text-lg font-semibold">
                   {statusLabel}
                 </p>
@@ -117,7 +121,7 @@ export default function TelegramControlCenter() {
           </div>
         </section>
 
-        <section className="grid grid-cols-2 gap-3" aria-label="Wallet actions">
+        <section className="grid grid-cols-2 gap-3" aria-label={t("actions")}>
           <button
             className="rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/60"
             onClick={() => {
@@ -126,10 +130,10 @@ export default function TelegramControlCenter() {
           >
             <Wallet className="mb-8 h-5 w-5 text-primary" aria-hidden="true" />
             <span className="block font-display font-semibold">
-              Open wallet
+              {t("openWallet")}
             </span>
             <span className="mt-1 block text-xs text-muted-foreground">
-              View accounts and balance
+              {t("accountsBalance")}
             </span>
           </button>
           <button
@@ -142,9 +146,11 @@ export default function TelegramControlCenter() {
               className="mb-8 h-5 w-5 text-primary"
               aria-hidden="true"
             />
-            <span className="block font-display font-semibold">Activity</span>
+            <span className="block font-display font-semibold">
+              {t("activity")}
+            </span>
             <span className="mt-1 block text-xs text-muted-foreground">
-              Review wallet history
+              {t("history")}
             </span>
           </button>
         </section>
@@ -161,9 +167,9 @@ export default function TelegramControlCenter() {
               aria-hidden="true"
             />
             <span className="flex-1">
-              <span className="block font-medium">Connected apps</span>
+              <span className="block font-medium">{t("apps")}</span>
               <span className="block text-xs text-muted-foreground">
-                Review active dApp sessions
+                {t("sessions")}
               </span>
             </span>
             <ChevronRight
@@ -179,9 +185,9 @@ export default function TelegramControlCenter() {
           >
             <Bell className="h-5 w-5 text-identity-accent" aria-hidden="true" />
             <span className="flex-1">
-              <span className="block font-medium">Alerts and settings</span>
+              <span className="block font-medium">{t("settings")}</span>
               <span className="block text-xs text-muted-foreground">
-                Configure your wallet
+                {t("configure")}
               </span>
             </span>
             <ChevronRight
@@ -195,8 +201,7 @@ export default function TelegramControlCenter() {
               aria-hidden="true"
             />
             <p className="text-xs leading-5 text-muted-foreground">
-              Seeds, private keys, PINs, and signing remain inside MyQRLWallet.
-              The Telegram bot never requests them.
+              {t("security")}
             </p>
           </div>
         </section>

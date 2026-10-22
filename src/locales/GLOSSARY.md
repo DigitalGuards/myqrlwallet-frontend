@@ -39,3 +39,9 @@ Approval authorizes a signer request. Broadcast submits a signed transaction to 
 For account setup, English mnemonic/seed phrase labels refer to the recovery phrase in the glossary. Translate the surrounding UI only: the recovery words, their order, hex bytes (including `0x`), addresses, file contents and user-entered credentials remain unchanged. Wallet-file passwords, transaction PINs, browser extension unlock passwords and device security credentials are distinct credentials. Keep each owner and purpose explicit.
 
 For device credential recovery, preserve every condition: independently usable backups for every wallet, earlier network profiles, keeping all data if any backup is missing, authentication and confirmation before permanent native removal, and retaining the original browser profile until every wallet is recovered. Encrypted and unencrypted wallet downloads must remain distinguishable, and the prohibition on sharing an unencrypted wallet file is absolute.
+
+| English | Deutsch | Español  | Русский | 简体中文 |
+| ------- | ------- | -------- | ------- | -------- |
+| pair    | koppeln | vincular | связать | 配对     |
+
+Pairing establishes an encrypted channel and requires a separate account-access approval. Account approval exposes an address. Keep these scopes distinct. DApp-supplied names, origins and addresses retain their exact rendering and visual-control escaping. Unknown pairing errors remain verbatim. In Simplified Chinese, use 区块浏览器 for a block explorer and 浏览器 for the web browser.

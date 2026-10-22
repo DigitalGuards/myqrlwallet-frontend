@@ -1,0 +1,13 @@
+{
+  "update": "Actualiza MyQRLWallet",
+  "retired": "Esta versión de la aplicación MyQRLWallet ya no es compatible. Instala la última versión para seguir usando tu billetera.",
+  "regularBrowser": "¿Has abierto esta página dentro de otra aplicación? Abre qrlwallet.com en tu navegador habitual.",
+  "loadFailed": "No se pudo cargar la billetera",
+  "reload": "Comprueba tu conexión y vuelve a cargar la página.",
+  "updateV3": "Actualiza MyQRLWallet para la Red de prueba v3",
+  "unsupportedV3": "La Red de prueba v3 admite esta billetera web y las versiones actualizadas de MyQRLWallet para móvil, escritorio y extensión. Las aplicaciones nativas anteriores aún no están cualificadas.",
+  "installV3": "Instala la última aplicación o abre este sitio en un navegador habitual para crear o importar una cuenta v3.",
+  "sidebar": "Barra lateral",
+  "sidebarDescription": "Muestra la barra lateral móvil.",
+  "toggleSidebar": "Alternar barra lateral"
+}

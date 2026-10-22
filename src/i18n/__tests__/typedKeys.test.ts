@@ -7,6 +7,12 @@ it("rejects missing and misspelled keys, including calls with a default value", 
     import { i18n } from './index';
     const t = i18n.getFixedT('en', 'home');
     t('activeAccount');
+    i18n.getFixedT('en', 'dapps')('sessionsSubtitle');
+    i18n.getFixedT('en', 'telegram')('security');
+    i18n.getFixedT('en', 'notices')('unsupportedV3');
+    i18n.getFixedT('en', 'dapps')('missingApproval', { defaultValue: 'fallback' });
+    i18n.getFixedT('en', 'telegram')('missingTelegram');
+    i18n.getFixedT('en', 'notices')('missingNotice');
     t('activAccount');
     t('missing', { defaultValue: 'fallback' });
     i18n.getFixedT('en', 'transfer')('recipientChanged');
@@ -46,7 +52,7 @@ it("rejects missing and misspelled keys, including calls with a default value", 
     .filter(
       (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
     );
-  expect(errors).toHaveLength(6);
+  expect(errors).toHaveLength(9);
   expect(errors.every((error) => error.file?.fileName === fixture)).toBe(true);
   expect(
     errors

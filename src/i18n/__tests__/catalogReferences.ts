@@ -34,6 +34,11 @@ export function catalogReferences(paths: string[]): Set<string> {
     const scanNamespaces = (node: ts.Node) => {
       if (
         ts.isCallExpression(node) &&
+        node.expression.getText(source) === "useBootNoticeTranslation"
+      )
+        namespaces.add("notices");
+      if (
+        ts.isCallExpression(node) &&
         ts.isIdentifier(node.expression) &&
         node.expression.text === "t"
       ) {
@@ -68,7 +73,7 @@ export function catalogReferences(paths: string[]): Set<string> {
     scanNamespaces(source);
     const add = (text: string) => {
       if (
-        /^(common|home|settings|tokens|history|transfer|accounts|contacts|onboarding):[\w.]+$/.test(
+        /^(common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[\w.]+$/.test(
           text,
         )
       )
@@ -85,7 +90,7 @@ export function catalogReferences(paths: string[]): Set<string> {
       // Fully qualified literals also cover typed navigation/error/status models.
       if (
         ts.isStringLiteralLike(node) &&
-        /^(common|home|settings|tokens|history|transfer|accounts|contacts|onboarding):[\w.]+$/.test(
+        /^(common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[\w.]+$/.test(
           node.text,
         )
       )

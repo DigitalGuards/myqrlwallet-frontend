@@ -1,3 +1,5 @@
+import { slice4Screens, slice4NoticeProbes } from "./i18n-slice4-probes.mjs";
+import { assertFullI18nCoverage } from "./i18n-coverage.mjs";
 import { slice3Screens } from "./i18n-slice3-probes.mjs";
 import { slice2Screens } from "./i18n-slice2-probes.mjs";
 // Built-wallet translation and layout smoke with synthetic public data and stubbed RPC.
@@ -33,14 +35,10 @@ const server = spawn(
 let browser;
 const results = [];
 const started = performance.now();
-const full = process.env.I18N_FULL === "1";
-const timeout = setTimeout(
-  () => {
-    server.kill();
-    process.exit(1);
-  },
-  full ? 600000 : 210000,
-);
+const timeout = setTimeout(() => {
+  server.kill();
+  process.exit(1);
+}, 600000);
 
 try {
   await mkdir(output, { recursive: true });
@@ -55,7 +53,7 @@ try {
     if (attempt === 39) throw new Error("Preview did not start");
   }
   browser = await chromium.launch();
-  await helperRouteProbes(browser, origin, { full });
+  await helperRouteProbes(browser, origin);
   await reviewProbes(browser, origin);
   for (const language of languages) {
     const catalogs = Object.fromEntries(
@@ -70,6 +68,9 @@ try {
           "accounts",
           "contacts",
           "onboarding",
+          "dapps",
+          "telegram",
+          "notices",
         ].map(async (ns) => [
           ns,
           JSON.parse(
@@ -149,10 +150,13 @@ try {
               qrl_getBlockByNumber: {
                 hash: "0xd15407991193e6c23b733dc6bf9c628deaff8f9b6e252aa0d60030952b3e3ea4",
                 number: "0x0",
+                baseFeePerGas: "0x3b9aca00",
               },
               qrl_getBalance: "0xab54a98ceb1f0ad2",
               qrl_blockNumber: "0x1",
               qrl_gasPrice: "0x3b9aca00",
+              qrl_maxPriorityFeePerGas: "0x1",
+              qrl_estimateGas: "0x5208",
             }[rpc.method] ?? "0x0",
         });
         const data = request.postDataJSON();
@@ -182,7 +186,7 @@ try {
       );
       assert.doesNotMatch(
         await page.locator("body").innerText(),
-        /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding):[A-Za-z][\w.-]*/,
+        /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*/,
         `${language}/${name}: raw catalog key`,
       );
       const labels = await page
@@ -196,7 +200,7 @@ try {
         );
       assert.doesNotMatch(
         labels.join("\n"),
-        /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding):[A-Za-z][\w.-]*|{{/,
+        /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*|{{/,
         `${language}/${name}: unresolved label`,
       );
       await delay(150);
@@ -282,32 +286,30 @@ try {
       .getByText(catalogs.home.noNfts, { exact: true })
       .scrollIntoViewIfNeeded();
     await snapshot("home-collectibles");
-    if (full || language === "en") {
-      await page
-        .getByRole("button", { name: catalogs.tokens.add, exact: true })
-        .first()
-        .click();
-      await page
-        .getByRole("menuitem", {
-          name: catalogs.tokens.addExisting,
-          exact: true,
-        })
-        .waitFor();
-      await snapshot("tokens-menu");
-      await page
-        .getByRole("menuitem", {
-          name: catalogs.tokens.addExisting,
-          exact: true,
-        })
-        .click();
-      await page
-        .getByRole("heading", { name: catalogs.tokens.add, exact: true })
-        .waitFor();
-      await snapshot("tokens-add");
-      await page
-        .getByRole("button", { name: catalogs.common.close, exact: true })
-        .click();
-    }
+    await page
+      .getByRole("button", { name: catalogs.tokens.add, exact: true })
+      .first()
+      .click();
+    await page
+      .getByRole("menuitem", {
+        name: catalogs.tokens.addExisting,
+        exact: true,
+      })
+      .waitFor();
+    await snapshot("tokens-menu");
+    await page
+      .getByRole("menuitem", {
+        name: catalogs.tokens.addExisting,
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("heading", { name: catalogs.tokens.add, exact: true })
+      .waitFor();
+    await snapshot("tokens-add");
+    await page
+      .getByRole("button", { name: catalogs.common.close, exact: true })
+      .click();
     // Each non-English dictionary has a distinct signature. Check actual fetched scripts.
     const scriptBodies = await Promise.all(
       [...scripts].map(async (url) => (await fetch(url)).text()),
@@ -335,31 +337,27 @@ try {
         `${other} loaded before selection`,
       );
     }
-    if (full || language === "en") {
-      await page
-        .getByRole("button", { name: catalogs.home.receive, exact: true })
-        .click();
-      await page
-        .getByRole("heading", { name: catalogs.home.receiveQuanta })
-        .waitFor();
-      await page
-        .getByRole("button", { name: catalogs.common.showAddress, exact: true })
-        .click();
-      await snapshot("receive");
-      await page
-        .getByRole("button", { name: catalogs.common.close, exact: true })
-        .click();
-      await page
-        .getByRole("button", { name: catalogs.home.history, exact: true })
-        .click();
-      await page
-        .getByRole("heading", { name: catalogs.history.title })
-        .waitFor();
-      await snapshot("history");
-      await page
-        .getByRole("button", { name: catalogs.common.close, exact: true })
-        .click();
-    }
+    await page
+      .getByRole("button", { name: catalogs.home.receive, exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: catalogs.home.receiveQuanta })
+      .waitFor();
+    await page
+      .getByRole("button", { name: catalogs.common.showAddress, exact: true })
+      .click();
+    await snapshot("receive");
+    await page
+      .getByRole("button", { name: catalogs.common.close, exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: catalogs.home.history, exact: true })
+      .click();
+    await page.getByRole("heading", { name: catalogs.history.title }).waitFor();
+    await snapshot("history");
+    await page
+      .getByRole("button", { name: catalogs.common.close, exact: true })
+      .click();
     await page
       .getByRole("button", { name: catalogs.common.settings, exact: true })
       .last()
@@ -370,41 +368,45 @@ try {
     await snapshot("settings");
     await page.locator("#wallet-language").scrollIntoViewIfNeeded();
     await snapshot("settings-language");
-    if (full || language === "en") {
-      await page
-        .getByRole("button", {
-          name: new RegExp(`^${catalogs.settings.changePin}`),
-        })
-        .click();
-      await snapshot("settings-pin");
-      await page
-        .getByRole("button", {
-          name: new RegExp(`^${catalogs.settings.export}`),
-        })
-        .first()
-        .click();
-      await page
-        .locator("#export-wallet-panel")
-        .evaluate((element) => element.scrollIntoView({ block: "start" }));
-      await snapshot("settings-export");
-      await page
-        .getByRole("button", {
-          name: catalogs.settings.connectDapp,
-          exact: true,
-        })
-        .click();
-      await page
-        .getByPlaceholder(catalogs.settings.pasteCode)
-        .scrollIntoViewIfNeeded();
-      await snapshot("settings-connect");
-    }
+    await page
+      .getByRole("button", {
+        name: new RegExp(`^${catalogs.settings.changePin}`),
+      })
+      .click();
+    await snapshot("settings-pin");
+    await page
+      .getByRole("button", {
+        name: new RegExp(`^${catalogs.settings.export}`),
+      })
+      .first()
+      .click();
+    await page
+      .locator("#export-wallet-panel")
+      .evaluate((element) => element.scrollIntoView({ block: "start" }));
+    await snapshot("settings-export");
+    await page
+      .getByRole("button", {
+        name: catalogs.settings.connectDapp,
+        exact: true,
+      })
+      .click();
+    await page
+      .getByPlaceholder(catalogs.settings.pasteCode)
+      .scrollIntoViewIfNeeded();
+    await snapshot("settings-connect");
     await slice2Screens({
       page,
       origin,
       catalogs,
       snapshot,
       address,
-      full,
+    });
+    await slice4Screens({
+      page,
+      origin,
+      catalogs,
+      snapshot,
+      address,
     });
     const documentId = await page.evaluate(() => {
       window.i18nDocumentId = Math.random();
@@ -449,10 +451,11 @@ try {
       origin,
       catalogs,
       snapshot,
-      full: full || language === "en",
     });
     await context.close();
   }
+  results.push(...(await slice4NoticeProbes({ browser, origin, output })));
+  assertFullI18nCoverage(results);
   await writeFile(
     join(output, "layout-results.json"),
     JSON.stringify(results, null, 2),

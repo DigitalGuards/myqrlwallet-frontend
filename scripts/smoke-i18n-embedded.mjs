@@ -1,3 +1,4 @@
+import { slice4Screens } from "./i18n-slice4-probes.mjs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readFile, mkdir } from "node:fs/promises";
@@ -78,7 +79,7 @@ try {
         const text = await page.locator("body").innerText();
         assert.doesNotMatch(
           text,
-          /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding):[A-Za-z][\w.-]*|{{/,
+          /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*|{{/,
         );
         await page.screenshot({
           path: join(output, `${language}-${name}-360.png`),
@@ -138,7 +139,7 @@ try {
             );
           assert.doesNotMatch(
             [text, ...labels].join("\n"),
-            /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding):[A-Za-z][\w.-]*|{{/,
+            /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*|{{/,
           );
           assert.equal(
             await page.evaluate(
@@ -190,6 +191,53 @@ try {
           await capture(path.slice(1));
         }
       }
+      const catalogs = Object.fromEntries(
+        await Promise.all(
+          ["dapps", "telegram", "accounts", "settings", "common"].map(
+            async (ns) => [
+              ns,
+              JSON.parse(
+                await readFile(`src/locales/${language}/${ns}.json`, "utf8"),
+              ),
+            ],
+          ),
+        ),
+      );
+      catalogs.code = language;
+      await slice4Screens({
+        page,
+        origin: "https://wallet.example",
+        catalogs,
+        address: `Q${"1".repeat(128)}`,
+        embedded: true,
+        full: false,
+        snapshot: async (name) => {
+          const labels = await page
+            .locator("[aria-label], [title], [placeholder], [alt]")
+            .evaluateAll((elements) =>
+              elements.flatMap((element) =>
+                ["aria-label", "title", "placeholder", "alt"].map(
+                  (attribute) => element.getAttribute(attribute) ?? "",
+                ),
+              ),
+            );
+          assert.doesNotMatch(
+            [await page.locator("body").innerText(), ...labels].join("\n"),
+            /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*|{{/,
+          );
+          assert.equal(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth > innerWidth + 1,
+            ),
+            false,
+          );
+          await page.screenshot({
+            path: join(output, `${language}-${name}-360.png`),
+            fullPage: true,
+            animations: "disabled",
+          });
+        },
+      });
       assert.deepEqual(codeRequests, []);
       assert.deepEqual(errors, []);
     } finally {
