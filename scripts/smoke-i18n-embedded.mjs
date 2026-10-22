@@ -77,13 +77,117 @@ try {
         const text = await page.locator("body").innerText();
         assert.doesNotMatch(
           text,
-          /(?:common|home|settings|tokens|history|transfer|accounts|contacts):[A-Za-z][\w.-]*|{{/,
+          /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding):[A-Za-z][\w.-]*|{{/,
         );
         await page.screenshot({
           path: join(output, `${language}-${name}-360.png`),
           fullPage: true,
           animations: "disabled",
         });
+      }
+      const onboarding = JSON.parse(
+        await readFile(`src/locales/${language}/onboarding.json`, "utf8"),
+      );
+      for (const path of [
+        "/create-account",
+        "/import-account",
+        "/add-account",
+        "/terms",
+        "/privacy",
+        "/security",
+        "/disclaimer",
+        "/legal",
+      ]) {
+        await page.evaluate((path) => {
+          for (const prefix of ["", "qrlwallet:v3:"])
+            localStorage.setItem(
+              `${prefix}ACTIVE_PAGE`,
+              JSON.stringify({
+                value: path,
+                timestamp: Date.now(),
+                version: "v1",
+              }),
+            );
+          location.hash = path;
+        }, path);
+        await page.waitForURL(`**/#${path}`);
+        const titles = {
+          "/create-account": onboarding.createNew,
+          "/import-account": onboarding.importTitle,
+          "/add-account": onboarding.addAccounts,
+          "/terms": "Terms of Use",
+          "/privacy": "Privacy Policy",
+          "/security": "Security and Vulnerability Disclosure Policy",
+          "/disclaimer": "Disclaimer",
+          "/legal": "Imprint",
+        };
+        await page
+          .getByRole("heading", { name: titles[path], exact: true })
+          .waitFor();
+        const capture = async (name) => {
+          const text = await page.locator("body").innerText();
+          const labels = await page
+            .locator("[aria-label], [title], [placeholder], [alt]")
+            .evaluateAll((elements) =>
+              elements.flatMap((element) =>
+                ["aria-label", "title", "placeholder", "alt"].map(
+                  (name) => element.getAttribute(name) ?? "",
+                ),
+              ),
+            );
+          assert.doesNotMatch(
+            [text, ...labels].join("\n"),
+            /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding):[A-Za-z][\w.-]*|{{/,
+          );
+          assert.equal(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth > innerWidth + 1,
+            ),
+            false,
+          );
+          await page.screenshot({
+            path: join(output, `${language}-${name}-360.png`),
+            fullPage: true,
+            animations: "disabled",
+          });
+        };
+        if (path === "/create-account")
+          await page
+            .getByPlaceholder(onboarding.password, { exact: true })
+            .waitFor();
+        if (path === "/import-account") {
+          for (const [method, label] of [
+            ["mnemonic", onboarding.importMnemonic],
+            ["file", onboarding.importEncrypted],
+            ["hex", onboarding.importHex],
+          ]) {
+            await page.getByRole("tab", { name: label, exact: true }).click();
+            await capture(`import-${method}`);
+          }
+        } else {
+          if (
+            [
+              "/terms",
+              "/privacy",
+              "/security",
+              "/disclaimer",
+              "/legal",
+            ].includes(path)
+          ) {
+            if (language === "en")
+              assert.equal(
+                await page
+                  .getByText(common.englishOnly, { exact: true })
+                  .count(),
+                0,
+              );
+            else
+              await page
+                .getByText(common.englishOnly, { exact: true })
+                .waitFor();
+          }
+          await capture(path.slice(1));
+        }
       }
       assert.deepEqual(codeRequests, []);
       assert.deepEqual(errors, []);

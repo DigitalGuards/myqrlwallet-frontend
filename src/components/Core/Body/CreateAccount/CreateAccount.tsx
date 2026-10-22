@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Card } from "@/components/UI/Card";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { lazy, useState } from "react";
@@ -18,6 +19,7 @@ const MnemonicDisplay = withSuspense(
 );
 
 const CreateAccount = observer(() => {
+  const { t } = useTranslation(["onboarding", "common", "settings"]);
   const { qrlStore } = useStore();
   const { qrlConnection } = qrlStore;
 
@@ -57,17 +59,17 @@ const CreateAccount = observer(() => {
   return (
     <>
       <SEO
-        title="Create Account"
-        description="Create a new quantum-resistant QRL account. Generate a secure wallet with post-quantum cryptography to protect your assets."
-        keywords="Create QRL Account, New Wallet, Quantum Resistant Account, Post-Quantum Cryptography"
+        title={t("onboarding:createTitle")}
+        description={t("onboarding:createDescription")}
+        keywords={t("onboarding:createKeywords")}
       />
       <PageShell
         title={
           isWalletLimitReached
-            ? "Wallet Limit Reached"
+            ? t("onboarding:limitTitle")
             : hasAccountCreated
-              ? "Your Recovery Information"
-              : "Create new account"
+              ? t("onboarding:recoveryTitle")
+              : t("onboarding:createNew")
         }
       >
         <div className="relative z-10">
@@ -76,15 +78,16 @@ const CreateAccount = observer(() => {
               <AlertCircle className="h-12 w-12 text-destructive" />
               <div className="flex flex-col gap-2">
                 <p className="text-muted-foreground">
-                  You have reached the maximum limit of {maxWallets} wallets.
-                  Please remove an existing wallet before creating a new one.
+                  {t("onboarding:createLimit", { maxWallets })}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Current wallets: {walletCount} / {maxWallets}
+                  {t("onboarding:walletCount", { walletCount, maxWallets })}
                 </p>
               </div>
               <Link to={ROUTES.ACCOUNT_LIST}>
-                <Button variant="outline">Manage Wallets</Button>
+                <Button variant="outline">
+                  {t("onboarding:manageWallets")}
+                </Button>
               </Link>
             </Card>
           ) : hasAccountCreated ? (

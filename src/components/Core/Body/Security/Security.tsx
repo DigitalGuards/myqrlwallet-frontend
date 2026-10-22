@@ -1,3 +1,4 @@
+import { LegalLanguageNote } from "@/components/Core/Layout/LegalLanguageNote";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Card } from "@/components/UI/Card";
 import { Link } from "react-router";
@@ -30,6 +31,7 @@ const Security = () => {
                 description="Security and coordinated vulnerability disclosure policy for MyQRLWallet by DigitalGuards, including a safe-harbour statement."
             />
             <Card className="p-6">
+                <LegalLanguageNote />
 
                 <p className="mb-2 text-sm text-muted-foreground">Last updated: 13 July 2026</p>
 

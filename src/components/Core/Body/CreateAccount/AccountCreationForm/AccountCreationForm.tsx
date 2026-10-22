@@ -1,7 +1,12 @@
+import { onboardingError, onboardingMessage } from "@/i18n/onboardingMessage";
+import { useTranslation } from "react-i18next";
 import type { BlockchainSelection } from "@/utils/storage/storage";
 import type { EncryptedSeedData } from "@/utils/storage/storage";
 import { logger } from "@/utils/log";
-import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
+import {
+  PinVerificationError,
+  verifyPinWithLimit,
+} from "@/utils/crypto/verifyPinWithLimit";
 import { useState, useEffect, useRef } from "react";
 import { ShinyButton } from "@/components/UI/ShinyButton";
 import { Card, CardContent, CardFooter } from "@/components/UI/Card";
@@ -42,20 +47,17 @@ import { DeviceCredentialRecovery } from "../../PinSetup/DeviceCredentialRecover
 // Password must match WalletEncryptionUtil.validatePassword() requirements
 const passwordValidation = z
   .string()
-  .min(8, "Password must be at least 8 characters")
-  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-  .regex(/\d/, "Password must contain at least one number")
-  .regex(
-    /[!@#$%^&*(),.?":{}|<>]/,
-    'Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)',
-  );
+  .min(8, "onboarding:passwordMin")
+  .regex(/[A-Z]/, "onboarding:passwordUpper")
+  .regex(/[a-z]/, "onboarding:passwordLower")
+  .regex(/\d/, "onboarding:passwordNumber")
+  .regex(/[!@#$%^&*(),.?":{}|<>]/, "onboarding:passwordSpecial");
 
 const pinValidation = z
   .string()
-  .min(4, "PIN must be at least 4 digits")
-  .max(6, "PIN must be at most 6 digits")
-  .regex(/^\d+$/, "PIN must contain only digits");
+  .min(4, "onboarding:pinMin")
+  .max(6, "onboarding:pinMax")
+  .regex(/^\d+$/, "onboarding:pinDigits");
 
 // Base form values type - reEnteredPin is always present but may be empty
 type FormValues = {
@@ -69,16 +71,16 @@ type FormValues = {
 const NewUserSchema = z
   .object({
     password: passwordValidation,
-    reEnteredPassword: z.string().min(1, "Please re-enter your password"),
+    reEnteredPassword: z.string().min(1, "onboarding:passwordRepeatRequired"),
     pin: pinValidation,
     reEnteredPin: pinValidation,
   })
   .refine((data) => data.password === data.reEnteredPassword, {
-    message: "Passwords don't match",
+    message: "onboarding:passwordMismatch",
     path: ["reEnteredPassword"],
   })
   .refine((data) => data.pin === data.reEnteredPin, {
-    message: "PINs don't match",
+    message: "onboarding:pinMismatch",
     path: ["reEnteredPin"],
   });
 
@@ -86,12 +88,12 @@ const NewUserSchema = z
 const ExistingUserSchema = z
   .object({
     password: passwordValidation,
-    reEnteredPassword: z.string().min(1, "Please re-enter your password"),
+    reEnteredPassword: z.string().min(1, "onboarding:passwordRepeatRequired"),
     pin: pinValidation,
     reEnteredPin: z.string(), // Present but not validated
   })
   .refine((data) => data.password === data.reEnteredPassword, {
-    message: "Passwords don't match",
+    message: "onboarding:passwordMismatch",
     path: ["reEnteredPassword"],
   });
 
@@ -101,12 +103,12 @@ const ExistingUserSchema = z
 const DesktopSchema = z
   .object({
     password: passwordValidation,
-    reEnteredPassword: z.string().min(1, "Please re-enter your password"),
+    reEnteredPassword: z.string().min(1, "onboarding:passwordRepeatRequired"),
     pin: z.string(),
     reEnteredPin: z.string(),
   })
   .refine((data) => data.password === data.reEnteredPassword, {
-    message: "Passwords don't match",
+    message: "onboarding:passwordMismatch",
     path: ["reEnteredPassword"],
   });
 
@@ -143,6 +145,7 @@ const InnerForm = observer(
     existingSeeds,
     blockchain,
   }: InnerFormProps) => {
+    const { t } = useTranslation(["onboarding", "common", "settings"]);
     const { qrlStore } = useStore();
     const { qrlInstance } = qrlStore;
     const [isEncrypting, setIsEncrypting] = useState(false);
@@ -199,7 +202,10 @@ const InnerForm = observer(
           } catch (err) {
             setIsEncrypting(false);
             setError("root", {
-              message: `${err instanceof Error ? err.message : String(err)} There was an error while creating the account`,
+              message: onboardingError({
+                key: "onboarding:createFailed",
+                reason: err instanceof Error ? err.message : String(err),
+              }),
             });
           }
           return;
@@ -230,18 +236,20 @@ const InnerForm = observer(
               err instanceof PinVerificationError
                 ? err.message
                 : err instanceof CryptoOperationError &&
-                  err.code === CryptoErrorCode.OUTDATED_FORMAT
-                  ? "This wallet was saved in an older format and must be re-imported."
+                    err.code === CryptoErrorCode.OUTDATED_FORMAT
+                  ? "onboarding:olderFormat"
                   : missingDeviceCredential
-                    ? "The device security credential is unavailable. Review the recovery steps below."
-                    : "Failed to unlock the seed. Please try again.";
+                    ? "onboarding:credentialUnavailable"
+                    : "onboarding:unlockFailed";
             setError("pin", { message });
             return;
           }
         }
 
         // Create the account
-        const newAccount = await Promise.resolve(qrlInstance?.accounts.create());
+        const newAccount = await Promise.resolve(
+          qrlInstance?.accounts.create(),
+        );
         if (!newAccount || !newAccount.seed) {
           throw new Error("Failed to create account");
         }
@@ -294,17 +302,20 @@ const InnerForm = observer(
       } catch (error) {
         setIsEncrypting(false);
         setError("root", {
-          message: `${String(error)} There was an error while creating the account`,
+          message: onboardingError({
+            key: "onboarding:createFailed",
+            reason: String(error),
+          }),
         });
       }
     }
 
     const isProcessing = isSubmitting || isEncrypting;
     const buttonText = isEncrypting
-      ? "Encrypting..."
+      ? t("onboarding:encrypting")
       : isSubmitting
-        ? "Creating account..."
-        : "Create account";
+        ? t("onboarding:creating")
+        : t("onboarding:create");
 
     return (
       <Form {...form}>
@@ -313,7 +324,10 @@ const InnerForm = observer(
           onSubmit={(event) => {
             handleSubmit(onSubmit)(event).catch((error: unknown) => {
               setError("root", {
-                message: `${String(error)} There was an error while creating the account`,
+                message: onboardingError({
+                  key: "onboarding:createFailed",
+                  reason: String(error),
+                }),
               });
             });
           }}
@@ -321,10 +335,11 @@ const InnerForm = observer(
           <Card>
             <CardContent className="space-y-8 pt-6">
               <div>
-                <h3 className="text-lg font-medium mb-4">Wallet Password</h3>
+                <h3 className="text-lg font-medium mb-4">
+                  {t("onboarding:walletPassword")}
+                </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  This password will be used to encrypt your wallet backup
-                  files. It should be strong and secure.
+                  {t("onboarding:backupPassword")}
                 </p>
                 <div className="space-y-4">
                   <FormField
@@ -335,16 +350,19 @@ const InnerForm = observer(
                         <FormControl>
                           <Input
                             disabled={isSubmitting}
-                            placeholder="Password"
+                            placeholder={t("onboarding:password")}
                             type="password"
                             {...field}
                           />
                         </FormControl>
                         <FormDescription>
-                          Must include uppercase, lowercase, number, and special
-                          character
+                          {t("onboarding:passwordRules")}
                         </FormDescription>
-                        <FormMessage />
+                        <FormMessage
+                          translateMessage={(message) =>
+                            onboardingMessage(message, t)
+                          }
+                        />
                       </FormItem>
                     )}
                   />
@@ -357,12 +375,18 @@ const InnerForm = observer(
                           <Input
                             {...field}
                             disabled={isSubmitting}
-                            placeholder="Re-enter the password"
+                            placeholder={t("onboarding:passwordRepeat")}
                             type="password"
                           />
                         </FormControl>
-                        <FormDescription>Re-enter the password</FormDescription>
-                        <FormMessage />
+                        <FormDescription>
+                          {t("onboarding:passwordRepeat")}
+                        </FormDescription>
+                        <FormMessage
+                          translateMessage={(message) =>
+                            onboardingMessage(message, t)
+                          }
+                        />
                       </FormItem>
                     )}
                   />
@@ -378,15 +402,15 @@ const InnerForm = observer(
                   <div>
                     <h3 className="text-lg font-medium mb-4">
                       {hasExistingSeeds
-                        ? "Your Existing PIN"
-                        : "Transaction PIN"}
+                        ? t("onboarding:existingPinTitle")
+                        : t("onboarding:transactionPin")}
                     </h3>
                     <p className="text-sm text-muted-foreground mb-4">
                       {hasExistingSeeds
-                        ? "Enter your existing PIN to add this wallet. All wallets use the same PIN for security."
+                        ? t("onboarding:existingPinHelp")
                         : isInNativeApp()
-                          ? "This PIN will be used for daily transactions and to enable security features like Device Login. You'll enter this PIN instead of your seed phrase when sending funds. Your wallet is secured by Device Login and automatically locks when you switch apps."
-                          : 'This PIN will be used for daily transactions. You\'ll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.'}
+                          ? t("onboarding:nativePinHelp")
+                          : t("onboarding:webPinHelp")}
                     </p>
                     <div className="space-y-4">
                       <FormField
@@ -397,18 +421,18 @@ const InnerForm = observer(
                             length={6}
                             placeholder={
                               hasExistingSeeds
-                                ? "Your existing PIN"
-                                : "Enter PIN (4-6 digits)"
+                                ? t("onboarding:existingPin")
+                                : t("onboarding:enterPin")
                             }
                             value={field.value}
                             onChange={field.onChange}
                             disabled={isSubmitting}
                             description={
                               hasExistingSeeds
-                                ? "(All wallets use the same PIN)"
-                                : "Enter a 4-6 digit PIN"
+                                ? t("onboarding:samePin")
+                                : t("onboarding:pinLengthHelp")
                             }
-                            error={errors.pin?.message}
+                            error={onboardingMessage(errors.pin?.message, t)}
                             onComplete={() => reEnterPinRef.current?.focus()}
                           />
                         )}
@@ -421,12 +445,15 @@ const InnerForm = observer(
                             <PinInput
                               ref={reEnterPinRef}
                               length={6}
-                              placeholder="Re-enter PIN"
+                              placeholder={t("onboarding:repeatPin")}
                               value={field.value}
                               onChange={field.onChange}
                               disabled={isSubmitting}
-                              description="Re-enter your PIN"
-                              error={errors.reEnteredPin?.message}
+                              description={t("onboarding:repeatPinHelp")}
+                              error={onboardingMessage(
+                                errors.reEnteredPin?.message,
+                                t,
+                              )}
                             />
                           )}
                         />
@@ -444,7 +471,7 @@ const InnerForm = observer(
             <CardFooter className="flex-col gap-4">
               {errors.root && (
                 <p className="text-sm text-destructive w-full">
-                  {errors.root.message}
+                  {onboardingMessage(errors.root.message, t)}
                 </p>
               )}
               <ShinyButton
@@ -470,15 +497,14 @@ const InnerForm = observer(
  */
 export const AccountCreationForm = observer(
   ({ onAccountCreated }: AccountCreationFormProps) => {
+    const { t } = useTranslation(["onboarding", "common", "settings"]);
     const { qrlStore } = useStore();
     const { qrlConnection } = qrlStore;
     const { blockchain } = qrlConnection;
     const [hasExistingSeeds, setHasExistingSeeds] = useState<boolean | null>(
       null,
     );
-    const [existingSeeds, setExistingSeeds] = useState<
-      EncryptedSeedData[]
-    >([]);
+    const [existingSeeds, setExistingSeeds] = useState<EncryptedSeedData[]>([]);
 
     const [loadError, setLoadError] = useState(false);
 
@@ -496,7 +522,7 @@ export const AccountCreationForm = observer(
     }, [blockchain]);
 
     if (loadError) {
-      return <p role="alert">Could not load existing wallets. Please reload and try again.</p>;
+      return <p role="alert">{t("onboarding:loadWalletsFailed")}</p>;
     }
 
     // Show loading state while checking for existing seeds

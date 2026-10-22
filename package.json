@@ -30,6 +30,7 @@
     "preview": "vite --config config/vite.config.ts preview",
     "smoke:boot": "node scripts/smoke-boot.mjs",
     "smoke:i18n": "node scripts/smoke-i18n.mjs",
+    "smoke:i18n:full": "I18N_FULL=1 node scripts/smoke-i18n.mjs",
     "smoke:i18n:embedded": "node scripts/smoke-i18n-embedded.mjs"
   },
   "dependencies": {

@@ -43,5 +43,6 @@
   "testnetBadge": "测试网",
   "mainnetFull": "QRL 2.0 主网",
   "testnetFull": "QRL 2.0 测试网",
-  "testnetV3": "QRL 测试网 v3 (私有)"
+  "testnetV3": "QRL 测试网 v3 (私有)",
+  "englishOnly": "此页面仅提供英文版本。"
 }

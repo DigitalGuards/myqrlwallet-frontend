@@ -1,3 +1,4 @@
+import onboarding from "./onboarding.json";
 import contacts from "./contacts.json";
 import accounts from "./accounts.json";
 import transfer from "./transfer.json";
@@ -8,6 +9,7 @@ import tokens from "./tokens.json";
 import history from "./history.json";
 
 export default {
+  onboarding,
   contacts,
   accounts,
   transfer,

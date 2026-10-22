@@ -1,8 +1,17 @@
+import { onboardingMessage } from "@/i18n/onboardingMessage";
+import { useTranslation } from "react-i18next";
 import type { ImportedAccount } from "../importedAccount";
 import { logger } from "@/utils/log";
 import { useStore } from "@/stores/store";
 import { Card, CardContent, CardFooter } from "@/components/UI/Card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormMessage } from "@/components/UI/Form";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/UI/Form";
 import { Input } from "@/components/UI/Input";
 import { Button } from "@/components/UI/Button";
 import { Download, Loader } from "lucide-react";
@@ -15,15 +24,18 @@ import { isDesktop } from "@/desktop/bridge";
 const FormSchema = z.object({
   hexSeed: z
     .string()
-    .min(1, "Hex seed is required")
-    .regex(/^0x[0-9a-fA-F]+$/, "Invalid hex seed format. Must start with '0x' followed by hex characters"),
+    .min(1, "onboarding:hexRequired")
+    .regex(/^0x[0-9a-fA-F]+$/, "onboarding:hexFormat"),
 });
 
 interface ImportHexSeedFormProps {
   onAccountImported: (account: ImportedAccount) => void;
 }
 
-export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps) => {
+export const ImportHexSeedForm = ({
+  onAccountImported,
+}: ImportHexSeedFormProps) => {
+  const { t } = useTranslation(["onboarding", "common", "settings"]);
   const { qrlStore } = useStore();
   const { qrlInstance } = qrlStore;
 
@@ -47,14 +59,16 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
       // PinSetup collects the password, the signer derives address + canonical
       // mnemonic and returns the address (same pattern as the mnemonic form).
       if (isDesktop) {
-        const account: ImportedAccount = { address: "", hexSeed: formData.hexSeed };
+        const account: ImportedAccount = {
+          address: "",
+          hexSeed: formData.hexSeed,
+        };
         onAccountImported(account);
         return;
       }
 
-      const account: ImportedAccount | undefined = qrlInstance?.accounts.seedToAccount(
-        formData.hexSeed,
-      );
+      const account: ImportedAccount | undefined =
+        qrlInstance?.accounts.seedToAccount(formData.hexSeed);
 
       if (!account) {
         throw new Error("Failed to create account from hex seed");
@@ -66,7 +80,7 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
         // Handle cases where mnemonic generation might fail
         logger.error("Failed to derive mnemonic from hex seed.");
         form.setError("hexSeed", {
-          message: "Failed to derive mnemonic from hex seed",
+          message: "onboarding:hexMnemonicFailed",
         });
         return; // Stop execution if mnemonic can't be derived
       }
@@ -78,23 +92,25 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
       onAccountImported(account);
     } catch (_error) {
       form.setError("hexSeed", {
-        message: "Invalid hex seed",
+        message: "onboarding:hexInvalid",
       });
     }
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={(event) => {
-        handleSubmit(onSubmit)(event).catch(() => {
-          form.setError("hexSeed", { message: "Invalid hex seed" });
-        });
-      }}>
-        <Card >
+      <form
+        onSubmit={(event) => {
+          handleSubmit(onSubmit)(event).catch(() => {
+            form.setError("hexSeed", { message: "onboarding:hexInvalid" });
+          });
+        }}
+      >
+        <Card>
           <CardContent className="space-y-8 pt-6">
-          <p className="text-sm text-muted-foreground">
-            Enter your hexadecimal seed to restore your wallet
-          </p>
+            <p className="text-sm text-muted-foreground">
+              {t("onboarding:hexRestore")}
+            </p>
             <FormField
               control={control}
               name="hexSeed"
@@ -103,14 +119,16 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
                   <FormControl>
                     <Input
                       {...field}
-                      placeholder="Enter your hex seed (0x...)"
+                      placeholder={t("onboarding:hexPlaceholder")}
                       autoComplete="off"
                     />
                   </FormControl>
-                  <FormDescription>
-                    Enter the hex seed from your wallet backup
-                  </FormDescription>
-                  <FormMessage />
+                  <FormDescription>{t("onboarding:hexBackup")}</FormDescription>
+                  <FormMessage
+                    translateMessage={(message) =>
+                      onboardingMessage(message, t)
+                    }
+                  />
                 </FormItem>
               )}
             />
@@ -122,7 +140,7 @@ export const ImportHexSeedForm = ({ onAccountImported }: ImportHexSeedFormProps)
               ) : (
                 <Download className="mr-2 h-4 w-4" />
               )}
-              Import Account
+              {t("onboarding:importTitle")}
             </Button>
           </CardFooter>
         </Card>

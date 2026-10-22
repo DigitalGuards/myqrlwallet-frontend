@@ -53,8 +53,12 @@ for (const { code } of languages) {
 
 it("keeps English copy within the writing rules", () => {
   for (const ns of namespaces) {
-    for (const value of Object.values(readCatalog("en", ns))) {
-      expect(value).not.toMatch(/\u2014|rather than|instead of|, not /i);
+    for (const [key, value] of Object.entries(readCatalog("en", ns))) {
+      expect(value).not.toMatch(/\u2014/);
+      // Slice 3 preserves these two source instructions byte-for-byte.
+      if (ns === "onboarding" && ["nativePinHelp", "webPinHelp"].includes(key))
+        continue;
+      expect(value).not.toMatch(/rather than|instead of|, not /i);
     }
   }
 });
@@ -85,6 +89,10 @@ it("ships importable translator notes for ambiguous and security-sensitive messa
     "common:lock",
     "common:mainnet",
     "common:testnet",
+    ...Object.keys(readCatalog("en", "onboarding")).map(
+      (key) => `onboarding:${key.replace(/_(one|few|many|other)$/, "")}`,
+    ),
+    "common:englishOnly",
   ])
     expect(notes[key]).toBeDefined();
 });

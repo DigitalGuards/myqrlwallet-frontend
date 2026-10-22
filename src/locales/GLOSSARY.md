@@ -35,3 +35,7 @@ Reference terminology: [MetaMask German catalog](https://github.com/MetaMask/met
 | reverted         | rückgängig gemacht     | revertida              | отменена        | 已回滚   |
 
 Approval authorizes a signer request. Broadcast submits a signed transaction to the network. Confirmation records inclusion and the execution outcome. Preserve these separate stages and every instruction to check History or the explorer before sending again. Gas is execution work; a network fee is its monetary cost. Keep technical service reasons verbatim when the wallet does not own their wording. QNS and QRNS names and network identifiers are data.
+
+For account setup, English mnemonic/seed phrase labels refer to the recovery phrase in the glossary. Translate the surrounding UI only: the recovery words, their order, hex bytes (including `0x`), addresses, file contents and user-entered credentials remain unchanged. Wallet-file passwords, transaction PINs, browser extension unlock passwords and device security credentials are distinct credentials. Keep each owner and purpose explicit.
+
+For device credential recovery, preserve every condition: independently usable backups for every wallet, earlier network profiles, keeping all data if any backup is missing, authentication and confirmation before permanent native removal, and retaining the original browser profile until every wallet is recovered. Encrypted and unencrypted wallet downloads must remain distinguishable, and the prohibition on sharing an unencrypted wallet file is absolute.

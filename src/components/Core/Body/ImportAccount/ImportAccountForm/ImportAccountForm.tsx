@@ -1,3 +1,5 @@
+import { onboardingMessage } from "@/i18n/onboardingMessage";
+import { useTranslation } from "react-i18next";
 import type { ImportedAccount } from "../importedAccount";
 import { Button } from "../../../../UI/Button";
 import { Card, CardContent, CardFooter } from "../../../../UI/Card";
@@ -19,14 +21,17 @@ import { deriveHexSeedAsync } from "@/utils/crypto";
 import { isDesktop } from "@/desktop/bridge";
 
 const FormSchema = z.object({
-  mnemonicPhrases: z.string().min(1, "Mnemonic phrases are required"),
+  mnemonicPhrases: z.string().min(1, "onboarding:mnemonicRequired"),
 });
 
 type ImportAccountFormProps = {
   onAccountImported: (account: ImportedAccount) => void;
 };
 
-export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps) => {
+export const ImportAccountForm = ({
+  onAccountImported,
+}: ImportAccountFormProps) => {
+  const { t } = useTranslation(["onboarding", "common", "settings"]);
   const { qrlStore } = useStore();
   const { qrlInstance } = qrlStore;
 
@@ -52,13 +57,17 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
       // mnemonic on a placeholder account (address filled in by PinSetup) so
       // the existing import-flow plumbing is unchanged.
       if (isDesktop) {
-        const account: ImportedAccount = { address: "", mnemonic: formData.mnemonicPhrases };
+        const account: ImportedAccount = {
+          address: "",
+          mnemonic: formData.mnemonicPhrases,
+        };
         onAccountImported(account);
         return;
       }
 
       const hexSeed = await deriveHexSeedAsync(formData.mnemonicPhrases);
-      const account: ImportedAccount | undefined = qrlInstance?.accounts.seedToAccount(hexSeed);
+      const account: ImportedAccount | undefined =
+        qrlInstance?.accounts.seedToAccount(hexSeed);
 
       if (!account) {
         throw new Error("Failed to create account from mnemonic");
@@ -71,23 +80,27 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
       onAccountImported(account);
     } catch (_error) {
       form.setError("mnemonicPhrases", {
-        message: "Invalid mnemonic phrases",
+        message: "onboarding:mnemonicInvalid",
       });
     }
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={(event) => {
-        handleSubmit(onSubmit)(event).catch(() => {
-          form.setError("mnemonicPhrases", { message: "Invalid mnemonic phrases" });
-        });
-      }}>
-        <Card >
+      <form
+        onSubmit={(event) => {
+          handleSubmit(onSubmit)(event).catch(() => {
+            form.setError("mnemonicPhrases", {
+              message: "onboarding:mnemonicInvalid",
+            });
+          });
+        }}
+      >
+        <Card>
           <CardContent className="space-y-8 pt-6">
-          <p className="text-sm text-muted-foreground">
-            Enter your mnemonic phrase to restore your wallet
-          </p>
+            <p className="text-sm text-muted-foreground">
+              {t("onboarding:mnemonicRestore")}
+            </p>
             <FormField
               control={control}
               name="mnemonicPhrases"
@@ -96,14 +109,18 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
                   <FormControl>
                     <Input
                       {...field}
-                      placeholder="Enter your mnemonic phrases"
+                      placeholder={t("onboarding:mnemonicPlaceholder")}
                       autoComplete="off"
                     />
                   </FormControl>
                   <FormDescription>
-                    Enter the mnemonic phrases from your wallet backup
+                    {t("onboarding:mnemonicBackup")}
                   </FormDescription>
-                  <FormMessage />
+                  <FormMessage
+                    translateMessage={(message) =>
+                      onboardingMessage(message, t)
+                    }
+                  />
                 </FormItem>
               )}
             />
@@ -115,7 +132,7 @@ export const ImportAccountForm = ({ onAccountImported }: ImportAccountFormProps)
               ) : (
                 <Download className="mr-2 h-4 w-4" />
               )}
-              Import Account
+              {t("onboarding:importTitle")}
             </Button>
           </CardFooter>
         </Card>

@@ -5,10 +5,10 @@ const address = `Q${"1".repeat(128)}`;
 const setupWeb =
   "You are connected to the blockchain. Create a new account, import an existing account, or connect a wallet you already use: your browser extension or the MyQRLWallet mobile app.";
 const catalogKey =
-  /(?:common|home|settings|tokens|history|transfer|accounts|contacts):[A-Za-z][\w.-]*/;
+  /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding):[A-Za-z][\w.-]*/;
 
 /** Exercise real routes, including the shared navigation in unconverted pages. */
-export async function helperRouteProbes(browser, origin) {
+export async function helperRouteProbes(browser, origin, { full = true } = {}) {
   const routerSource = await readFile("src/router/router.tsx", "utf8");
   const routes = [...routerSource.matchAll(/^  (\w+): "(\/[^"]*)",$/gm)]
     // Telegram has its own layout, with no consumers of the converted helpers.
@@ -20,7 +20,7 @@ export async function helperRouteProbes(browser, origin) {
     routes.includes("/add-account") && routes.includes("/account-list"),
   );
   const records = [];
-  for (const width of [390, 1280]) {
+  for (const width of full ? [390, 1280] : [360]) {
     for (const active of [false, true]) {
       for (const path of active
         ? routes
@@ -31,6 +31,8 @@ export async function helperRouteProbes(browser, origin) {
             "/transfer",
             "/tx-history",
             "/address-book",
+            "/create-account",
+            "/import-account",
           ]) {
         const context = await browser.newContext({
           locale: "en-US",

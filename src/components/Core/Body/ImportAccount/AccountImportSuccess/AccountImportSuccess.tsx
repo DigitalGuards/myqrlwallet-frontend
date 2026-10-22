@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { logger } from "@/utils/log";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "../../../../UI/Button";
@@ -17,6 +18,7 @@ type AccountImportSuccessProps = {
 };
 
 const AccountImportSuccess = ({ account }: AccountImportSuccessProps) => {
+  const { t } = useTranslation(["onboarding", "common", "settings"]);
   const { qrlStore } = useStore();
   const { qrlConnection } = qrlStore;
   const { blockchain } = qrlConnection;
@@ -56,25 +58,22 @@ const AccountImportSuccess = ({ account }: AccountImportSuccessProps) => {
       title={
         <span className="flex items-center gap-2">
           <Check className="h-5 w-5 shrink-0 text-success" aria-hidden="true" />
-          Account imported
+          {t("onboarding:imported")}
         </span>
       }
-      seoTitle="Import Account"
+      seoTitle={t("onboarding:importTitle")}
     >
       <Card className="w-full">
         <CardContent className="space-y-8 pt-6">
           <div className="flex flex-col gap-2">
-            <div>Account public address:</div>
+            <div>{t("onboarding:publicAddress")}</div>
             <QrlAddress
               address={accountAddress}
               mode="full"
               className="w-full"
               addressClassName="font-bold text-identity-accent"
             />
-            <div>
-              You can share this account public address with anyone. Others need
-              it to interact with you.
-            </div>
+            <div>{t("onboarding:shareAddress")}</div>
           </div>
         </CardContent>
         <CardFooter className="flex-col gap-4">
@@ -90,7 +89,7 @@ const AccountImportSuccess = ({ account }: AccountImportSuccessProps) => {
               }}
             >
               <Copy className="mr-2 h-4 w-4" />
-              {hasJustCopied ? "Copied" : "Copy"}
+              {hasJustCopied ? t("common:copied") : t("common:copy")}
             </Button>
             <Button
               className="w-full"
@@ -99,13 +98,13 @@ const AccountImportSuccess = ({ account }: AccountImportSuccessProps) => {
               onClick={onViewInExplorer}
             >
               <ExternalLink className="mr-2 h-4 w-4" />
-              View on Explorer
+              {t("onboarding:viewExplorer")}
             </Button>
           </div>
           <Link className="w-full" to={ROUTES.HOME}>
             <Button className="w-full" type="button">
               <Check className="mr-2 h-4 w-4" />
-              Done
+              {t("onboarding:done")}
             </Button>
           </Link>
         </CardFooter>

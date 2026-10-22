@@ -1,3 +1,5 @@
+import { onboardingMessage } from "@/i18n/onboardingMessage";
+import { useTranslation } from "react-i18next";
 import type { ImportedAccount } from "../importedAccount";
 import { logger } from "@/utils/log";
 import { Button } from "@/components/UI/Button";
@@ -11,10 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/UI/Select";
-import type {
-  EncryptedKeystore,
-  EncryptedWallet,
-} from "@/utils/crypto";
+import type { EncryptedKeystore, EncryptedWallet } from "@/utils/crypto";
 import {
   MAX_WALLET_FILE_BYTES,
   MAX_WALLET_PASSWORD_LENGTH,
@@ -41,8 +40,8 @@ import {
 const FormSchema = z.object({
   password: z
     .string()
-    .min(1, "Password is required")
-    .max(MAX_WALLET_PASSWORD_LENGTH, "Password is too long"),
+    .min(1, "onboarding:passwordRequired")
+    .max(MAX_WALLET_PASSWORD_LENGTH, "onboarding:passwordLong"),
 });
 
 type ImportEncryptedWalletProps = {
@@ -58,14 +57,10 @@ type ParsedWalletFile =
   | { kind: "v2"; wallet: EncryptedWallet }
   | { kind: "keystore"; keystores: EncryptedKeystore[] };
 
-function shortAddress(address: string | undefined, index: number): string {
-  if (!address) return `Account ${index + 1}`;
-  return formatAddressFingerprint(address);
-}
-
 export const ImportEncryptedWallet = ({
   onWalletImported,
 }: ImportEncryptedWalletProps) => {
+  const { t } = useTranslation(["onboarding", "common", "settings"]);
   const { qrlStore } = useStore();
   const { qrlInstance } = qrlStore;
 
@@ -96,13 +91,13 @@ export const ImportEncryptedWallet = ({
     const file = event.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_WALLET_FILE_BYTES) {
-      setFileError("Wallet file is too large");
+      setFileError("onboarding:fileLarge");
       setSelectedFile(null);
       setParsed(null);
       return;
     }
     if (file.type !== "application/json" && file.type !== "") {
-      setFileError("Please select a valid JSON wallet file");
+      setFileError("onboarding:fileJson");
       setSelectedFile(null);
       setParsed(null);
       return;
@@ -133,13 +128,13 @@ export const ImportEncryptedWallet = ({
         // Fall through to the common invalid-format message below.
       }
       setParsed(null);
-      setFileError("Invalid wallet file format");
+      setFileError("onboarding:fileInvalid");
     } catch (error) {
       setParsed(null);
       setFileError(
         error instanceof Error && error.name === "KeystoreFormatError"
           ? error.message
-          : "Invalid wallet file format",
+          : "onboarding:fileInvalid",
       );
     } finally {
       setIsParsing(false);
@@ -162,9 +157,8 @@ export const ImportEncryptedWallet = ({
       return;
     }
 
-    const account: ImportedAccount | undefined = qrlInstance?.accounts.seedToAccount(
-      hexSeed,
-    );
+    const account: ImportedAccount | undefined =
+      qrlInstance?.accounts.seedToAccount(hexSeed);
     if (!account) {
       throw new Error("Failed to import account from wallet");
     }
@@ -184,7 +178,7 @@ export const ImportEncryptedWallet = ({
   const onSubmit = async (formData: z.infer<typeof FormSchema>) => {
     if (isParsing || isDecrypting) return;
     if (!selectedFile || !parsed) {
-      setFileError("Please select a wallet file");
+      setFileError("onboarding:fileRequired");
       return;
     }
 
@@ -192,7 +186,7 @@ export const ImportEncryptedWallet = ({
       const index = Number(selectedKeystore);
       const keystore = parsed.keystores[index] ?? parsed.keystores[0];
       if (!keystore) {
-        setFileError("The backup file contains no keystores.");
+        setFileError("onboarding:noKeystores");
         return;
       }
       setIsDecrypting(true);
@@ -213,8 +207,7 @@ export const ImportEncryptedWallet = ({
           setFileError(error.message);
         } else {
           setError("password", {
-            message:
-              "Could not decrypt the wallet file. Check the password and try again. For extension backups this is the extension's unlock password.",
+            message: "onboarding:keystoreDecryptFailed",
           });
         }
       } finally {
@@ -232,7 +225,7 @@ export const ImportEncryptedWallet = ({
       finishImport(decryptedWallet.hexSeed, decryptedWallet.mnemonic);
     } catch (_error) {
       setError("password", {
-        message: "Failed to decrypt wallet. Please check your password.",
+        message: "onboarding:fileDecryptFailed",
       });
     } finally {
       setIsDecrypting(false);
@@ -251,17 +244,19 @@ export const ImportEncryptedWallet = ({
         onSubmit={(event) => {
           handleSubmit(onSubmit)(event).catch(() => {
             form.setError("password", {
-              message: "Failed to decrypt wallet. Please check your password.",
+              message: "onboarding:fileDecryptFailed",
             });
           });
         }}
       >
         <CardContent className="space-y-8 pt-6">
           <p className="text-sm text-muted-foreground">
-            Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.
+            {t("onboarding:fileHelp")}
           </p>
           <div className="space-y-2">
-            <Label className="text-foreground">Wallet File</Label>
+            <Label className="text-foreground">
+              {t("onboarding:walletFile")}
+            </Label>
             <div className="flex flex-col items-center justify-center w-full">
               <label
                 htmlFor="walletFile"
@@ -274,16 +269,18 @@ export const ImportEncryptedWallet = ({
                     title={selectedFile?.name}
                     aria-label={
                       selectedFile
-                        ? `Selected file: ${selectedFile.name}`
+                        ? t("onboarding:selectedFile", {
+                            name: selectedFile.name,
+                          })
                         : undefined
                     }
                   >
                     {selectedFile
                       ? formatAddressFingerprintsInText(selectedFile.name)
-                      : "Click to import wallet file"}
+                      : t("onboarding:importFile")}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    JSON files only
+                    {t("onboarding:jsonOnly")}
                   </p>
                 </div>
                 <Input
@@ -292,7 +289,7 @@ export const ImportEncryptedWallet = ({
                   accept=".json"
                   onChange={(event) => {
                     handleFileChange(event).catch(() => {
-                      setFileError("Invalid wallet file format");
+                      setFileError("onboarding:fileInvalid");
                     });
                   }}
                   // Swapping files mid-decrypt would finish the import with
@@ -304,40 +301,43 @@ export const ImportEncryptedWallet = ({
             </div>
             {fileError && (
               <div className="text-sm font-medium text-destructive">
-                {fileError}
+                {onboardingMessage(fileError, t)}
               </div>
             )}
           </div>
 
           {isExtensionBackup && keystores.length > 1 && (
             <div className="space-y-2">
-              <Label className="text-foreground">Account to import</Label>
+              <Label className="text-foreground">
+                {t("onboarding:accountToImport")}
+              </Label>
               <Select
                 value={selectedKeystore}
                 onValueChange={setSelectedKeystore}
                 disabled={isDecrypting}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select an account" />
+                  <SelectValue placeholder={t("onboarding:selectAccount")} />
                 </SelectTrigger>
                 <SelectContent>
                   {keystores.map((ks, i) => (
                     <SelectItem key={ks.id ?? i} value={String(i)}>
-                      {shortAddress(ks.address, i)}
+                      {ks.address
+                        ? formatAddressFingerprint(ks.address)
+                        : t("onboarding:accountNumber", { number: i + 1 })}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                This backup contains {keystores.length} accounts. Import them
-                one at a time; run the import again for the others.
+                {t("onboarding:backupAccounts", { count: keystores.length })}
               </p>
             </div>
           )}
 
           <div className="space-y-2">
             <Label htmlFor="password" className="text-foreground">
-              Password
+              {t("onboarding:password")}
             </Label>
             <Input
               id="password"
@@ -347,19 +347,17 @@ export const ImportEncryptedWallet = ({
             />
             {isExtensionBackup && (
               <p className="text-xs text-muted-foreground">
-                Extension backups are encrypted with the extension's unlock
-                password.
+                {t("onboarding:extensionPassword")}
               </p>
             )}
             {activeKeystore && activeKeystore.crypto.kdfparams.m > 262144 && (
               <p className="text-xs text-yellow-400">
-                This file requests an unusually large amount of memory to
-                decrypt and may take a long time or fail on low-memory devices.
+                {t("onboarding:memoryWarning")}
               </p>
             )}
             {errors.password?.message && (
               <div className="text-sm font-medium text-destructive">
-                {errors.password.message}
+                {onboardingMessage(errors.password.message, t)}
               </div>
             )}
           </div>
@@ -371,7 +369,9 @@ export const ImportEncryptedWallet = ({
             disabled={isDecrypting || isParsing}
           >
             <Upload className="mr-2 h-4 w-4" />
-            {isDecrypting ? "Decrypting..." : "Import Wallet"}
+            {isDecrypting
+              ? t("onboarding:decrypting")
+              : t("onboarding:importWallet")}
           </Button>
         </CardFooter>
       </form>
