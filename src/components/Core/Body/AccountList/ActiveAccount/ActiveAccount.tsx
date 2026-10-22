@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { logger } from "@/utils/log";
 import { Button } from "../../../../UI/Button";
 import { Card } from "../../../../UI/Card";
@@ -26,6 +27,7 @@ import { CopyAddressButton } from "../CopyAddressButton/CopyAddressButton";
 import { disconnectMobile } from "@/utils/mobileConnect/mobileConnection";
 
 export const ActiveAccount = observer(() => {
+  const { t } = useTranslation(["accounts", "common"]);
   const { qrlStore } = useStore();
   const {
     activeAccount: { accountAddress },
@@ -33,7 +35,7 @@ export const ActiveAccount = observer(() => {
     qrlConnection: { blockchain },
   } = qrlStore;
 
-  const activeAccountLabel = "Active account";
+  const activeAccountLabel = t("accounts:active");
   const [txHistoryOpen, setTxHistoryOpen] = useState(false);
 
   const viewInExplorer = () => {
@@ -81,7 +83,7 @@ export const ActiveAccount = observer(() => {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top">
-                    <Label>View on Explorer</Label>
+                    <Label>{t("accounts:viewExplorer")}</Label>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -95,7 +97,7 @@ export const ActiveAccount = observer(() => {
                     level="L"
                     marginSize={0}
                   />
-                  <Label className="text-xs text-muted-foreground">Scan to open in Explorer</Label>
+                  <Label className="text-xs text-muted-foreground">{t("accounts:scanExplorer")}</Label>
                 </div>
               </div>
             </span>
@@ -115,7 +117,7 @@ export const ActiveAccount = observer(() => {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
-                    <Label>Show Tx History</Label>
+                    <Label>{t("accounts:showHistory")}</Label>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -137,7 +139,7 @@ export const ActiveAccount = observer(() => {
                     </Link>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
-                    <Label>Transfer</Label>
+                    <Label>{t("accounts:transfer")}</Label>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -157,7 +159,7 @@ export const ActiveAccount = observer(() => {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      <Label>Disconnect mobile app</Label>
+                      <Label>{t("accounts:disconnectMobile")}</Label>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -165,7 +167,7 @@ export const ActiveAccount = observer(() => {
             )}
           </div>
         </Card>
-        <TransactionHistoryPopup 
+        <TransactionHistoryPopup
           accountAddress={accountAddress}
           blockchain={blockchain}
           isOpen={txHistoryOpen}

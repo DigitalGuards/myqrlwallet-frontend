@@ -1,3 +1,4 @@
+import { slice2Screens } from "./i18n-slice2-probes.mjs";
 // Built-wallet translation and layout smoke with synthetic public data and stubbed RPC.
 import { reviewProbes } from "./i18n-review-probes.mjs";
 import { helperRouteProbes } from "./i18n-helper-route-probes.mjs";
@@ -33,7 +34,7 @@ const results = [];
 const timeout = setTimeout(() => {
   server.kill();
   process.exit(1);
-}, 180000);
+}, 360000);
 
 try {
   await mkdir(output, { recursive: true });
@@ -53,7 +54,16 @@ try {
   for (const language of languages) {
     const catalogs = Object.fromEntries(
       await Promise.all(
-        ["common", "home", "settings", "tokens", "history"].map(async (ns) => [
+        [
+          "common",
+          "home",
+          "settings",
+          "tokens",
+          "history",
+          "transfer",
+          "accounts",
+          "contacts",
+        ].map(async (ns) => [
           ns,
           JSON.parse(
             await readFile(`src/locales/${language}/${ns}.json`, "utf8"),
@@ -61,6 +71,7 @@ try {
         ]),
       ),
     );
+    catalogs.code = language;
     const context = await browser.newContext({
       viewport: { width: 360, height: 800 },
       locale: "en-US",
@@ -161,6 +172,25 @@ try {
       assert.ok(
         !(await page.locator("body").innerText()).includes("{{"),
         `${language}/${name}: unresolved interpolation`,
+      );
+      assert.doesNotMatch(
+        await page.locator("body").innerText(),
+        /(?:common|home|settings|tokens|history|transfer|accounts|contacts):[A-Za-z][\w.-]*/,
+        `${language}/${name}: raw catalog key`,
+      );
+      const labels = await page
+        .locator("[aria-label], [title], [alt], [placeholder]")
+        .evaluateAll((elements) =>
+          elements.flatMap((element) =>
+            ["aria-label", "title", "alt", "placeholder"].map(
+              (attribute) => element.getAttribute(attribute) ?? "",
+            ),
+          ),
+        );
+      assert.doesNotMatch(
+        labels.join("\n"),
+        /(?:common|home|settings|tokens|history|transfer|accounts|contacts):[A-Za-z][\w.-]*|{{/,
+        `${language}/${name}: unresolved label`,
       );
       await delay(150);
       const problems = await page.evaluate(() => {
@@ -342,6 +372,7 @@ try {
       .getByPlaceholder(catalogs.settings.pasteCode)
       .scrollIntoViewIfNeeded();
     await snapshot("settings-connect");
+    await slice2Screens({ page, origin, catalogs, snapshot, address });
     const documentId = await page.evaluate(() => {
       window.i18nDocumentId = Math.random();
       return window.i18nDocumentId;

@@ -1,8 +1,15 @@
-import { readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { readFile, mkdir } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 
 const html = await readFile("dist-embedded/index.html", "utf8");
+const output = join(
+  process.env.I18N_SCREENSHOT_DIR ?? join(tmpdir(), "fe-i18n"),
+  "embedded",
+);
+await mkdir(output, { recursive: true });
 const browser = await chromium.launch();
 try {
   for (const language of ["en", "de", "es", "ru", "zh-CN"]) {
@@ -57,6 +64,27 @@ try {
         await page.locator("#wallet-language").inputValue(),
         language,
       );
+      for (const [name, label] of [
+        ["transfer", common.send],
+        ["accounts", common.wallets],
+        ["contacts", common.contacts],
+      ]) {
+        await page
+          .getByRole("button", { name: label, exact: true })
+          .last()
+          .click();
+        await page.locator("[data-page-shell] h1").waitFor();
+        const text = await page.locator("body").innerText();
+        assert.doesNotMatch(
+          text,
+          /(?:common|home|settings|tokens|history|transfer|accounts|contacts):[A-Za-z][\w.-]*|{{/,
+        );
+        await page.screenshot({
+          path: join(output, `${language}-${name}-360.png`),
+          fullPage: true,
+          animations: "disabled",
+        });
+      }
       assert.deepEqual(codeRequests, []);
       assert.deepEqual(errors, []);
     } finally {

@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import path from 'path'
 import nodePolyfills from 'rollup-plugin-node-polyfills'
@@ -83,6 +83,32 @@ const envExposureGuard = () => ({
   },
 })
 
+/** Expose build-owned lazy chunk URLs so a failed module fetch can be retried. */
+const retryableCatalogUrls = (): Plugin => {
+  let split = false;
+  return {
+    name: 'retryable-catalog-urls',
+    configResolved(config) {
+      const output = config.build.rolldownOptions.output;
+      split = config.command === 'build' &&
+        !Array.isArray(output) && output?.codeSplitting !== false;
+    },
+    transform(_source, id) {
+      if (!split || !id.endsWith('/src/i18n/catalogUrls.ts')) return null;
+      const entries = ['de', 'es', 'ru', 'zh-CN'].map((language) => {
+        const reference = this.emitFile({
+          type: 'chunk',
+          id: path.resolve(__dirname, `../src/locales/${language}/index.ts`),
+          name: language,
+          preserveSignature: 'strict',
+        });
+        return `${JSON.stringify(language)}: import.meta.ROLLUP_FILE_URL_${reference}`;
+      });
+      return { code: `export const catalogUrls = {${entries.join(',')}};`, map: null };
+    },
+  };
+};
+
 export default defineConfig(({ mode, command }) => ({
   // Run the public-environment assertion before Vite consumes this config.
   ...assertNoBrowserSeed(mode, command),
@@ -92,6 +118,7 @@ export default defineConfig(({ mode, command }) => ({
   base: process.env.VITE_DESKTOP === '1' ? './' : '/',
   plugins: [
     envExposureGuard(),
+    retryableCatalogUrls(),
     react(),
     // Remove vendor-qrl-crypto from <link rel="modulepreload">: it is a
     // lazy dynamic import so preloading it competes with critical-path

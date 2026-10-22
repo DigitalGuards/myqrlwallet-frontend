@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { logger } from "@/utils/log";
 import { Button } from "../../../../UI/Button";
 import { Label } from "../../../../UI/Label";
@@ -32,6 +33,7 @@ export const CopyAddressButton = ({
   tooltipOpen,
   onTooltipChange,
 }: CopyAddressButtonProps) => {
+  const { t } = useTranslation(["accounts", "common"]);
   const [copied, setCopied] = useState(false);
   const [internalTooltipOpen, setInternalTooltipOpen] = useState(false);
   const [qrCopied, setQrCopied] = useState(false);
@@ -94,7 +96,7 @@ export const CopyAddressButton = ({
       } catch {
         // WebViews use the native share sheet for the public address.
         if (isInNativeApp()) {
-          shareContent({ title: "QRL address", text: accountAddress });
+          shareContent({ title: t("accounts:qrlAddress"), text: accountAddress });
         } else {
           const dataUrl = canvas.toDataURL("image/png");
           const a = document.createElement("a");
@@ -126,13 +128,13 @@ export const CopyAddressButton = ({
                   logger.error("Failed to copy address:", error);
                 });
               }}
-              aria-label={copied ? "Address copied" : "Copy address"}
+              aria-label={copied ? t("common:addressCopied") : t("common:copyAddress")}
             >
               <Copy size={18} />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="top">
-            <Label>{copied ? "Copied!" : "Copy Address"}</Label>
+            <Label>{copied ? t("accounts:copied") : t("accounts:copyAddress")}</Label>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -142,16 +144,16 @@ export const CopyAddressButton = ({
             className="hover:text-secondary"
             variant="outline"
             size="icon"
-            aria-label="Show address QR code"
+            aria-label={t("accounts:showQr")}
           >
             <QrCode size={18} />
           </Button>
         </DialogTrigger>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Wallet Address</DialogTitle>
+            <DialogTitle>{t("accounts:walletAddress")}</DialogTitle>
             <DialogDescription>
-              Scan or copy the complete address below.
+              {t("accounts:scanCopy")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex min-w-0 flex-col items-center gap-4">
@@ -181,11 +183,11 @@ export const CopyAddressButton = ({
               }}
             >
               {qrCopied ? (
-                "Copied!"
+                t("accounts:copied")
               ) : (
                 <>
                   <Download size={14} className="mr-1" />
-                  Copy QR
+                  {t("accounts:copyQr")}
                 </>
               )}
             </Button>

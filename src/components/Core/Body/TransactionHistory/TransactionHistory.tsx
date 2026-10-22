@@ -1,9 +1,10 @@
+import { historyStatusKey } from "@/i18n/historyStatusKey";
+import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Card } from "@/components/UI/Card";
 import { createPortal } from "react-dom";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 import {
-  historyStatus,
   parseHistoryResponse,
 } from "@/utils/transactionHistory";
 import type { HistoryRow } from "@/utils/transactionHistory";
@@ -19,6 +20,7 @@ import { formatBalance } from "@/utils/formatting";
 import { useBackDismiss } from "@/utils/useBackDismiss";
 
 const TransactionHistory = observer(() => {
+  const { t } = useTranslation(["history", "common"]);
   const { qrlStore } = useStore();
   const { activeAccount } = qrlStore;
   const blockchain = qrlStore.qrlConnection.blockchain;
@@ -40,7 +42,7 @@ const TransactionHistory = observer(() => {
   } | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [hasMore, setHasMore] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<"history:unavailable" | "history:loadError" | null>(null);
   const requestGeneration = useRef(0);
   const requestController = useRef<AbortController | null>(null);
   const cancelRequest = useCallback(() => {
@@ -94,8 +96,8 @@ const TransactionHistory = observer(() => {
           axios.isAxiosError(cause) && cause.response?.status === 501;
         setError(
           unavailable
-            ? "Transaction history is unavailable for this network."
-            : "Unable to load transaction history. Please try again.",
+            ? "history:unavailable"
+            : "history:loadError",
         );
         if (unavailable) setHasMore(false);
       } finally {
@@ -110,7 +112,7 @@ const TransactionHistory = observer(() => {
     setCurrentPage(0);
     setHasMore(network !== null);
     setError(
-      network ? null : "Transaction history is unavailable for this network.",
+      network ? null : "history:unavailable",
     );
     if (network && activeAccount.accountAddress) {
       void fetchTransactionHistory(1, true);
@@ -167,12 +169,12 @@ const TransactionHistory = observer(() => {
   };
 
   return (
-    <PageShell title="Transaction History" width="wide" seoTitle="Transaction History">
+    <PageShell title={t("history:pageTitle")} width="wide" seoTitle={t("history:pageTitle")}>
       <Card className="p-6">
       <div className="mb-4 flex flex-col sm:flex-row justify-between items-center">
         <input
           type="text"
-          placeholder="Search loaded transactions..."
+          placeholder={t("history:search")}
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
@@ -182,17 +184,16 @@ const TransactionHistory = observer(() => {
       </div>
       {storageUnavailable && (
         <p role="alert" className="mb-4 text-sm text-red-400">
-          Transaction history could not be saved. Keep this page open until
-          confirmation.
+          {t("history:storageError")}
         </p>
       )}
       {error && (
         <div role="alert" className="mb-4 text-sm text-red-400">
-          {error}
+          {t(error)}
         </div>
       )}
       {loading && filteredTransactions.length === 0 ? (
-        <div className="text-center">Loading...</div>
+        <div className="text-center">{t("common:loading")}</div>
       ) : (
         <>
           <div className="overflow-x-auto">
@@ -205,7 +206,7 @@ const TransactionHistory = observer(() => {
                       requestSort("TxHash");
                     }}
                   >
-                    Hash{" "}
+                    {t("history:hash")}{" "}
                     {sortConfig?.key === "TxHash"
                       ? sortConfig.direction === "ascending"
                         ? "↑"
@@ -218,7 +219,7 @@ const TransactionHistory = observer(() => {
                       requestSort("Amount");
                     }}
                   >
-                    Amount (Quanta){" "}
+                    {t("history:amountUnit", { unit: "Quanta" })}{" "}
                     {sortConfig?.key === "Amount"
                       ? sortConfig.direction === "ascending"
                         ? "↑"
@@ -231,7 +232,7 @@ const TransactionHistory = observer(() => {
                       requestSort("Amount");
                     }}
                   >
-                    Amount{" "}
+                    {t("history:amount")}{" "}
                     {sortConfig?.key === "Amount"
                       ? sortConfig.direction === "ascending"
                         ? "↑"
@@ -244,7 +245,7 @@ const TransactionHistory = observer(() => {
                       requestSort("TimeStamp");
                     }}
                   >
-                    Date{" "}
+                    {t("history:date")}{" "}
                     {sortConfig?.key === "TimeStamp"
                       ? sortConfig.direction === "ascending"
                         ? "↑"
@@ -252,7 +253,7 @@ const TransactionHistory = observer(() => {
                       : ""}
                   </th>
                   <th className="py-2 px-4 border-b text-left text-sm sm:text-base">
-                    Details
+                    {t("history:details")}
                   </th>
                 </tr>
               </thead>
@@ -269,17 +270,17 @@ const TransactionHistory = observer(() => {
                         onClick={() => {
                           requestSort("TxHash");
                         }}
-                        aria-label="Sort by hash"
+                        aria-label={t("history:sortHash")}
                       >
-                        Hash
+                        {t("history:hash")}
                       </button>
                       <span className="block">{tx.TxHash}</span>
                       <div className="mt-2 text-xs text-muted-foreground">
-                        Status
+                        {t("history:status")}
                       </div>
-                      <div className="text-sm">{historyStatus(tx)}</div>
+                      <div className="text-sm">{t(historyStatusKey(tx))}</div>
                       <div className="mt-2 text-xs text-muted-foreground">
-                        {tx.InOut === 1 ? "From" : "To"}
+                        {tx.InOut === 1 ? t("history:fromLabel") : t("history:toLabel")}
                       </div>
                       <QrlAddress
                         address={tx.InOut === 1 ? tx.From : tx.To}
@@ -293,9 +294,9 @@ const TransactionHistory = observer(() => {
                         onClick={() => {
                           requestSort("Amount");
                         }}
-                        aria-label="Sort by amount"
+                        aria-label={t("history:sortAmount")}
                       >
-                        Amount ({tx.asset ?? "Quanta"})
+                        {t("history:amountUnit", { unit: tx.asset ?? "Quanta" })}
                       </button>
                       {formatBalance(tx.Amount)}
                       {tx.asset && tx.asset !== "Quanta" && (
@@ -311,9 +312,9 @@ const TransactionHistory = observer(() => {
                         onClick={() => {
                           requestSort("TimeStamp");
                         }}
-                        aria-label="Sort by date"
+                        aria-label={t("history:sortDate")}
                       >
-                        Date
+                        {t("history:date")}
                       </button>
                       {/* Short date for mobile */}
                       <span className="block sm:hidden">
@@ -343,12 +344,12 @@ const TransactionHistory = observer(() => {
               disabled={loading || !hasMore}
             >
               {loading
-                ? "Loading..."
+                ? t("common:loading")
                 : hasMore
                   ? error
-                    ? "Retry"
-                    : "Load More"
-                  : "No more transactions"}
+                    ? t("history:retry")
+                    : t("history:loadMore")
+                  : t("history:noMore")}
             </button>
           </div>
         </>
@@ -363,6 +364,7 @@ type DetailsModalProps = {
 };
 
 const DetailsModal = ({ transaction }: DetailsModalProps) => {
+  const { t } = useTranslation(["history", "common"]);
   const [isOpen, setIsOpen] = useState(false);
   // Android's back button closes this the same way its Close button does.
   useBackDismiss(isOpen, () => {
@@ -376,7 +378,7 @@ const DetailsModal = ({ transaction }: DetailsModalProps) => {
         }}
         className="text-secondary underline text-sm sm:text-base"
       >
-        View
+        {t("history:viewDetails")}
       </button>
       {isOpen &&
         createPortal(
@@ -384,33 +386,33 @@ const DetailsModal = ({ transaction }: DetailsModalProps) => {
             <div
               role="dialog"
               aria-modal="true"
-              aria-label="Transaction Details"
+              aria-label={t("history:detailsTitle")}
               className="bg-card p-4 rounded shadow-lg w-full sm:w-1/2 max-h-[calc(100dvh-2rem)] overflow-y-auto"
             >
               <h2 className="text-xl sm:text-2xl font-bold mb-2">
-                Transaction Details
+                {t("history:detailsTitle")}
               </h2>
               <div className="space-y-2">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div className="text-muted-foreground font-medium">ID:</div>
+                  <div className="text-muted-foreground font-medium">{t("history:idDetail")}</div>
                   <div className="sm:col-span-2 break-all">
                     {transaction.ID}
                   </div>
 
                   <div className="text-muted-foreground font-medium">
-                    Status:
+                    {t("history:statusDetail")}
                   </div>
                   <div className="sm:col-span-2">
-                    {historyStatus(transaction)}
+                    {t(historyStatusKey(transaction))}
                   </div>
 
-                  <div className="text-muted-foreground font-medium">Type:</div>
+                  <div className="text-muted-foreground font-medium">{t("history:typeDetail")}</div>
                   <div className="sm:col-span-2">
                     {transaction.InOut} ({transaction.TxType})
                   </div>
 
                   <div className="text-muted-foreground font-medium">
-                    Address:
+                    {t("history:addressDetail")}
                   </div>
                   <QrlAddress
                     address={transaction.Address}
@@ -418,14 +420,14 @@ const DetailsModal = ({ transaction }: DetailsModalProps) => {
                     className="sm:col-span-2"
                   />
 
-                  <div className="text-muted-foreground font-medium">From:</div>
+                  <div className="text-muted-foreground font-medium">{t("history:fromDetail")}</div>
                   <QrlAddress
                     address={transaction.From}
                     mode="full"
                     className="sm:col-span-2"
                   />
 
-                  <div className="text-muted-foreground font-medium">To:</div>
+                  <div className="text-muted-foreground font-medium">{t("history:toDetail")}</div>
                   <QrlAddress
                     address={transaction.To}
                     mode="full"
@@ -433,13 +435,13 @@ const DetailsModal = ({ transaction }: DetailsModalProps) => {
                   />
 
                   <div className="text-muted-foreground font-medium">
-                    Transaction Hash:
+                    {t("history:hashDetail")}
                   </div>
                   <div className="sm:col-span-2 break-all">
                     {transaction.TxHash}
                   </div>
 
-                  <div className="text-muted-foreground font-medium">Time:</div>
+                  <div className="text-muted-foreground font-medium">{t("history:timeDetail")}</div>
                   <div className="sm:col-span-2">
                     {new Date(
                       parseInt(transaction.TimeStamp, 16) * 1000,
@@ -447,22 +449,22 @@ const DetailsModal = ({ transaction }: DetailsModalProps) => {
                   </div>
 
                   <div className="text-muted-foreground font-medium">
-                    Amount:
+                    {t("history:amountDetail")}
                   </div>
                   <div className="font-numeric sm:col-span-2">
                     {transaction.Amount} {transaction.asset ?? "Quanta"}
                   </div>
 
-                  <div className="text-muted-foreground font-medium">Fees:</div>
+                  <div className="text-muted-foreground font-medium">{t("history:feesDetail")}</div>
                   <div className="font-numeric sm:col-span-2">
-                    {transaction.PaidFees ?? "Unavailable"}
+                    {transaction.PaidFees ?? t("history:unknown")}
                   </div>
 
                   <div className="text-muted-foreground font-medium">
-                    Block:
+                    {t("history:blockDetail")}
                   </div>
                   <div className="font-numeric sm:col-span-2">
-                    {transaction.BlockNumber || "Unavailable"}
+                    {transaction.BlockNumber || t("history:unknown")}
                   </div>
                 </div>
               </div>
@@ -472,7 +474,7 @@ const DetailsModal = ({ transaction }: DetailsModalProps) => {
                 }}
                 className="mt-4 px-3 py-1 rounded-md border border-foreground/10 bg-foreground/[0.06] text-sm sm:text-base transition-colors hover:bg-foreground/10"
               >
-                Close
+                {t("common:close")}
               </button>
             </div>
           </div>,

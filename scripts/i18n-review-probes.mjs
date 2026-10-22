@@ -23,6 +23,8 @@ export async function reviewProbes(browser, origin) {
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    let downloads = 0;
+    let rejectDownloads = mode === "reject";
     let release;
     let observed;
     const held = new Promise((resolve) => {
@@ -35,10 +37,11 @@ export async function reviewProbes(browser, origin) {
       const request = route.request();
       const url = request.url();
       if (url.startsWith(origin)) {
-        if (/\/assets\/de-[^/]+\.js$/.test(url)) {
+        if (/\/assets\/de-[^/?]+\.js(?:\?.*)?$/.test(url)) {
+          downloads++;
           observed();
           if (mode === "hold") await ready;
-          if (mode === "reject") return route.abort("failed");
+          if (rejectDownloads) return route.abort("failed");
         }
         return route.continue();
       }
@@ -51,7 +54,17 @@ export async function reviewProbes(browser, origin) {
       });
     });
     await page.goto(origin, { waitUntil: "domcontentloaded" });
-    return { context, page, held, release, errors };
+    return {
+      context,
+      page,
+      held,
+      release,
+      errors,
+      allowRetry: () => {
+        rejectDownloads = false;
+      },
+      downloads: () => downloads,
+    };
   }
 
   for (const key of ["WALLET_SETTINGS", "WALLET_LANGUAGE"]) {
@@ -122,15 +135,31 @@ export async function reviewProbes(browser, origin) {
           "en",
           "Late catalog must leave English active",
         );
-        await view.page.unroute("**/*");
-        await view.page.route("**/*", (route) =>
-          route.request().url().startsWith(origin)
-            ? route.continue()
-            : route.fulfill({
-                status: 200,
-                contentType: "application/json",
-                body: "{}",
-              }),
+        view.allowRetry();
+        const previousDownloads = view.downloads();
+        const documentId = await view.page.evaluate(() => {
+          window.i18nRetryDocument = Math.random();
+          return window.i18nRetryDocument;
+        });
+        await view.page
+          .getByRole("button", { name: "Settings", exact: true })
+          .last()
+          .click();
+        await view.page.locator("#wallet-language").selectOption("de");
+        await view.page.waitForFunction(
+          () => document.documentElement.lang === "de",
+        );
+        assert.equal(
+          await view.page.evaluate(() => window.i18nRetryDocument),
+          documentId,
+        );
+        assert.ok(
+          view.downloads() > previousDownloads,
+          "Retry must request the catalog again",
+        );
+        assert.equal(
+          await view.page.locator("#wallet-language").isEnabled(),
+          true,
         );
         await view.page.reload({ waitUntil: "domcontentloaded" });
         await view.page.waitForFunction(

@@ -9,6 +9,14 @@ it("rejects missing and misspelled keys, including calls with a default value", 
     t('activeAccount');
     t('activAccount');
     t('missing', { defaultValue: 'fallback' });
+    i18n.getFixedT('en', 'transfer')('recipientChanged');
+    i18n.getFixedT('en', 'accounts')('active');
+    i18n.getFixedT('en', 'contacts')('addTitle');
+    i18n.getFixedT('en', 'history')('detailsTitle');
+    i18n.getFixedT('en', 'transfer')('recipentChanged');
+    i18n.getFixedT('en', 'accounts')('missingAccount', { defaultValue: 'fallback' });
+    i18n.getFixedT('en', 'contacts')('missingContact');
+    i18n.getFixedT('en', 'history')('detailTitle');
   `;
   const options: ts.CompilerOptions = {
     strict: true,
@@ -38,7 +46,7 @@ it("rejects missing and misspelled keys, including calls with a default value", 
     .filter(
       (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
     );
-  expect(errors).toHaveLength(2);
+  expect(errors).toHaveLength(6);
   expect(errors.every((error) => error.file?.fileName === fixture)).toBe(true);
   expect(
     errors

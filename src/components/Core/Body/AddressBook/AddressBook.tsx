@@ -1,3 +1,5 @@
+import { contactErrorKey } from "@/i18n/contactErrorKey";
+import { useTranslation } from "react-i18next";
 import { logger } from "@/utils/log";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { useState } from "react";
@@ -36,6 +38,7 @@ import {
 import { QrlAddress } from "@/components/UI/QrlAddress";
 
 export default function AddressBook() {
+  const { t } = useTranslation(["contacts", "common"]);
   const navigate = useNavigate();
   const [entries, setEntries] = useState<AddressBookEntry[]>(() =>
     loadAddressBook(),
@@ -43,7 +46,7 @@ export default function AddressBook() {
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newAddress, setNewAddress] = useState("");
-  const [addError, setAddError] = useState<string | null>(null);
+  const [addError, setAddError] = useState<ReturnType<typeof contactErrorKey> | null>(null);
   const [renameTarget, setRenameTarget] = useState<AddressBookEntry | null>(
     null,
   );
@@ -60,7 +63,7 @@ export default function AddressBook() {
   const handleAdd = () => {
     const result = addEntry(newName, newAddress);
     if (typeof result === "string") {
-      setAddError(result);
+      setAddError(contactErrorKey(result));
       return;
     }
     setAddOpen(false);
@@ -104,9 +107,9 @@ export default function AddressBook() {
 
   return (
     <PageShell
-      title="Address Book"
-      subtitle="Saved recipients for quick transfers"
-      seoTitle="Address Book"
+      title={t("contacts:title")}
+      subtitle={t("contacts:subtitle")}
+      seoTitle={t("contacts:title")}
       action={
         <Button
           size="sm"
@@ -115,7 +118,7 @@ export default function AddressBook() {
           }}
         >
           <Plus className="h-4 w-4 mr-1" />
-          Add
+          {t("contacts:add")}
         </Button>
       }
     >
@@ -124,9 +127,9 @@ export default function AddressBook() {
           {entries.length === 0 ? (
             <div className="text-center text-muted-foreground py-10 flex flex-col items-center gap-3">
               <BookUser className="h-10 w-10 opacity-40" />
-              <p>No saved addresses yet.</p>
+              <p>{t("contacts:empty")}</p>
               <p className="text-sm">
-                Add one here, or save a recipient from the Transfer page.
+                {t("contacts:emptyHint")}
               </p>
             </div>
           ) : (
@@ -150,7 +153,7 @@ export default function AddressBook() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      title="Copy address"
+                      title={t("common:copyAddress")}
                       onClick={() => {
                         handleCopy(entry);
                       }}
@@ -164,7 +167,7 @@ export default function AddressBook() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      title="Send to this address"
+                      title={t("contacts:sendTo")}
                       onClick={() => {
                         handleSend(entry);
                       }}
@@ -174,7 +177,7 @@ export default function AddressBook() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      title="Rename"
+                      title={t("contacts:rename")}
                       onClick={() => {
                         setRenameTarget(entry);
                         setRenameValue(entry.name);
@@ -185,7 +188,7 @@ export default function AddressBook() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      title="Delete"
+                      title={t("contacts:delete")}
                       onClick={() => {
                         setDeleteTarget(entry);
                       }}
@@ -210,38 +213,38 @@ export default function AddressBook() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Address</DialogTitle>
+            <DialogTitle>{t("contacts:addTitle")}</DialogTitle>
             <DialogDescription>
-              Save a recipient for quick transfers.
+              {t("contacts:addDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="ab-name">Name</Label>
+              <Label htmlFor="ab-name">{t("contacts:name")}</Label>
               <Input
                 id="ab-name"
                 value={newName}
                 onChange={(e) => {
                   setNewName(e.target.value);
                 }}
-                placeholder="e.g. Cold storage"
+                placeholder={t("contacts:namePlaceholder")}
                 maxLength={40}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="ab-address">QRL address</Label>
+              <Label htmlFor="ab-address">{t("contacts:address")}</Label>
               <Input
                 id="ab-address"
                 value={newAddress}
                 onChange={(e) => {
                   setNewAddress(e.target.value);
                 }}
-                placeholder="Q..."
+                placeholder={t("contacts:addressPlaceholder")}
                 className="font-mono"
               />
             </div>
             {addError ? (
-              <p className="text-sm text-destructive">{addError}</p>
+              <p className="text-sm text-destructive">{t(addError.key, { reason: addError.reason })}</p>
             ) : null}
           </div>
           <DialogFooter>
@@ -251,9 +254,9 @@ export default function AddressBook() {
                 setAddOpen(false);
               }}
             >
-              Cancel
+              {t("common:cancel")}
             </Button>
-            <Button onClick={handleAdd}>Save</Button>
+            <Button onClick={handleAdd}>{t("contacts:save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -267,7 +270,7 @@ export default function AddressBook() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename Address</DialogTitle>
+            <DialogTitle>{t("contacts:renameTitle")}</DialogTitle>
             <DialogDescription className="font-mono">
               {renameTarget ? formatAddressShort(renameTarget.address) : ""}
             </DialogDescription>
@@ -286,10 +289,10 @@ export default function AddressBook() {
                 setRenameTarget(null);
               }}
             >
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button onClick={handleRename} disabled={!renameValue.trim()}>
-              Save
+              {t("contacts:save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -304,10 +307,10 @@ export default function AddressBook() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Address?</DialogTitle>
+            <DialogTitle>{t("contacts:deleteTitle")}</DialogTitle>
             <DialogDescription>
               {deleteTarget
-                ? `"${deleteTarget.name}" (${formatAddressShort(deleteTarget.address)}) will be removed from your address book.`
+                ? t("contacts:deleteDescription", { name: deleteTarget.name, address: formatAddressShort(deleteTarget.address) })
                 : ""}
             </DialogDescription>
           </DialogHeader>
@@ -318,10 +321,10 @@ export default function AddressBook() {
                 setDeleteTarget(null);
               }}
             >
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
-              Delete
+              {t("contacts:delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

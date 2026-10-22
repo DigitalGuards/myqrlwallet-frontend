@@ -4,7 +4,8 @@ import { readFile } from "node:fs/promises";
 const address = `Q${"1".repeat(128)}`;
 const setupWeb =
   "You are connected to the blockchain. Create a new account, import an existing account, or connect a wallet you already use: your browser extension or the MyQRLWallet mobile app.";
-const catalogKey = /(?:common|home|settings|tokens|history):[A-Za-z][\w.-]*/;
+const catalogKey =
+  /(?:common|home|settings|tokens|history|transfer|accounts|contacts):[A-Za-z][\w.-]*/;
 
 /** Exercise real routes, including the shared navigation in unconverted pages. */
 export async function helperRouteProbes(browser, origin) {
@@ -23,7 +24,14 @@ export async function helperRouteProbes(browser, origin) {
     for (const active of [false, true]) {
       for (const path of active
         ? routes
-        : ["/", "/add-account", "/account-list"]) {
+        : [
+            "/",
+            "/add-account",
+            "/account-list",
+            "/transfer",
+            "/tx-history",
+            "/address-book",
+          ]) {
         const context = await browser.newContext({
           locale: "en-US",
           viewport: { width, height: 844 },
@@ -133,7 +141,20 @@ export async function helperRouteProbes(browser, origin) {
           }
           const visible = await page.locator("body").innerText();
           const name = `${path}, ${active ? "active" : "empty"}, ${width}px`;
-          assert.doesNotMatch(visible, catalogKey, name);
+          const labels = await page
+            .locator("[aria-label], [title], [alt], [placeholder]")
+            .evaluateAll((elements) =>
+              elements.flatMap((element) =>
+                ["aria-label", "title", "alt", "placeholder"].map(
+                  (attribute) => element.getAttribute(attribute) ?? "",
+                ),
+              ),
+            );
+          assert.doesNotMatch(
+            [visible, ...labels].join("\n"),
+            catalogKey,
+            name,
+          );
           if (
             (!active && ["/", "/account-list"].includes(path)) ||
             path === "/add-account"

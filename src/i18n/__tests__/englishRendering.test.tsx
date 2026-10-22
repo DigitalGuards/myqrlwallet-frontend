@@ -265,7 +265,7 @@ function expectNoCatalogKeys() {
       element.remove();
     });
   expect(copy.textContent).not.toMatch(
-    /(?:common|home|settings|tokens|history):[A-Za-z][\w.-]*/,
+    /(?:common|home|settings|tokens|history|transfer|accounts|contacts):[A-Za-z][\w.-]*/,
   );
 }
 

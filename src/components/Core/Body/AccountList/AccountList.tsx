@@ -17,7 +17,7 @@ const AccountCreateImport = withSuspense(
 );
 
 const AccountList = observer(() => {
-  const { t } = useTranslation(["home", "common"]);
+  const { t } = useTranslation(["accounts", "home", "common"]);
   const { qrlStore } = useStore();
   const { activeAccount, qrlConnection } = qrlStore;
   const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(
@@ -30,12 +30,12 @@ const AccountList = observer(() => {
   return (
     <>
       <SEO
-        title="Account List"
-        description="Manage your QRL accounts securely. View balances, copy addresses, and interact with your quantum-resistant accounts."
-        keywords="QRL Accounts, Wallet Management, Account Balance, Quantum Resistant Accounts, QRL Address"
+        title={t("accounts:seoTitle")}
+        description={t("accounts:seoDescription")}
+        keywords={t("accounts:seoKeywords")}
       />
       <PageShell
-        title={noActiveAccount ? "Let's start" : "Accounts"}
+        title={noActiveAccount ? t("accounts:start") : t("accounts:title")}
         subtitle={noActiveAccount ? t(accountSetupDescription()) : undefined}
       >
         <div className="flex flex-col gap-4 md:gap-8">
@@ -50,11 +50,10 @@ const AccountList = observer(() => {
               {isWalletLimitReached ? (
                 <div className="flex flex-col gap-2">
                   <Button className="flex w-full gap-2" disabled>
-                    <Plus size={18} /> Wallet limit reached ({walletCount}/
-                    {maxWallets})
+                    <Plus size={18} /> {t("accounts:limit", { count: walletCount, max: maxWallets })}
                   </Button>
                   <p className="text-center text-xs text-muted-foreground">
-                    Remove an existing wallet to add a new one
+                    {t("accounts:removeToAdd")}
                   </p>
                 </div>
               ) : (

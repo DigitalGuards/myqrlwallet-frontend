@@ -17,6 +17,7 @@
  */
 module.exports = {
   testEnvironment: "node",
+  globalSetup: "<rootDir>/config/jest.global-setup.cjs",
   setupFilesAfterEnv: ["<rootDir>/src/i18n/index.ts"],
   roots: ["<rootDir>/src"],
   testPathIgnorePatterns: ["/node_modules/", "/dist/", "/.dapp-example-cache/"],

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useStore } from "../../../../../stores/store";
 import { observer } from "mobx-react-lite";
 import { formatBalance } from "@/utils/formatting";
@@ -9,12 +10,13 @@ type AccountBalanceProps = {
 };
 
 export const AccountBalance = observer(({ accountAddress, className }: AccountBalanceProps) => {
+  const { t } = useTranslation(["accounts", "common"]);
   const { qrlStore } = useStore();
   const balance = qrlStore.getAccountBalance(accountAddress);
 
   return (
     <div className={cn("text-sm text-secondary font-numeric", className)}>
-      Balance: {formatBalance(balance)} Quanta
+      {t("accounts:balance", { balance: formatBalance(balance) })}
     </div>
   );
 });
