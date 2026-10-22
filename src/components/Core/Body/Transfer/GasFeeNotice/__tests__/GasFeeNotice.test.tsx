@@ -7,9 +7,11 @@ import {
   screen,
 } from "@testing-library/react";
 import { quoteFees } from "@/stores/qrlStore";
+import { deferred } from "@/test-utils/deferred";
 import { GasFeeNotice } from "../GasFeeNotice";
 
 const mockEstimate = jest.fn<Promise<unknown>, [unknown]>();
+let estimate: ReturnType<typeof deferred<unknown>>;
 let mockProvider = { estimateGas: mockEstimate };
 const onQuote = jest.fn();
 const onFeeLevelChange = jest.fn();
@@ -38,7 +40,8 @@ const props = {
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
-  mockEstimate.mockResolvedValue(21000n);
+  estimate = deferred<unknown>();
+  mockEstimate.mockReturnValue(estimate.promise);
   mockProvider = { estimateGas: mockEstimate };
   jest.mocked(quoteFees).mockResolvedValue(fees);
 });
@@ -47,47 +50,69 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-async function quoteAfterDebounce() {
+async function startQuoteAfterDebounce() {
   await act(() => jest.advanceTimersByTimeAsync(500));
 }
 
 it("quotes after the debounce and keeps the exact gas limit and fees", async () => {
   render(<GasFeeNotice {...props} />);
   expect(mockEstimate).not.toHaveBeenCalled();
-  await quoteAfterDebounce();
+  await startQuoteAfterDebounce();
   expect(mockEstimate).toHaveBeenCalledWith({
     from: "sender",
     to: "recipient",
     value: "1000000000000000000",
+  });
+  expect(screen.getByText("Estimating fee...")).toBeTruthy();
+  expect(onQuote.mock.calls).toEqual([[null]]);
+  await act(async () => {
+    estimate.resolve(21000n);
+    await estimate.promise;
   });
   expect(onQuote.mock.calls).toEqual([
     [null],
     [{ quote: fees, gasLimit: 21000n }],
   ]);
   expect(screen.queryByText("Estimating fee...")).toBeNull();
+  expect(screen.getByText("≈ 0.000000000000063 Quanta")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Fast" }));
   expect(onFeeLevelChange).toHaveBeenCalledWith("high");
 });
 
 it("refreshes the quote when the provider changes", async () => {
   const view = render(<GasFeeNotice {...props} />);
-  await quoteAfterDebounce();
+  await startQuoteAfterDebounce();
+  await act(async () => {
+    estimate.resolve(21000n);
+    await estimate.promise;
+  });
+  const next = deferred<unknown>();
   const nextEstimate = jest
     .fn<Promise<unknown>, [unknown]>()
-    .mockResolvedValue(42000n);
+    .mockReturnValue(next.promise);
   mockProvider = { estimateGas: nextEstimate };
   view.rerender(<GasFeeNotice {...props} />);
-  await quoteAfterDebounce();
+  await startQuoteAfterDebounce();
   expect(nextEstimate).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("Estimating fee...")).toBeTruthy();
+  expect(onQuote).toHaveBeenLastCalledWith(null);
+  await act(async () => {
+    next.resolve(42000n);
+    await next.promise;
+  });
   expect(onQuote).toHaveBeenLastCalledWith({ quote: fees, gasLimit: 42000n });
 });
 
 it.each([{}, -1n, "garbage"])(
   "fails closed on an invalid estimate: %s",
-  async (estimate) => {
-    mockEstimate.mockResolvedValue(estimate);
+  async (invalidEstimate) => {
     render(<GasFeeNotice {...props} />);
-    await quoteAfterDebounce();
+    await startQuoteAfterDebounce();
+    expect(screen.getByText("Estimating fee...")).toBeTruthy();
+    await act(async () => {
+      estimate.resolve(invalidEstimate);
+      await estimate.promise;
+    });
     expect(screen.getByText("Error: Invalid gas estimate")).toBeTruthy();
     expect(onQuote.mock.calls).toEqual([[null], [null]]);
   },
@@ -98,9 +123,13 @@ it.each([
   "RPC unavailable",
   { reason: "RPC unavailable" },
 ])("handles rejected estimates: %s", async (error) => {
-  mockEstimate.mockRejectedValueOnce(error);
   render(<GasFeeNotice {...props} />);
-  await quoteAfterDebounce();
+  await startQuoteAfterDebounce();
+  expect(screen.getByText("Estimating fee...")).toBeTruthy();
+  await act(async () => {
+    estimate.reject(error);
+    await estimate.promise.catch(() => undefined);
+  });
   expect(screen.getByText(/RPC unavailable/)).toBeTruthy();
   expect(onQuote).toHaveBeenLastCalledWith(null);
 });
@@ -108,52 +137,41 @@ it.each([
 it("cancels the pending debounce on unmount", async () => {
   const view = render(<GasFeeNotice {...props} />);
   view.unmount();
-  await quoteAfterDebounce();
+  await startQuoteAfterDebounce();
   expect(mockEstimate).not.toHaveBeenCalled();
 });
 
 it("ignores a previous provider's late estimate", async () => {
-  let resolveOld: (value: unknown) => void = () => {
-    throw new Error("Missing pending estimate");
-  };
-  mockEstimate.mockReturnValueOnce(
-    new Promise<unknown>((resolve) => {
-      resolveOld = resolve;
-    }),
-  );
   const view = render(<GasFeeNotice {...props} />);
-  await quoteAfterDebounce();
+  await startQuoteAfterDebounce();
+  const next = deferred<unknown>();
   mockProvider = {
     estimateGas: jest
       .fn<Promise<unknown>, [unknown]>()
-      .mockResolvedValue(42000n),
+      .mockReturnValue(next.promise),
   };
   view.rerender(<GasFeeNotice {...props} />);
-  await quoteAfterDebounce();
+  await startQuoteAfterDebounce();
+  await act(async () => {
+    next.resolve(42000n);
+    await next.promise;
+  });
   const count = onQuote.mock.calls.length;
-  await act(() => {
-    resolveOld(21000n);
-    return Promise.resolve();
+  await act(async () => {
+    estimate.resolve(21000n);
+    await estimate.promise;
   });
   expect(onQuote).toHaveBeenCalledTimes(count);
   expect(onQuote).toHaveBeenLastCalledWith({ quote: fees, gasLimit: 42000n });
 });
 
 it("ignores a late rejection after unmount", async () => {
-  let rejectOld: (reason: unknown) => void = () => {
-    throw new Error("Missing pending estimate");
-  };
-  mockEstimate.mockReturnValueOnce(
-    new Promise<unknown>((_resolve, reject) => {
-      rejectOld = reject;
-    }),
-  );
   const view = render(<GasFeeNotice {...props} />);
-  await quoteAfterDebounce();
+  await startQuoteAfterDebounce();
   view.unmount();
-  await act(() => {
-    rejectOld(new Error("Late failure"));
-    return Promise.resolve();
+  await act(async () => {
+    estimate.reject(new Error("Late failure"));
+    await estimate.promise.catch(() => undefined);
   });
   expect(onQuote.mock.calls).toEqual([[null]]);
 });
