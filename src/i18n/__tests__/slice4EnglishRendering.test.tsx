@@ -151,6 +151,7 @@ function snapshot() {
   }).toMatchSnapshot();
 }
 beforeEach(async () => {
+  document.title = "";
   Object.defineProperty(globalThis, "ResizeObserver", {
     configurable: true,
     value: class {
@@ -183,7 +184,6 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup();
   jest.restoreAllMocks();
-  document.title = "";
 });
 
 it.each(Object.values(SessionStatus))(

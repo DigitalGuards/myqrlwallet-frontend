@@ -1,3 +1,5 @@
+import { assetMessage, type AssetMessage } from "@/i18n/assetMessage";
+import { useTranslation } from "react-i18next";
 import { blockchainKey } from "@/utils/storage/storage";
 import { renderValue, stringAttribute } from "@/utils/guards";
 import { reportError } from "@/utils/reportError";
@@ -44,6 +46,16 @@ interface AddNftModalProps {
 }
 
 export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
+  const { t } = useTranslation([
+    "creation",
+    "nfts",
+    "tokens",
+    "home",
+    "transfer",
+    "settings",
+    "onboarding",
+    "common",
+  ]);
   const { qrlStore, nftStore } = useStore();
   const { accountAddress } = qrlStore.activeAccount;
   const pendingCollections = nftStore.pendingDiscoveredNftCollections;
@@ -57,7 +69,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
   const [isDetecting, setIsDetecting] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [isAddingPicks, setIsAddingPicks] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AssetMessage | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -123,8 +135,8 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
     } catch (err) {
       setError(
         err instanceof Error
-          ? `Failed to add picks: ${err.message}`
-          : "Failed to add picks.",
+          ? { key: "nfts:addPicksReason", reason: err.message }
+          : { key: "nfts:addPicksFailed" },
       );
     } finally {
       setIsAddingPicks(false);
@@ -146,9 +158,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
         const standard = await detectTokenStandard(contractAddress, rpcUrl);
         if (isCancelled()) return;
         if (!standard) {
-          setError(
-            "This address doesn't look like an ERC-721 or ERC-1155 contract.",
-          );
+          setError({ key: "nfts:unsupported" });
           setIsDetecting(false);
           return;
         }
@@ -163,8 +173,8 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
         if (isCancelled()) return;
         setError(
           err instanceof Error
-            ? `Detection failed: ${err.message}`
-            : "Detection failed.",
+            ? { key: "nfts:detectionReason", reason: err.message }
+            : { key: "nfts:detectionFailed" },
         );
       } finally {
         if (!isCancelled()) setIsDetecting(false);
@@ -179,7 +189,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
   const onAdd = async () => {
     if (!detection) return;
     if (!accountAddress) {
-      setError("Connect an account first.");
+      setError({ key: "nfts:accountRequired" });
       return;
     }
     setIsAdding(true);
@@ -202,15 +212,13 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
         if (enumerated && enumerated.length > 0) {
           ids = enumerated;
         } else if (enumerated && enumerated.length === 0) {
-          setError("This account doesn't own any token in that collection.");
+          setError({ key: "nfts:emptyCollection" });
           setIsAdding(false);
           return;
         } else {
           // Non-enumerable: fall back to user-supplied tokenId.
           if (!tokenId.trim()) {
-            setError(
-              "This contract doesn't expose ownership enumeration. Please enter a Token ID.",
-            );
+            setError({ key: "nfts:manualId" });
             setIsAdding(false);
             return;
           }
@@ -221,7 +229,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
             rpcUrl,
           );
           if (!owned) {
-            setError("This account does not own that token ID.");
+            setError({ key: "nfts:wrongOwner" });
             setIsAdding(false);
             return;
           }
@@ -230,7 +238,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
       } else {
         // ERC-1155 requires explicit tokenId.
         if (!tokenId.trim()) {
-          setError("ERC-1155 contracts need a Token ID.");
+          setError({ key: "nfts:id1155" });
           setIsAdding(false);
           return;
         }
@@ -242,7 +250,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
           rpcUrl,
         );
         if (balance <= 0n) {
-          setError("This account holds 0 of that token.");
+          setError({ key: "nfts:zeroBalance" });
           setIsAdding(false);
           return;
         }
@@ -308,7 +316,9 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? `Add failed: ${err.message}` : "Add failed.",
+        err instanceof Error
+          ? { key: "nfts:addReason", reason: err.message }
+          : { key: "nfts:addFailed" },
       );
     } finally {
       setIsAdding(false);
@@ -323,10 +333,8 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add NFT</DialogTitle>
-          <DialogDescription>
-            Add an ERC-721 or ERC-1155 collectible to your wallet.
-          </DialogDescription>
+          <DialogTitle>{t("nfts:add")}</DialogTitle>
+          <DialogDescription>{t("nfts:addHint")}</DialogDescription>
         </DialogHeader>
 
         {error && (
@@ -334,7 +342,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
             role="alert"
             className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
           >
-            {error}
+            {assetMessage(error, t)}
           </div>
         )}
 
@@ -342,12 +350,10 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
           <div className="rounded-md border bg-muted/30 p-3">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">
               <Sparkles className="h-4 w-4 text-muted-foreground/70" />
-              Discovered NFT collections ({pendingCollections.length})
+              {t("nfts:discovered", { count: pendingCollections.length })}
             </div>
             <p className="mb-3 text-xs text-muted-foreground">
-              The explorer sees these on this address. Pick the collections to
-              add; every token you own in a picked collection lands in the
-              gallery, and the rest stay off it.
+              {t("nfts:discoveredHint")}
             </p>
             <ul className="flex max-h-72 flex-col gap-2 overflow-y-auto">
               {pendingCollections.map((collection) => {
@@ -364,7 +370,9 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
                     <Checkbox
                       id={`discovered-collection-${key}`}
                       checked={checked}
-                      onCheckedChange={() => { toggleSelection(key); }}
+                      onCheckedChange={() => {
+                        toggleSelection(key);
+                      }}
                       disabled={isAddingPicks}
                     />
                     {cover ? (
@@ -385,19 +393,22 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
                     >
                       <span className="truncate text-sm font-medium">
                         {renderValue(collectionDisplayName(collection))}
-                        {renderValue(collection.symbol && collection.name && (
-                          <span className="ml-1 text-muted-foreground">
-                            ({renderValue(collection.symbol)})
-                          </span>
-                        ))}
+                        {renderValue(
+                          collection.symbol && collection.name && (
+                            <span className="ml-1 text-muted-foreground">
+                              ({renderValue(collection.symbol)})
+                            </span>
+                          ),
+                        )}
                       </span>
                       <span className="truncate text-xs text-muted-foreground">
-                        {collection.tokenCount} item
-                        {collection.tokenCount === 1 ? "" : "s"} ·{" "}
+                        {t("nfts:items", { count: collection.tokenCount })} ·{" "}
                         {collectionStandardLabel(collection.standard)} ·{" "}
                         {formatAddressFingerprint(collection.contractAddress)}
                         {collection.truncated
-                          ? ` · first ${collection.tokens.length} added`
+                          ? t("nfts:firstAdded", {
+                              count: collection.tokens.length,
+                            })
                           : ""}
                       </span>
                     </Label>
@@ -410,22 +421,24 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
               size="sm"
               className="mt-3 w-full"
               disabled={selectedKeys.size === 0 || isAddingPicks}
-              onClick={() => { void addSelected(); }}
+              onClick={() => {
+                void addSelected();
+              }}
             >
               {isAddingPicks ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding…
+                  {t("tokens:adding")}
                 </>
               ) : (
-                <>Add Selected ({selectedKeys.size})</>
+                <>{t("tokens:addSelected", { count: selectedKeys.size })}</>
               )}
             </Button>
           </div>
         )}
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="nft-contract">Contract Address</Label>
+          <Label htmlFor="nft-contract">{t("nfts:contractAddress")}</Label>
           <Input
             id="nft-contract"
             value={contractAddress}
@@ -433,7 +446,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
               setContractAddress(e.target.value.trim());
               setError(null);
             }}
-            placeholder="Q…"
+            placeholder={t("nfts:contractPlaceholder")}
             disabled={isAdding}
           />
         </div>
@@ -441,19 +454,23 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
         {isDetecting && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Detecting contract standard…
+            {t("nfts:detecting")}
           </div>
         )}
 
         {detection && (
           <div className="rounded-md border bg-muted/30 p-3 text-sm">
             <div>
-              <span className="text-muted-foreground">Standard:</span>{" "}
+              <span className="text-muted-foreground">
+                {t("nfts:standardLabel")}
+              </span>{" "}
               <span className="font-medium">{detection.standard}</span>
             </div>
             {detection.info.name && (
               <div>
-                <span className="text-muted-foreground">Collection:</span>{" "}
+                <span className="text-muted-foreground">
+                  {t("nfts:collectionLabel")}
+                </span>{" "}
                 <span className="font-medium">
                   {detection.info.name}
                   {detection.info.symbol ? ` (${detection.info.symbol})` : ""}
@@ -463,10 +480,12 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
             {detection.standard === "ERC721" && (
               <div>
                 <span className="text-muted-foreground">
-                  Owner enumeration:
+                  {t("nfts:ownerEnumeration")}
                 </span>{" "}
                 <span className="font-medium">
-                  {detection.info.supportsEnumerable ? "yes" : "no"}
+                  {detection.info.supportsEnumerable
+                    ? t("nfts:yes")
+                    : t("nfts:no")}
                 </span>
               </div>
             )}
@@ -475,7 +494,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
 
         {needsTokenId && (
           <div className="flex flex-col gap-2">
-            <Label htmlFor="nft-token-id">Token ID</Label>
+            <Label htmlFor="nft-token-id">{t("nfts:tokenId")}</Label>
             <Input
               id="nft-token-id"
               value={tokenId}
@@ -483,7 +502,7 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
                 setTokenId(e.target.value.trim());
                 setError(null);
               }}
-              placeholder="e.g. 42"
+              placeholder={t("nfts:idPlaceholder")}
               disabled={isAdding}
             />
           </div>
@@ -494,15 +513,17 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
             type="button"
             className="w-full"
             disabled={!detection || isAdding || isDetecting}
-            onClick={() => { void onAdd(); }}
+            onClick={() => {
+              void onAdd();
+            }}
           >
             {isAdding ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Adding…
+                {t("tokens:adding")}
               </>
             ) : (
-              "Add NFT"
+              t("nfts:add")
             )}
           </Button>
         </DialogFooter>

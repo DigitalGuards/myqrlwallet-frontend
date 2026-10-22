@@ -1,3 +1,4 @@
+import { slice5Matrix } from "./i18n-slice5-matrix.mjs";
 import { slice4Screens, slice4NoticeProbes } from "./i18n-slice4-probes.mjs";
 import { assertFullI18nCoverage } from "./i18n-coverage.mjs";
 import { slice3Screens } from "./i18n-slice3-probes.mjs";
@@ -55,6 +56,7 @@ try {
   browser = await chromium.launch();
   await helperRouteProbes(browser, origin);
   await reviewProbes(browser, origin);
+  results.push(...(await slice5Matrix(browser, origin, output)));
   for (const language of languages) {
     const catalogs = Object.fromEntries(
       await Promise.all(
@@ -71,6 +73,8 @@ try {
           "dapps",
           "telegram",
           "notices",
+          "creation",
+          "nfts",
         ].map(async (ns) => [
           ns,
           JSON.parse(
@@ -186,7 +190,7 @@ try {
       );
       assert.doesNotMatch(
         await page.locator("body").innerText(),
-        /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*/,
+        /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices|creation|nfts):[A-Za-z][\w.-]*/,
         `${language}/${name}: raw catalog key`,
       );
       const labels = await page
@@ -200,7 +204,7 @@ try {
         );
       assert.doesNotMatch(
         labels.join("\n"),
-        /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*|{{/,
+        /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices|creation|nfts):[A-Za-z][\w.-]*|{{/,
         `${language}/${name}: unresolved label`,
       );
       await delay(150);
@@ -456,6 +460,11 @@ try {
   }
   results.push(...(await slice4NoticeProbes({ browser, origin, output })));
   assertFullI18nCoverage(results);
+  assert.deepEqual(
+    results.filter((result) => result.problems.length),
+    [],
+    "Language control overflow",
+  );
   await writeFile(
     join(output, "layout-results.json"),
     JSON.stringify(results, null, 2),
@@ -464,6 +473,9 @@ try {
     `smoke-i18n: OK (${((performance.now() - started) / 1000).toFixed(1)}s, ${results.length} screenshots at 360 px, lazy loading, live switching, persistence, no page errors)`,
   );
 } finally {
+  console.log(
+    `smoke-i18n duration: ${((performance.now() - started) / 1000).toFixed(1)}s`,
+  );
   clearTimeout(timeout);
   await browser?.close();
   server.kill();

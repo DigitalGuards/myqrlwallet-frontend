@@ -45,3 +45,14 @@ For device credential recovery, preserve every condition: independently usable b
 | pair    | koppeln | vincular | связать | 配对     |
 
 Pairing establishes an encrypted channel and requires a separate account-access approval. Account approval exposes an address. Keep these scopes distinct. DApp-supplied names, origins and addresses retain their exact rendering and visual-control escaping. Unknown pairing errors remain verbatim. In Simplified Chinese, use 区块浏览器 for a block explorer and 浏览器 for the web browser.
+
+| English    | Deutsch        | Español     | Русский          | 简体中文 |
+| ---------- | -------------- | ----------- | ---------------- | -------- |
+| supply     | Menge          | suministro  | объём выпуска    | 供应量   |
+| decimals   | Dezimalstellen | decimales   | десятичные знаки | 小数位数 |
+| mint       | erzeugen       | emitir      | выпускать        | 增发     |
+| owner      | Besitzer       | propietario | владелец         | 所有者   |
+| token ID   | Token-ID       | ID de token | ID токена        | 代币 ID  |
+| collection | Sammlung       | colección   | коллекция        | 集合     |
+
+Supply is the number of issued tokens; decimals specify fractional precision. Minting issues additional tokens. Maximum supply, maximum wallet holdings and the per-transaction limit are distinct quantities. NFT ownership means holding a token. Owner enumeration lists an account's token IDs. A collection groups tokens under one contract, and a token ID identifies an item within that contract. Translate these labels while preserving every supplied identifier, amount, name and metadata value. ERC-721 transfers always use 1 token; ERC-1155 uses the entered integer amount. Keep self-send prohibitions, PIN authorization, account/seed mismatch recovery and extension-signing availability conditions complete.

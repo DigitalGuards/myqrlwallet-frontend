@@ -220,6 +220,7 @@ class ResizeObserverFixture {
   disconnect() {}
 }
 beforeEach(async () => {
+  document.title = "";
   jest.resetAllMocks();
   mockNative = false;
   mockDesktop = false;

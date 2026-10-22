@@ -5,7 +5,7 @@ const address = `Q${"1".repeat(128)}`;
 const setupWeb =
   "You are connected to the blockchain. Create a new account, import an existing account, or connect a wallet you already use: your browser extension or the MyQRLWallet mobile app.";
 const catalogKey =
-  /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*/;
+  /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices|creation|nfts):[A-Za-z][\w.-]*/;
 
 /** Exercise real routes, including the shared navigation in unconverted pages. */
 export async function helperRouteProbes(browser, origin) {
@@ -15,7 +15,11 @@ export async function helperRouteProbes(browser, origin) {
       path.replace(":contractAddress", address).replace(":tokenId", "1"),
   );
   assert.ok(
-    routes.includes("/add-account") && routes.includes("/account-list"),
+    routes.includes("/add-account") &&
+      routes.includes("/account-list") &&
+      routes.includes("/create-token") &&
+      routes.includes("/token-status") &&
+      routes.some((route) => route.startsWith("/nft/")),
   );
   const records = [];
   for (const width of [390, 1280]) {
@@ -31,6 +35,9 @@ export async function helperRouteProbes(browser, origin) {
             "/address-book",
             "/create-account",
             "/import-account",
+            "/create-token",
+            "/token-status",
+            `/nft/${address}/42`,
           ]) {
         const context = await browser.newContext({
           locale: "en-US",

@@ -1,3 +1,5 @@
+import { assetMessage, assetServiceError } from "@/i18n/assetMessage";
+import { useTranslation } from "react-i18next";
 import { reportError } from "@/utils/reportError";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { observer } from "mobx-react-lite";
@@ -15,6 +17,16 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { QRL_PROVIDER } from "@/config";
 
 const TokenStatus = observer(() => {
+  const { t } = useTranslation([
+    "creation",
+    "nfts",
+    "tokens",
+    "home",
+    "transfer",
+    "settings",
+    "onboarding",
+    "common",
+  ]);
   const { qrlStore, tokenStore } = useStore();
   const { qrlConnection } = qrlStore;
   const { createdToken, creatingToken } = tokenStore;
@@ -39,10 +51,7 @@ const TokenStatus = observer(() => {
   >();
 
   const gasInQrl = new BigNumber(
-    utils.fromPlanck(
-      BigInt(gasUsed) * BigInt(effectiveGasPrice),
-      "quanta",
-    ),
+    utils.fromPlanck(BigInt(gasUsed) * BigInt(effectiveGasPrice), "quanta"),
   )
     .dp(8, BigNumber.ROUND_DOWN)
     .toString()
@@ -95,23 +104,21 @@ const TokenStatus = observer(() => {
             />
           )}
           {isCreating
-            ? "Creating Token"
+            ? t("creation:creating")
             : hasError
-              ? "Token Creation Failed"
+              ? t("creation:creationFailed")
               : isSuccess
-                ? "Token Created"
-                : "Token Status"}
+                ? t("creation:created")
+                : t("creation:status")}
         </span>
       }
-      seoTitle="Token Status"
+      seoTitle={t("creation:status")}
     >
       {!isCreating && !hasError && !isSuccess && (
         <Card className="space-y-4 p-6">
-          <p className="text-sm text-muted-foreground">
-            No token creation in progress.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("creation:idle")}</p>
           <Link to={ROUTES.CREATE_TOKEN}>
-            <Button>Create Token</Button>
+            <Button>{t("creation:create")}</Button>
           </Link>
         </Card>
       )}
@@ -123,7 +130,7 @@ const TokenStatus = observer(() => {
               <div className="space-y-1">
                 <p className="text-lg font-medium">{creatingToken.name}</p>
                 <p className="text-sm text-muted-foreground">
-                  Deploying your token to the blockchain...
+                  {t("creation:deploying")}
                 </p>
               </div>
             </div>
@@ -137,9 +144,14 @@ const TokenStatus = observer(() => {
           <CardContent className="pt-6">
             <div className="flex flex-col items-center gap-4 text-center">
               <div className="space-y-2">
-                <p className="text-lg font-medium">Something went wrong</p>
+                <p className="text-lg font-medium">
+                  {t("creation:somethingWrong")}
+                </p>
                 <p className="text-sm text-muted-foreground max-w-md">
-                  {creatingToken.error}
+                  {assetMessage(
+                    assetServiceError(creatingToken.error ?? ""),
+                    t,
+                  )}
                 </p>
               </div>
             </div>
@@ -147,7 +159,7 @@ const TokenStatus = observer(() => {
           <CardFooter>
             <Link className="w-full" to={ROUTES.CREATE_TOKEN}>
               <Button className="w-full" type="button" variant="outline">
-                Try Again
+                {t("creation:tryAgain")}
               </Button>
             </Link>
           </CardFooter>
@@ -160,17 +172,19 @@ const TokenStatus = observer(() => {
           <CardContent className="space-y-6 pt-6">
             <div className="flex flex-col gap-1">
               <span className="text-sm text-muted-foreground">
-                Transaction Hash
+                {t("transfer:completedHash")}
               </span>
               <div className="flex items-center gap-2">
                 <a
                   href={`${explorerUrl}/tx/${tx}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 font-medium text-secondary hover:text-secondary/80"
+                  className="flex min-w-0 items-center gap-2 font-medium text-secondary hover:text-secondary/80"
                 >
-                  {StringUtil.getSplitAddress(tx)}
-                  <ExternalLink className="h-4 w-4" />
+                  <span className="min-w-0 [overflow-wrap:anywhere]">
+                    {StringUtil.getSplitAddress(tx)}
+                  </span>
+                  <ExternalLink className="h-4 w-4 shrink-0" />
                 </a>
                 <button
                   onClick={() => {
@@ -191,17 +205,19 @@ const TokenStatus = observer(() => {
 
             <div className="flex flex-col gap-1">
               <span className="text-sm text-muted-foreground">
-                Token Address
+                {t("tokens:address")}
               </span>
               <div className="flex items-center gap-2">
-                <span className="font-medium text-secondary">
+                <span className="min-w-0 font-medium text-secondary [overflow-wrap:anywhere]">
                   {StringUtil.getSplitAddress(address)}
                 </span>
                 <button
                   onClick={() => {
-                    copyToClipboard(address, "tokenAddress").catch((error: unknown) => {
-                      reportError("Failed to copy token address:", error);
-                    });
+                    copyToClipboard(address, "tokenAddress").catch(
+                      (error: unknown) => {
+                        reportError("Failed to copy token address:", error);
+                      },
+                    );
                   }}
                   className="text-muted-foreground hover:text-foreground"
                 >
@@ -216,19 +232,25 @@ const TokenStatus = observer(() => {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col gap-1">
-                <span className="text-sm text-muted-foreground">Name</span>
+                <span className="text-sm text-muted-foreground">
+                  {t("tokens:name")}
+                </span>
                 <span className="font-medium text-secondary break-words">
                   {name}
                 </span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-sm text-muted-foreground">Symbol</span>
+                <span className="text-sm text-muted-foreground">
+                  {t("tokens:symbol")}
+                </span>
                 <span className="font-medium text-secondary break-words">
                   {symbol}
                 </span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-sm text-muted-foreground">Decimals</span>
+                <span className="text-sm text-muted-foreground">
+                  {t("creation:decimals")}
+                </span>
                 <span className="font-numeric font-medium text-secondary">
                   {decimals}
                 </span>
@@ -236,16 +258,20 @@ const TokenStatus = observer(() => {
             </div>
 
             <div className="flex flex-col gap-1">
-              <span className="text-sm text-muted-foreground">Block Hash</span>
+              <span className="text-sm text-muted-foreground">
+                {t("creation:blockHash")}
+              </span>
               <div className="flex items-center gap-2">
-                <span className="font-medium text-secondary">
+                <span className="min-w-0 font-medium text-secondary [overflow-wrap:anywhere]">
                   {StringUtil.getSplitAddress(blockHash)}
                 </span>
                 <button
                   onClick={() => {
-                    copyToClipboard(blockHash, "blockHash").catch((error: unknown) => {
-                      reportError("Failed to copy block hash:", error);
-                    });
+                    copyToClipboard(blockHash, "blockHash").catch(
+                      (error: unknown) => {
+                        reportError("Failed to copy block hash:", error);
+                      },
+                    );
                   }}
                   className="text-muted-foreground hover:text-foreground"
                 >
@@ -261,7 +287,7 @@ const TokenStatus = observer(() => {
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <span className="text-sm text-muted-foreground">
-                  Block Number
+                  {t("creation:blockNumber")}
                 </span>
                 <a
                   href={`${explorerUrl}/block/${blockNumber}`}
@@ -274,7 +300,9 @@ const TokenStatus = observer(() => {
                 </a>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-sm text-muted-foreground">Network fee</span>
+                <span className="text-sm text-muted-foreground">
+                  {t("transfer:networkFee")}
+                </span>
                 <span className="font-numeric font-medium text-secondary">
                   {gasInQrl} Quanta
                 </span>
@@ -285,7 +313,7 @@ const TokenStatus = observer(() => {
             <Link className="w-full" to={ROUTES.HOME}>
               <Button className="w-full" type="button">
                 <Check className="mr-2 h-4 w-4" />
-                Done
+                {t("transfer:done")}
               </Button>
             </Link>
           </CardFooter>

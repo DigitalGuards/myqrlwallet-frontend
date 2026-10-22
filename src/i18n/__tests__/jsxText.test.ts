@@ -15,13 +15,39 @@ function sourceFiles(directory: string): string[] {
 }
 
 it("keeps converted JSX free of literal user-facing copy", () => {
-  const files = [...sourceFiles("src/components"), "src/App.tsx"].filter(
-    (file) => coverage.some((scope) => file.startsWith(scope)),
-  );
+  const files = [
+    ...sourceFiles("src/components"),
+    "src/App.tsx",
+    "src/router/router.tsx",
+  ].filter((file) => coverage.some((scope) => file.startsWith(scope)));
   expect(files.length).toBeGreaterThan(25);
   expect(
     files.flatMap((file) => jsxTextFindings(readFileSync(file, "utf8"), file)),
   ).toEqual([]);
+});
+
+it("leaves visible copy outside coverage only in consent, approval and legal pages", () => {
+  const files = sourceFiles("src").filter(
+    (file) => !coverage.some((scope) => file.startsWith(scope)),
+  );
+  expect(
+    files
+      .filter(
+        (file) => jsxTextFindings(readFileSync(file, "utf8"), file).length > 0,
+      )
+      .sort(),
+  ).toEqual([
+    "src/components/Core/Body/DAppConnect/DAppApprovalModal.tsx",
+    "src/components/Core/Body/DAppConnect/DAppConnectConsentModal.tsx",
+    "src/components/Core/Body/DAppConnect/DAppMessageReview.tsx",
+    "src/components/Core/Body/DAppConnect/DAppTransactionReview.tsx",
+    "src/components/Core/Body/DAppConnect/DAppTypedDataReview.tsx",
+    "src/components/Core/Body/Disclaimer/Disclaimer.tsx",
+    "src/components/Core/Body/Legal/Legal.tsx",
+    "src/components/Core/Body/Privacy/Privacy.tsx",
+    "src/components/Core/Body/Security/Security.tsx",
+    "src/components/Core/Body/Terms/Terms.tsx",
+  ]);
 });
 
 it.each([

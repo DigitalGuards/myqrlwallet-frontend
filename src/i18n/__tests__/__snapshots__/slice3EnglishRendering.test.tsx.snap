@@ -180,7 +180,7 @@ exports[`PIN confirmation mismatch 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINPINs don't matchCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -365,7 +365,7 @@ exports[`PIN validation: 123 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINPIN must be at least 4 digitsRe-enter your PINCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -550,7 +550,7 @@ exports[`PIN validation: 1234567 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINPIN must be at most 6 digitsRe-enter your PINCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -735,7 +735,7 @@ exports[`PIN validation: abcd 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINPIN must contain only digitsRe-enter your PINCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -976,7 +976,7 @@ exports[`creation and PIN loading; creation inventory failure 1`] = `
   "labels": [],
   "meta": [],
   "text": "",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -1097,7 +1097,7 @@ exports[`creation and PIN service rejection: Error 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINError: Service detail There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -1335,7 +1335,7 @@ exports[`creation and PIN service rejection: null 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINnull There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -1573,7 +1573,7 @@ exports[`creation and PIN service rejection: string 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINraw service detail There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -1847,7 +1847,7 @@ exports[`creation encrypting, creating, PIN encrypting and desktop importing 1`]
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINEncrypting...",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -2157,7 +2157,7 @@ exports[`creation failure: account 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINError: Failed to create account There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -2251,7 +2251,7 @@ exports[`creation failure: mnemonic 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINError: Failed to generate mnemonic There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -2345,7 +2345,7 @@ exports[`credential/storage failure during creation and PIN setup: Another walle
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: Another wallet tab created a device credential, but it could not be loaded. There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -2530,7 +2530,7 @@ exports[`credential/storage failure during creation and PIN setup: Invalid PIN f
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: Invalid PIN format There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -2715,7 +2715,7 @@ exports[`credential/storage failure during creation and PIN setup: Invalid crypt
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: Invalid crypto worker response There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -2900,7 +2900,7 @@ exports[`credential/storage failure during creation and PIN setup: Native secure
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: Native secure storage failed. There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -3085,7 +3085,7 @@ exports[`credential/storage failure during creation and PIN setup: Secure browse
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: Secure browser storage could not be opened. Wallet creation has been stopped. There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -3270,7 +3270,7 @@ exports[`credential/storage failure during creation and PIN setup: Secure browse
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: Secure browser storage is blocked by another wallet tab. There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -3455,7 +3455,7 @@ exports[`credential/storage failure during creation and PIN setup: Secure browse
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: Secure browser storage is unavailable. Wallet creation has been stopped. There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -3640,7 +3640,7 @@ exports[`credential/storage failure during creation and PIN setup: The native de
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: The native device credential is invalid. There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -3825,7 +3825,7 @@ exports[`credential/storage failure during creation and PIN setup: The secure br
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: The secure browser credential could not be durably stored. There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -4010,7 +4010,7 @@ exports[`credential/storage failure during creation and PIN setup: The secure br
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: The secure browser credential could not be read. There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -4195,7 +4195,7 @@ exports[`credential/storage failure during creation and PIN setup: The secure br
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: The secure browser credential is corrupt or has an unsupported format. There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -4380,7 +4380,7 @@ exports[`credential/storage failure during creation and PIN setup: The secure br
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: The secure browser credential was not durably stored. There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -4565,7 +4565,7 @@ exports[`credential/storage failure during creation and PIN setup: The secure br
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: The secure browser credential write was interrupted. There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -4750,7 +4750,7 @@ exports[`credential/storage failure during creation and PIN setup: This wallet c
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: This wallet cannot be opened because its device security credential is unavailable. There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -4935,7 +4935,7 @@ exports[`credential/storage failure during creation and PIN setup: Unknown crypt
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: Unknown crypto error There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -5120,7 +5120,7 @@ exports[`credential/storage failure during creation and PIN setup: Wallet identi
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: Wallet identity changed before sensitive storage write There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -5305,7 +5305,7 @@ exports[`credential/storage failure during creation and PIN setup: Wallet identi
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: Wallet identity changed during sensitive storage write There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -5490,7 +5490,7 @@ exports[`credential/storage failure during creation and PIN setup: Worker error 
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCryptoOperationError: Worker error There was an error while creating the accountCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -5677,7 +5677,7 @@ exports[`device recovery native=false 1`] = `
   ],
   "meta": [],
   "text": "Wallet recoveryThe device security credential is unavailable. Close and reopen the browser, then try again. Your existing wallet data has been kept.Before removing any wallet data, verify that you have a recovery phrase or an independently usable exported backup for every wallet, including wallets saved under earlier network profiles. A copy of device-encrypted data alone cannot recover a wallet when its device credential is lost. Keep all wallet data if any recovery backup is missing.If retrying still fails, use a separate browser profile to import a recovery phrase or independently usable exported backup. Keep this browser profile and its wallet data until every wallet is recovered.",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -5693,7 +5693,7 @@ exports[`device recovery native=true 1`] = `
   ],
   "meta": [],
   "text": "Wallet recoveryThe device security credential is unavailable. Close and reopen the app, then try again. Your existing wallet data has been kept.Before removing any wallet data, verify that you have a recovery phrase or an independently usable exported backup for every wallet, including wallets saved under earlier network profiles. A copy of device-encrypted data alone cannot recover a wallet when its device credential is lost. Keep all wallet data if any recovery backup is missing.If retrying still fails and every wallet has a usable backup, open app Settings and choose Remove All Wallets. Complete the app's authentication and confirmation steps. This permanently removes all wallets and preserved earlier backups from this device. Once removal completes, import each wallet using its recovery backup.Open app settings",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -5709,7 +5709,7 @@ exports[`device recovery native=true 2`] = `
   ],
   "meta": [],
   "text": "Wallet recoveryThe device security credential is unavailable. Close and reopen the app, then try again. Your existing wallet data has been kept.Before removing any wallet data, verify that you have a recovery phrase or an independently usable exported backup for every wallet, including wallets saved under earlier network profiles. A copy of device-encrypted data alone cannot recover a wallet when its device credential is lost. Keep all wallet data if any recovery backup is missing.If retrying still fails and every wallet has a usable backup, open app Settings and choose Remove All Wallets. Complete the app's authentication and confirmation steps. This permanently removes all wallets and preserved earlier backups from this device. Once removal completes, import each wallet using its recovery backup.Open app settingsOpen Settings from the app navigation to review recovery options.",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -5767,7 +5767,7 @@ exports[`existing PIN error: busy 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordYour Existing PINEnter your existing PIN to add this wallet. All wallets use the same PIN for security.(All wallets use the same PIN)Another PIN check is still running. Please try again.Create account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -5886,7 +5886,7 @@ exports[`existing PIN error: credential 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordYour Existing PINEnter your existing PIN to add this wallet. All wallets use the same PIN for security.(All wallets use the same PIN)The device security credential is unavailable. Review the recovery steps below.Wallet recoveryThe device security credential is unavailable. Close and reopen the browser, then try again. Your existing wallet data has been kept.Before removing any wallet data, verify that you have a recovery phrase or an independently usable exported backup for every wallet, including wallets saved under earlier network profiles. A copy of device-encrypted data alone cannot recover a wallet when its device credential is lost. Keep all wallet data if any recovery backup is missing.If retrying still fails, use a separate browser profile to import a recovery phrase or independently usable exported backup. Keep this browser profile and its wallet data until every wallet is recovered.Create account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6005,7 +6005,7 @@ exports[`existing PIN error: incorrect 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordYour Existing PINEnter your existing PIN to add this wallet. All wallets use the same PIN for security.(All wallets use the same PIN)Incorrect PIN. 4 attempts remaining.Create account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6118,7 +6118,7 @@ exports[`existing PIN error: last-attempt 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordYour Existing PINEnter your existing PIN to add this wallet. All wallets use the same PIN for security.(All wallets use the same PIN)Incorrect PIN. 1 attempt remaining.Create account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6231,7 +6231,7 @@ exports[`existing PIN error: locked 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordYour Existing PINEnter your existing PIN to add this wallet. All wallets use the same PIN for security.(All wallets use the same PIN)Too many failed attempts. Please wait 15 minutes.Create account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6344,7 +6344,7 @@ exports[`existing PIN error: outdated 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordYour Existing PINEnter your existing PIN to add this wallet. All wallets use the same PIN for security.(All wallets use the same PIN)This wallet was saved in an older format and must be re-imported.Create account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6457,7 +6457,7 @@ exports[`existing PIN error: unknown 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordYour Existing PINEnter your existing PIN to add this wallet. All wallets use the same PIN for security.(All wallets use the same PIN)Failed to unlock the seed. Please try again.Create account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6606,7 +6606,7 @@ exports[`existing=false creation and PIN entry 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6755,7 +6755,7 @@ exports[`existing=true creation and PIN entry 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordYour Existing PINEnter your existing PIN to add this wallet. All wallets use the same PIN for security.(All wallets use the same PIN)Create account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6830,7 +6830,7 @@ exports[`extension file accounts, memory warning, decrypt error and empty keysto
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyAccount to importAccount 1This backup contains 2 accounts. Import them one at a time; run the import again for the others.PasswordExtension backups are encrypted with the extension's unlock password.Import Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6839,7 +6839,7 @@ exports[`extension file accounts, memory warning, decrypt error and empty keysto
   "labels": [],
   "meta": [],
   "text": "Account 1Q11111111...11111111...11111111",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6859,7 +6859,7 @@ exports[`extension file accounts, memory warning, decrypt error and empty keysto
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyAccount to importQ11111111...11111111...11111111This backup contains 2 accounts. Import them one at a time; run the import again for the others.PasswordExtension backups are encrypted with the extension's unlock password.This file requests an unusually large amount of memory to decrypt and may take a long time or fail on low-memory devices.Import Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6879,7 +6879,7 @@ exports[`extension file accounts, memory warning, decrypt error and empty keysto
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyAccount to importQ11111111...11111111...11111111This backup contains 2 accounts. Import them one at a time; run the import again for the others.PasswordExtension backups are encrypted with the extension's unlock password.This file requests an unusually large amount of memory to decrypt and may take a long time or fail on low-memory devices.Could not decrypt the wallet file. Check the password and try again. For extension backups this is the extension's unlock password.Import Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6899,7 +6899,7 @@ exports[`extension file accounts, memory warning, decrypt error and empty keysto
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyUnsupported derived-key length (only dklen 32 / AES-256 is supported).Account to importQ11111111...11111111...11111111This backup contains 2 accounts. Import them one at a time; run the import again for the others.PasswordExtension backups are encrypted with the extension's unlock password.This file requests an unusually large amount of memory to decrypt and may take a long time or fail on low-memory devices.Import Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6919,7 +6919,7 @@ exports[`extension file accounts, memory warning, decrypt error and empty keysto
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyThe backup file contains no keystores.PasswordExtension backups are encrypted with the extension's unlock password.Import Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6935,7 +6935,7 @@ exports[`import required, malformed, service failure and busy: hex 1`] = `
   ],
   "meta": [],
   "text": "Enter your hexadecimal seed to restore your walletEnter the hex seed from your wallet backupImport Account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6951,7 +6951,7 @@ exports[`import required, malformed, service failure and busy: hex 2`] = `
   ],
   "meta": [],
   "text": "Enter your hexadecimal seed to restore your walletEnter the hex seed from your wallet backupHex seed is requiredImport Account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6967,7 +6967,7 @@ exports[`import required, malformed, service failure and busy: hex 3`] = `
   ],
   "meta": [],
   "text": "Enter your hexadecimal seed to restore your walletEnter the hex seed from your wallet backupInvalid hex seed format. Must start with '0x' followed by hex charactersImport Account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6983,7 +6983,7 @@ exports[`import required, malformed, service failure and busy: hex 4`] = `
   ],
   "meta": [],
   "text": "Enter your hexadecimal seed to restore your walletEnter the hex seed from your wallet backupInvalid hex seedImport Account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -6999,7 +6999,7 @@ exports[`import required, malformed, service failure and busy: hex 5`] = `
   ],
   "meta": [],
   "text": "Enter your hexadecimal seed to restore your walletEnter the hex seed from your wallet backupFailed to derive mnemonic from hex seedImport Account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7015,7 +7015,7 @@ exports[`import required, malformed, service failure and busy: mnemonic 1`] = `
   ],
   "meta": [],
   "text": "Enter your mnemonic phrase to restore your walletEnter the mnemonic phrases from your wallet backupImport Account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7031,7 +7031,7 @@ exports[`import required, malformed, service failure and busy: mnemonic 2`] = `
   ],
   "meta": [],
   "text": "Enter your mnemonic phrase to restore your walletEnter the mnemonic phrases from your wallet backupMnemonic phrases are requiredImport Account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7047,7 +7047,7 @@ exports[`import required, malformed, service failure and busy: mnemonic 3`] = `
   ],
   "meta": [],
   "text": "Enter your mnemonic phrase to restore your walletEnter the mnemonic phrases from your wallet backupInvalid mnemonic phrasesImport Account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7063,7 +7063,7 @@ exports[`import required, malformed, service failure and busy: mnemonic 4`] = `
   ],
   "meta": [],
   "text": "Enter your mnemonic phrase to restore your walletEnter the mnemonic phrases from your wallet backupImport Account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7240,7 +7240,7 @@ exports[`import wallet file selection and validation 1`] = `
   "labels": [],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet FileClick to import wallet fileJSON files onlyPasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7249,7 +7249,7 @@ exports[`import wallet file selection and validation 2`] = `
   "labels": [],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet FileClick to import wallet fileJSON files onlyPasswordPassword is requiredImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7258,7 +7258,7 @@ exports[`import wallet file selection and validation 3`] = `
   "labels": [],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet FileClick to import wallet fileJSON files onlyPlease select a wallet filePasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7267,7 +7267,7 @@ exports[`import wallet file selection and validation 4`] = `
   "labels": [],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet FileClick to import wallet fileJSON files onlyWallet file is too largePasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7276,7 +7276,7 @@ exports[`import wallet file selection and validation 5`] = `
   "labels": [],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet FileClick to import wallet fileJSON files onlyPlease select a valid JSON wallet filePasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7296,7 +7296,7 @@ exports[`import wallet file selection and validation 6`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyInvalid wallet file formatPasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7316,7 +7316,7 @@ exports[`import wallet file selection and validation 7`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyInvalid wallet file formatPasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7622,7 +7622,7 @@ exports[`password confirmation required and mismatch 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordPlease re-enter your passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINPIN must be at least 4 digitsRe-enter your PINPIN must be at least 4 digitsCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7716,7 +7716,7 @@ exports[`password confirmation required and mismatch 2`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterRe-enter the passwordPasswords don't matchTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINPIN must be at least 4 digitsRe-enter your PINPIN must be at least 4 digitsCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7872,7 +7872,7 @@ exports[`password validation: PASSWORD1! 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterPassword must contain at least one lowercase letterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -7997,7 +7997,7 @@ exports[`password validation: Password! 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterPassword must contain at least one numberRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8122,7 +8122,7 @@ exports[`password validation: Password1 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterPassword must contain at least one special character (!@#$%^&*(),.?":{}|<>)Re-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8247,7 +8247,7 @@ exports[`password validation: password1! 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterPassword must contain at least one uppercase letterRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8372,7 +8372,7 @@ exports[`password validation: short 1`] = `
   ],
   "meta": [],
   "text": "Wallet PasswordThis password will be used to encrypt your wallet backup files. It should be strong and secure.Must include uppercase, lowercase, number, and special characterPassword must be at least 8 charactersRe-enter the passwordTransaction PINThis PIN will be used for daily transactions. You'll enter this PIN instead of your seed phrase when sending funds. Your encrypted seed is erased after 15 minutes of inactivity (adjustable in Settings). Press "Logout" when done for extra security.Enter a 4-6 digit PINRe-enter your PINCreate account",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8419,7 +8419,7 @@ exports[`recovery copied state: Copy Address 1`] = `
   ],
   "meta": [],
   "text": "Don't lose this recovery information. Download it right now. You may need this someday to import or recover your new accountQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111CopiedView QRMnemonic PhrasesThese words can be used to recover your account1synthetic2recovery3wordsCopy MnemonicHex SeedAlternative method to recover your account0x121212121212121212121212121212121212121212121212121212121212121212121212121212121212121212121212Copy Hex SeedDownload Encrypted Wallet FileDownload Unencrypted Wallet FileDone",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8435,7 +8435,7 @@ exports[`recovery copied state: Copy Hex Seed 1`] = `
   ],
   "meta": [],
   "text": "Don't lose this recovery information. Download it right now. You may need this someday to import or recover your new accountQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Copy AddressView QRMnemonic PhrasesThese words can be used to recover your account1synthetic2recovery3wordsCopy MnemonicHex SeedAlternative method to recover your account0x121212121212121212121212121212121212121212121212121212121212121212121212121212121212121212121212CopiedDownload Encrypted Wallet FileDownload Unencrypted Wallet FileDone",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8451,7 +8451,7 @@ exports[`recovery copied state: Copy Mnemonic 1`] = `
   ],
   "meta": [],
   "text": "Don't lose this recovery information. Download it right now. You may need this someday to import or recover your new accountQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Copy AddressView QRMnemonic PhrasesThese words can be used to recover your account1synthetic2recovery3wordsCopiedHex SeedAlternative method to recover your account0x121212121212121212121212121212121212121212121212121212121212121212121212121212121212121212121212Copy Hex SeedDownload Encrypted Wallet FileDownload Unencrypted Wallet FileDone",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8467,7 +8467,7 @@ exports[`recovery display and dialogs: desktop 1`] = `
   ],
   "meta": [],
   "text": "Don't lose this recovery information. Download it right now. You may need this someday to import or recover your new accountQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Copy AddressView QRMnemonic PhrasesThese words can be used to recover your account1synthetic2recovery3wordsCopy MnemonicDone",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8476,7 +8476,7 @@ exports[`recovery display and dialogs: desktop 2`] = `
   "labels": [],
   "meta": [],
   "text": "Wallet Address QR CodeScan this QR code to get the wallet addressClose",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8485,7 +8485,7 @@ exports[`recovery display and dialogs: desktop 3`] = `
   "labels": [],
   "meta": [],
   "text": "Warning!You should only continue if you have downloaded the recovery information. If you haven't, go back, download, and then continue. There is no going back once you click the continue button.Go BackDone",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8501,7 +8501,7 @@ exports[`recovery display and dialogs: empty 1`] = `
   ],
   "meta": [],
   "text": "Don't lose this recovery information. Download it right now. You may need this someday to import or recover your new accountCopy AddressView QRMnemonic PhrasesThese words can be used to recover your accountCopy MnemonicHex SeedAlternative method to recover your accountCopy Hex SeedDownload Encrypted Wallet FileDownload Unencrypted Wallet FileDone",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8510,7 +8510,7 @@ exports[`recovery display and dialogs: empty 2`] = `
   "labels": [],
   "meta": [],
   "text": "Wallet Address QR CodeScan this QR code to get the wallet addressClose",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8519,7 +8519,7 @@ exports[`recovery display and dialogs: empty 3`] = `
   "labels": [],
   "meta": [],
   "text": "Warning!You are about to download an unencrypted wallet file. This file will contain sensitive information and should never be shared. Are you sure you want to proceed?CancelDownload",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8528,7 +8528,7 @@ exports[`recovery display and dialogs: empty 4`] = `
   "labels": [],
   "meta": [],
   "text": "Warning!You should only continue if you have downloaded the recovery information. If you haven't, go back, download, and then continue. There is no going back once you click the continue button.Go BackDone",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8544,7 +8544,7 @@ exports[`recovery display and dialogs: web 1`] = `
   ],
   "meta": [],
   "text": "Don't lose this recovery information. Download it right now. You may need this someday to import or recover your new accountQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Copy AddressView QRMnemonic PhrasesThese words can be used to recover your account1synthetic2recovery3wordsCopy MnemonicHex SeedAlternative method to recover your account0x121212121212121212121212121212121212121212121212121212121212121212121212121212121212121212121212Copy Hex SeedDownload Encrypted Wallet FileDownload Unencrypted Wallet FileDone",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8553,7 +8553,7 @@ exports[`recovery display and dialogs: web 2`] = `
   "labels": [],
   "meta": [],
   "text": "Wallet Address QR CodeScan this QR code to get the wallet addressClose",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8562,7 +8562,7 @@ exports[`recovery display and dialogs: web 3`] = `
   "labels": [],
   "meta": [],
   "text": "Warning!You are about to download an unencrypted wallet file. This file will contain sensitive information and should never be shared. Are you sure you want to proceed?CancelDownload",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8571,7 +8571,7 @@ exports[`recovery display and dialogs: web 4`] = `
   "labels": [],
   "meta": [],
   "text": "Warning!You should only continue if you have downloaded the recovery information. If you haven't, go back, download, and then continue. There is no going back once you click the continue button.Go BackDone",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8580,7 +8580,7 @@ exports[`recovery words:  1`] = `
   "labels": [],
   "meta": [],
   "text": "",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8589,7 +8589,7 @@ exports[`recovery words: synthetic recovery words 1`] = `
   "labels": [],
   "meta": [],
   "text": "1synthetic2recovery3words",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8609,7 +8609,7 @@ exports[`wallet file parser error: Decrypted seed has an unsupported length (52 
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyDecrypted seed has an unsupported length (52 bytes; expected 51).PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8629,7 +8629,7 @@ exports[`wallet file parser error: Invalid IV in keystore #2 (expected 12 bytes 
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyInvalid IV in keystore #2 (expected 12 bytes of hex).PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8649,7 +8649,7 @@ exports[`wallet file parser error: Invalid ciphertext in keystore #2. 1`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyInvalid ciphertext in keystore #2.PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8669,7 +8669,7 @@ exports[`wallet file parser error: Invalid hex in keystore salt. 1`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyInvalid hex in keystore salt.PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8689,7 +8689,7 @@ exports[`wallet file parser error: Invalid keystore #2: missing cipherparams. 1`
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyInvalid keystore #2: missing cipherparams.PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8709,7 +8709,7 @@ exports[`wallet file parser error: Invalid keystore #2: missing crypto section. 
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyInvalid keystore #2: missing crypto section.PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8729,7 +8729,7 @@ exports[`wallet file parser error: Invalid keystore #2: missing kdfparams. 1`] =
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyInvalid keystore #2: missing kdfparams.PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8749,7 +8749,7 @@ exports[`wallet file parser error: Invalid keystore #2: not an object. 1`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyInvalid keystore #2: not an object.PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8769,7 +8769,7 @@ exports[`wallet file parser error: Invalid keystore backup file. 1`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyInvalid keystore backup file.PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8789,7 +8789,7 @@ exports[`wallet file parser error: Invalid metadata in keystore #2. 1`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyInvalid metadata in keystore #2.PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8809,7 +8809,7 @@ exports[`wallet file parser error: Invalid salt in keystore #2. 1`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyInvalid salt in keystore #2.PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8829,7 +8829,7 @@ exports[`wallet file parser error: KDF parameters in keystore #2 are outside the
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyKDF parameters in keystore #2 are outside the accepted bounds.PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8849,7 +8849,7 @@ exports[`wallet file parser error: The backup file contains more than 10 keystor
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyThe backup file contains more than 10 keystores.PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8869,7 +8869,7 @@ exports[`wallet file parser error: Unrecognized service detail: 0xABC 1`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyUnrecognized service detail: 0xABCPasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8889,7 +8889,7 @@ exports[`wallet file parser error: Unsupported KDF in keystore #2 (expected argo
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyUnsupported KDF in keystore #2 (expected argon2id).PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8909,7 +8909,7 @@ exports[`wallet file parser error: Unsupported cipher in keystore #2 (expected a
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyUnsupported cipher in keystore #2 (expected aes-256-gcm).PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8929,7 +8929,7 @@ exports[`wallet file parser error: Unsupported keystore #2 version (expected 1).
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyUnsupported keystore #2 version (expected 1).PasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8949,7 +8949,7 @@ exports[`wallet file parsing state 1`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filepending.jsonJSON files onlyPasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8969,7 +8969,7 @@ exports[`wallet file password too long, decrypting and failures 1`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyPasswordImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -8989,7 +8989,7 @@ exports[`wallet file password too long, decrypting and failures 2`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyPasswordPassword is too longImport Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -9009,7 +9009,7 @@ exports[`wallet file password too long, decrypting and failures 3`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyPasswordFailed to decrypt wallet. Please check your password.Import Wallet",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
@@ -9029,7 +9029,7 @@ exports[`wallet file password too long, decrypting and failures 4`] = `
   ],
   "meta": [],
   "text": "Select an encrypted wallet file from this wallet or a backup exported by the MyQRLWallet browser extension, then enter its password.Wallet Filewallet.jsonJSON files onlyPasswordDecrypting...",
-  "title": "Import Account | MyQRLWallet",
+  "title": "",
 }
 `;
 
