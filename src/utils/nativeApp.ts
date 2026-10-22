@@ -19,6 +19,9 @@ import { isRecord } from '@/utils/guards';
 import { logError, logWarning } from '@/utils/log';
 
 export type WebToNativeMessageType =
+  // Resolved UI language once after startup and on each change. Uses the
+  // existing envelope and documentId; payload language is en/de/es/ru/zh-CN.
+  | 'LANGUAGE_CHANGED'
   | 'SCAN_QR'
   | 'COPY_TO_CLIPBOARD'
   | 'SHARE'
@@ -52,6 +55,11 @@ export type WebToNativeMessageType =
   // Android hardware back, answered by the page (see src/utils/nativeBack.ts)
   | 'BACK_HANDLED'          // Closed an overlay, or navigated back a route
   | 'BACK_AT_ROOT';         // Home with nothing open; the app may background
+
+/** LANGUAGE_CHANGED payload before sendToNative adds the document binding. */
+export interface NativeLanguagePayload {
+  language: import("@/i18n/languages").Language;
+}
 
 /**
  * Message types that can be received from the native app

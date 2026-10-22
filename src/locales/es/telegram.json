@@ -1,0 +1,18 @@
+{
+  "checking": "Comprobando la red",
+  "operational": "Operativa",
+  "degraded": "Degradada",
+  "title": "Centro de control",
+  "subtitle": "Supervisa los servicios y abre acciones de la billetera de forma segura.",
+  "networkStatus": "Estado de la red",
+  "actions": "Acciones de la billetera",
+  "openWallet": "Abrir billetera",
+  "accountsBalance": "Ver cuentas y saldo",
+  "activity": "Actividad",
+  "history": "Revisar el historial de la billetera",
+  "apps": "Aplicaciones conectadas",
+  "sessions": "Revisar sesiones dApp activas",
+  "settings": "Alertas y ajustes",
+  "configure": "Configura tu billetera",
+  "security": "Las semillas, las claves privadas, los PIN y la firma permanecen dentro de MyQRLWallet. El bot de Telegram nunca los solicita."
+}

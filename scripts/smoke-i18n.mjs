@@ -1,3 +1,4 @@
+import { slice4Screens, slice4NoticeProbes } from "./i18n-slice4-probes.mjs";
 import { slice3Screens } from "./i18n-slice3-probes.mjs";
 import { slice2Screens } from "./i18n-slice2-probes.mjs";
 // Built-wallet translation and layout smoke with synthetic public data and stubbed RPC.
@@ -70,6 +71,9 @@ try {
           "accounts",
           "contacts",
           "onboarding",
+          "dapps",
+          "telegram",
+          "notices",
         ].map(async (ns) => [
           ns,
           JSON.parse(
@@ -149,10 +153,13 @@ try {
               qrl_getBlockByNumber: {
                 hash: "0xd15407991193e6c23b733dc6bf9c628deaff8f9b6e252aa0d60030952b3e3ea4",
                 number: "0x0",
+                baseFeePerGas: "0x3b9aca00",
               },
               qrl_getBalance: "0xab54a98ceb1f0ad2",
               qrl_blockNumber: "0x1",
               qrl_gasPrice: "0x3b9aca00",
+              qrl_maxPriorityFeePerGas: "0x1",
+              qrl_estimateGas: "0x5208",
             }[rpc.method] ?? "0x0",
         });
         const data = request.postDataJSON();
@@ -182,7 +189,7 @@ try {
       );
       assert.doesNotMatch(
         await page.locator("body").innerText(),
-        /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding):[A-Za-z][\w.-]*/,
+        /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*/,
         `${language}/${name}: raw catalog key`,
       );
       const labels = await page
@@ -196,7 +203,7 @@ try {
         );
       assert.doesNotMatch(
         labels.join("\n"),
-        /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding):[A-Za-z][\w.-]*|{{/,
+        /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*|{{/,
         `${language}/${name}: unresolved label`,
       );
       await delay(150);
@@ -398,13 +405,22 @@ try {
         .scrollIntoViewIfNeeded();
       await snapshot("settings-connect");
     }
-    await slice2Screens({
+    if (full || ["en", "de"].includes(language))
+      await slice2Screens({
+        page,
+        origin,
+        catalogs,
+        snapshot,
+        address,
+        full,
+      });
+    await slice4Screens({
       page,
       origin,
       catalogs,
       snapshot,
       address,
-      full,
+      full: full || language === "en",
     });
     const documentId = await page.evaluate(() => {
       window.i18nDocumentId = Math.random();
@@ -444,15 +460,19 @@ try {
       .getByRole("link", { name: catalogs.home.createAccount, exact: true })
       .waitFor();
     await snapshot("home-onboarding");
-    await slice3Screens({
-      page,
-      origin,
-      catalogs,
-      snapshot,
-      full: full || language === "en",
-    });
+    if (full || ["en", "ru"].includes(language))
+      await slice3Screens({
+        page,
+        origin,
+        catalogs,
+        snapshot,
+        full: full || language === "en",
+      });
     await context.close();
   }
+  results.push(
+    ...(await slice4NoticeProbes({ browser, origin, output, full })),
+  );
   await writeFile(
     join(output, "layout-results.json"),
     JSON.stringify(results, null, 2),

@@ -24,6 +24,8 @@ const productTerms = new Set([
   "MyQRLWallet",
   "Testnet",
   "UNK",
+  "Google Play",
+  "myqrlwallet.com",
 ]);
 
 /** AST guard limited to the converted surfaces; attributes used for code are excluded. */

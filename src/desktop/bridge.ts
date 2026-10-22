@@ -144,6 +144,9 @@ export interface QrlWalletFeatures {
  * satisfies it.
  */
 export interface QrlWalletBridge {
+  /** Resolved renderer language: en, de, es, ru or zh-CN. Called once after
+   * startup resolution and on each change. Older shells may omit this method. */
+  setLanguage?(language: import("@/i18n/languages").Language): void | Promise<void>;
   readonly addressScheme?: "qip55-64";
   /** Optional-field capability flags; absent on shells that predate them. */
   readonly features?: QrlWalletFeatures;

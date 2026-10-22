@@ -1,3 +1,6 @@
+import notices from "./notices.json";
+import telegram from "./telegram.json";
+import dapps from "./dapps.json";
 import onboarding from "./onboarding.json";
 import contacts from "./contacts.json";
 import accounts from "./accounts.json";
@@ -9,6 +12,9 @@ import tokens from "./tokens.json";
 import history from "./history.json";
 
 export default {
+  notices,
+  telegram,
+  dapps,
   onboarding,
   contacts,
   accounts,

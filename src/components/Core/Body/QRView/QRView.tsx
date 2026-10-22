@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { getExplorerAddressUrl } from "@/config";
 import { observer } from "mobx-react-lite";
 import { QRCodeSVG } from "qrcode.react";
@@ -7,6 +8,7 @@ import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Card } from "@/components/UI/Card";
 
 const QRView = observer(() => {
+  const { t } = useTranslation("accounts");
   const { qrlStore } = useStore();
   const {
     activeAccount: { accountAddress },
@@ -14,7 +16,7 @@ const QRView = observer(() => {
   } = qrlStore;
 
   return (
-    <PageShell title="Account QR code" seoTitle="Account QR Code">
+    <PageShell title={t("qrTitle")} seoTitle={t("qrSeo")}>
       <Card className="flex flex-col items-center gap-2 p-6">
         <QRCodeSVG
           value={getExplorerAddressUrl(accountAddress, blockchain)}
@@ -24,9 +26,7 @@ const QRView = observer(() => {
           level="L"
           marginSize={0}
         />
-        <Label className="text-xs text-muted-foreground">
-          Scan to open in Explorer
-        </Label>
+        <Label className="text-xs text-muted-foreground">{t("qrScan")}</Label>
       </Card>
     </PageShell>
   );

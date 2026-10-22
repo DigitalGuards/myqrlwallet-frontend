@@ -5,17 +5,15 @@ const address = `Q${"1".repeat(128)}`;
 const setupWeb =
   "You are connected to the blockchain. Create a new account, import an existing account, or connect a wallet you already use: your browser extension or the MyQRLWallet mobile app.";
 const catalogKey =
-  /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding):[A-Za-z][\w.-]*/;
+  /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*/;
 
 /** Exercise real routes, including the shared navigation in unconverted pages. */
 export async function helperRouteProbes(browser, origin, { full = true } = {}) {
   const routerSource = await readFile("src/router/router.tsx", "utf8");
-  const routes = [...routerSource.matchAll(/^  (\w+): "(\/[^"]*)",$/gm)]
-    // Telegram has its own layout, with no consumers of the converted helpers.
-    .filter(([, name]) => name !== "TELEGRAM")
-    .map(([, , path]) =>
+  const routes = [...routerSource.matchAll(/^  (\w+): "(\/[^"]*)",$/gm)].map(
+    ([, , path]) =>
       path.replace(":contractAddress", address).replace(":tokenId", "1"),
-    );
+  );
   assert.ok(
     routes.includes("/add-account") && routes.includes("/account-list"),
   );
@@ -121,7 +119,9 @@ export async function helperRouteProbes(browser, origin, { full = true } = {}) {
             });
           });
           await page.goto(`${origin}${path}`, { waitUntil: "networkidle" });
-          await page.locator("[data-page-shell] h1").waitFor();
+          await page
+            .locator(path === "/telegram" ? "main h1" : "[data-page-shell] h1")
+            .waitFor();
           assert.equal(
             new URL(page.url()).pathname,
             path,
@@ -173,7 +173,9 @@ export async function helperRouteProbes(browser, origin, { full = true } = {}) {
           if (active && path === "/account-list")
             assert.ok(visible.includes(setupWeb), name);
           // These map values have no namespace, so also check their translated labels.
-          for (const label of ["Send", "Wallets", "Contacts", "Settings"]) {
+          for (const label of path === "/telegram"
+            ? ["Control center", "Network status"]
+            : ["Send", "Wallets", "Contacts", "Settings"]) {
             assert.ok(
               visible.includes(label),
               `${name}: missing navigation label ${label}`,

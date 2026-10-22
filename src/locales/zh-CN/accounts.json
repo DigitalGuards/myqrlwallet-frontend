@@ -24,5 +24,8 @@
   "showQr": "显示地址二维码",
   "walletAddress": "钱包地址",
   "scanCopy": "扫描或复制下方完整地址。",
-  "copyQr": "复制二维码"
+  "copyQr": "复制二维码",
+  "qrTitle": "账户二维码",
+  "qrSeo": "账户二维码",
+  "qrScan": "扫描以在浏览器中打开"
 }

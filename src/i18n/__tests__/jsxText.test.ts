@@ -15,8 +15,8 @@ function sourceFiles(directory: string): string[] {
 }
 
 it("keeps converted JSX free of literal user-facing copy", () => {
-  const files = sourceFiles("src/components").filter((file) =>
-    coverage.some((scope) => file.startsWith(scope)),
+  const files = [...sourceFiles("src/components"), "src/App.tsx"].filter(
+    (file) => coverage.some((scope) => file.startsWith(scope)),
   );
   expect(files.length).toBeGreaterThan(25);
   expect(

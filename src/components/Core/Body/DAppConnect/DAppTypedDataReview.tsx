@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 /**
  * Approval preview for `qrl_signTypedData`.
  *
@@ -6,10 +7,14 @@
  * complete types/domain/message payload alongside the digest.
  */
 
-import { useState } from 'react';
-import { canonicalTypedDataReview, escapeVisualControls } from './typedDataReview';
-import { isArray, isRecord } from '@/utils/guards';
-import type { TypedDataPayload } from '@/utils/signing';
+import type { TFunction } from "i18next";
+import { useState } from "react";
+import {
+  canonicalTypedDataReview,
+  escapeVisualControls,
+} from "./typedDataReview";
+import { isArray, isRecord } from "@/utils/guards";
+import type { TypedDataPayload } from "@/utils/signing";
 
 interface DAppTypedDataReviewProps {
   payload: TypedDataPayload;
@@ -17,16 +22,24 @@ interface DAppTypedDataReviewProps {
   connectedChainId?: string;
 }
 
-function renderValue(value: unknown): React.ReactNode {
-  if (value === null || value === undefined) return <span className="text-muted-foreground">(empty)</span>;
-  if (typeof value === 'string') {
+function renderValue(
+  value: unknown,
+  t: TFunction<["dapps", "common", "settings", "transfer"]>,
+): React.ReactNode {
+  if (value === null || value === undefined)
+    return <span className="text-muted-foreground">{t("dapps:empty")}</span>;
+  if (typeof value === "string") {
     return (
       <span className="font-mono text-xs break-all" dir="ltr">
         {escapeVisualControls(JSON.stringify(value))}
       </span>
     );
   }
-  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
+  if (
+    typeof value === "number" ||
+    typeof value === "bigint" ||
+    typeof value === "boolean"
+  ) {
     return <span className="font-mono text-xs">{String(value)}</span>;
   }
   if (isArray(value)) {
@@ -34,8 +47,10 @@ function renderValue(value: unknown): React.ReactNode {
       <ul className="space-y-1 border-l border-border pl-2">
         {value.map((item, i) => (
           <li key={i} className="flex gap-2">
-            <span className="shrink-0 whitespace-nowrap text-muted-foreground">[{i}]</span>
-            <span className="min-w-0">{renderValue(item)}</span>
+            <span className="shrink-0 whitespace-nowrap text-muted-foreground">
+              [{i}]
+            </span>
+            <span className="min-w-0">{renderValue(item, t)}</span>
           </li>
         ))}
       </ul>
@@ -45,23 +60,29 @@ function renderValue(value: unknown): React.ReactNode {
     return (
       <div className="mt-1 space-y-1 border-l border-border pl-2">
         {Object.entries(value).map(([k, v]) => (
-          <div key={k} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
+          <div
+            key={k}
+            className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2"
+          >
             <span className="text-muted-foreground">{k}</span>
-            <span className="min-w-0 text-right">{renderValue(v)}</span>
+            <span className="min-w-0 text-right">{renderValue(v, t)}</span>
           </div>
         ))}
       </div>
     );
   }
-  return <span className="text-muted-foreground">(unsupported value)</span>;
+  return (
+    <span className="text-muted-foreground">{t("dapps:unsupportedValue")}</span>
+  );
 }
 
 function chainNumber(value: unknown): bigint | undefined {
   if (
-    typeof value !== 'string' &&
-    typeof value !== 'number' &&
-    typeof value !== 'bigint'
-  ) return undefined;
+    typeof value !== "string" &&
+    typeof value !== "number" &&
+    typeof value !== "bigint"
+  )
+    return undefined;
   try {
     return BigInt(value);
   } catch {
@@ -74,65 +95,82 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
   digestHex,
   connectedChainId,
 }) => {
+  const { t } = useTranslation(["dapps", "common", "settings", "transfer"]);
   const [showDigest, setShowDigest] = useState(false);
   const { domain, primaryType, message } = payload;
-  const domainFields = payload.types['QRLDomain'] ?? [];
+  const domainFields = payload.types["QRLDomain"] ?? [];
   const messageFields = payload.types[primaryType] ?? [];
   const canonicalPayload = canonicalTypedDataReview(payload);
-  const hasChainId = domainFields.some((field) => field.name === 'chainId');
-  const domainChain = hasChainId ? chainNumber(domain['chainId']) : undefined;
+  const hasChainId = domainFields.some((field) => field.name === "chainId");
+  const domainChain = hasChainId ? chainNumber(domain["chainId"]) : undefined;
   const connectedChain = chainNumber(connectedChainId);
-  const chainMismatch = domainChain !== undefined &&
-    connectedChain !== undefined && domainChain !== connectedChain;
+  const chainMismatch =
+    domainChain !== undefined &&
+    connectedChain !== undefined &&
+    domainChain !== connectedChain;
 
   return (
     <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm [overflow-wrap:anywhere]">
       <div className="space-y-1">
-        <div className="mb-2 text-xs text-muted-foreground">Signed domain</div>
+        <div className="mb-2 text-xs text-muted-foreground">
+          {t("dapps:signedDomain")}
+        </div>
         {domainFields.map((field) => (
           <div
             key={field.name}
             className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2 text-xs"
           >
             <span className="text-muted-foreground">{field.name}</span>
-            <span className="min-w-0 text-right">{renderValue(domain[field.name])}</span>
+            <span className="min-w-0 text-right">
+              {renderValue(domain[field.name], t)}
+            </span>
           </div>
         ))}
         {chainMismatch && (
-          <p role="alert" className="pt-2 text-xs text-amber-600 dark:text-amber-400">
-            The signed domain chain ID ({domainChain.toString()}) differs from the
-            connected chain ({connectedChain.toString()}). Only sign if you expect
-            this chain.
+          <p
+            role="alert"
+            className="pt-2 text-xs text-amber-600 dark:text-amber-400"
+          >
+            {t("dapps:chainMismatch", {
+              domain: domainChain.toString(),
+              connected: connectedChain.toString(),
+            })}
           </p>
         )}
         {!hasChainId && (
           <p className="pt-2 text-xs text-amber-600 dark:text-amber-400">
-            This domain has no chain ID. The signature is not bound to a chain.
+            {t("dapps:noChain")}
           </p>
         )}
       </div>
 
       <div className="border-t border-border pt-3">
-        <div className="text-xs text-muted-foreground">Primary type</div>
+        <div className="text-xs text-muted-foreground">
+          {t("dapps:primaryType")}
+        </div>
         <div className="font-medium">{primaryType}</div>
       </div>
 
       <div className="border-t border-border pt-3 space-y-1">
-        <div className="text-xs text-muted-foreground mb-2">Message</div>
+        <div className="text-xs text-muted-foreground mb-2">
+          {t("dapps:message")}
+        </div>
         {messageFields.map((field) => (
           <div
             key={field.name}
             className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2"
           >
             <span className="text-muted-foreground">{field.name}</span>
-            <span className="min-w-0 text-right">{renderValue(message[field.name])}</span>
+            <span className="min-w-0 text-right">
+              {renderValue(message[field.name], t)}
+            </span>
           </div>
         ))}
       </div>
 
       <details className="border-t border-border pt-3 text-xs">
         <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-          Full signed payload (canonical JSON)
+          {t("dapps:fullPayload")}
         </summary>
         <pre
           className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded bg-muted p-2 font-mono"
@@ -143,7 +181,7 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
       </details>
 
       <p className="border-t border-border pt-3 text-xs text-amber-600 dark:text-amber-400">
-        Only sign data from sites you trust. A signed challenge can be used to authenticate as you.
+        {t("dapps:trustWarning")}
       </p>
 
       {digestHex && (
@@ -152,13 +190,16 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
           open={showDigest}
           onToggle={(e) => {
             const details = e.currentTarget;
-            if (details instanceof HTMLDetailsElement) setShowDigest(details.open);
+            if (details instanceof HTMLDetailsElement)
+              setShowDigest(details.open);
           }}
         >
           <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-            Advanced: 64-byte SHAKE256 digest
+            {t("dapps:digest")}
           </summary>
-          <p className="mt-2 break-all font-mono" dir="ltr">{digestHex}</p>
+          <p className="mt-2 break-all font-mono" dir="ltr">
+            {digestHex}
+          </p>
         </details>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 /**
  * Approval preview for `qrl_signMessage`.
  *
@@ -7,25 +8,31 @@
  * disclosure since most users don't need it.
  */
 
-import { useState } from 'react';
-import { tryDecodeUtf8 } from './messageReview';
+import { useState } from "react";
+import { tryDecodeUtf8 } from "./messageReview";
 
 interface DAppMessageReviewProps {
   messageHex: string;
   digestHex?: string;
 }
 
-const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, digestHex }) => {
+const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({
+  messageHex,
+  digestHex,
+}) => {
+  const { t } = useTranslation(["dapps", "common", "settings", "transfer"]);
   const [showDigest, setShowDigest] = useState(false);
   const decoded = tryDecodeUtf8(messageHex);
-  const byteLength = messageHex.startsWith('0x') ? (messageHex.length - 2) / 2 : 0;
+  const byteLength = messageHex.startsWith("0x")
+    ? (messageHex.length - 2) / 2
+    : 0;
 
   return (
     <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm">
       <div className="flex justify-between text-xs">
-        <span className="text-muted-foreground">Message</span>
+        <span className="text-muted-foreground">{t("dapps:message")}</span>
         <span className="text-muted-foreground">
-          {byteLength} byte{byteLength === 1 ? '' : 's'}
+          {t("dapps:bytes", { count: byteLength })}
         </span>
       </div>
       {decoded.ok ? (
@@ -38,9 +45,12 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
           </p>
           <details className="text-xs">
             <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-              Raw signed bytes
+              {t("dapps:rawBytes")}
             </summary>
-            <p className="mt-2 max-h-32 overflow-auto break-all font-mono" dir="ltr">
+            <p
+              className="mt-2 max-h-32 overflow-auto break-all font-mono"
+              dir="ltr"
+            >
               {messageHex}
             </p>
           </details>
@@ -48,7 +58,7 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
       ) : (
         <div>
           <p className="text-xs text-muted-foreground italic">
-            Not a safely printable UTF-8 string, showing raw hex.
+            {t("dapps:binaryMessage")}
           </p>
           <p
             className="mt-1 max-h-32 overflow-auto break-all font-mono text-xs"
@@ -64,13 +74,16 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
           open={showDigest}
           onToggle={(e) => {
             const details = e.currentTarget;
-            if (details instanceof HTMLDetailsElement) setShowDigest(details.open);
+            if (details instanceof HTMLDetailsElement)
+              setShowDigest(details.open);
           }}
         >
           <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-            Advanced: 64-byte SHAKE256 digest
+            {t("dapps:digest")}
           </summary>
-          <p className="mt-2 break-all font-mono" dir="ltr">{digestHex}</p>
+          <p className="mt-2 break-all font-mono" dir="ltr">
+            {digestHex}
+          </p>
         </details>
       )}
     </div>

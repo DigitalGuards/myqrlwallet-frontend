@@ -24,5 +24,8 @@
   "showQr": "Show address QR code",
   "walletAddress": "Wallet Address",
   "scanCopy": "Scan or copy the complete address below.",
-  "copyQr": "Copy QR"
+  "copyQr": "Copy QR",
+  "qrTitle": "Account QR code",
+  "qrSeo": "Account QR Code",
+  "qrScan": "Scan to open in Explorer"
 }

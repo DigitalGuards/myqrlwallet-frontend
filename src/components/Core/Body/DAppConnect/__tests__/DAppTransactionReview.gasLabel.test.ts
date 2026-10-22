@@ -34,6 +34,8 @@ async function reviewText(asDesktop: boolean): Promise<string> {
     } else {
       Reflect.deleteProperty(window, 'qrlWallet');
     }
+    const { applyLanguage } = await import('@/i18n');
+    await applyLanguage('en');
     const { createElement } = await import('react');
     const { renderToStaticMarkup } = await import('react-dom/server');
     const { default: DAppTransactionReview } = await import('../DAppTransactionReview');

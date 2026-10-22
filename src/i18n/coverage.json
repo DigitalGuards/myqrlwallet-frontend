@@ -4,7 +4,6 @@
   "src/components/Core/Body/Home/",
   "src/components/Core/Body/Settings/",
   "src/components/Core/Body/Tokens/",
-  "src/components/Core/Body/DAppConnect/DAppSessionsList.tsx",
   "src/components/UI/AddressDisclosure.tsx",
   "src/components/UI/QrlAddress.tsx",
   "src/components/UI/Dialog.tsx",
@@ -22,5 +21,13 @@
   "src/components/Core/Body/ImportAccount/",
   "src/components/Core/Body/PinSetup/",
   "src/components/Core/Body/AddAccount/",
-  "src/components/Core/Layout/LegalLanguageNote.tsx"
+  "src/components/Core/Layout/LegalLanguageNote.tsx",
+  "src/components/Core/Body/DAppConnect/",
+  "src/components/Core/Body/QRView/",
+  "src/components/Telegram/",
+  "src/components/RetiredAppNotice.tsx",
+  "src/components/WalletLoadFailed.tsx",
+  "src/components/UI/sheet.tsx",
+  "src/components/UI/sidebar.tsx",
+  "src/App.tsx"
 ]

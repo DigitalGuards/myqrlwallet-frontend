@@ -10,7 +10,7 @@
   "copyContract": "复制代币合约地址",
   "from": "发送方",
   "available": "可用: <balance/>",
-  "viewExplorer": "在浏览器中查看",
+  "viewExplorer": "在区块浏览器中查看",
   "sendTo": "发送至",
   "recipientPlaceholder": "QRL 地址或 QNS 名称",
   "addressBook": "地址簿",

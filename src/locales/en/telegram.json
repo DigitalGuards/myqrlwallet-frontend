@@ -1,0 +1,18 @@
+{
+  "checking": "Checking network",
+  "operational": "Operational",
+  "degraded": "Degraded",
+  "title": "Control center",
+  "subtitle": "Monitor services and open wallet actions securely.",
+  "networkStatus": "Network status",
+  "actions": "Wallet actions",
+  "openWallet": "Open wallet",
+  "accountsBalance": "View accounts and balance",
+  "activity": "Activity",
+  "history": "Review wallet history",
+  "apps": "Connected apps",
+  "sessions": "Review active dApp sessions",
+  "settings": "Alerts and settings",
+  "configure": "Configure your wallet",
+  "security": "Seeds, private keys, PINs, and signing remain inside MyQRLWallet. The Telegram bot never requests them."
+}

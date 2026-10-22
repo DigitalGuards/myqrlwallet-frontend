@@ -48,12 +48,18 @@ export async function nativeStorageScreens({ browser, html, output }) {
                 }),
               );
             }
-            window.__nativeStorageTest = { respond: false, requests: [] };
+            window.__nativeStorageTest = {
+              respond: false,
+              requests: [],
+              languages: [],
+            };
             window.ReactNativeWebView = {
               injectedObjectJson: () =>
                 JSON.stringify({ qrlWalletCapabilities: network }),
               postMessage(raw) {
                 const message = JSON.parse(raw);
+                if (message.type === "LANGUAGE_CHANGED")
+                  window.__nativeStorageTest.languages.push(message);
                 if (
                   !["DEVICE_CREDENTIAL_REQUEST", "SEED_STORED"].includes(
                     message.type,
@@ -278,6 +284,13 @@ export async function nativeStorageScreens({ browser, html, output }) {
         assert.equal(seeds[0].revision, requests[2].payload.revision);
         assert.equal(JSON.parse(seeds[0].encryptedSeed).version, "pin_v5");
         assert.deepEqual(codeRequests, []);
+        const languageMessages = await page.evaluate(
+          () => window.__nativeStorageTest.languages,
+        );
+        assert.equal(languageMessages.length, 1, "one startup language signal");
+        assert.equal(languageMessages[0].type, "LANGUAGE_CHANGED");
+        assert.equal(languageMessages[0].payload.language, language);
+        assert.equal(typeof languageMessages[0].payload.documentId, "string");
         assert.deepEqual(errors, []);
       } finally {
         await context.close();

@@ -1,14 +1,13 @@
+import { useTranslation } from "react-i18next";
 import { useLanguagePreference } from "@/i18n/useLanguagePreference";
 import { store, StoreProvider } from "./stores/store";
 import { AppRouter } from "./router/router";
-import {
-  isUnsupportedV3Context,
-  V3_UNSUPPORTED_SIGNER_MESSAGE,
-} from "./config/runtimeProfile";
+import { isUnsupportedV3Context } from "./config/runtimeProfile";
 import { useEffect, useState } from "react";
 
 function App() {
   useLanguagePreference();
+  const { t } = useTranslation("notices");
   const [unsupported, setUnsupported] = useState(isUnsupportedV3Context);
   useEffect(() => {
     if (
@@ -37,12 +36,9 @@ function App() {
   if (unsupported) {
     return (
       <main className="p-8">
-        <h1>Update MyQRLWallet for Testnet v3</h1>
-        <p>{V3_UNSUPPORTED_SIGNER_MESSAGE}</p>
-        <p>
-          Install the latest app, or open this site in a regular browser to
-          create or import a v3 account.
-        </p>
+        <h1>{t("updateV3")}</h1>
+        <p>{t("unsupportedV3")}</p>
+        <p>{t("installV3")}</p>
       </main>
     );
   }

@@ -1,29 +1,34 @@
+import { isPendingDAppInfo } from "@/services/dappConnect/dappMetadata";
 /**
  * DApp Connection Banner - Shows active dApp connections status.
  * Displays as a persistent indicator at the top of the wallet.
  */
 
-import { observer } from 'mobx-react-lite';
-import { useStore } from '@/stores/store';
-import { SessionStatus } from '@/services/dappConnect/types';
+import { useTranslation } from "react-i18next";
+import { observer } from "mobx-react-lite";
+import { useStore } from "@/stores/store";
+import { SessionStatus } from "@/services/dappConnect/types";
 
 const statusDotColors: Record<SessionStatus, string> = {
-  [SessionStatus.CONNECTED]: '#3fba82',     // success green
-  [SessionStatus.RECONNECTING]: '#eab308',   // yellow-500
-  [SessionStatus.CONNECTING]: '#eab308',     // yellow-500
-  [SessionStatus.KEY_EXCHANGE]: '#eab308',   // yellow-500
-  [SessionStatus.DISCONNECTED]: '#ef4444',   // red-500
+  [SessionStatus.CONNECTED]: "#3fba82", // success green
+  [SessionStatus.RECONNECTING]: "#eab308", // yellow-500
+  [SessionStatus.CONNECTING]: "#eab308", // yellow-500
+  [SessionStatus.KEY_EXCHANGE]: "#eab308", // yellow-500
+  [SessionStatus.DISCONNECTED]: "#ef4444", // red-500
 };
 
 // A stored session with no live socket. The pairing is kept and retried on
 // the next foreground, reload or user action, so the label says so: plain
 // "Disconnected" read as over and done with, and users unpaired by hand.
-const statusLabels: Record<SessionStatus, string> = {
-  [SessionStatus.CONNECTED]: 'Connected',
-  [SessionStatus.RECONNECTING]: 'Reconnecting...',
-  [SessionStatus.CONNECTING]: 'Connecting...',
-  [SessionStatus.KEY_EXCHANGE]: 'Exchanging keys...',
-  [SessionStatus.DISCONNECTED]: 'Offline, retries later',
+const statusLabels: Record<
+  SessionStatus,
+  "connected" | "reconnecting" | "connecting" | "exchangingKeys" | "offline"
+> = {
+  [SessionStatus.CONNECTED]: "connected",
+  [SessionStatus.RECONNECTING]: "reconnecting",
+  [SessionStatus.CONNECTING]: "connecting",
+  [SessionStatus.KEY_EXCHANGE]: "exchangingKeys",
+  [SessionStatus.DISCONNECTED]: "offline",
 };
 
 const DAppPulsingDot = ({ status }: { status: SessionStatus }) => {
@@ -37,7 +42,9 @@ const DAppPulsingDot = ({ status }: { status: SessionStatus }) => {
     >
       <div
         className={`absolute flex h-3 w-3 items-center justify-center rounded-full ${
-          isStable ? 'animate-[slow-ping_2s_cubic-bezier(0,0,0.2,1)_infinite]' : 'animate-ping'
+          isStable
+            ? "animate-[slow-ping_2s_cubic-bezier(0,0,0.2,1)_infinite]"
+            : "animate-ping"
         }`}
         style={{ backgroundColor: color, opacity: 0.75 }}
       />
@@ -50,6 +57,7 @@ const DAppPulsingDot = ({ status }: { status: SessionStatus }) => {
 };
 
 const DAppConnectionBanner = observer(() => {
+  const { t } = useTranslation("settings");
   const { dappConnectStore } = useStore();
   const { activeSessions } = dappConnectStore;
 
@@ -72,16 +80,23 @@ const DAppConnectionBanner = observer(() => {
         >
           <div className="flex items-center gap-2">
             <DAppPulsingDot status={session.status} />
-            <span className="font-medium">{session.dappInfo.name}</span>
+            <span className="font-medium">
+              {!session.originatorInfoReceived &&
+              isPendingDAppInfo(session.dappInfo)
+                ? t("connecting")
+                : session.dappInfo.name}
+            </span>
             <span className="text-muted-foreground">
-              {statusLabels[session.status]}
+              {t(statusLabels[session.status])}
             </span>
           </div>
           <button
-            onClick={() => { dappConnectStore.disconnectSession(session.id); }}
+            onClick={() => {
+              dappConnectStore.disconnectSession(session.id);
+            }}
             className="text-muted-foreground hover:text-destructive"
           >
-            Disconnect
+            {t("disconnect")}
           </button>
         </div>
       ))}

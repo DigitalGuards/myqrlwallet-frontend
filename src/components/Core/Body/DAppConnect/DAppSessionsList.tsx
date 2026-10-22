@@ -1,3 +1,4 @@
+import { isPendingDAppInfo } from "@/services/dappConnect/dappMetadata";
 import { useTranslation } from "react-i18next";
 /**
  * DApp Sessions List - management surface for active dApp connections.
@@ -228,7 +229,10 @@ const DAppSessionsList = observer(
                     <div className="flex items-center gap-2.5">
                       <DAppPulsingDot status={session.status} />
                       <span className="truncate font-semibold">
-                        {session.dappInfo.name}
+                        {!session.originatorInfoReceived &&
+                        isPendingDAppInfo(session.dappInfo)
+                          ? t("settings:connecting")
+                          : session.dappInfo.name}
                       </span>
                       <span
                         className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusPillClasses[session.status]}`}
