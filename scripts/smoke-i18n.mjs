@@ -1,5 +1,6 @@
 // Built-wallet translation and layout smoke with synthetic public data and stubbed RPC.
 import { reviewProbes } from "./i18n-review-probes.mjs";
+import { helperRouteProbes } from "./i18n-helper-route-probes.mjs";
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
@@ -47,6 +48,7 @@ try {
     if (attempt === 39) throw new Error("Preview did not start");
   }
   browser = await chromium.launch();
+  await helperRouteProbes(browser, origin);
   await reviewProbes(browser, origin);
   for (const language of languages) {
     const catalogs = Object.fromEntries(

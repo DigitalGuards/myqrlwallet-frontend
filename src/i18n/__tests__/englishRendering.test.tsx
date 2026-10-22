@@ -7,12 +7,17 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import type { ReactElement, ReactNode, AnchorHTMLAttributes } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { groupNftsByCollection } from "@/utils/web3/nftCollections";
 import type { NFTInterface, TokenInterface } from "@/constants";
+import type { HistoryRow } from "@/utils/transactionHistory";
 import Home from "@/components/Core/Body/Home/Home";
+import AddAccount from "@/components/Core/Body/AddAccount/AddAccount";
+import AccountList from "@/components/Core/Body/AccountList/AccountList";
+import DAppSessionsPage from "@/components/Core/Body/DAppConnect/DAppSessionsPage";
 import AccountCreateImport from "@/components/Core/Body/Home/AccountCreateImport/AccountCreateImport";
 import { ActiveAccountDisplay } from "@/components/Core/Body/Home/AccountCreateImport/ActiveAccountDisplay/ActiveAccountDisplay";
 import ExtensionPickerDialog from "@/components/Core/Body/Home/AccountCreateImport/ExtensionPickerDialog";
@@ -42,6 +47,8 @@ import { AddressDisclosure } from "@/components/UI/AddressDisclosure";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { SessionStatus } from "@/services/dappConnect/types";
+import * as desktop from "@/desktop/bridge";
+import { isInNativeApp } from "@/utils/nativeApp";
 
 const mockAddress = `Q${"1".repeat(128)}`;
 const nft: NFTInterface = {
@@ -61,6 +68,8 @@ const mockStore = {
   qrlStore: {
     activeAccount: { accountAddress: mockAddress },
     activeAccountSource: "seed",
+    qrlAccounts: { accounts: [] },
+    getAccountBalance: () => "123",
     qrlConnection: {
       blockchain: "TEST_NET",
       qrlNetworkName: "QRL 2.0 Testnet",
@@ -134,11 +143,16 @@ jest.mock("@/utils", () =>
 );
 jest.mock("@/utils/logout", () => ({ handleLogout: jest.fn() }));
 jest.mock("@/utils/nativeApp", () => ({
-  isInNativeApp: () => false,
+  isInNativeApp: jest.fn(() => false),
   copyToClipboard: () => Promise.resolve(true),
   openExternalUrl: jest.fn(),
 }));
-jest.mock("@/desktop/bridge", () => ({ isDesktop: false }));
+jest.mock("@/desktop/bridge", () => ({
+  __esModule: true,
+  get isDesktop() {
+    return false;
+  },
+}));
 jest.mock("@/utils/extension", () => ({
   discoverQrlProviders: () => Promise.resolve([]),
 }));
@@ -148,9 +162,10 @@ jest.mock("@/utils/mobileConnect/mobileConnection", () => ({
 jest.mock("@/services/dappConnect/DAppConnectService", () => ({
   DAppConnectService: {},
 }));
+let mockHistoryRows: HistoryRow[] = [];
 jest.mock("@/hooks/useTransactionHistory", () => ({
   useTransactionHistory: () => ({
-    transactions: [],
+    transactions: mockHistoryRows,
     storageUnavailable: false,
   }),
 }));
@@ -159,6 +174,9 @@ jest.mock("axios", () => ({
 }));
 jest.mock("@/utils/storage", () => ({
   StorageUtil: {
+    getMaxWallets: () => 10,
+    isWalletLimitReached: () => Promise.resolve(false),
+    getWalletCount: () => Promise.resolve(1),
     getWalletSettings: () =>
       Promise.resolve({
         autoLockTimeout: 900000,
@@ -228,7 +246,28 @@ jest.mock("@/components/UI/sidebar", () => {
   };
 });
 
-afterEach(cleanup);
+beforeEach(() => {
+  jest.mocked(isInNativeApp).mockReturnValue(false);
+  mockHistoryRows = [];
+  mockStore.qrlStore.activeAccount.accountAddress = mockAddress;
+});
+afterEach(() => {
+  cleanup();
+  jest.restoreAllMocks();
+});
+
+function expectNoCatalogKeys() {
+  const copy = document.body.cloneNode(true);
+  if (!(copy instanceof HTMLElement)) throw new Error("Missing rendered body");
+  copy
+    .querySelectorAll("style, script, [hidden], [aria-hidden=true], .sr-only")
+    .forEach((element) => {
+      element.remove();
+    });
+  expect(copy.textContent).not.toMatch(
+    /(?:common|home|settings|tokens|history):[A-Za-z][\w.-]*/,
+  );
+}
 
 function englishSnapshot() {
   const copy = document.body.cloneNode(true);
@@ -326,7 +365,99 @@ it.each([
   "preserves origin/dev English: %s",
   async (_name, element) => {
     await show(element);
+    expectNoCatalogKeys();
     englishSnapshot();
+  },
+);
+
+describe.each(["web", "native", "desktop"])(
+  "setup routes in %s mode",
+  (shell) => {
+    it.each([
+      ["/add-account", <AddAccount />, false],
+      ["/account-list without an active account", <AccountList />, false],
+      ["/account-list with an active account", <AccountList />, true],
+      ["/ without an active account", <Home />, false],
+    ] satisfies [string, ReactElement, boolean][])(
+      "renders the origin/dev setup copy on %s without catalog keys",
+      async (_route, element, active) => {
+        jest.mocked(isInNativeApp).mockReturnValue(shell === "native");
+        jest
+          .spyOn(desktop, "isDesktop", "get")
+          .mockReturnValue(shell === "desktop");
+        mockStore.qrlStore.activeAccount.accountAddress = active
+          ? mockAddress
+          : "";
+        await show(element);
+        await screen.findByRole("link", {
+          name: "Create a new account",
+        });
+        const expected =
+          shell === "web"
+            ? "You are connected to the blockchain. Create a new account, import an existing account, or connect a wallet you already use: your browser extension or the MyQRLWallet mobile app."
+            : "You are connected to the blockchain. Create a new account or import an existing account.";
+        await waitFor(() => {
+          expectNoCatalogKeys();
+          expect(screen.getAllByText(expected).length).toBeGreaterThan(0);
+        });
+      },
+    );
+  },
+);
+
+it("translates all session status keys on /dapp-sessions", async () => {
+  await show(<DAppSessionsPage />);
+  for (const status of [
+    "Connected",
+    "Reconnecting...",
+    "Connecting...",
+    "Exchanging keys...",
+    "Offline, retries later",
+  ])
+    expect(screen.getByText(status).textContent).toBe(status);
+  expectNoCatalogKeys();
+});
+
+it.each([
+  ["/", <Home />],
+  ["/account-list", <AccountList />],
+] satisfies [string, ReactElement][])(
+  "translates every history status in the popup opened from %s",
+  async (_route, element) => {
+    const states = [
+      "confirmed",
+      "pending",
+      "failed",
+      "dropped",
+      undefined,
+    ] as const;
+    mockHistoryRows = states.map((state, index) => ({
+      ID: String(index),
+      InOut: 0,
+      TxType: "0x2",
+      Address: mockAddress,
+      From: mockAddress,
+      To: `Q${"2".repeat(128)}`,
+      TxHash: `0x${String(index).repeat(64)}`,
+      TimeStamp: "0x42",
+      Amount: "1.25",
+      BlockNumber: "0x42",
+      state,
+    }));
+    await show(element);
+    const trigger = document.querySelector("button:has(.lucide-history)");
+    if (!(trigger instanceof HTMLElement))
+      throw new Error("Missing history button");
+    fireEvent.click(trigger);
+    for (const status of [
+      "Confirmed",
+      "Pending",
+      "Failed",
+      "Failed (dropped or replaced)",
+      "Unavailable",
+    ])
+      expect((await screen.findByText(status)).textContent).toBe(status);
+    expectNoCatalogKeys();
   },
 );
 

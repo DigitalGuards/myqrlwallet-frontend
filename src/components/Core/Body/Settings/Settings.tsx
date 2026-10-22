@@ -72,15 +72,33 @@ type SettingsFormValues = {
   showNftsCard: unknown;
 };
 
+const SettingsFormSchema: z.ZodType<SettingsFormValues, SettingsFormValues> =
+  z.object({
+    autoLockTimeout: z.number().min(1).max(60),
+    showTokensCard: z.boolean(),
+    showNftsCard: z.boolean(),
+  });
+
 // Async form defaults leave switch values unset until storage resolves.
 const preferenceChecked = (value: unknown) => Boolean(value ?? true);
 
 // Separate schema for Change PIN form
-type ChangePinFormValues = {
-  currentPin: string;
-  newPin: string;
-  confirmNewPin: string;
-};
+const ChangePinSchema = z
+  .object({
+    currentPin: z.string().regex(/^\d{4,6}$/, "settings:pinFormat"),
+    newPin: z.string().regex(/^\d{4,6}$/, "settings:pinFormat"),
+    confirmNewPin: z.string().regex(/^\d{4,6}$/, "settings:pinFormat"),
+  })
+  .refine((data) => data.newPin === data.confirmNewPin, {
+    message: "settings:pinMatch",
+    path: ["confirmNewPin"],
+  })
+  .refine((data) => data.newPin !== data.currentPin, {
+    message: "settings:pinDifferent",
+    path: ["newPin"],
+  });
+
+type ChangePinFormValues = z.infer<typeof ChangePinSchema>;
 
 import { IS_V3_PROFILE } from "@/config/runtimeProfile";
 const configuredNetworks = () =>
@@ -90,28 +108,6 @@ const configuredNetworks = () =>
 
 const Settings = observer(() => {
   const { t } = useTranslation(["settings", "common"]);
-  const SettingsFormSchema: z.ZodType<SettingsFormValues, SettingsFormValues> =
-    z.object({
-      autoLockTimeout: z.number().min(1).max(60),
-      showTokensCard: z.boolean(),
-      showNftsCard: z.boolean(),
-    });
-
-  const ChangePinSchema = z
-    .object({
-      currentPin: z.string().regex(/^\d{4,6}$/, "settings:pinFormat"),
-      newPin: z.string().regex(/^\d{4,6}$/, "settings:pinFormat"),
-      confirmNewPin: z.string().regex(/^\d{4,6}$/, "settings:pinFormat"),
-    })
-    .refine((data) => data.newPin === data.confirmNewPin, {
-      message: "settings:pinMatch",
-      path: ["confirmNewPin"],
-    })
-    .refine((data) => data.newPin !== data.currentPin, {
-      message: "settings:pinDifferent",
-      path: ["newPin"],
-    });
-
   const navigate = useNavigate();
   const [hasEncryptedSeeds, setHasEncryptedSeeds] = useState(false);
   const [showPinForm, setShowPinForm] = useState(false);
@@ -565,64 +561,62 @@ const Settings = observer(() => {
                 </div>
               )}
 
-              {!isDesktop && !isInNativeApp() && (
-                <FormField
-                  control={form.control}
-                  name="autoLockTimeout"
-                  render={({ field }) => (
-                    <FormItem className="space-y-0">
-                      <div className="flex items-center gap-3 px-4 py-3">
-                        <SettingsIconTile
-                          icon={TimerReset}
-                          tint="bg-violet-500/15 text-violet-400"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <FormLabel className="text-sm font-medium">
-                            {t("settings:autoLock")}
-                          </FormLabel>
-                          <FormDescription className="mt-0.5 text-xs">
-                            {t("settings:autoLockHint")}
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={60}
-                            className="h-9 w-20 shrink-0 text-center"
-                            {...field}
-                            value={
-                              Number.isFinite(field.value) ? field.value : ""
-                            }
-                            onChange={(e) => {
-                              // Empty stays empty while typing (NaN fails
-                              // validation, so nothing is written).
-                              field.onChange(
-                                e.target.value === ""
-                                  ? Number.NaN
-                                  : Number(e.target.value),
-                              );
-                              queueSave(800);
-                            }}
-                            onBlur={() => {
-                              field.onBlur();
-                              const t = form.getValues("autoLockTimeout");
-                              const invalid =
-                                !Number.isFinite(t) || t < 1 || t > 60;
-                              // Flush a pending save early; leaving the field
-                              // invalid reverts it to the last saved value.
-                              if (invalid || saveTimer.current !== null) {
-                                queueSave(0, true);
-                              }
-                            }}
-                          />
-                        </FormControl>
+              <FormField
+                control={form.control}
+                name="autoLockTimeout"
+                render={({ field }) => (
+                  <FormItem className="space-y-0">
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <SettingsIconTile
+                        icon={TimerReset}
+                        tint="bg-violet-500/15 text-violet-400"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <FormLabel className="text-sm font-medium">
+                          {t("settings:autoLock")}
+                        </FormLabel>
+                        <FormDescription className="mt-0.5 text-xs">
+                          {t("settings:autoLockHint")}
+                        </FormDescription>
                       </div>
-                      <FormMessage className="px-4 pb-3 text-xs" />
-                    </FormItem>
-                  )}
-                />
-              )}
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={60}
+                          className="h-9 w-20 shrink-0 text-center"
+                          {...field}
+                          value={
+                            Number.isFinite(field.value) ? field.value : ""
+                          }
+                          onChange={(e) => {
+                            // Empty stays empty while typing (NaN fails
+                            // validation, so nothing is written).
+                            field.onChange(
+                              e.target.value === ""
+                                ? Number.NaN
+                                : Number(e.target.value),
+                            );
+                            queueSave(800);
+                          }}
+                          onBlur={() => {
+                            field.onBlur();
+                            const t = form.getValues("autoLockTimeout");
+                            const invalid =
+                              !Number.isFinite(t) || t < 1 || t > 60;
+                            // Flush a pending save early; leaving the field
+                            // invalid reverts it to the last saved value.
+                            if (invalid || saveTimer.current !== null) {
+                              queueSave(0, true);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                    </div>
+                    <FormMessage className="px-4 pb-3 text-xs" />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -705,7 +699,11 @@ const Settings = observer(() => {
             />
           </SettingsSection>
 
-          {/* The shared session list also serves /dapp-sessions deep links. */}
+          {/* dApp session management lives here (the list keeps
+              its own header + actions); the /dapp-sessions route
+              mounts the same component for deep links. Desktop
+              never reaches this page: its Settings entry opens
+              the native settings window (see utils/navigation). */}
           <Card>
             <DAppSessionsList />
           </Card>

@@ -1,4 +1,5 @@
 import { accountSetupDescription } from "../Home/AccountCreateImport/accountSetupDescription";
+import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { ActiveAccount } from "./ActiveAccount/ActiveAccount";
 import { OtherAccounts } from "./OtherAccounts/OtherAccounts";
@@ -16,6 +17,7 @@ const AccountCreateImport = withSuspense(
 );
 
 const AccountList = observer(() => {
+  const { t } = useTranslation(["home", "common"]);
   const { qrlStore } = useStore();
   const { activeAccount, qrlConnection } = qrlStore;
   const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(
@@ -34,7 +36,7 @@ const AccountList = observer(() => {
       />
       <PageShell
         title={noActiveAccount ? "Let's start" : "Accounts"}
-        subtitle={noActiveAccount ? accountSetupDescription() : undefined}
+        subtitle={noActiveAccount ? t(accountSetupDescription()) : undefined}
       >
         <div className="flex flex-col gap-4 md:gap-8">
           {noActiveAccount ? (

@@ -48,8 +48,15 @@ jest.mock("../../DAppConnect/DAppSessionsList", () => ({
   __esModule: true,
   default: () => null,
 }));
-jest.mock("@/desktop/bridge", () => ({ isDesktop: false }));
-jest.mock("@/utils/nativeApp", () => ({ isInNativeApp: () => false }));
+let mockShell = "web";
+jest.mock("@/desktop/bridge", () => ({
+  get isDesktop() {
+    return mockShell === "desktop";
+  },
+}));
+jest.mock("@/utils/nativeApp", () => ({
+  isInNativeApp: () => mockShell === "native",
+}));
 jest.mock("react-router", () => ({ useNavigate: () => mockNavigate }));
 jest.mock("@/router/router", () => ({
   ROUTES: { ADDRESS_BOOK: "/address-book" },
@@ -108,6 +115,7 @@ const storedSeeds = [
 beforeEach(() => {
   jest.resetAllMocks();
   localStorage.clear();
+  mockShell = "web";
   mockStore.qrlStore.activeAccount.accountAddress = address;
   mockSelectBlockchain.mockResolvedValue(undefined);
   jest.mocked(StorageUtil).getWalletSettings.mockResolvedValue(settings);
@@ -151,6 +159,32 @@ function submitExport() {
   });
   fireEvent.click(screen.getByRole("button", { name: "Export Wallet File" }));
 }
+
+it.each(["web", "native", "desktop"])(
+  "preserves the renderer auto-lock editor and persistence in %s mode",
+  async (shell) => {
+    mockShell = shell;
+    render(<Settings />);
+    const timer = await screen.findByRole("spinbutton", {
+      name: "Auto-lock Timer",
+    });
+    await waitFor(() => {
+      expect(timer).toHaveProperty("value", "15");
+    });
+    expect(timer).toHaveProperty("min", "1");
+    expect(timer).toHaveProperty("max", "60");
+    fireEvent.change(timer, { target: { value: "2" } });
+    fireEvent.blur(timer);
+    await waitFor(() => {
+      expect(StorageUtil.setWalletSettings).toHaveBeenCalledWith({
+        ...settings,
+        autoLockTimeout: 120000,
+      });
+    });
+    expect(StorageUtil.setWalletSettings).toHaveBeenCalledTimes(1);
+    expect(timer).toHaveProperty("value", "2");
+  },
+);
 
 it("preserves pending preference defaults, debounce timing and overlapping saves", async () => {
   jest.useFakeTimers();
