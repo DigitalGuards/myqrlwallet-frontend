@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
 
+import { applyLanguage } from "@/i18n";
 import type { ReactNode } from "react";
 import {
   cleanup,
@@ -265,7 +266,7 @@ function selectV3Profile() {
 it("renders the v3 network name as plain text with no link, no menu", () => {
   selectV3Profile();
   render(<ConnectionBadge />);
-  expect(screen.getByText("Testnet")).toBeTruthy();
+  expect(screen.getByText("TESTNET")).toBeTruthy();
   expect(screen.getByLabelText(`Network: ${mockV3Network.name}`)).toBeTruthy();
   expect(screen.queryByRole("link")).toBeNull();
   expect(screen.queryByRole("button")).toBeNull();
@@ -274,7 +275,7 @@ it("renders the v3 network name as plain text with no link, no menu", () => {
 
 it("links the default-profile label to Settings, since a second network is configured", () => {
   render(<ConnectionBadge />);
-  expect(screen.getByText("Testnet")).toBeTruthy();
+  expect(screen.getByText("TESTNET")).toBeTruthy();
   const link = screen.getByRole("link", {
     name: "Network: QRL Testnet. Change network in Settings.",
   });
@@ -287,19 +288,19 @@ it("shows MAINNET for the mainnet blockchain", () => {
     qrlNetworkName: "QRL Mainnet",
   });
   render(<ConnectionBadge />);
-  expect(screen.getByText("Mainnet")).toBeTruthy();
+  expect(screen.getByText("MAINNET")).toBeTruthy();
 });
 
 it("appends a plain OFFLINE suffix when disconnected, no dot", () => {
   mockStore.qrlStore.qrlConnection.isConnected = false;
   render(<ConnectionBadge />);
-  expect(screen.getByText("Testnet · OFFLINE")).toBeTruthy();
+  expect(screen.getByText("TESTNET · OFFLINE")).toBeTruthy();
 });
 
 it("appends a plain CONNECTING suffix while loading", () => {
   mockStore.qrlStore.qrlConnection.isLoading = true;
   render(<ConnectionBadge />);
-  expect(screen.getByText("Testnet · CONNECTING")).toBeTruthy();
+  expect(screen.getByText("TESTNET · CONNECTING")).toBeTruthy();
 });
 
 it("renders only the full private v3 label in network settings", () => {
@@ -425,3 +426,48 @@ it("preserves native-app hiding of external signer controls", () => {
     screen.getByRole("button", { name: "Create a new account" }),
   ).toHaveProperty("disabled", false);
 });
+
+it.each([new Error("Relay unavailable <detail>"), "offline"])(
+  "preserves origin/dev mobile pairing failure %s",
+  async (reason) => {
+    jest.mocked(startMobilePairing).mockRejectedValueOnce(reason);
+    render(<AccountCreateImport />);
+    fireEvent.click(screen.getByRole("button", { name: "Connect Mobile App" }));
+    const expected = `Could not start mobile pairing: ${reason instanceof Error ? reason.message : reason}`;
+    expect((await screen.findByText(expected)).textContent).toBe(expected);
+  },
+);
+
+it.each([
+  ["de", "Hauptnetz", "Testnetz"],
+  ["es", "Red principal", "Red de prueba"],
+  ["ru", "Основная сеть", "Тестовая сеть"],
+  ["zh-CN", "主网", "测试网"],
+] as const)(
+  "uses a consistent network pair in %s",
+  async (language, mainnet, testnet) => {
+    try {
+      await applyLanguage(language);
+      const view = render(
+        <>
+          <NetworkSettings />
+          <ConnectionBadge />
+        </>,
+      );
+      expect(screen.getByRole("button", { name: mainnet })).toBeTruthy();
+      expect(screen.getByRole("button", { name: testnet })).toBeTruthy();
+      expect(screen.getByRole("link").textContent).toBe(testnet.toUpperCase());
+      mockStore.qrlStore.qrlConnection.blockchain = "MAIN_NET";
+      view.rerender(
+        <>
+          <NetworkSettings />
+          <ConnectionBadge />
+        </>,
+      );
+      expect(screen.getByRole("link").textContent).toBe(mainnet.toUpperCase());
+    } finally {
+      cleanup();
+      await applyLanguage("en");
+    }
+  },
+);

@@ -1,0 +1,662 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`preserves origin/dev English: AccountCreateImport 1`] = `
+{
+  "labels": [],
+  "text": "Add accountsYou are connected to the blockchain. Create a new account, import an existing account, or connect a wallet you already use: your browser extension or the MyQRLWallet mobile app.Create a new accountImport an existing accountConnect Browser ExtensionConnect Mobile App",
+}
+`;
+
+exports[`preserves origin/dev English: ActiveAccountDisplay 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+  ],
+  "text": "123.00QuantaQ11111111...11111111...11111111Show full",
+}
+`;
+
+exports[`preserves origin/dev English: AddTokenModal 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+  ],
+  "text": "Add TokenAdd a new token to your walletDiscovered tokens (1)The explorer sees these on this address. Pick the ones you trust; the rest stay off your dashboard.Example token (EX)Q11111111...11111111...11111111Add Selected (0)Token Contract AddressAdd Token",
+}
+`;
+
+exports[`preserves origin/dev English: AddressDisclosure 1`] = `
+{
+  "labels": [
+    [
+      [
+        "title",
+        "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+      [
+        "title",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show full address",
+      ],
+      [
+        "title",
+        "Show full address",
+      ],
+    ],
+  ],
+  "text": "",
+}
+`;
+
+exports[`preserves origin/dev English: AppSidebar 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "MyQRLWallet home",
+      ],
+    ],
+  ],
+  "text": "WalletsSendContactsSettingsLogout",
+}
+`;
+
+exports[`preserves origin/dev English: BackgroundVideo 1`] = `
+{
+  "labels": [
+    [
+      [
+        "alt",
+        "Background Tree",
+      ],
+    ],
+  ],
+  "text": "",
+}
+`;
+
+exports[`preserves origin/dev English: ConnectionBadge 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Network: QRL 2.0 Testnet. Change network in Settings.",
+      ],
+      [
+        "title",
+        "QRL 2.0 Testnet",
+      ],
+    ],
+  ],
+  "text": "TESTNET",
+}
+`;
+
+exports[`preserves origin/dev English: ConnectionFailed 1`] = `
+{
+  "labels": [],
+  "text": "Connection failedCould not connect to the blockchain network. Please check your network connection and try again.Retry",
+}
+`;
+
+exports[`preserves origin/dev English: DAppSessionsList 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+  ],
+  "text": "dApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Disconnect allConnect a dAppPaste a connection code from a dApp's pairing dialog.Example dAppConnectedhttps://dapp.exampleQ11111111...11111111...11111111Show fullConnected 1/1/1970DisconnectExample dAppReconnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppConnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppExchanging keys...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppOffline, retries laterhttps://dapp.exampleNo account sharedConnected 1/1/1970Disconnect",
+}
+`;
+
+exports[`preserves origin/dev English: DataTable, columns and TokenCells 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Send token",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Hide token",
+      ],
+    ],
+  ],
+  "text": "NameSymbolToken AddressBalanceActionsExample tokenEXQ11111111...11111111Show fullCopy1.2345",
+}
+`;
+
+exports[`preserves origin/dev English: ExportWalletFile with its active account 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "Export Wallet FileDownload the active account as an encrypted wallet fileExports Q11111111...11111111...11111111Show full as an encrypted wallet file readable by this wallet and the MyQRLWallet browser extension. Confirm with your PIN, then set a strong password for the file itself.Wallet PINFile PasswordAt least 8 characters with uppercase, lowercase, number, and special characterConfirm File PasswordExport Wallet File",
+}
+`;
+
+exports[`preserves origin/dev English: ExtensionPickerDialog and Dialog 1`] = `
+{
+  "labels": [],
+  "text": "Choose a wallet extensionMore than one QRL wallet extension is installed. Pick the one to connect.",
+}
+`;
+
+exports[`preserves origin/dev English: Footer 1`] = `
+{
+  "labels": [],
+  "text": "HomePrivacyTermsLegalExplorer",
+}
+`;
+
+exports[`preserves origin/dev English: Home 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Network: QRL 2.0 Testnet. Change network in Settings.",
+      ],
+      [
+        "title",
+        "QRL 2.0 Testnet",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Send token",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Hide token",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Refresh ownership, balances, and metadata",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Add NFT",
+      ],
+    ],
+  ],
+  "text": "Active accountTESTNET123.00QuantaQ11111111...11111111...11111111Show fullTransferHistoryReceiveTokensNameSymbolToken AddressBalanceActionsExample tokenEXQ11111111...11111111Show fullCopy1.2345NFTs1 collectionExample collection1 item · ERC-721 · Q11111111...11111111...11111111",
+}
+`;
+
+exports[`preserves origin/dev English: MobileNav 1`] = `
+{
+  "labels": [],
+  "text": "SendWalletsContactsSettingsLogout",
+}
+`;
+
+exports[`preserves origin/dev English: MobilePairingDialog 1`] = `
+{
+  "labels": [],
+  "text": "Connect Mobile AppOpen MyQRLWallet on your phone and scan this code to use the app as the signer for this session.MyQRLWallet app not detected. Install it (https://store.example/app) or scan the code with the app on another device.Copy codeNew code",
+}
+`;
+
+exports[`preserves origin/dev English: MyQRLWalletLogo 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "MyQRLWallet home",
+      ],
+    ],
+  ],
+  "text": "MyQRLWallet",
+}
+`;
+
+exports[`preserves origin/dev English: NetworkSettings 1`] = `
+{
+  "labels": [],
+  "text": "NetworkMainnetTestnet",
+}
+`;
+
+exports[`preserves origin/dev English: NftCard 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Token #12 (image unavailable)",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Hide NFT",
+      ],
+    ],
+  ],
+  "text": "Token #12Example collection • #12",
+}
+`;
+
+exports[`preserves origin/dev English: NftCollectionRow 1`] = `
+{
+  "labels": [],
+  "text": "Example collection1 item · ERC-721 · Q11111111...11111111...11111111",
+}
+`;
+
+exports[`preserves origin/dev English: NftGallery 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Refresh ownership, balances, and metadata",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Add NFT",
+      ],
+    ],
+  ],
+  "text": "NFTs1 collectionExample collection1 item · ERC-721 · Q11111111...11111111...11111111",
+}
+`;
+
+exports[`preserves origin/dev English: NftImage 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Example artwork (image unavailable)",
+      ],
+    ],
+  ],
+  "text": "",
+}
+`;
+
+exports[`preserves origin/dev English: PIN fields and validation 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+  ],
+  "text": "SettingsSecurityChange PINChange your wallet PIN used to encrypt your seedsCurrent PINNew PINPIN must be 4-6 digitsConfirm New PINChange PINExport Wallet FileDownload the active account as an encrypted wallet fileNetworkMainnetTestnetPreferencesAuto-lock TimerLock the wallet after this many minutes of inactivityShow Tokens CardDisplay the Tokens section on the Home pageShow NFTs CardDisplay the NFT collection section on the Home pageConnectionsAddress BookManage saved recipients for quick transfersdApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Disconnect allConnect a dAppPaste a connection code from a dApp's pairing dialog.Example dAppConnectedhttps://dapp.exampleQ11111111...11111111...11111111Show fullConnected 1/1/1970DisconnectExample dAppReconnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppConnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppExchanging keys...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppOffline, retries laterhttps://dapp.exampleNo account sharedConnected 1/1/1970Disconnect",
+}
+`;
+
+exports[`preserves origin/dev English: PinInput 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "",
+}
+`;
+
+exports[`preserves origin/dev English: QrlAddress 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+  ],
+  "text": "Q11111111...11111111...11111111Show full",
+}
+`;
+
+exports[`preserves origin/dev English: ReceivePopup 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Close",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+      [
+        "title",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show full address",
+      ],
+      [
+        "title",
+        "Show full address",
+      ],
+    ],
+  ],
+  "text": "Receive Quanta×Share this address or QR code to receive Quanta.",
+}
+`;
+
+exports[`preserves origin/dev English: Settings 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+  ],
+  "text": "SettingsSecurityChange PINChange your wallet PIN used to encrypt your seedsExport Wallet FileDownload the active account as an encrypted wallet fileNetworkMainnetTestnetPreferencesAuto-lock TimerLock the wallet after this many minutes of inactivityShow Tokens CardDisplay the Tokens section on the Home pageShow NFTs CardDisplay the NFT collection section on the Home pageConnectionsAddress BookManage saved recipients for quick transfersdApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Disconnect allConnect a dAppPaste a connection code from a dApp's pairing dialog.Example dAppConnectedhttps://dapp.exampleQ11111111...11111111...11111111Show fullConnected 1/1/1970DisconnectExample dAppReconnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppConnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppExchanging keys...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppOffline, retries laterhttps://dapp.exampleNo account sharedConnected 1/1/1970Disconnect",
+}
+`;
+
+exports[`preserves origin/dev English: TokenForm 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Send token",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Hide token",
+      ],
+    ],
+  ],
+  "text": "TokensNameSymbolToken AddressBalanceActionsExample tokenEXQ11111111...11111111Show fullCopy1.2345",
+}
+`;
+
+exports[`preserves origin/dev English: TransactionHistoryPopup 1`] = `
+{
+  "labels": [],
+  "text": "Recent TransactionsNo transactions foundView All in Explorer",
+}
+`;

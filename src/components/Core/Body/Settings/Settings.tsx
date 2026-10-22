@@ -4,7 +4,6 @@ import {
   settingsValidationMessage,
 } from "@/i18n/pinErrorMessage";
 import { LanguageSettings } from "./LanguageSettings";
-import { DeviceSettings } from "./DeviceSettings";
 import { useTranslation } from "react-i18next";
 import { toNumber } from "@/utils/guards";
 import { PinVerificationError } from "@/utils/crypto/verifyPinWithLimit";
@@ -93,10 +92,7 @@ const Settings = observer(() => {
   const { t } = useTranslation(["settings", "common"]);
   const SettingsFormSchema: z.ZodType<SettingsFormValues, SettingsFormValues> =
     z.object({
-      autoLockTimeout: z
-        .number({ error: t("settings:autoLockRange") })
-        .min(1, t("settings:autoLockRange"))
-        .max(60, t("settings:autoLockRange")),
+      autoLockTimeout: z.number().min(1).max(60),
       showTokensCard: z.boolean(),
       showNftsCard: z.boolean(),
     });
@@ -346,11 +342,15 @@ const Settings = observer(() => {
         setChangePinError(
           error instanceof Error &&
             error.message.includes("old PIN remains active")
-            ? { key: "settings:pinBackupFailed" }
-            : error instanceof Error &&
-                error.message.includes("rollback could not be fully confirmed")
-              ? { key: "settings:pinRollbackFailed" }
-              : { key: "settings:pinError" },
+            ? {
+                key: "settings:pinBackupFailed",
+                message:
+                  error.message ===
+                  "Native seed backup failed; the old PIN remains active."
+                    ? undefined
+                    : error.message,
+              }
+            : { key: "settings:pinError" },
         );
       }
     } finally {
@@ -433,9 +433,10 @@ const Settings = observer(() => {
                         )}
                       {changePinError && !pinLockout.isLocked && (
                         <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-                          {t(changePinError.key, {
-                            count: changePinError.count,
-                          })}
+                          {changePinError.message ??
+                            t(changePinError.key, {
+                              count: changePinError.count,
+                            })}
                         </div>
                       )}
                       {changePinSuccess && (
@@ -537,7 +538,6 @@ const Settings = observer(() => {
             </SettingsSection>
           )}
 
-          <DeviceSettings />
           <NetworkSettings />
 
           <Form {...form}>
@@ -618,11 +618,7 @@ const Settings = observer(() => {
                           />
                         </FormControl>
                       </div>
-                      <FormMessage className="px-4 pb-3 text-xs">
-                        {form.formState.errors.autoLockTimeout
-                          ? t("settings:autoLockRange")
-                          : undefined}
-                      </FormMessage>
+                      <FormMessage className="px-4 pb-3 text-xs" />
                     </FormItem>
                   )}
                 />

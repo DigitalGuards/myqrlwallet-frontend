@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { reportError } from "@/utils/reportError";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../UI/Card";
 import { observer } from "mobx-react-lite";
@@ -92,7 +92,6 @@ const TokenForm = observer(() => {
                 <Button
                   variant="outline"
                   size="sm"
-                  aria-label={t("tokens:refresh")}
                   onClick={() => {
                     void refreshTokens();
                   }}
@@ -114,7 +113,7 @@ const TokenForm = observer(() => {
           </TooltipProvider>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" aria-label={t("tokens:add")}>
+              <Button variant="outline" size="sm">
                 <Plus className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -195,7 +194,12 @@ function TokensEmptyState({
         <>
           <div className="flex items-center gap-2 text-sm">
             <Sparkles className="h-4 w-4 text-muted-foreground/70" />
-            {t("tokens:found", { count: discoveredCount })}
+            <Trans
+              t={t}
+              i18nKey="tokens:found"
+              count={discoveredCount}
+              components={{ count: <span className="font-medium" /> }}
+            />
           </div>
           <Button variant="outline" size="sm" onClick={onAddExisting}>
             <Plus className="mr-2 h-4 w-4" />
@@ -212,7 +216,7 @@ function TokensEmptyState({
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" aria-label={t("tokens:add")}>
+              <Button variant="outline" size="sm">
                 <Plus className="mr-2 h-4 w-4" />
                 {t("tokens:add")}
               </Button>

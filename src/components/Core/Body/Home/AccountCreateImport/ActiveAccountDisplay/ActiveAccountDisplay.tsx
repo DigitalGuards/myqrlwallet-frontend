@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { logger } from "@/utils/log";
 import { useState } from "react";
 import { useStore } from "../../../../../../stores/store";
@@ -11,7 +10,6 @@ import { QrlAddress } from "@/components/UI/QrlAddress";
 
 export const ActiveAccountDisplay = observer(
   ({ onShowAddress }: { onShowAddress: () => void }) => {
-    const { t } = useTranslation("home");
     const { qrlStore } = useStore();
     const {
       activeAccount,
@@ -97,7 +95,6 @@ export const ActiveAccountDisplay = observer(
                 />
               )}
               <button
-                aria-label={t("refreshBalance")}
                 className="p-1 rounded-full hover:bg-foreground/10 flex items-center justify-center transition-colors"
                 onClick={() => {
                   refreshBalance().catch((error: unknown) => {

@@ -38,6 +38,10 @@
   "networkConnecting": "{{network}} · 连接中",
   "networkOffline": "{{network}} · 离线",
   "pinDigit": "PIN 第 {{position}} 位",
-  "showPin": "显示 PIN",
-  "hidePin": "隐藏 PIN"
+  "testnet": "测试网",
+  "mainnetBadge": "主网",
+  "testnetBadge": "测试网",
+  "mainnetFull": "QRL 2.0 主网",
+  "testnetFull": "QRL 2.0 测试网",
+  "testnetV3": "QRL 测试网 v3 (私有)"
 }

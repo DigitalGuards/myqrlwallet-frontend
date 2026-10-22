@@ -4,6 +4,7 @@ import type { PinVerificationError } from "@/utils/crypto/verifyPinWithLimit";
 export interface SettingsError {
   key: ParseKeys<["settings", "common"]>;
   count?: number;
+  message?: string;
 }
 
 /** Store meaning and count so an already visible error follows language changes. */
@@ -35,6 +36,6 @@ export function settingsValidationMessage(
     case "settings:passwordMatch":
       return t("settings:passwordMatch");
     default:
-      return undefined;
+      return message;
   }
 }

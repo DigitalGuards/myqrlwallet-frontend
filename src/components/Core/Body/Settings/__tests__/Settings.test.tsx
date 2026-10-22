@@ -313,8 +313,16 @@ it("loads a string timeout and keeps invalid display preferences subject to form
   await waitFor(() => {
     expect(screen.getByRole("spinbutton")).toHaveProperty("value", "1");
   });
-  expect(screen.getByRole("switch", { name: /Show Tokens Card/ }).getAttribute("data-state")).toBe("checked");
-  expect(screen.getByRole("switch", { name: /Show Tokens Card/ }).getAttribute("aria-checked")).toBe("true");
+  expect(
+    screen
+      .getByRole("switch", { name: /Show Tokens Card/ })
+      .getAttribute("data-state"),
+  ).toBe("checked");
+  expect(
+    screen
+      .getByRole("switch", { name: /Show Tokens Card/ })
+      .getAttribute("aria-checked"),
+  ).toBe("true");
   fireEvent.click(screen.getByRole("switch", { name: /Show NFTs Card/ }));
   await act(async () => {
     await jest.advanceTimersByTimeAsync(200);
@@ -522,3 +530,46 @@ it("keeps PIN-change completion behind rotation and preserves its error", async 
     ),
   ).toBeTruthy();
 });
+
+it.each([
+  ["0", "Too small: expected number to be >=1"],
+  ["61", "Too big: expected number to be <=60"],
+  ["", "Invalid input: expected number, received NaN"],
+])(
+  "preserves origin/dev auto-lock validation for %s",
+  async (value, expected) => {
+    jest.useFakeTimers();
+    render(<Settings />);
+    await waitFor(() => {
+      expect(screen.getByRole("spinbutton")).toHaveProperty("value", "15");
+    });
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value } });
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(1000);
+    });
+    expect(screen.getByText(expected).textContent).toBe(expected);
+    expect(StorageUtil.setWalletSettings).not.toHaveBeenCalled();
+  },
+);
+
+it.each([
+  [
+    "PIN rotation failed and rollback could not be fully confirmed. Keep the old PIN and re-import any inaccessible account.",
+    "An unexpected error occurred while changing your PIN. Please try again.",
+  ],
+  [
+    "Device backup failed; the old PIN remains active. Details: fixture",
+    "Device backup failed; the old PIN remains active. Details: fixture",
+  ],
+])(
+  "preserves origin/dev PIN rotation error presentation (%s)",
+  async (reason, expected) => {
+    jest.spyOn(logger, "error").mockImplementation(() => undefined);
+    jest.mocked(rotateStoredSeedPin).mockRejectedValueOnce(new Error(reason));
+    render(<Settings />);
+    fireEvent.click(await screen.findByRole("button", { name: /Change PIN/ }));
+    fillPins(["123456", "654321", "654321"]);
+    fireEvent.click(screen.getByRole("button", { name: "Change PIN" }));
+    expect((await screen.findByText(expected)).textContent).toBe(expected);
+  },
+);

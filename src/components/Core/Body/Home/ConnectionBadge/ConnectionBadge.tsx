@@ -1,3 +1,4 @@
+import { networkName } from "@/i18n/networkName";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { observer } from "mobx-react-lite";
@@ -10,7 +11,9 @@ const ConnectionBadge = observer(() => {
   const { qrlStore } = useStore();
   const { isConnected, isLoading, blockchain, qrlNetworkName } =
     qrlStore.qrlConnection;
-  const network = blockchain === "MAIN_NET" ? t("mainnet") : "Testnet";
+  const fullName = networkName(qrlNetworkName, t);
+  const network =
+    blockchain === "MAIN_NET" ? t("mainnetBadge") : t("testnetBadge");
   const label = isLoading
     ? t("networkConnecting", { network })
     : !isConnected
@@ -25,8 +28,8 @@ const ConnectionBadge = observer(() => {
     return (
       <span
         className="text-muted-foreground"
-        aria-label={t("network", { network: qrlNetworkName })}
-        title={qrlNetworkName}
+        aria-label={t("network", { network: fullName })}
+        title={fullName}
       >
         {text}
       </span>
@@ -36,8 +39,8 @@ const ConnectionBadge = observer(() => {
     <Link
       to={ROUTES.SETTINGS}
       className="text-muted-foreground transition-colors hover:text-foreground"
-      aria-label={t("changeNetwork", { network: qrlNetworkName })}
-      title={qrlNetworkName}
+      aria-label={t("changeNetwork", { network: fullName })}
+      title={fullName}
     >
       {text}
     </Link>

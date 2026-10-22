@@ -3,7 +3,7 @@ import {
   pinErrorMessage,
   settingsValidationMessage,
 } from "@/i18n/pinErrorMessage";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { stringValue } from "@/utils/guards";
 import {
   PinVerificationError,
@@ -228,10 +228,17 @@ export const ExportWalletFile = observer(() => {
               className="space-y-4"
             >
               <p className="text-xs text-muted-foreground">
-                {t("settings:exportDescription")}
-                {activeAddress && (
-                  <QrlAddress address={activeAddress} revealable />
-                )}
+                <Trans
+                  t={t}
+                  i18nKey="settings:exportDescription"
+                  components={{
+                    account: activeAddress ? (
+                      <QrlAddress address={activeAddress} revealable />
+                    ) : (
+                      <span />
+                    ),
+                  }}
+                />
               </p>
 
               {pinLockout.isLocked && (

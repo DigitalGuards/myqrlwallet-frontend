@@ -123,8 +123,8 @@ const PasteConnect = observer(() => {
   }
 
   return (
-    <div className="flex w-full max-w-xl flex-wrap items-start gap-2">
-      <div className="min-w-0 flex-[1_1_12rem] space-y-1">
+    <div className="flex w-full max-w-xl items-start gap-2">
+      <div className="flex-1 space-y-1">
         <Input
           value={uri}
           onChange={(e) => {
@@ -225,7 +225,7 @@ const DAppSessionsList = observer(
                   className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/80 bg-muted/20 p-4"
                 >
                   <div className="min-w-0 space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <DAppPulsingDot status={session.status} />
                       <span className="truncate font-semibold">
                         {session.dappInfo.name}

@@ -8,7 +8,7 @@ import {
 import { useEffect, useState } from "react";
 
 function App() {
-  const languageReady = useLanguagePreference();
+  useLanguagePreference();
   const [unsupported, setUnsupported] = useState(isUnsupportedV3Context);
   useEffect(() => {
     if (
@@ -33,8 +33,6 @@ function App() {
       window.clearInterval(timer);
     };
   }, [unsupported]);
-
-  if (!languageReady) return null;
 
   if (unsupported) {
     return (

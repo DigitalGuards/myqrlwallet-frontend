@@ -38,6 +38,10 @@
   "networkConnecting": "{{network}} · VERBINDUNG WIRD HERGESTELLT",
   "networkOffline": "{{network}} · OFFLINE",
   "pinDigit": "PIN-Ziffer {{position}}",
-  "showPin": "PIN anzeigen",
-  "hidePin": "PIN ausblenden"
+  "testnet": "Testnetz",
+  "mainnetBadge": "HAUPTNETZ",
+  "testnetBadge": "TESTNETZ",
+  "mainnetFull": "QRL 2.0 Hauptnetz",
+  "testnetFull": "QRL 2.0 Testnetz",
+  "testnetV3": "QRL Testnetz v3 (Privat)"
 }

@@ -1,51 +1,37 @@
-import { useEffect, useState } from "react";
-import StorageUtil, {
-  STORAGE_EVENT_WALLET_SETTINGS,
-} from "@/utils/storage/storage";
-import { profileStorageKey } from "@/config/runtimeProfile";
+import { useEffect } from "react";
 import { logger } from "@/utils/log";
 import { applyLanguage } from "./index";
-import { detectLanguage, isLanguage } from "./languages";
+import {
+  LANGUAGE_CHANGED,
+  LANGUAGE_STORAGE_KEY,
+  readLanguagePreference,
+  saveLanguagePreference,
+} from "./preference";
 
-/** Use the same settings record and change notifications as wallet preferences. */
-export function useLanguagePreference(): boolean {
-  const [ready, setReady] = useState(false);
+/** Restore language independently of rendering and security preference expiry. */
+export function useLanguagePreference(): void {
   useEffect(() => {
-    let disposed = false;
-    const restore = async () => {
+    const restore = () => {
       try {
-        const settings = await StorageUtil.getWalletSettings();
-        if (disposed) return;
-        const language = isLanguage(settings.language)
-          ? settings.language
-          : detectLanguage(navigator.languages);
-        if (!isLanguage(settings.language))
-          await StorageUtil.setWalletSettings({ language });
-        await applyLanguage(language);
+        const language = readLanguagePreference();
+        // Persist detection, legacy migration and corruption recovery before loading.
+        saveLanguagePreference(language);
+        void applyLanguage(language).catch((error: unknown) => {
+          logger.error("Could not restore wallet language:", error);
+        });
       } catch (error) {
         logger.error("Could not restore wallet language:", error);
-      } finally {
-        if (!disposed) setReady(true);
       }
     };
-    const refresh = () => {
-      void restore();
-    };
     const onStorage = (event: StorageEvent) => {
-      if (
-        event.key === null ||
-        event.key === profileStorageKey("WALLET_SETTINGS")
-      )
-        refresh();
+      if (event.key === null || event.key === LANGUAGE_STORAGE_KEY) restore();
     };
-    refresh();
-    window.addEventListener(STORAGE_EVENT_WALLET_SETTINGS, refresh);
+    restore();
+    window.addEventListener(LANGUAGE_CHANGED, restore);
     window.addEventListener("storage", onStorage);
     return () => {
-      disposed = true;
-      window.removeEventListener(STORAGE_EVENT_WALLET_SETTINGS, refresh);
+      window.removeEventListener(LANGUAGE_CHANGED, restore);
       window.removeEventListener("storage", onStorage);
     };
   }, []);
-  return ready;
 }

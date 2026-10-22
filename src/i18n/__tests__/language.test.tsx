@@ -5,16 +5,13 @@ import {
   fireEvent,
   render,
   screen,
-  waitFor,
 } from "@testing-library/react";
 import { i18n, applyLanguage, loadLanguage, namespaces } from "../index";
 import { detectLanguage, isLanguage } from "../languages";
 import { useLanguagePreference } from "../useLanguagePreference";
 import { LanguageSettings } from "@/components/Core/Body/Settings/LanguageSettings";
-import { DeviceSettings } from "@/components/Core/Body/Settings/DeviceSettings";
+import { LANGUAGE_STORAGE_KEY, saveLanguagePreference } from "../preference";
 import { StorageUtil } from "@/utils/storage";
-import { desktopSigner } from "@/desktop/bridge";
-import { openNativeSettings } from "@/utils/nativeApp";
 
 let mockDesktop = false;
 let mockNative = false;
@@ -44,8 +41,8 @@ jest.mock("@/utils/log", () => ({
 }));
 
 function Preferences() {
-  const ready = useLanguagePreference();
-  return ready ? <LanguageSettings /> : null;
+  useLanguagePreference();
+  return <LanguageSettings />;
 }
 
 beforeEach(async () => {
@@ -120,7 +117,7 @@ it("keeps the newest language when asynchronous requests overlap", async () => {
   expect(document.documentElement.lang).toBe("zh-CN");
 });
 
-it("detects once, saves through wallet settings, changes live and restores across visits", async () => {
+it("detects once, saves separately from wallet settings, changes live and restores across visits", async () => {
   jest.spyOn(navigator, "languages", "get").mockReturnValue(["es-MX", "en"]);
   await StorageUtil.setWalletSettings({
     autoLockTimeout: 120000,
@@ -129,53 +126,36 @@ it("detects once, saves through wallet settings, changes live and restores acros
   const view = render(<Preferences />);
   await screen.findByLabelText("Idioma");
   expect(document.documentElement.lang).toBe("es");
-  expect((await StorageUtil.getWalletSettings()).language).toBe("es");
+  expect(JSON.parse(localStorage.getItem(LANGUAGE_STORAGE_KEY) ?? "null")).toBe(
+    "es",
+  );
   fireEvent.change(screen.getByRole("combobox"), { target: { value: "de" } });
   await screen.findByLabelText("Sprache");
   expect(document.documentElement.lang).toBe("de");
   expect(await StorageUtil.getWalletSettings()).toMatchObject({
-    language: "de",
     autoLockTimeout: 120000,
     showTokensCard: false,
   });
   await act(async () => {
     await StorageUtil.setWalletSettings({ showNftsCard: false });
   });
-  expect((await StorageUtil.getWalletSettings()).language).toBe("de");
+  expect(JSON.parse(localStorage.getItem(LANGUAGE_STORAGE_KEY) ?? "null")).toBe(
+    "de",
+  );
   view.unmount();
   await applyLanguage("en");
   render(<Preferences />);
   await screen.findByLabelText("Sprache");
 });
 
-it("keeps preferences after the wallet session expiry window", async () => {
-  await StorageUtil.setWalletSettings({
-    language: "ru",
-    autoLockTimeout: 180000,
-  });
-  const now = Date.now();
-  jest.spyOn(Date, "now").mockReturnValue(now + 7 * 60 * 60 * 1000);
-  expect(await StorageUtil.getWalletSettings()).toMatchObject({
-    language: "ru",
-    autoLockTimeout: 180000,
-  });
-});
-
 it("handles changes from another tab", async () => {
-  await StorageUtil.setWalletSettings({ language: "en" });
+  saveLanguagePreference("en");
   render(<Preferences />);
   await screen.findByLabelText("Language");
   act(() => {
-    localStorage.setItem(
-      "WALLET_SETTINGS",
-      JSON.stringify({
-        value: { language: "ru" },
-        timestamp: Date.now(),
-        version: "v1",
-      }),
-    );
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, JSON.stringify("ru"));
     window.dispatchEvent(
-      new StorageEvent("storage", { key: "WALLET_SETTINGS" }),
+      new StorageEvent("storage", { key: LANGUAGE_STORAGE_KEY }),
     );
   });
   await screen.findByLabelText("Язык");
@@ -183,9 +163,9 @@ it("handles changes from another tab", async () => {
 });
 
 it("keeps a failed preference write visible and retains the current language", async () => {
-  jest
-    .spyOn(StorageUtil, "setWalletSettings")
-    .mockRejectedValue(new Error("Storage unavailable"));
+  jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("Storage unavailable");
+  });
   render(<LanguageSettings />);
   fireEvent.change(screen.getByRole("combobox"), { target: { value: "de" } });
   expect((await screen.findByRole("alert")).textContent).toBe(
@@ -193,20 +173,3 @@ it("keeps a failed preference write visible and retains the current language", a
   );
   expect(i18n.language).toBe("en");
 });
-
-it.each(["mobile", "desktop"])(
-  "keeps device settings reachable on %s",
-  async (platform) => {
-    mockNative = platform === "mobile";
-    mockDesktop = platform === "desktop";
-    render(<DeviceSettings />);
-    fireEvent.click(screen.getByRole("button", { name: /Device settings/ }));
-    await waitFor(() => {
-      if (mockNative) expect(openNativeSettings).toHaveBeenCalledTimes(1);
-      else
-        expect(
-          jest.mocked(desktopSigner).openDesktopSettings.mock.calls,
-        ).toHaveLength(1);
-    });
-  },
-);

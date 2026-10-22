@@ -56,7 +56,7 @@ export default function MobileNav() {
     location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   return (
-    <nav className="md:hidden fixed bottom-0 border-t border-t-foreground/10 bg-background/85 backdrop-blur-lg w-full z-10 min-h-16 grid grid-flow-col auto-cols-fr items-stretch gap-1 px-1">
+    <nav className="md:hidden fixed bottom-0 border-t border-t-foreground/10 bg-background/85 backdrop-blur-lg w-full z-10 h-14 flex items-center justify-around px-4">
       {navItems.map((item) => {
         const active = isActive(item.path);
         return (
@@ -64,7 +64,7 @@ export default function MobileNav() {
             key={item.path}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "cursor-pointer relative flex min-w-0 flex-col justify-center items-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
+              "cursor-pointer relative flex flex-col items-center gap-0.5 text-xs font-medium transition-colors",
               active
                 ? "text-primary"
                 : "text-muted-foreground hover:text-foreground",
@@ -82,16 +82,14 @@ export default function MobileNav() {
               )}
             />
             <item.icon className="h-5 w-5" />
-            <span className="max-w-full break-words text-center leading-tight">
-              {t(item.labelKey)}
-            </span>
+            <span>{t(item.labelKey)}</span>
           </button>
         );
       })}
       {/* Hide logout button when running in native app - wallet removal is handled in native settings */}
       {!isInNativeApp() && (
         <button
-          className="cursor-pointer flex min-w-0 flex-col justify-center items-center gap-0.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="cursor-pointer flex flex-col items-center gap-0.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           onClick={onLogoutClick}
         >
           <LogOut className="h-5 w-5" />

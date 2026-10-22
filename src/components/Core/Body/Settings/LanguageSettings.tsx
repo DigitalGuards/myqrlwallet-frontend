@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Languages } from "lucide-react";
 import { languages, isLanguage } from "@/i18n/languages";
-import { applyLanguage, loadLanguage } from "@/i18n";
-import StorageUtil from "@/utils/storage/storage";
+import { applyLanguage } from "@/i18n";
+import { saveLanguagePreference } from "@/i18n/preference";
 import { SettingsIconTile } from "./SettingsList";
 
 export function LanguageSettings() {
@@ -16,8 +16,7 @@ export function LanguageSettings() {
     setPending(true);
     setFailed(false);
     try {
-      await loadLanguage(value);
-      await StorageUtil.setWalletSettings({ language: value });
+      saveLanguagePreference(value);
       await applyLanguage(value);
     } catch {
       setFailed(true);

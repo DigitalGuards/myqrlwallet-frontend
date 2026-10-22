@@ -38,6 +38,10 @@
   "networkConnecting": "{{network}} · CONECTANDO",
   "networkOffline": "{{network}} · SIN CONEXIÓN",
   "pinDigit": "Dígito {{position}} del PIN",
-  "showPin": "Mostrar PIN",
-  "hidePin": "Ocultar PIN"
+  "testnet": "Red de prueba",
+  "mainnetBadge": "RED PRINCIPAL",
+  "testnetBadge": "RED DE PRUEBA",
+  "mainnetFull": "QRL 2.0 Red principal",
+  "testnetFull": "QRL 2.0 Red de prueba",
+  "testnetV3": "QRL Red de prueba v3 (Privada)"
 }

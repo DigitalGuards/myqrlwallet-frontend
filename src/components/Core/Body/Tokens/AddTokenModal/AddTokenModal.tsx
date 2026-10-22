@@ -39,9 +39,10 @@ export const AddTokenModal = observer(
     const [tokenInfo, setTokenInfo] = useState<TokenInterface | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isAddingPicks, setIsAddingPicks] = useState(false);
-    const [error, setError] = useState<ParseKeys<["tokens", "common"]> | null>(
-      null,
-    );
+    const [error, setError] = useState<{
+      key: ParseKeys<["tokens", "common"]>;
+      reason?: string;
+    } | null>(null);
     const [selectedAddresses, setSelectedAddresses] = useState<Set<string>>(
       new Set(),
     );
@@ -98,8 +99,11 @@ export const AddTokenModal = observer(
         setSelectedAddresses(new Set());
         onClose();
       } catch (err) {
-        reportError("Failed to add selected tokens:", err);
-        setError("tokens:addFailed");
+        setError(
+          err instanceof Error
+            ? { key: "tokens:addPicksReason", reason: err.message }
+            : { key: "tokens:addPicksFailed" },
+        );
       } finally {
         setIsAddingPicks(false);
       }
@@ -114,10 +118,10 @@ export const AddTokenModal = observer(
           setTokenAddress("");
           onClose();
         } else {
-          setError("tokens:exists");
+          setError({ key: "tokens:exists" });
         }
       } else {
-        setError("tokens:invalidAddress");
+        setError({ key: "tokens:invalidAddress" });
       }
     };
 
@@ -193,15 +197,9 @@ export const AddTokenModal = observer(
           reportError("Error fetching token info", err);
           setTokenInfo(null);
           setError(
-            err instanceof Error && err.message === "Invalid token balance."
-              ? "tokens:invalidBalance"
-              : err instanceof Error &&
-                  err.message === "Invalid token metadata."
-                ? "tokens:invalidMetadata"
-                : err instanceof Error &&
-                    err.message === "Invalid token decimals."
-                  ? "tokens:invalidDecimals"
-                  : "tokens:fetchFailed",
+            err instanceof Error
+              ? { key: "tokens:fetchReason", reason: err.message }
+              : { key: "tokens:fetchFailed" },
           );
         } finally {
           if (!cancelled) setIsLoading(false);
@@ -225,7 +223,7 @@ export const AddTokenModal = observer(
               role="alert"
               className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
             >
-              {t(error)}
+              {t(error.key, { reason: error.reason })}
             </div>
           )}
 
@@ -380,8 +378,11 @@ export const AddTokenModal = observer(
               disabled={tokenAddress.length === 0 || isLoading}
               onClick={() => {
                 addToken().catch((error: unknown) => {
-                  reportError("Failed to add token:", error);
-                  setError("tokens:addFailed");
+                  setError(
+                    error instanceof Error
+                      ? { key: "tokens:addReason", reason: error.message }
+                      : { key: "tokens:addFailed" },
+                  );
                 });
               }}
             >

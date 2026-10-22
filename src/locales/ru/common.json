@@ -38,6 +38,10 @@
   "networkConnecting": "{{network}} · ПОДКЛЮЧЕНИЕ",
   "networkOffline": "{{network}} · НЕТ СОЕДИНЕНИЯ",
   "pinDigit": "Цифра PIN {{position}}",
-  "showPin": "Показать PIN",
-  "hidePin": "Скрыть PIN"
+  "testnet": "Тестовая сеть",
+  "mainnetBadge": "ОСНОВНАЯ СЕТЬ",
+  "testnetBadge": "ТЕСТОВАЯ СЕТЬ",
+  "mainnetFull": "QRL 2.0 Основная сеть",
+  "testnetFull": "QRL 2.0 Тестовая сеть",
+  "testnetV3": "QRL Тестовая сеть v3 (Частная)"
 }

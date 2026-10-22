@@ -29,7 +29,8 @@
     "test": "jest",
     "preview": "vite --config config/vite.config.ts preview",
     "smoke:boot": "node scripts/smoke-boot.mjs",
-    "smoke:i18n": "node scripts/smoke-i18n.mjs"
+    "smoke:i18n": "node scripts/smoke-i18n.mjs",
+    "smoke:i18n:embedded": "node scripts/smoke-i18n-embedded.mjs"
   },
   "dependencies": {
     "@fontsource-variable/instrument-sans": "^5.2.8",

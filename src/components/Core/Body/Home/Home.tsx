@@ -166,17 +166,14 @@ const Home = observer(() => {
                     {/* Narrow phones wrap Receive onto its own row, so
                           Transfer stays inside the card. */}
                     <CardFooter className="flex-wrap justify-end gap-2">
-                      <Link
-                        className="min-w-0 flex-[1_1_8rem]"
-                        to={ROUTES.TRANSFER}
-                      >
+                      <Link className="flex-1" to={ROUTES.TRANSFER}>
                         <Button className="w-full px-3 sm:px-4" type="button">
                           <Send className="mr-2 h-4 w-4" />
                           {t("home:transfer")}
                         </Button>
                       </Link>
                       <Button
-                        className="min-w-0 flex-[1_1_8rem] px-3 sm:px-4"
+                        className="flex-1 px-3 sm:px-4"
                         type="button"
                         variant="outline"
                         onClick={() => {
@@ -187,7 +184,7 @@ const Home = observer(() => {
                         {t("home:history")}
                       </Button>
                       <Button
-                        className="min-w-0 flex-[1_1_8rem] px-3 sm:px-4"
+                        className="flex-1 px-3 sm:px-4"
                         type="button"
                         variant="secondary"
                         onClick={() => {

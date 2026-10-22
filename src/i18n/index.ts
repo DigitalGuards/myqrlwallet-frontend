@@ -21,7 +21,7 @@ export const i18nReady = i18n.use(initReactI18next).init({
   fallbackLng: "en",
   supportedLngs: ["en", "de", "es", "ru", "zh-CN"],
   load: "currentOnly",
-  ns: namespaces,
+  ns: [...namespaces],
   defaultNS,
   initAsync: false,
   returnEmptyString: false,
@@ -36,6 +36,8 @@ const loaders = {
   "zh-CN": () => import("@/locales/zh-CN"),
 };
 
+export const CATALOG_TIMEOUT_MS = 3000;
+
 export async function loadLanguage(language: Language): Promise<void> {
   await i18nReady;
   if (
@@ -43,7 +45,19 @@ export async function loadLanguage(language: Language): Promise<void> {
     namespaces.every((ns) => i18n.hasResourceBundle(language, ns))
   )
     return;
-  const { default: resources } = await loaders[language]();
+  const catalog = loaders[language]();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error("Language catalog timed out"));
+    }, CATALOG_TIMEOUT_MS);
+  });
+  const { default: resources } = await Promise.race([
+    catalog,
+    deadline,
+  ]).finally(() => {
+    clearTimeout(timeout);
+  });
   for (const ns of namespaces)
     i18n.addResourceBundle(language, ns, resources[ns]);
 }
@@ -53,9 +67,15 @@ let languageRequest = 0;
 /** A slow earlier import cannot overwrite a more recent language choice. */
 export async function applyLanguage(language: Language): Promise<void> {
   const request = ++languageRequest;
-  await loadLanguage(language);
-  if (request !== languageRequest) return;
-  await i18n.changeLanguage(language);
+  try {
+    await loadLanguage(language);
+    if (request !== languageRequest) return;
+    await i18n.changeLanguage(language);
+  } catch (error) {
+    if (request !== languageRequest) return;
+    await i18n.changeLanguage("en");
+    throw error;
+  }
 }
 
 i18n.on("languageChanged", (language: string) => {

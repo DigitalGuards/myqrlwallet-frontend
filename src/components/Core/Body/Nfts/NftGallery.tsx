@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { stringValue } from "@/utils/guards";
 import { renderValue, toTemplateString } from "@/utils/guards";
 import { reportError } from "@/utils/reportError";
@@ -146,8 +146,8 @@ const NftGallery = observer(() => {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-3">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           {openCollection && (
             <Button
               variant="ghost"
@@ -271,7 +271,12 @@ function EmptyState({
       {discoveredCollectionCount > 0 ? (
         <div className="flex items-center gap-2 text-sm">
           <Sparkles className="h-4 w-4 text-muted-foreground/70" />
-          {t("home:foundCollections", { count: discoveredCollectionCount })}
+          <Trans
+            t={t}
+            i18nKey="home:foundCollections"
+            count={discoveredCollectionCount}
+            components={{ count: <span className="font-medium" /> }}
+          />
         </div>
       ) : (
         <div>

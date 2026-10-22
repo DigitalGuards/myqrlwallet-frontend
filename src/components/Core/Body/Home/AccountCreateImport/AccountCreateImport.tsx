@@ -65,9 +65,10 @@ const AccountCreateImport = observer(
       uri: string;
       installHint: string | null;
     } | null>(null);
-    const [mobileConnectError, setMobileConnectError] = useState<ParseKeys<
-      ["home", "common"]
-    > | null>(null);
+    const [mobileConnectError, setMobileConnectError] = useState<{
+      key: ParseKeys<["home", "common"]>;
+      reason?: string;
+    } | null>(null);
 
     // Close the pairing dialog once the store adopts the paired account (the
     // mobileConnection event wiring sets the provider on 'connect').
@@ -133,7 +134,10 @@ const AccountCreateImport = observer(
         setMobilePairing({ uri: result.uri, installHint: result.installHint });
       } catch (error) {
         logger.error("Mobile pairing failed to start:", error);
-        setMobileConnectError("home:pairingFailed");
+        setMobileConnectError({
+          key: "home:pairingFailed",
+          reason: error instanceof Error ? error.message : String(error),
+        });
       }
     };
 
@@ -145,7 +149,7 @@ const AccountCreateImport = observer(
         setMobilePairing(null);
       } catch (error) {
         logger.error("Mobile pairing cancellation failed:", error);
-        setMobileConnectError("home:cancelPairingFailed");
+        setMobileConnectError({ key: "home:cancelPairingFailed" });
       }
     };
 
@@ -206,7 +210,9 @@ const AccountCreateImport = observer(
                 </Button>
                 {mobileConnectError && (
                   <p className="text-sm text-destructive">
-                    {t(mobileConnectError)}
+                    {t(mobileConnectError.key, {
+                      reason: mobileConnectError.reason,
+                    })}
                   </p>
                 )}
               </>

@@ -35,28 +35,31 @@ const MobilePairingDialog = ({
   onNewCode,
 }: Props) => {
   const { t } = useTranslation(["home", "common", "settings"]);
-  const statusKey = (value: string) => {
+  const statusText = (value: string) => {
     switch (value) {
       case "disconnected":
-        return "home:disconnected";
+        return t("home:pairingDisconnected");
       case "connecting":
-        return "settings:connecting";
+        return t("home:pairingConnecting");
       case "waiting":
-        return "home:waiting";
+        return t("home:pairingWaiting");
       case "key_exchange":
-        return "settings:exchangingKeys";
+        return t("home:pairingKeyExchange");
       case "connected":
-        return "settings:connected";
+        return t("home:pairingConnected");
       case "reconnecting":
-        return "settings:reconnecting";
+        return t("home:pairingReconnecting");
       case "Your phone did not respond. Open MyQRLWallet on your phone and try again.":
-        return "home:mobileUnresponsive";
+        return t("home:mobileUnresponsive");
       case "This MyQRLWallet app is not yet qualified for Testnet v3. Update the app and pair again.":
-        return "home:mobileUnqualified";
+        return t("home:mobileUnqualified");
       default:
-        return "home:pairingUnknown";
+        return value;
     }
   };
+  const installUrl = installHint?.match(
+    /^MyQRLWallet app not detected\. Install it \((.*)\) or scan the code with the app on another device\.$/,
+  )?.[1];
   const [status, setStatus] = useState<string>("");
   const [hasJustCopied, setHasJustCopied] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
@@ -112,17 +115,19 @@ const MobilePairingDialog = ({
           </div>
           {installHint && (
             <p className="text-center text-sm text-yellow-200">
-              {t("home:installMobile")}
+              {installUrl
+                ? t("home:installMobile", { url: installUrl })
+                : installHint}
             </p>
           )}
           {status && (
             <p className="text-center text-xs text-muted-foreground">
-              {t(statusKey(status))}
+              {statusText(status)}
             </p>
           )}
-          <div className="flex w-full flex-wrap gap-2">
+          <div className="flex w-full gap-4">
             <Button
-              className="min-w-0 flex-[1_1_8rem]"
+              className="w-full"
               type="button"
               variant="outline"
               onClick={() => {
@@ -135,7 +140,7 @@ const MobilePairingDialog = ({
               {hasJustCopied ? t("common:copied") : t("home:copyCode")}
             </Button>
             <Button
-              className="min-w-0 flex-[1_1_8rem]"
+              className="w-full"
               type="button"
               variant="outline"
               onClick={() => {

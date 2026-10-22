@@ -9,7 +9,7 @@ name: Embedded build
 on:
   push:
     branches: [main, dev]
-    tags: ['embedded-v*']
+    tags: ["embedded-v*"]
   pull_request:
     branches: [main, dev]
 
@@ -37,8 +37,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.22.x'
-          cache: 'npm'
+          node-version: "22.22.x"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
@@ -54,6 +54,12 @@ jobs:
       # reference, or a digest that disagrees with the document.
       - name: Assert the output is self-contained
         run: npm run check:embedded
+
+      - name: Install Chromium for offline language checks
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify all embedded languages offline
+        run: npm run smoke:i18n:embedded
 
       - name: Verify the recorded digest
         working-directory: dist-embedded

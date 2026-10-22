@@ -1,4 +1,5 @@
 // Built-wallet translation and layout smoke with synthetic public data and stubbed RPC.
+import { reviewProbes } from "./i18n-review-probes.mjs";
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
@@ -46,6 +47,7 @@ try {
     if (attempt === 39) throw new Error("Preview did not start");
   }
   browser = await chromium.launch();
+  await reviewProbes(browser, origin);
   for (const language of languages) {
     const catalogs = Object.fromEntries(
       await Promise.all(
@@ -175,10 +177,42 @@ try {
             findings.push(
               `${element.tagName}: ${element.textContent?.trim().slice(0, 60)} outside viewport`,
             );
-          if (
-            ["BUTTON", "A", "SELECT"].includes(element.tagName) &&
-            element.scrollWidth > element.clientWidth + 2
-          )
+          // Absolute, aria-hidden navigation markers can extend past a button.
+          // Check the rendered text itself so decoration cannot hide real failures.
+          let clipped =
+            element.tagName === "SELECT" &&
+            element.scrollWidth > element.clientWidth + 2;
+          if (["BUTTON", "A"].includes(element.tagName)) {
+            const walker = document.createTreeWalker(
+              element,
+              NodeFilter.SHOW_TEXT,
+            );
+            while (walker.nextNode()) {
+              const node = walker.currentNode;
+              const parent = node.parentElement;
+              if (
+                !node.textContent?.trim() ||
+                !parent ||
+                parent.closest('[aria-hidden="true"], [hidden], .sr-only') ||
+                getComputedStyle(parent).visibility === "hidden"
+              )
+                continue;
+              const range = document.createRange();
+              range.selectNodeContents(node);
+              for (const textRect of range.getClientRects()) {
+                if (
+                  textRect.width &&
+                  textRect.height &&
+                  (textRect.left < rect.left - 2 ||
+                    textRect.right > rect.right + 2 ||
+                    textRect.top < rect.top - 2 ||
+                    textRect.bottom > rect.bottom + 2)
+                )
+                  clipped = true;
+              }
+            }
+          }
+          if (clipped)
             findings.push(
               `${element.tagName}: ${element.textContent?.trim().slice(0, 60)} clips content`,
             );

@@ -125,7 +125,7 @@ export const AppSidebar = observer(function AppSidebar() {
                       )}
                     >
                       <item.icon className="size-8" />
-                      <span className="block max-w-full whitespace-normal break-words text-center text-[10px] font-medium">
+                      <span className="block text-xs font-medium">
                         {t(item.labelKey)}
                       </span>
                     </SidebarMenuButton>
@@ -162,7 +162,7 @@ export const AppSidebar = observer(function AppSidebar() {
                         </span>
                       )}
                     </span>
-                    <span className="block max-w-full whitespace-normal break-words text-center text-[10px] font-medium">
+                    <span className="block text-xs font-medium">
                       {t("dapps")}
                     </span>
                   </SidebarMenuButton>
@@ -191,7 +191,7 @@ export const AppSidebar = observer(function AppSidebar() {
               >
                 <div className="flex flex-col justify-evenly items-center cursor-pointer [&>svg]:!size-8 text-muted-foreground hover:text-foreground">
                   {isDesktop ? <Lock /> : <LogOut />}
-                  <span className="block max-w-full whitespace-normal break-words text-center text-[10px] font-medium">
+                  <span className="block text-xs font-medium">
                     {isDesktop ? t("lock") : t("logout")}
                   </span>
                 </div>
