@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { logger } from "@/utils/log";
 import { applyLanguage, i18n } from "./index";
-import { isLanguage, type Language } from "./languages";
+import { detectLanguage, isLanguage, type Language } from "./languages";
 import { notifyNativeLanguage } from "./nativeLanguage";
 import {
   LANGUAGE_CHANGED,
@@ -20,16 +20,24 @@ export function useLanguagePreference(): void {
       notifyNativeLanguage(language);
     };
     const restore = () => {
+      let language: Language;
       try {
-        const language = readLanguagePreference();
+        language = readLanguagePreference();
+      } catch (error) {
+        // Unreadable storage leaves the browser language as the best choice.
+        logger.error("Could not read wallet language:", error);
+        language = detectLanguage(navigator.languages);
+      }
+      try {
         // Persist detection, legacy migration and corruption recovery before loading.
         saveLanguagePreference(language);
-        void applyLanguage(language).catch((error: unknown) => {
-          logger.error("Could not restore wallet language:", error);
-        });
       } catch (error) {
-        logger.error("Could not restore wallet language:", error);
+        // A full or blocked storage must not skip applying and signalling.
+        logger.error("Could not save wallet language:", error);
       }
+      void applyLanguage(language).catch((error: unknown) => {
+        logger.error("Could not restore wallet language:", error);
+      });
     };
     const onStorage = (event: StorageEvent) => {
       if (event.key === null || event.key === LANGUAGE_STORAGE_KEY) restore();

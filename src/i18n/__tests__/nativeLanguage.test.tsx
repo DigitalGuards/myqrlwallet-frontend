@@ -146,6 +146,28 @@ it("signals resolved English after a startup catalog failure", async () => {
   expect(setLanguage.mock.calls).toEqual([["en"]]);
   expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('"de"');
 });
+it.each(["save", "read"] as const)(
+  "applies and signals the language when storage %s fails",
+  async (failure) => {
+    desktop({ setLanguage });
+    jest.spyOn(navigator, "languages", "get").mockReturnValue(["de-DE"]);
+    const storageError = new DOMException(
+      "Storage unavailable",
+      "QuotaExceededError",
+    );
+    jest
+      .spyOn(Storage.prototype, failure === "save" ? "setItem" : "getItem")
+      .mockImplementation(() => {
+        throw storageError;
+      });
+    await act(async () => {
+      render(<Preferences />);
+      await Promise.resolve();
+    });
+    expect(i18n.language).toBe("de");
+    expect(setLanguage.mock.calls).toEqual([["de"]]);
+  },
+);
 it("isolates shell failures from renderer language changes", async () => {
   desktop({ setLanguage });
   setLanguage.mockImplementationOnce(() => {
