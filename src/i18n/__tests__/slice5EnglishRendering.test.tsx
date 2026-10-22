@@ -9,7 +9,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import type { AnchorHTMLAttributes, ReactElement } from "react";
+import type { AnchorHTMLAttributes, ComponentProps, ReactElement } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import CreateToken from "@/components/Core/Body/CreateToken/CreateToken";
 import TokenStatus from "@/components/Core/Body/CreateToken/TokenStatus";
@@ -122,6 +122,19 @@ function fixture() {
   };
 }
 let mockStore = fixture();
+// Apply real Helmet updates inside act before capturing document.title.
+jest.mock("react-helmet-async", () => {
+  const actual =
+    jest.requireActual<typeof import("react-helmet-async")>(
+      "react-helmet-async",
+    );
+  return {
+    ...actual,
+    Helmet: (props: ComponentProps<typeof actual.Helmet>) => (
+      <actual.Helmet {...props} defer={false} />
+    ),
+  };
+});
 jest.mock("@/stores/store", () => ({ useStore: () => mockStore }));
 jest.mock("mobx-react-lite", () => ({
   observer: (component: unknown) => component,
@@ -240,6 +253,7 @@ class ResizeObserverFixture {
   disconnect() {}
 }
 beforeEach(() => {
+  document.title = "";
   Object.defineProperty(globalThis, "ResizeObserver", {
     configurable: true,
     value: ResizeObserverFixture,
@@ -583,7 +597,7 @@ async function detect(standard: "ERC721" | "ERC1155" = "ERC721") {
   await show(<AddNftModal isOpen onClose={mockClose} />);
   await change(screen.getByLabelText("Contract Address"), mockContract);
 }
-it("NFT import empty", async () => {
+it("NFT import empty form", async () => {
   await show(<AddNftModal isOpen onClose={mockClose} />);
   snapshot();
 });

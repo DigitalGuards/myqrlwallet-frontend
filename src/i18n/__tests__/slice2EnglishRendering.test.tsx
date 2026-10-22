@@ -248,6 +248,7 @@ class ResizeObserverFixture {
   disconnect() {}
 }
 beforeEach(() => {
+  document.title = "";
   jest.clearAllMocks();
   localStorage.clear();
   mockNative = false;

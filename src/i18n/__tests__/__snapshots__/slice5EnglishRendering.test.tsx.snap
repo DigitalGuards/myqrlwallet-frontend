@@ -155,7 +155,7 @@ exports[`NFT detail 721 1`] = `
     ],
   ],
   "text": "Untranslated NFTCollection example (EX)BackStandardERC721Token ID42ContractQ33333333...33333333...33333333CopyDescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Wallet PINTransfer",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
     "",
@@ -239,7 +239,7 @@ exports[`NFT detail 1155 1`] = `
     ],
   ],
   "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
     "1",
@@ -324,7 +324,7 @@ exports[`NFT detail confirmed 1`] = `
     ],
   ],
   "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferTransfer confirmed. View on explorerRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
     "1",
@@ -373,7 +373,7 @@ exports[`NFT detail desktop 1`] = `
     ],
   ],
   "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
     "1",
@@ -416,7 +416,7 @@ exports[`NFT detail extension 1`] = `
     ],
   ],
   "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
     "1",
@@ -495,7 +495,7 @@ exports[`NFT detail fallback 1`] = `
     ],
   ],
   "text": "Token #42BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7TransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token #42 | MyQRLWallet",
   "values": [
     "",
     "1",
@@ -513,7 +513,7 @@ exports[`NFT detail missing 1`] = `
 {
   "labels": [],
   "text": "NFT detailsBackNFT not found in your wallet. Add it from the Home page first.",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "NFT Details | MyQRLWallet",
   "values": [],
 }
 `;
@@ -589,7 +589,7 @@ exports[`NFT detail pending 1`] = `
     ],
   ],
   "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferBroadcasting transaction…Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
     "1",
@@ -614,7 +614,7 @@ exports[`NFT detection failure non-error 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Detection failed.Contract AddressAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -632,7 +632,7 @@ exports[`NFT detection failure reason 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Detection failed: RPC detail 0xffContract AddressAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -656,7 +656,7 @@ exports[`NFT import 1155 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC1155Collection: Collection example (EX)Token IDAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
     "",
@@ -681,7 +681,7 @@ exports[`NFT import 1155 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC1155Collection: Collection example (EX)Token IDAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
     "42",
@@ -706,7 +706,7 @@ exports[`NFT import 1155-id 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC1155Collection: Collection example (EX)Token IDAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
     "",
@@ -731,7 +731,7 @@ exports[`NFT import 1155-id 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.ERC-1155 contracts need a Token ID.Contract AddressStandard: ERC1155Collection: Collection example (EX)Token IDAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
     "",
@@ -750,7 +750,7 @@ exports[`NFT import adding 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -768,7 +768,7 @@ exports[`NFT import adding 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdding…",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -786,7 +786,7 @@ exports[`NFT import detecting 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressDetecting contract standard…Add NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -804,7 +804,7 @@ exports[`NFT import detecting 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.This address doesn't look like an ERC-721 or ERC-1155 contract.Contract AddressAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -821,10 +821,10 @@ exports[`NFT import empty 1`] = `
       ],
     ],
   ],
-  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "",
   "values": [
-    "",
+    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
 }
 `;
@@ -839,15 +839,15 @@ exports[`NFT import empty 2`] = `
       ],
     ],
   ],
-  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.This account doesn't own any token in that collection.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
 }
 `;
 
-exports[`NFT import empty 3`] = `
+exports[`NFT import empty form 1`] = `
 {
   "labels": [
     [
@@ -857,10 +857,10 @@ exports[`NFT import empty 3`] = `
       ],
     ],
   ],
-  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.This account doesn't own any token in that collection.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressAdd NFT",
+  "title": "",
   "values": [
-    "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "",
   ],
 }
 `;
@@ -876,7 +876,7 @@ exports[`NFT import enumerated 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -894,7 +894,7 @@ exports[`NFT import enumerated 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -912,7 +912,7 @@ exports[`NFT import failure 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -930,7 +930,7 @@ exports[`NFT import failure 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Add failed: Storage detail 0xffContract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -954,7 +954,7 @@ exports[`NFT import manual 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: noToken IDAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
     "",
@@ -979,7 +979,7 @@ exports[`NFT import manual 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: noToken IDAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
     "42",
@@ -1004,7 +1004,7 @@ exports[`NFT import missing-id 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: noToken IDAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
     "",
@@ -1029,7 +1029,7 @@ exports[`NFT import missing-id 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.This contract doesn't expose ownership enumeration. Please enter a Token ID.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: noToken IDAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
     "",
@@ -1048,7 +1048,7 @@ exports[`NFT import no-account 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -1066,7 +1066,7 @@ exports[`NFT import no-account 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Connect an account first.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -1084,7 +1084,7 @@ exports[`NFT import non-error 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -1102,7 +1102,7 @@ exports[`NFT import non-error 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Add failed.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: yesAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
   ],
@@ -1126,7 +1126,7 @@ exports[`NFT import wrong-owner 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: noToken IDAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
     "",
@@ -1151,7 +1151,7 @@ exports[`NFT import wrong-owner 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.This account does not own that token ID.Contract AddressStandard: ERC721Collection: Collection example (EX)Owner enumeration: noToken IDAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
     "42",
@@ -1176,7 +1176,7 @@ exports[`NFT import zero 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Contract AddressStandard: ERC1155Collection: Collection example (EX)Token IDAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
     "",
@@ -1201,7 +1201,7 @@ exports[`NFT import zero 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.This account holds 0 of that token.Contract AddressStandard: ERC1155Collection: Collection example (EX)Token IDAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
     "42",
@@ -1220,7 +1220,7 @@ exports[`NFT picks adding 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (0)Contract AddressAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "",
   ],
@@ -1238,7 +1238,7 @@ exports[`NFT picks adding 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdding…Contract AddressAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "",
   ],
@@ -1256,7 +1256,7 @@ exports[`NFT picks non-error 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (0)Contract AddressAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "",
   ],
@@ -1274,7 +1274,7 @@ exports[`NFT picks non-error 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Failed to add picks.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (1)Contract AddressAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "",
   ],
@@ -1292,7 +1292,7 @@ exports[`NFT picks reason 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (0)Contract AddressAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "",
   ],
@@ -1310,7 +1310,7 @@ exports[`NFT picks reason 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Failed to add picks: Storage detail 0xffDiscovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (1)Contract AddressAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "",
   ],
@@ -1328,7 +1328,7 @@ exports[`NFT picks success 1`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (0)Contract AddressAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "",
   ],
@@ -1346,7 +1346,7 @@ exports[`NFT picks success 2`] = `
     ],
   ],
   "text": "Add NFTAdd an ERC-721 or ERC-1155 collectible to your wallet.Discovered NFT collections (2)The explorer sees these on this address. Pick the collections to add; every token you own in a picked collection lands in the gallery, and the rest stay off it.Collection 1(EX)1 item · ERC-1155 · Q33333333...33333333...33333333Collection 2(EX)2 items · ERC-1155 · Q33333333...33333333...33333333 · first 1 addedAdd Selected (0)Contract AddressAdd NFT",
-  "title": "Untranslated NFT | MyQRLWallet",
+  "title": "",
   "values": [
     "",
   ],
@@ -3655,7 +3655,7 @@ exports[`creation empty 1`] = `
 {
   "labels": [],
   "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkYou need to import an account before creating tokens.Import Account",
-  "title": "",
+  "title": "Create QRC20 Token | MyQRLWallet",
   "values": [],
 }
 `;
@@ -4873,7 +4873,7 @@ exports[`creation service Factory contract address not configured. Please set VI
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongFactory contract address not configured. Please set VITE_CUSTOMERC20FACTORY_ADDRESS.Try Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -4882,7 +4882,7 @@ exports[`creation service Factory contract not deployed at address: Q33333333333
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongFactory contract not deployed at address: Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333Try Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -4891,7 +4891,7 @@ exports[`creation service The signing seed does not match the active account 1`]
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongThe signing seed does not match the active accountTry Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -4900,7 +4900,7 @@ exports[`creation service Token creation confirmation timed out. 1`] = `
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongToken creation confirmation timed out.Try Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -4909,7 +4909,7 @@ exports[`creation service Token creation failed 1`] = `
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongToken creation failedTry Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -4918,7 +4918,7 @@ exports[`creation service TokenCreated event signature is not a 32-byte hash 1`]
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongTokenCreated event signature is not a 32-byte hashTry Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -4927,7 +4927,7 @@ exports[`creation service Transaction failed 1`] = `
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongTransaction failedTry Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -4936,7 +4936,7 @@ exports[`creation service Wallet changed while preparing token creation 1`] = `
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongWallet changed while preparing token creationTry Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5357,7 +5357,7 @@ exports[`shared service Account changed during identity verification 1`] = `
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongAccount changed during identity verificationTry Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5366,7 +5366,7 @@ exports[`shared service Network changed during identity verification 1`] = `
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongNetwork changed during identity verificationTry Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5375,7 +5375,7 @@ exports[`shared service Network identity is not configured 1`] = `
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongNetwork identity is not configuredTry Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5384,7 +5384,7 @@ exports[`shared service Testnet v3 chain identity mismatch 1`] = `
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongTestnet v3 chain identity mismatchTry Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5393,7 +5393,7 @@ exports[`shared service Testnet v3 genesis identity mismatch 1`] = `
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongTestnet v3 genesis identity mismatchTry Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5402,7 +5402,7 @@ exports[`shared service Testnet v3 network identity has not been verified 1`] = 
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongTestnet v3 network identity has not been verifiedTry Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5411,7 +5411,7 @@ exports[`shared service The network fee quoted for this transaction is far above
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongThe network fee quoted for this transaction is far above what this network normally charges, so the wallet stopped. Try again in a moment, and tell us if it keeps happening.Try Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5420,7 +5420,7 @@ exports[`shared service This account is signed by the extension wallet. Confirm 
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongThis account is signed by the extension wallet. Confirm the transfer there.Try Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5429,7 +5429,7 @@ exports[`shared service This account is signed by the paired mobile app. Confirm
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongThis account is signed by the paired mobile app. Confirm the transfer there.Try Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5438,7 +5438,7 @@ exports[`shared service Unknown error 1`] = `
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongUnknown errorTry Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5447,7 +5447,7 @@ exports[`token status creating 1`] = `
 {
   "labels": [],
   "text": "Creating TokenUntranslated TokenDeploying your token to the blockchain...",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5456,7 +5456,7 @@ exports[`token status error 1`] = `
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongNode detail <b>0xff</b>Try Again",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5465,7 +5465,7 @@ exports[`token status idle 1`] = `
 {
   "labels": [],
   "text": "Token StatusNo token creation in progress.Create Token",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5474,7 +5474,7 @@ exports[`token status success 1`] = `
 {
   "labels": [],
   "text": "Token CreatedTransaction Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaToken AddressQ333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 33NameUntranslated TokenSymbolEXDecimals18Block Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBlock Number42Network fee0.000021 QuantaDone",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
@@ -5483,7 +5483,7 @@ exports[`token status success 2`] = `
 {
   "labels": [],
   "text": "Token CreatedTransaction Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaToken AddressQ333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 333333 33NameUntranslated TokenSymbolEXDecimals18Block Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBlock Number42Network fee0.000021 QuantaDone",
-  "title": "Create QRC20 Token | MyQRLWallet",
+  "title": "Token Status | MyQRLWallet",
   "values": [],
 }
 `;
