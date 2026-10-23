@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { i18nLanguages } from "./i18n-smoke-options.mjs";
 
 // Public deterministic fixture only. Never fund this account.
 const hexSeed = `0x010000${"12".repeat(48)}`;
@@ -15,9 +16,14 @@ const network = {
 };
 const format = (template, reason) => template.replace("{{reason}}", reason);
 
-export async function nativeStorageScreens({ browser, html, output }) {
+export async function nativeStorageScreens({
+  browser,
+  html,
+  output,
+  languages = i18nLanguages,
+}) {
   const results = [];
-  for (const language of ["en", "de", "es", "ru", "zh-CN"]) {
+  for (const language of languages) {
     const c = JSON.parse(
       await readFile(`src/locales/${language}/onboarding.json`, "utf8"),
     );
@@ -302,6 +308,7 @@ export async function nativeStorageScreens({ browser, html, output }) {
     JSON.stringify(results, null, 2) + "\n",
   );
   console.log(
-    "native-storage: creation and import timeout/backup failures passed in 5 languages",
+    `native-storage: creation and import timeout/backup failures passed in ${languages.length} languages`,
   );
+  return results;
 }

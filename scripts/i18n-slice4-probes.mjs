@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { bannerVisibilityProbes } from "./i18n-banner-probes.mjs";
+import { i18nLanguages } from "./i18n-smoke-options.mjs";
 
 const rawKey =
   /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*|{{/;
@@ -95,9 +96,14 @@ export async function slice4Screens({
 }
 
 /** Standalone boot errors render before the wallet store is constructed. */
-export async function slice4NoticeProbes({ browser, origin, output }) {
+export async function slice4NoticeProbes({
+  browser,
+  origin,
+  output,
+  languages = i18nLanguages,
+}) {
   const results = [];
-  for (const language of ["en", "de", "es", "ru", "zh-CN"]) {
+  for (const language of languages) {
     const c = JSON.parse(
       await readFile(`src/locales/${language}/notices.json`, "utf8"),
     );

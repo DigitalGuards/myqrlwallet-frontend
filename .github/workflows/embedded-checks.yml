@@ -1,0 +1,134 @@
+name: Embedded checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.x"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Audit production dependencies
+        run: node scripts/audit-gate.mjs
+      - name: Build the embedded wallet
+        run: npm run build:embedded
+      - name: Assert the output is self-contained
+        run: npm run check:embedded
+      - name: Verify the recorded digest
+        working-directory: dist-embedded
+        run: sha256sum -c index.html.sha256
+      - name: Share the embedded bundle with the smoke shards
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-smoke-bundle
+          path: |
+            dist-embedded/index.html
+            dist-embedded/index.html.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  language-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [en, de, es, ru, zh-CN]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.x"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Download the embedded bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: embedded-smoke-bundle
+          path: dist-embedded
+      - name: Verify the downloaded digest
+        working-directory: dist-embedded
+        run: sha256sum -c index.html.sha256
+      - name: Install Chromium for offline language checks
+        uses: ./.github/actions/setup-chromium
+      - name: Verify the embedded language offline
+        env:
+          LANGUAGE: ${{ matrix.language }}
+          I18N_SCREENSHOT_DIR: ${{ runner.temp }}/i18n-embedded
+          I18N_REPORT_PATH: ${{ runner.temp }}/i18n-embedded-results/${{ matrix.language }}.json
+        run: npm run smoke:i18n:embedded -- --languages "$LANGUAGE"
+      - name: Upload language shard result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: i18n-embedded-${{ matrix.language }}
+          path: ${{ runner.temp }}/i18n-embedded-results/${{ matrix.language }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+  embedded:
+    needs: [build, language-smoke]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.x"
+      - name: Download all language reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: i18n-embedded-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/i18n-embedded-results
+      - name: Require the build, every shard and exact language coverage
+        if: ${{ always() }}
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          SHARDS_RESULT: ${{ needs.language-smoke.result }}
+          REPORT_DIRECTORY: ${{ runner.temp }}/i18n-embedded-results
+        run: |
+          node scripts/check-i18n-shards.mjs --suite embedded --directory "$REPORT_DIRECTORY"
+          test "$BUILD_RESULT" = success
+          test "$SHARDS_RESULT" = success
+      - name: Download the verified embedded bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: embedded-smoke-bundle
+          path: dist-embedded
+      - name: Verify the downloaded digest
+        working-directory: dist-embedded
+        run: sha256sum -c index.html.sha256
+      - name: Attest the build provenance
+        if: ${{ success() && startsWith(github.ref, 'refs/tags/embedded-v') }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist-embedded/index.html
+      - name: Upload the embedded wallet
+        uses: actions/upload-artifact@v4
+        with:
+          name: myqrlwallet-embedded
+          path: |
+            dist-embedded/index.html
+            dist-embedded/index.html.sha256
+          if-no-files-found: error

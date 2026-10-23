@@ -2,6 +2,8 @@ import { slice6Screens } from "./i18n-slice6-probes.mjs";
 import { slice5Matrix } from "./i18n-slice5-matrix.mjs";
 import { slice4Screens, slice4NoticeProbes } from "./i18n-slice4-probes.mjs";
 import { assertFullI18nCoverage } from "./i18n-coverage.mjs";
+import { i18nLanguages, smokeLanguages } from "./i18n-smoke-options.mjs";
+import { writeSmokeReport } from "./i18n-smoke-report.mjs";
 import { slice3Screens } from "./i18n-slice3-probes.mjs";
 import { slice2Screens } from "./i18n-slice2-probes.mjs";
 // Built-wallet translation and layout smoke with synthetic public data and stubbed RPC.
@@ -18,7 +20,12 @@ import assert from "node:assert/strict";
 const output = process.env.I18N_SCREENSHOT_DIR ?? join(tmpdir(), "fe-i18n");
 const origin = "http://localhost:4175";
 const address = `Q${"1".repeat(128)}`;
-const languages = ["en", "de", "es", "ru", "zh-CN"];
+const languages = smokeLanguages();
+const reportPath =
+  process.env.I18N_REPORT_PATH ?? join(output, "smoke-results.json");
+const report = { suite: "web", languages, status: "failed", results: [] };
+// Overwrite any previous success before starting work, including browser startup.
+await writeSmokeReport(reportPath, report);
 const server = spawn(
   process.execPath,
   [
@@ -55,9 +62,12 @@ try {
     if (attempt === 39) throw new Error("Preview did not start");
   }
   browser = await chromium.launch();
-  await helperRouteProbes(browser, origin);
-  await reviewProbes(browser, origin);
-  results.push(...(await slice5Matrix(browser, origin, output)));
+  // Shared probes run exactly once across the language shards.
+  if (languages.includes("en")) {
+    await helperRouteProbes(browser, origin);
+    await reviewProbes(browser, origin);
+  }
+  results.push(...(await slice5Matrix(browser, origin, output, languages)));
   for (const language of languages) {
     const catalogs = Object.fromEntries(
       await Promise.all(
@@ -327,7 +337,7 @@ try {
       ),
       `${language} catalog was absent from fetched scripts`,
     );
-    for (const other of languages.filter(
+    for (const other of i18nLanguages.filter(
       (value) => value !== "en" && value !== language,
     )) {
       const otherCatalog = JSON.parse(
@@ -460,8 +470,10 @@ try {
     });
     await context.close();
   }
-  results.push(...(await slice4NoticeProbes({ browser, origin, output })));
-  assertFullI18nCoverage(results);
+  results.push(
+    ...(await slice4NoticeProbes({ browser, origin, output, languages })),
+  );
+  assertFullI18nCoverage(results, languages);
   assert.deepEqual(
     results.filter((result) => result.problems.length),
     [],
@@ -474,6 +486,7 @@ try {
   console.log(
     `smoke-i18n: OK (${((performance.now() - started) / 1000).toFixed(1)}s, ${results.length} screenshots at 360 px, lazy loading, live switching, persistence, no page errors)`,
   );
+  report.status = "passed";
 } finally {
   console.log(
     `smoke-i18n duration: ${((performance.now() - started) / 1000).toFixed(1)}s`,
@@ -485,4 +498,9 @@ try {
     join(output, "layout-results.json"),
     JSON.stringify(results, null, 2),
   );
+  await writeSmokeReport(reportPath, {
+    ...report,
+    results,
+    durationSeconds: (performance.now() - started) / 1000,
+  });
 }

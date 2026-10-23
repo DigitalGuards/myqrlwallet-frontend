@@ -34,7 +34,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
@@ -59,6 +59,9 @@ jobs:
       - name: Run typecheck
         run: npm run typecheck
 
+      - name: Test language shard coverage checks
+        run: node --test scripts/i18n-shards.test.mjs
+
       - name: Run tests
         run: npm test -- --runInBand
 
@@ -70,17 +73,19 @@ jobs:
       # real browser; it is part of the required check that gates Dependabot
       # auto-merge on main.
       - name: Install Chromium for the boot smoke
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/setup-chromium
 
       - name: Boot smoke (serve dist, render home and create-account)
         run: npm run smoke:boot
 
-  language-smoke:
+  language-smoke-shard:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         node-version: [22.22.x]
+        language: [en, de, es, ru, zh-CN]
 
     steps:
       - name: Checkout repository
@@ -90,7 +95,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
@@ -99,15 +104,76 @@ jobs:
         run: npm run build
 
       - name: Install Chromium for the language smoke
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/setup-chromium
 
       - name: Language and phone layout smoke
-        run: npm run smoke:i18n
+        env:
+          I18N_SCREENSHOT_DIR: ${{ runner.temp }}/i18n-web
+          I18N_REPORT_PATH: ${{ runner.temp }}/i18n-web-results/${{ matrix.language }}.json
+          LANGUAGE: ${{ matrix.language }}
+        run: npm run smoke:i18n -- --languages "$LANGUAGE"
+
+      - name: Upload language shard result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: i18n-web-${{ matrix.language }}
+          path: ${{ runner.temp }}/i18n-web-results/${{ matrix.language }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+  # Keep the existing language-smoke job and its check context.
+  language-smoke:
+    needs: language-smoke-shard
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22.22.x]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Download all language reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: i18n-web-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/i18n-web-results
+      - name: Require every shard and exact language coverage
+        if: ${{ always() }}
+        env:
+          SHARDS_RESULT: ${{ needs.language-smoke-shard.result }}
+          REPORT_DIRECTORY: ${{ runner.temp }}/i18n-web-results
+        run: |
+          node scripts/check-i18n-shards.mjs --suite web --directory "$REPORT_DIRECTORY"
+          test "$SHARDS_RESULT" = success
+
+  embedded-checks:
+    uses: ./.github/workflows/embedded-checks.yml
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+  # Keep the standalone embedded check name when calling the reusable workflow.
+  embedded:
+    needs: embedded-checks
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all embedded checks
+        env:
+          EMBEDDED_RESULT: ${{ needs.embedded-checks.result }}
+        run: test "$EMBEDDED_RESULT" = success
 
   # Preserve the existing required check, including its matrix context name.
-  # Both parallel jobs must succeed before auto-merge or Docker publication.
+  # All smoke shards, coverage checks, lint/tests/build and embedded must pass.
   lint-and-build:
-    needs: [lint-test-build, language-smoke]
+    needs: [lint-test-build, language-smoke, embedded]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     strategy:
@@ -118,9 +184,11 @@ jobs:
         env:
           CHECKS_RESULT: ${{ needs.lint-test-build.result }}
           LANGUAGE_RESULT: ${{ needs.language-smoke.result }}
+          EMBEDDED_RESULT: ${{ needs.embedded.result }}
         run: |
           test "$CHECKS_RESULT" = success
           test "$LANGUAGE_RESULT" = success
+          test "$EMBEDDED_RESULT" = success
 
   docker:
     needs: lint-and-build
@@ -202,7 +270,7 @@ jobs:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: 'latest'
+          version: "latest"
 
       - name: Configure kubectl
         run: |

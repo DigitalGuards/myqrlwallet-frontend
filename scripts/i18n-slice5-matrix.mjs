@@ -3,12 +3,13 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { slice5Screens } from "./i18n-slice5-probes.mjs";
 import { assetLayoutProbes } from "./i18n-asset-layout-probes.mjs";
+import { i18nLanguages } from "./i18n-smoke-options.mjs";
 
 export async function slice5Matrix(
   browser,
   origin,
   output,
-  languages = ["en", "de", "es", "ru", "zh-CN"],
+  languages = i18nLanguages,
 ) {
   const results = [];
   const address = `Q${"1".repeat(128)}`;
@@ -120,7 +121,7 @@ export async function slice5Matrix(
           body: JSON.stringify(body),
         });
       });
-      const snapshot = async (screen) => {
+      const snapshot = async (screen, scenario) => {
         await page.evaluate(() => document.fonts.ready);
         const copy = await page.locator("body").innerText();
         const labels = await page
@@ -185,7 +186,29 @@ export async function slice5Matrix(
           fullPage: true,
           animations: "disabled",
         });
-        results.push({ language, screen, problems });
+        // These two screens are exercised in both the zero-balance and success
+        // flows. Preserve both checks within one language/screen result.
+        const previous =
+          scenario &&
+          results.find(
+            (result) =>
+              result.language === language && result.screen === screen,
+          );
+        if (previous) {
+          assert.ok(
+            !previous.scenarios.includes(scenario),
+            "Duplicate scenario",
+          );
+          previous.scenarios.push(scenario);
+          previous.problems.push(...problems);
+        } else {
+          results.push({
+            language,
+            screen,
+            problems,
+            ...(scenario ? { scenarios: [scenario] } : {}),
+          });
+        }
         if (problems.length)
           console.error(`${language}/${screen}: ${problems.join("; ")}`);
         assert.deepEqual(errors, [], `${language}/${screen}: browser errors`);

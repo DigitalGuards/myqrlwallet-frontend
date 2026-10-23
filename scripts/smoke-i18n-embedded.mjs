@@ -7,16 +7,26 @@ import { readFile, mkdir } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { nativeStorageScreens } from "./i18n-native-storage-probes.mjs";
+import { smokeLanguages } from "./i18n-smoke-options.mjs";
+import { assertEmbeddedI18nCoverage } from "./i18n-coverage.mjs";
+import { writeSmokeReport } from "./i18n-smoke-report.mjs";
 
+const languages = smokeLanguages();
 const html = await readFile("dist-embedded/index.html", "utf8");
 const output = join(
   process.env.I18N_SCREENSHOT_DIR ?? join(tmpdir(), "fe-i18n"),
   "embedded",
 );
 await mkdir(output, { recursive: true });
+const reportPath =
+  process.env.I18N_REPORT_PATH ?? join(output, "smoke-results.json");
+const results = [];
+const report = { suite: "embedded", languages, status: "failed", results };
+const started = performance.now();
+await writeSmokeReport(reportPath, report);
 const browser = await chromium.launch();
 try {
-  for (const language of ["en", "de", "es", "ru", "zh-CN"]) {
+  for (const language of languages) {
     const context = await browser.newContext({
       viewport: { width: 360, height: 800 },
       offline: true,
@@ -68,6 +78,7 @@ try {
         await page.locator("#wallet-language").inputValue(),
         language,
       );
+      results.push({ language, screen: "settings-language", problems: [] });
       for (const [name, label] of [
         ["transfer", common.send],
         ["accounts", common.wallets],
@@ -88,6 +99,7 @@ try {
           fullPage: true,
           animations: "disabled",
         });
+        results.push({ language, screen: name, problems: [] });
       }
       const onboarding = JSON.parse(
         await readFile(`src/locales/${language}/onboarding.json`, "utf8"),
@@ -154,6 +166,7 @@ try {
             fullPage: true,
             animations: "disabled",
           });
+          results.push({ language, screen: name, problems: [] });
         };
         if (path === "/create-account")
           await page
@@ -240,6 +253,7 @@ try {
           fullPage: true,
           animations: "disabled",
         });
+        results.push({ language, screen: name, problems: [] });
       };
       await slice4Screens({
         page,
@@ -250,7 +264,12 @@ try {
         full: false,
         snapshot: captureNew,
       });
-      await slice6Screens({ page, catalogs, snapshot: captureNew, embedded: true });
+      await slice6Screens({
+        page,
+        catalogs,
+        snapshot: captureNew,
+        embedded: true,
+      });
       await slice5Screens({
         page,
         origin: "https://wallet.example",
@@ -266,10 +285,28 @@ try {
       await context.close();
     }
   }
-  await nativeStorageScreens({ browser, html, output });
-  console.log(
-    "smoke-i18n-embedded: 5 languages rendered offline, zero external executable requests or page errors",
+  const nativeResults = await nativeStorageScreens({
+    browser,
+    html,
+    output,
+    languages,
+  });
+  results.push(
+    ...nativeResults.map(({ language, flow, scenario }) => ({
+      language,
+      screen: `${flow}-${scenario}`,
+      problems: [],
+    })),
   );
+  assertEmbeddedI18nCoverage(results, languages);
+  console.log(
+    `smoke-i18n-embedded: ${languages.length} languages rendered offline, zero external executable requests or page errors`,
+  );
+  report.status = "passed";
 } finally {
   await browser.close();
+  await writeSmokeReport(reportPath, {
+    ...report,
+    durationSeconds: (performance.now() - started) / 1000,
+  });
 }
