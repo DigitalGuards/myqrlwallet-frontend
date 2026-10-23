@@ -491,6 +491,45 @@ it("updates a consent error and requires its translated review without another c
     expect(button.hasAttribute("disabled")).toBe(false);
   }
 });
+
+it.each(["en", "de", "es", "ru", "zh-CN"] as const)(
+  "preserves the review's external relay diagnostic in %s consent",
+  async (language) => {
+    await applyLanguage(language);
+    const external =
+      "Invalid input: expected relay authorization token, received diagnostic-id-17";
+    mockStore.dappConnectStore.desktopConnectUri = "qrlconnect://?q=fixture";
+    mockConnect.mockResolvedValue({ success: false, error: external });
+    await show(<DAppConnectConsentModal />);
+    await click(i18n.getFixedT(language, "settings")("connect"));
+    expect(screen.getByRole("alert").textContent).toBe(external);
+    expect(screen.getByRole("dialog")).toBeDefined();
+    expect(mockConnect).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each(["en", "de", "es", "ru", "zh-CN"] as const)(
+  "renders the review's 12000-prefix relay error in %s consent",
+  async (language) => {
+    await applyLanguage(language);
+    const prefix = "Message signing failed: ";
+    const remainder = prefix.repeat(11999) + "external relay error";
+    const external = prefix + remainder;
+    mockStore.dappConnectStore.desktopConnectUri = "qrlconnect://?q=fixture";
+    mockConnect.mockResolvedValue({ success: false, error: external });
+    await show(<DAppConnectConsentModal />);
+    await click(i18n.getFixedT(language, "settings")("connect"));
+    const displayed = screen.getByRole("alert").textContent;
+    expect(displayed).toBe(
+      i18n.getFixedT(language, "dapps")("messageSigningFailed", {
+        reason: "",
+      }) + remainder,
+    );
+    if (language === "en") expect(displayed).toBe(external);
+    expect(screen.getByRole("dialog")).toBeDefined();
+    expect(mockConnect).toHaveBeenCalledTimes(1);
+  },
+);
 it.each(["en", "de", "es", "ru", "zh-CN"] as const)(
   "keeps full typed paths and invisible signed bytes in %s",
   async (language) => {

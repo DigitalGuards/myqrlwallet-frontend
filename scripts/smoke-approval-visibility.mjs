@@ -20,6 +20,7 @@ import {
   roundTwoFixtures,
 } from "./approval-fixtures.mjs";
 import { measureParity } from './approval-parity.mjs';
+import { relayErrorProbes } from './approval-relay-error-probes.mjs';
 
 const port = process.env.APPROVAL_PORT || '4176';
 const origin = `http://localhost:${port}`;
@@ -961,6 +962,9 @@ try {
   assert.deepEqual(await page.evaluate(() => window.__reviewProbeViolations), [],
     "An action enabled with unseen content during the probe");
   assert(results.length > 0 || checksOnly || parityOnly, "No probe cases selected");
+  const relayErrors = !baseline && !caseFilter && !checksOnly && !parityOnly
+    ? await relayErrorProbes({ origin, language, output })
+    : [];
   const durationSeconds = (Date.now() - started) / 1000;
   await writeFile(
     join(output, baseline ? "english-base.json" : "results.json"),
@@ -976,6 +980,7 @@ try {
         overflowControls,
         queuedReviews,
         chainChecks,
+        relayErrors,
         results,
       },
       null,

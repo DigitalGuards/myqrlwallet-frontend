@@ -63,7 +63,7 @@ it("covers the wallet-owned schema literals without translating field paths", as
     }
   }
 });
-it("translates actual schema shape failures while retaining types, field names and bounds", async () => {
+it("keeps schema shape diagnostics verbatim except for closed literals and wallet prefixes", async () => {
   const address = `Q${"1".repeat(128)}`;
   const payload = {
     types: { QRLDomain: [{ name: "name", type: "string" }] },
@@ -105,7 +105,16 @@ it("translates actual schema shape failures while retaining types, field names a
     await applyLanguage(language);
     for (const message of messages) {
       const result = dappMessage(message, translator());
-      if (language === "en") expect(result).toBe(message);
+      const covered =
+        [
+          "Invalid input",
+          "Invalid key in record",
+          "field name required",
+          "struct must have ≥1 field",
+        ].includes(message) ||
+        message.startsWith("Unrecognized key: ") ||
+        message.startsWith("Unrecognized keys: ");
+      if (language === "en" || !covered) expect(result).toBe(message);
       else expect(result).not.toBe(message);
       for (const token of [
         "Exact field: 名字",
@@ -119,7 +128,7 @@ it("translates actual schema shape failures while retaining types, field names a
     }
   }
 });
-it("translates encoder failures from real malformed typed-data payloads", async () => {
+it("translates closed encoder errors and leaves dynamic multi-part diagnostics verbatim", async () => {
   const base: TypedDataPayload = {
     types: {
       QRLDomain: [{ name: "name", type: "string" }],
@@ -195,7 +204,13 @@ it("translates encoder failures from real malformed typed-data payloads", async 
     await applyLanguage(language);
     for (const message of messages) {
       const translated = dappMessage(message, translator());
-      if (language === "en") expect(translated).toBe(message);
+      const opaque = [
+        "unknown field in ",
+        "invalid field name in ",
+        "invalid uint256 string: ",
+        'QRLDomain field "',
+      ].some((prefix) => message.startsWith(prefix));
+      if (language === "en" || opaque) expect(translated).toBe(message);
       else expect(translated).not.toBe(message);
       for (const raw of ["exact\nfield: tail", "1\n2"])
         if (message.includes(raw)) expect(translated).toContain(raw);
