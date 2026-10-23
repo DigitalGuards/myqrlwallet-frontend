@@ -99,7 +99,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: i18n-embedded-*
-          merge-multiple: true
+          merge-multiple: false
           path: ${{ runner.temp }}/i18n-embedded-results
       - name: Require the build, every shard and exact language coverage
         if: ${{ always() }}

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import requiredScreens from "./i18n-required-screens.json" with { type: "json" };
-import embeddedScreens from "./i18n-required-embedded-screens.json" with { type: "json" };
 import { i18nLanguages } from "./i18n-smoke-options.mjs";
 import { assertSmokeResultSchema } from "./i18n-report-schema.mjs";
+import { requiredI18nPairs } from "./i18n-required-matrix.mjs";
+export { requiredI18nPairs } from "./i18n-required-matrix.mjs";
 
 /** Keep the complete reviewed matrix mandatory, including every language. */
 export function assertFullI18nCoverage(results, languages = i18nLanguages) {
@@ -13,28 +13,10 @@ export function assertEmbeddedI18nCoverage(results, languages = i18nLanguages) {
   return assertI18nCoverage(results, requiredI18nPairs("embedded", languages));
 }
 
-export function requiredI18nPairs(suite, languages = i18nLanguages) {
-  assert.ok(
-    ["web", "embedded"].includes(suite),
-    `Unknown smoke suite: ${suite}`,
-  );
-  return languages.flatMap((language) => {
-    assert.ok(
-      i18nLanguages.includes(language),
-      `Unknown language: ${language}`,
-    );
-    const screens =
-      suite === "web"
-        ? requiredScreens
-        : [...embeddedScreens.common, ...embeddedScreens.byLanguage[language]];
-    return screens.map((screen) => ({ language, screen }));
-  });
-}
-
 export function assertI18nCoverage(results, requiredPairs) {
   assert.ok(Array.isArray(results), "Expected an array of smoke results");
   results.forEach((result, index) =>
-    assertSmokeResultSchema(result, `results[${index}]`),
+    assertSmokeResultSchema(result, `results[${index}]`, requiredPairs),
   );
   const key = ({ language, screen }) => `${language}/${screen}`;
   const expected = new Set(requiredPairs.map(key));

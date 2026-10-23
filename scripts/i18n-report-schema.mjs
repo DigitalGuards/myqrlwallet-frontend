@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { i18nLanguages } from "./i18n-smoke-options.mjs";
+import { requiredI18nPairs } from "./i18n-required-matrix.mjs";
 
 function exactFields(value, fields, label) {
   assert.ok(
@@ -19,7 +20,7 @@ function stringList(value, label) {
     assert.equal(typeof item, "string", `${label}: expected string entries`);
 }
 
-export function assertSmokeResultSchema(result, label) {
+export function assertSmokeResultSchema(result, label, requiredPairs) {
   exactFields(
     result,
     ["language", "screen", "pass", "fail", "problems", "scenarios"],
@@ -60,6 +61,19 @@ export function assertSmokeResultSchema(result, label) {
     new Set(result.scenarios).size,
     result.scenarios.length,
     `${label}: duplicate scenarios`,
+  );
+  const expected = requiredPairs.find(
+    ({ language, screen }) =>
+      language === result.language && screen === result.screen,
+  );
+  assert.ok(
+    expected,
+    `Unexpected language/screen pair: ${result.language}/${result.screen}`,
+  );
+  assert.deepEqual(
+    [...result.scenarios].sort(),
+    [...expected.scenarios].sort(),
+    `${label}: wrong scenario set for ${result.language}/${result.screen}`,
   );
 }
 
@@ -102,7 +116,12 @@ export function assertShardReportSchema(report, suite, language) {
     Array.isArray(report.results),
     `${label}.results: expected an array`,
   );
+  const requiredPairs = requiredI18nPairs(suite, [language]);
   report.results.forEach((result, index) =>
-    assertSmokeResultSchema(result, `${label}.results[${index}]`),
+    assertSmokeResultSchema(
+      result,
+      `${label}.results[${index}]`,
+      requiredPairs,
+    ),
   );
 }

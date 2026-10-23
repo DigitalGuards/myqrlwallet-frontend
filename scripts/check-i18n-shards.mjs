@@ -9,24 +9,41 @@ import { assertShardReportSchema } from "./i18n-report-schema.mjs";
 
 export async function checkI18nShards(directory, suite) {
   const requiredPairs = requiredI18nPairs(suite);
-  const expectedFiles = i18nLanguages
-    .map((language) => `${language}.json`)
+  const expectedArtifacts = i18nLanguages
+    .map((language) => `i18n-${suite}-${language}`)
     .sort();
+  const artifacts = await readdir(directory, { withFileTypes: true });
   assert.deepEqual(
-    (await readdir(directory)).sort(),
-    expectedFiles,
-    "Expected exactly one report file per language; a shard is missing or unexpected",
+    artifacts.map((entry) => entry.name).sort(),
+    expectedArtifacts,
+    "Expected exactly one artifact directory per language; an artifact is missing or unexpected",
   );
-  const results = [];
+  for (const artifact of artifacts)
+    assert.ok(
+      artifact.isDirectory(),
+      `${artifact.name}: expected an artifact directory`,
+    );
+  const reports = [];
   for (const language of i18nLanguages) {
+    const artifact = `i18n-${suite}-${language}`;
+    const artifactDirectory = join(directory, artifact);
+    const files = await readdir(artifactDirectory, { withFileTypes: true });
+    assert.deepEqual(
+      files.map((entry) => entry.name),
+      [`${language}.json`],
+      `${artifact}: expected exactly one report named ${language}.json`,
+    );
+    assert.ok(files[0].isFile(), `${artifact}: expected a regular report file`);
     const report = JSON.parse(
-      await readFile(join(directory, `${language}.json`), "utf8"),
+      await readFile(join(artifactDirectory, `${language}.json`), "utf8"),
     );
     assertShardReportSchema(report, suite, language);
     assert.equal(report.status, "passed", `${language}: shard did not pass`);
     assertI18nCoverage(report.results, requiredI18nPairs(suite, [language]));
-    results.push(...report.results);
+    reports.push(report);
   }
+  // Combine only after every artifact and its own report have passed.
+  const results = reports.flatMap((report) => report.results);
   const count = assertI18nCoverage(results, requiredPairs);
   console.log(
     `i18n-shards: ${suite}: all ${i18nLanguages.length} shards passed; ${count} required pairs covered exactly once`,

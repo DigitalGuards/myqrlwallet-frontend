@@ -60,7 +60,7 @@ jobs:
         run: npm run typecheck
 
       - name: Test language shard coverage checks
-        run: node --test scripts/i18n-shards.test.mjs scripts/i18n-coverage.test.mjs
+        run: node --test scripts/i18n-report-schema.test.mjs scripts/i18n-shards.test.mjs scripts/i18n-coverage.test.mjs
 
       - name: Run tests
         run: npm test -- --runInBand
@@ -144,7 +144,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: i18n-web-*
-          merge-multiple: true
+          merge-multiple: false
           path: ${{ runner.temp }}/i18n-web-results
       - name: Require every shard and exact language coverage
         if: ${{ always() }}
