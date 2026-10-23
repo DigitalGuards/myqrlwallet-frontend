@@ -26,6 +26,7 @@ import { Loader, Plus } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { minUtf16Length } from "@/utils/zodLength";
 import {
   encryptSeedAsync,
   decryptStoredSeedAsync,
@@ -47,7 +48,7 @@ import { DeviceCredentialRecovery } from "../../PinSetup/DeviceCredentialRecover
 // Password must match WalletEncryptionUtil.validatePassword() requirements
 const passwordValidation = z
   .string()
-  .min(8, "onboarding:passwordMin")
+  .superRefine(minUtf16Length(8, "onboarding:passwordMin"))
   .regex(/[A-Z]/, "onboarding:passwordUpper")
   .regex(/[a-z]/, "onboarding:passwordLower")
   .regex(/\d/, "onboarding:passwordNumber")

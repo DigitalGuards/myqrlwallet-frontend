@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
-// Error text oracle captured from origin/dev at b7a0fac72ace1f3c393c6335499df1fd1d1c0366.
+// Error text oracle starts from origin/dev at b7a0fac72ace1f3c393c6335499df1fd1d1c0366.
+// Tuple diagnostics reflect the Zod 4.6.7 upgrade.
 // All languages must match its rendered English bytes. External calls are stubbed.
 import {
   act,

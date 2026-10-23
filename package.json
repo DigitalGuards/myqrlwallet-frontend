@@ -11,6 +11,9 @@
     "@theqrl/mldsa87": "2.2.0",
     "@theqrl/wallet.js": "$@theqrl/wallet.js",
     "@theqrl/qrl-cryptography": "0.3.3",
+    "@theqrl/web3-validator": {
+      "zod": "$zod"
+    },
     "@tailwindcss/typography": {
       "postcss-selector-parser": "7.1.6"
     }

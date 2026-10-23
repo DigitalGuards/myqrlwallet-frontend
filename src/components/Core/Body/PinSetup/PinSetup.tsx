@@ -23,6 +23,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { minUtf16Length } from "@/utils/zodLength";
 import {
   encryptSeedAsync,
   decryptStoredSeedAsync,
@@ -40,7 +41,7 @@ import { logger } from "@/utils/log";
 // Password must match the signer's policy; same regex the create form uses.
 const passwordValidation = z
   .string()
-  .min(8, "onboarding:passwordMin")
+  .superRefine(minUtf16Length(8, "onboarding:passwordMin"))
   .regex(/[A-Z]/, "onboarding:passwordUpper")
   .regex(/[a-z]/, "onboarding:passwordLower")
   .regex(/\d/, "onboarding:passwordNumber")
