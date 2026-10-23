@@ -3,6 +3,16 @@ import { hexToBytes } from '@/utils/signing';
 const UNSAFE_VISUAL_CONTROL_PATTERN =
   /[\u061c\u180e\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/u;
 
+/** Plain whitespace collapses to an empty line in the base message layout. */
+export function isWhitespaceMessage(hex: string): boolean {
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(hexToBytes(hex));
+    return /^[\t\n\r ]+$/u.test(text);
+  } catch {
+    return false;
+  }
+}
+
 export function tryDecodeUtf8(hex: string):
   | { ok: true; text: string }
   | {

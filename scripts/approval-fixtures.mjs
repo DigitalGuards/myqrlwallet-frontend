@@ -133,6 +133,67 @@ export function adversarialFixtures() {
   ];
 }
 
+// Round 2 review reproductions. Both typed payloads pass ingress and have
+// distinct signing digests despite their formerly identical flattened text.
+export function collisionFixtures() {
+  return [false, true].map((second) => {
+    const approval = fixture('qrl_signTypedData');
+    const payload = approval.params[1];
+    payload.types.Review = [{ name: 'prefix', type: 'string' }, { name: 'order', type: 'Order' }];
+    payload.types.Order = second ? [{ name: 'a1b', type: 'uint256' }]
+      : [{ name: 'a', type: 'uint256' }, { name: 'b', type: 'uint256' }];
+    payload.message = { prefix: 'Visible review context '.repeat(150), order: second ? { a1b: 23 } : { a: 1, b: 23 } };
+    return approval;
+  });
+}
+
+export function roundTwoFixtures() {
+  return [
+    ...[2, 4].map((length) => {
+      const approval = fixture('qrl_signTypedData');
+      approval.params[1].types.Review = [{ name: 'items', type: 'uint256[]' }];
+      approval.params[1].message = { items: Array.from({ length }, (_, i) => String(i + 1)) };
+      return { name: `typed-array-${length}`, approval };
+    }),
+    ...['record', 'first-level-array'].map((kind) => {
+      const approval = fixture('qrl_signTypedData');
+      approval.params[1].types.Review = [{ name: 'order', type: 'Order' }];
+      approval.params[1].types.Order = [{ name: 'count', type: kind === 'record' ? 'uint256' : 'uint256[]' }];
+      approval.params[1].message = { order: { count: kind === 'record' ? '1' : ['1', '2'] } };
+      return { name: `typed-${kind}`, approval };
+    }),
+    ...[['soft-hyphen', '\u00ad'], ['grapheme-joiner', '\u034f'], ['variation-selector', '\ufe0f'], ['hangul-filler', '\u3164']].map(([name, text]) => {
+      const approval = fixture('qrl_signMessage');
+      approval.dappInfo.name = text;
+      return { name, approval };
+    }),
+  ];
+}
+
+export function parityFixtures() {
+  return [
+    ...methods.flatMap((method) => [false, true].map((maximal) => ({
+      name: `${method}-${maximal ? 'max' : 'short'}`, approval: fixture(method, maximal), maximal,
+    }))),
+    ...adversarialFixtures(),
+    ...roundTwoFixtures(),
+    ...collisionFixtures().map((approval, i) => ({ name: `queued-collision-${i + 1}`, approval })),
+    ...['message', 'identity', 'chain-warning', 'switch-chain-id'].map((kind) => {
+      const method = kind === 'switch-chain-id' ? 'wallet_switchQrlChain'
+        : kind === 'chain-warning' ? 'qrl_signTypedData' : 'qrl_signMessage';
+      const approval = fixture(method);
+      if (kind === 'message') approval.params[1] = `0x${'6869'.repeat(512)}`;
+      else if (kind === 'identity') approval.dappInfo.url = `https://changed.example/${'a'.repeat(300)}`;
+      else if (kind === 'switch-chain-id') approval.params[0].chainId = `0x${'fF'.repeat(32)}`;
+      else approval.params[1].domain.chainId = '1';
+      return { name: `changed-${kind}`, approval };
+    }),
+    ...['qrl_signMessage', 'qrl_requestAccounts', 'wallet_addQrlChain', 'wallet_switchQrlChain'].map((method) => ({
+      name: `${method}-empty`, approval: fixture(method), empty: true,
+    })),
+  ];
+}
+
 export function consentURI(maximal = false) {
   const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
   const bytes = Buffer.concat([Buffer.from("PQP3"), Buffer.alloc(80, 1)]);

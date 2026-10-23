@@ -71,6 +71,30 @@ afterAll(() => {
 });
 
 describe("dApp approval review fidelity", () => {
+  it.each([2, 4])('preserves the base elements and classes for a shallow %i-item array', (length) => {
+    const payload = typedPayload('unused', '11');
+    payload.types['Payload'] = [{ name: 'items', type: 'uint256[]' }];
+    payload.message = { items: Array.from({ length }, (_, i) => String(i + 1)) };
+    const { container } = render(<DAppTypedDataReview payload={payload} />);
+    expect(screen.getByText('items').parentElement?.className).toBe('grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2');
+    expect(container.querySelector('ul')?.className).toBe('space-y-1 border-l border-border pl-2');
+    for (const row of container.querySelectorAll('li')) expect(row.className).toBe('flex gap-2');
+    expect(container.querySelector('.review-tree-entry')).toBeNull();
+  });
+
+  it('preserves the base shallow record grid and starts stacked full paths at depth 2', () => {
+    const payload = typedPayload('1', '11');
+    const { container, rerender } = render(<DAppTypedDataReview payload={payload} />);
+    const row = screen.getByText('value').parentElement;
+    expect(row?.className).toBe('grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2');
+    expect(row?.parentElement?.className).toBe('mt-1 space-y-1 border-l border-border pl-2');
+    expect(container.querySelector('.review-tree-entry')).toBeNull();
+    payload.message = { nested: { child: { child: { value: '1' } } } };
+    rerender(<DAppTypedDataReview payload={payload} />);
+    expect(screen.getByText('nested.child.child.value').parentElement?.className).toBe('review-tree-entry');
+    expect(screen.getAllByText('child').every((label) => label.parentElement?.className.startsWith('grid '))).toBe(true);
+  });
+
   it.each(["1", "0x1", 1, 1n])("warns when signed chain %s differs from the wallet chain", (chainId) => {
     const payload = typedPayload("chain warning", "11");
     payload.types["QRLDomain"] = [

@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { canonicalTypedDataReview, escapeVisualControls } from './typedDataReview';
 import { isArray, isRecord } from '@/utils/guards';
+import { reviewValueKey } from './reviewIdentity';
 import type { TypedDataPayload } from '@/utils/signing';
 
 interface DAppTypedDataReviewProps {
@@ -37,7 +38,7 @@ function renderValue(value: unknown, path: string, depth = 0): React.ReactNode {
         {value.map((item, i) => {
           const itemPath = `${path}[${i}]`;
           return (
-            <li key={i} className="review-tree-entry">
+            <li key={i} className={depth < 2 ? 'flex gap-2' : 'review-tree-entry'}>
               <span className={depth < 2 ? 'shrink-0 whitespace-nowrap text-muted-foreground' : 'text-muted-foreground'}>
                 {depth < 2 ? `[${i}]` : itemPath}
               </span>
@@ -54,7 +55,7 @@ function renderValue(value: unknown, path: string, depth = 0): React.ReactNode {
         {Object.entries(value).map(([k, v]) => {
           const fieldPath = `${path}.${k}`;
           return (
-            <div key={k} className="review-tree-entry">
+            <div key={k} className={depth < 2 ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2' : 'review-tree-entry'}>
               <span className="text-muted-foreground">{depth < 2 ? k : fieldPath}</span>
               <span className="min-w-0 text-right">{renderValue(v, fieldPath, depth + 1)}</span>
             </div>
@@ -96,16 +97,14 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
     connectedChain !== undefined && domainChain !== connectedChain;
 
   return (
-    <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm [overflow-wrap:anywhere]">
+    <div className="review-typed-data space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm [overflow-wrap:anywhere]">
       <div className="space-y-1">
         <div data-review-block className="mb-2 text-xs text-muted-foreground">Signed domain</div>
         {domainFields.map((field) => (
           <div
             key={field.name}
-            data-review-block data-review-value={field.type}
-            className={isArray(domain[field.name]) || isRecord(domain[field.name])
-              ? 'review-tree-entry text-xs'
-              : 'grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2 text-xs'}
+            data-review-block data-review-value={reviewValueKey([field, payload.types, domain[field.name]])}
+            className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2 text-xs"
           >
             <span className="text-muted-foreground">{field.name}</span>
             <span className="min-w-0 text-right">{renderValue(domain[field.name], field.name)}</span>
@@ -135,10 +134,8 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
         {messageFields.map((field) => (
           <div
             key={field.name}
-            data-review-block data-review-value={field.type}
-            className={isArray(message[field.name]) || isRecord(message[field.name])
-              ? 'review-tree-entry'
-              : 'grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2'}
+            data-review-block data-review-value={reviewValueKey([field, payload.types, message[field.name]])}
+            className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2"
           >
             <span className="text-muted-foreground">{field.name}</span>
             <span className="min-w-0 text-right">{renderValue(message[field.name], field.name)}</span>

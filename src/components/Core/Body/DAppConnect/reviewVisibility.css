@@ -23,7 +23,7 @@
   min-height: 128px;
 }
 
-/* Compound values use the full row. Indentation stops after two levels. */
+/* Only deep compound rows stack. Shallow grids/flex rows retain their layout. */
 .review-tree-entry {
   display: block;
 }
@@ -31,4 +31,26 @@
 .review-tree-entry > span {
   display: block;
   text-align: left;
+}
+
+/* At 200% browser zoom on a narrow phone, retain space for whole glyphs in
+   the two shallow columns. Normal fitted layouts keep the original spacing. */
+@media (max-width: 240px) {
+  .review-typed-data {
+    padding: 0.5rem;
+  }
+
+  .review-typed-data .grid {
+    column-gap: 0.25rem;
+  }
+
+  .review-typed-data li.flex {
+    gap: 0.25rem;
+  }
+
+  .review-typed-data li.flex > span:first-child {
+    min-width: 0;
+    flex-shrink: 1;
+    white-space: normal;
+  }
 }

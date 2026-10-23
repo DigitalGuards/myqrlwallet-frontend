@@ -5,6 +5,7 @@
 import { formatQuantaValue } from "@/utils/formatting";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 import { isDesktop } from "@/desktop/bridge";
+import { reviewValueKey } from "./reviewIdentity";
 
 interface TransactionReviewProps {
   params: Record<string, unknown>;
@@ -54,7 +55,7 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
 
   return (
     <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm">
-      <div data-review-block className="flex justify-between">
+      <div data-review-block data-review-value={reviewValueKey(params['from'])} className="flex justify-between">
         <span className="text-muted-foreground">From</span>
         {from === "Unknown" ? (
           <span className="text-xs">Unknown</span>
@@ -67,7 +68,7 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
           />
         )}
       </div>
-      <div data-review-block className="flex justify-between">
+      <div data-review-block data-review-value={reviewValueKey(params['to'])} className="flex justify-between">
         <span className="text-muted-foreground">To</span>
         {to === "Unknown" ? (
           <span className="text-xs">Unknown</span>
@@ -80,12 +81,12 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
           />
         )}
       </div>
-      <div data-review-block data-review-value={value} className="flex justify-between gap-2">
+      <div data-review-block data-review-value={reviewValueKey(params['value'])} className="flex justify-between gap-2">
         <span className="text-muted-foreground">Value</span>
         <span className="font-numeric font-semibold">{displayValue}</span>
       </div>
       {gas != null && (
-        <div data-review-block className="flex justify-between gap-2">
+        <div data-review-block data-review-value={reviewValueKey(gas)} className="flex justify-between gap-2">
           {/* On desktop the shell resolves max(this value, its own buffered
               estimate), so the number the dApp asked for is a floor. The web
               and mobile paths sign the requested limit as given. */}

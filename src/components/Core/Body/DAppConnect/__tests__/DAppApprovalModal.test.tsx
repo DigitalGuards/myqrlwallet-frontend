@@ -91,7 +91,7 @@ jest.mock("@/utils/signing", () => {
   );
 });
 
-function request(method: string, id = 1): PendingDAppRequest {
+function request(method: string, id: string | number = 1): PendingDAppRequest {
   const params =
     method === "qrl_signTypedData"
       ? [
@@ -329,6 +329,101 @@ describe("network request details", () => {
 });
 
 describe('visibility gate', () => {
+  function collisionRequest(second: boolean, id: string | number) {
+    const pending = request('qrl_signTypedData', id);
+    pending.params = [address, {
+      types: {
+        QRLDomain: [{ name: 'name', type: 'string' }, { name: 'chainId', type: 'uint256' }],
+        Review: [{ name: 'prefix', type: 'string' }, { name: 'order', type: 'Order' }],
+        Order: second ? [{ name: 'a1b', type: 'uint256' }]
+          : [{ name: 'a', type: 'uint256' }, { name: 'b', type: 'uint256' }],
+      },
+      primaryType: 'Review',
+      domain: { name: 'Example', chainId: '3151909' },
+      message: { prefix: 'Visible review context '.repeat(150), order: second ? { a1b: 23 } : { a: 1, b: 23 } },
+    }];
+    return pending;
+  }
+
+  it.each(['1', 1, 'other'])('starts fresh after rejecting a queued collision request with ID %p', async (id) => {
+    visibility.hold();
+    mockDesktop = false;
+    const first = collisionRequest(false, 1);
+    const second = collisionRequest(true, id);
+    RequestHandler.validateRestrictedRequest(first.method, first.params);
+    RequestHandler.validateRestrictedRequest(second.method, second.params);
+    const signing = await import('@/utils/signing');
+    const digest = (pending: PendingDAppRequest) => signing.computeTypedDataDigest(signing.SignTypedDataParamsSchema.parse(pending.params)[1]);
+    expect(digest(first)).not.toEqual(digest(second));
+    await showApproval(first.method, first.params);
+    act(() => { visibility.emit(); });
+    expect(screen.getByRole('button', { name: 'Approve' }).hasAttribute('disabled')).toBe(false);
+    const oldTargets = visibility.targets;
+    // The real store queue rejects numeric 1 independently of string "1".
+    // Reuse of the same envelope ID is also a fresh review object.
+    if (id === 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Reject' }));
+      act(() => {
+        mockDappStore.pendingRequests = [second];
+        mockDappStore.currentApproval = second;
+        mockDappStore.approvalModalOpen = true;
+      });
+    } else {
+      act(() => { mockDappStore.pendingRequests.push(second); });
+      fireEvent.click(screen.getByRole('button', { name: 'Reject' }));
+    }
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    expect(mockDappStore.currentApproval?.id).toBe(id);
+    act(() => { visibility.emitQueued(oldTargets); });
+    expect(screen.getByRole('button', { name: 'Approve' }).hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    expect(screen.queryByText('Please enter your PIN')).toBeNull();
+    expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+    act(() => { visibility.emit(); });
+    await approve();
+    expect(screen.getByText('Please enter your PIN')).toBeTruthy();
+  });
+
+  it('re-gates a colliding typed subtree edited in place, including its type definition', async () => {
+    visibility.hold();
+    const first = collisionRequest(false, 1);
+    await showApproval(first.method, first.params);
+    act(() => { visibility.emit(); });
+    const oldTargets = visibility.targets;
+    act(() => {
+      const approval = mockDappStore.currentApproval;
+      if (approval) approval.params = collisionRequest(true, 1).params;
+    });
+    act(() => { visibility.emitQueued(oldTargets); });
+    expect(screen.getByRole('button', { name: 'Approve' }).hasAttribute('disabled')).toBe(true);
+    act(() => { visibility.emit(); });
+    expect(screen.getByRole('button', { name: 'Approve' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('rejects a same-tick replacement object with identical content before React commits', async () => {
+    mockDesktop = false;
+    await showApproval('qrl_signMessage');
+    fireEvent.change(screen.getByPlaceholderText('Enter PIN'), { target: { value: '123456' } });
+    act(() => {
+      mockDappStore.currentApproval = request('qrl_signMessage');
+      fireEvent.keyDown(screen.getByPlaceholderText('Enter PIN'), { key: 'Enter' });
+    });
+    expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+  });
+
+  it('starts a fresh consent when the same URI is staged again', async () => {
+    visibility.hold();
+    mockDappStore.desktopConnectUri = 'qrlconnect://?q=fixture';
+    render(<DAppConnectConsentModal />);
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    act(() => { visibility.emit(); });
+    expect(screen.getByRole('button', { name: 'Connect' }).hasAttribute('disabled')).toBe(false);
+    const stale = visibility.targets;
+    act(() => { mockDappStore.desktopConnectReview = {}; });
+    act(() => { visibility.emitQueued(stale); });
+    expect(screen.getByRole('button', { name: 'Connect' }).hasAttribute('disabled')).toBe(true);
+  });
+
   it.each(['qrl_requestAccounts', 'wallet_addQrlChain', 'wallet_switchQrlChain', 'qrl_sendTransaction', 'qrl_signTransaction', 'qrl_signMessage', 'qrl_signTypedData'])(
     'blocks %s until seen and keeps rejection working', async (method) => {
       visibility.hold();

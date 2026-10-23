@@ -9,6 +9,7 @@ import {
 import { useReviewVisibility } from "../useReviewVisibility";
 import { mockReviewObservers } from "@/test-utils/reviewObserver";
 import { observeReview } from "../reviewVisibility";
+import { reviewValueKey } from "../reviewIdentity";
 
 let visibility: ReturnType<typeof mockReviewObservers>;
 beforeEach(() => {
@@ -23,7 +24,7 @@ afterEach(() => {
 function Review({
   value = "one",
   exactValue = "",
-  identity = "request",
+  identity = 1,
   onApprove = jest.fn(),
   onReject = jest.fn(),
 }) {
@@ -126,7 +127,7 @@ it("re-gates changed blocks, rejects stale callbacks, and preserves unchanged bl
   expect(screen.getByText("Approve").hasAttribute("disabled")).toBe(false);
   view.rerender(<Review value="two" />);
   expect(screen.getByText("Approve").hasAttribute("disabled")).toBe(false);
-  view.rerender(<Review value="two" identity="replacement" />);
+  view.rerender(<Review value="two" identity={2} />);
   expect(screen.getByText("Approve").hasAttribute("disabled")).toBe(true);
 });
 
@@ -230,4 +231,48 @@ it("checks horizontal overflow synchronously on submit before observers run", ()
   fireEvent.submit(screen.getByRole("form"));
   expect(approve).not.toHaveBeenCalled();
   expect(screen.getByText("Approve").hasAttribute("disabled")).toBe(true);
+});
+
+it.each([
+  [{ a: 1, b: 23 }, { a1b: 23 }],
+  [['ab'], ['a', 'b']],
+  ['', undefined],
+  [1, '1'],
+  [1n, { bigint: '1' }],
+])('revokes completed coverage for semantic collision pair %#', (before, after) => {
+  const view = render(<Review value="same formatted text" exactValue={reviewValueKey(before)} />);
+  act(() => { visibility.emit(); });
+  const stale = visibility.targets;
+  view.rerender(<Review value="same formatted text" exactValue={reviewValueKey(after)} />);
+  expect(screen.getByText('Approve').hasAttribute('disabled')).toBe(true);
+  act(() => { visibility.emitQueued(stale); });
+  expect(screen.getByText('Approve').hasAttribute('disabled')).toBe(true);
+  act(() => { visibility.emit(); });
+  expect(screen.getByText('Approve').hasAttribute('disabled')).toBe(false);
+});
+
+it('preserves text-node boundaries when equal textContent contains different rows', () => {
+  const view = render(<div data-review-block><span>a</span><span>1</span><span>b</span><span>23</span></div>);
+  const controller = observeReview(view.container, jest.fn());
+  visibility.emit();
+  expect(controller.refresh()).toBe(true);
+  const stale = visibility.targets;
+  view.rerender(<div data-review-block><span>a1b</span><span>23</span></div>);
+  expect(view.container.textContent).toBe('a1b23');
+  expect(controller.refresh()).toBe(false);
+  visibility.emitQueued(stale);
+  expect(controller.refresh()).toBe(false);
+  visibility.emit();
+  expect(controller.refresh()).toBe(true);
+  controller.dispose();
+});
+
+it('distinguishes a missing review attribute from an empty one', () => {
+  const view = render(<div data-review-block data-review-value="">same</div>);
+  const controller = observeReview(view.container, jest.fn());
+  visibility.emit();
+  expect(controller.refresh()).toBe(true);
+  view.rerender(<div data-review-block>same</div>);
+  expect(controller.refresh()).toBe(false);
+  controller.dispose();
 });

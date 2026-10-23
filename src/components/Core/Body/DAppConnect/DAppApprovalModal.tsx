@@ -25,6 +25,7 @@ import DAppTransactionReview from "./DAppTransactionReview";
 import DAppMessageReview from "./DAppMessageReview";
 import DAppTypedDataReview from "./DAppTypedDataReview";
 import { useReviewVisibility } from "./useReviewVisibility";
+import { reviewGeneration, reviewValueKey } from "./reviewIdentity";
 import { formatDAppRequestError } from "./requestError";
 import { utils } from "@theqrl/web3";
 import {
@@ -126,10 +127,9 @@ const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
 const DAPP_FEE_LEVEL: FeeLevel = "medium";
 
 function reviewContentKey(request: PendingDAppRequest | null, account: string, chain: unknown): string {
-  return JSON.stringify(
+  return reviewValueKey(
     [request?.sessionId, request?.id, request?.method, toJS(request?.params),
-      request?.dappInfo.name, request?.dappInfo.url, account, chain],
-    (_key, value: unknown) => typeof value === 'bigint' ? { bigint: value.toString() } : value,
+      toJS(request?.dappInfo), account, chain],
   );
 }
 
@@ -244,7 +244,7 @@ function assertSigningGenerationCurrent(token: WalletMutationToken): void {
   }
 }
 
-const DAppApprovalModalContent = observer(() => {
+const DAppApprovalModalContent = observer(({ generation }: { generation: number }) => {
   const { dappConnectStore, qrlStore } = useStore();
   const { currentApproval, approvalModalOpen, txProgress, txHash, txError } =
     dappConnectStore;
@@ -296,19 +296,16 @@ const DAppApprovalModalContent = observer(() => {
    * have to rebuild the callback.
    */
   const approvedFeeRef = useRef<ApprovedFee | undefined>(undefined);
-  const approvalKey = currentApproval
-    ? `${currentApproval.sessionId}:${currentApproval.id}`
-    : "";
   useEffect(() => {
     approvalShownAtRef.current = Date.now();
-  }, [approvalKey]);
+  }, [generation]);
 
   const blockchain = qrlStore.qrlConnection.blockchain;
-  const { ref: reviewRef, ready: reviewReady, canApprove } = useReviewVisibility(approvalKey);
+  const { ref: reviewRef, ready: reviewReady, canApprove } = useReviewVisibility(generation);
   const reviewedContent = reviewContentKey(currentApproval, qrlStore.activeAccount.accountAddress, blockchain);
 
   const handleApprove = useCallback(async () => {
-    if (!currentApproval || !canApprove()) return;
+    if (!currentApproval || currentApproval !== dappConnectStore.currentApproval || !canApprove()) return;
     // A store update and a keyboard event can share a tick before React commits
     // the new review. Bind this action to the content of its rendered review.
     if (reviewedContent !== reviewContentKey(dappConnectStore.currentApproval,
@@ -1276,8 +1273,7 @@ const DAppApprovalModalContent = observer(() => {
   const reviewedTxParams = txParams ?? null;
   // The params object identity changes on every render, so the effect keys on
   // its content instead.
-  const reviewedTxKey = JSON.stringify(reviewedTxParams);
-  const feePreviewKey = `${approvalKey}|${reviewedTxKey}`;
+  const feePreviewKey = reviewValueKey([generation, toJS(reviewedTxParams)]);
   const readReviewedTxParams = useEffectEvent(() => reviewedTxParams);
   useEffect(() => {
     const quoteParams = readReviewedTxParams();
@@ -1390,7 +1386,10 @@ const DAppApprovalModalContent = observer(() => {
           role="region"
           aria-label="Request details"
           data-review-region
-          className="space-y-4 overflow-y-auto overscroll-contain p-6 max-[240px]:p-3"
+          className={`space-y-4 overflow-y-auto overscroll-contain ${
+            method === 'qrl_requestAccounts' && qrlStore.activeAccount.accountAddress ? 'px-6 py-0'
+              : requestedChainId !== undefined ? 'px-6 py-2' : 'p-6'
+          } max-[240px]:p-3`}
         >
           {/* Transaction progress states */}
           {signingFailure ? (
@@ -1498,20 +1497,20 @@ const DAppApprovalModalContent = observer(() => {
             /* Normal approval content (before tx progress starts) */
             <div className="space-y-4">
               {method === "qrl_requestAccounts" && (
-                <div className="space-y-4">
+                <div>
                   <p data-review-block className="text-sm text-muted-foreground">
                     This dApp wants to view your account address.
                   </p>
                   {qrlStore.activeAccount.accountAddress && (
-                    <div data-review-block>
-                      <QrlAddress address={qrlStore.activeAccount.accountAddress} mode="full" />
+                    <div data-review-block className="flex">
+                      <QrlAddress address={qrlStore.activeAccount.accountAddress} mode="full" addressClassName="text-xs leading-4 gap-y-0" />
                     </div>
                   )}
                 </div>
               )}
 
               {requestedChainId !== undefined && (
-                <dl data-review-block className="grid gap-1 text-sm">
+                <dl data-review-block className="grid min-h-8 grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-center gap-2 text-sm">
                   <dt className="text-muted-foreground">Requested chain ID</dt>
                   <dd className="break-all font-mono text-xs" dir="ltr">
                     {requestedChainId}
@@ -1527,7 +1526,7 @@ const DAppApprovalModalContent = observer(() => {
                       ? feePreview.display
                       : undefined
                   }
-                  feeReviewValue={approvedFee ? `${approvedFee.gasLimit.toString()}:${approvedFee.quote.maxFeePerGas.toString()}:${approvedFee.quote.maxPriorityFeePerGas.toString()}` : undefined}
+                  feeReviewValue={reviewValueKey(approvedFee)}
                 />
               )}
 
@@ -1673,10 +1672,9 @@ const DAppApprovalModalContent = observer(() => {
 const DAppApprovalModal = observer(() => {
   const { dappConnectStore } = useStore();
   const approval = dappConnectStore.currentApproval;
-  const approvalKey = approval
-    ? `${approval.sessionId}:${approval.id}`
-    : "none";
-  return <DAppApprovalModalContent key={approvalKey} />;
+  if (!approval || !dappConnectStore.approvalModalOpen) return null;
+  const generation = reviewGeneration(approval);
+  return <DAppApprovalModalContent key={generation} generation={generation} />;
 });
 
 export default DAppApprovalModal;

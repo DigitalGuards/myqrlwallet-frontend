@@ -30,11 +30,12 @@ import { Loader, Plug } from 'lucide-react';
 import { parseConnectionURI } from '@/services/dappConnect/qrUri';
 import { DEFAULT_RELAY_URL } from '@/services/dappConnect/DAppConnectService';
 import { useReviewVisibility } from './useReviewVisibility';
+import { reviewGeneration } from './reviewIdentity';
 
 /** Origin the wallet dials when a URI carries no r= param. */
 const DEFAULT_RELAY_ORIGIN = new URL(DEFAULT_RELAY_URL).origin;
 
-const DAppConnectConsentModal = observer(() => {
+const DAppConnectConsentModalContent = observer(({ generation }: { generation: number }) => {
   const { dappConnectStore, qrlStore } = useStore();
   // Keep the existing account prerequisite as UX: pairing itself shares no
   // account, but this wallet cannot satisfy a later account request without one.
@@ -55,7 +56,7 @@ const DAppConnectConsentModal = observer(() => {
 
   const uri = dappConnectStore.desktopConnectUri;
   const source = dappConnectStore.desktopConnectSource;
-  const { ref: reviewRef, ready: reviewReady, canApprove } = useReviewVisibility(uri ?? '');
+  const { ref: reviewRef, ready: reviewReady, canApprove } = useReviewVisibility(generation);
 
   useEffect(() => {
     if (!uri) return;
@@ -85,7 +86,8 @@ const DAppConnectConsentModal = observer(() => {
 
   const handleConnect = useCallback(async () => {
     if (connecting || !hasAccount || reviewedUri !== uri ||
-        dappConnectStore.desktopConnectUri !== uri || !canApprove()) return;
+        dappConnectStore.desktopConnectUri !== uri ||
+        reviewGeneration(dappConnectStore.desktopConnectReview) !== generation || !canApprove()) return;
     setError('');
     setConnecting(true);
     try {
@@ -98,7 +100,7 @@ const DAppConnectConsentModal = observer(() => {
     } finally {
       setConnecting(false);
     }
-  }, [connecting, hasAccount, reviewedUri, uri, canApprove, dappConnectStore, navigate]);
+  }, [connecting, hasAccount, reviewedUri, uri, generation, canApprove, dappConnectStore, navigate]);
 
   if (!uri) return null;
 
@@ -173,6 +175,13 @@ const DAppConnectConsentModal = observer(() => {
       </DialogContent>
     </Dialog>
   );
+});
+
+const DAppConnectConsentModal = observer(() => {
+  const { dappConnectStore } = useStore();
+  if (!dappConnectStore.desktopConnectUri) return null;
+  const generation = reviewGeneration(dappConnectStore.desktopConnectReview);
+  return <DAppConnectConsentModalContent key={generation} generation={generation} />;
 });
 
 export default DAppConnectConsentModal;

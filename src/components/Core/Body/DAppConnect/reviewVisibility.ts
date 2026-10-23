@@ -9,6 +9,16 @@ interface ReviewBlock {
   complete: boolean;
 }
 
+// Preserve DOM text-node and element boundaries. textContent flattens distinct
+// rows such as {a:1,b:23} and {a1b:23}. Observation tiles carry no review value.
+function reviewTree(node: Node): unknown {
+  if (!(node instanceof Element)) return [node.nodeType, node.nodeValue];
+  return [node.nodeType, node.localName, node.getAttribute('data-review-value'),
+    Array.from(node.childNodes)
+      .filter((child) => !(child instanceof Element && child.hasAttribute('data-review-tile')))
+      .map(reviewTree)];
+}
+
 function overflowsHorizontally(element: HTMLElement, descendants: Element[]) {
   const rect = element.getBoundingClientRect();
   const style = getComputedStyle(element);
@@ -128,7 +138,7 @@ export function observeReview(
       );
       for (const target of [element, ...descendants]) resizeTargets.add(target);
       const overflowing = overflowsHorizontally(element, descendants);
-      const version = `${element.textContent}\n${element.dataset["reviewValue"] ?? ""}`;
+      const version = JSON.stringify(reviewTree(element));
       const rect = element.getBoundingClientRect();
       const style = getComputedStyle(element);
       const width = Math.max(

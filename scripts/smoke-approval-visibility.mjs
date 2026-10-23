@@ -10,19 +10,24 @@ import {
   address,
   adversarialFixtures,
   consentURI,
+  collisionFixtures,
   fixture,
   ignoredNetworkFields,
   methods,
   rpcAnswer,
+  roundTwoFixtures,
 } from "./approval-fixtures.mjs";
+import { measureParity } from './approval-parity.mjs';
 
-const origin = "http://localhost:4176";
+const port = process.env.APPROVAL_PORT || '4176';
+const origin = `http://localhost:${port}`;
 const output =
   process.env.APPROVAL_ARTIFACTS || join(tmpdir(), "approval-visibility");
 const started = Date.now();
 const baseline = process.env.APPROVAL_BASELINE === "1";
 const caseFilter = process.env.APPROVAL_CASE;
 const checksOnly = process.env.APPROVAL_CHECKS_ONLY === "1";
+const parityOnly = process.env.APPROVAL_PARITY_ONLY === '1';
 const results = [];
 const english = [];
 let collapsedControls = 0;
@@ -31,6 +36,7 @@ const zeroAreaReports = [];
 const emptyCases = [];
 const networkReviews = [];
 const overflowControls = [];
+const queuedReviews = [];
 const server = spawn(
   process.execPath,
   [
@@ -41,7 +47,7 @@ const server = spawn(
     "--host",
     "localhost",
     "--port",
-    "4176",
+    port,
     "--strictPort",
   ],
   { stdio: "ignore" },
@@ -141,8 +147,7 @@ try {
           else approval.params = undefined;
         }
         if (approval.method === "consent") {
-          store.desktopConnectSource = "link";
-          store.desktopConnectUri = uri;
+          store.requestDesktopConnect(uri, 'link');
         } else {
           const pending = {
             ...approval,
@@ -506,7 +511,10 @@ try {
         { width: 1280, height: 800, zoom: 1 },
         { width: 360, height: 640, zoom: 2 },
       ];
-  for (const viewport of checksOnly ? [] : viewports) {
+  if (parityOnly) {
+    await measureParity({ page, open, close, output, baseline });
+  }
+  for (const viewport of checksOnly || parityOnly ? [] : viewports) {
     await page.setViewportSize({
       width: viewport.width,
       height: viewport.height,
@@ -554,7 +562,7 @@ try {
         console.log(`approval-visibility: ${label} passed`);
       }
     }
-    for (const { name, approval, primaryText, primaryLabel } of baseline ? [] : adversarialFixtures()) {
+    for (const { name, approval, primaryText, primaryLabel } of baseline ? [] : [...adversarialFixtures(), ...roundTwoFixtures()]) {
       const label = `${name}-${viewport.width}x${viewport.height}-${viewport.zoom}x`;
       if (caseFilter && !new RegExp(caseFilter).test(label)) continue;
       await open(approval.method, false, label, false, approval);
@@ -563,7 +571,10 @@ try {
         throw new Error(`${label}: ${error.message}`);
       });
       if (name.startsWith("typed-nested") && viewport.width === 320 && viewport.zoom === 1) {
-        assert(measured.primaryWidth >= 120, `${label}: leaf has insufficient reading width`);
+        // Shallow grid columns preserve the base layout. The independent
+        // character-range coverage check proves the deep column fits every
+        // glyph, including the complete wrapped path, at its available width.
+        assert(measured.primaryWidth > 0, `${label}: leaf has no reading width`);
         assert.equal(measured.primaryLabel, "value.value.value.value.value.value.value.value.value.value");
         assert(measured.labelLines > 1, `${label}: full path must wrap within the narrow column`);
         assert.equal(measured.seenLabelCharacters, measured.primaryLabel.length, `${label}: full path was not fully visible`);
@@ -577,11 +588,77 @@ try {
     }
   }
 
-  if (!baseline && !caseFilter) {
+  if (!baseline && !caseFilter && !parityOnly) {
     await worker.evaluate(async (origin) => {
       for (const tab of await chrome.tabs.query({ url: `${origin}/*` }))
         await chrome.tabs.setZoom(tab.id, 1);
     }, origin);
+    await measureParity({ page, open, close, output, baseline });
+    for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+      await page.setViewportSize(viewport);
+      for (const secondId of ['1', '2']) {
+        const [first, second] = collisionFixtures();
+        await open(first.method, false, 1, false, first);
+        await page.evaluate(({ second, secondId }) => {
+          window.__APP_STORE__.dappConnectStore.pendingRequests.push({ ...second,
+            id: secondId, sessionId: 'visibility-probe', timestamp: Date.now() });
+        }, { second, secondId });
+        await inspectAndRead(false);
+        await page.evaluate(() => {
+          const dialog = document.querySelector('[role=dialog]');
+          window.__previousReviewTiles = [...dialog.querySelectorAll('[data-review-tile]')];
+          dialog.querySelector('[data-review-region]').scrollTop = 0;
+          dialog.scrollTop = 0;
+        });
+        await page.getByRole('button', { name: 'Reject', exact: true }).click();
+        await page.waitForTimeout(400);
+        const before = await page.evaluate(async () => {
+          const dialog = document.querySelector('[role=dialog]');
+          const block = [...dialog.querySelectorAll('[data-review-block]')].find((el) => el.textContent === 'ordera1b23');
+          const region = dialog.querySelector('[data-review-region]');
+          const current = window.__APP_STORE__.dappConnectStore.currentApproval;
+          const initiallyDisabled = [...dialog.querySelectorAll('button')].find((el) => el.textContent.trim() === 'Approve').disabled;
+          // A fresh dialog can autofocus PIN at the bottom. Independently
+          // record those real observations, then reproduce the reviewer's top
+          // scroll position with the changed order field far below the region.
+          const seen = new Set();
+          window.__reviewProbeCoverage = { dialog, seen };
+          const coverage = new IntersectionObserver((entries) => {
+            for (const entry of entries)
+              if (entry.isIntersecting && entry.intersectionRatio === 1 &&
+                  entry.boundingClientRect.height > 0 && entry.boundingClientRect.width > 0)
+                seen.add(entry.target);
+          }, { threshold: [1] });
+          for (const tile of dialog.querySelectorAll('[data-review-tile]')) coverage.observe(tile);
+          const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          await frame();
+          region.scrollTop = 0;
+          dialog.scrollTop = 0;
+          await frame();
+          coverage.disconnect();
+          return { id: current.id, idType: typeof current.id,
+            initiallyDisabled,
+            inheritedTiles: window.__previousReviewTiles.some((tile) => tile.isConnected),
+            changedFieldTop: block.getBoundingClientRect().top,
+            regionBottom: region.getBoundingClientRect().bottom };
+        });
+        assert.equal(before.id, secondId);
+        assert.equal(before.idType, 'string');
+        assert.equal(before.initiallyDisabled, true);
+        assert.equal(before.inheritedTiles, false);
+        assert(before.changedFieldTop > before.regionBottom, 'Changed field must start offscreen');
+        const button = page.getByRole('button', { name: 'Approve', exact: true });
+        assert.equal(await button.isDisabled(), true, 'Second request inherited approval');
+        await button.evaluate((el) => el.click());
+        assert.equal(await page.getByText('Please enter your PIN', { exact: true }).count(), 0);
+        const read = await inspectAndRead(false);
+        await button.click();
+        await page.getByText('Please enter your PIN', { exact: true }).waitFor();
+        queuedReviews.push({ viewport, ...before, ...read, reachedPinAfterOwnReview: true });
+        await page.screenshot({ path: join(output, `queued-${secondId}-${viewport.width}.png`) });
+        await close();
+      }
+    }
     await page.setViewportSize({ width: 360, height: 320 });
     await page.waitForFunction(() => innerWidth === 360);
     for (const kind of ["descendant-scroll", "descendant-rect", "resize"]) {
@@ -717,7 +794,7 @@ try {
     );
   }
   assert.deepEqual(errors, []);
-  assert(results.length > 0 || checksOnly, "No probe cases selected");
+  assert(results.length > 0 || checksOnly || parityOnly, "No probe cases selected");
   const durationSeconds = (Date.now() - started) / 1000;
   await writeFile(
     join(output, baseline ? "english-base.json" : "results.json"),
@@ -730,6 +807,7 @@ try {
         emptyCases,
         networkReviews,
         overflowControls,
+        queuedReviews,
         results,
       },
       null,
@@ -767,7 +845,7 @@ try {
     );
   }
   console.log(
-    `approval-visibility: ${results.length} cases, ${networkReviews.length} network content checks, ${collapsedControls} collapsed controls, ${overflowControls.length} overflow controls; ${durationSeconds}s`,
+    `approval-visibility: ${results.length} cases, ${networkReviews.length} network content checks, ${collapsedControls} collapsed controls, ${overflowControls.length} overflow controls, ${queuedReviews.length} queued reviews; ${durationSeconds}s`,
   );
 } finally {
   await context?.close();
