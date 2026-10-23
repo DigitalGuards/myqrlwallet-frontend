@@ -1,3 +1,5 @@
+import type { ParseKeys } from "i18next";
+import { useTranslation } from "react-i18next";
 import { logger } from "@/utils/log";
 import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
 import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
@@ -112,14 +114,14 @@ function formatZodIssues(error: ZodError): string {
   );
 }
 
-const METHOD_LABELS: Record<string, string> = {
-  qrl_requestAccounts: "Connect Account",
-  qrl_sendTransaction: "Send Transaction",
-  qrl_signTransaction: "Sign Transaction",
-  qrl_signMessage: "Sign Message",
-  qrl_signTypedData: "Sign Typed Data",
-  wallet_addQrlChain: "Add Network",
-  wallet_switchQrlChain: "Switch Network",
+const METHOD_LABELS: Record<string, ParseKeys<["dapps", "common", "settings", "transfer"]>> = {
+  qrl_requestAccounts: "dapps:connectAccount",
+  qrl_sendTransaction: "dapps:sendTransaction",
+  qrl_signTransaction: "dapps:signTransaction",
+  qrl_signMessage: "dapps:signMessage",
+  qrl_signTypedData: "dapps:signTypedData",
+  wallet_addQrlChain: "dapps:addNetwork",
+  wallet_switchQrlChain: "dapps:switchNetwork",
 };
 
 const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
@@ -245,6 +247,7 @@ function assertSigningGenerationCurrent(token: WalletMutationToken): void {
 }
 
 const DAppApprovalModalContent = observer(({ generation }: { generation: number }) => {
+  const { t } = useTranslation(["dapps", "common", "settings", "transfer"]);
   const { dappConnectStore, qrlStore } = useStore();
   const { currentApproval, approvalModalOpen, txProgress, txHash, txError } =
     dappConnectStore;
@@ -1264,7 +1267,8 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     && switchChainId.length <= 66 && /^0x[0-9a-fA-F]+$/.test(switchChainId)
     ? switchChainId
     : undefined;
-  const label = METHOD_LABELS[method] || method;
+  const methodKey = METHOD_LABELS[method];
+  const label = methodKey ? t(methodKey) : method;
   const needsPin =
     method !== "qrl_requestAccounts" &&
     method !== "wallet_addQrlChain" &&
@@ -1404,7 +1408,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
         {/* Approval details and transaction progress */}
         <div
           role="region"
-          aria-label="Request details"
+          aria-label={t("dapps:requestDetails")}
           data-review-region
           className={`space-y-4 overflow-y-auto overscroll-contain ${
             method === 'qrl_requestAccounts' && qrlStore.activeAccount.accountAddress ? 'px-6 py-0'
@@ -1423,55 +1427,41 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                 {txProgress === "signing" && (
                   <>
                     <Loader className="h-5 w-5 animate-spin text-primary" />
-                    <span className="text-sm font-medium">
-                      Signing transaction...
-                    </span>
+                    <span className="text-sm font-medium">{t("dapps:signing")}</span>
                   </>
                 )}
                 {txProgress === "broadcasting" && (
                   <>
                     <Loader className="h-5 w-5 animate-spin text-primary" />
-                    <span className="text-sm font-medium">
-                      Broadcasting to network...
-                    </span>
+                    <span className="text-sm font-medium">{t("dapps:broadcasting")}</span>
                   </>
                 )}
                 {txProgress === "confirming" && (
                   <>
                     <Loader className="h-5 w-5 animate-spin text-primary" />
-                    <span className="text-sm font-medium">
-                      Awaiting confirmation...
-                    </span>
+                    <span className="text-sm font-medium">{t("dapps:confirming")}</span>
                   </>
                 )}
                 {txProgress === "confirmed" && (
                   <>
                     <Check className="h-5 w-5 text-success" />
-                    <span className="text-sm font-medium text-success">
-                      Transaction Confirmed
-                    </span>
+                    <span className="text-sm font-medium text-success">{t("dapps:confirmed")}</span>
                   </>
                 )}
                 {txProgress === "failed" && (
                   <>
                     <X className="h-5 w-5 text-destructive" />
-                    <span className="text-sm font-medium text-destructive">
-                      Transaction Failed
-                    </span>
+                    <span className="text-sm font-medium text-destructive">{t("dapps:failed")}</span>
                   </>
                 )}
                 {txProgress === "unknown" && (
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Outcome unknown, check the explorer
-                  </span>
+                  <span className="text-sm font-medium text-muted-foreground">{t("dapps:unknown")}</span>
                 )}
               </div>
 
               {/* Same-device iOS: nothing brings the browser forward there. */}
               {promptReturnToBrowser && (
-                <p className="text-sm text-muted-foreground">
-                  Return to your browser to continue.
-                </p>
+                <p className="text-sm text-muted-foreground">{t("dapps:returnBrowser")}</p>
               )}
 
               {/* Tx hash link */}
@@ -1481,8 +1471,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
-                >
-                  View on Explorer <ExternalLink className="h-4 w-4" />
+                >{t("transfer:viewExplorer")}{" "}<ExternalLink className="h-4 w-4" />
                 </a>
               )}
 
@@ -1490,7 +1479,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
               {txParams && (
                 <div className="rounded border bg-muted p-4 text-sm space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">To</span>
+                    <span className="text-muted-foreground">{t("dapps:to")}</span>
                     <QrlAddress
                       address={optionalString(txParams["to"]) || ""}
                       mode="full"
@@ -1499,7 +1488,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                     />
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Value</span>
+                    <span className="text-muted-foreground">{t("dapps:value")}</span>
                     <span className="font-numeric font-semibold">{txDisplayValue}</span>
                   </div>
                 </div>
@@ -1518,9 +1507,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             <div className="space-y-4">
               {method === "qrl_requestAccounts" && (
                 <div>
-                  <p data-review-block className="text-sm text-muted-foreground">
-                    This dApp wants to view your account address.
-                  </p>
+                  <p data-review-block className="text-sm text-muted-foreground">{t("dapps:accountAccess")}</p>
                   {qrlStore.activeAccount.accountAddress && (
                     <div data-review-block className="flex">
                       <QrlAddress address={qrlStore.activeAccount.accountAddress} mode="full" addressClassName="text-xs leading-4 gap-y-0" />
@@ -1531,7 +1518,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
 
               {requestedChainId !== undefined && (
                 <dl data-review-block className="grid min-h-8 grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-center gap-2 text-sm">
-                  <dt className="text-muted-foreground">Requested chain ID</dt>
+                  <dt className="text-muted-foreground">{t("dapps:requestedChainId")}</dt>
                   <dd className="break-all font-mono text-xs" dir="ltr">
                     {requestedChainId}
                   </dd>
@@ -1552,24 +1539,17 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
 
               {isTransaction && feePreview?.status === "loading" && (
                 <p data-review-block className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader className="h-4 w-4 animate-spin" />
-                  Checking the network fee...
-                </p>
+                  <Loader className="h-4 w-4 animate-spin" />{t("dapps:checkingFee")}</p>
               )}
 
               {isTransaction && feePreview?.status === "failed" && (
                 <div className="flex items-center justify-between gap-3">
-                  <p data-review-block className="text-sm text-destructive">
-                    The network fee could not be checked, so this cannot be
-                    approved yet.
-                  </p>
+                  <p data-review-block className="text-sm text-destructive">{t("dapps:feeUnavailable")}</p>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => { setFeePreviewAttempt((count) => count + 1); }}
-                  >
-                    Retry
-                  </Button>
+                  >{t("dapps:retry")}</Button>
                 </div>
               )}
 
@@ -1583,26 +1563,19 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
               {chainApprovalPending && (
                 chainCheckFailed ? (
                   <div className="flex items-center justify-between gap-3">
-                    <p id="approval-chain-hint" data-review-block role="alert" className="text-sm text-destructive">
-                      The wallet could not check its network, so this request
-                      cannot be approved yet.
-                    </p>
+                    <p id="approval-chain-hint" data-review-block role="alert" className="text-sm text-destructive">{t("dapps:chainUnavailable")}</p>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => { setChainPreviewAttempt((count) => count + 1); }}
-                    >
-                      Retry
-                    </Button>
+                    >{t("dapps:retry")}</Button>
                   </div>
                 ) : (
                   <p id="approval-chain-hint" data-review-block role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center">
                       <Loader className="h-4 w-4 animate-spin" />
-                    </span>
-                    Checking the network...
-                  </p>
+                    </span>{t("dapps:checkingChain")}</p>
                 )
               )}
 
@@ -1616,9 +1589,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
 
               {signingPreview?.kind === "invalid" && (
                 <div data-review-block className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
-                  <p className="mb-1 font-medium text-destructive">
-                    Cannot decode this request
-                  </p>
+                  <p className="mb-1 font-medium text-destructive">{t("dapps:cannotDecode")}</p>
                   <p className="text-xs text-muted-foreground break-all">
                     {formatDAppRequestError(signingPreview.reason, method)}
                   </p>
@@ -1629,9 +1600,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                   already unlocked and signing does not re-prompt. */}
               {needsPin && !hasNativePin && !isDesktop && (
                 <div>
-                  <label data-review-block className="mb-1 block text-sm font-medium">
-                    Enter PIN to sign
-                  </label>
+                  <label data-review-block className="mb-1 block text-sm font-medium">{t("dapps:pinToSign")}</label>
                   <input
                     type="password"
                     inputMode="numeric"
@@ -1649,7 +1618,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                         if (pin && !loading && !feeApprovalPending && !chainApprovalPending) void handleApprove();
                       }
                     }}
-                    placeholder="Enter PIN"
+                    placeholder={t("dapps:enterPin")}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     autoFocus
                   />
@@ -1664,31 +1633,23 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
         {/* Footer buttons */}
         <div className="shrink-0 border-t border-border px-4 py-4">
           {!reviewReady && !signingFailure && !isTxInProgress && (
-            <p id="approval-visibility-hint" role="status" className="mb-2 text-xs text-muted-foreground">
-              Scroll to see every detail before approving
-            </p>
+            <p id="approval-visibility-hint" role="status" className="mb-2 text-xs text-muted-foreground">{t("dapps:approvalVisibility")}</p>
           )}
           {signingFailure ? (
-            <Button onClick={handleReject} className="w-full">
-              Close
-            </Button>
+            <Button onClick={handleReject} className="w-full">{t("common:close")}</Button>
           ) : isTxTerminal ? (
             <Button onClick={handleDone} className="w-full">
-              {txProgress === "confirmed" ? "Done" : "Close"}
+              {t(txProgress === "confirmed" ? "transfer:done" : "common:close")}
             </Button>
           ) : isTxInProgress ? (
-            <p className="text-center text-xs text-muted-foreground">
-              Please wait while the transaction is being processed...
-            </p>
+            <p className="text-center text-xs text-muted-foreground">{t("dapps:processingTransaction")}</p>
           ) : (
             <div className="grid grid-cols-2 gap-4">
               <Button
                 variant="outline"
                 onClick={handleReject}
                 disabled={loading}
-              >
-                Reject
-              </Button>
+              >{t("dapps:reject")}</Button>
               <Button
                 type="button"
                 onClick={() => {
@@ -1704,11 +1665,11 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                 // approving a cost the user was never shown.
                 title={
                   feeApprovalPending
-                    ? "Waiting for the network fee"
-                    : chainApprovalPending ? "Waiting for the network check" : undefined
+                    ? t("dapps:waitingFee")
+                    : chainApprovalPending ? t("dapps:waitingChain") : undefined
                 }
               >
-                {loading ? "Processing..." : "Approve"}
+                {t(loading ? "dapps:processing" : "dapps:approve")}
               </Button>
             </div>
           )}

@@ -1,3 +1,4 @@
+import { slice6Screens } from "./i18n-slice6-probes.mjs";
 import { slice5Screens } from "./i18n-slice5-probes.mjs";
 import { slice4Screens } from "./i18n-slice4-probes.mjs";
 import { tmpdir } from "node:os";
@@ -249,6 +250,7 @@ try {
         full: false,
         snapshot: captureNew,
       });
+      await slice6Screens({ page, catalogs, snapshot: captureNew, embedded: true });
       await slice5Screens({
         page,
         origin: "https://wallet.example",

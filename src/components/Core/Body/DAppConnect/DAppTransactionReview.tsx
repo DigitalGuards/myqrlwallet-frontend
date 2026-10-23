@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 /**
  * Transaction Review - Displays transaction details for dApp approval.
  */
@@ -18,7 +19,7 @@ interface TransactionReviewProps {
   feeReviewValue?: string | undefined;
 }
 
-function formatGasLimit(gas: unknown): string {
+function formatGasLimit(gas: unknown, unknownLabel: string): string {
   if (typeof gas === "number" && Number.isFinite(gas)) {
     return String(Math.trunc(gas));
   }
@@ -32,7 +33,7 @@ function formatGasLimit(gas: unknown): string {
     }
     return gas;
   }
-  return "Unknown";
+  return unknownLabel;
 }
 
 /** Review fields come from validated JSON; anything that is not a string is shown as absent. */
@@ -45,6 +46,7 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
   maxNetworkFee,
   feeReviewValue,
 }) => {
+  const { t } = useTranslation(["dapps", "common", "settings", "transfer"]);
   const from = stringParam(params["from"]) || "Unknown";
   const to = stringParam(params["to"]) || "Unknown";
   const value = stringParam(params["value"]);
@@ -56,9 +58,9 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
   return (
     <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm">
       <div data-review-block data-review-value={reviewValueKey(params['from'])} className="flex justify-between">
-        <span className="text-muted-foreground">From</span>
+        <span className="text-muted-foreground">{t("transfer:from")}</span>
         {from === "Unknown" ? (
-          <span className="text-xs">Unknown</span>
+          <span className="text-xs">{stringParam(params["from"]) || t("dapps:unknownValue")}</span>
         ) : (
           <QrlAddress
             address={from}
@@ -69,9 +71,9 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
         )}
       </div>
       <div data-review-block data-review-value={reviewValueKey(params['to'])} className="flex justify-between">
-        <span className="text-muted-foreground">To</span>
+        <span className="text-muted-foreground">{t("dapps:to")}</span>
         {to === "Unknown" ? (
-          <span className="text-xs">Unknown</span>
+          <span className="text-xs">{stringParam(params["to"]) || t("dapps:unknownValue")}</span>
         ) : (
           <QrlAddress
             address={to}
@@ -82,7 +84,7 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
         )}
       </div>
       <div data-review-block data-review-value={reviewValueKey(params['value'])} className="flex justify-between gap-2">
-        <span className="text-muted-foreground">Value</span>
+        <span className="text-muted-foreground">{t("dapps:value")}</span>
         <span className="font-numeric font-semibold">{displayValue}</span>
       </div>
       {gas != null && (
@@ -90,29 +92,28 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
           {/* On desktop the shell resolves max(this value, its own buffered
               estimate), so the number the dApp asked for is a floor. The web
               and mobile paths sign the requested limit as given. */}
-          <span className="text-muted-foreground">
-            Gas Limit{isDesktop ? " (minimum)" : ""}
+          <span className="text-muted-foreground">{t(isDesktop ? "dapps:gasMinimum" : "dapps:gasLimit")}
           </span>
-          <span className="font-numeric">{formatGasLimit(gas)}</span>
+          <span className="font-numeric">{formatGasLimit(gas, t("dapps:unknownValue"))}</span>
         </div>
       )}
       {maxNetworkFee !== undefined && (
         <div data-review-block data-review-value={feeReviewValue} className="flex justify-between gap-2">
           {/* The ceiling, so the user sees the worst case before approving.
               Unused headroom in the base fee is refunded. */}
-          <span className="text-muted-foreground">Max network fee</span>
+          <span className="text-muted-foreground">{t("dapps:maxFee")}</span>
           <span className="font-numeric">{maxNetworkFee}</span>
         </div>
       )}
       {typeof params['chainId'] === 'string' && (
         <div data-review-block className="flex justify-between gap-2">
-          <span className="text-muted-foreground">Chain ID</span>
+          <span className="text-muted-foreground">{t("dapps:chainId")}</span>
           <span>{params['chainId']}</span>
         </div>
       )}
       {data && data !== "0x" && (
         <div>
-          <span data-review-block className="block text-muted-foreground">Data</span>
+          <span data-review-block className="block text-muted-foreground">{t("dapps:data")}</span>
           <div data-review-block className="mt-1 max-h-20 overflow-auto rounded bg-muted p-2 font-mono text-xs break-all">
             {data}
           </div>

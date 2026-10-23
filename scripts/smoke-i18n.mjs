@@ -1,3 +1,4 @@
+import { slice6Screens } from "./i18n-slice6-probes.mjs";
 import { slice5Matrix } from "./i18n-slice5-matrix.mjs";
 import { slice4Screens, slice4NoticeProbes } from "./i18n-slice4-probes.mjs";
 import { assertFullI18nCoverage } from "./i18n-coverage.mjs";
@@ -412,6 +413,7 @@ try {
       snapshot,
       address,
     });
+    await slice6Screens({ page, catalogs, snapshot });
     const documentId = await page.evaluate(() => {
       window.i18nDocumentId = Math.random();
       return window.i18nDocumentId;

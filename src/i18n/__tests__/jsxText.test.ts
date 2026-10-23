@@ -14,7 +14,7 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
-it("keeps converted JSX free of literal user-facing copy", () => {
+it("keeps converted JSX translated except the original approval error fallback", () => {
   const files = [
     ...sourceFiles("src/components"),
     "src/App.tsx",
@@ -22,11 +22,16 @@ it("keeps converted JSX free of literal user-facing copy", () => {
   ].filter((file) => coverage.some((scope) => file.startsWith(scope)));
   expect(files.length).toBeGreaterThan(25);
   expect(
-    files.flatMap((file) => jsxTextFindings(readFileSync(file, "utf8"), file)),
-  ).toEqual([]);
+    files
+      .flatMap((file) => jsxTextFindings(readFileSync(file, "utf8"), file))
+      .map((finding) => finding.replace(/:\d+: /, ": ")),
+  ).toEqual([
+    // Error details retain the base English rendering until producers carry origin and keys.
+    "src/components/Core/Body/DAppConnect/DAppApprovalModal.tsx: Transaction status is unavailable.",
+  ]);
 });
 
-it("leaves visible copy outside coverage only in consent, approval and legal pages", () => {
+it("leaves visible copy outside coverage only in the five legal pages", () => {
   const files = sourceFiles("src").filter(
     (file) => !coverage.some((scope) => file.startsWith(scope)),
   );
@@ -37,11 +42,6 @@ it("leaves visible copy outside coverage only in consent, approval and legal pag
       )
       .sort(),
   ).toEqual([
-    "src/components/Core/Body/DAppConnect/DAppApprovalModal.tsx",
-    "src/components/Core/Body/DAppConnect/DAppConnectConsentModal.tsx",
-    "src/components/Core/Body/DAppConnect/DAppMessageReview.tsx",
-    "src/components/Core/Body/DAppConnect/DAppTransactionReview.tsx",
-    "src/components/Core/Body/DAppConnect/DAppTypedDataReview.tsx",
     "src/components/Core/Body/Disclaimer/Disclaimer.tsx",
     "src/components/Core/Body/Legal/Legal.tsx",
     "src/components/Core/Body/Privacy/Privacy.tsx",
