@@ -1,6 +1,7 @@
 /** Synthetic geometry and IO for state-machine tests only. Browser smoke proves visibility. */
 export function mockReviewObservers(automatic = true) {
   const observers = new Set<MockIntersectionObserver>();
+  const resizers = new Set<MockResizeObserver>();
   const rect = (height = 32, width = 100): DOMRect => ({
     x: 0,
     y: 0,
@@ -53,14 +54,19 @@ export function mockReviewObservers(automatic = true) {
     }
   }
   class MockResizeObserver implements ResizeObserver {
-    observe() {
-      /* Driven by explicit refresh or mutations in these tests. */
+    targets = new Set<Element>();
+    constructor(readonly callback: ResizeObserverCallback) {
+      resizers.add(this);
     }
-    unobserve() {
-      /* No browser layout in jsdom. */
+    observe(target: Element) {
+      this.targets.add(target);
+    }
+    unobserve(target: Element) {
+      this.targets.delete(target);
     }
     disconnect() {
-      /* No browser layout in jsdom. */
+      this.targets.clear();
+      resizers.delete(this);
     }
   }
   const previousIO = globalThis.IntersectionObserver;
@@ -81,6 +87,11 @@ export function mockReviewObservers(automatic = true) {
     }),
   );
   return {
+    resize(target: Element) {
+      for (const observer of resizers) {
+        if (observer.targets.has(target)) observer.callback([], observer);
+      }
+    },
     hold() {
       automatic = false;
     },

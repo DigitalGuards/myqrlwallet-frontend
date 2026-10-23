@@ -86,6 +86,53 @@ export function fixture(method, maximal = false) {
   };
 }
 
+// Reuses the reviewer's ten-level Nested0..Nested9 fixture, including its
+// original SENSITIVE leaf. Long leaves exercise wrapping at the same depth.
+export function nestedTypedPayload(leaf = "SENSITIVE", depth = 10) {
+  const types = { QRLDomain: [{ name: "name", type: "string" }] };
+  for (let i = 0; i < depth; i++) {
+    types[`Nested${i}`] = [{
+      name: "value",
+      type: i === depth - 1 ? "string" : `Nested${i + 1}`,
+    }];
+  }
+  let message = { value: leaf };
+  for (let i = 1; i < depth; i++) message = { value: message };
+  return { types, primaryType: "Nested0", domain: { name: "Example" }, message };
+}
+
+export function adversarialFixtures() {
+  const token = "x".repeat(2000);
+  const messages = [
+    ["space", "0x20"],
+    ["tab", "0x09"],
+    ["newline", "0x0a"],
+    ["space-tab-space", "0x200920"],
+    ["invisible", `0x${Buffer.from("\u200b\u202e").toString("hex")}`],
+    ["empty", "0x"],
+    ["token-2000", `0x${Buffer.from(token).toString("hex")}`],
+  ].map(([name, hex]) => ({
+    name: `message-${name}`,
+    approval: { ...fixture("qrl_signMessage"), params: [address, hex] },
+    primaryText: name === "token-2000" ? token : name === "empty" ? "Empty message (0 bytes)." : hex,
+  }));
+  return [
+    ...messages,
+    ...[
+      ["nested-reviewer", nestedTypedPayload()],
+      ["nested-token-2000", nestedTypedPayload(token)],
+      ["token-2000", nestedTypedPayload(token, 1)],
+    ].map(([name, payload]) => ({
+      name: `typed-${name}`,
+      approval: { ...fixture("qrl_signTypedData"), params: [address, payload] },
+      primaryText: JSON.stringify(name === "nested-reviewer" ? "SENSITIVE" : token),
+      primaryLabel: name.startsWith("nested-")
+        ? "value.value.value.value.value.value.value.value.value.value"
+        : undefined,
+    })),
+  ];
+}
+
 export function consentURI(maximal = false) {
   const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
   const bytes = Buffer.concat([Buffer.from("PQP3"), Buffer.alloc(80, 1)]);

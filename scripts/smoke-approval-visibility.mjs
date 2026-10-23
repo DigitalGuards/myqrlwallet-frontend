@@ -8,6 +8,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { chromium } from "playwright";
 import {
   address,
+  adversarialFixtures,
   consentURI,
   fixture,
   ignoredNetworkFields,
@@ -29,6 +30,7 @@ const changes = [];
 const zeroAreaReports = [];
 const emptyCases = [];
 const networkReviews = [];
+const overflowControls = [];
 const server = spawn(
   process.execPath,
   [
@@ -125,8 +127,8 @@ try {
   await page.getByRole("link", { name: "Create a new account" }).waitFor();
   await page.evaluate(() => document.fonts.ready);
 
-  async function open(method, maximal, id, empty = false) {
-    const approval = fixture(method, maximal);
+  async function open(method, maximal, id, empty = false, supplied) {
+    const approval = supplied ?? fixture(method, maximal);
     await page.evaluate(
       ({ approval, uri, address, id, empty }) => {
         const { dappConnectStore: store, qrlStore } = window.__APP_STORE__;
@@ -243,8 +245,8 @@ try {
     }, label);
   }
 
-  async function inspectAndRead(consent) {
-    return page.evaluate(async (consent) => {
+  async function inspectAndRead(consent, primaryText, primaryLabel) {
+    return page.evaluate(async ({ consent, primaryText, primaryLabel }) => {
       const dialog = document.querySelector("[role=dialog]");
       const region = dialog.querySelector("[data-review-region]");
       const button = [...dialog.querySelectorAll("button")].find(
@@ -254,8 +256,7 @@ try {
         new Promise((resolve) =>
           requestAnimationFrame(() => requestAnimationFrame(resolve)),
         );
-      const visible = (element) => {
-        const rect = element.getBoundingClientRect();
+      const visible = (element, rect = element.getBoundingClientRect(), content = false) => {
         if (rect.width <= 0 || rect.height <= 0) return false;
         if (
           rect.bottom < 0 ||
@@ -269,7 +270,7 @@ try {
           right = innerWidth,
           bottom = innerHeight;
         for (
-          let parent = element.parentElement;
+          let parent = content ? element : element.parentElement;
           parent;
           parent = parent.parentElement
         ) {
@@ -299,6 +300,90 @@ try {
           rect.right <= right + 0.02
         );
       };
+      const blocks = [...dialog.querySelectorAll("[data-review-block]")];
+      const assertHorizontalFit = () => {
+        for (const block of blocks) {
+          const bounds = block.getBoundingClientRect();
+          for (const element of [block, ...block.querySelectorAll(":not([data-review-tile])")]) {
+            if (element.scrollWidth > element.clientWidth)
+              throw new Error(`Horizontal content overflow: ${element.textContent.slice(0, 60)}`);
+            const rect = element.getBoundingClientRect();
+            if (rect.width && (rect.left < bounds.left - 0.02 || rect.right > bounds.right + 0.02))
+              throw new Error(`Descendant outside review block: ${element.textContent.slice(0, 60)}`);
+          }
+          const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+          while (walker.nextNode()) {
+            const node = walker.currentNode;
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            // Line fragments independently catch text clipped inside a fitting
+            // parent rectangle, including inline and nested scrolling content.
+            for (const rect of range.getClientRects()) {
+              if (!rect.width) continue;
+              let left = Math.max(0, bounds.left), right = Math.min(innerWidth, bounds.right);
+              for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+                if (/(auto|scroll|hidden|clip)/.test(getComputedStyle(parent).overflowX)) {
+                  const box = parent.getBoundingClientRect();
+                  left = Math.max(left, box.left + parent.clientLeft);
+                  right = Math.min(right, box.left + parent.clientLeft + parent.clientWidth);
+                }
+              }
+              if (rect.left < left - 0.51 || rect.right > right + 0.51)
+                throw new Error(`Horizontally clipped text: ${node.textContent.slice(0, 60)}`);
+            }
+          }
+        }
+        if ([dialog, region, ...blocks].some((el) => el.scrollLeft !== 0))
+          throw new Error("Review required horizontal scrolling");
+      };
+      assertHorizontalFit();
+      const glyphs = [];
+      const seenGlyphs = new Set();
+      const labelGlyphs = [];
+      const seenLabelGlyphs = new Set();
+      let primaryWidth;
+      let labelLines;
+      const trackCharacters = (node, target) => {
+        let offset = 0;
+        for (const character of node.textContent) {
+          const range = document.createRange();
+          range.setStart(node, offset);
+          offset += character.length;
+          range.setEnd(node, offset);
+          // The empty-message label can wrap at collapsible spaces. Count its
+          // painted glyphs; signed whitespace is represented by hex digits.
+          if (character.trim()) target.push({ range, element: node.parentElement });
+        }
+      };
+      if (primaryText !== undefined) {
+        const walker = document.createTreeWalker(region, NodeFilter.SHOW_TEXT);
+        let node;
+        while (walker.nextNode()) {
+          if (walker.currentNode.textContent === primaryText && walker.currentNode.parentElement.closest("[data-review-block]")) {
+            node = walker.currentNode;
+            break;
+          }
+        }
+        if (!node) throw new Error("Primary signed content missing from required blocks");
+        primaryWidth = (node.parentElement.closest(".review-tree-entry") ?? node.parentElement).getBoundingClientRect().width;
+        trackCharacters(node, glyphs);
+        if (primaryLabel !== undefined) {
+          const label = node.parentElement.closest(".review-tree-entry")?.firstElementChild;
+          if (label?.textContent !== primaryLabel || label.firstChild?.nodeType !== Node.TEXT_NODE)
+            throw new Error(`Deepest value must have full path label: ${primaryLabel}`);
+          trackCharacters(label.firstChild, labelGlyphs);
+          const range = document.createRange();
+          range.selectNodeContents(label);
+          labelLines = [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0).length;
+        }
+      }
+      const sampleGlyphs = () => {
+        for (const [characters, seenCharacters] of [[glyphs, seenGlyphs], [labelGlyphs, seenLabelGlyphs]]) {
+          characters.forEach(({ range, element }, index) => {
+            if (visible(element, range.getBoundingClientRect(), true)) seenCharacters.add(index);
+          });
+        }
+      };
       const previous = window.__reviewProbeCoverage;
       const seen = previous?.dialog === dialog ? previous.seen : new Set();
       window.__reviewProbeCoverage = { dialog, seen };
@@ -311,6 +396,7 @@ try {
       // hit-test assertions below independently verify each scroll destination.
       const coverage = new IntersectionObserver(
         (entries) => {
+          sampleGlyphs();
           for (const entry of entries) {
             if (
               entry.isIntersecting &&
@@ -328,6 +414,7 @@ try {
       // Geometry sampled and scrolled away in the same JS task was never an
       // IntersectionObserver observation, particularly after a value change.
       await frame();
+      sampleGlyphs();
       const initiallyDisabled = button.disabled;
       if (!tiles().length) throw new Error("Missing coverage targets");
       if (tiles().some((tile) => !seen.has(tile)) && !button.disabled)
@@ -345,6 +432,7 @@ try {
         if (steps++ > 20000) throw new Error("Review did not converge");
         unseen.scrollIntoView({ block: "center", inline: "nearest" });
         await frame();
+        sampleGlyphs();
         if (!visible(unseen))
           throw new Error(
             `Clipped tile: ${unseen.parentElement.textContent.slice(0, 100)} ${unseen.style.cssText}`,
@@ -359,6 +447,11 @@ try {
         throw new Error(
           `Still gated after every detail was visible: ${JSON.stringify([...dialog.querySelectorAll("[data-review-block]")].map((element) => ({ text: element.textContent.slice(0, 40), width: element.clientWidth, height: element.clientHeight, tiles: element.querySelectorAll("[data-review-tile]").length })))}`,
         );
+      assertHorizontalFit();
+      if (seenGlyphs.size !== glyphs.length)
+        throw new Error(`Enabled with clipped primary characters: ${seenGlyphs.size}/${glyphs.length}`);
+      if (seenLabelGlyphs.size !== labelGlyphs.length)
+        throw new Error(`Enabled with clipped path characters: ${seenLabelGlyphs.size}/${labelGlyphs.length}`);
       // All controls, including dismissal, must be painted and reachable too.
       for (const control of dialog.querySelectorAll("button, input, summary")) {
         control.scrollIntoView({ block: "center", inline: "nearest" });
@@ -389,10 +482,18 @@ try {
         steps,
         initiallyDisabled,
         enabledAfter: !button.disabled,
+        horizontalFit: true,
+        primaryCharacters: glyphs.length,
+        seenCharacters: seenGlyphs.size,
+        primaryWidth,
+        primaryLabel,
+        labelCharacters: labelGlyphs.length,
+        seenLabelCharacters: seenLabelGlyphs.size,
+        labelLines,
         modes,
         cssViewport: [innerWidth, innerHeight],
       };
-    }, consent);
+    }, { consent, primaryText, primaryLabel });
   }
 
   const viewports = baseline
@@ -453,6 +554,27 @@ try {
         console.log(`approval-visibility: ${label} passed`);
       }
     }
+    for (const { name, approval, primaryText, primaryLabel } of baseline ? [] : adversarialFixtures()) {
+      const label = `${name}-${viewport.width}x${viewport.height}-${viewport.zoom}x`;
+      if (caseFilter && !new RegExp(caseFilter).test(label)) continue;
+      await open(approval.method, false, label, false, approval);
+      const measured = await inspectAndRead(false, primaryText, primaryLabel).catch(async (error) => {
+        await page.screenshot({ path: join(output, `${label}-failure.png`) });
+        throw new Error(`${label}: ${error.message}`);
+      });
+      if (name.startsWith("typed-nested") && viewport.width === 320 && viewport.zoom === 1) {
+        assert(measured.primaryWidth >= 120, `${label}: leaf has insufficient reading width`);
+        assert.equal(measured.primaryLabel, "value.value.value.value.value.value.value.value.value.value");
+        assert(measured.labelLines > 1, `${label}: full path must wrap within the narrow column`);
+        assert.equal(measured.seenLabelCharacters, measured.primaryLabel.length, `${label}: full path was not fully visible`);
+      }
+      await page.screenshot({ path: join(output, `${label}.png`) });
+      await page.getByRole("button", { name: "Approve", exact: true }).click();
+      await page.getByText("Please enter your PIN", { exact: true }).waitFor();
+      results.push({ label, ...measured, reachedPinCheck: true });
+      await close();
+      console.log(`approval-visibility: ${label} passed`);
+    }
   }
 
   if (!baseline && !caseFilter) {
@@ -462,6 +584,36 @@ try {
     }, origin);
     await page.setViewportSize({ width: 360, height: 320 });
     await page.waitForFunction(() => innerWidth === 360);
+    for (const kind of ["descendant-scroll", "descendant-rect", "resize"]) {
+      const { approval, primaryText } = adversarialFixtures().find((entry) => entry.name === "typed-nested-token-2000");
+      await open(approval.method, false, `overflow-${kind}`, false, approval);
+      await inspectAndRead(false, primaryText);
+      await page.evaluate((primaryText) => {
+        const walker = document.createTreeWalker(document.querySelector("[data-review-region]"), NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          if (walker.currentNode.textContent === primaryText) {
+            walker.currentNode.parentElement.dataset.probeLeaf = "";
+            return;
+          }
+        }
+        throw new Error("Missing overflow control leaf");
+      }, primaryText);
+      const styles = await page.addStyleTag({
+        content: kind === "descendant-scroll"
+          ? "[data-probe-leaf] { display:block;width:40px;white-space:nowrap;overflow:hidden; }"
+          : `${kind === "resize" ? "@media (max-width:340px) {" : ""} [data-probe-leaf] { display:block;transform:translateX(-500px); } ${kind === "resize" ? "}" : ""}`,
+      });
+      if (kind === "resize") await page.setViewportSize({ width: 320, height: 320 });
+      await page.waitForFunction(() => document.querySelector("[data-probe-leaf]").closest("[data-review-block]").querySelectorAll("[data-review-tile]").length === 0);
+      assert.equal(await page.getByRole("button", { name: "Approve", exact: true }).isDisabled(), true);
+      await page.getByRole("dialog").locator("input").first().press("Enter");
+      assert.equal(await page.getByText("Please enter your PIN", { exact: true }).count(), 0);
+      await styles.evaluate((el) => el.remove());
+      await page.setViewportSize({ width: 360, height: 320 });
+      await page.waitForFunction(() => document.querySelector("[data-probe-leaf]").closest("[data-review-block]").querySelectorAll("[data-review-tile]").length > 0);
+      overflowControls.push({ kind, disabledDuringOverflow: true, ...(await inspectAndRead(false, primaryText)) });
+      await close();
+    }
     for (const kind of ["message", "identity", "chain-warning", "switch-chain-id"]) {
       const method =
         kind === "switch-chain-id" ? "wallet_switchQrlChain"
@@ -577,6 +729,7 @@ try {
         changes,
         emptyCases,
         networkReviews,
+        overflowControls,
         results,
       },
       null,
@@ -614,7 +767,7 @@ try {
     );
   }
   console.log(
-    `approval-visibility: ${results.length} cases, ${networkReviews.length} network content checks, ${collapsedControls} collapsed controls; ${durationSeconds}s`,
+    `approval-visibility: ${results.length} cases, ${networkReviews.length} network content checks, ${collapsedControls} collapsed controls, ${overflowControls.length} overflow controls; ${durationSeconds}s`,
   );
 } finally {
   await context?.close();

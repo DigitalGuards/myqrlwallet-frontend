@@ -1,5 +1,5 @@
 import { DAPP_TRANSACTION_LIMITS, RequestHandler } from '../RequestHandler';
-import { TYPED_DATA_LIMITS } from '@/utils/signing';
+import { TYPED_DATA_LIMITS, computeTypedDataDigest, type TypedDataPayload } from '@/utils/signing';
 import { isExactQrlAccount, Q_ADDRESS_PATTERN } from '../accountBinding';
 
 const SIGNER = `Q${'0'.repeat(128)}`;
@@ -19,6 +19,31 @@ function typedPayload(fieldType: string, value: unknown) {
 }
 
 describe('RequestHandler closed wallet-side RPC policy', () => {
+  it.each(['0x20', '0x09', '0x0a', '0x200920', '0xe2808be280ae', '0x', `0x${'78'.repeat(2000)}`])(
+    'accepts the message visibility regression fixture %# at ingress', (hex) => {
+      expect(() => {
+        RequestHandler.validateRestrictedRequest('qrl_signMessage', [SIGNER, hex]);
+      }).not.toThrow();
+    },
+  );
+
+  it.each([['SENSITIVE', 10], ['x'.repeat(2000), 10], ['x'.repeat(2000), 1]] as const)(
+    'accepts the typed-data visibility regression fixture %# at ingress', (leaf, depth) => {
+      const payload: TypedDataPayload = typedPayload('string', leaf);
+      payload.types = { QRLDomain: [{ name: 'name', type: 'string' }] };
+      for (let i = 0; i < depth; i++) {
+        payload.types[`Nested${i}`] = [{ name: 'value', type: i === depth - 1 ? 'string' : `Nested${i + 1}` }];
+      }
+      payload.primaryType = 'Nested0';
+      payload.domain = { name: 'Example' };
+      for (let i = 1; i < depth; i++) payload.message = { value: payload.message };
+      expect(() => {
+        RequestHandler.validateRestrictedRequest('qrl_signTypedData', [SIGNER, payload]);
+      }).not.toThrow();
+      expect(computeTypedDataDigest(payload)).toHaveLength(64);
+    },
+  );
+
   it('allows only exact restricted and unrestricted methods', () => {
     expect(RequestHandler.isKnownMethod('qrl_sendTransaction')).toBe(true);
     expect(RequestHandler.isRestricted('qrl_sendTransaction')).toBe(true);

@@ -31,11 +31,11 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
       {decoded.ok ? (
         <>
           <p
-            data-review-block={decoded.text ? true : undefined} data-review-value={messageHex}
+            data-review-block data-review-value={messageHex}
             className="max-h-32 overflow-auto break-words font-mono text-sm"
             dir="ltr"
           >
-            {decoded.text}
+            {decoded.text || 'Empty message (0 bytes).'}
           </p>
           <details className="text-xs">
             <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
@@ -49,7 +49,9 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
       ) : (
         <div>
           <p data-review-block className="text-xs text-muted-foreground italic">
-            Not a safely printable UTF-8 string, showing raw hex.
+            {decoded.reason === 'invisible-chars'
+              ? 'Message contains only whitespace or invisible characters. Raw signed bytes (hex):'
+              : 'Not a safely printable UTF-8 string, showing raw hex.'}
           </p>
           <p
             data-review-block

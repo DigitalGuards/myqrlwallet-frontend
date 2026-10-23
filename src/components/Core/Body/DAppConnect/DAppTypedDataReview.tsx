@@ -17,7 +17,9 @@ interface DAppTypedDataReviewProps {
   connectedChainId?: string;
 }
 
-function renderValue(value: unknown): React.ReactNode {
+function renderValue(value: unknown, path: string, depth = 0): React.ReactNode {
+  // Full paths identify descendants once indentation reaches its width cap.
+  const indent = depth < 2 ? 'border-l border-border pl-2' : '';
   if (value === null || value === undefined) return <span className="text-muted-foreground">(empty)</span>;
   if (typeof value === 'string') {
     return (
@@ -31,25 +33,33 @@ function renderValue(value: unknown): React.ReactNode {
   }
   if (isArray(value)) {
     return (
-      <ul className="space-y-1 border-l border-border pl-2">
-        {value.map((item, i) => (
-          <li key={i} className="flex gap-2">
-            <span className="shrink-0 whitespace-nowrap text-muted-foreground">[{i}]</span>
-            <span className="min-w-0">{renderValue(item)}</span>
-          </li>
-        ))}
+      <ul className={`space-y-1 ${indent}`}>
+        {value.map((item, i) => {
+          const itemPath = `${path}[${i}]`;
+          return (
+            <li key={i} className="review-tree-entry">
+              <span className={depth < 2 ? 'shrink-0 whitespace-nowrap text-muted-foreground' : 'text-muted-foreground'}>
+                {depth < 2 ? `[${i}]` : itemPath}
+              </span>
+              <span className="min-w-0">{renderValue(item, itemPath, depth + 1)}</span>
+            </li>
+          );
+        })}
       </ul>
     );
   }
   if (isRecord(value)) {
     return (
-      <div className="mt-1 space-y-1 border-l border-border pl-2">
-        {Object.entries(value).map(([k, v]) => (
-          <div key={k} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
-            <span className="text-muted-foreground">{k}</span>
-            <span className="min-w-0 text-right">{renderValue(v)}</span>
-          </div>
-        ))}
+      <div className={`mt-1 space-y-1 ${indent}`}>
+        {Object.entries(value).map(([k, v]) => {
+          const fieldPath = `${path}.${k}`;
+          return (
+            <div key={k} className="review-tree-entry">
+              <span className="text-muted-foreground">{depth < 2 ? k : fieldPath}</span>
+              <span className="min-w-0 text-right">{renderValue(v, fieldPath, depth + 1)}</span>
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -93,10 +103,12 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
           <div
             key={field.name}
             data-review-block data-review-value={field.type}
-            className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2 text-xs"
+            className={isArray(domain[field.name]) || isRecord(domain[field.name])
+              ? 'review-tree-entry text-xs'
+              : 'grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2 text-xs'}
           >
             <span className="text-muted-foreground">{field.name}</span>
-            <span className="min-w-0 text-right">{renderValue(domain[field.name])}</span>
+            <span className="min-w-0 text-right">{renderValue(domain[field.name], field.name)}</span>
           </div>
         ))}
         {chainMismatch && (
@@ -124,10 +136,12 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
           <div
             key={field.name}
             data-review-block data-review-value={field.type}
-            className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2"
+            className={isArray(message[field.name]) || isRecord(message[field.name])
+              ? 'review-tree-entry'
+              : 'grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2'}
           >
             <span className="text-muted-foreground">{field.name}</span>
-            <span className="min-w-0 text-right">{renderValue(message[field.name])}</span>
+            <span className="min-w-0 text-right">{renderValue(message[field.name], field.name)}</span>
           </div>
         ))}
       </div>

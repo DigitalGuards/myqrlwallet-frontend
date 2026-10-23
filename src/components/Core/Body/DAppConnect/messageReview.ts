@@ -7,7 +7,7 @@ export function tryDecodeUtf8(hex: string):
   | { ok: true; text: string }
   | {
       ok: false;
-      reason: 'not-hex' | 'non-utf8' | 'control-chars' | 'format-controls';
+      reason: 'not-hex' | 'non-utf8' | 'control-chars' | 'format-controls' | 'invisible-chars';
     } {
   let bytes: Uint8Array;
   try {
@@ -16,7 +16,10 @@ export function tryDecodeUtf8(hex: string):
     return { ok: false, reason: 'not-hex' };
   }
   try {
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+    if (text && /^[\s\p{Default_Ignorable_Code_Point}]+$/u.test(text)) {
+      return { ok: false, reason: 'invisible-chars' };
+    }
     if (UNSAFE_VISUAL_CONTROL_PATTERN.test(text)) {
       return { ok: false, reason: 'format-controls' };
     }

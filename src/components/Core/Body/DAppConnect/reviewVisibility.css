@@ -1,8 +1,34 @@
 [data-review-block] {
   position: relative;
+}
+
+[data-review-block],
+[data-review-block] :not([data-review-tile]) {
   overflow-wrap: anywhere;
+}
+
+/* Preserve narrower component limits, such as the address column's 75%. */
+@layer base {
+  [data-review-block] {
+    min-width: 0;
+  }
+
+  [data-review-block],
+  [data-review-block] :not([data-review-tile]) {
+    max-width: 100%;
+  }
 }
 
 [data-review-region] {
   min-height: 128px;
+}
+
+/* Compound values use the full row. Indentation stops after two levels. */
+.review-tree-entry {
+  display: block;
+}
+
+.review-tree-entry > span {
+  display: block;
+  text-align: left;
 }
