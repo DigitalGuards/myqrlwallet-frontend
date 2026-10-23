@@ -1,4 +1,3 @@
-import { dappMessage } from "@/i18n/dappMessage";
 import { useTranslation } from "react-i18next";
 /**
  * Desktop dApp-connect consent modal.
@@ -139,7 +138,7 @@ const DAppConnectConsentModalContent = observer(({ generation }: { generation: n
           {!hasAccount && !isInitializing && (
             <p data-review-block className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-2 text-yellow-500">{t("dapps:accountRequired")}</p>
           )}
-          {error && <p data-review-block role="alert" className="break-words text-destructive">{dappMessage(error, t)}</p>}
+          {error && <p data-review-block role="alert" className="break-words text-destructive">{error}</p>}
         </div>
 
         {!reviewReady && (

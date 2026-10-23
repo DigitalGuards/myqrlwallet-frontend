@@ -10,19 +10,25 @@ export async function relayErrorProbes({ origin, language, output }) {
   const settings = JSON.parse(
     await readFile(`src/locales/${language}/settings.json`, "utf8"),
   );
-  const dapps = JSON.parse(
-    await readFile(`src/locales/${language}/dapps.json`, "utf8"),
-  );
   const prefix = "Message signing failed: ";
   const diagnostic =
     "Invalid input: expected relay authorization token, received diagnostic-id-17";
   const recursive = prefix.repeat(12000) + "external relay error";
+  const connectErrors = {
+    collision: diagnostic,
+    recursive,
+    "pin-collision": "Incorrect PIN. 4 attempts remaining.",
+    "wrapper-collision": "Message signing failed: upstream authorization-id-17",
+  };
   const results = [];
   const browser = await chromium.launch();
   try {
     for (const kind of [
       "collision",
       "recursive",
+      "pin-collision",
+      "wrapper-collision",
+      "join-collision",
       "join-timeout",
       "malformed-join",
     ]) {
@@ -76,11 +82,11 @@ export async function relayErrorProbes({ origin, language, output }) {
             const packet = String(message);
             if (packet === "40") {
               namespaceConnections++;
-              if (kind === "collision" || kind === "recursive")
+              if (Object.hasOwn(connectErrors, kind))
                 ws.send(
                   "44" +
                     JSON.stringify({
-                      message: kind === "collision" ? diagnostic : recursive,
+                      message: connectErrors[kind],
                     }),
                 );
               else ws.send('40{"sid":"namespace-fixture"}');
@@ -91,6 +97,8 @@ export async function relayErrorProbes({ origin, language, output }) {
               assert(id !== undefined);
               if (kind === "malformed-join")
                 ws.send("43" + id + '[{"success":false}]');
+              if (kind === "join-collision")
+                ws.send("43" + id + '[{"success":false,"error":"No active account"}]');
             }
           });
           ws.send(
@@ -155,25 +163,19 @@ export async function relayErrorProbes({ origin, language, output }) {
           .click();
         await page.getByRole("alert").waitFor();
         const displayed = await page.getByRole("alert").textContent();
-        const translatedPrefix = dapps.messageSigningFailed.replace(
-          "{{reason}}",
-          "",
-        );
         const expected =
-          kind === "collision"
-            ? diagnostic
-            : kind === "recursive"
-              ? translatedPrefix + recursive.slice(prefix.length)
+          Object.hasOwn(connectErrors, kind)
+            ? connectErrors[kind]
+            : kind === "join-collision"
+              ? "No active account"
               : kind === "join-timeout"
-                ? dapps.relayJoinTimeout
-                : dapps.relayJoinFailed;
+                ? "Relay join acknowledgement timeout"
+                : "Failed to join channel";
         // A boolean assertion keeps a failing long-message report bounded.
         assert(
           displayed === expected,
           `${language}/${kind}: error bytes changed`,
         );
-        if (kind === "recursive" && language === "en")
-          assert(displayed === recursive);
         assert.equal(await page.getByRole("dialog").count(), 1);
         assert.equal(
           await page
@@ -184,7 +186,7 @@ export async function relayErrorProbes({ origin, language, output }) {
         assert(namespaceConnections > 0);
         assert.equal(
           joins > 0,
-          kind === "join-timeout" || kind === "malformed-join",
+          kind === "join-timeout" || kind === "malformed-join" || kind === "join-collision",
         );
         assert.deepEqual(errors, []);
         await page.screenshot({ path: join(output, `relay-${kind}.png`) });

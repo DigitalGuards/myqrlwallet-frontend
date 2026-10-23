@@ -1,4 +1,3 @@
-import { dappMessage, type DAppTranslator } from "@/i18n/dappMessage";
 import type { ParseKeys } from "i18next";
 import { useTranslation } from "react-i18next";
 import { logger } from "@/utils/log";
@@ -101,7 +100,7 @@ import {
   requestedGasLimit,
 } from "./dappTransaction";
 
-function formatZodIssues(error: ZodError, t?: DAppTranslator): string {
+function formatZodIssues(error: ZodError): string {
   // path segments can be symbols (e.g. a MobX admin key surfaced by zod's
   // record key check); String() coerces them safely whereas Array.join would
   // throw "Cannot convert a Symbol value to a string" and crash the render.
@@ -109,9 +108,9 @@ function formatZodIssues(error: ZodError, t?: DAppTranslator): string {
     error.issues
       .map(
         (i) =>
-          `${i.path.length ? i.path.map(String).join(".") : t ? t("dapps:schemaRoot") : "(root)"}: ${t ? dappMessage(i.message, t) : i.message}`,
+          `${i.path.length ? i.path.map(String).join(".") : "(root)"}: ${i.message}`,
       )
-      .join("; ") || (t ? t("dapps:schemaMalformed") : "malformed params")
+      .join("; ") || "malformed params"
   );
 }
 
@@ -267,7 +266,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
   /** Bumped by the retry button to re-run a failed preview. */
   const [feePreviewAttempt, setFeePreviewAttempt] = useState(0);
   const [pin, setPin] = useState("");
-  const [error, setError] = useState<string | { key: "dapps:invalidMessageParams" | "dapps:invalidTypedParams"; issues: ZodError } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [signingFailure, setSigningFailure] = useState<ReturnType<
     typeof desktopSigningError
   > | null>(null);
@@ -328,7 +327,6 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
         return {
           kind: "invalid" as const,
           reason: formatZodIssues(parsed.error),
-          issues: parsed.error,
         };
       }
       try {
@@ -350,7 +348,6 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
         return {
           kind: "invalid" as const,
           reason: formatZodIssues(parsed.error),
-          issues: parsed.error,
         };
       }
       try {
@@ -984,7 +981,9 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
       if (method === "qrl_signMessage") {
         const parsed = SignMessageParamsSchema.safeParse(params);
         if (!parsed.success) {
-          setError({ key: "dapps:invalidMessageParams", issues: parsed.error });
+          setError(
+            `Invalid qrl_signMessage params: ${formatZodIssues(parsed.error)}`,
+          );
           setLoading(false);
           return;
         }
@@ -1085,7 +1084,9 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
       if (method === "qrl_signTypedData") {
         const parsed = SignTypedDataParamsSchema.safeParse(params);
         if (!parsed.success) {
-          setError({ key: "dapps:invalidTypedParams", issues: parsed.error });
+          setError(
+            `Invalid qrl_signTypedData params: ${formatZodIssues(parsed.error)}`,
+          );
           setLoading(false);
           return;
         }
@@ -1268,9 +1269,6 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     : undefined;
   const methodKey = METHOD_LABELS[method];
   const label = methodKey ? t(methodKey) : method;
-  const errorText = error !== null && typeof error !== "string"
-    ? t(error.key, { reason: formatZodIssues(error.issues, t) })
-    : dappMessage(formatDAppRequestError(error ?? "", method), t);
   const needsPin =
     method !== "qrl_requestAccounts" &&
     method !== "wallet_addQrlChain" &&
@@ -1420,7 +1418,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
           {/* Transaction progress states */}
           {signingFailure ? (
             <p role="alert" className="break-words text-sm text-destructive">
-              {errorText}
+              {formatDAppRequestError(error ?? "", method)}
             </p>
           ) : isTxInProgress ? (
             <div className="space-y-4">
@@ -1491,17 +1489,17 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t("dapps:value")}</span>
-                    <span className="font-numeric font-semibold">{txDisplayValue === "invalid value" ? t("dapps:invalidValue") : txDisplayValue}</span>
+                    <span className="font-numeric font-semibold">{txDisplayValue}</span>
                   </div>
                 </div>
               )}
 
               {/* Error message for failed state */}
               {txProgress === "failed" && txError !== null && (
-                <p className="text-sm text-destructive break-all">{dappMessage(formatDAppRequestError(txError, method), t)}</p>
+                <p className="text-sm text-destructive break-all">{formatDAppRequestError(txError, method)}</p>
               )}
               {txProgress === "unknown" && txError !== null && (
-                <p className="text-sm text-muted-foreground break-all">{dappMessage(txError.trim() ? txError : "Transaction status is unavailable.", t)}</p>
+                <p className="text-sm text-muted-foreground break-all">{txError.trim() ? txError : "Transaction status is unavailable."}</p>
               )}
             </div>
           ) : (
@@ -1593,7 +1591,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                 <div data-review-block className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
                   <p className="mb-1 font-medium text-destructive">{t("dapps:cannotDecode")}</p>
                   <p className="text-xs text-muted-foreground break-all">
-                    {signingPreview.issues ? formatZodIssues(signingPreview.issues, t) : dappMessage(formatDAppRequestError(signingPreview.reason, method), t)}
+                    {formatDAppRequestError(signingPreview.reason, method)}
                   </p>
                 </div>
               )}
@@ -1627,7 +1625,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                 </div>
               )}
 
-              {error !== null && <p data-review-block className="text-sm text-destructive">{errorText}</p>}
+              {error !== null && <p data-review-block className="text-sm text-destructive">{formatDAppRequestError(error, method)}</p>}
             </div>
           )}
         </div>

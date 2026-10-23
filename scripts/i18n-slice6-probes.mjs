@@ -119,7 +119,7 @@ export async function slice6Screens({ page, catalogs, snapshot, full = true, emb
     if (full && !embedded && method === "qrl_signMessage") {
       await readReview(page, c.approve);
       await page.getByRole("button", { name: c.approve, exact: true }).click();
-      await page.getByText(c.pinRequired, { exact: true }).waitFor();
+      await page.getByText("Please enter your PIN", { exact: true }).waitFor();
       await snapshot("approval-pin-error");
     }
     if (full && method === "qrl_signTypedData") {

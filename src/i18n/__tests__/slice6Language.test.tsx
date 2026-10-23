@@ -365,7 +365,7 @@ it.each(["de", "es", "ru", "zh-CN"] as const)(
     );
   },
 );
-it("changes an already displayed PIN error without another unlock or approval", async () => {
+it("preserves an already displayed English PIN error without another unlock or approval", async () => {
   mockStore.dappConnectStore.currentApproval = request("qrl_signMessage");
   await show(<DAppApprovalModal />);
   await click("Approve");
@@ -375,7 +375,7 @@ it("changes an already displayed PIN error without another unlock or approval", 
       await applyLanguage(language);
     });
     expect(
-      screen.getByText(i18n.getFixedT(language, "dapps")("pinRequired")),
+      screen.getByText("Please enter your PIN"),
     ).toBeDefined();
     expect(screen.getByText("Example dApp")).toBeDefined();
     expect(screen.getByText("https://dapp.example")).toBeDefined();
@@ -458,7 +458,7 @@ it("requires fresh visibility for translated blocks without repeating network re
   }
   expect(readChain).toHaveBeenCalledTimes(calls);
 });
-it("updates a consent error and requires its translated review without another connection", async () => {
+it("preserves a consent error and requires the translated review without another connection", async () => {
   mockStore.dappConnectStore.desktopConnectUri = "qrlconnect://?q=fixture";
   mockConnect.mockResolvedValue({
     success: false,
@@ -475,7 +475,7 @@ it("updates a consent error and requires its translated review without another c
     });
     const t = i18n.getFixedT(language, ["dapps", "settings"]);
     expect(screen.getByRole("alert").textContent).toBe(
-      t("dapps:fingerprintMismatch"),
+      "Relay-provided public key does not match the fingerprint from the QR",
     );
     expect(screen.getByText("https://relay.example")).toBeDefined();
     const button = screen.getByRole("button", {
@@ -520,12 +520,7 @@ it.each(["en", "de", "es", "ru", "zh-CN"] as const)(
     await show(<DAppConnectConsentModal />);
     await click(i18n.getFixedT(language, "settings")("connect"));
     const displayed = screen.getByRole("alert").textContent;
-    expect(displayed).toBe(
-      i18n.getFixedT(language, "dapps")("messageSigningFailed", {
-        reason: "",
-      }) + remainder,
-    );
-    if (language === "en") expect(displayed).toBe(external);
+    expect(displayed).toBe(external);
     expect(screen.getByRole("dialog")).toBeDefined();
     expect(mockConnect).toHaveBeenCalledTimes(1);
   },

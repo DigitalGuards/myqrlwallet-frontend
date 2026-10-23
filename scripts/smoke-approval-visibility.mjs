@@ -565,8 +565,8 @@ try {
     await pin.fill("123456");
     await pin.press("Enter");
     await pin.fill("");
-    assert.equal(await page.getByText(t("No encrypted seed found"), { exact: true }).count(), 0);
-    assert.equal(await page.getByText(t("Please enter your PIN"), { exact: true }).count(), 0);
+    assert.equal(await page.getByText("No encrypted seed found", { exact: true }).count(), 0);
+    assert.equal(await page.getByText("Please enter your PIN", { exact: true }).count(), 0);
     assert.equal(await button.isDisabled(), true);
   }
 
@@ -624,7 +624,7 @@ try {
     }
     const reviewed = await inspectAndRead(false);
     await page.getByRole("button", { name: t("Approve"), exact: true }).click();
-    await page.getByText(t("Please enter your PIN"), { exact: true }).waitFor();
+    await page.getByText("Please enter your PIN", { exact: true }).waitFor();
     chainChecks.push({ label, pending, failed, retry, mismatch, reviewed, reachedPinCheck: true });
     await close();
     console.log(`approval-visibility: ${label} passed`);
@@ -710,7 +710,7 @@ try {
       }
       await page.screenshot({ path: join(output, `${label}.png`) });
       await page.getByRole("button", { name: t("Approve"), exact: true }).click();
-      await page.getByText(t("Please enter your PIN"), { exact: true }).waitFor();
+      await page.getByText("Please enter your PIN", { exact: true }).waitFor();
       results.push({ label, ...measured, reachedPinCheck: true });
       await close();
       console.log(`approval-visibility: ${label} passed`);
@@ -798,10 +798,10 @@ try {
         const button = page.getByRole('button', { name: t("Approve"), exact: true });
         assert.equal(await button.isDisabled(), true, 'Second request inherited approval');
         await button.evaluate((el) => el.click());
-        assert.equal(await page.getByText(t("Please enter your PIN"), { exact: true }).count(), 0);
+        assert.equal(await page.getByText("Please enter your PIN", { exact: true }).count(), 0);
         const read = await inspectAndRead(false);
         await button.click();
-        await page.getByText(t("Please enter your PIN"), { exact: true }).waitFor();
+        await page.getByText("Please enter your PIN", { exact: true }).waitFor();
         queuedReviews.push({ viewport, ...before, ...read, reachedPinAfterOwnReview: true });
         await page.screenshot({ path: join(output, `queued-${secondId}-${viewport.width}.png`) });
         await close();
@@ -832,7 +832,7 @@ try {
       await page.waitForFunction(() => document.querySelector("[data-probe-leaf]").closest("[data-review-block]").querySelectorAll("[data-review-tile]").length === 0);
       assert.equal(await page.getByRole("button", { name: t("Approve"), exact: true }).isDisabled(), true);
       await page.getByRole("dialog").locator("input").first().press("Enter");
-      assert.equal(await page.getByText(t("Please enter your PIN"), { exact: true }).count(), 0);
+      assert.equal(await page.getByText("Please enter your PIN", { exact: true }).count(), 0);
       await styles.evaluate((el) => el.remove());
       await page.setViewportSize({ width: 360, height: 320 });
       await page.waitForFunction(() => document.querySelector("[data-probe-leaf]").closest("[data-review-block]").querySelectorAll("[data-review-tile]").length > 0);

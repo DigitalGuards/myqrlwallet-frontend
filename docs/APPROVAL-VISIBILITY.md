@@ -1,6 +1,6 @@
 # Approval visibility
 
-Approvals and pairing consent are translated into English, German, Spanish, Russian and Simplified Chinese in language slice 6. The existing signing, connection, error and progress paths retain their behavior. The translated hint explains the visibility requirement and is announced through a status region and the disabled action's accessible description.
+Approvals and pairing consent are translated into English, German, Spanish, Russian and Simplified Chinese in language slice 6. Error details retain the original English strings and formatters in every language. The existing signing, connection, error and progress paths retain their behavior. The translated hint explains the visibility requirement and is announced through a status region and the disabled action's accessible description.
 
 The dialog keeps its 90dvh cap and scrolls vertically. The details region retains up to 128 CSS pixels of minimum height (shorter content keeps its original fitted height). When the header, details minimum and footer exceed the cap, the outer dialog scrolls. Identity text wraps, and the header can wrap its columns at narrow or zoomed widths. The full name and URL remain reachable.
 

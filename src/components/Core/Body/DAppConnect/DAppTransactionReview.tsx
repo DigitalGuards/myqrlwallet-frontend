@@ -85,7 +85,7 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
       </div>
       <div data-review-block data-review-value={reviewValueKey(params['value'])} className="flex justify-between gap-2">
         <span className="text-muted-foreground">{t("dapps:value")}</span>
-        <span className="font-numeric font-semibold">{displayValue === "invalid value" ? t("dapps:invalidValue") : displayValue}</span>
+        <span className="font-numeric font-semibold">{displayValue}</span>
       </div>
       {gas != null && (
         <div data-review-block data-review-value={reviewValueKey(gas)} className="flex justify-between gap-2">
@@ -102,7 +102,7 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
           {/* The ceiling, so the user sees the worst case before approving.
               Unused headroom in the base fee is refunded. */}
           <span className="text-muted-foreground">{t("dapps:maxFee")}</span>
-          <span className="font-numeric">{maxNetworkFee === "invalid value" ? t("dapps:invalidValue") : maxNetworkFee}</span>
+          <span className="font-numeric">{maxNetworkFee}</span>
         </div>
       )}
       {typeof params['chainId'] === 'string' && (

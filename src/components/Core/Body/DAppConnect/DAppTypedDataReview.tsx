@@ -1,4 +1,4 @@
-import type { DAppTranslator } from "@/i18n/dappMessage";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 /**
  * Approval preview for `qrl_signTypedData`.
@@ -20,7 +20,7 @@ interface DAppTypedDataReviewProps {
   connectedChainId?: string;
 }
 
-function renderValue(value: unknown, path: string, t: DAppTranslator, depth = 0): React.ReactNode {
+function renderValue(value: unknown, path: string, t: TFunction<["dapps", "common", "settings", "transfer"]>, depth = 0): React.ReactNode {
   // Full paths identify descendants once indentation reaches its width cap.
   const indent = depth < 2 ? 'border-l border-border pl-2' : '';
   if (value === null || value === undefined) return <span className="text-muted-foreground">{t("dapps:empty")}</span>;
