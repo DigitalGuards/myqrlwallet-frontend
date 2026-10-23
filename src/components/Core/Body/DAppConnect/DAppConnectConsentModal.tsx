@@ -1,3 +1,5 @@
+import { dappMessage } from "@/i18n/dappMessage";
+import { useTranslation } from "react-i18next";
 /**
  * Desktop dApp-connect consent modal.
  *
@@ -36,6 +38,7 @@ import { reviewGeneration } from './reviewIdentity';
 const DEFAULT_RELAY_ORIGIN = new URL(DEFAULT_RELAY_URL).origin;
 
 const DAppConnectConsentModalContent = observer(({ generation }: { generation: number }) => {
+  const { t } = useTranslation(["dapps", "common", "settings", "transfer"]);
   const { dappConnectStore, qrlStore } = useStore();
   // Keep the existing account prerequisite as UX: pairing itself shares no
   // account, but this wallet cannot satisfy a later account request without one.
@@ -114,61 +117,43 @@ const DAppConnectConsentModalContent = observer(({ generation }: { generation: n
       <DialogContent ref={reviewRef} className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col overflow-y-auto">
         <DialogHeader className="shrink-0 pr-6">
           <DialogTitle data-review-block className="flex items-center gap-2">
-            <Plug className="h-5 w-5" />
-            Connect to a dApp?
-          </DialogTitle>
+            <Plug className="h-5 w-5" />{t("dapps:consentTitle")}</DialogTitle>
           <DialogDescription data-review-block>
             {source === 'paste'
-              ? 'You pasted a dApp connection code.'
+              ? t("dapps:consentPaste")
               : source === 'link'
-                ? 'You opened a dApp connection link. The dApp may be open in another tab or on another device.'
-                : 'A dApp is requesting to connect to your wallet via QRL Connect.'}
+                ? t("dapps:consentLink")
+                : t("dapps:consentProtocol")}
           </DialogDescription>
         </DialogHeader>
 
         <div
           role="region"
-          aria-label="Connection details"
+          aria-label={t("dapps:connectionDetails")}
           data-review-region
           className="space-y-2 overflow-y-auto overscroll-contain text-sm"
         >
-          <p data-review-block className="break-all text-muted-foreground">
-            Relay: <span className="font-mono">{relayOrigin}</span>
+          <p data-review-block className="break-all text-muted-foreground">{t("dapps:relay")}{" "}<span className="font-mono">{relayOrigin}</span>
           </p>
-          <p data-review-block>
-            Connecting establishes an encrypted channel and does not share an
-            account. The dApp's name and site are pinned after the channel is
-            established, and account access requires a separate approval. Only
-            continue if you just clicked Connect in a dApp, opened its connection
-            link, or pasted its connection code yourself.
-          </p>
+          <p data-review-block>{t("dapps:consentWarning")}</p>
           {!hasAccount && !isInitializing && (
-            <p data-review-block className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-2 text-yellow-500">
-              Create or import an account first so you can approve a later account
-              access request from the dApp.
-            </p>
+            <p data-review-block className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-2 text-yellow-500">{t("dapps:accountRequired")}</p>
           )}
-          {error && <p data-review-block role="alert" className="break-words text-destructive">{error}</p>}
+          {error && <p data-review-block role="alert" className="break-words text-destructive">{dappMessage(error, t)}</p>}
         </div>
 
         {!reviewReady && (
-          <p id="consent-visibility-hint" role="status" className="shrink-0 text-xs text-muted-foreground">
-            Scroll to see every detail before connecting
-          </p>
+          <p id="consent-visibility-hint" role="status" className="shrink-0 text-xs text-muted-foreground">{t("dapps:consentVisibility")}</p>
         )}
         <DialogFooter className="shrink-0 gap-2">
-          <Button variant="outline" onClick={handleCancel} disabled={connecting}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={handleCancel} disabled={connecting}>{t("common:cancel")}</Button>
           <Button type="button" onClick={() => void handleConnect()} disabled={connecting || !hasAccount || reviewedUri !== uri || !reviewReady}
             aria-describedby={!reviewReady ? 'consent-visibility-hint' : undefined}>
             {connecting ? (
               <>
-                <Loader className="mr-2 h-4 w-4 animate-spin" />
-                Connecting...
-              </>
+                <Loader className="mr-2 h-4 w-4 animate-spin" />{t("settings:connecting")}</>
             ) : (
-              'Connect'
+              t("settings:connect")
             )}
           </Button>
         </DialogFooter>

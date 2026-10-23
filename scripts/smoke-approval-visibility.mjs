@@ -1,4 +1,6 @@
 // Headless Chromium only. Synthetic reviews, local RPC replies, no signatures.
+import { approvalCopy, approvalLanguages, runApprovalLanguages } from "./approval-languages.mjs";
+import { installApprovalObserver } from "./approval-observer.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -25,6 +27,13 @@ const output =
   process.env.APPROVAL_ARTIFACTS || join(tmpdir(), "approval-visibility");
 const started = Date.now();
 const baseline = process.env.APPROVAL_BASELINE === "1";
+if (!process.env.APPROVAL_LANGUAGE && !baseline) {
+  await runApprovalLanguages(output);
+  process.exit(0);
+}
+const language = process.env.APPROVAL_LANGUAGE || "en";
+assert(approvalLanguages.includes(language), "Unsupported approval probe language");
+const t = await approvalCopy(language);
 const caseFilter = process.env.APPROVAL_CASE;
 const checksOnly = process.env.APPROVAL_CHECKS_ONLY === "1";
 const parityOnly = process.env.APPROVAL_PARITY_ONLY === '1';
@@ -57,18 +66,21 @@ const server = spawn(
     "--port",
     port,
     "--strictPort",
+    ...(process.env.APPROVAL_DIST ? ["--outDir", process.env.APPROVAL_DIST] : []),
   ],
-  { stdio: "ignore" },
+  { stdio: ["ignore", "ignore", "inherit"] },
 );
 let context;
 try {
   await mkdir(output, { recursive: true });
   for (let attempt = 0; ; attempt++) {
+    if (server.exitCode !== null) throw new Error(`Preview exited (${server.exitCode})`);
     try {
       await fetch(origin);
       break;
-    } catch {
-      if (attempt > 40) throw new Error("Preview failed to start");
+    } catch (error) {
+      if (error.cause?.message === "bad port" || attempt > 40)
+        throw new Error(`Preview failed to start on port ${port}`, { cause: error });
       await sleep(250);
     }
   }
@@ -141,9 +153,15 @@ try {
       body: "{}",
     });
   });
+  await context.addInitScript((language) => {
+    for (const prefix of ["", "qrlwallet:v3:"])
+      localStorage.setItem(`${prefix}WALLET_LANGUAGE`, JSON.stringify(language));
+  }, language);
   await page.goto(origin);
-  await page.getByRole("link", { name: "Create a new account" }).waitFor();
+  await page.waitForFunction((language) => document.documentElement.lang === language && Boolean(window.__APP_STORE__), language);
+  await page.evaluate((labels) => { window.__approvalLabels = labels; }, { approve: t("Approve"), connect: t("Connect") });
   await page.evaluate(() => document.fonts.ready);
+  await installApprovalObserver(page);
 
   async function open(method, maximal, id, empty = false, supplied) {
     const approval = supplied ?? fixture(method, maximal);
@@ -184,7 +202,7 @@ try {
     await page.waitForTimeout(400);
     assert.equal(
       await page
-        .getByText("Cannot decode this request", { exact: true })
+        .getByText(t("Cannot decode this request"), { exact: true })
         .count(),
       0,
     );
@@ -192,10 +210,10 @@ try {
       const chainId = method === "wallet_switchQrlChain" && !empty
         ? approval.params[0].chainId
         : undefined;
-      const region = page.getByRole("region", { name: "Request details" });
+      const region = page.getByRole("region", { name: t("Request details") });
       assert.equal(
         await region.textContent(),
-        chainId === undefined ? "" : `Requested chain ID${chainId}`,
+        chainId === undefined ? "" : `${t("Requested chain ID")}${chainId}`,
         `${method}: unexpected network review content`,
       );
       const values = await region.locator("dd").evaluateAll((elements) =>
@@ -239,13 +257,27 @@ try {
           node.parentElement.closest("[aria-hidden=true],.sr-only")
         )
           continue;
+        // JSX interpolation can split an unchanged painted text run into
+        // adjacent DOM text nodes. Compare the complete run and line bounds.
+        if (node.previousSibling?.nodeType === Node.TEXT_NODE) continue;
+        let last = node;
+        let value = node.textContent;
+        while (last.nextSibling?.nodeType === Node.TEXT_NODE) {
+          last = last.nextSibling;
+          value += last.textContent;
+        }
         const range = document.createRange();
-        range.selectNodeContents(node);
-        const rects = [...range.getClientRects()].filter(
-          (rect) => rect.width > 0 && rect.height > 0,
-        );
-        if (rects.length)
-          text.push({ value: node.textContent, bounds: rects.map(bounds) });
+        range.setStart(node, 0);
+        range.setEnd(last, last.textContent.length);
+        const rects = [];
+        for (const rect of range.getClientRects()) {
+          if (!rect.width || !rect.height) continue;
+          const previous = rects.at(-1);
+          if (previous && previous.y === rect.y && previous.height === rect.height && Math.abs(previous.right - rect.left) < 0.02)
+            rects[rects.length - 1] = new DOMRect(previous.x, previous.y, rect.right - previous.x, rect.height);
+          else rects.push(rect);
+        }
+        if (rects.length) text.push({ value, bounds: rects.map(bounds) });
       }
       return {
         label,
@@ -263,11 +295,12 @@ try {
   }
 
   async function inspectAndRead(consent, primaryText, primaryLabel, approvalPending = false) {
+    if (primaryText === "Empty message (0 bytes).") primaryText = t(primaryText);
     return page.evaluate(async ({ consent, primaryText, primaryLabel, approvalPending }) => {
       const dialog = document.querySelector("[role=dialog]");
       const region = dialog.querySelector("[data-review-region]");
       const button = [...dialog.querySelectorAll("button")].find(
-        (el) => el.textContent.trim() === (consent ? "Connect" : "Approve"),
+        (el) => el.textContent.trim() === (consent ? window.__approvalLabels.connect : window.__approvalLabels.approve),
       );
       const frame = () =>
         new Promise((resolve) =>
@@ -323,7 +356,7 @@ try {
           const bounds = block.getBoundingClientRect();
           for (const element of [block, ...block.querySelectorAll(":not([data-review-tile])")]) {
             if (element.scrollWidth > element.clientWidth)
-              throw new Error(`Horizontal content overflow: ${element.textContent.slice(0, 60)}`);
+              throw new Error(`Horizontal content overflow: ${element.textContent.slice(0, 60)} ${JSON.stringify({ width: element.getBoundingClientRect().width, clientWidth: element.clientWidth, scrollWidth: element.scrollWidth, font: getComputedStyle(element).font, minWidth: getComputedStyle(element).minWidth })}`);
             const rect = element.getBoundingClientRect();
             if (rect.width && (rect.left < bounds.left - 0.02 || rect.right > bounds.right + 0.02))
               throw new Error(`Descendant outside review block: ${element.tagName} in ${block.textContent.slice(0, 60)}`);
@@ -402,8 +435,16 @@ try {
         }
       };
       const previous = window.__reviewProbeCoverage;
-      const seen = previous?.dialog === dialog ? previous.seen : new Set();
-      window.__reviewProbeCoverage = { dialog, seen };
+      if (previous?.dialog !== dialog) throw new Error("Missing observer from dialog mount");
+      // Read every tile again to measure glyph coverage during this call. The
+      // mount observer also remembers valid frames before the reader started.
+      const seen = new Set();
+      const assertGated = () => {
+        if (previous.violations.length)
+          throw new Error(`Enabled before every detail was visible: ${JSON.stringify(previous.violations)}`);
+        if (tiles().some((tile) => !previous.seen.has(tile)) && !button.disabled)
+          throw new Error("Enabled with unread content");
+      };
       const tiles = () => [...dialog.querySelectorAll("[data-review-tile]")];
       for (const block of dialog.querySelectorAll("[data-review-block]")) {
         if (!block.querySelector("[data-review-tile]"))
@@ -419,7 +460,7 @@ try {
               entry.isIntersecting &&
               entry.intersectionRatio === 1 &&
               entry.boundingClientRect.height > 0 &&
-              visible(entry.target)
+              entry.boundingClientRect.width > 0
             )
               seen.add(entry.target);
           }
@@ -434,8 +475,7 @@ try {
       sampleGlyphs();
       const initiallyDisabled = button.disabled;
       if (!tiles().length) throw new Error("Missing coverage targets");
-      if (tiles().some((tile) => !seen.has(tile)) && !button.disabled)
-        throw new Error("Enabled before every detail was visible");
+      assertGated();
       if (region.clientHeight < Math.min(128, region.scrollHeight) - 1)
         throw new Error("Details minimum collapsed");
       const modes = {
@@ -454,8 +494,7 @@ try {
           throw new Error(
             `Clipped tile: ${unseen.parentElement.textContent.slice(0, 100)} ${unseen.style.cssText}`,
           );
-        if (tiles().some((tile) => !seen.has(tile)) && !button.disabled)
-          throw new Error("Enabled with unread content");
+        assertGated();
       }
       coverage.disconnect();
       for (let settle = 0; settle < 10 && button.disabled && !approvalPending; settle++)
@@ -495,7 +534,7 @@ try {
       )
         throw new Error("Dialog outside viewport");
       if (dialog.scrollWidth > dialog.clientWidth + 1)
-        throw new Error("Horizontal dialog overflow");
+        throw new Error(`Horizontal dialog overflow: ${JSON.stringify([...dialog.querySelectorAll("*")].filter((el) => el.scrollWidth > el.clientWidth && !el.closest("details:not([open])")).map((el) => ({ text: el.textContent.slice(0, 60), tag: el.tagName, client: el.clientWidth, scroll: el.scrollWidth })))}`);
       return {
         blocks: dialog.querySelectorAll("[data-review-block]").length,
         tiles: tiles().length,
@@ -517,16 +556,16 @@ try {
   }
 
   async function attemptPendingApproval() {
-    const button = page.getByRole("button", { name: "Approve", exact: true });
+    const button = page.getByRole("button", { name: t("Approve"), exact: true });
     assert.equal(await button.isDisabled(), true);
     await button.evaluate((element) => element.click());
     await page.getByRole("dialog").dispatchEvent("submit");
-    const pin = page.getByPlaceholder("Enter PIN", { exact: true });
+    const pin = page.getByPlaceholder(t("Enter PIN"), { exact: true });
     await pin.fill("123456");
     await pin.press("Enter");
     await pin.fill("");
-    assert.equal(await page.getByText("No encrypted seed found", { exact: true }).count(), 0);
-    assert.equal(await page.getByText("Please enter your PIN", { exact: true }).count(), 0);
+    assert.equal(await page.getByText(t("No encrypted seed found"), { exact: true }).count(), 0);
+    assert.equal(await page.getByText(t("Please enter your PIN"), { exact: true }).count(), 0);
     assert.equal(await button.isDisabled(), true);
   }
 
@@ -539,7 +578,7 @@ try {
     approval.params[1].message.text = "Review before signing. ".repeat(40);
     await open(approval.method, false, label, false, approval);
     assert(first.calls > 0, "Expected a pending chain read");
-    await page.getByText("Checking the network...", { exact: true }).waitFor();
+    await page.getByText(t("Checking the network..."), { exact: true }).waitFor();
     const pending = await inspectAndRead(false, undefined, undefined, true);
     await attemptPendingApproval();
     await page.locator("#approval-chain-hint").scrollIntoViewIfNeeded();
@@ -549,15 +588,15 @@ try {
       first.release({ error: { code: -32603, message: "Synthetic network failure" } });
       const failure = page.getByRole("alert");
       await failure.waitFor();
-      assert.equal(await failure.textContent(), "The wallet could not check its network, so this request cannot be approved yet.");
+      assert.equal(await failure.textContent(), t("The wallet could not check its network, so this request cannot be approved yet."));
       assert.equal(await failure.getAttribute("data-review-block"), "true");
       failed = await inspectAndRead(false, undefined, undefined, true);
       await attemptPendingApproval();
       await failure.scrollIntoViewIfNeeded();
       await page.screenshot({ path: join(output, `${label}-failed.png`) });
       ready = holdChainRead();
-      await page.getByRole("button", { name: "Retry", exact: true }).click();
-      await page.getByText("Checking the network...", { exact: true }).waitFor();
+      await page.getByRole("button", { name: t("Retry"), exact: true }).click();
+      await page.getByText(t("Checking the network..."), { exact: true }).waitFor();
       retry = await inspectAndRead(false, undefined, undefined, true);
       await attemptPendingApproval();
       assert(ready.calls > 0, "Retry must start a new chain read");
@@ -568,12 +607,12 @@ try {
     });
     const mismatch = kind !== "match";
     ready.release({ result: mismatch ? "0x1" : "0x301825" });
-    await page.getByText("Checking the network...", { exact: true }).waitFor({ state: "hidden" });
+    await page.getByText(t("Checking the network..."), { exact: true }).waitFor({ state: "hidden" });
     chainReadControl = undefined;
     if (mismatch) {
       const warning = page.getByRole("alert");
       await warning.waitFor();
-      assert.match(await warning.textContent(), /differs from the connected chain \(1\)/);
+      assert.equal(await warning.textContent(), t("The signed domain chain ID ({{domain}}) differs from the connected chain ({{connected}}). Only sign if you expect this chain.", { domain: "3151909", connected: "1" }));
       assert.equal(await warning.evaluate((element) => {
         const region = element.closest("[data-review-region]");
         return element.getBoundingClientRect().bottom <= region.getBoundingClientRect().top;
@@ -583,8 +622,8 @@ try {
       assert.equal(await page.getByRole("alert").count(), 0);
     }
     const reviewed = await inspectAndRead(false);
-    await page.getByRole("button", { name: "Approve", exact: true }).click();
-    await page.getByText("Please enter your PIN", { exact: true }).waitFor();
+    await page.getByRole("button", { name: t("Approve"), exact: true }).click();
+    await page.getByText(t("Please enter your PIN"), { exact: true }).waitFor();
     chainChecks.push({ label, pending, failed, retry, mismatch, reviewed, reachedPinCheck: true });
     await close();
     console.log(`approval-visibility: ${label} passed`);
@@ -601,7 +640,7 @@ try {
         { width: 360, height: 640, zoom: 2 },
       ];
   if (parityOnly) {
-    await measureParity({ page, open, close, output, baseline });
+    await measureParity({ page, open, close, output, baseline, language });
   }
   for (const viewport of checksOnly || parityOnly ? [] : viewports) {
     await page.setViewportSize({
@@ -645,7 +684,7 @@ try {
           );
           results.push({ label, ...measured });
         }
-        if (!maximal && viewport.width === 1280)
+        if (language === "en" && !maximal && viewport.width === 1280)
           english.push(await fittedEnglish(label));
         await close();
         console.log(`approval-visibility: ${label} passed`);
@@ -669,8 +708,8 @@ try {
         assert.equal(measured.seenLabelCharacters, measured.primaryLabel.length, `${label}: full path was not fully visible`);
       }
       await page.screenshot({ path: join(output, `${label}.png`) });
-      await page.getByRole("button", { name: "Approve", exact: true }).click();
-      await page.getByText("Please enter your PIN", { exact: true }).waitFor();
+      await page.getByRole("button", { name: t("Approve"), exact: true }).click();
+      await page.getByText(t("Please enter your PIN"), { exact: true }).waitFor();
       results.push({ label, ...measured, reachedPinCheck: true });
       await close();
       console.log(`approval-visibility: ${label} passed`);
@@ -682,7 +721,7 @@ try {
       for (const tab of await chrome.tabs.query({ url: `${origin}/*` }))
         await chrome.tabs.setZoom(tab.id, 1);
     }, origin);
-    await measureParity({ page, open, close, output, baseline });
+    await measureParity({ page, open, close, output, baseline, language });
     for (const viewport of viewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await worker.evaluate(async ({ origin, zoom }) => {
@@ -717,19 +756,20 @@ try {
           dialog.querySelector('[data-review-region]').scrollTop = 0;
           dialog.scrollTop = 0;
         });
-        await page.getByRole('button', { name: 'Reject', exact: true }).click();
+        await page.getByRole('button', { name: t("Reject"), exact: true }).click();
         await page.waitForTimeout(400);
         const before = await page.evaluate(async () => {
           const dialog = document.querySelector('[role=dialog]');
           const block = [...dialog.querySelectorAll('[data-review-block]')].find((el) => el.textContent === 'ordera1b23');
           const region = dialog.querySelector('[data-review-region]');
           const current = window.__APP_STORE__.dappConnectStore.currentApproval;
-          const initiallyDisabled = [...dialog.querySelectorAll('button')].find((el) => el.textContent.trim() === 'Approve').disabled;
+          const initiallyDisabled = [...dialog.querySelectorAll('button')].find((el) => el.textContent.trim() === window.__approvalLabels.approve).disabled;
           // A fresh dialog can autofocus PIN at the bottom. Independently
           // record those real observations, then reproduce the reviewer's top
           // scroll position with the changed order field far below the region.
-          const seen = new Set();
-          window.__reviewProbeCoverage = { dialog, seen };
+          const review = window.__reviewProbeCoverage;
+          if (review?.dialog !== dialog) throw new Error('Missing queued-dialog observer');
+          const seen = review.seen;
           const coverage = new IntersectionObserver((entries) => {
             for (const entry of entries)
               if (entry.isIntersecting && entry.intersectionRatio === 1 &&
@@ -754,13 +794,13 @@ try {
         assert.equal(before.initiallyDisabled, true);
         assert.equal(before.inheritedTiles, false);
         assert(before.changedFieldTop > before.regionBottom, 'Changed field must start offscreen');
-        const button = page.getByRole('button', { name: 'Approve', exact: true });
+        const button = page.getByRole('button', { name: t("Approve"), exact: true });
         assert.equal(await button.isDisabled(), true, 'Second request inherited approval');
         await button.evaluate((el) => el.click());
-        assert.equal(await page.getByText('Please enter your PIN', { exact: true }).count(), 0);
+        assert.equal(await page.getByText(t("Please enter your PIN"), { exact: true }).count(), 0);
         const read = await inspectAndRead(false);
         await button.click();
-        await page.getByText('Please enter your PIN', { exact: true }).waitFor();
+        await page.getByText(t("Please enter your PIN"), { exact: true }).waitFor();
         queuedReviews.push({ viewport, ...before, ...read, reachedPinAfterOwnReview: true });
         await page.screenshot({ path: join(output, `queued-${secondId}-${viewport.width}.png`) });
         await close();
@@ -789,9 +829,9 @@ try {
       });
       if (kind === "resize") await page.setViewportSize({ width: 320, height: 320 });
       await page.waitForFunction(() => document.querySelector("[data-probe-leaf]").closest("[data-review-block]").querySelectorAll("[data-review-tile]").length === 0);
-      assert.equal(await page.getByRole("button", { name: "Approve", exact: true }).isDisabled(), true);
+      assert.equal(await page.getByRole("button", { name: t("Approve"), exact: true }).isDisabled(), true);
       await page.getByRole("dialog").locator("input").first().press("Enter");
-      assert.equal(await page.getByText("Please enter your PIN", { exact: true }).count(), 0);
+      assert.equal(await page.getByText(t("Please enter your PIN"), { exact: true }).count(), 0);
       await styles.evaluate((el) => el.remove());
       await page.setViewportSize({ width: 360, height: 320 });
       await page.waitForFunction(() => document.querySelector("[data-probe-leaf]").closest("[data-review-block]").querySelectorAll("[data-review-tile]").length > 0);
@@ -799,16 +839,22 @@ try {
       await close();
     }
     for (const kind of ["message", "identity", "chain-warning", "switch-chain-id"]) {
+      // Use the matrix's narrow CSS width for a valid 256-bit replacement ID.
+      // At wider viewports it can be fully observed before Playwright polls.
+      await page.setViewportSize({ width: kind === "switch-chain-id" ? 180 : 360, height: 320 });
       const method =
         kind === "switch-chain-id" ? "wallet_switchQrlChain"
           : kind === "chain-warning" ? "qrl_signTypedData" : "qrl_signMessage";
       await open(method, false, `change-${kind}`);
       await inspectAndRead(false);
+      if (kind === "switch-chain-id") {
+        await page.getByRole("dialog").evaluate((dialog) => { dialog.scrollTop = 0; });
+      }
       await page.evaluate((kind) => {
         const approval = window.__APP_STORE__.dappConnectStore.currentApproval;
         if (kind === "message") approval.params[1] = `0x${"6869".repeat(512)}`;
         else if (kind === "identity")
-          approval.dappInfo.url = `https://changed.example/${"a".repeat(300)}`;
+          approval.dappInfo.url = `https://changed.example/${"a".repeat(1200)}`;
         else if (kind === "switch-chain-id")
           approval.params[0].chainId = `0x${"fF".repeat(32)}`;
         else approval.params[1].domain.chainId = "1";
@@ -816,13 +862,23 @@ try {
       await page.waitForFunction(() =>
         [...document.querySelectorAll("button")].some(
           (button) =>
-            button.textContent.trim() === "Approve" && button.disabled,
+            button.textContent.trim() === window.__approvalLabels.approve && button.disabled,
         ),
-      );
+      ).catch(async (error) => {
+        await page.screenshot({ path: join(output, `change-${kind}-failure.png`) });
+        throw new Error(`Changed-content control ${kind}: ${error.message}`);
+      });
+      if (kind === "switch-chain-id")
+        assert.equal(await page.locator("[data-review-region] dl").evaluate((block) => {
+          const dialog = block.closest("[role=dialog]");
+          const region = block.closest("[data-review-region]");
+          return block.getBoundingClientRect().bottom > Math.min(dialog.getBoundingClientRect().bottom, region.getBoundingClientRect().bottom);
+        }), true, "Changed chain ID must start partly outside the visible review");
       if (kind === "chain-warning") await page.getByRole("alert").waitFor();
       changes.push({ kind, ...(await inspectAndRead(false)) });
       await close();
     }
+    await page.setViewportSize({ width: 360, height: 320 });
     for (const method of [
       "qrl_signMessage",
       "qrl_requestAccounts",
@@ -876,7 +932,7 @@ try {
         }),
       );
       const button = page.getByRole("button", {
-        name: method === "consent" ? "Connect" : "Approve",
+        name: t(method === "consent" ? "Connect" : "Approve"),
         exact: true,
       });
       assert.equal(
@@ -902,12 +958,15 @@ try {
     );
   }
   assert.deepEqual(errors, []);
+  assert.deepEqual(await page.evaluate(() => window.__reviewProbeViolations), [],
+    "An action enabled with unseen content during the probe");
   assert(results.length > 0 || checksOnly || parityOnly, "No probe cases selected");
   const durationSeconds = (Date.now() - started) / 1000;
   await writeFile(
     join(output, baseline ? "english-base.json" : "results.json"),
     JSON.stringify(
       {
+        language,
         durationSeconds,
         collapsedControls,
         zeroAreaReports,
@@ -931,26 +990,33 @@ try {
     const expected = JSON.parse(
       await readFile(process.env.APPROVAL_BASE_BOUNDS, "utf8"),
     );
-    const exceptions = [
-      "wallet_switchQrlChain",
-      "qrl_requestAccounts",
-    ];
+
     let matched = 0;
     for (const actual of english) {
-      if (exceptions.some((method) => actual.label.startsWith(method)))
-        continue;
       const reference = expected.find((entry) => entry.label === actual.label);
       assert(reference, `Missing English base: ${actual.label}`);
-      assert.deepEqual(
-        actual,
-        reference,
-        `English fitted bounds/copy changed: ${actual.label}`,
-      );
+      assert.deepEqual({ ...actual, text: undefined }, { ...reference, text: undefined },
+        `English dialog/control bounds changed: ${actual.label}`);
+      assert.deepEqual(actual.text.map((run) => run.value), reference.text.map((run) => run.value),
+        `English copy changed: ${actual.label}`);
+      for (let i = 0; i < actual.text.length; i++) {
+        const measured = actual.text[i].bounds;
+        const expectedBounds = reference.text[i].bounds;
+        assert.equal(measured.length, expectedBounds.length, "English text wrapping changed");
+        for (let line = 0; line < measured.length; line++)
+          for (let coordinate = 0; coordinate < 4; coordinate++)
+            // Adjacent JSX text fragments can round one Chromium layout unit
+            // differently from the same interpolated sentence. All control
+            // geometry and line counts remain exact; the visibility assertions
+            // continue to require complete intersections with positive area.
+            assert(Math.abs(measured[line][coordinate] - expectedBounds[line][coordinate]) <= 1 / 64,
+              `English painted text bounds changed: ${actual.label}/${actual.text[i].value}`);
+      }
       matched++;
     }
-    assert.equal(matched, 6, "Incomplete English fitted comparison");
+    assert.equal(matched, 8, "Incomplete English fitted comparison");
     console.log(
-      "approval-visibility: 6 fitted English screens match base text, text-range bounds and controls exactly; account address and validated switch ID are the 2 explicit value-display additions",
+      "approval-visibility: 8 English screens match pinned base text and dialog/control bounds; text-run rounding is within 1/64 CSS pixel",
     );
   }
   console.log(

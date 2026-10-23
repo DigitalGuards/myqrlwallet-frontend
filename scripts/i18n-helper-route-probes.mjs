@@ -1,3 +1,4 @@
+import { slice6Screens } from "./i18n-slice6-probes.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
@@ -147,6 +148,16 @@ export async function helperRouteProbes(browser, origin) {
               await page
                 .getByRole("heading", { name: "Active account", exact: true })
                 .waitFor();
+          }
+          if (active && path === "/dapp-sessions") {
+            const catalogs = Object.fromEntries(await Promise.all(["dapps", "settings"].map(async (ns) =>
+              [ns, JSON.parse(await readFile(`src/locales/en/${ns}.json`, "utf8"))])));
+            await slice6Screens({ page, catalogs, full: false, snapshot: async (screen) => {
+              const dialog = page.getByRole("dialog");
+              const labels = await dialog.locator("[aria-label], [title], [alt], [placeholder]").evaluateAll((elements) =>
+                elements.flatMap((el) => ["aria-label", "title", "alt", "placeholder"].map((attr) => el.getAttribute(attr) ?? "")));
+              assert.doesNotMatch([await dialog.innerText(), ...labels].join("\n"), catalogKey, `${path}/${screen}/${width}`);
+            } });
           }
           const visible = await page.locator("body").innerText();
           const name = `${path}, ${active ? "active" : "empty"}, ${width}px`;

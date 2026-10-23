@@ -26,7 +26,7 @@ it("keeps converted JSX free of literal user-facing copy", () => {
   ).toEqual([]);
 });
 
-it("leaves visible copy outside coverage only in consent, approval and legal pages", () => {
+it("leaves visible copy outside coverage only in the five legal pages", () => {
   const files = sourceFiles("src").filter(
     (file) => !coverage.some((scope) => file.startsWith(scope)),
   );
@@ -37,11 +37,6 @@ it("leaves visible copy outside coverage only in consent, approval and legal pag
       )
       .sort(),
   ).toEqual([
-    "src/components/Core/Body/DAppConnect/DAppApprovalModal.tsx",
-    "src/components/Core/Body/DAppConnect/DAppConnectConsentModal.tsx",
-    "src/components/Core/Body/DAppConnect/DAppMessageReview.tsx",
-    "src/components/Core/Body/DAppConnect/DAppTransactionReview.tsx",
-    "src/components/Core/Body/DAppConnect/DAppTypedDataReview.tsx",
     "src/components/Core/Body/Disclaimer/Disclaimer.tsx",
     "src/components/Core/Body/Legal/Legal.tsx",
     "src/components/Core/Body/Privacy/Privacy.tsx",

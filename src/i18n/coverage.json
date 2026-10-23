@@ -22,9 +22,6 @@
   "src/components/Core/Body/PinSetup/",
   "src/components/Core/Body/AddAccount/",
   "src/components/Core/Layout/LegalLanguageNote.tsx",
-  "src/components/Core/Body/DAppConnect/DAppConnectionBanner.tsx",
-  "src/components/Core/Body/DAppConnect/DAppSessionsList.tsx",
-  "src/components/Core/Body/DAppConnect/DAppSessionsPage.tsx",
   "src/components/Core/Body/QRView/",
   "src/components/Telegram/",
   "src/components/RetiredAppNotice.tsx",
@@ -36,5 +33,6 @@
   "src/components/Core/Body/Nfts/AddNftModal.tsx",
   "src/components/Core/Body/Nfts/NftDetail.tsx",
   "src/router/router.tsx",
-  "src/components/UI/Input.tsx"
+  "src/components/UI/Input.tsx",
+  "src/components/Core/Body/DAppConnect/"
 ]

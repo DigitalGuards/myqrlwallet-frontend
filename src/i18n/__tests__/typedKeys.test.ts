@@ -12,6 +12,9 @@ it("rejects missing and misspelled keys, including calls with a default value", 
     i18n.getFixedT('en', 'creation')('missingCreation');
     i18n.getFixedT('en', 'nfts')('missingNft', { defaultValue: 'fallback' });
     i18n.getFixedT('en', 'dapps')('sessionsSubtitle');
+    i18n.getFixedT('en', 'dapps')('consentVisibility');
+    i18n.getFixedT('en', 'dapps')('chainUnavailable');
+    i18n.getFixedT('en', 'dapps')('emptyMessage');
     i18n.getFixedT('en', 'telegram')('security');
     i18n.getFixedT('en', 'notices')('unsupportedV3');
     i18n.getFixedT('en', 'dapps')('missingApproval', { defaultValue: 'fallback' });

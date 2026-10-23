@@ -1,3 +1,5 @@
+import type { DAppTranslator } from "@/i18n/dappMessage";
+import { useTranslation } from "react-i18next";
 /**
  * Approval preview for `qrl_signTypedData`.
  *
@@ -18,10 +20,10 @@ interface DAppTypedDataReviewProps {
   connectedChainId?: string;
 }
 
-function renderValue(value: unknown, path: string, depth = 0): React.ReactNode {
+function renderValue(value: unknown, path: string, t: DAppTranslator, depth = 0): React.ReactNode {
   // Full paths identify descendants once indentation reaches its width cap.
   const indent = depth < 2 ? 'border-l border-border pl-2' : '';
-  if (value === null || value === undefined) return <span className="text-muted-foreground">(empty)</span>;
+  if (value === null || value === undefined) return <span className="text-muted-foreground">{t("dapps:empty")}</span>;
   if (typeof value === 'string') {
     return (
       <span className="font-mono text-xs break-all" dir="ltr">
@@ -42,7 +44,7 @@ function renderValue(value: unknown, path: string, depth = 0): React.ReactNode {
               <span className={depth < 2 ? 'shrink-0 whitespace-nowrap text-muted-foreground' : 'text-muted-foreground'}>
                 {depth < 2 ? `[${i}]` : itemPath}
               </span>
-              <span className="min-w-0">{renderValue(item, itemPath, depth + 1)}</span>
+              <span className="min-w-0">{renderValue(item, itemPath, t, depth + 1)}</span>
             </li>
           );
         })}
@@ -57,14 +59,14 @@ function renderValue(value: unknown, path: string, depth = 0): React.ReactNode {
           return (
             <div key={k} className={depth < 2 ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2' : 'review-tree-entry'}>
               <span className="text-muted-foreground">{depth < 2 ? k : fieldPath}</span>
-              <span className="min-w-0 text-right">{renderValue(v, fieldPath, depth + 1)}</span>
+              <span className="min-w-0 text-right">{renderValue(v, fieldPath, t, depth + 1)}</span>
             </div>
           );
         })}
       </div>
     );
   }
-  return <span className="text-muted-foreground">(unsupported value)</span>;
+  return <span className="text-muted-foreground">{t("dapps:unsupportedValue")}</span>;
 }
 
 function chainNumber(value: unknown): bigint | undefined {
@@ -85,6 +87,7 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
   digestHex,
   connectedChainId,
 }) => {
+  const { t } = useTranslation(["dapps", "common", "settings", "transfer"]);
   const [showDigest, setShowDigest] = useState(false);
   const { domain, primaryType, message } = payload;
   const domainFields = payload.types['QRLDomain'] ?? [];
@@ -99,7 +102,7 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
   return (
     <div className="review-typed-data space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm [overflow-wrap:anywhere]">
       <div className="space-y-1">
-        <div data-review-block className="mb-2 text-xs text-muted-foreground">Signed domain</div>
+        <div data-review-block className="mb-2 text-xs text-muted-foreground">{t("dapps:signedDomain")}</div>
         {domainFields.map((field) => (
           <div
             key={field.name}
@@ -107,30 +110,26 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
             className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2 text-xs"
           >
             <span className="text-muted-foreground">{field.name}</span>
-            <span className="min-w-0 text-right">{renderValue(domain[field.name], field.name)}</span>
+            <span className="min-w-0 text-right">{renderValue(domain[field.name], field.name, t)}</span>
           </div>
         ))}
         {chainMismatch && (
           <p data-review-block role="alert" className="pt-2 text-xs text-amber-600 dark:text-amber-400">
-            The signed domain chain ID ({domainChain.toString()}) differs from the
-            connected chain ({connectedChain.toString()}). Only sign if you expect
-            this chain.
+            {t("dapps:chainMismatch", { domain: domainChain.toString(), connected: connectedChain.toString() })}
           </p>
         )}
         {!hasChainId && (
-          <p data-review-block className="pt-2 text-xs text-amber-600 dark:text-amber-400">
-            This domain has no chain ID. The signature is not bound to a chain.
-          </p>
+          <p data-review-block className="pt-2 text-xs text-amber-600 dark:text-amber-400">{t("dapps:noChain")}</p>
         )}
       </div>
 
       <div data-review-block className="border-t border-border pt-3">
-        <div className="text-xs text-muted-foreground">Primary type</div>
+        <div className="text-xs text-muted-foreground">{t("dapps:primaryType")}</div>
         <div className="font-medium">{primaryType}</div>
       </div>
 
       <div className="border-t border-border pt-3 space-y-1">
-        <div data-review-block className="text-xs text-muted-foreground mb-2">Message</div>
+        <div data-review-block className="text-xs text-muted-foreground mb-2">{t("dapps:message")}</div>
         {messageFields.map((field) => (
           <div
             key={field.name}
@@ -138,15 +137,13 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
             className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2"
           >
             <span className="text-muted-foreground">{field.name}</span>
-            <span className="min-w-0 text-right">{renderValue(message[field.name], field.name)}</span>
+            <span className="min-w-0 text-right">{renderValue(message[field.name], field.name, t)}</span>
           </div>
         ))}
       </div>
 
       <details className="border-t border-border pt-3 text-xs">
-        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-          Full signed payload (canonical JSON)
-        </summary>
+        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">{t("dapps:fullPayload")}</summary>
         <pre
           className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded bg-muted p-2 font-mono"
           dir="ltr"
@@ -155,9 +152,7 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
         </pre>
       </details>
 
-      <p data-review-block className="border-t border-border pt-3 text-xs text-amber-600 dark:text-amber-400">
-        Only sign data from sites you trust. A signed challenge can be used to authenticate as you.
-      </p>
+      <p data-review-block className="border-t border-border pt-3 text-xs text-amber-600 dark:text-amber-400">{t("dapps:trustWarning")}</p>
 
       {digestHex && (
         <details
@@ -168,9 +163,7 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
             if (details instanceof HTMLDetailsElement) setShowDigest(details.open);
           }}
         >
-          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-            Advanced: 64-byte SHAKE256 digest
-          </summary>
+          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">{t("dapps:digest")}</summary>
           <p className="mt-2 break-all font-mono" dir="ltr">{digestHex}</p>
         </details>
       )}

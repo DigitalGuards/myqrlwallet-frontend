@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 /**
  * Approval preview for `qrl_signMessage`.
  *
@@ -16,6 +17,7 @@ interface DAppMessageReviewProps {
 }
 
 const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, digestHex }) => {
+  const { t } = useTranslation(["dapps", "common", "settings", "transfer"]);
   const [showDigest, setShowDigest] = useState(false);
   const decoded = tryDecodeUtf8(messageHex);
   const byteLength = messageHex.startsWith('0x') ? (messageHex.length - 2) / 2 : 0;
@@ -27,9 +29,9 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
   return (
     <div className={`space-y-3 rounded-md border border-border bg-muted/30 ${padding} text-sm`}>
       <div data-review-block className="flex justify-between text-xs">
-        <span className="text-muted-foreground">Message</span>
+        <span className="text-muted-foreground">{t("dapps:message")}</span>
         <span className="text-muted-foreground">
-          {byteLength} byte{byteLength === 1 ? '' : 's'}
+          {t("dapps:bytes", { count: byteLength })}
         </span>
       </div>
       {decoded.ok ? (
@@ -39,12 +41,10 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
             className="max-h-32 overflow-auto break-words font-mono text-sm"
             dir="ltr"
           >
-            {decoded.text || 'Empty message (0 bytes).'}
+            {decoded.text || t("dapps:emptyMessage")}
           </p>
           <details className="text-xs">
-            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-              Raw signed bytes
-            </summary>
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">{t("dapps:rawBytes")}</summary>
             <p className="mt-2 max-h-32 overflow-auto break-all font-mono" dir="ltr">
               {messageHex}
             </p>
@@ -54,10 +54,10 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
         <div>
           <p data-review-block className="text-xs text-muted-foreground italic">
             {whitespace
-              ? 'Message contains only whitespace or invisible characters. Raw signed bytes (hex):'
+              ? t("dapps:invisibleMessage")
               : decoded.reason === 'invisible-chars'
-                ? 'Not a safely printable UTF-8 string. Raw signed bytes (hex):'
-                : 'Not a safely printable UTF-8 string, showing raw hex.'}
+                ? t("dapps:unsafeMessage")
+                : t("dapps:binaryMessage")}
           </p>
           <p
             data-review-block
@@ -77,9 +77,7 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
             if (details instanceof HTMLDetailsElement) setShowDigest(details.open);
           }}
         >
-          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-            Advanced: 64-byte SHAKE256 digest
-          </summary>
+          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">{t("dapps:digest")}</summary>
           <p className="mt-2 break-all font-mono" dir="ltr">{digestHex}</p>
         </details>
       )}

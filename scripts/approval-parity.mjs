@@ -5,7 +5,7 @@ import { parityFixtures } from './approval-fixtures.mjs';
 
 // Capture initial geometry before any review scrolling. Baseline mode runs this
 // same probe against an unchanged origin/dev build through the caller's cwd.
-export async function measureParity({ page, open, close, output, baseline }) {
+export async function measureParity({ page, open, close, output, baseline, language = "en" }) {
   const results = [];
   for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
@@ -13,7 +13,7 @@ export async function measureParity({ page, open, close, output, baseline }) {
       await open(approval.method, maximal, `parity-${name}`, empty, approval);
       const measured = await page.getByRole('dialog').evaluate((dialog) => {
         const region = dialog.querySelector('[role=region]');
-        const button = [...dialog.querySelectorAll('button')].find((el) => ['Approve', 'Connect'].includes(el.textContent.trim()));
+        const button = [...dialog.querySelectorAll('button')].find((el) => [window.__approvalLabels?.approve ?? "Approve", window.__approvalLabels?.connect ?? "Connect"].includes(el.textContent.trim()));
         const elements = [dialog, ...dialog.querySelectorAll('*')].filter((el) => {
           if (el.closest('[aria-hidden=true],.sr-only') || el.getBoundingClientRect().height <= 0) return false;
           const closed = el.closest('details:not([open])');
@@ -44,7 +44,7 @@ export async function measureParity({ page, open, close, output, baseline }) {
     }
   }
   await writeFile(join(output, 'parity.json'), JSON.stringify(results, null, 2));
-  if (!baseline) {
+  if (!baseline && language === "en") {
     // Captured from origin/dev 0aa0559 with these same fixtures and fonts.
     const base = JSON.parse(await readFile(process.env.APPROVAL_PARITY_BASE ??
       new URL('./approval-parity-baseline.json', import.meta.url), 'utf8'));
