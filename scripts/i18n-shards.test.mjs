@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { smokeLanguages, i18nLanguages } from "./i18n-smoke-options.mjs";
 import { assertFullI18nCoverage, requiredI18nPairs } from "./i18n-coverage.mjs";
 import { checkI18nShards } from "./check-i18n-shards.mjs";
-import { writeSmokeReport } from "./i18n-smoke-report.mjs";
+import { smokeResult, writeSmokeReport } from "./i18n-smoke-report.mjs";
 
 test("language selection preserves the full default and canonical subset order", () => {
   assert.deepEqual(smokeLanguages([]), ["en", "de", "es", "ru", "zh-CN"]);
@@ -29,10 +29,9 @@ test("invalid language selections fail instead of silently reducing coverage", (
 });
 
 test("local subset coverage still requires every selected screen", () => {
-  const results = requiredI18nPairs("web", ["de", "es"]).map((pair) => ({
-    ...pair,
-    problems: [],
-  }));
+  const results = requiredI18nPairs("web", ["de", "es"]).map(
+    ({ language, screen }) => smokeResult(language, screen),
+  );
   assertFullI18nCoverage(results, ["de", "es"]);
   assert.throws(
     () => assertFullI18nCoverage(results),
@@ -52,10 +51,9 @@ async function reports(t, suite) {
       suite,
       languages: [language],
       status: "passed",
-      results: requiredI18nPairs(suite, [language]).map((pair) => ({
-        ...pair,
-        problems: [],
-      })),
+      results: requiredI18nPairs(suite, [language]).map(
+        ({ language, screen }) => smokeResult(language, screen),
+      ),
     });
   }
   return directory;
@@ -83,7 +81,7 @@ for (const suite of ["web", "embedded"]) {
       (r) => {
         r.status = "skipped";
       },
-      /shard did not pass/,
+      /invalid shard status/,
     ],
     [
       "missing pair",
@@ -102,7 +100,7 @@ for (const suite of ["web", "embedded"]) {
     [
       "extra pair",
       (r) => {
-        r.results.push({ language: "en", screen: "unexpected", problems: [] });
+        r.results.push(smokeResult("en", "unexpected"));
       },
       /Unexpected language\/screen pair/,
     ],
@@ -139,14 +137,138 @@ for (const suite of ["web", "embedded"]) {
       (r) => {
         delete r.results[0].problems;
       },
-      /smoke problems/,
+      /unexpected or missing fields/,
     ],
     [
       "unknown report version",
       (r) => {
-        r.version = 2;
+        r.version = 1;
       },
       /unsupported report version/,
+    ],
+    [
+      "unknown language",
+      (r) => {
+        r.results[0].language = "fr";
+      },
+      /unknown language/,
+    ],
+    [
+      "failed pair even when the shard claims success",
+      (r) => {
+        r.results[0].pass = false;
+        r.results[0].fail = true;
+      },
+      /pair did not pass/,
+    ],
+    [
+      "contradictory pass and fail flags",
+      (r) => {
+        r.results[0].fail = true;
+      },
+      /pass and fail must be opposites/,
+    ],
+    [
+      "undeclared report field",
+      (r) => {
+        r.extra = "unexpected";
+      },
+      /unexpected or missing fields/,
+    ],
+    [
+      "undeclared pair field",
+      (r) => {
+        r.results[0].extra = "unexpected";
+      },
+      /unexpected or missing fields/,
+    ],
+    [
+      "negative duration",
+      (r) => {
+        r.durationSeconds = -1;
+      },
+      /finite nonnegative number/,
+    ],
+    [
+      "object in the problem list",
+      (r) => {
+        r.results[0].problems = [{}];
+      },
+      /expected string entries/,
+    ],
+    [
+      "array in the scenario list",
+      (r) => {
+        r.results[0].scenarios = [["zero"]];
+      },
+      /expected string entries/,
+    ],
+    ...["language", "screen"].flatMap((field) =>
+      ["array", "object", "number", "null"].map((type) => [
+        `${type} in place of pair ${field}`,
+        (r) => {
+          r.results[0][field] = {
+            array: [r.results[0][field]],
+            object: { value: r.results[0][field] },
+            number: 1,
+            null: null,
+          }[type];
+        },
+        /expected a string/,
+      ]),
+    ),
+    ...["pass", "fail"].flatMap((field) =>
+      ["true", "false", 0, 1, [], {}, null].map((value) => [
+        `${JSON.stringify(value)} in place of boolean ${field}`,
+        (r) => {
+          r.results[0][field] = value;
+        },
+        /expected a boolean/,
+      ]),
+    ),
+    ...["suite", "status"].flatMap((field) =>
+      ["array", "object"].map((type) => [
+        `${type} in place of report ${field}`,
+        (r) => {
+          r[field] = type === "array" ? [r[field]] : { value: r[field] };
+        },
+        /expected a string/,
+      ]),
+    ),
+    ...[
+      "version",
+      "suite",
+      "languages",
+      "status",
+      "durationSeconds",
+      "results",
+    ].map((field) => [
+      `missing report field ${field}`,
+      (r) => {
+        delete r[field];
+      },
+      /unexpected or missing fields/,
+    ]),
+    ...["language", "screen", "pass", "fail", "scenarios"].map((field) => [
+      `missing pair field ${field}`,
+      (r) => {
+        delete r.results[0][field];
+      },
+      /unexpected or missing fields/,
+    ]),
+    [
+      "array in the declared language list",
+      (r) => {
+        r.languages = [["en"]];
+      },
+      /expected string entries/,
+    ],
+    [
+      "another declared job language",
+      (r) => {
+        r.languages = ["de"];
+      },
+      /wrong shard languages/,
     ],
   ]) {
     test(`${suite}: rejects ${name}`, async (t) => {
@@ -158,6 +280,36 @@ for (const suite of ["web", "embedded"]) {
       await assert.rejects(checkI18nShards(directory, suite), message);
     });
   }
+
+  test(`${suite}: rejects duplicate entries across shards`, async (t) => {
+    const directory = await reports(t, suite);
+    const english = JSON.parse(
+      await readFile(join(directory, "en.json"), "utf8"),
+    );
+    const path = join(directory, "de.json");
+    const german = JSON.parse(await readFile(path, "utf8"));
+    german.results.push(english.results[0]);
+    await writeFile(path, JSON.stringify(german));
+    await assert.rejects(
+      checkI18nShards(directory, suite),
+      /Unexpected language\/screen pair/,
+    );
+  });
+
+  test(`${suite}: rejects a shard reporting all of another language's pairs`, async (t) => {
+    const directory = await reports(t, suite);
+    const english = JSON.parse(
+      await readFile(join(directory, "en.json"), "utf8"),
+    );
+    english.results = requiredI18nPairs(suite, ["de"]).map(
+      ({ language, screen }) => smokeResult(language, screen),
+    );
+    await writeFile(join(directory, "en.json"), JSON.stringify(english));
+    await assert.rejects(
+      checkI18nShards(directory, suite),
+      /Unexpected language\/screen pair/,
+    );
+  });
 
   test(`${suite}: missing, extra and malformed report files fail`, async (t) => {
     const directory = await reports(t, suite);

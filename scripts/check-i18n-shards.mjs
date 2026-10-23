@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { i18nLanguages } from "./i18n-smoke-options.mjs";
 import { assertI18nCoverage, requiredI18nPairs } from "./i18n-coverage.mjs";
+import { assertShardReportSchema } from "./i18n-report-schema.mjs";
 
 export async function checkI18nShards(directory, suite) {
   const requiredPairs = requiredI18nPairs(suite);
@@ -21,14 +22,8 @@ export async function checkI18nShards(directory, suite) {
     const report = JSON.parse(
       await readFile(join(directory, `${language}.json`), "utf8"),
     );
-    assert.equal(report.version, 1, `${language}: unsupported report version`);
-    assert.equal(report.suite, suite, `${language}: wrong smoke suite`);
+    assertShardReportSchema(report, suite, language);
     assert.equal(report.status, "passed", `${language}: shard did not pass`);
-    assert.deepEqual(
-      report.languages,
-      [language],
-      `${language}: wrong shard languages`,
-    );
     assertI18nCoverage(report.results, requiredI18nPairs(suite, [language]));
     results.push(...report.results);
   }

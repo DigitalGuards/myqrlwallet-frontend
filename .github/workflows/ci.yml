@@ -60,7 +60,7 @@ jobs:
         run: npm run typecheck
 
       - name: Test language shard coverage checks
-        run: node --test scripts/i18n-shards.test.mjs
+        run: node --test scripts/i18n-shards.test.mjs scripts/i18n-coverage.test.mjs
 
       - name: Run tests
         run: npm test -- --runInBand
@@ -74,6 +74,9 @@ jobs:
       # auto-merge on main.
       - name: Install Chromium for the boot smoke
         uses: ./.github/actions/setup-chromium
+
+      - name: Test smoke glyph detection
+        run: node --test scripts/i18n-glyphs.test.mjs
 
       - name: Boot smoke (serve dist, render home and create-account)
         run: npm run smoke:boot

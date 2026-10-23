@@ -9,7 +9,8 @@ import { chromium } from "playwright";
 import { nativeStorageScreens } from "./i18n-native-storage-probes.mjs";
 import { smokeLanguages } from "./i18n-smoke-options.mjs";
 import { assertEmbeddedI18nCoverage } from "./i18n-coverage.mjs";
-import { writeSmokeReport } from "./i18n-smoke-report.mjs";
+import { smokeResult, writeSmokeReport } from "./i18n-smoke-report.mjs";
+import { assertLanguageGlyphs } from "./i18n-glyphs.mjs";
 
 const languages = smokeLanguages();
 const html = await readFile("dist-embedded/index.html", "utf8");
@@ -26,6 +27,7 @@ const started = performance.now();
 await writeSmokeReport(reportPath, report);
 const browser = await chromium.launch();
 try {
+  await assertLanguageGlyphs(browser, languages);
   for (const language of languages) {
     const context = await browser.newContext({
       viewport: { width: 360, height: 800 },
@@ -78,7 +80,7 @@ try {
         await page.locator("#wallet-language").inputValue(),
         language,
       );
-      results.push({ language, screen: "settings-language", problems: [] });
+      results.push(smokeResult(language, "settings-language"));
       for (const [name, label] of [
         ["transfer", common.send],
         ["accounts", common.wallets],
@@ -99,7 +101,7 @@ try {
           fullPage: true,
           animations: "disabled",
         });
-        results.push({ language, screen: name, problems: [] });
+        results.push(smokeResult(language, name));
       }
       const onboarding = JSON.parse(
         await readFile(`src/locales/${language}/onboarding.json`, "utf8"),
@@ -166,7 +168,7 @@ try {
             fullPage: true,
             animations: "disabled",
           });
-          results.push({ language, screen: name, problems: [] });
+          results.push(smokeResult(language, name));
         };
         if (path === "/create-account")
           await page
@@ -253,7 +255,7 @@ try {
           fullPage: true,
           animations: "disabled",
         });
-        results.push({ language, screen: name, problems: [] });
+        results.push(smokeResult(language, name));
       };
       await slice4Screens({
         page,
@@ -292,11 +294,9 @@ try {
     languages,
   });
   results.push(
-    ...nativeResults.map(({ language, flow, scenario }) => ({
-      language,
-      screen: `${flow}-${scenario}`,
-      problems: [],
-    })),
+    ...nativeResults.map(({ language, flow, scenario }) =>
+      smokeResult(language, `${flow}-${scenario}`),
+    ),
   );
   assertEmbeddedI18nCoverage(results, languages);
   console.log(

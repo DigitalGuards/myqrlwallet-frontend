@@ -1,5 +1,5 @@
 name: Setup Chromium
-description: Cache the locked Playwright headless shell and install system dependencies only if its launch check fails
+description: Cache the locked Playwright headless shell and language fonts, with launch-checked system dependencies
 
 runs:
   using: composite
@@ -37,6 +37,18 @@ runs:
           npx --no-install playwright install --only-shell chromium
           echo "Chromium browser: downloaded."
         fi
+
+    - name: Cache exact language font packages
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ runner.temp }}/i18n-font-packages
+        key: ${{ runner.os }}-${{ runner.arch }}-i18n-fonts-${{ hashFiles('.github/actions/setup-chromium/fonts.lock') }}-v1
+
+    - name: Install language fonts independently of Chromium dependencies
+      shell: bash
+      env:
+        I18N_FONT_PACKAGE_CACHE: ${{ runner.temp }}/i18n-font-packages
+      run: bash "$GITHUB_ACTION_PATH/install-fonts.sh"
 
     - name: Check Chromium and install system dependencies if needed
       shell: bash

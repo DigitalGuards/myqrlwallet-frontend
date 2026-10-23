@@ -12,7 +12,9 @@ Each smoke writes a JSON report to `I18N_REPORT_PATH`, or to `smoke-results.json
 
 CI uploads one report named `<language>.json` per shard, even after failures. The aggregate requires exactly five report files, the expected suite and language in each, a passed status, no reported problems, and every required pair exactly once. Missing files, malformed reports, unexpected or duplicate pairs, and incomplete results fail. The aggregate also requires the matrix job result to be `success`, so a failed, cancelled or skipped shard fails even if a report is present. Both matrices use `fail-fast: false` to collect results from all shards.
 
-Run the verifier with `node scripts/check-i18n-shards.mjs --suite web --directory <report-directory>`, or use `--suite embedded`. Its failure cases are tested by `node --test scripts/i18n-shards.test.mjs`, which CI runs alongside the regular tests.
+Version 2 reports require exactly `version`, `suite`, `languages`, `status`, `durationSeconds` and `results`. The suite and status are strings with known values, duration is a finite nonnegative number, and the language list must contain exactly the job's language, derived from its report filename. Each result requires exactly `language`, `screen`, `pass`, `fail`, `problems` and `scenarios`. Language and screen must be strings in the suite's required matrix; `pass` and `fail` must be boolean opposites. Passing coverage requires `pass: true`, `fail: false` and an empty problem list. Problem and scenario entries must be strings. Ordinary pairs have an empty scenario list; the shared NFT pairs retain their scenario labels. Unexpected and missing fields fail validation. Schema validation precedes coverage key construction, so arrays and objects cannot be coerced into valid pairs. Version 1 reports require a fresh smoke run.
+
+Run the verifier with `node scripts/check-i18n-shards.mjs --suite web --directory <report-directory>`, or use `--suite embedded`. CI runs `node --test scripts/i18n-shards.test.mjs scripts/i18n-coverage.test.mjs` alongside the regular tests. Negative cases cover malformed field types, unknown languages/screens, missing and extra fields, non-boolean outcomes, failed pairs, missing shards, duplicates within and across shards, and reports containing another job's language.
 
 ## Workflow wiring
 
@@ -32,11 +34,21 @@ The composite action caches `~/.cache/ms-playwright` using `actions/cache` v4.3.
 
 On an exact cache hit, the action reuses the browser binaries. On a miss, it runs `npx --no-install playwright install --only-shell chromium`; `actions/cache` saves the downloaded binaries after a successful job. The first successful job can populate the shared key. Concurrent cold jobs can each miss before a cache is saved. GitHub's normal branch/ref cache visibility still applies, so a new version or an inaccessible cache starts cold. The browser step logs `Chromium browser: cached` or `Chromium browser: downloaded`.
 
-After either path, the action runs `.github/actions/setup-chromium/check-launch.mjs`, which launches the installed headless Chromium and closes it. The launch timeout is 10 seconds, with a 15-second watchdog covering the entire launch/close check. A successful check logs `Chromium dependencies: present; skipping install-deps` and avoids apt entirely. A failed check logs the fallback, runs `npx --no-install playwright install-deps chromium` once, and repeats the same check. Successful recovery logs `Chromium dependencies: installed; launch check passed`. An installer failure or a second failed check fails the step with an explicit error. Browser preparation and dependency checking have separate step timings.
+After browser and font preparation, the action runs `.github/actions/setup-chromium/check-launch.mjs`, which launches the installed headless Chromium and closes it. The launch timeout is 10 seconds, with a 15-second watchdog covering the entire launch/close check. A successful check logs `Chromium dependencies: present; skipping install-deps` and avoids apt entirely. A failed check logs the fallback, runs `npx --no-install playwright install-deps chromium` once, and repeats the same check. Successful recovery logs `Chromium dependencies: installed; launch check passed`. An installer failure or a second failed check fails the step with an explicit error. Browser preparation, font provisioning and dependency checking have separate step timings.
 
 All three CI smoke entry points use `chromium.launch()` with its default headless mode and no channel override. Installing only the headless shell preserves the browser they already execute, retains FFmpeg, and avoids downloading unused full Chromium. The existing `smoke:approvals` script uses the full Chromium channel and currently has no workflow caller; a future CI caller needs its own full-browser cache selection. See [Playwright's headless-shell installation guidance](https://playwright.dev/docs/browsers#chromium-headless-shell).
 
-System libraries and fonts remain runner-local. GitHub's [Ubuntu runner image inventory](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md#browsers-and-drivers) includes Google Chrome, so its existing libraries can satisfy the headless shell. The launch check determines whether each runner can start the locked browser. Font and layout coverage remains with the existing language smoke checks; the launch check covers startup and shutdown. The fallback uses Playwright's Chromium-specific library/font package group. See [Playwright's cache guidance](https://playwright.dev/docs/ci#caching-browsers) and the [pinned cache action](https://github.com/actions/cache/tree/0057852bfaa89a56745cba8c7296529d2fc39830).
+System libraries remain runner-local. GitHub's [Ubuntu runner image inventory](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md#browsers-and-drivers) includes Google Chrome, so its existing libraries can satisfy the headless shell. The launch check determines whether each runner can start the locked browser. The fallback uses Playwright's Chromium-specific library/font package group. See [Playwright's cache guidance](https://playwright.dev/docs/ci#caching-browsers) and the [pinned cache action](https://github.com/actions/cache/tree/0057852bfaa89a56745cba8c7296529d2fc39830).
+
+## Language fonts and glyph checks
+
+Font provisioning runs on every setup action invocation, independently of Chromium's launch result. `fonts.lock` pins architecture-independent Ubuntu packages `fonts-noto-cjk` version `1:20230817+repack1-3` and `fonts-dejavu-core` version `2.37-8`, including their public archive URLs and SHA-256 checksums. Noto supplies Chinese glyphs; DejaVu supplies Latin, accented Latin and Cyrillic. The font cache key includes the runner OS, architecture and hash of the complete lockfile, with no fallback restore keys. Package/version or checksum changes invalidate it.
+
+On a miss, `install-fonts.sh` downloads the pinned package archives. On a hit, it reuses them without network or apt work. Both paths verify each SHA-256 checksum and package/version metadata, extract the font files into the user's font directory, and run `fc-cache --force` for that directory. The installer uses `dpkg-deb` extraction and needs no elevated privileges. `I18N_FONT_PACKAGE_CACHE` selects the package cache; `I18N_FONT_INSTALL_DIR` can select an isolated font directory for local validation. Cache corruption fails the step. The action logs each exact package version and whether it was cached or downloaded.
+
+Both web and embedded smoke entrypoints run `assertLanguageGlyphs` immediately after browser launch, before their first scenario. In the same headless browser, it renders each character of the selected language's sample into a canvas using sans-serif, system-ui and monospace fallbacks. It compares the pixels with noncharacter/unassigned-codepoint missing-glyph controls and rejects blank glyphs too. Samples include accented German/Spanish, every Russian letter including `Ё/ё`, and common Chinese wallet terms. This checks actual rasterization before taking layout measurements. A failure leaves the shard report failed and exits 1.
+
+Run `node scripts/i18n-glyphs.mjs --languages zh-CN` for a standalone check, or omit the option to check all five languages. CI also runs `node --test scripts/i18n-glyphs.test.mjs` after Chromium/font setup. Its regression test restricts a fresh Chromium process to a DejaVu-only fontconfig: Latin and Cyrillic pass, and Chinese must exit 1 with a missing-glyph diagnostic. Local font isolation can use `FONTCONFIG_FILE` with only the desired `<dir>` entries and a writable `<cachedir>`; leave both display variables unset for headless checks.
 
 ## Measurements on 2026-10-23
 
@@ -163,3 +175,30 @@ The local launch check passed with the installed Chromium and existing system li
 | `npm run lint`                                                  |         0 |
 
 The composite action's extracted steps also passed actionlint and Bash syntax checks. Eight simulated cases verified cache hits, cache misses, empty cache output, download failure, existing dependencies, successful dependency recovery, repeated launch failure and installer failure. The harness exited 0 after checking each command sequence, log message and expected step exit code. The fallback uses simulated commands in this local validation; actual apt recovery and hosted path timings remain to be measured in CI. File digests confirmed that the existing sharding changes and dependency manifests retain their starting contents.
+
+## Font and strict-report validation on 2026-10-23
+
+These checks used Node 22.22.3 and the locked Chromium with both display variables unset. The positive fontconfig included only fonts extracted from the pinned packages. The negative fontconfig included only DejaVu, which covers Latin and Cyrillic and excludes Chinese. Both used isolated writable fontconfig caches. The web and embedded Chinese shards passed 141 and 69 pairs respectively. Both negative runs failed at the glyph check before any scenario or screenshot, and wrote failed version 2 reports with zero completed pairs.
+
+| Gate                                                                              |         Exit code |
+| --------------------------------------------------------------------------------- | ----------------: |
+| `actionlint -ignore 'constant expression "false" in condition'`                   |                 0 |
+| Extracted composite action: actionlint; installer: `bash -n`                      |            0 each |
+| `npm run lint`                                                                    |                 0 |
+| `node --test scripts/i18n-shards.test.mjs` (129 tests)                            |                 0 |
+| `node --test scripts/i18n-coverage.test.mjs` (12 tests)                           |                 0 |
+| `node --test scripts/i18n-glyphs.test.mjs` (2 browser tests)                      |                 0 |
+| `npm run build`; `npm run build:embedded`; `npm run check:embedded`               |            0 each |
+| `npm run smoke:i18n -- --languages zh-CN`, fonts present                          |                 0 |
+| `npm run smoke:i18n:embedded -- --languages zh-CN`, fonts present                 |                 0 |
+| `npm run smoke:i18n -- --languages zh-CN`, Chinese fonts excluded                 |      1 (expected) |
+| `npm run smoke:i18n:embedded -- --languages zh-CN`, Chinese fonts excluded        |      1 (expected) |
+| Font provisioning with a cold package cache; with a populated cache               |            0 each |
+| Font provisioning with a corrupt cached package                                   |      1 (expected) |
+| Standalone glyph check for all five languages, including Cyrillic                 |                 0 |
+| Both aggregate CLIs with complete synthetic controls                              |            0 each |
+| Both aggregate CLIs with 15 malformed collections per suite                       | 1 each (expected) |
+| Local positive/negative shard report schema and coverage verification             |                 0 |
+| Workflow job/name/matrix/dependency comparison and dependency manifest comparison |                 0 |
+
+The 30 negative CLI fixtures cover array and object language/screen values, unknown language/screen values, duplicate entries across shards, missing shards, wrong declared languages, another language's pairs, failed pairs, string pass/fail flags, and extra/missing fields. The harness exited 0 after checking every expected exit and diagnostic. The aggregate controls are synthetic report fixtures; the two Chinese shard runs used the freshly built wallet bundles. The cached font installation reused both archives without downloading them. An initial local installer attempt exited 5 because the default fontconfig cache was outside the writable sandbox; provisioning passed after selecting the isolated writable cache. Hosted cache timing remains unmeasured.

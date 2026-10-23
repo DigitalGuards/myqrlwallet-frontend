@@ -3,7 +3,8 @@ import { slice5Matrix } from "./i18n-slice5-matrix.mjs";
 import { slice4Screens, slice4NoticeProbes } from "./i18n-slice4-probes.mjs";
 import { assertFullI18nCoverage } from "./i18n-coverage.mjs";
 import { i18nLanguages, smokeLanguages } from "./i18n-smoke-options.mjs";
-import { writeSmokeReport } from "./i18n-smoke-report.mjs";
+import { smokeResult, writeSmokeReport } from "./i18n-smoke-report.mjs";
+import { assertLanguageGlyphs } from "./i18n-glyphs.mjs";
 import { slice3Screens } from "./i18n-slice3-probes.mjs";
 import { slice2Screens } from "./i18n-slice2-probes.mjs";
 // Built-wallet translation and layout smoke with synthetic public data and stubbed RPC.
@@ -62,6 +63,7 @@ try {
     if (attempt === 39) throw new Error("Preview did not start");
   }
   browser = await chromium.launch();
+  await assertLanguageGlyphs(browser, languages);
   // Shared probes run exactly once across the language shards.
   if (languages.includes("en")) {
     await helperRouteProbes(browser, origin);
@@ -282,7 +284,7 @@ try {
         fullPage: true,
         animations: "disabled",
       });
-      results.push({ language, screen: name, problems });
+      results.push(smokeResult(language, name, problems));
       assert.deepEqual(
         problems,
         [],

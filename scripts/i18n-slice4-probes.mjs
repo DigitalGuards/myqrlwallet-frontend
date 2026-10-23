@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { bannerVisibilityProbes } from "./i18n-banner-probes.mjs";
 import { i18nLanguages } from "./i18n-smoke-options.mjs";
+import { smokeResult } from "./i18n-smoke-report.mjs";
 
 const rawKey =
   /(?:common|home|settings|tokens|history|transfer|accounts|contacts|onboarding|dapps|telegram|notices):[A-Za-z][\w.-]*|{{/;
@@ -148,7 +149,7 @@ export async function slice4NoticeProbes({
           path: join(output, `${language}-notice-${kind}-360.png`),
           fullPage: true,
         });
-        results.push({ language, screen: `notice-${kind}`, problems: [] });
+        results.push(smokeResult(language, `notice-${kind}`));
       } finally {
         await context.close();
       }

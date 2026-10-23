@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import requiredScreens from "./i18n-required-screens.json" with { type: "json" };
 import embeddedScreens from "./i18n-required-embedded-screens.json" with { type: "json" };
 import { i18nLanguages } from "./i18n-smoke-options.mjs";
+import { assertSmokeResultSchema } from "./i18n-report-schema.mjs";
 
 /** Keep the complete reviewed matrix mandatory, including every language. */
 export function assertFullI18nCoverage(results, languages = i18nLanguages) {
@@ -32,6 +33,9 @@ export function requiredI18nPairs(suite, languages = i18nLanguages) {
 
 export function assertI18nCoverage(results, requiredPairs) {
   assert.ok(Array.isArray(results), "Expected an array of smoke results");
+  results.forEach((result, index) =>
+    assertSmokeResultSchema(result, `results[${index}]`),
+  );
   const key = ({ language, screen }) => `${language}/${screen}`;
   const expected = new Set(requiredPairs.map(key));
   assert.equal(expected.size, requiredPairs.length, "Duplicate required pairs");
@@ -40,6 +44,8 @@ export function assertI18nCoverage(results, requiredPairs) {
     const pair = key(result);
     assert.ok(expected.has(pair), `Unexpected language/screen pair: ${pair}`);
     assert.ok(!completed.has(pair), `Duplicate language/screen pair: ${pair}`);
+    assert.equal(result.pass, true, `${pair}: pair did not pass`);
+    assert.equal(result.fail, false, `${pair}: pair failed`);
     assert.deepEqual(result.problems, [], `${pair}: smoke problems`);
     completed.add(pair);
   }

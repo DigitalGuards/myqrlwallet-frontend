@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { slice5Screens } from "./i18n-slice5-probes.mjs";
 import { assetLayoutProbes } from "./i18n-asset-layout-probes.mjs";
 import { i18nLanguages } from "./i18n-smoke-options.mjs";
+import { smokeResult } from "./i18n-smoke-report.mjs";
 
 export async function slice5Matrix(
   browser,
@@ -201,13 +202,12 @@ export async function slice5Matrix(
           );
           previous.scenarios.push(scenario);
           previous.problems.push(...problems);
+          previous.pass = previous.problems.length === 0;
+          previous.fail = !previous.pass;
         } else {
-          results.push({
-            language,
-            screen,
-            problems,
-            ...(scenario ? { scenarios: [scenario] } : {}),
-          });
+          results.push(
+            smokeResult(language, screen, problems, scenario ? [scenario] : []),
+          );
         }
         if (problems.length)
           console.error(`${language}/${screen}: ${problems.join("; ")}`);
