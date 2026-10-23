@@ -478,13 +478,13 @@ export async function slice5Screens({
       await snapshot("nft-import-detection-error");
     } else {
       await page.locator("#nft-token-id").waitFor();
-      await snapshot("nft-import-detected");
+      await snapshot("nft-import-detected", next);
       await page
         .locator('[role="dialog"] button')
         .filter({ hasText: n.add })
         .click();
       await page.getByText(n.id1155, { exact: true }).waitFor();
-      await snapshot("nft-import-id-error");
+      await snapshot("nft-import-id-error", next);
       await page.locator("#nft-token-id").fill("42");
       await page
         .locator('[role="dialog"] button')
