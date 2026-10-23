@@ -9,7 +9,9 @@ import {
 import Web3, { utils } from "@theqrl/web3";
 import { configure } from "mobx";
 import { TextEncoder } from "node:util";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
+import { mockReviewObservers } from "@/test-utils/reviewObserver";
+let visibility: ReturnType<typeof mockReviewObservers>;
 import QrlStore from "@/stores/qrlStore";
 import { transactionHistoryStore } from "@/stores/transactionHistoryStore";
 import { isRecord } from "@/utils/guards";
@@ -95,7 +97,7 @@ jest.mock("@/utils/formatting", () => ({ formatQuantaValue: () => "0" }));
 jest.mock("@/components/UI/QrlAddress", () => ({ QrlAddress: () => null }));
 jest.mock("@/components/UI/Dialog", () => ({
   Dialog: ({ children }: { children: ReactNode }) => children,
-  DialogContent: ({ children }: { children: ReactNode }) => children,
+  DialogContent: ({ children, ref }: ComponentProps<'div'>) => <div ref={ref}>{children}</div>,
   DialogTitle: ({ children }: { children: ReactNode }) => children,
 }));
 
@@ -118,6 +120,7 @@ afterAll(() => {
 });
 
 beforeEach(() => {
+  visibility = mockReviewObservers();
   configure({ enforceActions: "never" });
   jest.useFakeTimers();
   jest.clearAllMocks();
@@ -129,6 +132,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  visibility.restore();
   jest.clearAllTimers();
   jest.useRealTimers();
   jest.restoreAllMocks();
@@ -246,6 +250,7 @@ it("keeps shared polling unchanged after a seed send and uses it for a later dAp
   await act(async () => {
     await jest.advanceTimersByTimeAsync(1);
   });
+  act(() => { visibility.settle(); });
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
     await jest.advanceTimersByTimeAsync(1);

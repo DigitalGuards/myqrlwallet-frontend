@@ -1,0 +1,794 @@
+[
+  {
+    "name": "qrl_sendTransaction-short",
+    "viewport": "1280x800",
+    "dialogHeight": 523,
+    "regionHeight": 376,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "qrl_sendTransaction-max",
+    "viewport": "1280x800",
+    "dialogHeight": 703,
+    "regionHeight": 556,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "qrl_signTransaction-short",
+    "viewport": "1280x800",
+    "dialogHeight": 523,
+    "regionHeight": 376,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "qrl_signTransaction-max",
+    "viewport": "1280x800",
+    "dialogHeight": 703,
+    "regionHeight": 556,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "qrl_signMessage-short",
+    "viewport": "1280x800",
+    "dialogHeight": 411,
+    "regionHeight": 264,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "qrl_signMessage-max",
+    "viewport": "1280x800",
+    "dialogHeight": 519,
+    "regionHeight": 372,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "qrl_signTypedData-short",
+    "viewport": "1280x800",
+    "dialogHeight": 623,
+    "regionHeight": 476,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "qrl_signTypedData-max",
+    "viewport": "1280x800",
+    "dialogHeight": 720,
+    "regionHeight": 573,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "wallet_addQrlChain-short",
+    "viewport": "1280x800",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "wallet_addQrlChain-max",
+    "viewport": "1280x800",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "wallet_switchQrlChain-short",
+    "viewport": "1280x800",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "wallet_switchQrlChain-max",
+    "viewport": "1280x800",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "qrl_requestAccounts-short",
+    "viewport": "1280x800",
+    "dialogHeight": 215,
+    "regionHeight": 68,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "qrl_requestAccounts-max",
+    "viewport": "1280x800",
+    "dialogHeight": 215,
+    "regionHeight": 68,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "consent-short",
+    "viewport": "1280x800",
+    "dialogHeight": 336,
+    "regionHeight": 148,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "consent-max",
+    "viewport": "1280x800",
+    "dialogHeight": 416,
+    "regionHeight": 228,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-space",
+    "viewport": "1280x800",
+    "dialogHeight": 391,
+    "regionHeight": 244,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-tab",
+    "viewport": "1280x800",
+    "dialogHeight": 391,
+    "regionHeight": 244,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-newline",
+    "viewport": "1280x800",
+    "dialogHeight": 391,
+    "regionHeight": 244,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-space-tab-space",
+    "viewport": "1280x800",
+    "dialogHeight": 391,
+    "regionHeight": 244,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-invisible",
+    "viewport": "1280x800",
+    "dialogHeight": 399,
+    "regionHeight": 252,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-empty",
+    "viewport": "1280x800",
+    "dialogHeight": 391,
+    "regionHeight": 244,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-token-2000",
+    "viewport": "1280x800",
+    "dialogHeight": 519,
+    "regionHeight": 372,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "typed-nested-reviewer",
+    "viewport": "1280x800",
+    "dialogHeight": 720,
+    "regionHeight": 573,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "typed-nested-token-2000",
+    "viewport": "1280x800",
+    "dialogHeight": 720,
+    "regionHeight": 573,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "typed-token-2000",
+    "viewport": "1280x800",
+    "dialogHeight": 720,
+    "regionHeight": 573,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "typed-array-2",
+    "viewport": "1280x800",
+    "dialogHeight": 647,
+    "regionHeight": 500,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "typed-array-4",
+    "viewport": "1280x800",
+    "dialogHeight": 695,
+    "regionHeight": 548,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "typed-record",
+    "viewport": "1280x800",
+    "dialogHeight": 627,
+    "regionHeight": 480,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "typed-first-level-array",
+    "viewport": "1280x800",
+    "dialogHeight": 651,
+    "regionHeight": 504,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "soft-hyphen",
+    "viewport": "1280x800",
+    "dialogHeight": 411,
+    "regionHeight": 264,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "grapheme-joiner",
+    "viewport": "1280x800",
+    "dialogHeight": 411,
+    "regionHeight": 264,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "variation-selector",
+    "viewport": "1280x800",
+    "dialogHeight": 411,
+    "regionHeight": 264,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "hangul-filler",
+    "viewport": "1280x800",
+    "dialogHeight": 411,
+    "regionHeight": 264,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "queued-collision-1",
+    "viewport": "1280x800",
+    "dialogHeight": 720,
+    "regionHeight": 573,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "queued-collision-2",
+    "viewport": "1280x800",
+    "dialogHeight": 720,
+    "regionHeight": 573,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "changed-message",
+    "viewport": "1280x800",
+    "dialogHeight": 519,
+    "regionHeight": 372,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "changed-identity",
+    "viewport": "1280x800",
+    "dialogHeight": 411,
+    "regionHeight": 264,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "changed-chain-warning",
+    "viewport": "1280x800",
+    "dialogHeight": 667,
+    "regionHeight": 520,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "changed-switch-chain-id",
+    "viewport": "1280x800",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "qrl_signMessage-empty",
+    "viewport": "1280x800",
+    "dialogHeight": 391,
+    "regionHeight": 244,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "qrl_requestAccounts-empty",
+    "viewport": "1280x800",
+    "dialogHeight": 215,
+    "regionHeight": 68,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "wallet_addQrlChain-empty",
+    "viewport": "1280x800",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "wallet_switchQrlChain-empty",
+    "viewport": "1280x800",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "qrl_sendTransaction-short",
+    "viewport": "390x844",
+    "dialogHeight": 615,
+    "regionHeight": 468,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "qrl_sendTransaction-max",
+    "viewport": "390x844",
+    "dialogHeight": 759.59375,
+    "regionHeight": 612.59375,
+    "enabled": true,
+    "scrolling": 2,
+    "fitted": false
+  },
+  {
+    "name": "qrl_signTransaction-short",
+    "viewport": "390x844",
+    "dialogHeight": 615,
+    "regionHeight": 468,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "qrl_signTransaction-max",
+    "viewport": "390x844",
+    "dialogHeight": 759.59375,
+    "regionHeight": 612.59375,
+    "enabled": true,
+    "scrolling": 2,
+    "fitted": false
+  },
+  {
+    "name": "qrl_signMessage-short",
+    "viewport": "390x844",
+    "dialogHeight": 411,
+    "regionHeight": 264,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "qrl_signMessage-max",
+    "viewport": "390x844",
+    "dialogHeight": 519,
+    "regionHeight": 372,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "qrl_signTypedData-short",
+    "viewport": "390x844",
+    "dialogHeight": 623,
+    "regionHeight": 476,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "qrl_signTypedData-max",
+    "viewport": "390x844",
+    "dialogHeight": 759.59375,
+    "regionHeight": 612.59375,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "wallet_addQrlChain-short",
+    "viewport": "390x844",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "wallet_addQrlChain-max",
+    "viewport": "390x844",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "wallet_switchQrlChain-short",
+    "viewport": "390x844",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "wallet_switchQrlChain-max",
+    "viewport": "390x844",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "qrl_requestAccounts-short",
+    "viewport": "390x844",
+    "dialogHeight": 215,
+    "regionHeight": 68,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "qrl_requestAccounts-max",
+    "viewport": "390x844",
+    "dialogHeight": 215,
+    "regionHeight": 68,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "consent-short",
+    "viewport": "390x844",
+    "dialogHeight": 444,
+    "regionHeight": 188,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "consent-max",
+    "viewport": "390x844",
+    "dialogHeight": 544,
+    "regionHeight": 288,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-space",
+    "viewport": "390x844",
+    "dialogHeight": 391,
+    "regionHeight": 244,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-tab",
+    "viewport": "390x844",
+    "dialogHeight": 391,
+    "regionHeight": 244,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-newline",
+    "viewport": "390x844",
+    "dialogHeight": 391,
+    "regionHeight": 244,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-space-tab-space",
+    "viewport": "390x844",
+    "dialogHeight": 391,
+    "regionHeight": 244,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-invisible",
+    "viewport": "390x844",
+    "dialogHeight": 415,
+    "regionHeight": 268,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-empty",
+    "viewport": "390x844",
+    "dialogHeight": 391,
+    "regionHeight": 244,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "message-token-2000",
+    "viewport": "390x844",
+    "dialogHeight": 519,
+    "regionHeight": 372,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "typed-nested-reviewer",
+    "viewport": "390x844",
+    "dialogHeight": 759.59375,
+    "regionHeight": 612.59375,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "typed-nested-token-2000",
+    "viewport": "390x844",
+    "dialogHeight": 759.59375,
+    "regionHeight": 612.59375,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "typed-token-2000",
+    "viewport": "390x844",
+    "dialogHeight": 759.59375,
+    "regionHeight": 612.59375,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "typed-array-2",
+    "viewport": "390x844",
+    "dialogHeight": 647,
+    "regionHeight": 500,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "typed-array-4",
+    "viewport": "390x844",
+    "dialogHeight": 695,
+    "regionHeight": 548,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "typed-record",
+    "viewport": "390x844",
+    "dialogHeight": 627,
+    "regionHeight": 480,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "typed-first-level-array",
+    "viewport": "390x844",
+    "dialogHeight": 651,
+    "regionHeight": 504,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "soft-hyphen",
+    "viewport": "390x844",
+    "dialogHeight": 411,
+    "regionHeight": 264,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "grapheme-joiner",
+    "viewport": "390x844",
+    "dialogHeight": 411,
+    "regionHeight": 264,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "variation-selector",
+    "viewport": "390x844",
+    "dialogHeight": 411,
+    "regionHeight": 264,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "hangul-filler",
+    "viewport": "390x844",
+    "dialogHeight": 411,
+    "regionHeight": 264,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "queued-collision-1",
+    "viewport": "390x844",
+    "dialogHeight": 759.59375,
+    "regionHeight": 612.59375,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "queued-collision-2",
+    "viewport": "390x844",
+    "dialogHeight": 759.59375,
+    "regionHeight": 612.59375,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "changed-message",
+    "viewport": "390x844",
+    "dialogHeight": 519,
+    "regionHeight": 372,
+    "enabled": true,
+    "scrolling": 1,
+    "fitted": false
+  },
+  {
+    "name": "changed-identity",
+    "viewport": "390x844",
+    "dialogHeight": 411,
+    "regionHeight": 264,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "changed-chain-warning",
+    "viewport": "390x844",
+    "dialogHeight": 683,
+    "regionHeight": 536,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "changed-switch-chain-id",
+    "viewport": "390x844",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "qrl_signMessage-empty",
+    "viewport": "390x844",
+    "dialogHeight": 391,
+    "regionHeight": 244,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "qrl_requestAccounts-empty",
+    "viewport": "390x844",
+    "dialogHeight": 215,
+    "regionHeight": 68,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  },
+  {
+    "name": "wallet_addQrlChain-empty",
+    "viewport": "390x844",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": true
+  },
+  {
+    "name": "wallet_switchQrlChain-empty",
+    "viewport": "390x844",
+    "dialogHeight": 195,
+    "regionHeight": 48,
+    "enabled": true,
+    "scrolling": 0,
+    "fitted": false
+  }
+]

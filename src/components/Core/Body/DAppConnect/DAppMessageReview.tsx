@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import { tryDecodeUtf8 } from './messageReview';
+import { isWhitespaceMessage, tryDecodeUtf8 } from './messageReview';
 
 interface DAppMessageReviewProps {
   messageHex: string;
@@ -19,10 +19,14 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
   const [showDigest, setShowDigest] = useState(false);
   const decoded = tryDecodeUtf8(messageHex);
   const byteLength = messageHex.startsWith('0x') ? (messageHex.length - 2) / 2 : 0;
+  const whitespace = !decoded.ok && decoded.reason === 'invisible-chars' && isWhitespaceMessage(messageHex);
+  // Use the existing whitespace/empty review's vertical space for its visible
+  // representation. Ordinary message cards keep their original padding.
+  const padding = whitespace ? 'px-4 py-1' : byteLength === 0 ? 'px-4 py-1.5' : 'p-4';
 
   return (
-    <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm">
-      <div className="flex justify-between text-xs">
+    <div className={`space-y-3 rounded-md border border-border bg-muted/30 ${padding} text-sm`}>
+      <div data-review-block className="flex justify-between text-xs">
         <span className="text-muted-foreground">Message</span>
         <span className="text-muted-foreground">
           {byteLength} byte{byteLength === 1 ? '' : 's'}
@@ -31,10 +35,11 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
       {decoded.ok ? (
         <>
           <p
+            data-review-block data-review-value={messageHex}
             className="max-h-32 overflow-auto break-words font-mono text-sm"
             dir="ltr"
           >
-            {decoded.text}
+            {decoded.text || 'Empty message (0 bytes).'}
           </p>
           <details className="text-xs">
             <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
@@ -47,10 +52,15 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
         </>
       ) : (
         <div>
-          <p className="text-xs text-muted-foreground italic">
-            Not a safely printable UTF-8 string, showing raw hex.
+          <p data-review-block className="text-xs text-muted-foreground italic">
+            {whitespace
+              ? 'Message contains only whitespace or invisible characters. Raw signed bytes (hex):'
+              : decoded.reason === 'invisible-chars'
+                ? 'Not a safely printable UTF-8 string. Raw signed bytes (hex):'
+                : 'Not a safely printable UTF-8 string, showing raw hex.'}
           </p>
           <p
+            data-review-block
             className="mt-1 max-h-32 overflow-auto break-all font-mono text-xs"
             dir="ltr"
           >

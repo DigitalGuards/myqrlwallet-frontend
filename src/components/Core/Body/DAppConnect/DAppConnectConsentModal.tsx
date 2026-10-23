@@ -29,11 +29,13 @@ import { Button } from '@/components/UI/Button';
 import { Loader, Plug } from 'lucide-react';
 import { parseConnectionURI } from '@/services/dappConnect/qrUri';
 import { DEFAULT_RELAY_URL } from '@/services/dappConnect/DAppConnectService';
+import { useReviewVisibility } from './useReviewVisibility';
+import { reviewGeneration } from './reviewIdentity';
 
 /** Origin the wallet dials when a URI carries no r= param. */
 const DEFAULT_RELAY_ORIGIN = new URL(DEFAULT_RELAY_URL).origin;
 
-const DAppConnectConsentModal = observer(() => {
+const DAppConnectConsentModalContent = observer(({ generation }: { generation: number }) => {
   const { dappConnectStore, qrlStore } = useStore();
   // Keep the existing account prerequisite as UX: pairing itself shares no
   // account, but this wallet cannot satisfy a later account request without one.
@@ -50,9 +52,11 @@ const DAppConnectConsentModal = observer(() => {
   // cannot diverge from the one handleConnectionURI contacts; defaults until
   // the async parse resolves and on any parse failure.
   const [relayOrigin, setRelayOrigin] = useState(DEFAULT_RELAY_ORIGIN);
+  const [reviewedUri, setReviewedUri] = useState<string | null>(null);
 
   const uri = dappConnectStore.desktopConnectUri;
   const source = dappConnectStore.desktopConnectSource;
+  const { ref: reviewRef, ready: reviewReady, canApprove } = useReviewVisibility(generation);
 
   useEffect(() => {
     if (!uri) return;
@@ -61,9 +65,13 @@ const DAppConnectConsentModal = observer(() => {
       .then((parsed) => {
         if (cancelled) return;
         setRelayOrigin(parsed.relayUrl ? new URL(parsed.relayUrl).origin : DEFAULT_RELAY_ORIGIN);
+        setReviewedUri(uri);
       })
       .catch(() => {
-        if (!cancelled) setRelayOrigin(DEFAULT_RELAY_ORIGIN);
+        if (!cancelled) {
+          setRelayOrigin(DEFAULT_RELAY_ORIGIN);
+          setReviewedUri(uri);
+        }
       });
     return () => {
       cancelled = true;
@@ -77,6 +85,9 @@ const DAppConnectConsentModal = observer(() => {
   }, [connecting, dappConnectStore]);
 
   const handleConnect = useCallback(async () => {
+    if (connecting || !hasAccount || reviewedUri !== uri ||
+        dappConnectStore.desktopConnectUri !== uri ||
+        reviewGeneration(dappConnectStore.desktopConnectReview) !== generation || !canApprove()) return;
     setError('');
     setConnecting(true);
     try {
@@ -89,7 +100,7 @@ const DAppConnectConsentModal = observer(() => {
     } finally {
       setConnecting(false);
     }
-  }, [dappConnectStore, navigate]);
+  }, [connecting, hasAccount, reviewedUri, uri, generation, canApprove, dappConnectStore, navigate]);
 
   if (!uri) return null;
 
@@ -100,13 +111,13 @@ const DAppConnectConsentModal = observer(() => {
         if (!open) handleCancel();
       }}
     >
-      <DialogContent className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col overflow-hidden">
+      <DialogContent ref={reviewRef} className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col overflow-y-auto">
         <DialogHeader className="shrink-0 pr-6">
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle data-review-block className="flex items-center gap-2">
             <Plug className="h-5 w-5" />
             Connect to a dApp?
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription data-review-block>
             {source === 'paste'
               ? 'You pasted a dApp connection code.'
               : source === 'link'
@@ -118,12 +129,13 @@ const DAppConnectConsentModal = observer(() => {
         <div
           role="region"
           aria-label="Connection details"
-          className="min-h-0 space-y-2 overflow-y-auto overscroll-contain text-sm"
+          data-review-region
+          className="space-y-2 overflow-y-auto overscroll-contain text-sm"
         >
-          <p className="break-all text-muted-foreground">
+          <p data-review-block className="break-all text-muted-foreground">
             Relay: <span className="font-mono">{relayOrigin}</span>
           </p>
-          <p>
+          <p data-review-block>
             Connecting establishes an encrypted channel and does not share an
             account. The dApp's name and site are pinned after the channel is
             established, and account access requires a separate approval. Only
@@ -131,19 +143,25 @@ const DAppConnectConsentModal = observer(() => {
             link, or pasted its connection code yourself.
           </p>
           {!hasAccount && !isInitializing && (
-            <p className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-2 text-yellow-500">
+            <p data-review-block className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-2 text-yellow-500">
               Create or import an account first so you can approve a later account
               access request from the dApp.
             </p>
           )}
-          {error && <p role="alert" className="break-words text-destructive">{error}</p>}
+          {error && <p data-review-block role="alert" className="break-words text-destructive">{error}</p>}
         </div>
 
+        {!reviewReady && (
+          <p id="consent-visibility-hint" role="status" className="shrink-0 text-xs text-muted-foreground">
+            Scroll to see every detail before connecting
+          </p>
+        )}
         <DialogFooter className="shrink-0 gap-2">
           <Button variant="outline" onClick={handleCancel} disabled={connecting}>
             Cancel
           </Button>
-          <Button onClick={() => void handleConnect()} disabled={connecting || !hasAccount}>
+          <Button type="button" onClick={() => void handleConnect()} disabled={connecting || !hasAccount || reviewedUri !== uri || !reviewReady}
+            aria-describedby={!reviewReady ? 'consent-visibility-hint' : undefined}>
             {connecting ? (
               <>
                 <Loader className="mr-2 h-4 w-4 animate-spin" />
@@ -157,6 +175,13 @@ const DAppConnectConsentModal = observer(() => {
       </DialogContent>
     </Dialog>
   );
+});
+
+const DAppConnectConsentModal = observer(() => {
+  const { dappConnectStore } = useStore();
+  if (!dappConnectStore.desktopConnectUri) return null;
+  const generation = reviewGeneration(dappConnectStore.desktopConnectReview);
+  return <DAppConnectConsentModalContent key={generation} generation={generation} />;
 });
 
 export default DAppConnectConsentModal;

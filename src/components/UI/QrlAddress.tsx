@@ -115,7 +115,7 @@ export function QrlAddress({
       {isFull
         ? addressGroups.map((group, index) => (
             <span
-              key={`${index}-${group}`}
+              key={index}
               className="inline-block min-w-0 max-w-full [overflow-wrap:anywhere]"
             >
               {group}

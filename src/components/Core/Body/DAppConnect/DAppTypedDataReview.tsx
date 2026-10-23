@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { canonicalTypedDataReview, escapeVisualControls } from './typedDataReview';
 import { isArray, isRecord } from '@/utils/guards';
+import { reviewValueKey } from './reviewIdentity';
 import type { TypedDataPayload } from '@/utils/signing';
 
 interface DAppTypedDataReviewProps {
@@ -17,7 +18,9 @@ interface DAppTypedDataReviewProps {
   connectedChainId?: string;
 }
 
-function renderValue(value: unknown): React.ReactNode {
+function renderValue(value: unknown, path: string, depth = 0): React.ReactNode {
+  // Full paths identify descendants once indentation reaches its width cap.
+  const indent = depth < 2 ? 'border-l border-border pl-2' : '';
   if (value === null || value === undefined) return <span className="text-muted-foreground">(empty)</span>;
   if (typeof value === 'string') {
     return (
@@ -31,25 +34,33 @@ function renderValue(value: unknown): React.ReactNode {
   }
   if (isArray(value)) {
     return (
-      <ul className="space-y-1 border-l border-border pl-2">
-        {value.map((item, i) => (
-          <li key={i} className="flex gap-2">
-            <span className="shrink-0 whitespace-nowrap text-muted-foreground">[{i}]</span>
-            <span className="min-w-0">{renderValue(item)}</span>
-          </li>
-        ))}
+      <ul className={`space-y-1 ${indent}`}>
+        {value.map((item, i) => {
+          const itemPath = `${path}[${i}]`;
+          return (
+            <li key={i} className={depth < 2 ? 'flex gap-2' : 'review-tree-entry'}>
+              <span className={depth < 2 ? 'shrink-0 whitespace-nowrap text-muted-foreground' : 'text-muted-foreground'}>
+                {depth < 2 ? `[${i}]` : itemPath}
+              </span>
+              <span className="min-w-0">{renderValue(item, itemPath, depth + 1)}</span>
+            </li>
+          );
+        })}
       </ul>
     );
   }
   if (isRecord(value)) {
     return (
-      <div className="mt-1 space-y-1 border-l border-border pl-2">
-        {Object.entries(value).map(([k, v]) => (
-          <div key={k} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
-            <span className="text-muted-foreground">{k}</span>
-            <span className="min-w-0 text-right">{renderValue(v)}</span>
-          </div>
-        ))}
+      <div className={`mt-1 space-y-1 ${indent}`}>
+        {Object.entries(value).map(([k, v]) => {
+          const fieldPath = `${path}.${k}`;
+          return (
+            <div key={k} className={depth < 2 ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2' : 'review-tree-entry'}>
+              <span className="text-muted-foreground">{depth < 2 ? k : fieldPath}</span>
+              <span className="min-w-0 text-right">{renderValue(v, fieldPath, depth + 1)}</span>
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -86,46 +97,48 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
     connectedChain !== undefined && domainChain !== connectedChain;
 
   return (
-    <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm [overflow-wrap:anywhere]">
+    <div className="review-typed-data space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm [overflow-wrap:anywhere]">
       <div className="space-y-1">
-        <div className="mb-2 text-xs text-muted-foreground">Signed domain</div>
+        <div data-review-block className="mb-2 text-xs text-muted-foreground">Signed domain</div>
         {domainFields.map((field) => (
           <div
             key={field.name}
+            data-review-block data-review-value={reviewValueKey([field, payload.types, domain[field.name]])}
             className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2 text-xs"
           >
             <span className="text-muted-foreground">{field.name}</span>
-            <span className="min-w-0 text-right">{renderValue(domain[field.name])}</span>
+            <span className="min-w-0 text-right">{renderValue(domain[field.name], field.name)}</span>
           </div>
         ))}
         {chainMismatch && (
-          <p role="alert" className="pt-2 text-xs text-amber-600 dark:text-amber-400">
+          <p data-review-block role="alert" className="pt-2 text-xs text-amber-600 dark:text-amber-400">
             The signed domain chain ID ({domainChain.toString()}) differs from the
             connected chain ({connectedChain.toString()}). Only sign if you expect
             this chain.
           </p>
         )}
         {!hasChainId && (
-          <p className="pt-2 text-xs text-amber-600 dark:text-amber-400">
+          <p data-review-block className="pt-2 text-xs text-amber-600 dark:text-amber-400">
             This domain has no chain ID. The signature is not bound to a chain.
           </p>
         )}
       </div>
 
-      <div className="border-t border-border pt-3">
+      <div data-review-block className="border-t border-border pt-3">
         <div className="text-xs text-muted-foreground">Primary type</div>
         <div className="font-medium">{primaryType}</div>
       </div>
 
       <div className="border-t border-border pt-3 space-y-1">
-        <div className="text-xs text-muted-foreground mb-2">Message</div>
+        <div data-review-block className="text-xs text-muted-foreground mb-2">Message</div>
         {messageFields.map((field) => (
           <div
             key={field.name}
+            data-review-block data-review-value={reviewValueKey([field, payload.types, message[field.name]])}
             className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2"
           >
             <span className="text-muted-foreground">{field.name}</span>
-            <span className="min-w-0 text-right">{renderValue(message[field.name])}</span>
+            <span className="min-w-0 text-right">{renderValue(message[field.name], field.name)}</span>
           </div>
         ))}
       </div>
@@ -142,7 +155,7 @@ const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({
         </pre>
       </details>
 
-      <p className="border-t border-border pt-3 text-xs text-amber-600 dark:text-amber-400">
+      <p data-review-block className="border-t border-border pt-3 text-xs text-amber-600 dark:text-amber-400">
         Only sign data from sites you trust. A signed challenge can be used to authenticate as you.
       </p>
 

@@ -61,6 +61,8 @@ class DAppConnectStore {
    */
   desktopConnectUri: string | null = null;
   desktopConnectSource: DesktopConnectSource = "deeplink";
+  /** Fresh object for every staged consent, including a repeated URI. */
+  desktopConnectReview = {};
 
   constructor() {
     makeAutoObservable(this);
@@ -156,6 +158,7 @@ class DAppConnectStore {
     }
     this.desktopConnectUri = uri;
     this.desktopConnectSource = source;
+    this.desktopConnectReview = {};
   }
 
   /** Desktop: dismiss the staged connect request (consent declined/finished). */
@@ -172,6 +175,7 @@ class DAppConnectStore {
    */
   async confirmDesktopConnect(): Promise<{ success: boolean; error?: string }> {
     const uri = this.desktopConnectUri;
+    const review = this.desktopConnectReview;
     if (!uri) return { success: false, error: "No pending connection" };
     const origin = this.desktopConnectSource === "deeplink" ? "deeplink" : "qr";
     const result = await dappConnectService.handleConnectionURI(uri, origin);
@@ -179,7 +183,7 @@ class DAppConnectStore {
       // Only clear if a newer URI wasn't staged during the awaited handshake;
       // otherwise the latest-wins staging would silently drop that pending URI
       // and its consent modal would never appear.
-      if (result.success && this.desktopConnectUri === uri)
+      if (result.success && this.desktopConnectReview === review && this.desktopConnectUri === uri)
         this.desktopConnectUri = null;
     });
     return result;
