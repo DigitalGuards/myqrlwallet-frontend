@@ -22,6 +22,8 @@ import { checkLockout, getRemainingAttempts } from "@/utils/crypto/pinAttemptTra
 import { PinVerificationError } from "@/utils/crypto/verifyPinWithLimit";
 import { logger } from "@/utils/log";
 import { mockReviewObservers } from "@/test-utils/reviewObserver";
+import { deferred } from "@/test-utils/deferred";
+import { SignTypedDataParamsSchema } from "@/utils/signing";
 let visibility: ReturnType<typeof mockReviewObservers>;
 let mockDesktop = true;
 const address = `Q${"a".repeat(128)}`;
@@ -150,6 +152,139 @@ beforeEach(() => {
   mockDappStore = new DAppConnectStore();
   rejectRequestSpy = jest.spyOn(dappConnectService, "rejectRequest");
   approveRequestSpy = jest.spyOn(dappConnectService, "approveRequest");
+});
+
+describe.each([false, true])("typed-data chain check (desktop=%s)", (desktop) => {
+  let signTypedDataSpy: jest.SpiedFunction<typeof desktopSigner.signTypedData>;
+  beforeEach(() => { mockDesktop = desktop; });
+
+  function attemptBlockedApproval() {
+    const button = screen.getByRole("button", { name: "Approve" });
+    expect(button.hasAttribute("disabled")).toBe(true);
+    expect(button.getAttribute("type")).toBe("button");
+    fireEvent.click(button);
+    fireEvent.keyDown(button, { key: "Enter" });
+    fireEvent.submit(screen.getByRole("dialog"));
+    if (!desktop) {
+      const input = screen.getByPlaceholderText("Enter PIN");
+      fireEvent.change(input, { target: { value: "123456" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      fireEvent.change(input, { target: { value: "" } });
+    }
+    expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+    expect(signTypedDataSpy).not.toHaveBeenCalled();
+    expect(approveRequestSpy).not.toHaveBeenCalled();
+    expect(rejectRequestSpy).not.toHaveBeenCalled();
+    expect(screen.queryByText("Please enter your PIN")).toBeNull();
+  }
+
+  beforeEach(() => {
+    signTypedDataSpy = jest.spyOn(desktopSigner, "signTypedData").mockReturnValue(new Promise(() => undefined));
+  });
+
+  it.each(["0x301825", "0x1"])("waits for %s and requires any new mismatch warning to be seen", async (chainId) => {
+    visibility.hold();
+    const read = deferred<string>();
+    const send = jest.spyOn(mockQrlStore.qrlInstance.requestManager, "send").mockReturnValueOnce(read.promise);
+    await showApproval("qrl_signTypedData");
+    act(() => { visibility.emit(); });
+    expect(screen.getByText("Checking the network...")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Approve" }).getAttribute("aria-describedby")).toBe("approval-chain-hint");
+    attemptBlockedApproval();
+    const oldTargets = visibility.targets;
+    await act(async () => { read.resolve(chainId); await read.promise; });
+    expect(screen.queryByText("Checking the network...")).toBeNull();
+    if (chainId === "0x1") {
+      const warning = screen.getByRole("alert");
+      expect(warning.textContent).toContain("differs from the connected chain (1)");
+      expect(warning.hasAttribute("data-review-block")).toBe(true);
+      act(() => { visibility.emitQueued(oldTargets); });
+      attemptBlockedApproval();
+      act(() => { visibility.emit(visibility.targets.filter((target) => target.parentElement === warning)); });
+    } else {
+      expect(screen.queryByRole("alert")).toBeNull();
+    }
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Approve" }).hasAttribute("disabled")).toBe(false);
+    await approve();
+    if (desktop) expect(signTypedDataSpy).toHaveBeenCalledTimes(1);
+    else expect(screen.getByText("Please enter your PIN")).toBeTruthy();
+  });
+
+  it("blocks a failed check and keeps retry pending until it succeeds", async () => {
+    const error = new Error("RPC unavailable");
+    const warn = jest.spyOn(logger, "warn").mockImplementation(() => undefined);
+    const retry = deferred<string>();
+    const send = jest.spyOn(mockQrlStore.qrlInstance.requestManager, "send")
+      .mockRejectedValueOnce(error).mockReturnValueOnce(retry.promise);
+    await showApproval("qrl_signTypedData");
+    expect(warn).toHaveBeenCalledWith(
+      "[DAppConnect] Could not read the wallet chain id for typed-data review:", error,
+    );
+    const failure = screen.getByRole("alert");
+    expect(failure.textContent).toBe("The wallet could not check its network, so this request cannot be approved yet.");
+    expect(failure.hasAttribute("data-review-block")).toBe(true);
+    attemptBlockedApproval();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    act(() => { visibility.settle(); });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(screen.getByText("Checking the network...")).toBeTruthy();
+    attemptBlockedApproval();
+    await act(async () => { retry.resolve("0x301825"); await retry.promise; });
+    act(() => { visibility.settle(); });
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("button", { name: "Approve" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("preserves approval for a domain without chainId and makes no chain read", async () => {
+    const send = jest.spyOn(mockQrlStore.qrlInstance.requestManager, "send");
+    const params = SignTypedDataParamsSchema.parse(request("qrl_signTypedData").params);
+    params[1].types["QRLDomain"] = [{ name: "name", type: "string" }];
+    delete params[1].domain["chainId"];
+    await showApproval("qrl_signTypedData", params);
+    expect(send).not.toHaveBeenCalled();
+    expect(screen.queryByText("Checking the network...")).toBeNull();
+    expect(screen.getByText("This domain has no chain ID. The signature is not bound to a chain.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Approve" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("checks a zero chain ID", async () => {
+    jest.spyOn(mockQrlStore.qrlInstance.requestManager, "send").mockReturnValueOnce(new Promise(() => undefined));
+    const params = SignTypedDataParamsSchema.parse(request("qrl_signTypedData").params);
+    params[1].domain["chainId"] = 0;
+    await showApproval("qrl_signTypedData", params);
+    expect(screen.getByText("Checking the network...")).toBeTruthy();
+    attemptBlockedApproval();
+  });
+
+  it.each(["resolve", "reject"])("ignores a late %s after an identical request replaces the review", async (outcome) => {
+    const old = deferred<string>();
+    const next = deferred<string>();
+    const send = jest.spyOn(mockQrlStore.qrlInstance.requestManager, "send")
+      .mockReturnValueOnce(old.promise).mockReturnValueOnce(next.promise);
+    await showApproval("qrl_signTypedData");
+    act(() => {
+      const replacement = request("qrl_signTypedData");
+      mockDappStore.pendingRequests = [replacement];
+      mockDappStore.currentApproval = replacement;
+    });
+    await act(async () => {
+      if (outcome === "reject") old.reject(new Error("Old network failed"));
+      else old.resolve("0x1");
+      await Promise.resolve();
+    });
+    act(() => { visibility.settle(); });
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(screen.getByText("Checking the network...")).toBeTruthy();
+    attemptBlockedApproval();
+    await act(async () => { next.resolve("0x301825"); await next.promise; });
+    act(() => { visibility.settle(); });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("button", { name: "Approve" }).hasAttribute("disabled")).toBe(false);
+  });
 });
 
 describe("fee preview lifetime", () => {
@@ -592,19 +727,6 @@ it.each([
   expect(screen.getByRole("alert").textContent).toBe(expected);
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
   expect(rejectRequestSpy).toHaveBeenCalledWith(pending.sessionId, pending.id, message, -32603);
-});
-
-it("logs an unavailable chain during typed-data review and keeps approval available", async () => {
-  const error = new Error("RPC unavailable");
-  const warn = jest.spyOn(logger, "warn").mockImplementation(() => undefined);
-  jest.spyOn(mockQrlStore.qrlInstance.requestManager, "send").mockRejectedValueOnce(error);
-  await showApproval("qrl_signTypedData");
-  expect(warn).toHaveBeenCalledWith(
-    "[DAppConnect] Could not read the wallet chain id for typed-data review:", error,
-  );
-  expect(screen.queryByRole("alert")).toBeNull();
-  expect(screen.getByRole("button", { name: "Approve" }).hasAttribute("disabled")).toBe(false);
-  expect(rejectRequestSpy).not.toHaveBeenCalled();
 });
 
 it("logs a chain read failure and retains the network-switch rejection", async () => {

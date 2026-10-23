@@ -304,12 +304,106 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
   const { ref: reviewRef, ready: reviewReady, canApprove } = useReviewVisibility(generation);
   const reviewedContent = reviewContentKey(currentApproval, qrlStore.activeAccount.accountAddress, blockchain);
 
+  /**
+   * Preview for the two signing methods. Read nested observable params on
+   * every render so an in-place edit updates the review and its visibility
+   * requirement. Pre-validate so the user sees a clear "this request
+   * is malformed" reason rather than only learning at Approve time.
+   *
+   */
+  const signingPreview = (() => {
+    if (!currentApproval) return null;
+    const { method } = currentApproval;
+    // De-proxy the observable params (see handleApprove): zod's record key
+    // check would otherwise trip over MobX's Symbol(mobx administration) key
+    // and formatZodIssues would throw while rendering.
+    const params = toJS(currentApproval.params);
+    if (method === "qrl_signMessage") {
+      const parsed = SignMessageParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return {
+          kind: "invalid" as const,
+          reason: formatZodIssues(parsed.error),
+        };
+      }
+      try {
+        const [, messageHex] = parsed.data;
+        const digestHex = bytesToHex(
+          computeMessageDigest(hexToBytes(messageHex)),
+        );
+        return { kind: "message" as const, messageHex, digestHex };
+      } catch (e) {
+        return {
+          kind: "invalid" as const,
+          reason: e instanceof Error ? e.message : String(e),
+        };
+      }
+    }
+    if (method === "qrl_signTypedData") {
+      const parsed = SignTypedDataParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return {
+          kind: "invalid" as const,
+          reason: formatZodIssues(parsed.error),
+        };
+      }
+      try {
+        const payload = parsed.data[1];
+        const digestHex = bytesToHex(computeTypedDataDigest(payload));
+        return { kind: "typed" as const, payload, digestHex };
+      } catch (e) {
+        return {
+          kind: "invalid" as const,
+          reason: e instanceof Error ? e.message : String(e),
+        };
+      }
+    }
+    return null;
+  })();
+
+  const domainChainId = signingPreview?.kind === "typed"
+    ? signingPreview.payload.domain["chainId"]
+    : undefined;
+  const requiresChainCheck = domainChainId !== undefined;
+  const web3 = qrlStore.qrlInstance;
+  const [chainPreviewAttempt, setChainPreviewAttempt] = useState(0);
+  const chainPreviewKey = reviewValueKey([generation, blockchain, domainChainId, chainPreviewAttempt]);
+  const [chainPreview, setChainPreview] = useState<({
+    requestKey: string;
+    web3: Web3QRLInterface | undefined;
+  } & ({ status: "ready"; chainId: string } | { status: "failed" })) | null>(null);
+  useEffect(() => {
+    setChainPreview(null);
+    if (!requiresChainCheck) return;
+    let cancelled = false;
+    void readWalletChainId(web3).then(
+      (chainId) => {
+        if (!cancelled) setChainPreview({ status: "ready", requestKey: chainPreviewKey, web3, chainId });
+      },
+      (error: unknown) => {
+        if (cancelled) return;
+        logger.warn("[DAppConnect] Could not read the wallet chain id for typed-data review:", error);
+        setChainPreview({ status: "failed", requestKey: chainPreviewKey, web3 });
+      },
+    );
+    return () => { cancelled = true; };
+  }, [chainPreviewKey, requiresChainCheck, web3]);
+  // A new review generation, domain chain, network or provider starts pending
+  // immediately, including the render before the effect starts its read.
+  const currentChainPreview = chainPreview?.requestKey === chainPreviewKey && chainPreview.web3 === web3
+    ? chainPreview : null;
+  const chainApprovalPending = requiresChainCheck && currentChainPreview?.status !== "ready";
+  const chainCheckFailed = requiresChainCheck && currentChainPreview?.status === "failed";
+  const connectedChainId = currentChainPreview?.status === "ready" ? currentChainPreview.chainId : undefined;
+
   const handleApprove = useCallback(async () => {
     if (!currentApproval || currentApproval !== dappConnectStore.currentApproval || !canApprove()) return;
     // A store update and a keyboard event can share a tick before React commits
     // the new review. Bind this action to the content of its rendered review.
     if (reviewedContent !== reviewContentKey(dappConnectStore.currentApproval,
       qrlStore.activeAccount.accountAddress, qrlStore.qrlConnection.blockchain)) return;
+    // Guard every entry path, including PIN Enter and a stale enabled button.
+    if (chainApprovalPending || (requiresChainCheck && web3 !== qrlStore.qrlInstance)) return;
     // Synchronous, because `loading` is React state and does not update until
     // the next render: a second Enter in the same tick would otherwise start a
     // second sign and broadcast, and pay twice.
@@ -1140,7 +1234,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
       approveInFlightRef.current = false;
       if (isStillCurrent()) setLoading(false);
     }
-  }, [currentApproval, pin, dappConnectStore, qrlStore, blockchain, canApprove, reviewedContent]);
+  }, [currentApproval, pin, dappConnectStore, qrlStore, blockchain, canApprove, reviewedContent, chainApprovalPending, requiresChainCheck, web3]);
 
   const handleReject = useCallback(() => {
     dappConnectStore.rejectCurrentRequest(
@@ -1157,80 +1251,6 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     setError(null);
   }, [dappConnectStore]);
 
-  /**
-   * Preview for the two signing methods. Read nested observable params on
-   * every render so an in-place edit updates the review and its visibility
-   * requirement. Pre-validate so the user sees a clear "this request
-   * is malformed" reason rather than only learning at Approve time.
-   *
-   */
-  const signingPreview = (() => {
-    if (!currentApproval) return null;
-    const { method } = currentApproval;
-    // De-proxy the observable params (see handleApprove): zod's record key
-    // check would otherwise trip over MobX's Symbol(mobx administration) key
-    // and formatZodIssues would throw while rendering.
-    const params = toJS(currentApproval.params);
-    if (method === "qrl_signMessage") {
-      const parsed = SignMessageParamsSchema.safeParse(params);
-      if (!parsed.success) {
-        return {
-          kind: "invalid" as const,
-          reason: formatZodIssues(parsed.error),
-        };
-      }
-      try {
-        const [, messageHex] = parsed.data;
-        const digestHex = bytesToHex(
-          computeMessageDigest(hexToBytes(messageHex)),
-        );
-        return { kind: "message" as const, messageHex, digestHex };
-      } catch (e) {
-        return {
-          kind: "invalid" as const,
-          reason: e instanceof Error ? e.message : String(e),
-        };
-      }
-    }
-    if (method === "qrl_signTypedData") {
-      const parsed = SignTypedDataParamsSchema.safeParse(params);
-      if (!parsed.success) {
-        return {
-          kind: "invalid" as const,
-          reason: formatZodIssues(parsed.error),
-        };
-      }
-      try {
-        const payload = parsed.data[1];
-        const digestHex = bytesToHex(computeTypedDataDigest(payload));
-        return { kind: "typed" as const, payload, digestHex };
-      } catch (e) {
-        return {
-          kind: "invalid" as const,
-          reason: e instanceof Error ? e.message : String(e),
-        };
-      }
-    }
-    return null;
-  })();
-
-  const [connectedChainId, setConnectedChainId] = useState<string>();
-  useEffect(() => {
-    setConnectedChainId(undefined);
-    if (currentApproval?.method !== "qrl_signTypedData") return;
-    let cancelled = false;
-    void readWalletChainId(qrlStore.qrlInstance).then(
-      (chainId) => {
-        if (!cancelled) setConnectedChainId(chainId);
-      },
-      (error: unknown) => {
-        logger.warn("[DAppConnect] Could not read the wallet chain id for typed-data review:", error);
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [currentApproval, qrlStore.qrlInstance, blockchain]);
 
   if (!currentApproval) return null;
 
@@ -1560,6 +1580,32 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                 />
               )}
 
+              {chainApprovalPending && (
+                chainCheckFailed ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <p id="approval-chain-hint" data-review-block role="alert" className="text-sm text-destructive">
+                      The wallet could not check its network, so this request
+                      cannot be approved yet.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setChainPreviewAttempt((count) => count + 1); }}
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                ) : (
+                  <p id="approval-chain-hint" data-review-block role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center">
+                      <Loader className="h-4 w-4 animate-spin" />
+                    </span>
+                    Checking the network...
+                  </p>
+                )
+              )}
+
               {signingPreview?.kind === "typed" && (
                 <DAppTypedDataReview
                   payload={signingPreview.payload}
@@ -1600,7 +1646,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        if (pin && !loading && !feeApprovalPending) void handleApprove();
+                        if (pin && !loading && !feeApprovalPending && !chainApprovalPending) void handleApprove();
                       }
                     }}
                     placeholder="Enter PIN"
@@ -1648,15 +1694,18 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                 onClick={() => {
                   void handleApprove();
                 }}
-                disabled={loading || feeApprovalPending || !reviewReady}
-                aria-describedby={!reviewReady ? "approval-visibility-hint" : undefined}
+                disabled={loading || feeApprovalPending || chainApprovalPending || !reviewReady}
+                aria-describedby={[
+                  !reviewReady && "approval-visibility-hint",
+                  chainApprovalPending && "approval-chain-hint",
+                ].filter(Boolean).join(" ") || undefined}
                 // A transaction cannot be approved before its fee is on
                 // screen: approving while the quote is loading or failed is
                 // approving a cost the user was never shown.
                 title={
                   feeApprovalPending
                     ? "Waiting for the network fee"
-                    : undefined
+                    : chainApprovalPending ? "Waiting for the network check" : undefined
                 }
               >
                 {loading ? "Processing..." : "Approve"}

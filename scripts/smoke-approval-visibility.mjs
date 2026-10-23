@@ -37,6 +37,14 @@ const emptyCases = [];
 const networkReviews = [];
 const overflowControls = [];
 const queuedReviews = [];
+const chainChecks = [];
+let chainReadControl;
+function holdChainRead() {
+  let release;
+  const response = new Promise((resolve) => { release = resolve; });
+  chainReadControl = { response, release, calls: 0 };
+  return chainReadControl;
+}
 const server = spawn(
   process.execPath,
   [
@@ -110,16 +118,20 @@ try {
       return route.fulfill({ status: 204, headers });
     if (request.method() === "POST" && request.url().includes("/qrl-rpc")) {
       const body = request.postDataJSON();
-      const reply = (rpc) => ({
-        jsonrpc: "2.0",
-        id: rpc.id,
-        result: rpcAnswer(rpc.method),
-      });
+      const reply = async (rpc) => {
+        const control = rpc.method === "qrl_chainId" && chainReadControl;
+        if (control) control.calls++;
+        return {
+          jsonrpc: "2.0",
+          id: rpc.id,
+          ...(control ? await control.response : { result: rpcAnswer(rpc.method) }),
+        };
+      };
       return route.fulfill({
         headers,
         contentType: "application/json",
         body: JSON.stringify(
-          Array.isArray(body) ? body.map(reply) : reply(body),
+          Array.isArray(body) ? await Promise.all(body.map(reply)) : await reply(body),
         ),
       });
     }
@@ -250,8 +262,8 @@ try {
     }, label);
   }
 
-  async function inspectAndRead(consent, primaryText, primaryLabel) {
-    return page.evaluate(async ({ consent, primaryText, primaryLabel }) => {
+  async function inspectAndRead(consent, primaryText, primaryLabel, approvalPending = false) {
+    return page.evaluate(async ({ consent, primaryText, primaryLabel, approvalPending }) => {
       const dialog = document.querySelector("[role=dialog]");
       const region = dialog.querySelector("[data-review-region]");
       const button = [...dialog.querySelectorAll("button")].find(
@@ -314,7 +326,7 @@ try {
               throw new Error(`Horizontal content overflow: ${element.textContent.slice(0, 60)}`);
             const rect = element.getBoundingClientRect();
             if (rect.width && (rect.left < bounds.left - 0.02 || rect.right > bounds.right + 0.02))
-              throw new Error(`Descendant outside review block: ${element.textContent.slice(0, 60)}`);
+              throw new Error(`Descendant outside review block: ${element.tagName} in ${block.textContent.slice(0, 60)}`);
           }
           const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
           while (walker.nextNode()) {
@@ -446,11 +458,11 @@ try {
           throw new Error("Enabled with unread content");
       }
       coverage.disconnect();
-      for (let settle = 0; settle < 10 && button.disabled; settle++)
+      for (let settle = 0; settle < 10 && button.disabled && !approvalPending; settle++)
         await frame();
-      if (button.disabled)
+      if (button.disabled !== approvalPending)
         throw new Error(
-          `Still gated after every detail was visible: ${JSON.stringify([...dialog.querySelectorAll("[data-review-block]")].map((element) => ({ text: element.textContent.slice(0, 40), width: element.clientWidth, height: element.clientHeight, tiles: element.querySelectorAll("[data-review-tile]").length })))}`,
+          `Unexpected approval state after every detail was visible (pending=${approvalPending}): ${JSON.stringify([...dialog.querySelectorAll("[data-review-block]")].map((element) => ({ text: element.textContent.slice(0, 40), width: element.clientWidth, height: element.clientHeight, tiles: element.querySelectorAll("[data-review-tile]").length })))}`,
         );
       assertHorizontalFit();
       if (seenGlyphs.size !== glyphs.length)
@@ -468,7 +480,10 @@ try {
           r.x + r.width / 2,
           r.y + r.height / 2,
         );
-        if (!hit || !control.contains(hit))
+        // Disabled buttons deliberately pass pointer events to their parent.
+        const disabledPassthrough = control.disabled &&
+          getComputedStyle(control).pointerEvents === "none" && hit?.contains(control);
+        if (!hit || (!control.contains(hit) && !disabledPassthrough))
           throw new Error(`Covered control: ${control.textContent}`);
       }
       const box = dialog.getBoundingClientRect();
@@ -498,7 +513,81 @@ try {
         modes,
         cssViewport: [innerWidth, innerHeight],
       };
-    }, { consent, primaryText, primaryLabel });
+    }, { consent, primaryText, primaryLabel, approvalPending });
+  }
+
+  async function attemptPendingApproval() {
+    const button = page.getByRole("button", { name: "Approve", exact: true });
+    assert.equal(await button.isDisabled(), true);
+    await button.evaluate((element) => element.click());
+    await page.getByRole("dialog").dispatchEvent("submit");
+    const pin = page.getByPlaceholder("Enter PIN", { exact: true });
+    await pin.fill("123456");
+    await pin.press("Enter");
+    await pin.fill("");
+    assert.equal(await page.getByText("No encrypted seed found", { exact: true }).count(), 0);
+    assert.equal(await page.getByText("Please enter your PIN", { exact: true }).count(), 0);
+    assert.equal(await button.isDisabled(), true);
+  }
+
+  async function checkDelayedChain(viewport, kind) {
+    const label = `chain-${kind}-${viewport.width}x${viewport.height}-${viewport.zoom}x`;
+    const first = holdChainRead();
+    const approval = fixture("qrl_signTypedData");
+    // Keep the domain warning above the visible bottom of the review, even
+    // at desktop height, so a late warning needs fresh real observations.
+    approval.params[1].message.text = "Review before signing. ".repeat(40);
+    await open(approval.method, false, label, false, approval);
+    assert(first.calls > 0, "Expected a pending chain read");
+    await page.getByText("Checking the network...", { exact: true }).waitFor();
+    const pending = await inspectAndRead(false, undefined, undefined, true);
+    await attemptPendingApproval();
+    await page.locator("#approval-chain-hint").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: join(output, `${label}-pending.png`) });
+    let failed, retry, ready = first;
+    if (kind === "failure-retry") {
+      first.release({ error: { code: -32603, message: "Synthetic network failure" } });
+      const failure = page.getByRole("alert");
+      await failure.waitFor();
+      assert.equal(await failure.textContent(), "The wallet could not check its network, so this request cannot be approved yet.");
+      assert.equal(await failure.getAttribute("data-review-block"), "true");
+      failed = await inspectAndRead(false, undefined, undefined, true);
+      await attemptPendingApproval();
+      await failure.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: join(output, `${label}-failed.png`) });
+      ready = holdChainRead();
+      await page.getByRole("button", { name: "Retry", exact: true }).click();
+      await page.getByText("Checking the network...", { exact: true }).waitFor();
+      retry = await inspectAndRead(false, undefined, undefined, true);
+      await attemptPendingApproval();
+      assert(ready.calls > 0, "Retry must start a new chain read");
+    }
+    await page.locator("[data-review-region]").evaluate(async (region) => {
+      region.scrollTop = region.scrollHeight;
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    const mismatch = kind !== "match";
+    ready.release({ result: mismatch ? "0x1" : "0x301825" });
+    await page.getByText("Checking the network...", { exact: true }).waitFor({ state: "hidden" });
+    chainReadControl = undefined;
+    if (mismatch) {
+      const warning = page.getByRole("alert");
+      await warning.waitFor();
+      assert.match(await warning.textContent(), /differs from the connected chain \(1\)/);
+      assert.equal(await warning.evaluate((element) => {
+        const region = element.closest("[data-review-region]");
+        return element.getBoundingClientRect().bottom <= region.getBoundingClientRect().top;
+      }), true, "The new warning must start offscreen");
+      await attemptPendingApproval();
+    } else {
+      assert.equal(await page.getByRole("alert").count(), 0);
+    }
+    const reviewed = await inspectAndRead(false);
+    await page.getByRole("button", { name: "Approve", exact: true }).click();
+    await page.getByText("Please enter your PIN", { exact: true }).waitFor();
+    chainChecks.push({ label, pending, failed, retry, mismatch, reviewed, reachedPinCheck: true });
+    await close();
+    console.log(`approval-visibility: ${label} passed`);
   }
 
   const viewports = baseline
@@ -594,6 +683,24 @@ try {
         await chrome.tabs.setZoom(tab.id, 1);
     }, origin);
     await measureParity({ page, open, close, output, baseline });
+    for (const viewport of viewports) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await worker.evaluate(async ({ origin, zoom }) => {
+        for (const tab of await chrome.tabs.query({ url: `${origin}/*` }))
+          await chrome.tabs.setZoom(tab.id, zoom);
+      }, { origin, zoom: viewport.zoom });
+      await page.waitForFunction((width) => innerWidth === width, viewport.width / viewport.zoom);
+      for (const kind of ["match", "mismatch", "failure-retry"]) {
+        await checkDelayedChain(viewport, kind).catch(async (error) => {
+          await page.screenshot({ path: join(output, `chain-${kind}-failure.png`) });
+          throw error;
+        });
+      }
+    }
+    await worker.evaluate(async (origin) => {
+      for (const tab of await chrome.tabs.query({ url: `${origin}/*` }))
+        await chrome.tabs.setZoom(tab.id, 1);
+    }, origin);
     for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);
       for (const secondId of ['1', '2']) {
@@ -712,6 +819,7 @@ try {
             button.textContent.trim() === "Approve" && button.disabled,
         ),
       );
+      if (kind === "chain-warning") await page.getByRole("alert").waitFor();
       changes.push({ kind, ...(await inspectAndRead(false)) });
       await close();
     }
@@ -808,6 +916,7 @@ try {
         networkReviews,
         overflowControls,
         queuedReviews,
+        chainChecks,
         results,
       },
       null,
@@ -845,7 +954,7 @@ try {
     );
   }
   console.log(
-    `approval-visibility: ${results.length} cases, ${networkReviews.length} network content checks, ${collapsedControls} collapsed controls, ${overflowControls.length} overflow controls, ${queuedReviews.length} queued reviews; ${durationSeconds}s`,
+    `approval-visibility: ${results.length} cases, ${networkReviews.length} network content checks, ${chainChecks.length} chain checks, ${collapsedControls} collapsed controls, ${overflowControls.length} overflow controls, ${queuedReviews.length} queued reviews; ${durationSeconds}s`,
   );
 } finally {
   await context?.close();
