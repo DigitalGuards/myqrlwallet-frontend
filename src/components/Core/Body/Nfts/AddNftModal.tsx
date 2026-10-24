@@ -1,7 +1,7 @@
 import { assetMessage, type AssetMessage } from "@/i18n/assetMessage";
 import { useTranslation } from "react-i18next";
 import { blockchainKey } from "@/utils/storage/storage";
-import { renderValue, stringAttribute } from "@/utils/guards";
+import { renderValue } from "@/utils/guards";
 import { reportError } from "@/utils/reportError";
 import { useEffect, useMemo, useState } from "react";
 import { observer } from "mobx-react-lite";
@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/UI/Dialog";
+import { NftImage } from "./NftImage";
 import { Button } from "@/components/UI/Button";
 import { Checkbox } from "@/components/UI/CheckBox";
 import { Input } from "@/components/UI/Input";
@@ -376,11 +377,10 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
                       disabled={isAddingPicks}
                     />
                     {cover ? (
-                      <img
-                        src={stringAttribute(cover)}
-                        alt=""
-                        className="h-10 w-10 shrink-0 rounded object-cover"
-                        loading="lazy"
+                      <NftImage
+                        src={cover}
+                        alt={collectionDisplayName(collection)}
+                        className="h-10 w-10 shrink-0 rounded"
                       />
                     ) : (
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
