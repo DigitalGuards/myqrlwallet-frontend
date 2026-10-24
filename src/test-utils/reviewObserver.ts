@@ -18,7 +18,11 @@ export function mockReviewObservers(automatic = true) {
     readonly rootMargin = "0px";
     readonly thresholds = [1];
     targets = new Set<Element>();
-    constructor(private callback: IntersectionObserverCallback) {
+    // Same signature as the DOM constructor; the synthetic geometry ignores the options.
+    constructor(
+      private callback: IntersectionObserverCallback,
+      _options?: IntersectionObserverInit,
+    ) {
       observers.add(this);
     }
     observe(target: Element) {
