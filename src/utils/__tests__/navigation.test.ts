@@ -35,22 +35,40 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-it("keeps mobile settings ahead of desktop and web routing", () => {
-  mockNative = true;
-  mockDesktop = true;
-  navigateTo("/settings", navigate);
-  expect(mockOpenNativeSettings).toHaveBeenCalledTimes(1);
-  expect(mockOpenDesktopSettings).not.toHaveBeenCalled();
-  expect(navigate).not.toHaveBeenCalled();
-});
+it.each([false, true])(
+  "opens mobile settings with desktop bridge present: %s",
+  (desktop) => {
+    mockNative = true;
+    mockDesktop = desktop;
+    navigateTo("/settings", navigate);
+    expect(mockOpenNativeSettings).toHaveBeenCalledTimes(1);
+    expect(mockOpenDesktopSettings).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  },
+);
 
-it("routes desktop settings through the signer", async () => {
-  mockDesktop = true;
-  navigateTo("/settings", navigate);
-  await Promise.resolve();
-  expect(mockOpenDesktopSettings).toHaveBeenCalledTimes(1);
-  expect(navigate).not.toHaveBeenCalled();
-});
+it.each([false, true])(
+  "routes settings in the renderer with desktop: %s",
+  (desktop) => {
+    mockDesktop = desktop;
+    navigateTo("/settings", navigate);
+    expect(navigate).toHaveBeenCalledWith("/settings");
+    expect(mockOpenNativeSettings).not.toHaveBeenCalled();
+    expect(mockOpenDesktopSettings).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["web", "mobile", "desktop"])(
+  "keeps other routes in the renderer on %s",
+  (platform) => {
+    mockNative = platform === "mobile";
+    mockDesktop = platform === "desktop";
+    navigateTo("/transfer", navigate);
+    expect(navigate).toHaveBeenCalledWith("/transfer");
+    expect(mockOpenNativeSettings).not.toHaveBeenCalled();
+    expect(mockOpenDesktopSettings).not.toHaveBeenCalled();
+  },
+);
 
 it("keeps synchronous and asynchronous router calls intact", async () => {
   navigateTo("/settings", navigate);
@@ -70,8 +88,7 @@ it.each(["desktop", "router"])(
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
     mockDesktop = kind === "desktop";
-    if (mockDesktop) mockOpenDesktopSettings.mockReturnValueOnce(rejection);
-    else navigate.mockReturnValueOnce(rejection);
+    navigate.mockReturnValueOnce(rejection);
 
     navigateTo("/settings", navigate);
     await observed;

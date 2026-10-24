@@ -16,7 +16,11 @@ const ImportAccount = lazy(() => import("../components/Core/Body/ImportAccount/I
 const AddAccount = lazy(() => import("../components/Core/Body/AddAccount/AddAccount.tsx"));
 const AccountList = lazy(() => import("../components/Core/Body/AccountList/AccountList.tsx"));
 const CreateToken = lazy(() => import("../components/Core/Body/CreateToken/CreateToken.tsx"));
-const Settings = lazy(() => import("../components/Core/Body/Settings/Settings.tsx"));
+const Settings = lazy(() =>
+  isDesktopShell
+    ? import("../components/Core/Body/Settings/DesktopSettings.tsx")
+    : import("../components/Core/Body/Settings/Settings.tsx"),
+);
 const QRView = lazy(() => import("../components/Core/Body/QRView/QRView.tsx"));
 const Terms = lazy(() => import("../components/Core/Body/Terms/Terms.tsx"));
 const Privacy = lazy(() => import("../components/Core/Body/Privacy/Privacy.tsx"));

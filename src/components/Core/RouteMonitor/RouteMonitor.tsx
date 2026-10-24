@@ -2,7 +2,6 @@ import { ROUTES } from "../../../router/router";
 import { useStore } from "../../../stores/store";
 import { StorageUtil } from "@/utils/storage";
 import { recordRoute } from "@/utils/nativeBack";
-import { isDesktop } from "@/desktop/bridge";
 import { observer } from "mobx-react-lite";
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
@@ -20,12 +19,7 @@ const RouteMonitor = observer(() => {
     if (!isConnected) return;
     void (async () => {
       const activePage = await StorageUtil.getActivePage();
-      // Desktop retired the web settings page (Settings opens the native
-      // window via navigateTo); a session stored under an older renderer may
-      // still have /settings as its active page, so never restore onto it.
-      const restorable =
-        activePage && !(isDesktop && activePage === ROUTES.SETTINGS);
-      if (restorable) {
+      if (activePage) {
         const navigation: unknown = Reflect.apply(navigate, undefined, [activePage]);
         void Promise.resolve(navigation).catch((error: unknown) => {
           logger.error("Failed to restore active page:", error);

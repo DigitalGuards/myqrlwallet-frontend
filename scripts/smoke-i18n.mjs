@@ -1,4 +1,5 @@
 import { slice6Screens } from "./i18n-slice6-probes.mjs";
+import { desktopSettingsScreens } from "./i18n-desktop-settings-probes.mjs";
 import { slice5Matrix } from "./i18n-slice5-matrix.mjs";
 import { slice4Screens, slice4NoticeProbes } from "./i18n-slice4-probes.mjs";
 import { assertFullI18nCoverage } from "./i18n-coverage.mjs";
@@ -64,6 +65,9 @@ try {
   }
   browser = await chromium.launch();
   await assertLanguageGlyphs(browser, languages);
+  results.push(
+    ...(await desktopSettingsScreens({ browser, origin, output, languages })),
+  );
   // Shared probes run exactly once across the language shards.
   if (languages.includes("en")) {
     await helperRouteProbes(browser, origin);
@@ -486,7 +490,7 @@ try {
     JSON.stringify(results, null, 2),
   );
   console.log(
-    `smoke-i18n: OK (${((performance.now() - started) / 1000).toFixed(1)}s, ${results.length} screenshots at 360 px, lazy loading, live switching, persistence, no page errors)`,
+    `smoke-i18n: OK (${((performance.now() - started) / 1000).toFixed(1)}s, ${results.length} screenshots, web at 360 px, desktop settings at 360x640 and 1280x800, lazy loading, live switching, persistence, no page errors)`,
   );
   report.status = "passed";
 } finally {
