@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, type ReactNode } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { cn } from "@/utils/cn";
@@ -76,10 +77,11 @@ export function QrlAddress({
   copyable = false,
   className,
   addressClassName,
-  copyLabel = "Copy address",
+  copyLabel,
   href,
   linkLabel,
 }: QrlAddressProps) {
+  const { t } = useTranslation("common");
   const [revealedAddress, setRevealedAddress] = useState<string | null>(null);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const isRevealed =
@@ -107,13 +109,13 @@ export function QrlAddress({
             : "[overflow-wrap:anywhere]",
         addressClassName,
       )}
-      aria-label={`QRL address ${address}`}
+      aria-label={t("qrlAddress", { address })}
       dir="ltr"
     >
       {isFull
         ? addressGroups.map((group, index) => (
             <span
-              key={`${index}-${group}`}
+              key={index}
               className="inline-block min-w-0 max-w-full [overflow-wrap:anywhere]"
             >
               {group}
@@ -149,7 +151,7 @@ export function QrlAddress({
             part of it. The purpose is appended for assistive technology
             instead of replacing the address with an aria-label.
           */}
-          <span className="sr-only">{linkLabel ?? "opens in a new tab"}</span>
+          <span className="sr-only">{linkLabel ?? t("newTab")}</span>
           <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
         </a>
       ) : (
@@ -173,7 +175,7 @@ export function QrlAddress({
                 else setRevealedAddress(isFull ? null : address);
               }}
             >
-              {isFull ? "Show less" : "Show full"}
+              {isFull ? t("showLess") : t("showFull")}
             </button>
           ) : null}
           {copyable ? (
@@ -181,7 +183,9 @@ export function QrlAddress({
               type="button"
               className="inline-flex shrink-0 items-center gap-1 rounded-sm text-xs font-medium text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label={
-                copiedAddress === address ? "Address copied" : copyLabel
+                copiedAddress === address
+                  ? t("addressCopied")
+                  : (copyLabel ?? t("copyAddress"))
               }
               onClick={(event) => {
                 event.stopPropagation();
@@ -197,7 +201,7 @@ export function QrlAddress({
                 <Copy className="h-3.5 w-3.5" aria-hidden="true" />
               )}
               <span aria-live="polite">
-                {copiedAddress === address ? "Copied" : "Copy"}
+                {copiedAddress === address ? t("copied") : t("copy")}
               </span>
             </button>
           ) : null}

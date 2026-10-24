@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { observer } from "mobx-react-lite";
 import { TokenCreationForm } from "./TokenCreationForm/TokenCreationForm";
@@ -5,6 +6,16 @@ import { useStore } from "@/stores/store";
 import { QRL_ZERO_ADDRESS } from "@/utils/web3";
 
 const CreateToken = observer(() => {
+  const { t } = useTranslation([
+    "creation",
+    "nfts",
+    "tokens",
+    "home",
+    "transfer",
+    "settings",
+    "onboarding",
+    "common",
+  ]);
   const { tokenStore } = useStore();
 
   const onTokenCreated = async (
@@ -52,9 +63,9 @@ const CreateToken = observer(() => {
   return (
     <>
       <PageShell
-        title="Create New QRC20 Token"
-        subtitle="Deploy your own QRC20 token on the QRL network"
-        seoTitle="Create QRC20 Token"
+        title={t("creation:title")}
+        subtitle={t("creation:subtitle")}
+        seoTitle={t("creation:seoTitle")}
       >
         <div className="relative z-10">
           <TokenCreationForm onTokenCreated={onTokenCreated} />

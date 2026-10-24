@@ -1,4 +1,13 @@
-import { isArray, isRecord, stringValue, renderValue, toBigInt, toNumber, toTemplateString } from "@/utils/guards";
+import { useTranslation } from "react-i18next";
+import {
+  isArray,
+  isRecord,
+  stringValue,
+  renderValue,
+  toBigInt,
+  toNumber,
+  toTemplateString,
+} from "@/utils/guards";
 import { reportError } from "@/utils/reportError";
 import { useNavigate } from "react-router";
 import { EyeOff } from "lucide-react";
@@ -16,6 +25,7 @@ interface NftCardProps {
 }
 
 export function NftCard({ nft }: NftCardProps) {
+  const { t } = useTranslation("home");
   const { nftStore } = useStore();
   const navigate = useNavigate();
   const key = nftKey(nft.contractAddress, nft.tokenId);
@@ -31,10 +41,16 @@ export function NftCard({ nft }: NftCardProps) {
     // Record that the previous history entry is this NFT's collection
     // view, so the detail page's Back button pops back into it instead of
     // guessing a route.
-    Promise.resolve(navigate(
-      nftDetailPath(ROUTES.NFT_DETAIL, stringValue(nft.contractAddress), nft.tokenId),
-      { state: { nftDetailFromCollection: true } satisfies NftNavState },
-    )).catch((error: unknown) => {
+    Promise.resolve(
+      navigate(
+        nftDetailPath(
+          ROUTES.NFT_DETAIL,
+          stringValue(nft.contractAddress),
+          nft.tokenId,
+        ),
+        { state: { nftDetailFromCollection: true } satisfies NftNavState },
+      ),
+    ).catch((error: unknown) => {
       reportError("Failed to open NFT:", error);
     });
   };
@@ -59,29 +75,35 @@ export function NftCard({ nft }: NftCardProps) {
       <div className="relative overflow-hidden rounded-md border border-border transition-colors group-hover:border-secondary/60">
         <NftImage
           src={nft.image}
-          alt={nft.name ?? `Token #${toTemplateString(nft.tokenId)}`}
+          alt={nft.name ?? t("nftToken", { id: toTemplateString(nft.tokenId) })}
           blur
           className="aspect-square w-full bg-gradient-to-br from-secondary/15 to-background"
         />
         <Button
           variant="ghost"
           size="icon"
-          title="Hide NFT"
+          title={t("hideNft")}
           onClick={onHide}
           // Always visible on touch devices (no hover); reveal on hover on desktop.
           className="absolute right-2 top-2 h-7 w-7 bg-background/70 opacity-100 backdrop-blur-sm transition-opacity md:opacity-0 md:group-hover:opacity-100"
         >
           <EyeOff className="h-4 w-4" />
         </Button>
-        {renderValue(nft.standard === "ERC1155" && nft.balance && toBigInt(nft.balance) > 1n && (
-          <span className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 font-numeric text-xs font-medium backdrop-blur-sm">
-            ×{renderValue(nft.balance)}
-          </span>
-        ))}
+        {renderValue(
+          nft.standard === "ERC1155" &&
+            nft.balance &&
+            toBigInt(nft.balance) > 1n && (
+              <span className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 font-numeric text-xs font-medium backdrop-blur-sm">
+                ×{renderValue(nft.balance)}
+              </span>
+            ),
+        )}
       </div>
       <div className="space-y-0.5">
         <div className="truncate text-sm font-medium">
-          {renderValue(nft.name ?? `Token #${truncateId(nft.tokenId)}`)}
+          {renderValue(
+            nft.name ?? t("nftToken", { id: truncateId(nft.tokenId) }),
+          )}
         </div>
         <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
       </div>
@@ -90,8 +112,10 @@ export function NftCard({ nft }: NftCardProps) {
 }
 
 function truncateId(value: unknown) {
-  if (isRecord(value) && toNumber(value["length"]) <= 12) return toTemplateString(value);
-  if (typeof value !== "string" && !isArray(value)) throw new TypeError("Invalid token ID");
+  if (isRecord(value) && toNumber(value["length"]) <= 12)
+    return toTemplateString(value);
+  if (typeof value !== "string" && !isArray(value))
+    throw new TypeError("Invalid token ID");
   if (value.length <= 12) return toTemplateString(value);
   return `${toTemplateString(value.slice(0, 6))}…${toTemplateString(value.slice(-4))}`;
 }

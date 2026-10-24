@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 /**
  * Standalone /dapp-sessions route: where web fragment-link handoffs land and
  * the consent modal navigates after a successful connect. Settings embeds
@@ -12,13 +13,14 @@ import { Button } from "@/components/UI/Button";
 import { useStore } from "@/stores/store";
 
 const DAppSessionsPage = observer(() => {
+  const { t } = useTranslation(["dapps", "common", "settings", "transfer"]);
   const { dappConnectStore } = useStore();
   return (
     <PageShell
-      title="dApp connections"
-      subtitle="dApps paired with this wallet over the end-to-end encrypted QRL Connect relay."
+      title={t("dapps:sessionsTitle")}
+      subtitle={t("dapps:sessionsSubtitle")}
       width="wide"
-      seoTitle="dApp Connections"
+      seoTitle={t("dapps:sessionsSeo")}
       action={
         dappConnectStore.activeSessions.length > 0 && (
           <Button
@@ -28,7 +30,7 @@ const DAppSessionsPage = observer(() => {
               dappConnectStore.disconnectAll();
             }}
           >
-            Disconnect all
+            {t("settings:disconnectAll")}
           </Button>
         )
       }

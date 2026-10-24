@@ -1,0 +1,331 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`English fitted rendering consent deeplink 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Cancel",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Connect",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Connect to a dApp?A dApp is requesting to connect to your wallet via QRL Connect.Relay: https://relay.exampleConnecting establishes an encrypted channel and does not share an account. The dApp's name and site are pinned after the channel is established, and account access requires a separate approval. Only continue if you just clicked Connect in a dApp, opened its connection link, or pasted its connection code yourself.CancelConnect",
+}
+`;
+
+exports[`English fitted rendering consent link 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Cancel",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Connect",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Connect to a dApp?You opened a dApp connection link. The dApp may be open in another tab or on another device.Relay: https://relay.exampleConnecting establishes an encrypted channel and does not share an account. The dApp's name and site are pinned after the channel is established, and account access requires a separate approval. Only continue if you just clicked Connect in a dApp, opened its connection link, or pasted its connection code yourself.CancelConnect",
+}
+`;
+
+exports[`English fitted rendering consent paste 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Cancel",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Connect",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Connect to a dApp?You pasted a dApp connection code.Relay: https://relay.exampleConnecting establishes an encrypted channel and does not share an account. The dApp's name and site are pinned after the channel is established, and account access requires a separate approval. Only continue if you just clicked Connect in a dApp, opened its connection link, or pasted its connection code yourself.CancelConnect",
+}
+`;
+
+exports[`English fitted rendering qrl_requestAccounts 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Reject",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Approve",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Test dApphttps://dapp.exampleConnect AccountThis dApp wants to view your account address.QaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaRejectApprove",
+}
+`;
+
+exports[`English fitted rendering qrl_sendTransaction 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Reject",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Approve",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Test dApphttps://dapp.exampleSend TransactionFromQaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaToQaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaValue0Max network fee0RejectApprove",
+}
+`;
+
+exports[`English fitted rendering qrl_signMessage 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Reject",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Approve",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Test dApphttps://dapp.exampleSign MessageMessage5 byteshelloRaw signed bytes0x68656c6c6fAdvanced: 64-byte SHAKE256 digest0xf9c6c87c7ae05e782888c69e1a019eea9e7d53650039a91a21c031660a9dd0e14d068477f43e8ee81b585708a88f2b3aff9a4307974b8f76799fce9bc151b3aeRejectApprove",
+}
+`;
+
+exports[`English fitted rendering qrl_signTransaction 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Reject",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Approve",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Test dApphttps://dapp.exampleSign TransactionFromQaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaToQaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaValue0Max network fee0RejectApprove",
+}
+`;
+
+exports[`English fitted rendering qrl_signTypedData 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Reject",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Approve",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Test dApphttps://dapp.exampleSign Typed DataSigned domainname"Approval test"chainId"3151909"Primary typeRecipientsMessageaccounts[0]"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"[1]"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002"[2]"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003"[3]"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004"[4]"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005"[5]"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006"[6]"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007"[7]"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008"[8]"Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009"[9]"Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a"[10]"Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b"[11]"Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c"Full signed payload (canonical JSON){
+  "domain": {
+    "chainId": "3151909",
+    "name": "Approval test"
+  },
+  "message": {
+    "accounts": [
+      "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
+      "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002",
+      "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003",
+      "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005",
+      "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006",
+      "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007",
+      "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008",
+      "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009",
+      "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a",
+      "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b",
+      "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c"
+    ]
+  },
+  "primaryType": "Recipients",
+  "types": {
+    "QRLDomain": [
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "chainId",
+        "type": "uint256"
+      }
+    ],
+    "Recipients": [
+      {
+        "name": "accounts",
+        "type": "address[]"
+      }
+    ]
+  }
+}Only sign data from sites you trust. A signed challenge can be used to authenticate as you.Advanced: 64-byte SHAKE256 digest0x7b30638cb00782f6e7ccbccb7c3348b43c77f895aacda0b6189f00438e1804a48dcff2fd45b7b559e835e0378a1690ecab8143226a2f1baf011d27cdd3bd175dRejectApprove",
+}
+`;
+
+exports[`English fitted rendering wallet_addQrlChain 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Reject",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Approve",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Test dApphttps://dapp.exampleAdd NetworkRejectApprove",
+}
+`;
+
+exports[`English fitted rendering wallet_switchQrlChain 1`] = `
+{
+  "controls": [
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Reject",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "Approve",
+      "title": null,
+    },
+    {
+      "disabled": false,
+      "label": null,
+      "placeholder": null,
+      "text": "",
+      "title": null,
+    },
+  ],
+  "text": "Test dApphttps://dapp.exampleSwitch NetworkRequested chain ID0x301825RejectApprove",
+}
+`;

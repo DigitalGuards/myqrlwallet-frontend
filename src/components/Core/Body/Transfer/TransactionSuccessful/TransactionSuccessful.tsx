@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { BlockchainSelection } from "@/utils/storage/storage";
 import { reportError } from "@/utils/reportError";
 import { PageShell } from "@/components/Core/Layout/PageShell";
@@ -27,6 +28,7 @@ export const TransactionSuccessful = ({
   onDone,
   blockchain: submittedBlockchain,
 }: TransactionSuccessfulProps) => {
+  const { t } = useTranslation(["transfer", "common", "settings"]);
   const { qrlStore } = useStore();
   const { qrlConnection } = qrlStore;
   const { blockchain } = qrlConnection;
@@ -71,30 +73,30 @@ export const TransactionSuccessful = ({
             aria-hidden="true"
           />
           <span className="min-w-0 [overflow-wrap:anywhere]">
-            Transaction Completed
+            {t("transfer:completed")}
           </span>
         </span>
       }
-      seoTitle="Transaction Completed"
+      seoTitle={t("transfer:completed")}
     >
       <Card className="min-w-0 w-full">
         <CardContent className="space-y-6 pt-6">
           {formattedAmount && (
             <div className="flex flex-col gap-2">
-              <div>Amount</div>
+              <div>{t("transfer:amount")}</div>
               <div className="font-numeric font-bold text-secondary break-all">
                 {formattedAmount}
               </div>
             </div>
           )}
           <div className="flex flex-col gap-2">
-            <div>Transaction Hash</div>
+            <div>{t("transfer:completedHash")}</div>
             <div className="flex min-w-0 items-center gap-2">
               <a
                 href={`${explorerUrl}/tx/${transactionHash.toString()}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={`View transaction ${transactionHash.toString()} on explorer`}
+                aria-label={t("transfer:viewTransaction", { hash: transactionHash.toString() })}
                 className="flex min-w-0 flex-1 items-center gap-2 text-secondary hover:text-secondary/80"
               >
                 <span className="min-w-0 break-all font-mono text-sm font-medium leading-relaxed">
@@ -108,8 +110,8 @@ export const TransactionSuccessful = ({
                 size="icon"
                 aria-label={
                   copiedItem === "txHash"
-                    ? "Transaction hash copied"
-                    : "Copy transaction hash"
+                    ? t("transfer:hashCopied")
+                    : t("transfer:copyHash")
                 }
                 onClick={() => {
                   copyToClipboard(transactionHash.toString(), "txHash").catch((error: unknown) => {
@@ -127,7 +129,7 @@ export const TransactionSuccessful = ({
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <div>Block hash</div>
+            <div>{t("transfer:blockHash")}</div>
             <div className="flex min-w-0 items-center gap-2">
               <span className="min-w-0 flex-1 break-all font-mono text-sm font-medium leading-relaxed text-secondary">
                 {blockHash.toString()}
@@ -138,8 +140,8 @@ export const TransactionSuccessful = ({
                 size="icon"
                 aria-label={
                   copiedItem === "blockHash"
-                    ? "Block hash copied"
-                    : "Copy block hash"
+                    ? t("transfer:blockCopied")
+                    : t("transfer:copyBlock")
                 }
                 onClick={() => {
                   copyToClipboard(blockHash.toString(), "blockHash").catch((error: unknown) => {
@@ -158,7 +160,7 @@ export const TransactionSuccessful = ({
           </div>
           <div className="space-y-6">
             <div className="flex min-w-0 flex-col gap-2">
-              <div>Block number</div>
+              <div>{t("transfer:blockNumber")}</div>
               <a
                 href={`${explorerUrl}/block/${blockNumber}`}
                 target="_blank"
@@ -172,7 +174,7 @@ export const TransactionSuccessful = ({
               </a>
             </div>
             <div className="flex min-w-0 flex-col gap-2">
-              <div>Network fee</div>
+              <div>{t("transfer:networkFee")}</div>
               <div className="font-numeric font-bold text-secondary break-all">
                 {gasInQrl} Quanta
               </div>
@@ -182,7 +184,7 @@ export const TransactionSuccessful = ({
         <CardFooter className="justify-end">
           <Button className="w-full sm:w-1/2" type="button" onClick={onDone}>
             <Check className="mr-2 h-4 w-4" />
-            Done
+            {t("transfer:done")}
           </Button>
         </CardFooter>
       </Card>

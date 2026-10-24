@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 /**
  * Approval preview for `qrl_signMessage`.
  *
@@ -8,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { tryDecodeUtf8 } from './messageReview';
+import { isWhitespaceMessage, tryDecodeUtf8 } from './messageReview';
 
 interface DAppMessageReviewProps {
   messageHex: string;
@@ -16,30 +17,34 @@ interface DAppMessageReviewProps {
 }
 
 const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, digestHex }) => {
+  const { t } = useTranslation(["dapps", "common", "settings", "transfer"]);
   const [showDigest, setShowDigest] = useState(false);
   const decoded = tryDecodeUtf8(messageHex);
   const byteLength = messageHex.startsWith('0x') ? (messageHex.length - 2) / 2 : 0;
+  const whitespace = !decoded.ok && decoded.reason === 'invisible-chars' && isWhitespaceMessage(messageHex);
+  // Use the existing whitespace/empty review's vertical space for its visible
+  // representation. Ordinary message cards keep their original padding.
+  const padding = whitespace ? 'px-4 py-1' : byteLength === 0 ? 'px-4 py-1.5' : 'p-4';
 
   return (
-    <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4 text-sm">
-      <div className="flex justify-between text-xs">
-        <span className="text-muted-foreground">Message</span>
+    <div className={`space-y-3 rounded-md border border-border bg-muted/30 ${padding} text-sm`}>
+      <div data-review-block className="flex justify-between text-xs">
+        <span className="text-muted-foreground">{t("dapps:message")}</span>
         <span className="text-muted-foreground">
-          {byteLength} byte{byteLength === 1 ? '' : 's'}
+          {t("dapps:bytes", { count: byteLength })}
         </span>
       </div>
       {decoded.ok ? (
         <>
           <p
+            data-review-block data-review-value={messageHex}
             className="max-h-32 overflow-auto break-words font-mono text-sm"
             dir="ltr"
           >
-            {decoded.text}
+            {decoded.text || t("dapps:emptyMessage")}
           </p>
           <details className="text-xs">
-            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-              Raw signed bytes
-            </summary>
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">{t("dapps:rawBytes")}</summary>
             <p className="mt-2 max-h-32 overflow-auto break-all font-mono" dir="ltr">
               {messageHex}
             </p>
@@ -47,10 +52,15 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
         </>
       ) : (
         <div>
-          <p className="text-xs text-muted-foreground italic">
-            Not a safely printable UTF-8 string, showing raw hex.
+          <p data-review-block className="text-xs text-muted-foreground italic">
+            {whitespace
+              ? t("dapps:invisibleMessage")
+              : decoded.reason === 'invisible-chars'
+                ? t("dapps:unsafeMessage")
+                : t("dapps:binaryMessage")}
           </p>
           <p
+            data-review-block
             className="mt-1 max-h-32 overflow-auto break-all font-mono text-xs"
             dir="ltr"
           >
@@ -67,9 +77,7 @@ const DAppMessageReview: React.FC<DAppMessageReviewProps> = ({ messageHex, diges
             if (details instanceof HTMLDetailsElement) setShowDigest(details.open);
           }}
         >
-          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-            Advanced: 64-byte SHAKE256 digest
-          </summary>
+          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">{t("dapps:digest")}</summary>
           <p className="mt-2 break-all font-mono" dir="ltr">{digestHex}</p>
         </details>
       )}

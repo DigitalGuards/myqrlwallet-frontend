@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { logger } from "@/utils/log";
 import { Button } from "../../../../UI/Button";
 import {
@@ -12,17 +13,15 @@ import { RefreshCw } from "lucide-react";
 import { observer } from "mobx-react-lite";
 
 const ConnectionFailed = observer(() => {
+  const { t } = useTranslation(["home", "common"]);
   const { qrlStore } = useStore();
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Connection failed</CardTitle>
+        <CardTitle>{t("home:connectionFailed")}</CardTitle>
       </CardHeader>
-      <CardContent>
-        Could not connect to the blockchain network. Please check your network
-        connection and try again.
-      </CardContent>
+      <CardContent>{t("home:connectionHint")}</CardContent>
       <CardFooter>
         <Button
           className="w-full"
@@ -34,7 +33,7 @@ const ConnectionFailed = observer(() => {
           }}
         >
           <RefreshCw className="mr-2 h-4 w-4" />
-          Retry
+          {t("home:retry")}
         </Button>
       </CardFooter>
     </Card>

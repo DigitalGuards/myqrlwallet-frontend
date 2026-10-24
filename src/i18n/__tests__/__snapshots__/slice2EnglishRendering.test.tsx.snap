@@ -1,0 +1,6016 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Account QR image copied state 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+  ],
+  "text": "Wallet AddressScan or copy the complete address below.Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111CopyCopied!",
+}
+`;
+
+exports[`Account copy tooltip, copied state and QR dialog 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+  ],
+  "text": "Copy AddressCopy Address",
+}
+`;
+
+exports[`Account copy tooltip, copied state and QR dialog 2`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Address copied",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+  ],
+  "text": "Copied!Copied!",
+}
+`;
+
+exports[`Account copy tooltip, copied state and QR dialog 3`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+  ],
+  "text": "Wallet AddressScan or copy the complete address below.Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111CopyCopy QR",
+}
+`;
+
+exports[`AccountBalance and source badges 1`] = `
+{
+  "labels": [],
+  "text": "Balance: 123.45 QuantaExtensionMobile App",
+}
+`;
+
+exports[`AccountId oneLine: false 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+  ],
+  "text": "Q11111111...11111111...11111111Show full",
+}
+`;
+
+exports[`AccountId oneLine: false 2`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+  ],
+  "text": "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Show less",
+}
+`;
+
+exports[`AccountId oneLine: true 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+  ],
+  "text": "Q11111111...11111111...11111111",
+}
+`;
+
+exports[`AccountList with all account cards 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+  ],
+  "text": "AccountsActive accountQ11111111...11111111...11111111Show fullBalance: 123.45 QuantaScan to open in ExplorerOther accountsQ22222222...22222222...22222222Show fullBalance: 123.45 QuantaExtensionQ33333333...33333333...33333333Show fullBalance: 123.45 QuantaMobile AppAdd accountsYou are connected to the blockchain. Create a new account, import an existing account, or connect a wallet you already use: your browser extension or the MyQRLWallet mobile app.Create a new accountImport an existing accountConnect Browser ExtensionConnect Mobile App",
+}
+`;
+
+exports[`Accounts at wallet limit 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+  ],
+  "text": "AccountsActive accountQ11111111...11111111...11111111Show fullBalance: 123.45 QuantaScan to open in ExplorerOther accountsQ22222222...22222222...22222222Show fullBalance: 123.45 QuantaExtensionQ33333333...33333333...33333333Show fullBalance: 123.45 QuantaMobile App Wallet limit reached (10/10)Remove an existing wallet to add a new one",
+}
+`;
+
+exports[`Accounts empty: desktop 1`] = `
+{
+  "labels": [],
+  "text": "Let's startYou are connected to the blockchain. Create a new account or import an existing account.Create a new accountImport an existing account",
+}
+`;
+
+exports[`Accounts empty: native 1`] = `
+{
+  "labels": [],
+  "text": "Let's startYou are connected to the blockchain. Create a new account or import an existing account.Create a new accountImport an existing account",
+}
+`;
+
+exports[`Accounts empty: web 1`] = `
+{
+  "labels": [],
+  "text": "Let's startYou are connected to the blockchain. Create a new account, import an existing account, or connect a wallet you already use: your browser extension or the MyQRLWallet mobile app.Create a new accountImport an existing accountConnect Browser ExtensionConnect Mobile App",
+}
+`;
+
+exports[`ActiveAccount: extension 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+  ],
+  "text": "Active accountQ11111111...11111111...11111111Show fullBalance: 123.45 QuantaExtensionScan to open in Explorer",
+}
+`;
+
+exports[`ActiveAccount: mobile 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+  ],
+  "text": "Active accountQ11111111...11111111...11111111Show fullBalance: 123.45 QuantaMobile AppScan to open in Explorer",
+}
+`;
+
+exports[`ActiveAccount: seed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+  ],
+  "text": "Active accountQ11111111...11111111...11111111Show fullBalance: 123.45 QuantaScan to open in Explorer",
+}
+`;
+
+exports[`Contact picker: closed 1`] = `
+{
+  "labels": [],
+  "text": "",
+}
+`;
+
+exports[`Contact picker: empty 1`] = `
+{
+  "labels": [],
+  "text": "Address BookPick a saved recipient.No saved addresses yet.Manage address book",
+}
+`;
+
+exports[`Contact picker: offer 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Name",
+      ],
+    ],
+  ],
+  "text": "Address BookPick a saved recipient.Savings <safe>Q22222222...22222222...22222222Save Q11111111...11111111...11111111 asSaveManage address book",
+}
+`;
+
+exports[`Contact picker: offer 2`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+  ],
+  "text": "Address BookPick a saved recipient.ExistingQ11111111...11111111...11111111Manage address book",
+}
+`;
+
+exports[`Contact picker: saved 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+  ],
+  "text": "Address BookPick a saved recipient.Savings <safe>Q22222222...22222222...22222222Manage address book",
+}
+`;
+
+exports[`Contact picker: saved-current 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+  ],
+  "text": "Address BookPick a saved recipient.Savings <safe>Q22222222...22222222...22222222Manage address book",
+}
+`;
+
+exports[`Contacts empty and add dialog 1`] = `
+{
+  "labels": [],
+  "text": "Address BookSaved recipients for quick transfersAddNo saved addresses yet.Add one here, or save a recipient from the Transfer page.",
+}
+`;
+
+exports[`Contacts empty and add dialog 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "e.g. Cold storage",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Q...",
+      ],
+    ],
+  ],
+  "text": "Add AddressSave a recipient for quick transfers.NameQRL addressCancelSave",
+}
+`;
+
+exports[`Contacts picker duplicate saved after the last render 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+  ],
+  "text": "Address BookPick a saved recipient.ExistingQ11111111...11111111...11111111Manage address book",
+}
+`;
+
+exports[`Contacts populated, copied, rename and delete dialogs 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Send to this address",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Rename",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Delete",
+      ],
+    ],
+  ],
+  "text": "Address BookSaved recipients for quick transfersAddSavings <safe>Q22222222...22222222...22222222Show full",
+}
+`;
+
+exports[`Contacts populated, copied, rename and delete dialogs 2`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Send to this address",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Rename",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Delete",
+      ],
+    ],
+  ],
+  "text": "Address BookSaved recipients for quick transfersAddSavings <safe>Q22222222...22222222...22222222Show full",
+}
+`;
+
+exports[`Contacts populated, copied, rename and delete dialogs 3`] = `
+{
+  "labels": [],
+  "text": "Rename AddressQ22222222...22222222...22222222CancelSave",
+}
+`;
+
+exports[`Contacts populated, copied, rename and delete dialogs 4`] = `
+{
+  "labels": [],
+  "text": "Delete Address?"Savings <safe>" (Q22222222...22222222...22222222) will be removed from your address book.CancelDelete",
+}
+`;
+
+exports[`Contacts populated, copied, rename and delete dialogs 5`] = `
+{
+  "labels": [],
+  "text": "Address BookSaved recipients for quick transfersAddNo saved addresses yet.Add one here, or save a recipient from the Transfer page.",
+}
+`;
+
+exports[`Contacts validation: address 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "e.g. Cold storage",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Q...",
+      ],
+    ],
+  ],
+  "text": "Add AddressSave a recipient for quick transfers.NameQRL addressNot a valid QRL address (Q + 128 hex characters)CancelSave",
+}
+`;
+
+exports[`Contacts validation: duplicate 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "e.g. Cold storage",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Q...",
+      ],
+    ],
+  ],
+  "text": "Add AddressSave a recipient for quick transfers.NameQRL addressThis address is already savedCancelSave",
+}
+`;
+
+exports[`Contacts validation: name 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "e.g. Cold storage",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Q...",
+      ],
+    ],
+  ],
+  "text": "Add AddressSave a recipient for quick transfers.NameQRL addressName is requiredCancelSave",
+}
+`;
+
+exports[`GasFeeNotice without a provider 1`] = `
+{
+  "labels": [],
+  "text": "Network feeError: Wallet not connectedSlowMediumFast",
+}
+`;
+
+exports[`GasFeeNotice: empty 1`] = `
+{
+  "labels": [],
+  "text": "Network feeEnter recipient and amount to estimateSlowMediumFast",
+}
+`;
+
+exports[`GasFeeNotice: error 1`] = `
+{
+  "labels": [],
+  "text": "Network feeError: Estimate detailSlowMediumFast",
+}
+`;
+
+exports[`GasFeeNotice: invalid 1`] = `
+{
+  "labels": [],
+  "text": "Network feeError: Invalid gas estimateSlowMediumFast",
+}
+`;
+
+exports[`GasFeeNotice: loading 1`] = `
+{
+  "labels": [],
+  "text": "Network feeEstimating fee...SlowMediumFast",
+}
+`;
+
+exports[`GasFeeNotice: success 1`] = `
+{
+  "labels": [],
+  "text": "Network fee≈ 0.000000000000063 QuantaSlowMediumFast",
+}
+`;
+
+exports[`History delayed error snapshot 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryLoading...",
+}
+`;
+
+exports[`History delayed error snapshot 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryUnable to load transaction history. Please try again.Hash Amount (Quanta) Amount Date DetailsRetry",
+}
+`;
+
+exports[`History incoming, sort directions, pagination, filter empty and loading more 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x1111111111111111111111111111111111111111111111111111111111111111StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x2222222222222222222222222222222222222222222222222222222222222222StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x3333333333333333333333333333333333333333333333333333333333333333StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x4444444444444444444444444444444444444444444444444444444444444444StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewLoad More",
+}
+`;
+
+exports[`History incoming, sort directions, pagination, filter empty and loading more 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash ↑Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x1111111111111111111111111111111111111111111111111111111111111111StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x2222222222222222222222222222222222222222222222222222222222222222StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x3333333333333333333333333333333333333333333333333333333333333333StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x4444444444444444444444444444444444444444444444444444444444444444StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewLoad More",
+}
+`;
+
+exports[`History incoming, sort directions, pagination, filter empty and loading more 3`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash ↓Amount (Quanta) Amount Date DetailsHash0x4444444444444444444444444444444444444444444444444444444444444444StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x3333333333333333333333333333333333333333333333333333333333333333StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x2222222222222222222222222222222222222222222222222222222222222222StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x1111111111111111111111111111111111111111111111111111111111111111StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x0000000000000000000000000000000000000000000000000000000000000000StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewLoad More",
+}
+`;
+
+exports[`History incoming, sort directions, pagination, filter empty and loading more 4`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) ↑Amount ↑Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x1111111111111111111111111111111111111111111111111111111111111111StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x2222222222222222222222222222222222222222222222222222222222222222StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x3333333333333333333333333333333333333333333333333333333333333333StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x4444444444444444444444444444444444444444444444444444444444444444StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewLoad More",
+}
+`;
+
+exports[`History incoming, sort directions, pagination, filter empty and loading more 5`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) ↓Amount ↓Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x1111111111111111111111111111111111111111111111111111111111111111StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x2222222222222222222222222222222222222222222222222222222222222222StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x3333333333333333333333333333333333333333333333333333333333333333StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x4444444444444444444444444444444444444444444444444444444444444444StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewLoad More",
+}
+`;
+
+exports[`History incoming, sort directions, pagination, filter empty and loading more 6`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date ↑DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x1111111111111111111111111111111111111111111111111111111111111111StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x2222222222222222222222222222222222222222222222222222222222222222StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x3333333333333333333333333333333333333333333333333333333333333333StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x4444444444444444444444444444444444444444444444444444444444444444StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewLoad More",
+}
+`;
+
+exports[`History incoming, sort directions, pagination, filter empty and loading more 7`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date ↓DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x1111111111111111111111111111111111111111111111111111111111111111StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x2222222222222222222222222222222222222222222222222222222222222222StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x3333333333333333333333333333333333333333333333333333333333333333StatusUnavailableFromQ11111111...11111111...11111111Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewHash0x4444444444444444444444444444444444444444444444444444444444444444StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewLoad More",
+}
+`;
+
+exports[`History incoming, sort directions, pagination, filter empty and loading more 8`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date ↓DetailsLoad More",
+}
+`;
+
+exports[`History incoming, sort directions, pagination, filter empty and loading more 9`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryLoading...",
+}
+`;
+
+exports[`History row and details: confirmed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusConfirmedToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewNo more transactions",
+}
+`;
+
+exports[`History row and details: confirmed 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Transaction Details",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusConfirmedToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewNo more transactionsTransaction DetailsID:0Status:ConfirmedType:0 (0x2)Address:Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111From:Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111To:Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222Transaction Hash:0x0000000000000000000000000000000000000000000000000000000000000000Time:1/1/1970, 12:01:06 AMAmount:1.234567 QuantaFees:0.001Block:0x42Close",
+}
+`;
+
+exports[`History row and details: confirmed 3`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusConfirmedToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewNo more transactions",
+}
+`;
+
+exports[`History row and details: dropped 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusFailed (dropped or replaced)ToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewNo more transactions",
+}
+`;
+
+exports[`History row and details: dropped 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Transaction Details",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusFailed (dropped or replaced)ToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewNo more transactionsTransaction DetailsID:0Status:Failed (dropped or replaced)Type:0 (0x2)Address:Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111From:Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111To:Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222Transaction Hash:0x0000000000000000000000000000000000000000000000000000000000000000Time:1/1/1970, 12:01:06 AMAmount:1.234567 QuantaFees:0.001Block:0x42Close",
+}
+`;
+
+exports[`History row and details: dropped 3`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusFailed (dropped or replaced)ToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewNo more transactions",
+}
+`;
+
+exports[`History row and details: failed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusFailedToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewNo more transactions",
+}
+`;
+
+exports[`History row and details: failed 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Transaction Details",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusFailedToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewNo more transactionsTransaction DetailsID:0Status:FailedType:0 (0x2)Address:Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111From:Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111To:Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222Transaction Hash:0x0000000000000000000000000000000000000000000000000000000000000000Time:1/1/1970, 12:01:06 AMAmount:1.234567 QuantaFees:0.001Block:0x42Close",
+}
+`;
+
+exports[`History row and details: failed 3`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusFailedToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewNo more transactions",
+}
+`;
+
+exports[`History row and details: pending 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusPendingToQ22222222...22222222...22222222Amount (EX)1.23EXDate1/1/19701/1/1970, 12:01:06 AMViewNo more transactions",
+}
+`;
+
+exports[`History row and details: pending 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Transaction Details",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusPendingToQ22222222...22222222...22222222Amount (EX)1.23EXDate1/1/19701/1/1970, 12:01:06 AMViewNo more transactionsTransaction DetailsID:0Status:PendingType:0 (0x2)Address:Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111From:Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111To:Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222Transaction Hash:0x0000000000000000000000000000000000000000000000000000000000000000Time:1/1/1970, 12:01:06 AMAmount:1.234567 EXFees:UnavailableBlock:UnavailableClose",
+}
+`;
+
+exports[`History row and details: pending 3`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusPendingToQ22222222...22222222...22222222Amount (EX)1.23EXDate1/1/19701/1/1970, 12:01:06 AMViewNo more transactions",
+}
+`;
+
+exports[`History row and details: undefined 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewNo more transactions",
+}
+`;
+
+exports[`History row and details: undefined 2`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Transaction Details",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewNo more transactionsTransaction DetailsID:0Status:UnavailableType:0 (0x2)Address:Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111From:Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111To:Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222Transaction Hash:0x0000000000000000000000000000000000000000000000000000000000000000Time:1/1/1970, 12:01:06 AMAmount:1.234567 QuantaFees:0.001Block:0x42Close",
+}
+`;
+
+exports[`History row and details: undefined 3`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Sort by date",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsHash0x0000000000000000000000000000000000000000000000000000000000000000StatusUnavailableToQ22222222...22222222...22222222Amount (Quanta)1.23Date1/1/19701/1/1970, 12:01:06 AMViewNo more transactions",
+}
+`;
+
+exports[`History: 501 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryTransaction history is unavailable for this network.Hash Amount (Quanta) Amount Date DetailsNo more transactions",
+}
+`;
+
+exports[`History: empty 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryHash Amount (Quanta) Amount Date DetailsNo more transactions",
+}
+`;
+
+exports[`History: failure 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryUnable to load transaction history. Please try again.Hash Amount (Quanta) Amount Date DetailsRetry",
+}
+`;
+
+exports[`History: loading 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryLoading...",
+}
+`;
+
+exports[`History: storage 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryTransaction history could not be saved. Keep this page open until confirmation.Hash Amount (Quanta) Amount Date DetailsNo more transactions",
+}
+`;
+
+exports[`History: unavailable 1`] = `
+{
+  "labels": [
+    [
+      [
+        "placeholder",
+        "Search loaded transactions...",
+      ],
+    ],
+  ],
+  "text": "Transaction HistoryTransaction history is unavailable for this network.Hash Amount (Quanta) Amount Date DetailsNo more transactions",
+}
+`;
+
+exports[`OtherAccounts empty 1`] = `
+{
+  "labels": [],
+  "text": "",
+}
+`;
+
+exports[`OtherAccounts with active: false 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+  ],
+  "text": "Your accountsQ22222222...22222222...22222222Show fullBalance: 123.45 QuantaExtensionQ33333333...33333333...33333333Show fullBalance: 123.45 QuantaMobile App",
+}
+`;
+
+exports[`OtherAccounts with active: true 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Show address QR code",
+      ],
+    ],
+  ],
+  "text": "Other accountsQ22222222...22222222...22222222Show fullBalance: 123.45 QuantaExtensionQ33333333...33333333...33333333Show fullBalance: 123.45 QuantaMobile App",
+}
+`;
+
+exports[`Receipt with amount: false 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy block hash",
+      ],
+    ],
+  ],
+  "text": "Transaction CompletedTransaction Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBlock hash0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbBlock number42Network fee QuantaDone",
+}
+`;
+
+exports[`Receipt with amount: false 2`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Transaction hash copied",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy block hash",
+      ],
+    ],
+  ],
+  "text": "Transaction CompletedTransaction Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBlock hash0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbBlock number42Network fee QuantaDone",
+}
+`;
+
+exports[`Receipt with amount: false 3`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Block hash copied",
+      ],
+    ],
+  ],
+  "text": "Transaction CompletedTransaction Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBlock hash0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbBlock number42Network fee QuantaDone",
+}
+`;
+
+exports[`Receipt with amount: true 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy block hash",
+      ],
+    ],
+  ],
+  "text": "Transaction CompletedAmount1.2345 EXTransaction Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBlock hash0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbBlock number42Network fee QuantaDone",
+}
+`;
+
+exports[`Receipt with amount: true 2`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Transaction hash copied",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy block hash",
+      ],
+    ],
+  ],
+  "text": "Transaction CompletedAmount1.2345 EXTransaction Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBlock hash0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbBlock number42Network fee QuantaDone",
+}
+`;
+
+exports[`Receipt with amount: true 3`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Block hash copied",
+      ],
+    ],
+  ],
+  "text": "Transaction CompletedAmount1.2345 EXTransaction Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBlock hash0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbBlock number42Network fee QuantaDone",
+}
+`;
+
+exports[`Receipt without effective gas price 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy block hash",
+      ],
+    ],
+  ],
+  "text": "Transaction CompletedTransaction Hash0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBlock hash0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbBlock number42Network fee QuantaDone",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: Empty label in "alice..qrl" 1`] = `
+{
+  "labels": [],
+  "text": "Empty label in "alice..qrl"",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: Invalid QNS character 1`] = `
+{
+  "labels": [],
+  "text": "Invalid QNS character",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: Invalid QNS label 1`] = `
+{
+  "labels": [],
+  "text": "Invalid QNS label",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QNS hashing accepts only ASCII input 1`] = `
+{
+  "labels": [],
+  "text": "QNS hashing accepts only ASCII input",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QNS names may contain only ASCII letters, digits, hyphens, and dots 1`] = `
+{
+  "labels": [],
+  "text": "QNS names may contain only ASCII letters, digits, hyphens, and dots",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QRNS RPC request timed out 1`] = `
+{
+  "labels": [],
+  "text": "QRNS RPC request timed out",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QRNS RPC response has no result 1`] = `
+{
+  "labels": [],
+  "text": "QRNS RPC response has no result",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QRNS RPC returned HTTP 503 1`] = `
+{
+  "labels": [],
+  "text": "QRNS RPC returned HTTP 503",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QRNS RPC returned an invalid response 1`] = `
+{
+  "labels": [],
+  "text": "QRNS RPC returned an invalid response",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QRNS configuration for Example network is incomplete or invalid. 1`] = `
+{
+  "labels": [],
+  "text": "QRNS configuration for Example network is incomplete or invalid.",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QRNS has no provider for the selected network. 1`] = `
+{
+  "labels": [],
+  "text": "QRNS has no provider for the selected network.",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QRNS is unavailable because its registry is not deployed on Example network. 1`] = `
+{
+  "labels": [],
+  "text": "QRNS is unavailable because its registry is not deployed on Example network.",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QRNS is unavailable because the RPC chain does not match Example network. 1`] = `
+{
+  "labels": [],
+  "text": "QRNS is unavailable because the RPC chain does not match Example network.",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QRNS is unavailable because the RPC genesis does not match Example network. 1`] = `
+{
+  "labels": [],
+  "text": "QRNS is unavailable because the RPC genesis does not match Example network.",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QRNS is unavailable until a wallet network is selected. 1`] = `
+{
+  "labels": [],
+  "text": "QRNS is unavailable until a wallet network is selected.",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QRNS returned a malformed 64-byte address 1`] = `
+{
+  "labels": [],
+  "text": "QRNS returned a malformed 64-byte address",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: QRNS returned an invalid QIP-55 address 1`] = `
+{
+  "labels": [],
+  "text": "QRNS returned an invalid QIP-55 address",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: Recipient is not a supported QNS name. 1`] = `
+{
+  "labels": [],
+  "text": "Recipient is not a supported QNS name.",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: Reserved double-hyphen label in "ab--cd.qrl" 1`] = `
+{
+  "labels": [],
+  "text": "Reserved double-hyphen label in "ab--cd.qrl"",
+}
+`;
+
+exports[`RecipientResolutionStatus diagnostic: Unable to resolve alice.qrl. 1`] = `
+{
+  "labels": [],
+  "text": "Unable to resolve alice.qrl.",
+}
+`;
+
+exports[`RecipientResolutionStatus: error No native QRL address is set for alice.qrl. 1`] = `
+{
+  "labels": [],
+  "text": "No native QRL address is set for alice.qrl.",
+}
+`;
+
+exports[`RecipientResolutionStatus: error QRNS recipient names must end in .qrl. 1`] = `
+{
+  "labels": [],
+  "text": "QRNS recipient names must end in .qrl.",
+}
+`;
+
+exports[`RecipientResolutionStatus: error Recipient is not a valid QRL address. 1`] = `
+{
+  "labels": [],
+  "text": "Recipient is not a valid QRL address.",
+}
+`;
+
+exports[`RecipientResolutionStatus: error Service detail <verbatim> 1`] = `
+{
+  "labels": [],
+  "text": "Service detail <verbatim>",
+}
+`;
+
+exports[`RecipientResolutionStatus: idle null 1`] = `
+{
+  "labels": [],
+  "text": "",
+}
+`;
+
+exports[`RecipientResolutionStatus: pending Resolving alice.qrl on QRL Testnet. 1`] = `
+{
+  "labels": [],
+  "text": "Resolving alice.qrl on QRL Testnet.",
+}
+`;
+
+exports[`RecipientResolutionStatus: success Recipient address verified. 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+  ],
+  "text": "Recipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+}
+`;
+
+exports[`RecipientResolutionStatus: success alice.qrl resolved successfully. 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+  ],
+  "text": "alice.qrl resolved successfully.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+}
+`;
+
+exports[`RecipientResolutionStatus: unavailable QRNS is not configured for QRL Testnet. 1`] = `
+{
+  "labels": [],
+  "text": "QRNS is not configured for QRL Testnet.",
+}
+`;
+
+exports[`SEO copy: Account List 1`] = `
+[
+  {
+    "content": "Account List | MyQRLWallet",
+    "name": null,
+    "tag": "TITLE",
+  },
+  {
+    "content": "Account List | MyQRLWallet",
+    "name": "title",
+    "tag": "META",
+  },
+  {
+    "content": "Manage your QRL accounts securely. View balances, copy addresses, and interact with your quantum-resistant accounts.",
+    "name": "description",
+    "tag": "META",
+  },
+  {
+    "content": "QRL Accounts, Wallet Management, Account Balance, Quantum Resistant Accounts, QRL Address",
+    "name": "keywords",
+    "tag": "META",
+  },
+  {
+    "content": "DigitalGuards",
+    "name": "author",
+    "tag": "META",
+  },
+  {
+    "content": "website",
+    "name": "og:type",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/",
+    "name": "og:url",
+    "tag": "META",
+  },
+  {
+    "content": "Account List | MyQRLWallet",
+    "name": "og:title",
+    "tag": "META",
+  },
+  {
+    "content": "Manage your QRL accounts securely. View balances, copy addresses, and interact with your quantum-resistant accounts.",
+    "name": "og:description",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/og-image.png",
+    "name": "og:image",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet: web wallet for QRL 2.0, the post-quantum blockchain",
+    "name": "og:image:alt",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet",
+    "name": "og:site_name",
+    "tag": "META",
+  },
+  {
+    "content": "en_US",
+    "name": "og:locale",
+    "tag": "META",
+  },
+  {
+    "content": "summary_large_image",
+    "name": "twitter:card",
+    "tag": "META",
+  },
+  {
+    "content": "@DigitalGuards",
+    "name": "twitter:site",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/",
+    "name": "twitter:url",
+    "tag": "META",
+  },
+  {
+    "content": "Account List | MyQRLWallet",
+    "name": "twitter:title",
+    "tag": "META",
+  },
+  {
+    "content": "Manage your QRL accounts securely. View balances, copy addresses, and interact with your quantum-resistant accounts.",
+    "name": "twitter:description",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/og-image.png",
+    "name": "twitter:image",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet: web wallet for QRL 2.0, the post-quantum blockchain",
+    "name": "twitter:image:alt",
+    "tag": "META",
+  },
+]
+`;
+
+exports[`SEO copy: Address Book 1`] = `
+[
+  {
+    "content": "Address Book | MyQRLWallet",
+    "name": null,
+    "tag": "TITLE",
+  },
+  {
+    "content": "Address Book | MyQRLWallet",
+    "name": "title",
+    "tag": "META",
+  },
+  {
+    "content": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+    "name": "description",
+    "tag": "META",
+  },
+  {
+    "content": "QRL, QRL 2.0, Quantum Resistant Ledger, post-quantum blockchain, QRL wallet, web wallet, cryptocurrency wallet",
+    "name": "keywords",
+    "tag": "META",
+  },
+  {
+    "content": "DigitalGuards",
+    "name": "author",
+    "tag": "META",
+  },
+  {
+    "content": "website",
+    "name": "og:type",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/",
+    "name": "og:url",
+    "tag": "META",
+  },
+  {
+    "content": "Address Book | MyQRLWallet",
+    "name": "og:title",
+    "tag": "META",
+  },
+  {
+    "content": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+    "name": "og:description",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/og-image.png",
+    "name": "og:image",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet: web wallet for QRL 2.0, the post-quantum blockchain",
+    "name": "og:image:alt",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet",
+    "name": "og:site_name",
+    "tag": "META",
+  },
+  {
+    "content": "en_US",
+    "name": "og:locale",
+    "tag": "META",
+  },
+  {
+    "content": "summary_large_image",
+    "name": "twitter:card",
+    "tag": "META",
+  },
+  {
+    "content": "@DigitalGuards",
+    "name": "twitter:site",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/",
+    "name": "twitter:url",
+    "tag": "META",
+  },
+  {
+    "content": "Address Book | MyQRLWallet",
+    "name": "twitter:title",
+    "tag": "META",
+  },
+  {
+    "content": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+    "name": "twitter:description",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/og-image.png",
+    "name": "twitter:image",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet: web wallet for QRL 2.0, the post-quantum blockchain",
+    "name": "twitter:image:alt",
+    "tag": "META",
+  },
+]
+`;
+
+exports[`SEO copy: Transaction Completed 1`] = `
+[
+  {
+    "content": "Transaction Completed | MyQRLWallet",
+    "name": null,
+    "tag": "TITLE",
+  },
+  {
+    "content": "Transaction Completed | MyQRLWallet",
+    "name": "title",
+    "tag": "META",
+  },
+  {
+    "content": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+    "name": "description",
+    "tag": "META",
+  },
+  {
+    "content": "QRL, QRL 2.0, Quantum Resistant Ledger, post-quantum blockchain, QRL wallet, web wallet, cryptocurrency wallet",
+    "name": "keywords",
+    "tag": "META",
+  },
+  {
+    "content": "DigitalGuards",
+    "name": "author",
+    "tag": "META",
+  },
+  {
+    "content": "website",
+    "name": "og:type",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/",
+    "name": "og:url",
+    "tag": "META",
+  },
+  {
+    "content": "Transaction Completed | MyQRLWallet",
+    "name": "og:title",
+    "tag": "META",
+  },
+  {
+    "content": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+    "name": "og:description",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/og-image.png",
+    "name": "og:image",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet: web wallet for QRL 2.0, the post-quantum blockchain",
+    "name": "og:image:alt",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet",
+    "name": "og:site_name",
+    "tag": "META",
+  },
+  {
+    "content": "en_US",
+    "name": "og:locale",
+    "tag": "META",
+  },
+  {
+    "content": "summary_large_image",
+    "name": "twitter:card",
+    "tag": "META",
+  },
+  {
+    "content": "@DigitalGuards",
+    "name": "twitter:site",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/",
+    "name": "twitter:url",
+    "tag": "META",
+  },
+  {
+    "content": "Transaction Completed | MyQRLWallet",
+    "name": "twitter:title",
+    "tag": "META",
+  },
+  {
+    "content": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+    "name": "twitter:description",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/og-image.png",
+    "name": "twitter:image",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet: web wallet for QRL 2.0, the post-quantum blockchain",
+    "name": "twitter:image:alt",
+    "tag": "META",
+  },
+]
+`;
+
+exports[`SEO copy: Transaction History 1`] = `
+[
+  {
+    "content": "Transaction History | MyQRLWallet",
+    "name": null,
+    "tag": "TITLE",
+  },
+  {
+    "content": "Transaction History | MyQRLWallet",
+    "name": "title",
+    "tag": "META",
+  },
+  {
+    "content": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+    "name": "description",
+    "tag": "META",
+  },
+  {
+    "content": "QRL, QRL 2.0, Quantum Resistant Ledger, post-quantum blockchain, QRL wallet, web wallet, cryptocurrency wallet",
+    "name": "keywords",
+    "tag": "META",
+  },
+  {
+    "content": "DigitalGuards",
+    "name": "author",
+    "tag": "META",
+  },
+  {
+    "content": "website",
+    "name": "og:type",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/",
+    "name": "og:url",
+    "tag": "META",
+  },
+  {
+    "content": "Transaction History | MyQRLWallet",
+    "name": "og:title",
+    "tag": "META",
+  },
+  {
+    "content": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+    "name": "og:description",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/og-image.png",
+    "name": "og:image",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet: web wallet for QRL 2.0, the post-quantum blockchain",
+    "name": "og:image:alt",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet",
+    "name": "og:site_name",
+    "tag": "META",
+  },
+  {
+    "content": "en_US",
+    "name": "og:locale",
+    "tag": "META",
+  },
+  {
+    "content": "summary_large_image",
+    "name": "twitter:card",
+    "tag": "META",
+  },
+  {
+    "content": "@DigitalGuards",
+    "name": "twitter:site",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/",
+    "name": "twitter:url",
+    "tag": "META",
+  },
+  {
+    "content": "Transaction History | MyQRLWallet",
+    "name": "twitter:title",
+    "tag": "META",
+  },
+  {
+    "content": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+    "name": "twitter:description",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/og-image.png",
+    "name": "twitter:image",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet: web wallet for QRL 2.0, the post-quantum blockchain",
+    "name": "twitter:image:alt",
+    "tag": "META",
+  },
+]
+`;
+
+exports[`SEO copy: Transfer 1`] = `
+[
+  {
+    "content": "Transfer | MyQRLWallet",
+    "name": null,
+    "tag": "TITLE",
+  },
+  {
+    "content": "Transfer | MyQRLWallet",
+    "name": "title",
+    "tag": "META",
+  },
+  {
+    "content": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+    "name": "description",
+    "tag": "META",
+  },
+  {
+    "content": "QRL, QRL 2.0, Quantum Resistant Ledger, post-quantum blockchain, QRL wallet, web wallet, cryptocurrency wallet",
+    "name": "keywords",
+    "tag": "META",
+  },
+  {
+    "content": "DigitalGuards",
+    "name": "author",
+    "tag": "META",
+  },
+  {
+    "content": "website",
+    "name": "og:type",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/",
+    "name": "og:url",
+    "tag": "META",
+  },
+  {
+    "content": "Transfer | MyQRLWallet",
+    "name": "og:title",
+    "tag": "META",
+  },
+  {
+    "content": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+    "name": "og:description",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/og-image.png",
+    "name": "og:image",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet: web wallet for QRL 2.0, the post-quantum blockchain",
+    "name": "og:image:alt",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet",
+    "name": "og:site_name",
+    "tag": "META",
+  },
+  {
+    "content": "en_US",
+    "name": "og:locale",
+    "tag": "META",
+  },
+  {
+    "content": "summary_large_image",
+    "name": "twitter:card",
+    "tag": "META",
+  },
+  {
+    "content": "@DigitalGuards",
+    "name": "twitter:site",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/",
+    "name": "twitter:url",
+    "tag": "META",
+  },
+  {
+    "content": "Transfer | MyQRLWallet",
+    "name": "twitter:title",
+    "tag": "META",
+  },
+  {
+    "content": "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+    "name": "twitter:description",
+    "tag": "META",
+  },
+  {
+    "content": "https://qrlwallet.com/og-image.png",
+    "name": "twitter:image",
+    "tag": "META",
+  },
+  {
+    "content": "MyQRLWallet: web wallet for QRL 2.0, the post-quantum blockchain",
+    "name": "twitter:image:alt",
+    "tag": "META",
+  },
+]
+`;
+
+exports[`SendStatus approval: desktop 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy recipient address",
+      ],
+    ],
+  ],
+  "text": "Waiting for approvalApprove this transaction in the MyQRLWallet desktop signerAmount1.234567 QuantaRecipientQ22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222CopyYour signer may still complete this request. Check your signer and History before sending again.Back to form",
+}
+`;
+
+exports[`SendStatus approval: extension 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy recipient address",
+      ],
+    ],
+  ],
+  "text": "Waiting for approvalApprove this transaction in the MyQRLWallet extensionAmount1.234567 QuantaRecipientQ22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222CopyYour signer may still complete this request. Check your signer and History before sending again.Back to form",
+}
+`;
+
+exports[`SendStatus approval: mobile 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy recipient address",
+      ],
+    ],
+  ],
+  "text": "Waiting for approvalApprove this transaction in the MyQRLWallet app on your phoneAmount1.234567 QuantaRecipientQ22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222CopyYour signer may still complete this request. Check your signer and History before sending again.Back to form",
+}
+`;
+
+exports[`SendStatus broadcast and hash copied 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+      [
+        "title",
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+  ],
+  "text": "Signed and sentYour transaction was signed and broadcast. It is waiting to be included in a block.Transaction hash0xaaaaaaaa...aaaaaaaaYou can follow confirmation in History.Back to form",
+}
+`;
+
+exports[`SendStatus broadcast and hash copied 2`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+      [
+        "title",
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Transaction hash copied",
+      ],
+    ],
+  ],
+  "text": "Signed and sentYour transaction was signed and broadcast. It is waiting to be included in a block.Transaction hash0xaaaaaaaa...aaaaaaaaYou can follow confirmation in History.Back to form",
+}
+`;
+
+exports[`SendStatus service outcome: Confirmation is unavailable: Node detail Check History or the explorer before sending again. 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+      [
+        "title",
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+  ],
+  "text": "Signed and sent: still waiting for confirmationConfirmation is unavailable: Node detail Check History or the explorer before sending again.Transaction hash0xaaaaaaaa...aaaaaaaaDone",
+}
+`;
+
+exports[`SendStatus service outcome: Still waiting for confirmation after 5 minutes. Check History or the explorer before sending again. 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+      [
+        "title",
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+  ],
+  "text": "Signed and sent: still waiting for confirmationStill waiting for confirmation after 5 minutes. Check History or the explorer before sending again.Transaction hash0xaaaaaaaa...aaaaaaaaDone",
+}
+`;
+
+exports[`SendStatus service outcome: The approval request timed out. Check your signer and History before retrying. 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+      [
+        "title",
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+  ],
+  "text": "Signed and sent: still waiting for confirmationThe approval request timed out. Check your signer and History before retrying.Transaction hash0xaaaaaaaa...aaaaaaaaDone",
+}
+`;
+
+exports[`SendStatus service outcome: The approval request was cancelled. 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+      [
+        "title",
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+  ],
+  "text": "Signed and sent: still waiting for confirmationThe approval request was cancelled.Transaction hash0xaaaaaaaa...aaaaaaaaDone",
+}
+`;
+
+exports[`SendStatus service outcome: The transaction was declined or the approval request was closed in your signer. 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+      [
+        "title",
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+  ],
+  "text": "Signed and sent: still waiting for confirmationThe transaction was declined or the approval request was closed in your signer.Transaction hash0xaaaaaaaa...aaaaaaaaDone",
+}
+`;
+
+exports[`SendStatus service outcome: Transaction execution failed. The transfer was reverted. 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+      [
+        "title",
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+  ],
+  "text": "Signed and sent: still waiting for confirmationTransaction execution failed. The transfer was reverted.Transaction hash0xaaaaaaaa...aaaaaaaaDone",
+}
+`;
+
+exports[`SendStatus service outcome: Transaction failed. Please try again. 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+      [
+        "title",
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+  ],
+  "text": "Signed and sent: still waiting for confirmationTransaction failed. Please try again.Transaction hash0xaaaaaaaa...aaaaaaaaDone",
+}
+`;
+
+exports[`SendStatus service outcome: Transaction reverted: Execution detail <verbatim> 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "View transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on explorer",
+      ],
+      [
+        "title",
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy transaction hash",
+      ],
+    ],
+  ],
+  "text": "Signed and sent: still waiting for confirmationTransaction reverted: Execution detail <verbatim>Transaction hash0xaaaaaaaa...aaaaaaaaDone",
+}
+`;
+
+exports[`SendStatus: failed 1`] = `
+{
+  "labels": [],
+  "text": "Transaction failedSpecific outcomeBack to form",
+}
+`;
+
+exports[`SendStatus: pending 1`] = `
+{
+  "labels": [],
+  "text": "Preparing transactionPreparing your transaction.",
+}
+`;
+
+exports[`SendStatus: preparing 1`] = `
+{
+  "labels": [],
+  "text": "Preparing transactionPreparing your transaction.",
+}
+`;
+
+exports[`SendStatus: rejected 1`] = `
+{
+  "labels": [],
+  "text": "Transaction rejectedSpecific outcomeBack to form",
+}
+`;
+
+exports[`SendStatus: timeout 1`] = `
+{
+  "labels": [],
+  "text": "Signed and sent: still waiting for confirmationSpecific outcomeDone",
+}
+`;
+
+exports[`Transfer amount validation:  1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxEnter a decimal amountTransaction PINEnter the PIN used to encrypt your wallet seedPIN must be between 4 to 6 digitsNetwork feeEnter recipient and amount to estimateSlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer amount validation: 0 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxAmount should be more than 0Transaction PINEnter the PIN used to encrypt your wallet seedPIN must be between 4 to 6 digitsNetwork feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer amount validation: 0.1234567890123456789 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxEnter an amount with at most 18 decimal placesTransaction PINEnter the PIN used to encrypt your wallet seedPIN must be between 4 to 6 digitsNetwork feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer disconnected provider (token=false) 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance1%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedWallet not connected. Please try again.Network feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer disconnected provider (token=true) 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy token contract address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetEX- Example tokenToken contractQ33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333CopyFromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 10.0 EXCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance12%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedWallet not connected. Please try again.CancelSend EX",
+}
+`;
+
+exports[`Transfer form: desktop 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxNetwork feeEnter recipient and amount to estimateSlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer form: extension 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxNetwork feeEnter recipient and amount to estimateSlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer form: mobile 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxEnter an amount manually. Your paired phone calculates the fee.The network fee is estimated and confirmed in the mobile app.CancelSend Quanta",
+}
+`;
+
+exports[`Transfer form: seed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedNetwork feeEnter recipient and amount to estimateSlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer missing asset and recipient validation 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222Receiver address is requiredAmountPercentage of balance0%25%50%75%MaxEnter a decimal amountTransaction PINEnter the PIN used to encrypt your wallet seedPIN must be between 4 to 6 digitsNetwork feeEnter recipient and amount to estimateSlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer native scanner pending, success and invalid QR 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Scan QR code",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toScanning for QRL address...Recipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedNetwork feeEnter recipient and amount to estimateSlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer native scanner pending, success and invalid QR 2`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Scan QR code",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toScanned: Q22222222...22222222...22222222Recipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedNetwork feeEnter recipient and amount to estimateSlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer native scanner pending, success and invalid QR 3`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Scan QR code",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contact, or scan QRRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222Scanned QR does not contain a valid QRL addressAmountPercentage of balance0%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedNetwork feeEnter recipient and amount to estimateSlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer remote non-Error fallback 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222Transfer failed: Unexpected transfer error.AmountPercentage of balance0%25%50%75%MaxEnter an amount manually. Your paired phone calculates the fee.The network fee is estimated and confirmed in the mobile app.CancelSend Quanta",
+}
+`;
+
+exports[`Transfer seed failure: PIN lockout 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance1%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedToo many failed attempts. Please wait 1 minute.Network feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer seed failure: credential 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance1%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedThis wallet's device security credential is unavailable. Restore it on the original device or re-import the seed.Network feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer seed failure: incorrect PIN 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance1%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedIncorrect PIN. 1 attempt remaining.Network feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer seed failure: missing seed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance1%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedNo stored seed found. Please import your account again.Network feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer seed failure: non-Error 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance1%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedTransaction failed: OfflineNetwork feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer seed failure: recipient changed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222Recipient resolution changed. Verify the recipient again before signing.AmountPercentage of balance1%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedNetwork feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer seed failure: recipient invalid 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactQ22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222Enter a valid QRL address or a resolved QNS name.AmountPercentage of balance1%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedNetwork feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer seed failure: seed mismatch 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance1%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedSecurity error: seed mismatch detected. Please re-import this account.Network feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer seed failure: transaction error 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance1%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedTransaction failed: Node detail <verbatim>Network feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer seed failure: unlock 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance1%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedFailed to unlock the seed. Please try again.Network feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer seed failure: wallet changed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance1%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedTransaction failed: Wallet changed while preparing the transactionNetwork feeEstimating fee...SlowMediumFastCancelSend Quanta",
+}
+`;
+
+exports[`Transfer submitting 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxEnter an amount manually. Your paired phone calculates the fee.The network fee is estimated and confirmed in the mobile app.CancelSending Quanta...",
+}
+`;
+
+exports[`Transfer token failure: desktop 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy token contract address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetEX- Example tokenToken contractQ33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333CopyFromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 10.0 EXCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222Transfer failed: Signer detailAmountPercentage of balance12%25%50%75%MaxCancelSend EX",
+}
+`;
+
+exports[`Transfer token failure: mobile 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy token contract address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetEX- Example tokenToken contractQ33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333CopyFromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 10.0 EXCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222Transfer failed: Signer detailAmountPercentage of balance12%25%50%75%MaxCancelSend EX",
+}
+`;
+
+exports[`Transfer token failure: seed 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy token contract address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetEX- Example tokenToken contractQ33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333CopyFromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 10.0 EXCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance12%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedTransfer failed: Signer detailCancelSend EX",
+}
+`;
+
+exports[`Transfer token form, contract and copied address 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy token contract address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetEX- Example tokenToken contractQ33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333CopyFromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 10.0 EXCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedCancelSend EX",
+}
+`;
+
+exports[`Transfer token form, contract and copied address 2`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy token contract address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetEX- Example tokenToken contractQ33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333CopyFromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 10.0 EXCopiedView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedCancelSend EX",
+}
+`;
+
+exports[`Transfer token seed mismatch 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Q33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "Copy token contract address",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "QRL address or QNS name",
+      ],
+    ],
+    [
+      [
+        "title",
+        "Address book",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "QRL address Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+      ],
+    ],
+    [
+      [
+        "placeholder",
+        "Enter amount",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+  ],
+  "text": "TransferSend Quanta or tokens to another walletAssetEX- Example tokenToken contractQ33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333CopyFromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 10.0 EXCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance12%25%50%75%MaxTransaction PINEnter the PIN used to encrypt your wallet seedPIN decrypted an invalid seed.CancelSend EX",
+}
+`;
+
+exports[`Transfer without an account 1`] = `
+{
+  "labels": [],
+  "text": "TransferSend Quanta or tokens to another walletYou need to import an account before making transfers.Import Account",
+}
+`;

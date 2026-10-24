@@ -48,8 +48,15 @@ jest.mock("../../DAppConnect/DAppSessionsList", () => ({
   __esModule: true,
   default: () => null,
 }));
-jest.mock("@/desktop/bridge", () => ({ isDesktop: false }));
-jest.mock("@/utils/nativeApp", () => ({ isInNativeApp: () => false }));
+let mockShell = "web";
+jest.mock("@/desktop/bridge", () => ({
+  get isDesktop() {
+    return mockShell === "desktop";
+  },
+}));
+jest.mock("@/utils/nativeApp", () => ({
+  isInNativeApp: () => mockShell === "native",
+}));
 jest.mock("react-router", () => ({ useNavigate: () => mockNavigate }));
 jest.mock("@/router/router", () => ({
   ROUTES: { ADDRESS_BOOK: "/address-book" },
@@ -108,6 +115,7 @@ const storedSeeds = [
 beforeEach(() => {
   jest.resetAllMocks();
   localStorage.clear();
+  mockShell = "web";
   mockStore.qrlStore.activeAccount.accountAddress = address;
   mockSelectBlockchain.mockResolvedValue(undefined);
   jest.mocked(StorageUtil).getWalletSettings.mockResolvedValue(settings);
@@ -151,6 +159,32 @@ function submitExport() {
   });
   fireEvent.click(screen.getByRole("button", { name: "Export Wallet File" }));
 }
+
+it.each(["web", "native", "desktop"])(
+  "preserves the renderer auto-lock editor and persistence in %s mode",
+  async (shell) => {
+    mockShell = shell;
+    render(<Settings />);
+    const timer = await screen.findByRole("spinbutton", {
+      name: "Auto-lock Timer",
+    });
+    await waitFor(() => {
+      expect(timer).toHaveProperty("value", "15");
+    });
+    expect(timer).toHaveProperty("min", "1");
+    expect(timer).toHaveProperty("max", "60");
+    fireEvent.change(timer, { target: { value: "2" } });
+    fireEvent.blur(timer);
+    await waitFor(() => {
+      expect(StorageUtil.setWalletSettings).toHaveBeenCalledWith({
+        ...settings,
+        autoLockTimeout: 120000,
+      });
+    });
+    expect(StorageUtil.setWalletSettings).toHaveBeenCalledTimes(1);
+    expect(timer).toHaveProperty("value", "2");
+  },
+);
 
 it("preserves pending preference defaults, debounce timing and overlapping saves", async () => {
   jest.useFakeTimers();
@@ -313,8 +347,16 @@ it("loads a string timeout and keeps invalid display preferences subject to form
   await waitFor(() => {
     expect(screen.getByRole("spinbutton")).toHaveProperty("value", "1");
   });
-  expect(screen.getByRole("switch", { name: /Show Tokens Card/ }).getAttribute("data-state")).toBe("checked");
-  expect(screen.getByRole("switch", { name: /Show Tokens Card/ }).getAttribute("aria-checked")).toBe("true");
+  expect(
+    screen
+      .getByRole("switch", { name: /Show Tokens Card/ })
+      .getAttribute("data-state"),
+  ).toBe("checked");
+  expect(
+    screen
+      .getByRole("switch", { name: /Show Tokens Card/ })
+      .getAttribute("aria-checked"),
+  ).toBe("true");
   fireEvent.click(screen.getByRole("switch", { name: /Show NFTs Card/ }));
   await act(async () => {
     await jest.advanceTimersByTimeAsync(200);
@@ -522,3 +564,46 @@ it("keeps PIN-change completion behind rotation and preserves its error", async 
     ),
   ).toBeTruthy();
 });
+
+it.each([
+  ["0", "Too small: expected number to be >=1"],
+  ["61", "Too big: expected number to be <=60"],
+  ["", "Invalid input: expected number, received NaN"],
+])(
+  "preserves origin/dev auto-lock validation for %s",
+  async (value, expected) => {
+    jest.useFakeTimers();
+    render(<Settings />);
+    await waitFor(() => {
+      expect(screen.getByRole("spinbutton")).toHaveProperty("value", "15");
+    });
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value } });
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(1000);
+    });
+    expect(screen.getByText(expected).textContent).toBe(expected);
+    expect(StorageUtil.setWalletSettings).not.toHaveBeenCalled();
+  },
+);
+
+it.each([
+  [
+    "PIN rotation failed and rollback could not be fully confirmed. Keep the old PIN and re-import any inaccessible account.",
+    "An unexpected error occurred while changing your PIN. Please try again.",
+  ],
+  [
+    "Device backup failed; the old PIN remains active. Details: fixture",
+    "Device backup failed; the old PIN remains active. Details: fixture",
+  ],
+])(
+  "preserves origin/dev PIN rotation error presentation (%s)",
+  async (reason, expected) => {
+    jest.spyOn(logger, "error").mockImplementation(() => undefined);
+    jest.mocked(rotateStoredSeedPin).mockRejectedValueOnce(new Error(reason));
+    render(<Settings />);
+    fireEvent.click(await screen.findByRole("button", { name: /Change PIN/ }));
+    fillPins(["123456", "654321", "654321"]);
+    fireEvent.click(screen.getByRole("button", { name: "Change PIN" }));
+    expect((await screen.findByText(expected)).textContent).toBe(expected);
+  },
+);

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { renderValue, stringValue } from "@/utils/guards";
 import { Copy, Check, EyeOff } from "lucide-react";
 import { useState } from "react";
@@ -64,7 +65,10 @@ export const BalanceCell = observer(({ amount }: { amount: unknown }) => {
 
   return (
     <div className="flex flex-wrap items-center gap-2 group font-numeric">
-      <SlotBalance value={stringValue(amount)} spinning={tokenStore.isRefreshingBalances} />
+      <SlotBalance
+        value={stringValue(amount)}
+        spinning={tokenStore.isRefreshingBalances}
+      />
       {isCopied ? (
         <Check className="w-4 h-4 text-success" />
       ) : (
@@ -82,6 +86,7 @@ export const BalanceCell = observer(({ amount }: { amount: unknown }) => {
 });
 
 export const HideTokenButton = ({ tokenAddress }: { tokenAddress: string }) => {
+  const { t } = useTranslation(["tokens", "common"]);
   const { tokenStore } = useStore();
 
   const handleHide = (e: React.MouseEvent) => {
@@ -92,7 +97,7 @@ export const HideTokenButton = ({ tokenAddress }: { tokenAddress: string }) => {
   };
 
   return (
-    <span title="Hide token">
+    <span title={t("tokens:hide")}>
       <EyeOff
         className="w-4 h-4 opacity-50 hover:opacity-100 cursor-pointer transition-opacity"
         onClick={handleHide}

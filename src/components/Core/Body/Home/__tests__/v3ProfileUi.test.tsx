@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
 
+import { applyLanguage } from "@/i18n";
 import type { ReactNode } from "react";
 import {
   cleanup,
@@ -22,7 +23,9 @@ let mockV3Profile = false;
 let mockNativeApp = false;
 const mockNavigate = jest.fn();
 let mockLocationState: unknown = null;
-jest.mock("@/utils/log", () => ({ logger: { error: jest.fn(), log: jest.fn() } }));
+jest.mock("@/utils/log", () => ({
+  logger: { error: jest.fn(), log: jest.fn() },
+}));
 const mockUnsupportedMessage =
   "Extension and mobile signers are unavailable for private v3.";
 const mockDefaultNetworks = [
@@ -149,30 +152,44 @@ it.each([
     mockLocationState = state;
     const view = render(<AccountCreateImport />);
     expect(view.container.firstElementChild?.className).toContain("flex-col");
-    expect(view.container.firstElementChild?.className).not.toContain("flex-col-reverse");
+    expect(view.container.firstElementChild?.className).not.toContain(
+      "flex-col-reverse",
+    );
   },
 );
 
 it("accepts an explicit boolean setup preference", () => {
   mockLocationState = { hasAccountCreationPreference: true };
   const view = render(<AccountCreateImport />);
-  expect(view.container.firstElementChild?.className).toContain("flex-col-reverse");
+  expect(view.container.firstElementChild?.className).toContain(
+    "flex-col-reverse",
+  );
 });
 
 it("reports extension discovery rejection", async () => {
   const error = new Error("Discovery unavailable");
   jest.mocked(discoverQrlProviders).mockRejectedValueOnce(error);
   render(<AccountCreateImport />);
-  fireEvent.click(screen.getByRole("button", { name: "Connect Browser Extension" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Connect Browser Extension" }),
+  );
   await waitFor(() => {
-    expect(logError).toHaveBeenCalledWith("Failed to connect browser extension:", error);
+    expect(logError).toHaveBeenCalledWith(
+      "Failed to connect browser extension:",
+      error,
+    );
   });
   expect(connectWithProvider).not.toHaveBeenCalled();
 });
 
 function provider(name: string): EIP6963ProviderDetail {
   return {
-    info: { uuid: name, name, icon: "data:image/svg+xml,%3Csvg%2F%3E", rdns: `example.${name}` },
+    info: {
+      uuid: name,
+      name,
+      icon: "data:image/svg+xml,%3Csvg%2F%3E",
+      rdns: `example.${name}`,
+    },
     provider: { request: () => Promise.resolve([]) },
   };
 }
@@ -183,29 +200,55 @@ it("preserves extension adoption callbacks and contains home-navigation failure"
   const error = new Error("Navigation failed");
   jest.mocked(discoverQrlProviders).mockResolvedValueOnce([detail]);
   mockNavigate.mockRejectedValueOnce(error);
-  jest.mocked(connectWithProvider).mockImplementationOnce(async (selected, activate, setProvider) => {
-    setProvider(selected.provider);
-    await activate(address, "extension");
-    return [address];
-  });
+  jest
+    .mocked(connectWithProvider)
+    .mockImplementationOnce(async (selected, activate, setProvider) => {
+      setProvider(selected.provider);
+      await activate(address, "extension");
+      return [address];
+    });
   render(<AccountCreateImport />);
-  fireEvent.click(screen.getByRole("button", { name: "Connect Browser Extension" }));
-  await waitFor(() => { expect(logError).toHaveBeenCalledWith("Failed to open home:", error); });
-  expect(mockStore.qrlStore.setExtensionProvider).toHaveBeenCalledWith(detail.provider);
-  expect(mockStore.qrlStore.setActiveAccount).toHaveBeenCalledWith(address, "extension");
-  expect(mockStore.qrlStore.setActiveAccount.mock.contexts[0]).toBe(mockStore.qrlStore);
-  expect(mockStore.qrlStore.setExtensionProvider.mock.contexts[0]).toBe(mockStore.qrlStore);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Connect Browser Extension" }),
+  );
+  await waitFor(() => {
+    expect(logError).toHaveBeenCalledWith("Failed to open home:", error);
+  });
+  expect(mockStore.qrlStore.setExtensionProvider).toHaveBeenCalledWith(
+    detail.provider,
+  );
+  expect(mockStore.qrlStore.setActiveAccount).toHaveBeenCalledWith(
+    address,
+    "extension",
+  );
+  expect(mockStore.qrlStore.setActiveAccount.mock.contexts[0]).toBe(
+    mockStore.qrlStore,
+  );
+  expect(mockStore.qrlStore.setExtensionProvider.mock.contexts[0]).toBe(
+    mockStore.qrlStore,
+  );
   expect(mockNavigate).toHaveBeenCalledWith("/");
 });
 
 it("reports a selected extension connection failure", async () => {
   const error = new Error("Connection failed");
-  jest.mocked(discoverQrlProviders).mockResolvedValueOnce([provider("first"), provider("second")]);
+  jest
+    .mocked(discoverQrlProviders)
+    .mockResolvedValueOnce([provider("first"), provider("second")]);
   jest.mocked(connectWithProvider).mockRejectedValueOnce(error);
   render(<AccountCreateImport />);
-  fireEvent.click(screen.getByRole("button", { name: "Connect Browser Extension" }));
-  fireEvent.click(await screen.findByRole("button", { name: "first example.first" }));
-  await waitFor(() => { expect(logError).toHaveBeenCalledWith("Failed to connect browser extension:", error); });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Connect Browser Extension" }),
+  );
+  fireEvent.click(
+    await screen.findByRole("button", { name: "first example.first" }),
+  );
+  await waitFor(() => {
+    expect(logError).toHaveBeenCalledWith(
+      "Failed to connect browser extension:",
+      error,
+    );
+  });
   expect(mockNavigate).not.toHaveBeenCalled();
 });
 
@@ -327,9 +370,9 @@ it("enables v3 create/import, extension and mobile pairing", async () => {
   expect(discoverQrlProviders).not.toHaveBeenCalled();
   expect(connectWithProvider).not.toHaveBeenCalled();
   fireEvent.click(mobile);
-  await waitFor(() =>
-    { expect(startMobilePairing).toHaveBeenCalledWith(mockStore.qrlStore, false); },
-  );
+  await waitFor(() => {
+    expect(startMobilePairing).toHaveBeenCalledWith(mockStore.qrlStore, false);
+  });
 });
 
 it("preserves enabled default-profile extension and mobile connection actions", async () => {
@@ -358,12 +401,12 @@ it("preserves enabled default-profile extension and mobile connection actions", 
       expect(alert).toHaveBeenCalledTimes(1);
     });
     fireEvent.click(mobile);
-    await waitFor(() =>
-      { expect(startMobilePairing).toHaveBeenCalledWith(
+    await waitFor(() => {
+      expect(startMobilePairing).toHaveBeenCalledWith(
         mockStore.qrlStore,
         false,
-      ); },
-    );
+      );
+    });
   } finally {
     alert.mockRestore();
     log.mockRestore();
@@ -383,3 +426,48 @@ it("preserves native-app hiding of external signer controls", () => {
     screen.getByRole("button", { name: "Create a new account" }),
   ).toHaveProperty("disabled", false);
 });
+
+it.each([new Error("Relay unavailable <detail>"), "offline"])(
+  "preserves origin/dev mobile pairing failure %s",
+  async (reason) => {
+    jest.mocked(startMobilePairing).mockRejectedValueOnce(reason);
+    render(<AccountCreateImport />);
+    fireEvent.click(screen.getByRole("button", { name: "Connect Mobile App" }));
+    const expected = `Could not start mobile pairing: ${reason instanceof Error ? reason.message : reason}`;
+    expect((await screen.findByText(expected)).textContent).toBe(expected);
+  },
+);
+
+it.each([
+  ["de", "Hauptnetz", "Testnetz"],
+  ["es", "Red principal", "Red de prueba"],
+  ["ru", "Основная сеть", "Тестовая сеть"],
+  ["zh-CN", "主网", "测试网"],
+] as const)(
+  "uses a consistent network pair in %s",
+  async (language, mainnet, testnet) => {
+    try {
+      await applyLanguage(language);
+      const view = render(
+        <>
+          <NetworkSettings />
+          <ConnectionBadge />
+        </>,
+      );
+      expect(screen.getByRole("button", { name: mainnet })).toBeTruthy();
+      expect(screen.getByRole("button", { name: testnet })).toBeTruthy();
+      expect(screen.getByRole("link").textContent).toBe(testnet.toUpperCase());
+      mockStore.qrlStore.qrlConnection.blockchain = "MAIN_NET";
+      view.rerender(
+        <>
+          <NetworkSettings />
+          <ConnectionBadge />
+        </>,
+      );
+      expect(screen.getByRole("link").textContent).toBe(mainnet.toUpperCase());
+    } finally {
+      cleanup();
+      await applyLanguage("en");
+    }
+  },
+);

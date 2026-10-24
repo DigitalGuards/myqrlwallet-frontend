@@ -1,3 +1,4 @@
+import { LegalLanguageNote } from "@/components/Core/Layout/LegalLanguageNote";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Card } from "@/components/UI/Card";
 import { Link } from "react-router";
@@ -15,6 +16,7 @@ const Privacy = () => {
                 description="How DigitalGuards processes personal data in connection with MyQRLWallet, the self-custody wallet for QRL 2.0."
             />
             <Card className="p-6">
+                <LegalLanguageNote />
 
                 <p className="mb-2 text-sm text-muted-foreground">Last updated: 29 September 2026</p>
 

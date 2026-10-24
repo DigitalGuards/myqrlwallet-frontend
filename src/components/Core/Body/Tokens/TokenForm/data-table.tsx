@@ -1,20 +1,20 @@
+import { useTranslation } from "react-i18next";
 import { reportError } from "@/utils/reportError";
-import type {
-    ColumnDef} from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-    flexRender,
-    createTable,
-    getCoreRowModel,
-} from "@tanstack/react-table"
+  flexRender,
+  createTable,
+  getCoreRowModel,
+} from "@tanstack/react-table";
 
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/UI/table"
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/UI/table";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { TokenInterface } from "@/constants";
 import { Loader2 } from "lucide-react";
@@ -22,119 +22,132 @@ import { useNavigate } from "react-router";
 import { ROUTES } from "@/router/router";
 
 interface DataTableProps<TData extends TokenInterface, TValue> {
-    columns: ColumnDef<TData, TValue>[]
-    data: TData[]
-    isLoading?: boolean
-    emptyMessage?: ReactNode
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  isLoading?: boolean;
+  emptyMessage?: ReactNode;
 }
 
 export function DataTable<TData extends TokenInterface, TValue>({
-    columns,
-    data,
-    isLoading = false,
-    emptyMessage,
+  columns,
+  data,
+  isLoading = false,
+  emptyMessage,
 }: DataTableProps<TData, TValue>) {
-    const navigate = useNavigate();
-    const [tableState, setTableState] = useState(() => createTable({
+  const { t } = useTranslation(["tokens", "common"]);
+  const navigate = useNavigate();
+  const [tableState, setTableState] = useState(
+    () =>
+      createTable({
         data,
         columns,
         getCoreRowModel: getCoreRowModel(),
         state: {},
         onStateChange: () => {},
         renderFallbackValue: null,
-    }).initialState);
-    // Each render uses a table bound to its React state snapshot. Retaining a
-    // mutable table instance across renders hides changes from memoized cells.
-    const table = useMemo(() => createTable({
+      }).initialState,
+  );
+  // Each render uses a table bound to its React state snapshot. Retaining a
+  // mutable table instance across renders hides changes from memoized cells.
+  const table = useMemo(
+    () =>
+      createTable({
         data,
         columns,
         getCoreRowModel: getCoreRowModel(),
         state: tableState,
         onStateChange: setTableState,
         renderFallbackValue: null,
-    }), [data, columns, tableState]);
+      }),
+    [data, columns, tableState],
+  );
 
-    // Watch for row selection changes - navigate to Transfer page
-    useEffect(() => {
-        const selectedRows = table.getSelectedRowModel().rows;
-        const firstRow = selectedRows[0];
-        if (firstRow) {
-            const token = firstRow.original;
-            // Reset selection before navigating
-            table.resetRowSelection();
-            // Navigate to Transfer page with token address as query param
-            Promise.resolve(navigate(`${ROUTES.TRANSFER}?asset=${token.address}`)).catch((error: unknown) => {
-                reportError("Failed to open transfer:", error);
-            });
-        }
-    }, [table, navigate]);
-
-    if (isLoading) {
-        return (
-            <div className="rounded-md border overflow-x-auto w-full p-8">
-                <div className="flex justify-center items-center h-24">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
-            </div>
-        );
+  // Watch for row selection changes - navigate to Transfer page
+  useEffect(() => {
+    const selectedRows = table.getSelectedRowModel().rows;
+    const firstRow = selectedRows[0];
+    if (firstRow) {
+      const token = firstRow.original;
+      // Reset selection before navigating
+      table.resetRowSelection();
+      // Navigate to Transfer page with token address as query param
+      Promise.resolve(
+        navigate(`${ROUTES.TRANSFER}?asset=${token.address}`),
+      ).catch((error: unknown) => {
+        reportError("Failed to open transfer:", error);
+      });
     }
+  }, [table, navigate]);
 
+  if (isLoading) {
     return (
-        <div className="rounded-md border overflow-x-auto w-full">
-            <Table>
-                <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                        <TableRow key={headerGroup.id}>
-                            {headerGroup.headers.map((header) => {
-                                return (
-                                    <TableHead
-                                        key={header.id}
-                                        className={`px-1.5 sm:px-2 ${header.column.id === 'name' || header.column.id === 'address'
-                                                ? 'hidden md:table-cell'
-                                                : ''
-                                            }`}
-                                    >
-                                        {header.isPlaceholder
-                                            ? null
-                                            : flexRender(
-                                                header.column.columnDef.header,
-                                                header.getContext()
-                                            )}
-                                    </TableHead>
-                                )
-                            })}
-                        </TableRow>
-                    ))}
-                </TableHeader>
-                <TableBody>
-                    {table.getRowModel().rows.length ? (
-                        table.getRowModel().rows.map((row) => (
-                            <TableRow
-                                key={row.id}
-                                data-state={row.getIsSelected() && "selected"}
-                            >
-                                {row.getVisibleCells().map((cell) => (
-                                    <TableCell
-                                        key={cell.id}
-                                        className={`px-1.5 sm:px-2 ${cell.column.id === 'name' || cell.column.id === 'address'
-                                                ? 'hidden md:table-cell'
-                                                : ''
-                                            }`}
-                                    >
-                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                    </TableCell>
-                                ))}
-                            </TableRow>
-                        ))
-                    ) : (
-                        <TableRow>
-                            <TableCell colSpan={columns.length} className="h-24 text-center">
-                                {emptyMessage ?? "No tokens currently added or created."}
-                            </TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
+      <div className="rounded-md border overflow-x-auto w-full p-8">
+        <div className="flex justify-center items-center h-24">
+          <Loader2 className="h-6 w-6 animate-spin" />
         </div>
-    )
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md border overflow-x-auto w-full">
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
+                return (
+                  <TableHead
+                    key={header.id}
+                    className={`px-1.5 sm:px-2 ${
+                      header.column.id === "name" ||
+                      header.column.id === "address"
+                        ? "hidden md:table-cell"
+                        : ""
+                    }`}
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                data-state={row.getIsSelected() && "selected"}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell
+                    key={cell.id}
+                    className={`px-1.5 sm:px-2 ${
+                      cell.column.id === "name" || cell.column.id === "address"
+                        ? "hidden md:table-cell"
+                        : ""
+                    }`}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                {emptyMessage ?? t("tokens:emptyTable")}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
 }

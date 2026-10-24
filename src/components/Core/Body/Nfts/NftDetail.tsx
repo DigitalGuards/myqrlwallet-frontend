@@ -1,8 +1,19 @@
+import { Trans, useTranslation } from "react-i18next";
+import {
+  assetMessage,
+  assetPinError,
+  assetServiceError,
+  nftTransferFailure,
+  type AssetMessage,
+} from "@/i18n/assetMessage";
 import { nftValue, type NFTInterface } from "@/constants/nft";
 import { arrayValue, stringValue } from "@/utils/guards";
 import { renderValue, toBigInt, toTemplateString } from "@/utils/guards";
 import { reportError } from "@/utils/reportError";
-import { PinVerificationError, verifyPinWithLimit } from "@/utils/crypto/verifyPinWithLimit";
+import {
+  PinVerificationError,
+  verifyPinWithLimit,
+} from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { observer } from "mobx-react-lite";
 import { useLocation, useNavigate, useParams } from "react-router";
@@ -23,7 +34,11 @@ import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { useStore } from "@/stores/store";
 import { StorageUtil } from "@/utils/storage";
 import { QRL_PROVIDER } from "@/config";
-import { DeviceCredentialUnavailableError, decryptStoredSeedWithPin, getAddressFromMnemonicAsync } from "@/utils/crypto";
+import {
+  DeviceCredentialUnavailableError,
+  decryptStoredSeedWithPin,
+  getAddressFromMnemonicAsync,
+} from "@/utils/crypto";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import { isDesktop } from "@/desktop/bridge";
 import { NftImage } from "./NftImage";
@@ -36,6 +51,16 @@ import { cn } from "@/utils/cn";
 import { FEE_NOT_SHOWN } from "@/utils/web3/feePolicy";
 
 const NftDetail = observer(() => {
+  const { t } = useTranslation([
+    "creation",
+    "nfts",
+    "tokens",
+    "home",
+    "transfer",
+    "settings",
+    "onboarding",
+    "common",
+  ]);
   const navigate = useNavigate();
   const location = useLocation();
   const { contractAddress = "", tokenId = "" } = useParams();
@@ -48,8 +73,8 @@ const NftDetail = observer(() => {
     () =>
       arrayValue(nftStore.nftList).find(
         (n): n is NFTInterface & { contractAddress: string } =>
-          stringValue(nftValue(n).contractAddress).toLowerCase() === contractAddress.toLowerCase() &&
-          nftValue(n).tokenId === tokenId,
+          stringValue(nftValue(n).contractAddress).toLowerCase() ===
+            contractAddress.toLowerCase() && nftValue(n).tokenId === tokenId,
       ),
     [nftStore.nftList, contractAddress, tokenId],
   );
@@ -61,7 +86,8 @@ const NftDetail = observer(() => {
     () =>
       arrayValue(nftStore.nftList).some(
         (n) =>
-          stringValue(nftValue(n).contractAddress).toLowerCase() === contractAddress.toLowerCase(),
+          stringValue(nftValue(n).contractAddress).toLowerCase() ===
+          contractAddress.toLowerCase(),
       ),
     [nftStore.nftList, contractAddress],
   );
@@ -77,22 +103,26 @@ const NftDetail = observer(() => {
       });
       return;
     }
-    Promise.resolve(navigate(
-      walletHoldsCollection
-        ? nftCollectionPath(ROUTES.HOME, contractAddress)
-        : ROUTES.HOME,
-      { replace: true },
-    )).catch((error: unknown) => {
+    Promise.resolve(
+      navigate(
+        walletHoldsCollection
+          ? nftCollectionPath(ROUTES.HOME, contractAddress)
+          : ROUTES.HOME,
+        { replace: true },
+      ),
+    ).catch((error: unknown) => {
       reportError("Failed to open NFT collection:", error);
     });
   };
 
   const [toAddress, setToAddress] = useState("");
-  const [toAddressError, setToAddressError] = useState("");
+  const [toAddressError, setToAddressError] = useState<AssetMessage | null>(
+    null,
+  );
   const [amount, setAmount] = useState("1");
   const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState("");
-  const [sendError, setSendError] = useState<string | null>(null);
+  const [pinError, setPinError] = useState<AssetMessage | null>(null);
+  const [sendError, setSendError] = useState<AssetMessage | null>(null);
   const [isSending, setIsSending] = useState(false);
   const blockchain = qrlStore.qrlConnection.blockchain;
   const recipientResolution = useNetworkQrnsRecipient({
@@ -112,17 +142,20 @@ const NftDetail = observer(() => {
 
   if (!nft) {
     return (
-      <PageShell title="NFT details" width="wide" seoTitle="NFT Details" action={<Button
-          variant="ghost"
-          size="sm"
-          onClick={onBack}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>}>
+      <PageShell
+        title={t("nfts:details")}
+        width="wide"
+        seoTitle={t("nfts:detailsSeo")}
+        action={
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {t("nfts:back")}
+          </Button>
+        }
+      >
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            NFT not found in your wallet. Add it from the Home page first.
+            {t("nfts:missing")}
           </CardContent>
         </Card>
       </PageShell>
@@ -130,28 +163,29 @@ const NftDetail = observer(() => {
   }
 
   const explorerUrl =
-    Object.entries(QRL_PROVIDER).find(([id]) => id === blockchain)?.[1].explorer
-      ?? "https://zondscan.com";
+    Object.entries(QRL_PROVIDER).find(([id]) => id === blockchain)?.[1]
+      .explorer ?? "https://zondscan.com";
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSendError(null);
-    setPinError("");
-    setToAddressError("");
+    setPinError(null);
+    setToAddressError(null);
 
     const recipientSubmission =
       recipientResolution.captureSubmission(toAddress);
     if (!recipientSubmission) {
       setToAddressError(
-        recipientResolution.message ??
-          "Enter a valid QRL address or a resolved QNS name.",
+        recipientResolution.message
+          ? { recipient: recipientResolution.message }
+          : { key: "transfer:validRecipient" },
       );
       return;
     }
     if (
       recipientSubmission.address.toLowerCase() === accountAddress.toLowerCase()
     ) {
-      setToAddressError("Cannot send to your own address.");
+      setToAddressError({ key: "nfts:selfSend" });
       return;
     }
 
@@ -159,19 +193,22 @@ const NftDetail = observer(() => {
     try {
       amountBig = BigInt(amount);
     } catch {
-      setSendError("Amount must be a whole number.");
+      setSendError({ key: "nfts:wholeAmount" });
       return;
     }
     if (nft.standard === "ERC721" && amountBig !== 1n) {
-      setSendError("ERC-721 transfers are always 1 token.");
+      setSendError({ key: "nfts:amount721" });
       return;
     }
     if (amountBig <= 0n) {
-      setSendError("Amount must be positive.");
+      setSendError({ key: "nfts:positiveAmount" });
       return;
     }
     if (nft.balance && toBigInt(nft.balance) < amountBig) {
-      setSendError(`You only hold ${toTemplateString(nft.balance)} of this token.`);
+      setSendError({
+        key: "nfts:insufficient",
+        balance: toTemplateString(nft.balance),
+      });
       return;
     }
 
@@ -180,9 +217,7 @@ const NftDetail = observer(() => {
       if (isExtension) {
         // Extension-signed NFT writes aren't wired yet : surface a clear
         // message rather than silently using the encrypted-seed path.
-        setSendError(
-          "Extension-signed NFT transfers are coming soon. Switch to an imported account to transfer for now.",
-        );
+        setSendError({ key: "nfts:extensionUnsupported" });
         setIsSending(false);
         return;
       }
@@ -194,9 +229,7 @@ const NftDetail = observer(() => {
         const recipientAddress =
           recipientResolution.revalidateSubmission(recipientSubmission);
         if (!recipientAddress) {
-          setToAddressError(
-            "Recipient resolution changed. Verify the recipient again before signing.",
-          );
+          setToAddressError({ key: "transfer:recipientChanged" });
           setIsSending(false);
           return;
         }
@@ -212,14 +245,14 @@ const NftDetail = observer(() => {
           FEE_NOT_SHOWN,
         );
         if (!ok) {
-          setSendError(qrlStore.transactionStatus.error ?? "Transfer failed.");
+          setSendError(nftTransferFailure(qrlStore.transactionStatus.error));
         }
         setIsSending(false);
         return;
       }
 
       if (!pin || pin.length < 4) {
-        setPinError("Enter your PIN to sign the transfer.");
+        setPinError({ key: "nfts:pinRequired" });
         setIsSending(false);
         return;
       }
@@ -231,9 +264,7 @@ const NftDetail = observer(() => {
         accountAddress,
       );
       if (!encryptedSeed) {
-        setPinError(
-          "No stored seed for this account. Re-import to set up a PIN.",
-        );
+        setPinError({ key: "nfts:noSeed" });
         setIsSending(false);
         return;
       }
@@ -252,23 +283,23 @@ const NftDetail = observer(() => {
       } catch (error) {
         setPinError(
           error instanceof PinVerificationError
-            ? error.message
+            ? assetPinError(error)
             : error instanceof DeviceCredentialUnavailableError
-              ? "This wallet's device security credential is unavailable. Re-import the seed."
-              : "Failed to unlock the seed. Please try again.",
+              ? { key: "creation:credentialUnavailable" }
+              : { key: "transfer:unlockFailed" },
         );
         setIsSending(false);
         return;
       }
       const qrlInstance = qrlStore.qrlInstance;
       if (!qrlInstance) {
-        setPinError("Wallet not connected. Please try again.");
+        setPinError({ key: "transfer:notConnected" });
         setIsSending(false);
         return;
       }
       const sender = await getAddressFromMnemonicAsync(mnemonic, qrlInstance);
       if (sender !== accountAddress) {
-        setPinError("PIN decrypted an invalid seed. Re-import this account.");
+        setPinError({ key: "nfts:wrongWallet" });
         setIsSending(false);
         return;
       }
@@ -280,9 +311,7 @@ const NftDetail = observer(() => {
       const recipientAddress =
         recipientResolution.revalidateSubmission(recipientSubmission);
       if (!recipientAddress) {
-        setToAddressError(
-          "Recipient resolution changed. Verify the recipient again before signing.",
-        );
+        setToAddressError({ key: "transfer:recipientChanged" });
         setIsSending(false);
         return;
       }
@@ -296,11 +325,13 @@ const NftDetail = observer(() => {
         FEE_NOT_SHOWN,
       );
       if (!ok) {
-        setSendError(qrlStore.transactionStatus.error ?? "Transfer failed.");
+        setSendError(nftTransferFailure(qrlStore.transactionStatus.error));
       }
     } catch (err) {
       setSendError(
-        err instanceof Error ? err.message : "Unexpected transfer error.",
+        err instanceof Error
+          ? assetServiceError(err.message)
+          : { key: "transfer:unexpectedError" },
       );
     } finally {
       setIsSending(false);
@@ -309,81 +340,111 @@ const NftDetail = observer(() => {
 
   return (
     <PageShell
-      title={renderValue(nft.name ?? `Token #${toTemplateString(nft.tokenId)}`)}
-      subtitle={nft.collectionName ? `${toTemplateString(nft.collectionName)}${nft.collectionSymbol ? ` (${toTemplateString(nft.collectionSymbol)})` : ""}` : undefined}
+      title={renderValue(
+        nft.name ?? t("home:nftToken", { id: toTemplateString(nft.tokenId) }),
+      )}
+      subtitle={
+        nft.collectionName
+          ? `${toTemplateString(nft.collectionName)}${nft.collectionSymbol ? ` (${toTemplateString(nft.collectionSymbol)})` : ""}`
+          : undefined
+      }
       width="wide"
-      seoTitle={nft.name ?? `Token #${toTemplateString(nft.tokenId)}`}
-      action={<Button
-        variant="ghost"
-        size="sm"
-        onClick={onBack}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back
-      </Button>}
+      seoTitle={
+        nft.name ?? t("home:nftToken", { id: toTemplateString(nft.tokenId) })
+      }
+      action={
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {t("nfts:back")}
+        </Button>
+      }
     >
       <Card className="p-6">
-      <div className="grid gap-4 md:grid-cols-2 md:gap-8">
-        <NftImage
-          src={nft.image}
-          alt={nft.name ?? `Token #${toTemplateString(nft.tokenId)}`}
-          className="aspect-square w-full rounded-lg"
-        />
-        <div className="min-w-0">
-          <div className="space-y-3 text-sm">
-            <Row label="Standard" value={renderValue(nft.standard)} />
-            <Row label="Token ID" value={renderValue(nft.tokenId)} mono />
-            <Row
-              label="Contract"
-              value={
-                <QrlAddress
-                  address={nft.contractAddress}
-                  href={`${explorerUrl}/address/${nft.contractAddress}`}
-                  linkLabel="View contract on the explorer"
-                  copyable
-                  copyLabel="Copy contract address"
-                  className="justify-end"
-                  addressClassName="whitespace-normal [overflow-wrap:anywhere]"
-                />
-              }
-            />
-            {renderValue(nft.standard === "ERC1155" && nft.balance && (
-              <Row label="Balance" value={renderValue(nft.balance)} numeric />
-            ))}
-            {renderValue(nft.description && (
-              <>
-                <Separator />
-                <div>
-                  <div className="text-xs font-medium uppercase text-muted-foreground">
-                    Description
-                  </div>
-                  <p className="mt-1 whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">
-                    {renderValue(nft.description)}
-                  </p>
-                </div>
-              </>
-            ))}
+        <div className="grid gap-4 md:grid-cols-2 md:gap-8">
+          <NftImage
+            src={nft.image}
+            alt={
+              nft.name ??
+              t("home:nftToken", { id: toTemplateString(nft.tokenId) })
+            }
+            className="aspect-square w-full rounded-lg"
+          />
+          <div className="min-w-0">
+            <div className="space-y-3 text-sm">
+              <Row
+                label={t("nfts:standard")}
+                value={renderValue(nft.standard)}
+              />
+              <Row
+                label={t("nfts:tokenId")}
+                value={renderValue(nft.tokenId)}
+                mono
+              />
+              <Row
+                label={t("nfts:contract")}
+                value={
+                  <QrlAddress
+                    address={nft.contractAddress}
+                    href={`${explorerUrl}/address/${nft.contractAddress}`}
+                    linkLabel={t("nfts:viewContract")}
+                    copyable
+                    copyLabel={t("nfts:copyContract")}
+                    className="justify-end"
+                    addressClassName="whitespace-normal [overflow-wrap:anywhere]"
+                  />
+                }
+              />
+              {renderValue(
+                nft.standard === "ERC1155" && nft.balance && (
+                  <Row
+                    label={t("tokens:balance")}
+                    value={renderValue(nft.balance)}
+                    numeric
+                  />
+                ),
+              )}
+              {renderValue(
+                nft.description && (
+                  <>
+                    <Separator />
+                    <div>
+                      <div className="text-xs font-medium uppercase text-muted-foreground">
+                        {t("nfts:description")}
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">
+                        {renderValue(nft.description)}
+                      </p>
+                    </div>
+                  </>
+                ),
+              )}
+            </div>
           </div>
         </div>
-      </div>
       </Card>
 
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle className="text-lg">Transfer</CardTitle>
+          <CardTitle className="text-lg">{t("home:transfer")}</CardTitle>
         </CardHeader>
-        <form onSubmit={(event) => {
-          onSubmit(event).catch((error: unknown) => {
-            setSendError(error instanceof Error ? error.message : "Unexpected transfer error.");
-          });
-        }}>
+        <form
+          onSubmit={(event) => {
+            onSubmit(event).catch((error: unknown) => {
+              setSendError(
+                error instanceof Error
+                  ? assetServiceError(error.message)
+                  : { key: "transfer:unexpectedError" },
+              );
+            });
+          }}
+        >
           <CardContent className="space-y-4">
-            {sendError && (
+            {assetMessage(sendError, t) && (
               <div
                 role="alert"
                 className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
               >
-                {sendError}
+                {assetMessage(sendError, t)}
               </div>
             )}
             {txStatus.state === "confirmed" && txStatus.txHash && (
@@ -391,59 +452,69 @@ const NftDetail = observer(() => {
                 role="status"
                 className="rounded-md bg-success/15 p-3 text-sm text-success"
               >
-                Transfer confirmed.{" "}
+                {t("nfts:confirmed")}{" "}
                 <a
                   className="underline"
                   href={`${explorerUrl}/tx/${txStatus.txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  View on explorer
+                  {t("nfts:viewExplorer")}
                 </a>
               </div>
             )}
             {txStatus.state === "pending" && (
               <div className="flex items-center gap-2 rounded-md bg-muted p-3 text-sm">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Broadcasting transaction…
+                {t("nfts:broadcasting")}
               </div>
             )}
 
             <div>
-              <Label htmlFor="nft-to">Recipient address or QNS name</Label>
+              <Label htmlFor="nft-to">{t("nfts:recipient")}</Label>
               <Input
                 id="nft-to"
                 value={toAddress}
                 onChange={(e) => {
                   setToAddress(e.target.value);
-                  setToAddressError("");
+                  setToAddressError(null);
                 }}
-                placeholder="QRL address or QNS name"
+                placeholder={t("transfer:recipientPlaceholder")}
                 disabled={isSending}
               />
               <RecipientResolutionStatus resolution={recipientResolution} />
-              {toAddressError && (
+              {assetMessage(toAddressError, t) && (
                 <p className="mt-1 text-xs text-destructive">
-                  {toAddressError}
+                  {assetMessage(toAddressError, t)}
                 </p>
               )}
             </div>
 
             {nft.standard === "ERC1155" && (
               <div>
-                <Label htmlFor="nft-amount">Amount</Label>
+                <Label htmlFor="nft-amount">{t("transfer:amount")}</Label>
                 <Input
                   id="nft-amount"
                   value={amount}
-                  onChange={(e) => { setAmount(e.target.value.trim()); }}
+                  onChange={(e) => {
+                    setAmount(e.target.value.trim());
+                  }}
                   inputMode="numeric"
                   disabled={isSending}
                 />
-                {renderValue(nft.balance && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Holding: {renderValue(nft.balance)}
-                  </p>
-                ))}
+                {renderValue(
+                  nft.balance && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      <Trans
+                        t={t}
+                        i18nKey="nfts:holding"
+                        components={{
+                          balance: <>{renderValue(nft.balance)}</>,
+                        }}
+                      />
+                    </p>
+                  ),
+                )}
               </div>
             )}
 
@@ -451,12 +522,12 @@ const NftDetail = observer(() => {
                 authorizes the transfer (no PIN). */}
             {!isExtension && !isDesktop && (
               <div>
-                <Label>Wallet PIN</Label>
+                <Label>{t("settings:walletPin")}</Label>
                 <PinInput
                   value={pin}
                   onChange={setPin}
-                  placeholder="Enter PIN"
-                  error={pinError || undefined}
+                  placeholder={t("nfts:pinPlaceholder")}
+                  error={assetMessage(pinError, t)}
                   disabled={isSending}
                 />
               </div>
@@ -473,12 +544,12 @@ const NftDetail = observer(() => {
               {isSending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending…
+                  {t("nfts:sending")}
                 </>
               ) : (
                 <>
                   <Send className="mr-2 h-4 w-4" />
-                  Transfer
+                  {t("home:transfer")}
                 </>
               )}
             </Button>

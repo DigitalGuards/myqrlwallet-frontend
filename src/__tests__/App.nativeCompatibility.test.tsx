@@ -4,6 +4,10 @@ import { act, render, screen } from "@testing-library/react";
 import App from "../App";
 import { isUnsupportedV3Context } from "../config/runtimeProfile";
 
+jest.mock("@/i18n/useLanguagePreference", () => ({
+  useLanguagePreference: () => true,
+}));
+
 const mockInitializeBlockchain = jest
   .fn<Promise<void>, []>()
   .mockResolvedValue(undefined);

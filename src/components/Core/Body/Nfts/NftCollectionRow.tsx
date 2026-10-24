@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { renderValue } from "@/utils/guards";
 import { ChevronRight, Images } from "lucide-react";
 import {
@@ -22,13 +23,17 @@ export function NftCollectionRow({
   collection,
   onOpen,
 }: NftCollectionRowProps) {
+  const { t } = useTranslation("home");
   const title = collectionDisplayName(collection);
+  const addressTitle = !collection.name && !collection.symbol;
   const cover = collection.tokens.find((token) => token.image)?.image;
 
   return (
     <button
       type="button"
-      onClick={() => { onOpen(collection); }}
+      onClick={() => {
+        onOpen(collection);
+      }}
       className="group flex w-full items-center gap-3 rounded-md border border-border bg-background p-3 text-left outline-none transition-colors hover:border-secondary/60 focus-visible:ring-2 focus-visible:ring-secondary"
     >
       {cover ? (
@@ -43,16 +48,22 @@ export function NftCollectionRow({
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <div className="truncate text-sm font-medium">
+        <div
+          className={`${addressTitle ? "[overflow-wrap:anywhere]" : "truncate"} text-sm font-medium`}
+        >
           {renderValue(title)}
-          {renderValue(collection.symbol && collection.name && (
-            <span className="ml-1 text-muted-foreground">
-              ({renderValue(collection.symbol)})
-            </span>
-          ))}
+          {renderValue(
+            collection.symbol && collection.name && (
+              <span className="ml-1 text-muted-foreground">
+                ({renderValue(collection.symbol)})
+              </span>
+            ),
+          )}
         </div>
-        <div className="truncate text-xs text-muted-foreground">
-          {collection.tokenCount} item{collection.tokenCount === 1 ? "" : "s"} ·{" "}
+        <div
+          className={`${addressTitle ? "[overflow-wrap:anywhere]" : "truncate"} text-xs text-muted-foreground`}
+        >
+          {t("items", { count: collection.tokenCount })} ·{" "}
           {collectionStandardLabel(collection.standard)} ·{" "}
           {formatAddressFingerprint(collection.contractAddress)}
         </div>

@@ -3,6 +3,7 @@
    would let the Tailwind postcss pipeline inline the @font-face rules without
    rewriting the package-relative woff2 URLs. */
 @import "tailwindcss";
+@import "./components/Core/Body/DAppConnect/reviewVisibility.css";
 @plugin "@tailwindcss/typography";
 
 /* Theme customization for Tailwind v4 */

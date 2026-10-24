@@ -1,0 +1,176 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Telegram degraded 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Wallet actions",
+      ],
+    ],
+  ],
+  "text": "MyQRLWalletControl centerMonitor services and open wallet actions securely.Network statusDegradedOpen walletView accounts and balanceActivityReview wallet historyConnected appsReview active dApp sessionsAlerts and settingsConfigure your walletSeeds, private keys, PINs, and signing remain inside MyQRLWallet. The Telegram bot never requests them.",
+  "title": "",
+}
+`;
+
+exports[`Telegram loading 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Wallet actions",
+      ],
+    ],
+  ],
+  "text": "MyQRLWalletControl centerMonitor services and open wallet actions securely.Network statusChecking networkOpen walletView accounts and balanceActivityReview wallet historyConnected appsReview active dApp sessionsAlerts and settingsConfigure your walletSeeds, private keys, PINs, and signing remain inside MyQRLWallet. The Telegram bot never requests them.",
+  "title": "",
+}
+`;
+
+exports[`Telegram ok 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Wallet actions",
+      ],
+    ],
+  ],
+  "text": "MyQRLWalletControl centerMonitor services and open wallet actions securely.Network statusOperationalOpen walletView accounts and balanceActivityReview wallet historyConnected appsReview active dApp sessionsAlerts and settingsConfigure your walletSeeds, private keys, PINs, and signing remain inside MyQRLWallet. The Telegram bot never requests them.",
+  "title": "",
+}
+`;
+
+exports[`Telegram rejected 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "Wallet actions",
+      ],
+    ],
+  ],
+  "text": "MyQRLWalletControl centerMonitor services and open wallet actions securely.Network statusDegradedOpen walletView accounts and balanceActivityReview wallet historyConnected appsReview active dApp sessionsAlerts and settingsConfigure your walletSeeds, private keys, PINs, and signing remain inside MyQRLWallet. The Telegram bot never requests them.",
+  "title": "",
+}
+`;
+
+exports[`empty sessions and QR 1`] = `
+{
+  "labels": [],
+  "text": "dApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Connect a dAppPaste a connection code from a dApp's pairing dialog.No dApps connectedClick "Open web wallet" in a dApp pairing dialog, or paste its connection code above.Account QR codeScan to open in Explorer",
+  "title": "Account QR Code | MyQRLWallet",
+}
+`;
+
+exports[`session banner and list connected 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Qaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+  ],
+  "text": "Example dAppConnectedDisconnectdApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Disconnect allConnect a dAppPaste a connection code from a dApp's pairing dialog.Example dAppConnectedhttps://dapp.exampleQaaaaaaaa...aaaaaaaa...aaaaaaaaShow fullConnected 11/14/2023Disconnect",
+  "title": "dApp Connections | MyQRLWallet",
+}
+`;
+
+exports[`session banner and list connecting 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Qaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+  ],
+  "text": "Example dAppConnecting...DisconnectdApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Disconnect allConnect a dAppPaste a connection code from a dApp's pairing dialog.Example dAppConnecting...https://dapp.exampleQaaaaaaaa...aaaaaaaa...aaaaaaaaShow fullConnected 11/14/2023Disconnect",
+  "title": "dApp Connections | MyQRLWallet",
+}
+`;
+
+exports[`session banner and list disconnected 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Qaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+  ],
+  "text": "Example dAppOffline, retries laterDisconnectdApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Disconnect allConnect a dAppPaste a connection code from a dApp's pairing dialog.Example dAppOffline, retries laterhttps://dapp.exampleQaaaaaaaa...aaaaaaaa...aaaaaaaaShow fullConnected 11/14/2023Disconnect",
+  "title": "dApp Connections | MyQRLWallet",
+}
+`;
+
+exports[`session banner and list key_exchange 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Qaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+  ],
+  "text": "Example dAppExchanging keys...DisconnectdApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Disconnect allConnect a dAppPaste a connection code from a dApp's pairing dialog.Example dAppExchanging keys...https://dapp.exampleQaaaaaaaa...aaaaaaaa...aaaaaaaaShow fullConnected 11/14/2023Disconnect",
+  "title": "dApp Connections | MyQRLWallet",
+}
+`;
+
+exports[`session banner and list reconnecting 1`] = `
+{
+  "labels": [
+    [
+      [
+        "aria-label",
+        "QRL address Qaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    ],
+  ],
+  "text": "Example dAppReconnecting...DisconnectdApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Disconnect allConnect a dAppPaste a connection code from a dApp's pairing dialog.Example dAppReconnecting...https://dapp.exampleQaaaaaaaa...aaaaaaaa...aaaaaaaaShow fullConnected 11/14/2023Disconnect",
+  "title": "dApp Connections | MyQRLWallet",
+}
+`;
+
+exports[`shared notice [Function App] 1`] = `
+{
+  "labels": [],
+  "text": "Update MyQRLWallet for Testnet v3Testnet v3 supports this web wallet and updated MyQRLWallet mobile, desktop and extension releases. Older native apps are not yet qualified.Install the latest app, or open this site in a regular browser to create or import a v3 account.",
+  "title": "",
+}
+`;
+
+exports[`shared notice [Function RetiredAppNotice] 1`] = `
+{
+  "labels": [],
+  "text": "Update MyQRLWalletThis version of the MyQRLWallet app is no longer supported. Install the latest version to keep using your wallet.Opened this page inside another app? Open qrlwallet.com in your regular browser.Google Play | myqrlwallet.com",
+  "title": "",
+}
+`;
+
+exports[`shared notice [Function WalletLoadFailed] 1`] = `
+{
+  "labels": [],
+  "text": "The wallet could not loadCheck your connection and reload the page.",
+  "title": "",
+}
+`;
+
+exports[`sidebar accessibility copy 1`] = `
+{
+  "labels": [],
+  "text": "SidebarDisplays the mobile sidebar.Close",
+  "title": "",
+}
+`;

@@ -11,6 +11,9 @@
     "@theqrl/mldsa87": "2.2.0",
     "@theqrl/wallet.js": "$@theqrl/wallet.js",
     "@theqrl/qrl-cryptography": "0.3.3",
+    "@theqrl/web3-validator": {
+      "zod": "$zod"
+    },
     "@tailwindcss/typography": {
       "postcss-selector-parser": "7.1.6"
     }
@@ -23,12 +26,16 @@
     "build": "tsc && vite --config config/vite.config.ts build",
     "build:embedded": "tsc && vite --config config/vite.config.embedded.ts build",
     "check:embedded": "node scripts/check-embedded-output.mjs",
-    "lint": "eslint --config config/eslint.config.js . --no-inline-config --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --no-inline-config --report-unused-disable-directives --max-warnings 0",
     "lint:ratchet": "node scripts/lint-ratchet.mjs --check",
     "lint:ratchet:update": "node scripts/lint-ratchet.mjs",
     "test": "jest",
     "preview": "vite --config config/vite.config.ts preview",
-    "smoke:boot": "node scripts/smoke-boot.mjs"
+    "smoke:boot": "node scripts/smoke-boot.mjs",
+    "smoke:approvals": "node scripts/smoke-approval-visibility.mjs",
+    "smoke:i18n": "node scripts/smoke-i18n.mjs",
+    "smoke:i18n:full": "npm run smoke:i18n",
+    "smoke:i18n:embedded": "node scripts/smoke-i18n-embedded.mjs"
   },
   "dependencies": {
     "@fontsource-variable/instrument-sans": "^5.2.8",
@@ -63,6 +70,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "hash-wasm": "4.12.0",
+    "i18next": "26.5.4",
     "lucide-react": "^0.562.0",
     "mobx": "^6.13.0",
     "mobx-react-lite": "^4.0.7",
@@ -71,6 +79,7 @@
     "react-dom": "19.2.7",
     "react-helmet-async": "^2.0.5",
     "react-hook-form": "^7.52.1",
+    "react-i18next": "17.1.0",
     "react-router": "8.3.0",
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^2.6.0",

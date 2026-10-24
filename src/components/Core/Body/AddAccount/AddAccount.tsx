@@ -1,4 +1,5 @@
 import { accountSetupDescription } from "../Home/AccountCreateImport/accountSetupDescription";
+import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { observer } from "mobx-react-lite";
 import { lazy } from "react";
@@ -9,11 +10,12 @@ const AccountCreateImport = withSuspense(
 );
 
 const AddAccount = observer(() => {
+  const { t } = useTranslation(["onboarding", "home", "common"]);
   return (
     <PageShell
-      title="Add accounts"
-      subtitle={accountSetupDescription()}
-      seoTitle="Add Account"
+      title={t("onboarding:addAccounts")}
+      subtitle={t(accountSetupDescription())}
+      seoTitle={t("onboarding:addTitle")}
     >
       <div className="relative z-10">
         <AccountCreateImport showHeading={false} />

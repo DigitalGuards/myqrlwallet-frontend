@@ -228,19 +228,19 @@ describe("confirmDesktopConnect", () => {
     expect(store.desktopConnectUri).toBe(URI_A);
   });
 
-  it("does not clobber a newer URI staged during the awaited handshake", async () => {
+  it.each([URI_A, URI_B])("preserves a newer consent staged during the awaited handshake (%s)", async (nextUri) => {
     // Regression guard: URI B arrives (protocol handler) while URI A's
     // handshake is in flight. A's success must not clear B, or B's consent
     // modal would never appear and the request would vanish silently.
     const store = new DAppConnectStore();
     store.requestDesktopConnect(URI_A, "deeplink");
     mockService.handleConnectionURI.mockImplementation(() => {
-      store.requestDesktopConnect(URI_B, "deeplink");
+      store.requestDesktopConnect(nextUri, "deeplink");
       return Promise.resolve({ success: true });
     });
     const result = await store.confirmDesktopConnect();
     expect(result.success).toBe(true);
-    expect(store.desktopConnectUri).toBe(URI_B);
+    expect(store.desktopConnectUri).toBe(nextUri);
   });
 });
 

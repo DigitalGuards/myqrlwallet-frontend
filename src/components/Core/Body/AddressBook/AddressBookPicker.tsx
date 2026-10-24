@@ -1,3 +1,5 @@
+import { contactErrorKey } from "@/i18n/contactErrorKey";
+import { useTranslation } from "react-i18next";
 import { logger } from "@/utils/log";
 import { useState } from "react";
 import { useNavigate } from "react-router";
@@ -35,9 +37,10 @@ export function AddressBookPicker({
   onSelect,
   currentAddress,
 }: AddressBookPickerProps) {
+  const { t } = useTranslation(["contacts", "common"]);
   const navigate = useNavigate();
   const [saveName, setSaveName] = useState("");
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<ReturnType<typeof contactErrorKey> | null>(null);
 
   // The list is tiny; reading it during render keeps it fresh on every
   // open and after an in-dialog save without effect/refresh plumbing.
@@ -63,7 +66,7 @@ export function AddressBookPicker({
   const handleSaveCurrent = () => {
     const result = addEntry(saveName, trimmedCurrent);
     if (typeof result === "string") {
-      setSaveError(result);
+      setSaveError(contactErrorKey(result));
       return;
     }
     setSaveName("");
@@ -76,14 +79,14 @@ export function AddressBookPicker({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BookUser className="h-5 w-5 text-secondary" />
-            Address Book
+            {t("contacts:title")}
           </DialogTitle>
-          <DialogDescription>Pick a saved recipient.</DialogDescription>
+          <DialogDescription>{t("contacts:pick")}</DialogDescription>
         </DialogHeader>
 
         {entries.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            No saved addresses yet.
+            {t("contacts:empty")}
           </p>
         ) : (
           <ul className="flex flex-col divide-y divide-border -mx-2">
@@ -111,7 +114,7 @@ export function AddressBookPicker({
         {offerSave ? (
           <div className="border-t border-border pt-3 flex flex-col gap-2">
             <Label htmlFor="ab-save-name">
-              Save {formatAddressShort(trimmedCurrent)} as
+              {t("contacts:saveAs", { address: formatAddressShort(trimmedCurrent) })}
             </Label>
             <div className="flex gap-2">
               <Input
@@ -120,15 +123,15 @@ export function AddressBookPicker({
                 onChange={(e) => {
                   setSaveName(e.target.value);
                 }}
-                placeholder="Name"
+                placeholder={t("contacts:name")}
                 maxLength={40}
               />
               <Button onClick={handleSaveCurrent} disabled={!saveName.trim()}>
                 <Plus className="h-4 w-4 mr-1" />
-                Save
+                {t("contacts:save")}
               </Button>
             </div>
-            {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
+            {saveError ? <p className="text-sm text-destructive">{t(saveError.key, { reason: saveError.reason })}</p> : null}
           </div>
         ) : null}
 
@@ -142,7 +145,7 @@ export function AddressBookPicker({
             });
           }}
         >
-          Manage address book
+          {t("contacts:manage")}
         </Button>
       </DialogContent>
     </Dialog>

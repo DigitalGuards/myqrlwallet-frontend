@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import react from 'eslint-plugin-react'
 import { fileURLToPath } from 'node:url'
 
-export const strictFiles = ['**/*.{ts,tsx}']
+export const strictFiles = ['**/*.{ts,tsx,mts,cts}']
 
 export const baseConfig = tseslint.config(
   { ignores: ['dist', 'node_modules', 'build', 'coverage', '*.config.js', '*.config.ts'] },
@@ -75,6 +75,12 @@ export const baseConfig = tseslint.config(
           'ts-nocheck': true,
           'ts-expect-error': true,
         },
+      ],
+      // TypeScript applies @ts-nocheck in any letter case and after extra
+      // slashes, while ban-ts-comment matches only the lower-case form.
+      'no-warning-comments': [
+        'error',
+        { terms: ['@ts-nocheck'], location: 'start', decoration: ['/'] },
       ],
       // Wire input is `unknown` narrowed by runtime guards; hand-written
       // assertions are the laundering this rule forbids. `as const` stays legal.
@@ -154,9 +160,9 @@ export const baseConfig = tseslint.config(
   {
     // Crypto modules are the designated boundary for raw primitive imports.
     files: [
-      'src/utils/crypto/**/*.{ts,tsx}',
-      'src/utils/signing/**/*.{ts,tsx}',
-      'src/services/dappConnect/**/*.{ts,tsx}',
+      'src/utils/crypto/**/*.{ts,tsx,mts,cts}',
+      'src/utils/signing/**/*.{ts,tsx,mts,cts}',
+      'src/services/dappConnect/**/*.{ts,tsx,mts,cts}',
     ],
     rules: {
       'no-restricted-imports': 'off',
@@ -165,7 +171,7 @@ export const baseConfig = tseslint.config(
   {
     // Build tooling runs in Node at build time and never ships in the wallet;
     // printing to the terminal is how it reports.
-    files: ['config/**/*.ts'],
+    files: ['config/**/*.{ts,mts,cts}'],
     rules: {
       'no-console': 'off',
     },

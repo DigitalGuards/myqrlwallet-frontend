@@ -1,0 +1,69 @@
+name: Setup Chromium
+description: Cache the locked Playwright headless shell and language fonts, with launch-checked system dependencies
+
+runs:
+  using: composite
+  steps:
+    - name: Read the installed Playwright version from the lockfile
+      id: playwright
+      shell: bash
+      run: |
+        node <<'NODE'
+        const { appendFileSync } = require('node:fs');
+        const version = require('./package-lock.json').packages['node_modules/playwright'].version;
+        if (version !== require('playwright/package.json').version ||
+            version !== require('playwright-core/package.json').version) {
+          throw new Error('Run npm ci before setting up Chromium: Playwright must match package-lock.json');
+        }
+        appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`);
+        NODE
+
+    - name: Cache Playwright Chromium headless shell
+      id: browsers
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright.outputs.version }}-chromium-headless-v1
+
+    - name: Restore or download Chromium headless shell
+      shell: bash
+      env:
+        BROWSER_CACHE_HIT: ${{ steps.browsers.outputs.cache-hit }}
+      run: |
+        if [[ "$BROWSER_CACHE_HIT" == 'true' ]]; then
+          echo "Chromium browser: cached (exact Playwright version)."
+        else
+          echo "Chromium browser: cache miss; downloading headless shell."
+          npx --no-install playwright install --only-shell chromium
+          echo "Chromium browser: downloaded."
+        fi
+
+    - name: Cache exact language font packages
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ runner.temp }}/i18n-font-packages
+        key: ${{ runner.os }}-${{ runner.arch }}-i18n-fonts-${{ hashFiles('.github/actions/setup-chromium/fonts.lock') }}-v1
+
+    - name: Install language fonts independently of Chromium dependencies
+      shell: bash
+      env:
+        I18N_FONT_PACKAGE_CACHE: ${{ runner.temp }}/i18n-font-packages
+      run: bash "$GITHUB_ACTION_PATH/install-fonts.sh"
+
+    - name: Check Chromium and install system dependencies if needed
+      shell: bash
+      run: |
+        if node "$GITHUB_ACTION_PATH/check-launch.mjs"; then
+          echo "Chromium dependencies: present; skipping install-deps."
+        else
+          echo "Chromium dependencies: installing after failed launch check."
+          if ! npx --no-install playwright install-deps chromium; then
+            echo "::error::Chromium system dependency installation failed."
+            exit 1
+          fi
+          if ! node "$GITHUB_ACTION_PATH/check-launch.mjs"; then
+            echo "::error::Chromium launch check failed after installing system dependencies."
+            exit 1
+          fi
+          echo "Chromium dependencies: installed; launch check passed."
+        fi
