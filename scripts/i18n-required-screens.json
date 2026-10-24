@@ -63,6 +63,20 @@
   "recovery-phrase": [],
   "recovery-unencrypted-warning": [],
   "settings": [],
+  "desktop-settings-360x640": [
+    "navigation",
+    "security-window",
+    "language-switch",
+    "persistence",
+    "route-restoration"
+  ],
+  "desktop-settings-1280x800": [
+    "navigation",
+    "security-window",
+    "language-switch",
+    "persistence",
+    "route-restoration"
+  ],
   "settings-connect": [],
   "settings-export": [],
   "settings-language": [],

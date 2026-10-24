@@ -558,9 +558,8 @@ export const desktopSigner = {
   },
 
   /**
-   * Show/focus the native desktop settings window (the desktop's ONE settings
-   * surface: auto-lock, biometric unlock, protocol handler, remove account).
-   * Mirrors the mobile app's OPEN_NATIVE_SETTINGS. Optional-called so a
+   * Show/focus the native desktop security settings window (auto-lock,
+   * biometric unlock, protocol handler, remove account). Optional-called so a
    * renderer paired with an older desktop shell degrades to a no-op.
    */
   async openDesktopSettings(): Promise<void> {

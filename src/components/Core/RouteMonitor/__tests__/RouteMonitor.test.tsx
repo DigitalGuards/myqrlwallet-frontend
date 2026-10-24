@@ -167,15 +167,18 @@ it("keeps the current route during a transient disconnect", async () => {
   expect(mockNavigate).not.toHaveBeenCalled();
 });
 
-it("retains the desktop settings recovery rule", async () => {
-  mockDesktop = true;
-  mockConnected = true;
-  mockSavedPage = "/settings";
-  render(<RouteMonitor />);
-  await waitFor(() => {
-    expect(mockNavigate).toHaveBeenCalledWith("/");
-  });
-});
+it.each([false, true])(
+  "restores settings with desktop: %s",
+  async (desktop) => {
+    mockDesktop = desktop;
+    mockConnected = true;
+    mockSavedPage = "/settings";
+    render(<RouteMonitor />);
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith("/settings");
+    });
+  },
+);
 
 it.each([-1, { pathname: "/tokens", search: "?view=all" }])(
   "passes a stored navigation target through without conversion: %j",
