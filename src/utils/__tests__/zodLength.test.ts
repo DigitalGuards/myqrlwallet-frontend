@@ -37,6 +37,25 @@ describe("UTF-16 zod length checks", () => {
   });
 });
 
+describe("PIN checks keep their first error", () => {
+  const pin = z
+    .string()
+    .superRefine(minUtf16Length(4, "onboarding:pinMin"))
+    .superRefine(maxUtf16Length(6, "onboarding:pinMax"))
+    .regex(/^\d+$/, "onboarding:pinDigits");
+
+  it("reports the digits rule first for a six-unit astral PIN", () => {
+    const rejected = pin.safeParse(astral.repeat(3));
+    expect(rejected.error?.issues[0]?.message).toBe("onboarding:pinDigits");
+  });
+
+  it("keeps the length errors for short and long PINs", () => {
+    expect(pin.safeParse("123").error?.issues[0]?.message).toBe("onboarding:pinMin");
+    expect(pin.safeParse("1234567").error?.issues[0]?.message).toBe("onboarding:pinMax");
+    expect(pin.safeParse("1234").success).toBe(true);
+  });
+});
+
 describe("transaction history keeps its UTF-16 caps", () => {
   const local = {
     blockchain: "TEST_NET_V3",

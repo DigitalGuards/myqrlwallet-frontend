@@ -26,7 +26,7 @@ import { Loader, Plus } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { minUtf16Length } from "@/utils/zodLength";
+import { maxUtf16Length, minUtf16Length } from "@/utils/zodLength";
 import {
   encryptSeedAsync,
   decryptStoredSeedAsync,
@@ -56,8 +56,8 @@ const passwordValidation = z
 
 const pinValidation = z
   .string()
-  .min(4, "onboarding:pinMin")
-  .max(6, "onboarding:pinMax")
+  .superRefine(minUtf16Length(4, "onboarding:pinMin"))
+  .superRefine(maxUtf16Length(6, "onboarding:pinMax"))
   .regex(/^\d+$/, "onboarding:pinDigits");
 
 // Base form values type - reEnteredPin is always present but may be empty
