@@ -30,6 +30,7 @@ import { Upload } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useState } from "react";
 import { z } from "zod";
+import { maxUtf16Length } from "@/utils/zodLength";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isDesktop } from "@/desktop/bridge";
 import {
@@ -41,7 +42,7 @@ const FormSchema = z.object({
   password: z
     .string()
     .min(1, "onboarding:passwordRequired")
-    .max(MAX_WALLET_PASSWORD_LENGTH, "onboarding:passwordLong"),
+    .superRefine(maxUtf16Length(MAX_WALLET_PASSWORD_LENGTH, "onboarding:passwordLong")),
 });
 
 type ImportEncryptedWalletProps = {

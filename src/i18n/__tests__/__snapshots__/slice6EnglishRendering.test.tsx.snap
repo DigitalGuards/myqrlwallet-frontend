@@ -718,7 +718,7 @@ exports[`invalid qrl_signMessage preview 1`] = `
       ],
     ],
   ],
-  "text": "Example dApphttps://dapp.exampleSign MessageCannot decode this request(root): Too small: expected array to have >2 itemsEnter PIN to signRejectApproveClose",
+  "text": "Example dApphttps://dapp.exampleSign MessageCannot decode this request(root): Too small: expected array to have >=2 itemsEnter PIN to signRejectApproveClose",
   "title": "",
 }
 `;
@@ -781,7 +781,7 @@ exports[`invalid qrl_signTypedData preview 1`] = `
       ],
     ],
   ],
-  "text": "Example dApphttps://dapp.exampleSign Typed DataCannot decode this request(root): Too small: expected array to have >2 itemsEnter PIN to signRejectApproveClose",
+  "text": "Example dApphttps://dapp.exampleSign Typed DataCannot decode this request(root): Too small: expected array to have >=2 itemsEnter PIN to signRejectApproveClose",
   "title": "",
 }
 `;

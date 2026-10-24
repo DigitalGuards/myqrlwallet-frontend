@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { isRecord } from "@/utils/guards";
+import { maxUtf16Length } from "@/utils/zodLength";
 import { receiptExecutionStatus } from "@/utils/web3/txPolling";
 import { formatUnits } from "@/utils/web3/units";
 import { QRL_ADDRESS_PATTERN } from "@/utils/web3/address";
 
-const text = z.string().max(512);
+const text = z.string().superRefine(maxUtf16Length(512));
 const decimal = z
   .string()
   .max(100)
@@ -26,7 +27,7 @@ export const localTransactionSchema = z
       .regex(/^0x[0-9a-f]{64}$/i)
       .transform((hash) => hash.toLowerCase()),
     amount: decimal,
-    asset: z.string().min(1).max(100),
+    asset: z.string().min(1).superRefine(maxUtf16Length(100)),
     submittedAt: z.number().int().nonnegative().max(8640000000000000),
     nonce: quantity.nullable(),
     state: z.enum(["pending", "confirmed", "failed", "dropped"]),
