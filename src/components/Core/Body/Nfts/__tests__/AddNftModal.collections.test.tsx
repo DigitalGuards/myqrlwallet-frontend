@@ -35,6 +35,9 @@ jest.mock("@/utils/web3/nft", () => ({
   fetchErc1155Balance: jest.fn(),
   fetchTokenUri: jest.fn(),
   isErc721Owner: jest.fn(),
+  resolveIpfsUri: jest.fn((uri: string) =>
+    uri.startsWith("ipfs://") ? `https://gateway.test/ipfs/${uri.slice("ipfs://".length)}` : uri,
+  ),
 }));
 
 const NAMELESS_1155 = `Q1222c5738d10574ec8ab9ee530f0f8e70817b687206e0989dc3f1a6c7722fa5715e3fa4750de7021880b7a14c328476f1f93aafb7b4d96135b5a5684210eb6cf`;
@@ -147,4 +150,44 @@ it("ignores metadata that resolves after the contract input changed", async () =
   });
   expect(screen.queryByText("Stale metadata")).toBeNull();
   expect(screen.queryByText("Owner enumeration:")).toBeNull();
+});
+
+describe("discovered collection covers", () => {
+  const mountWithCover = (image: string) => {
+    mockUseStore.mockReturnValue({
+      qrlStore: { activeAccount: { accountAddress: HOLDER } },
+      nftStore: {
+        pendingDiscoveredNftCollections: groupDiscoveredNftsByCollection([
+          {
+            contractAddress: DEVNET_PUNKS,
+            standard: "ERC721",
+            tokenId: "1",
+            collectionName: "Devnet Punks",
+            collectionSymbol: "DVP",
+            image,
+          },
+        ]),
+        discoverNftsForReview: mockDiscover,
+        addDiscoveredCollections,
+      },
+    });
+    return render(<AddNftModal isOpen onClose={jest.fn()} />);
+  };
+
+  it("shows the collection placeholder when the cover cannot load", () => {
+    mountWithCover("https://art.example/1.png");
+    // The dialog renders through a portal into document.body.
+    const image = document.body.querySelector('img[src="https://art.example/1.png"]');
+    if (!image) throw new Error("cover image not rendered");
+    fireEvent.error(image);
+    expect(screen.getByRole("img", { name: "Devnet Punks (image unavailable)" })).toBeTruthy();
+    expect(document.body.querySelector('img[src="https://art.example/1.png"]')).toBeNull();
+  });
+
+  it("loads ipfs covers through the gateway", () => {
+    mountWithCover("ipfs://bafycover/1.png");
+    expect(
+      document.body.querySelector('img[src="https://gateway.test/ipfs/bafycover/1.png"]'),
+    ).toBeTruthy();
+  });
 });
