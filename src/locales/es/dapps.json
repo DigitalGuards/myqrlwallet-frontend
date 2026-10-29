@@ -100,7 +100,7 @@
   "vaultFunction": "Función",
   "vaultInnerCall": "Llamada incluida {{index}}",
   "vaultNoData": "Sin datos de llamada",
-  "vaultRawAmount": "{{value}} unidades base (detalles del token no disponibles)",
+  "vaultRawAmount": "{{value}}: unidades base del token o un ID de token NFT (detalles del token no disponibles)",
   "vaultTokenAmount": "{{value}} {{symbol}}",
   "vaultNonce": "Nonce",
   "vaultExpiry": "Válida hasta",

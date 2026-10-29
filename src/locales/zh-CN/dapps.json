@@ -100,7 +100,7 @@
   "vaultFunction": "函数",
   "vaultInnerCall": "内部调用 {{index}}",
   "vaultNoData": "无调用数据",
-  "vaultRawAmount": "{{value}} 基本单位（代币详情不可用）",
+  "vaultRawAmount": "{{value}}：代币基本单位或 NFT 代币 ID（代币详情不可用）",
   "vaultTokenAmount": "{{value}} {{symbol}}",
   "vaultNonce": "Nonce",
   "vaultExpiry": "有效期至",

@@ -13,6 +13,7 @@ import {
   VAULT_MAX_UINT256,
 } from "@/utils/signing/quantaVault";
 import { formatQuantaValue } from "@/utils/formatting";
+import { normalizeQrlAddress } from "@/utils/web3/address";
 import DAppTypedDataReview from "../DAppTypedDataReview";
 
 afterEach(async () => {
@@ -71,7 +72,7 @@ it.each(["tx", "approval"])(
       const target = within(child).getByText("To").nextElementSibling;
       expect(
         target?.querySelector("[aria-label]")?.getAttribute("aria-label"),
-      ).toContain(expected);
+      ).toContain(normalizeQrlAddress(expected) ?? expected);
       expect(
         within(child)
           .getByText(/This batch entry named the zero address/)
@@ -104,7 +105,7 @@ it("warns for scheduled updateDelay and unlimited allowances, and leaves a revok
   ).toBeTruthy();
   expect(
     screen.getByText(
-      `${VAULT_MAX_UINT256.toString()} base units (token details unavailable)`,
+      `${VAULT_MAX_UINT256.toString()}: token base units or an NFT token ID (token details unavailable)`,
     ),
   ).toBeTruthy();
   rerender(<DAppTypedDataReview payload={vaultPayload("revoke-zero-role")} />);
@@ -195,7 +196,9 @@ it.each(["malformed", "0x", "1.5", undefined])(
       />,
     );
     expect(
-      screen.getByText("1234500 base units (token details unavailable)"),
+      screen.getByText(
+        "1234500: token base units or an NFT token ID (token details unavailable)",
+      ),
     ).toBeTruthy();
     expect(screen.queryByText(/differs from the connected chain/)).toBeNull();
   },
@@ -353,7 +356,9 @@ it.each(["transfer", "transferFrom", "approve"])(
       />,
     );
     expect(
-      screen.getByText("1234500 base units (token details unavailable)"),
+      screen.getByText(
+        "1234500: token base units or an NFT token ID (token details unavailable)",
+      ),
     ).toBeTruthy();
     expect(screen.queryByText("1.2345 TEST")).toBeNull();
   },
@@ -422,4 +427,26 @@ it("formats timelock delays and decodes the scheduled call", () => {
   render(<DAppTypedDataReview payload={payload} />);
   expect(screen.getByText("2d 0h 0m 1s (172801 seconds)")).toBeTruthy();
   expect(screen.getByText("transferOwnership")).toBeTruthy();
+});
+
+it("shows payload and decoded addresses in QIP-55 checksum case", () => {
+  const call = vaultCalldata("addOwnerWithThreshold");
+  const owner = call.values[0];
+  if (typeof owner !== "string") throw new Error("Missing owner vector");
+  const payload = vaultPayload();
+  payload.message["to"] = vaultTestAddress;
+  payload.message["data"] = call.data;
+  render(<DAppTypedDataReview payload={payload} />);
+  const rows: readonly (readonly [string, string])[] = [
+    ["To", vaultTestAddress],
+    ["Owner", owner],
+  ];
+  for (const [label, address] of rows) {
+    const checksummed = normalizeQrlAddress(address);
+    if (!checksummed || checksummed === address)
+      throw new Error("The vector must change case");
+    expect(screen.getByText(label).nextElementSibling?.textContent).toBe(
+      checksummed,
+    );
+  }
 });

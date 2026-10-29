@@ -6,6 +6,7 @@ import { isQuantaVaultOrigin } from "@/config/quantaVault";
 import type { TokenInterface } from "@/constants/tokens";
 import { formatUnits } from "@/utils/web3/units";
 import { formatQuantaValue } from "@/utils/formatting";
+import { normalizeQrlAddress } from "@/utils/web3/address";
 import {
   hasVaultRefund,
   VAULT_MAX_UINT256,
@@ -79,6 +80,17 @@ const WARNING_KEYS: Record<VaultCallWarning, Key> = {
   openRole: "dapps:vaultOpenRole",
   unlimitedAllowance: "dapps:vaultUnlimitedAllowance",
 };
+
+/** ABI decoding yields lowercase hex; every address shows its QIP-55 checksum case. */
+function VaultAddress({ address }: { address: string }) {
+  return (
+    <QrlAddress
+      address={normalizeQrlAddress(address) ?? address}
+      mode="full"
+      addressClassName="text-xs"
+    />
+  );
+}
 
 function Row({
   label,
@@ -224,10 +236,7 @@ function argumentValue(
     if (arg.name === "validUntil") return expiryLabel(value, language, t);
     return value.toString();
   }
-  if (arg.type === "address")
-    return (
-      <QrlAddress address={value} mode="full" addressClassName="text-xs" />
-    );
+  if (arg.type === "address") return <VaultAddress address={value} />;
   if (arg.name === "role")
     return (
       <span className="font-mono text-xs">
@@ -261,7 +270,7 @@ function CallReview({
   return (
     <div className="space-y-3">
       <Row label={t("to")} value={call.to}>
-        <QrlAddress address={call.to} mode="full" addressClassName="text-xs" />
+        <VaultAddress address={call.to} />
       </Row>
       {call.batchTarget && (
         <p data-review-block className="text-xs text-muted-foreground">
@@ -351,19 +360,11 @@ const DAppVaultReview = ({
         {t(title)}
       </p>
       <Row label={t("vaultAddress")} value={request.vault}>
-        <QrlAddress
-          address={request.vault}
-          mode="full"
-          addressClassName="text-xs"
-        />
+        <VaultAddress address={request.vault} />
       </Row>
       {request.kind === "VaultApproval" && (
         <Row label={t("vaultOuter")} value={request.outerVault}>
-          <QrlAddress
-            address={request.outerVault}
-            mode="full"
-            addressClassName="text-xs"
-          />
+          <VaultAddress address={request.outerVault} />
         </Row>
       )}
       <Row label={t("vaultNetwork")} value={request.chainId}>
@@ -443,18 +444,10 @@ const DAppVaultReview = ({
             {tx.gasPrice.toString()}
           </Row>
           <Row label={t("vaultGasToken")} value={tx.gasToken}>
-            <QrlAddress
-              address={tx.gasToken}
-              mode="full"
-              addressClassName="text-xs"
-            />
+            <VaultAddress address={tx.gasToken} />
           </Row>
           <Row label={t("vaultRefundReceiver")} value={tx.refundReceiver}>
-            <QrlAddress
-              address={tx.refundReceiver}
-              mode="full"
-              addressClassName="text-xs"
-            />
+            <VaultAddress address={tx.refundReceiver} />
           </Row>
           <p data-review-block className="text-xs text-muted-foreground">
             {t("vaultSelectorHint")}

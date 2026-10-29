@@ -100,7 +100,7 @@
   "vaultFunction": "Функция",
   "vaultInnerCall": "Вложенный вызов {{index}}",
   "vaultNoData": "Нет данных вызова",
-  "vaultRawAmount": "{{value}} базовых единиц (данные токена недоступны)",
+  "vaultRawAmount": "{{value}}: базовые единицы токена или ID NFT-токена (данные токена недоступны)",
   "vaultTokenAmount": "{{value}} {{symbol}}",
   "vaultNonce": "Nonce",
   "vaultExpiry": "Действует до",

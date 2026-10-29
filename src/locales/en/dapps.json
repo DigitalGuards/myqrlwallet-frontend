@@ -100,7 +100,7 @@
   "vaultFunction": "Function",
   "vaultInnerCall": "Enclosed call {{index}}",
   "vaultNoData": "No calldata",
-  "vaultRawAmount": "{{value}} base units (token details unavailable)",
+  "vaultRawAmount": "{{value}}: token base units or an NFT token ID (token details unavailable)",
   "vaultTokenAmount": "{{value}} {{symbol}}",
   "vaultNonce": "Nonce",
   "vaultExpiry": "Valid until",
