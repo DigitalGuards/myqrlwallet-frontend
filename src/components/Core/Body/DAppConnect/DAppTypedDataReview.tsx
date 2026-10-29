@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import { useState } from 'react';
 import DAppVaultReview from './DAppVaultReview';
 import { recognizeVaultRequest } from '@/utils/signing/quantaVault';
-import { canonicalTypedDataReview, escapeVisualControls } from './typedDataReview';
+import { canonicalTypedDataReview, chainNumber, escapeVisualControls } from './typedDataReview';
 import { isArray, isRecord } from '@/utils/guards';
 import { reviewValueKey } from './reviewIdentity';
 import type { TypedDataPayload } from '@/utils/signing';
@@ -72,19 +72,6 @@ function renderValue(value: unknown, path: string, t: TFunction<["dapps", "commo
     );
   }
   return <span className="text-muted-foreground">{t("dapps:unsupportedValue")}</span>;
-}
-
-function chainNumber(value: unknown): bigint | undefined {
-  if (
-    typeof value !== 'string' &&
-    typeof value !== 'number' &&
-    typeof value !== 'bigint'
-  ) return undefined;
-  try {
-    return BigInt(value);
-  } catch {
-    return undefined;
-  }
 }
 
 const DAppTypedDataReview: React.FC<DAppTypedDataReviewProps> = ({

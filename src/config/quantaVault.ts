@@ -6,7 +6,7 @@ export interface QuantaVaultConfig {
 }
 
 export const QUANTA_VAULT_CONFIG: QuantaVaultConfig = {
-  origins: ["https://quantavault.io", "http://localhost:5173"],
+  origins: ["https://quantavault.io"],
   multiSendCallOnly: {},
 };
 

@@ -5,6 +5,7 @@ import { QrlAddress } from "@/components/UI/QrlAddress";
 import { isQuantaVaultOrigin } from "@/config/quantaVault";
 import type { TokenInterface } from "@/constants/tokens";
 import { formatUnits } from "@/utils/web3/units";
+import { formatQuantaValue } from "@/utils/formatting";
 import {
   hasVaultRefund,
   VAULT_MAX_UINT256,
@@ -19,7 +20,7 @@ import {
   type VaultCallWarning,
 } from "@/utils/signing/quantaVaultCalldata";
 import { reviewValueKey } from "./reviewIdentity";
-import { escapeVisualControls } from "./typedDataReview";
+import { chainNumber, escapeVisualControls } from "./typedDataReview";
 
 type Key = ParseKeys<["dapps"]>;
 const ARGUMENT_LABELS: Readonly<Record<string, Key>> = {
@@ -42,7 +43,6 @@ const ARGUMENT_LABELS: Readonly<Record<string, Key>> = {
   moduleGuard: "dapps:vaultModuleGuard",
   newDelay: "dapps:vaultDelay",
   newOwner: "dapps:vaultNewOwner",
-  next: "dapps:vaultNewOwner",
   oldOwner: "dapps:vaultOldOwner",
   operation: "dapps:vaultOperation",
   owner: "dapps:vaultOwner",
@@ -71,11 +71,13 @@ const ARGUMENT_LABELS: Readonly<Record<string, Key>> = {
 const WARNING_KEYS: Record<VaultCallWarning, Key> = {
   unknownCalldata: "dapps:vaultUnknownWarning",
   invalidCalldata: "dapps:vaultInvalidWarning",
+  invalidOperation: "dapps:vaultInvalidOperationWarning",
   depthLimit: "dapps:vaultDepthWarning",
   securityChange: "dapps:vaultSecurityWarning",
   delegateCall: "dapps:vaultDelegateWarning",
   opaqueApproval: "dapps:vaultOpaqueWarning",
   openRole: "dapps:vaultOpenRole",
+  unlimitedAllowance: "dapps:vaultUnlimitedAllowance",
 };
 
 function Row({
@@ -210,7 +212,7 @@ function argumentValue(
     if (arg.name === "operation") return operationLabel(value, t);
     if (arg.name === "amount") return tokenAmount(value, token, t);
     if (arg.name === "value" || arg.name === "values")
-      return t("vaultQuanta", { value: formatUnits(value, 18) });
+      return formatQuantaValue(value);
     if (arg.name === "delay" || arg.name === "newDelay")
       return t("vaultDuration", {
         days: (value / 86400n).toString(),
@@ -261,14 +263,21 @@ function CallReview({
       <Row label={t("to")} value={call.to}>
         <QrlAddress address={call.to} mode="full" addressClassName="text-xs" />
       </Row>
+      {call.batchTarget && (
+        <p data-review-block className="text-xs text-muted-foreground">
+          {t("vaultZeroTarget")}
+        </p>
+      )}
       <Row label={t("value")} value={call.value}>
-        {t("vaultQuanta", { value: formatUnits(call.value, 18) })}
+        {formatQuantaValue(call.value)}
       </Row>
       <Row label={t("vaultOperation")} value={call.operation}>
         {operationLabel(call.operation, t)}
       </Row>
-      {call.warnings.map((warning) => (
-        <Warning key={warning}>{t(WARNING_KEYS[warning])}</Warning>
+      {call.warnings.map((warning, index) => (
+        <Warning key={`${warning}-${index}`}>
+          {t(WARNING_KEYS[warning])}
+        </Warning>
       ))}
       {call.method && (
         <Row label={t("vaultFunction")} value={call.data}>
@@ -326,8 +335,7 @@ const DAppVaultReview = ({
   knownTokens = [],
 }: Props) => {
   const { t, i18n } = useTranslation(["dapps"]);
-  const connectedChain =
-    connectedChainId === undefined ? undefined : BigInt(connectedChainId);
+  const connectedChain = chainNumber(connectedChainId);
   const tokens = connectedChain === request.chainId ? knownTokens : [];
   const title =
     request.kind === "VaultMessage"
@@ -336,6 +344,7 @@ const DAppVaultReview = ({
         ? "dapps:vaultApproval"
         : "dapps:vaultTransaction";
   const tx = request.kind === "VaultMessage" ? null : request.tx;
+  const now = BigInt(Math.floor(Date.now() / 1000));
   return (
     <div className="space-y-3">
       <p data-review-block className="font-semibold">
@@ -396,7 +405,13 @@ const DAppVaultReview = ({
             <Warning blocking>{t("vaultRefundError")}</Warning>
           )}
           <CallReview
-            call={decodeVaultCall(tx, request.chainId)}
+            call={decodeVaultCall(
+              tx,
+              request.chainId,
+              request.kind === "VaultApproval"
+                ? request.outerVault
+                : request.vault,
+            )}
             tokens={tokens}
             language={i18n.language}
           />
@@ -406,11 +421,11 @@ const DAppVaultReview = ({
           <Row label={t("vaultExpiry")} value={tx.validUntil}>
             {expiryLabel(tx.validUntil, i18n.language, t)}
           </Row>
+          {tx.validUntil < now && <Warning>{t("vaultExpiredWarning")}</Warning>}
           {tx.validUntil === VAULT_MAX_UINT256 ? (
             <Warning>{t("vaultMaxValidity")}</Warning>
           ) : (
-            tx.validUntil >
-              BigInt(Math.floor(Date.now() / 1000)) + 30n * 86400n && (
+            tx.validUntil > now + 30n * 86400n && (
               <Warning>{t("vaultLongValidity")}</Warning>
             )
           )}
@@ -420,6 +435,7 @@ const DAppVaultReview = ({
           <p data-review-block className="text-xs text-muted-foreground">
             {t("vaultGasInfo")}
           </p>
+          {tx.txGas !== 0n && <Warning>{t("vaultTxGasWarning")}</Warning>}
           <Row label={t("vaultBaseGas")} value={tx.baseGas}>
             {tx.baseGas.toString()}
           </Row>

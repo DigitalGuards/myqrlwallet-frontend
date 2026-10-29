@@ -24,11 +24,15 @@ import { logger } from "@/utils/log";
 import { mockReviewObservers } from "@/test-utils/reviewObserver";
 import { deferred } from "@/test-utils/deferred";
 import { SignTypedDataParamsSchema } from "@/utils/signing";
-import { vaultPayload } from "@/utils/signing/__tests__/quantaVaultFixtures";
+import { vaultCalldata, vaultPayload, vaultReviewTime, vaultTestAddress } from "@/utils/signing/__tests__/quantaVaultFixtures";
+import { recognizeVaultRequest, vaultApprovalBlocked } from "@/utils/signing/quantaVault";
+import { QRL_ZERO_ADDRESS } from "@/utils/web3/address";
+import type { TokenInterface } from "@/constants/tokens";
 import { isRecord } from "@/utils/guards";
 let visibility: ReturnType<typeof mockReviewObservers>;
 let mockDesktop = true;
 const address = `Q${"a".repeat(128)}`;
+const mockTokenStore: { tokenList: TokenInterface[] } = { tokenList: [] };
 let mockDappStore: DAppConnectStore;
 let rejectRequestSpy: jest.SpiedFunction<typeof dappConnectService.rejectRequest>;
 let approveRequestSpy: jest.SpiedFunction<typeof dappConnectService.approveRequest>;
@@ -43,7 +47,7 @@ jest.mock("@/stores/store", () => ({
   useStore: () => ({
     dappConnectStore: mockDappStore,
     qrlStore: mockQrlStore,
-    tokenStore: { tokenList: [] },
+    tokenStore: mockTokenStore,
   }),
 }));
 jest.mock("react-router", () => ({ useNavigate: () => jest.fn() }));
@@ -145,6 +149,7 @@ function request(method: string, id: string | number = 1): PendingDAppRequest {
 
 beforeEach(() => {
   mockDesktop = true;
+  mockTokenStore.tokenList = [];
   localStorage.clear();
   configure({ enforceActions: "never" });
   jest.useFakeTimers();
@@ -352,9 +357,10 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-async function showApproval(method: string, params?: unknown[]): Promise<PendingDAppRequest> {
+async function showApproval(method: string, params?: unknown[], origin?: string): Promise<PendingDAppRequest> {
   const pending = request(method);
   if (params) pending.params = params;
+  if (origin) pending.dappInfo.url = origin;
   mockDappStore.pendingRequests = [pending];
   mockDappStore.currentApproval = pending;
   mockDappStore.approvalModalOpen = true;
@@ -970,47 +976,55 @@ describe.each([false, true])(
       mockDesktop = desktop;
     });
 
-    it.each(["baseGas", "gasPrice", "gasToken", "refundReceiver"])(
-      "blocks %s for direct and nested approvals through button and PIN Enter",
-      async (field) => {
+    it.each(["empty-call", "approval-empty"].flatMap((label) =>
+      ["baseGas", "gasPrice", "gasToken", "refundReceiver"].map((field) => ({ label, field })),
+    ))(
+      "blocks $field in $label through button and PIN Enter",
+      async ({ label, field }) => {
         const signer = jest
           .spyOn(desktopSigner, "signTypedData")
           .mockReturnValue(new Promise(() => undefined));
-        for (const label of ["empty-call", "approval-empty"]) {
-          const payload = vaultPayload(label);
-          const tx =
-            label === "empty-call" ? payload.message : payload.message["tx"];
-          if (!isRecord(tx)) throw new Error("Missing vault transaction");
-          tx[field] =
-            field === "gasToken" || field === "refundReceiver"
-              ? address
-              : "0x1";
-          await showApproval("qrl_signTypedData", [address, payload]);
-          expect(
-            screen.getByText(/the vault will reject this transaction/),
-          ).toBeTruthy();
-          const button = screen.getByRole("button", { name: "Approve" });
-          expect(button.hasAttribute("disabled")).toBe(true);
-          // Exercise a stale enabled DOM element as well as the keyboard path.
-          button.removeAttribute("disabled");
-          await approve();
-          if (!desktop) {
-            const pinInput = screen.getByPlaceholderText("Enter PIN");
-            fireEvent.change(pinInput, { target: { value: "123456" } });
-            await act(async () => {
-              fireEvent.keyDown(pinInput, { key: "Enter" });
-              await Promise.resolve();
-            });
-          }
-          expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
-          expect(signer).not.toHaveBeenCalled();
-          expect(approveRequestSpy).not.toHaveBeenCalled();
-          cleanup();
+        const payload = vaultPayload(label);
+        expect(vaultApprovalBlocked(payload)).toBe(false);
+        const tx =
+          label === "empty-call" ? payload.message : payload.message["tx"];
+        if (!isRecord(tx)) throw new Error("Missing vault transaction");
+        tx[field] =
+          field === "gasToken" || field === "refundReceiver"
+            ? address
+            : "0x1";
+        const recognized = recognizeVaultRequest(payload);
+        if (!recognized || recognized.kind === "VaultMessage") throw new Error("Missing vault transaction");
+        expect([
+          recognized.tx.baseGas !== 0n && "baseGas",
+          recognized.tx.gasPrice !== 0n && "gasPrice",
+          recognized.tx.gasToken !== QRL_ZERO_ADDRESS && "gasToken",
+          recognized.tx.refundReceiver !== QRL_ZERO_ADDRESS && "refundReceiver",
+        ].filter(Boolean)).toEqual([field]);
+        await showApproval("qrl_signTypedData", [address, payload]);
+        expect(
+          screen.getByText(/the vault will reject this transaction/),
+        ).toBeTruthy();
+        const button = screen.getByRole("button", { name: "Approve" });
+        expect(button.hasAttribute("disabled")).toBe(true);
+        // Exercise a stale enabled DOM element as well as the keyboard path.
+        button.removeAttribute("disabled");
+        await approve();
+        if (!desktop) {
+          const pinInput = screen.getByPlaceholderText("Enter PIN");
+          fireEvent.change(pinInput, { target: { value: "123456" } });
+          await act(async () => {
+            fireEvent.keyDown(pinInput, { key: "Enter" });
+            await Promise.resolve();
+          });
         }
+        expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+        expect(signer).not.toHaveBeenCalled();
+        expect(approveRequestSpy).not.toHaveBeenCalled();
       },
     );
 
-    it("keeps origin and chain warnings nonblocking and passes the same typed payload to the signer", async () => {
+    it("keeps local origin, chain and txGas warnings nonblocking and passes the same typed payload to the signer", async () => {
       const signer = jest
         .spyOn(desktopSigner, "signTypedData")
         .mockReturnValue(new Promise(() => undefined));
@@ -1019,9 +1033,10 @@ describe.each([false, true])(
       const pending = await showApproval("qrl_signTypedData", [
         address,
         payload,
-      ]);
+      ], "http://localhost:5173");
       expect(screen.getByText(/self-reported origin is outside/)).toBeTruthy();
       expect(screen.getByText(/differs from the connected chain/)).toBeTruthy();
+      expect(screen.getByText(/txGas is nonzero/)).toBeTruthy();
       expect(
         screen
           .getByRole("button", { name: "Approve" })
@@ -1035,6 +1050,28 @@ describe.each([false, true])(
           expect.objectContaining({ channelId: pending.sessionId }),
         );
       else expect(screen.getByText("Please enter your PIN")).toBeTruthy();
+    });
+
+    it.each(["expired-validity", "zero-validity"])("keeps %s approvable after showing the expiry warning", async (label) => {
+      jest.setSystemTime(Number(vaultReviewTime) * 1000);
+      const signer = jest.spyOn(desktopSigner, "signTypedData").mockReturnValue(new Promise(() => undefined));
+      const payload = vaultPayload(label);
+      await showApproval("qrl_signTypedData", [address, payload]);
+      expect(screen.getByText(/this approval has already expired and the vault will reject it/)).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Approve" }).hasAttribute("disabled")).toBe(false);
+      await approve();
+      if (desktop) expect(signer).toHaveBeenCalledWith(payload, address, expect.anything());
+      else expect(screen.getByText("Please enter your PIN")).toBeTruthy();
+    });
+
+    it("forwards known tokens to the vault review on the connected chain", async () => {
+      mockTokenStore.tokenList = [{ address: vaultTestAddress, symbol: "TEST", decimals: 6 }];
+      const payload = vaultPayload();
+      payload.domain["chainId"] = "3151909";
+      payload.message["to"] = vaultTestAddress;
+      payload.message["data"] = vaultCalldata("approve").data;
+      await showApproval("qrl_signTypedData", [address, payload]);
+      expect(screen.getByText("1.2345 TEST")).toBeTruthy();
     });
   },
 );

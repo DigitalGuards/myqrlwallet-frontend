@@ -26,7 +26,7 @@ import { Button } from "@/components/UI/Button";
 import DAppTransactionReview from "./DAppTransactionReview";
 import DAppMessageReview from "./DAppMessageReview";
 import DAppTypedDataReview from "./DAppTypedDataReview";
-import { recognizeVaultRequest, vaultApprovalBlocked } from "@/utils/signing/quantaVault";
+import { vaultApprovalBlocked } from "@/utils/signing/quantaVault";
 import { useReviewVisibility } from "./useReviewVisibility";
 import { reviewGeneration, reviewValueKey } from "./reviewIdentity";
 import { formatDAppRequestError } from "./requestError";
@@ -1592,7 +1592,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                   digestHex={signingPreview.digestHex}
                   connectedChainId={connectedChainId}
                   origin={dappInfo.url}
-                  knownTokens={recognizeVaultRequest(signingPreview.payload) ? tokenStore.tokenList : []}
+                  knownTokens={tokenStore.tokenList}
                 />
               )}
 

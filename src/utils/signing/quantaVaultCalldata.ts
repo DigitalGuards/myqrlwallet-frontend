@@ -3,6 +3,7 @@ import {
   type QuantaVaultConfig,
 } from "@/config/quantaVault";
 import { QRL_ZERO_ADDRESS } from "@/utils/web3/address";
+import { VAULT_MAX_UINT256 } from "./quantaVault";
 import { VAULT_ROLES, VAULT_SELECTORS } from "./quantaVaultSelectors";
 
 export type VaultAbiType =
@@ -16,11 +17,13 @@ export interface VaultArgument {
 export type VaultCallWarning =
   | "unknownCalldata"
   | "invalidCalldata"
+  | "invalidOperation"
   | "depthLimit"
   | "securityChange"
   | "delegateCall"
   | "opaqueApproval"
-  | "openRole";
+  | "openRole"
+  | "unlimitedAllowance";
 export interface VaultCall {
   to: string;
   value: bigint;
@@ -28,6 +31,8 @@ export interface VaultCall {
   data: string;
 }
 export interface DecodedVaultCall extends VaultCall {
+  /** Original zero destination of a batch entry, before address() substitution. */
+  batchTarget?: string;
   status: "decoded" | "empty" | "unknown" | "invalid";
   method?: string;
   args: readonly VaultArgument[];
@@ -50,6 +55,7 @@ const SECURITY_METHODS = new Set([
   "grantRole",
   "revokeRole",
   "renounceRole",
+  "updateDelay",
   "transferOwnership",
   "acceptOwnership",
   "renounceOwnership",
@@ -279,10 +285,11 @@ export function vaultRoleLabel(value: string): string | undefined {
 export function decodeVaultCall(
   call: VaultCall,
   chainId: bigint,
+  caller: string,
   config: QuantaVaultConfig = QUANTA_VAULT_CONFIG,
   depth = 0,
 ): DecodedVaultCall {
-  const warnings: VaultCallWarning[] = [];
+  const warnings = new Set<VaultCallWarning>();
   // The selector alone cannot distinguish MultiSend from MultiSendCallOnly.
   const callOnly =
     depth === 0 &&
@@ -290,20 +297,23 @@ export function decodeVaultCall(
     config.multiSendCallOnly[chainId.toString()]?.some(
       (to) => to.toLowerCase() === call.to.toLowerCase(),
     );
-  if (call.operation === 1n && !callOnly) warnings.push("delegateCall");
+  if (call.operation === 1n && !callOnly) warnings.add("delegateCall");
   if (call.operation !== 0n && call.operation !== 1n)
-    warnings.push("invalidCalldata");
-  const base = { ...call, args: [], children: [], warnings };
-  if (call.data === "0x") return { ...base, status: "empty" };
+    warnings.add("invalidOperation");
+  const base = { ...call, args: [], children: [] };
+  if (call.data === "0x")
+    return { ...base, status: "empty", warnings: [...warnings] };
   const definition = VAULT_SELECTORS.find(
     (entry) => entry.selector === call.data.slice(0, 10).toLowerCase(),
   );
-  if (!definition)
+  if (!definition) {
+    warnings.add("unknownCalldata");
     return {
       ...base,
       status: "unknown",
-      warnings: [...warnings, "unknownCalldata"],
+      warnings: [...warnings],
     };
+  }
   try {
     const values = decodeVaultAbi(
       definition.inputs.map((input) => input.type),
@@ -315,41 +325,54 @@ export function decodeVaultCall(
       return { ...input, value };
     });
     const method = definition.name;
-    if (SECURITY_METHODS.has(method)) warnings.push("securityChange");
-    if (method === "simulateAndRevert") warnings.push("delegateCall");
+    if (SECURITY_METHODS.has(method)) warnings.add("securityChange");
+    if (method === "simulateAndRevert") warnings.add("delegateCall");
     if (method === "approveHash" || method === "signMessage")
-      warnings.push("opaqueApproval");
+      warnings.add("opaqueApproval");
     if (
-      ["grantRole", "revokeRole", "renounceRole"].includes(method) &&
-      textArg(
-        args,
-        method === "renounceRole" ? "callerConfirmation" : "account",
-      ).toLowerCase() === QRL_ZERO_ADDRESS.toLowerCase()
+      method === "grantRole" &&
+      textArg(args, "account").toLowerCase() === QRL_ZERO_ADDRESS.toLowerCase()
     )
-      warnings.push("openRole");
+      warnings.add("openRole");
+    if (method === "approve" && numberArg(args, "amount") === VAULT_MAX_UINT256)
+      warnings.add("unlimitedAllowance");
     const calls = innerCalls(method, args);
-    if (depth >= 1 && calls.length) warnings.push("depthLimit");
+    if (depth >= 1 && calls.length) warnings.add("depthLimit");
     // Even at the depth boundary every batch operation is checked.
     if (depth >= 1 && calls.some((child) => child.operation === 1n))
-      warnings.push("delegateCall");
+      warnings.add("delegateCall");
+    const executingAddress = call.operation === 1n ? caller : call.to;
     return {
       ...call,
       status: "decoded",
       method,
       args,
-      warnings: [...new Set(warnings)],
+      warnings: [...warnings],
       children:
         depth < 1
-          ? calls.map((child) =>
-              decodeVaultCall(child, chainId, config, depth + 1),
-            )
+          ? calls.map((child) => {
+              const zeroTarget =
+                method === "multiSend" &&
+                child.to.toLowerCase() === QRL_ZERO_ADDRESS.toLowerCase();
+              const decoded = decodeVaultCall(
+                { ...child, to: zeroTarget ? executingAddress : child.to },
+                chainId,
+                executingAddress,
+                config,
+                depth + 1,
+              );
+              return zeroTarget
+                ? { ...decoded, batchTarget: child.to }
+                : decoded;
+            })
           : [],
     };
   } catch {
+    warnings.add("invalidCalldata");
     return {
       ...base,
       status: "invalid",
-      warnings: [...warnings, "invalidCalldata"],
+      warnings: [...warnings],
     };
   }
 }
