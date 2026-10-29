@@ -1,0 +1,776 @@
+{
+  "schemaVersion": 1,
+  "codecVersion": "5.1.2",
+  "schemeVectors": [
+    {
+      "label": "empty-call",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultTx": [
+            {
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "name": "txGas",
+              "type": "uint256"
+            },
+            {
+              "name": "baseGas",
+              "type": "uint256"
+            },
+            {
+              "name": "gasPrice",
+              "type": "uint256"
+            },
+            {
+              "name": "gasToken",
+              "type": "address"
+            },
+            {
+              "name": "refundReceiver",
+              "type": "address"
+            },
+            {
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint256"
+            }
+          ]
+        },
+        "primaryType": "VaultTx",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "1",
+          "verifyingContract": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69"
+        },
+        "message": {
+          "to": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042",
+          "value": "0",
+          "data": "0x",
+          "operation": 0,
+          "txGas": "0",
+          "baseGas": "0",
+          "gasPrice": "0",
+          "gasToken": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "refundReceiver": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "nonce": "0",
+          "validUntil": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultTx(address to,uint256 value,bytes data,uint8 operation,uint256 txGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce,uint256 validUntil)",
+      "typeHashHex": "0x05ad60624cdcf15b0b7bc041787d03d29f97e19bcb838a9a771ba3cefc8d949195b364e73d404976c7a8c89224396441c90e4f66f95c1818c3209b4e3938d05a",
+      "domainHashHex": "0x9196942787bcceb469451bb1b2e0ab1cd89b3a6474d82f048aa58f0db3f4212889ddca73666cfdedc029f75396462a73f7c256301f970f4b6d509c6d7b0da2aa",
+      "messageHashHex": "0x783a35dac64bd04256e8eb3a4ce41435d046c25eee812e19124f0c22d31e03df01ff569b8111e99945131f594efea9f54f593704057eb9f2206163ed6266dc67",
+      "digestHex": "0x2f0a4e2597f5bc2bf5b4b8d1435de807fd52fd3fa2624ff378c88943a65b68d01a007331107e49a489bc111e2702ca1c93b509f55bb0869dfa2054891ae7f32f"
+    },
+    {
+      "label": "delegatecall",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultTx": [
+            {
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "name": "txGas",
+              "type": "uint256"
+            },
+            {
+              "name": "baseGas",
+              "type": "uint256"
+            },
+            {
+              "name": "gasPrice",
+              "type": "uint256"
+            },
+            {
+              "name": "gasToken",
+              "type": "address"
+            },
+            {
+              "name": "refundReceiver",
+              "type": "address"
+            },
+            {
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint256"
+            }
+          ]
+        },
+        "primaryType": "VaultTx",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "1",
+          "verifyingContract": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69"
+        },
+        "message": {
+          "to": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042",
+          "value": "0",
+          "data": "0x",
+          "operation": 1,
+          "txGas": "0",
+          "baseGas": "0",
+          "gasPrice": "0",
+          "gasToken": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "refundReceiver": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "nonce": "0",
+          "validUntil": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultTx(address to,uint256 value,bytes data,uint8 operation,uint256 txGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce,uint256 validUntil)",
+      "typeHashHex": "0x05ad60624cdcf15b0b7bc041787d03d29f97e19bcb838a9a771ba3cefc8d949195b364e73d404976c7a8c89224396441c90e4f66f95c1818c3209b4e3938d05a",
+      "domainHashHex": "0x9196942787bcceb469451bb1b2e0ab1cd89b3a6474d82f048aa58f0db3f4212889ddca73666cfdedc029f75396462a73f7c256301f970f4b6d509c6d7b0da2aa",
+      "messageHashHex": "0xe55476b5135bfb73ae3aa48d28c9f6f156799d73715e23614434b58a75790400e970d7c7cb91bab5958e76e599dd7ea9945d39347f162bf4efb6cf2a7a472097",
+      "digestHex": "0xcdf63ca449acbf79d5eaf01354b803f3c2fc5930013fbe23f86779c4f8c90f21965118cdcfdb986d0a7f8407982a8949132006bcb180647b23923a30d43d84aa"
+    },
+    {
+      "label": "long-data",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultTx": [
+            {
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "name": "txGas",
+              "type": "uint256"
+            },
+            {
+              "name": "baseGas",
+              "type": "uint256"
+            },
+            {
+              "name": "gasPrice",
+              "type": "uint256"
+            },
+            {
+              "name": "gasToken",
+              "type": "address"
+            },
+            {
+              "name": "refundReceiver",
+              "type": "address"
+            },
+            {
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint256"
+            }
+          ]
+        },
+        "primaryType": "VaultTx",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "1",
+          "verifyingContract": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69"
+        },
+        "message": {
+          "to": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042",
+          "value": "0",
+          "data": "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "operation": 0,
+          "txGas": "0",
+          "baseGas": "0",
+          "gasPrice": "0",
+          "gasToken": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "refundReceiver": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "nonce": "0",
+          "validUntil": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultTx(address to,uint256 value,bytes data,uint8 operation,uint256 txGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce,uint256 validUntil)",
+      "typeHashHex": "0x05ad60624cdcf15b0b7bc041787d03d29f97e19bcb838a9a771ba3cefc8d949195b364e73d404976c7a8c89224396441c90e4f66f95c1818c3209b4e3938d05a",
+      "domainHashHex": "0x9196942787bcceb469451bb1b2e0ab1cd89b3a6474d82f048aa58f0db3f4212889ddca73666cfdedc029f75396462a73f7c256301f970f4b6d509c6d7b0da2aa",
+      "messageHashHex": "0x0c1b26edb8945e784ed18bd4e01a53e83d27f01dbc4a2ff0e14aa25875fbeb1b6ec22e79a8e31f2acc148d7bd70ebdc0fff918728e7b3d3c785c2aa82e4a1eb9",
+      "digestHex": "0x3103be7afa20327460eb71a9db37b048ad6cbd27af068e1115d71cc156b6d3140bd86249b946827db38a24507462e9d5d33bf2e9cb758a10ad8277d2d3b96c2e"
+    },
+    {
+      "label": "max-values",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultTx": [
+            {
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "name": "txGas",
+              "type": "uint256"
+            },
+            {
+              "name": "baseGas",
+              "type": "uint256"
+            },
+            {
+              "name": "gasPrice",
+              "type": "uint256"
+            },
+            {
+              "name": "gasToken",
+              "type": "address"
+            },
+            {
+              "name": "refundReceiver",
+              "type": "address"
+            },
+            {
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint256"
+            }
+          ]
+        },
+        "primaryType": "VaultTx",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+          "verifyingContract": "Qffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        },
+        "message": {
+          "to": "Qffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "value": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+          "data": "0x",
+          "operation": 1,
+          "txGas": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+          "baseGas": "0",
+          "gasPrice": "0",
+          "gasToken": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "refundReceiver": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "nonce": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+          "validUntil": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultTx(address to,uint256 value,bytes data,uint8 operation,uint256 txGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce,uint256 validUntil)",
+      "typeHashHex": "0x05ad60624cdcf15b0b7bc041787d03d29f97e19bcb838a9a771ba3cefc8d949195b364e73d404976c7a8c89224396441c90e4f66f95c1818c3209b4e3938d05a",
+      "domainHashHex": "0xd91bd32ba5b77648d1a663af9f37dc0f73b5c779bc666bff0c82bd02bb73caf529d0a9e146c8437a5d273aa533e6f87f09c8c9b23bcb5b402a910ab536c6f411",
+      "messageHashHex": "0x08189825a3dd5942b309b9cd3a9bf8b61269b30f5e913cc79740fffae918459e832c35345244ff1a9cbea5cb09b328954c2f7d82a2da39b7462266ce8ebf9abf",
+      "digestHex": "0x941e734fa117591f016eb5cc083fbd3ccb64f228054fc1a41bcf18d29fb780789b5fd9e4119a71d97da0647901661b309e072b29bd89e2e4772864c1acec2876"
+    },
+    {
+      "label": "zero-refund-fields",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultTx": [
+            {
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "name": "txGas",
+              "type": "uint256"
+            },
+            {
+              "name": "baseGas",
+              "type": "uint256"
+            },
+            {
+              "name": "gasPrice",
+              "type": "uint256"
+            },
+            {
+              "name": "gasToken",
+              "type": "address"
+            },
+            {
+              "name": "refundReceiver",
+              "type": "address"
+            },
+            {
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint256"
+            }
+          ]
+        },
+        "primaryType": "VaultTx",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "3151909",
+          "verifyingContract": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69"
+        },
+        "message": {
+          "to": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042",
+          "value": "7",
+          "data": "0x",
+          "operation": 0,
+          "txGas": "123456",
+          "baseGas": "0",
+          "gasPrice": "0",
+          "gasToken": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "refundReceiver": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "nonce": "19",
+          "validUntil": "2000000000"
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultTx(address to,uint256 value,bytes data,uint8 operation,uint256 txGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce,uint256 validUntil)",
+      "typeHashHex": "0x05ad60624cdcf15b0b7bc041787d03d29f97e19bcb838a9a771ba3cefc8d949195b364e73d404976c7a8c89224396441c90e4f66f95c1818c3209b4e3938d05a",
+      "domainHashHex": "0xed63bb9b7a7c731b7cb60d87b721b1ced66385618721ec612ed0d40a56ceb4d5061c1d4b325b8ad6761adeb6224eea93a2c251aa5468060b1aef8f9c4b8cff67",
+      "messageHashHex": "0x96ae52297c9382b52b88ae29612991b0587b10cdd4907cd08810a24e3b49a03116d5abc95789dee77c30056e11c614e04395ec701fbf179bef73c84f1b368473",
+      "digestHex": "0xe9bf405485a0270f5b9ec4730f7bfe088538dce24e2eca7b43a19c4ffdfb60a4f65b948ca555b7e6fd2a586e99bb267fab04acc8109ead0c3d0ff7b8903320a4"
+    },
+    {
+      "label": "zero-deadline",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultTx": [
+            {
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "name": "txGas",
+              "type": "uint256"
+            },
+            {
+              "name": "baseGas",
+              "type": "uint256"
+            },
+            {
+              "name": "gasPrice",
+              "type": "uint256"
+            },
+            {
+              "name": "gasToken",
+              "type": "address"
+            },
+            {
+              "name": "refundReceiver",
+              "type": "address"
+            },
+            {
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint256"
+            }
+          ]
+        },
+        "primaryType": "VaultTx",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "1",
+          "verifyingContract": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69"
+        },
+        "message": {
+          "to": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042",
+          "value": "0",
+          "data": "0x",
+          "operation": 0,
+          "txGas": "0",
+          "baseGas": "0",
+          "gasPrice": "0",
+          "gasToken": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "refundReceiver": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "nonce": "0",
+          "validUntil": "0"
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultTx(address to,uint256 value,bytes data,uint8 operation,uint256 txGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce,uint256 validUntil)",
+      "typeHashHex": "0x05ad60624cdcf15b0b7bc041787d03d29f97e19bcb838a9a771ba3cefc8d949195b364e73d404976c7a8c89224396441c90e4f66f95c1818c3209b4e3938d05a",
+      "domainHashHex": "0x9196942787bcceb469451bb1b2e0ab1cd89b3a6474d82f048aa58f0db3f4212889ddca73666cfdedc029f75396462a73f7c256301f970f4b6d509c6d7b0da2aa",
+      "messageHashHex": "0x89f3971e4ba76762d76b11abba82e4420231f82de7398d50c3899342a912cdbed3e6fa8ebaae0f8734c84f34023a24af4ffba355a3faaa9b440b167e8a8db8fd",
+      "digestHex": "0xb01a75745c67222bfda2dd0f6ba69632792d444793410c66d768a11f0570ef5a3e8d089845a7a3cdfdc48c81499e3d24b4be7719c689261005b1d38467c562f5"
+    },
+    {
+      "label": "empty-message",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultMessage": [
+            {
+              "name": "message",
+              "type": "bytes"
+            }
+          ]
+        },
+        "primaryType": "VaultMessage",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "1",
+          "verifyingContract": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69"
+        },
+        "message": {
+          "message": "0x"
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultMessage(bytes message)",
+      "typeHashHex": "0x9f67f699519b1240021db4b78e0575771cb23bbe37576769de24ea0552ed0078f04bc7669bd205eb7d9e05c283eb9bbe445d474ee3c70d812c83f9f18fc1310d",
+      "domainHashHex": "0x9196942787bcceb469451bb1b2e0ab1cd89b3a6474d82f048aa58f0db3f4212889ddca73666cfdedc029f75396462a73f7c256301f970f4b6d509c6d7b0da2aa",
+      "messageHashHex": "0x681b8b5a0ee724cea9d432c1992d5eb85620b25134082e6067b70e6fbdaf6a2509c8aefa1a6eae3bb7f63b59e08706ae95d4795289e0a2c03d514506c316fe01",
+      "digestHex": "0xb72a875e987b3d2e9f0a537d6e145bd50026f2419d3efe056430ea85d38b87a721c83de8e1cc2af6939a449f11988951195a808ffbf7c89a316acb90e74789e9"
+    },
+    {
+      "label": "short-message",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultMessage": [
+            {
+              "name": "message",
+              "type": "bytes"
+            }
+          ]
+        },
+        "primaryType": "VaultMessage",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "1",
+          "verifyingContract": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69"
+        },
+        "message": {
+          "message": "0x00ff1234"
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultMessage(bytes message)",
+      "typeHashHex": "0x9f67f699519b1240021db4b78e0575771cb23bbe37576769de24ea0552ed0078f04bc7669bd205eb7d9e05c283eb9bbe445d474ee3c70d812c83f9f18fc1310d",
+      "domainHashHex": "0x9196942787bcceb469451bb1b2e0ab1cd89b3a6474d82f048aa58f0db3f4212889ddca73666cfdedc029f75396462a73f7c256301f970f4b6d509c6d7b0da2aa",
+      "messageHashHex": "0x7601b98f98732d64997e5ec8a9b463e0eb16baf7f76dea0b188c4f884e9f5792fb05317be876ae67d1679fbca026f9731ba738c6638a54c65d63b50c4b2546d6",
+      "digestHex": "0x21d655e10fed6b7025479100b22874f1bc0b80533ad22ceda3176f20ef22453b7360f195f2c17728a33c42088f6f3d6a660c84410b864038f5974796829b1c4d"
+    },
+    {
+      "label": "long-message",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultMessage": [
+            {
+              "name": "message",
+              "type": "bytes"
+            }
+          ]
+        },
+        "primaryType": "VaultMessage",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "3151909",
+          "verifyingContract": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69"
+        },
+        "message": {
+          "message": "0xababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab"
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultMessage(bytes message)",
+      "typeHashHex": "0x9f67f699519b1240021db4b78e0575771cb23bbe37576769de24ea0552ed0078f04bc7669bd205eb7d9e05c283eb9bbe445d474ee3c70d812c83f9f18fc1310d",
+      "domainHashHex": "0xed63bb9b7a7c731b7cb60d87b721b1ced66385618721ec612ed0d40a56ceb4d5061c1d4b325b8ad6761adeb6224eea93a2c251aa5468060b1aef8f9c4b8cff67",
+      "messageHashHex": "0xd2f9cbb3d0ccadd056c476517d2997a28c23b1f556bf8ff652e6d4ed8fb28ba4600c764bc2e139cb491fb74a39a3c69ec170340459530bf0ce2677b60389fed4",
+      "digestHex": "0xe84fafce51d5854bb7adf8b746f782889ac2b93064a37ef1640455cccd83b37d6059e26deb44b035d8b7ffcc48da971ced57b75c80dfa9acb0b9c538127c31fe"
+    },
+    {
+      "label": "digest-message",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultMessage": [
+            {
+              "name": "message",
+              "type": "bytes"
+            }
+          ]
+        },
+        "primaryType": "VaultMessage",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "1",
+          "verifyingContract": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69"
+        },
+        "message": {
+          "message": "0x42424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242"
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultMessage(bytes message)",
+      "typeHashHex": "0x9f67f699519b1240021db4b78e0575771cb23bbe37576769de24ea0552ed0078f04bc7669bd205eb7d9e05c283eb9bbe445d474ee3c70d812c83f9f18fc1310d",
+      "domainHashHex": "0x9196942787bcceb469451bb1b2e0ab1cd89b3a6474d82f048aa58f0db3f4212889ddca73666cfdedc029f75396462a73f7c256301f970f4b6d509c6d7b0da2aa",
+      "messageHashHex": "0xae5551fe0d40c69e7a34316dde690b7ae15ecff293847f807eb56171f9372cd2385b514d032e06ab268276a5f7380f5aa25028883ffb068f38992da60913a059",
+      "digestHex": "0xf5514bf1ad9595ca71b0f47a6f10f744998d113962c0a2fdc672d385ebe2c765c89a5e79600d3fb0b8d65a1df3e32558d727f92e57d0958a5f76b533ea09372e"
+    }
+  ]
+}

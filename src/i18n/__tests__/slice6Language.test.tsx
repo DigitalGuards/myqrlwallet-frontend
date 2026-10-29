@@ -48,6 +48,7 @@ const mockQuote = jest.fn<
 const mockDecrypt = jest.fn<Promise<{ hexSeed: string }>, []>();
 const mockFetch = jest.fn();
 const mockStore: {
+  tokenStore: { tokenList: [] };
   qrlStore: {
     activeAccount: { accountAddress: string };
     qrlConnection: { blockchain: string };
@@ -80,6 +81,7 @@ const mockStore: {
     setTxProgressForApproval: () => void;
   };
 } = {
+  tokenStore: { tokenList: [] },
   qrlStore: {
     activeAccount: { accountAddress: ADDRESS },
     qrlConnection: { blockchain: "TEST_NET" },

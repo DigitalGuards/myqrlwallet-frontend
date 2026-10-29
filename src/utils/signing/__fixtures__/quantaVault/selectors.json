@@ -1,0 +1,588 @@
+{
+  "selectors": [
+    {
+      "contract": "QuantaVault",
+      "name": "addOwnerWithThreshold",
+      "inputs": [
+        {
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "name": "_threshold",
+          "type": "uint256"
+        }
+      ],
+      "signature": "addOwnerWithThreshold(address,uint256)",
+      "selector": "0x0d582f13"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "approveHash",
+      "inputs": [
+        {
+          "name": "hashToApprove",
+          "type": "bytes64"
+        }
+      ],
+      "signature": "approveHash(bytes64)",
+      "selector": "0xaba381df"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "changeThreshold",
+      "inputs": [
+        {
+          "name": "_threshold",
+          "type": "uint256"
+        }
+      ],
+      "signature": "changeThreshold(uint256)",
+      "selector": "0x694e80c3"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "disableModule",
+      "inputs": [
+        {
+          "name": "prevModule",
+          "type": "address"
+        },
+        {
+          "name": "module",
+          "type": "address"
+        }
+      ],
+      "signature": "disableModule(address,address)",
+      "selector": "0xe009cfde"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "enableModule",
+      "inputs": [
+        {
+          "name": "module",
+          "type": "address"
+        }
+      ],
+      "signature": "enableModule(address)",
+      "selector": "0x610b5925"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "execTransaction",
+      "inputs": [
+        {
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "name": "value",
+          "type": "uint256"
+        },
+        {
+          "name": "data",
+          "type": "bytes"
+        },
+        {
+          "name": "operation",
+          "type": "uint8"
+        },
+        {
+          "name": "safeTxGas",
+          "type": "uint256"
+        },
+        {
+          "name": "baseGas",
+          "type": "uint256"
+        },
+        {
+          "name": "gasPrice",
+          "type": "uint256"
+        },
+        {
+          "name": "gasToken",
+          "type": "address"
+        },
+        {
+          "name": "refundReceiver",
+          "type": "address"
+        },
+        {
+          "name": "signatures",
+          "type": "bytes"
+        },
+        {
+          "name": "validUntil",
+          "type": "uint256"
+        }
+      ],
+      "signature": "execTransaction(address,uint256,bytes,uint8,uint256,uint256,uint256,address,address,bytes,uint256)",
+      "selector": "0x81978e5c"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "execTransactionFromModule",
+      "inputs": [
+        {
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "name": "value",
+          "type": "uint256"
+        },
+        {
+          "name": "data",
+          "type": "bytes"
+        },
+        {
+          "name": "operation",
+          "type": "uint8"
+        }
+      ],
+      "signature": "execTransactionFromModule(address,uint256,bytes,uint8)",
+      "selector": "0x468721a7"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "execTransactionFromModuleReturnData",
+      "inputs": [
+        {
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "name": "value",
+          "type": "uint256"
+        },
+        {
+          "name": "data",
+          "type": "bytes"
+        },
+        {
+          "name": "operation",
+          "type": "uint8"
+        }
+      ],
+      "signature": "execTransactionFromModuleReturnData(address,uint256,bytes,uint8)",
+      "selector": "0x5229073f"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "removeOwner",
+      "inputs": [
+        {
+          "name": "prevOwner",
+          "type": "address"
+        },
+        {
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "name": "_threshold",
+          "type": "uint256"
+        }
+      ],
+      "signature": "removeOwner(address,address,uint256)",
+      "selector": "0xf8dc5dd9"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "setFallbackHandler",
+      "inputs": [
+        {
+          "name": "handler",
+          "type": "address"
+        }
+      ],
+      "signature": "setFallbackHandler(address)",
+      "selector": "0xf08a0323"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "setGuard",
+      "inputs": [
+        {
+          "name": "guard",
+          "type": "address"
+        }
+      ],
+      "signature": "setGuard(address)",
+      "selector": "0xe19a9dd9"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "setModuleGuard",
+      "inputs": [
+        {
+          "name": "moduleGuard",
+          "type": "address"
+        }
+      ],
+      "signature": "setModuleGuard(address)",
+      "selector": "0xe068df37"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "simulateAndRevert",
+      "inputs": [
+        {
+          "name": "targetContract",
+          "type": "address"
+        },
+        {
+          "name": "calldataPayload",
+          "type": "bytes"
+        }
+      ],
+      "signature": "simulateAndRevert(address,bytes)",
+      "selector": "0xb4faba09"
+    },
+    {
+      "contract": "QuantaVault",
+      "name": "swapOwner",
+      "inputs": [
+        {
+          "name": "prevOwner",
+          "type": "address"
+        },
+        {
+          "name": "oldOwner",
+          "type": "address"
+        },
+        {
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "signature": "swapOwner(address,address,address)",
+      "selector": "0xe318b52b"
+    },
+    {
+      "contract": "VaultTimelock",
+      "name": "cancel",
+      "inputs": [
+        {
+          "name": "id",
+          "type": "bytes32"
+        }
+      ],
+      "signature": "cancel(bytes32)",
+      "selector": "0xc4d252f5"
+    },
+    {
+      "contract": "VaultTimelock",
+      "name": "execute",
+      "inputs": [
+        {
+          "name": "target",
+          "type": "address"
+        },
+        {
+          "name": "value",
+          "type": "uint256"
+        },
+        {
+          "name": "payload",
+          "type": "bytes"
+        },
+        {
+          "name": "predecessor",
+          "type": "bytes32"
+        },
+        {
+          "name": "salt",
+          "type": "bytes32"
+        }
+      ],
+      "signature": "execute(address,uint256,bytes,bytes32,bytes32)",
+      "selector": "0x134008d3"
+    },
+    {
+      "contract": "VaultTimelock",
+      "name": "executeBatch",
+      "inputs": [
+        {
+          "name": "targets",
+          "type": "address[]"
+        },
+        {
+          "name": "values",
+          "type": "uint256[]"
+        },
+        {
+          "name": "payloads",
+          "type": "bytes[]"
+        },
+        {
+          "name": "predecessor",
+          "type": "bytes32"
+        },
+        {
+          "name": "salt",
+          "type": "bytes32"
+        }
+      ],
+      "signature": "executeBatch(address[],uint256[],bytes[],bytes32,bytes32)",
+      "selector": "0xe38335e5"
+    },
+    {
+      "contract": "VaultTimelock",
+      "name": "grantRole",
+      "inputs": [
+        {
+          "name": "role",
+          "type": "bytes32"
+        },
+        {
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "signature": "grantRole(bytes32,address)",
+      "selector": "0x2f2ff15d"
+    },
+    {
+      "contract": "VaultTimelock",
+      "name": "renounceRole",
+      "inputs": [
+        {
+          "name": "role",
+          "type": "bytes32"
+        },
+        {
+          "name": "callerConfirmation",
+          "type": "address"
+        }
+      ],
+      "signature": "renounceRole(bytes32,address)",
+      "selector": "0x36568abe"
+    },
+    {
+      "contract": "VaultTimelock",
+      "name": "revokeRole",
+      "inputs": [
+        {
+          "name": "role",
+          "type": "bytes32"
+        },
+        {
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "signature": "revokeRole(bytes32,address)",
+      "selector": "0xd547741f"
+    },
+    {
+      "contract": "VaultTimelock",
+      "name": "schedule",
+      "inputs": [
+        {
+          "name": "target",
+          "type": "address"
+        },
+        {
+          "name": "value",
+          "type": "uint256"
+        },
+        {
+          "name": "data",
+          "type": "bytes"
+        },
+        {
+          "name": "predecessor",
+          "type": "bytes32"
+        },
+        {
+          "name": "salt",
+          "type": "bytes32"
+        },
+        {
+          "name": "delay",
+          "type": "uint256"
+        }
+      ],
+      "signature": "schedule(address,uint256,bytes,bytes32,bytes32,uint256)",
+      "selector": "0x01d5062a"
+    },
+    {
+      "contract": "VaultTimelock",
+      "name": "scheduleBatch",
+      "inputs": [
+        {
+          "name": "targets",
+          "type": "address[]"
+        },
+        {
+          "name": "values",
+          "type": "uint256[]"
+        },
+        {
+          "name": "payloads",
+          "type": "bytes[]"
+        },
+        {
+          "name": "predecessor",
+          "type": "bytes32"
+        },
+        {
+          "name": "salt",
+          "type": "bytes32"
+        },
+        {
+          "name": "delay",
+          "type": "uint256"
+        }
+      ],
+      "signature": "scheduleBatch(address[],uint256[],bytes[],bytes32,bytes32,uint256)",
+      "selector": "0x8f2a0bb0"
+    },
+    {
+      "contract": "VaultTimelock",
+      "name": "updateDelay",
+      "inputs": [
+        {
+          "name": "newDelay",
+          "type": "uint256"
+        }
+      ],
+      "signature": "updateDelay(uint256)",
+      "selector": "0x64d62353"
+    },
+    {
+      "contract": "MultiSend",
+      "name": "multiSend",
+      "inputs": [
+        {
+          "name": "transactions",
+          "type": "bytes"
+        }
+      ],
+      "signature": "multiSend(bytes)",
+      "selector": "0x8d80ff0a"
+    },
+    {
+      "contract": "MultiSendCallOnly",
+      "name": "multiSend",
+      "inputs": [
+        {
+          "name": "transactions",
+          "type": "bytes"
+        }
+      ],
+      "signature": "multiSend(bytes)",
+      "selector": "0x8d80ff0a"
+    },
+    {
+      "contract": "SignMessageLib",
+      "name": "signMessage",
+      "inputs": [
+        {
+          "name": "_data",
+          "type": "bytes"
+        }
+      ],
+      "signature": "signMessage(bytes)",
+      "selector": "0x85a5affe"
+    },
+    {
+      "contract": "RegistrarStub",
+      "name": "acceptOwnership",
+      "inputs": [],
+      "signature": "acceptOwnership()",
+      "selector": "0x79ba5097"
+    },
+    {
+      "contract": "RegistrarStub",
+      "name": "transferOwnership",
+      "inputs": [
+        {
+          "name": "next",
+          "type": "address"
+        }
+      ],
+      "signature": "transferOwnership(address)",
+      "selector": "0xf2fde38b"
+    },
+    {
+      "contract": "CustomERC20",
+      "name": "approve",
+      "inputs": [
+        {
+          "name": "spender",
+          "type": "address"
+        },
+        {
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "signature": "approve(address,uint256)",
+      "selector": "0x095ea7b3"
+    },
+    {
+      "contract": "CustomERC20",
+      "name": "renounceOwnership",
+      "inputs": [],
+      "signature": "renounceOwnership()",
+      "selector": "0x715018a6"
+    },
+    {
+      "contract": "CustomERC20",
+      "name": "transfer",
+      "inputs": [
+        {
+          "name": "recipient",
+          "type": "address"
+        },
+        {
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "signature": "transfer(address,uint256)",
+      "selector": "0xa9059cbb"
+    },
+    {
+      "contract": "CustomERC20",
+      "name": "transferFrom",
+      "inputs": [
+        {
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "name": "recipient",
+          "type": "address"
+        },
+        {
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "signature": "transferFrom(address,address,uint256)",
+      "selector": "0x23b872dd"
+    },
+    {
+      "contract": "CustomERC20",
+      "name": "transferOwnership",
+      "inputs": [
+        {
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "signature": "transferOwnership(address)",
+      "selector": "0xf2fde38b"
+    }
+  ],
+  "roles": {
+    "PROPOSER": "0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1",
+    "EXECUTOR": "0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63",
+    "CANCELLER": "0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b62239378085726f783",
+    "DEFAULT_ADMIN": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

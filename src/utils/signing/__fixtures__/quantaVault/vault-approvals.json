@@ -1,0 +1,555 @@
+{
+  "schemaVersion": 1,
+  "schemeVectors": [
+    {
+      "label": "approval-empty",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultApproval": [
+            {
+              "name": "vault",
+              "type": "address"
+            },
+            {
+              "name": "tx",
+              "type": "VaultTx"
+            }
+          ],
+          "VaultTx": [
+            {
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "name": "txGas",
+              "type": "uint256"
+            },
+            {
+              "name": "baseGas",
+              "type": "uint256"
+            },
+            {
+              "name": "gasPrice",
+              "type": "uint256"
+            },
+            {
+              "name": "gasToken",
+              "type": "address"
+            },
+            {
+              "name": "refundReceiver",
+              "type": "address"
+            },
+            {
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint256"
+            }
+          ]
+        },
+        "primaryType": "VaultApproval",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "1",
+          "verifyingContract": "Qd1e912c7d150bd893b9f276fb205557637d8edc96e8030482d23656c3857c8eec69aa8247e830f279d6d49c35f6c62bfd2b291bd4a62e44b258dbeef56c5e2a0"
+        },
+        "message": {
+          "vault": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69",
+          "tx": {
+            "to": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042",
+            "value": "0",
+            "data": "0x",
+            "operation": 0,
+            "txGas": "0",
+            "baseGas": "0",
+            "gasPrice": "0",
+            "gasToken": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "refundReceiver": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "nonce": "0",
+            "validUntil": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          }
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultApproval(address vault,VaultTx tx)VaultTx(address to,uint256 value,bytes data,uint8 operation,uint256 txGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce,uint256 validUntil)",
+      "typeHashHex": "0x964024dd58562349be730d43521d2d528ceda163a792cc04e7d6e4c5a3b4d36d4bd66fd6290b126cc12f2a859d659b0c5ad9fbb7f62f6d76a85da18b2d2386bf",
+      "domainHashHex": "0xc87b6c25355392310ac33df318162e0e94e21bb54b1ee4fbc5b485abd45c9d8db5041309c65fdf2e7e3f695f43dee8d56d2b0838bf143f50abf2d519cf2131c6",
+      "messageHashHex": "0x038678b8a13e8c163336ccac0632891b026f451630379a051e23f25b41933c709d3281f8a149a26f3450d1edaad97a2275e04208700c61d9c6a3f90c17d8d307",
+      "digestHex": "0xd6e4fb73598dc6c08e69e5ae796ea7e6065b468afa02ddf050f3d785a20c5ea672c0f8c0859fe9ad54d9d4f666096e9e86a77dc3539a8ce59421275f4d92fe9d"
+    },
+    {
+      "label": "approval-fields",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultApproval": [
+            {
+              "name": "vault",
+              "type": "address"
+            },
+            {
+              "name": "tx",
+              "type": "VaultTx"
+            }
+          ],
+          "VaultTx": [
+            {
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "name": "txGas",
+              "type": "uint256"
+            },
+            {
+              "name": "baseGas",
+              "type": "uint256"
+            },
+            {
+              "name": "gasPrice",
+              "type": "uint256"
+            },
+            {
+              "name": "gasToken",
+              "type": "address"
+            },
+            {
+              "name": "refundReceiver",
+              "type": "address"
+            },
+            {
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint256"
+            }
+          ]
+        },
+        "primaryType": "VaultApproval",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "3151909",
+          "verifyingContract": "Qd1e912c7d150bd893b9f276fb205557637d8edc96e8030482d23656c3857c8eec69aa8247e830f279d6d49c35f6c62bfd2b291bd4a62e44b258dbeef56c5e2a0"
+        },
+        "message": {
+          "vault": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69",
+          "tx": {
+            "to": "Qabababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab",
+            "value": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            "data": "0x0123456789",
+            "operation": 1,
+            "txGas": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            "baseGas": "0",
+            "gasPrice": "0",
+            "gasToken": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "refundReceiver": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "nonce": "19",
+            "validUntil": "2000000000"
+          }
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultApproval(address vault,VaultTx tx)VaultTx(address to,uint256 value,bytes data,uint8 operation,uint256 txGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce,uint256 validUntil)",
+      "typeHashHex": "0x964024dd58562349be730d43521d2d528ceda163a792cc04e7d6e4c5a3b4d36d4bd66fd6290b126cc12f2a859d659b0c5ad9fbb7f62f6d76a85da18b2d2386bf",
+      "domainHashHex": "0x962b48ff85bee2b7a6b99348a6cdcdbc7ac5073ef007056a3a5d4dedf111c519cbf16ca3dfb1ed66837efe3ff8d5fc44f88a13e44ca88821158ddbebc2a1ae07",
+      "messageHashHex": "0xecb73712b35096f5c3b9ee6b916216423e68191d2d9403da1950eaab66f7143e52cd2399592508c4350fa87cbe74c988f817c79d50c6eb8b9eec71107593e3f0",
+      "digestHex": "0x3226c0e6f4be9a55fdb348a33b7f77064ac3a6ea796de4a8ec439bbc9c6209968c6877dac156512a28787100d0086efbcd2500bcd97014486801a4c166f3474e"
+    },
+    {
+      "label": "approval-other-manager",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultApproval": [
+            {
+              "name": "vault",
+              "type": "address"
+            },
+            {
+              "name": "tx",
+              "type": "VaultTx"
+            }
+          ],
+          "VaultTx": [
+            {
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "name": "txGas",
+              "type": "uint256"
+            },
+            {
+              "name": "baseGas",
+              "type": "uint256"
+            },
+            {
+              "name": "gasPrice",
+              "type": "uint256"
+            },
+            {
+              "name": "gasToken",
+              "type": "address"
+            },
+            {
+              "name": "refundReceiver",
+              "type": "address"
+            },
+            {
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint256"
+            }
+          ]
+        },
+        "primaryType": "VaultApproval",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "1",
+          "verifyingContract": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000123"
+        },
+        "message": {
+          "vault": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69",
+          "tx": {
+            "to": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042",
+            "value": "0",
+            "data": "0x",
+            "operation": 0,
+            "txGas": "0",
+            "baseGas": "0",
+            "gasPrice": "0",
+            "gasToken": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "refundReceiver": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "nonce": "0",
+            "validUntil": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          }
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultApproval(address vault,VaultTx tx)VaultTx(address to,uint256 value,bytes data,uint8 operation,uint256 txGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce,uint256 validUntil)",
+      "typeHashHex": "0x964024dd58562349be730d43521d2d528ceda163a792cc04e7d6e4c5a3b4d36d4bd66fd6290b126cc12f2a859d659b0c5ad9fbb7f62f6d76a85da18b2d2386bf",
+      "domainHashHex": "0x8796eaa205608aa2f17460f9edae9c0f59b02b94550adf9a19385a862ad0c2cbd67cd38b683e5a6ce3b19cdb4ac5b10c29ddc930792a8304437516e7d9d7af03",
+      "messageHashHex": "0x038678b8a13e8c163336ccac0632891b026f451630379a051e23f25b41933c709d3281f8a149a26f3450d1edaad97a2275e04208700c61d9c6a3f90c17d8d307",
+      "digestHex": "0x062bb69783e5a31250bd3bfd88039298ddfbc11c89be7fb4453f38a7ab88ab55eeeb5684a335660b3db355ab8ff1fd592b87e7146155171e55330d3455ec6b7e"
+    },
+    {
+      "label": "approval-other-outer",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultApproval": [
+            {
+              "name": "vault",
+              "type": "address"
+            },
+            {
+              "name": "tx",
+              "type": "VaultTx"
+            }
+          ],
+          "VaultTx": [
+            {
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "name": "txGas",
+              "type": "uint256"
+            },
+            {
+              "name": "baseGas",
+              "type": "uint256"
+            },
+            {
+              "name": "gasPrice",
+              "type": "uint256"
+            },
+            {
+              "name": "gasToken",
+              "type": "address"
+            },
+            {
+              "name": "refundReceiver",
+              "type": "address"
+            },
+            {
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint256"
+            }
+          ]
+        },
+        "primaryType": "VaultApproval",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "1",
+          "verifyingContract": "Qd1e912c7d150bd893b9f276fb205557637d8edc96e8030482d23656c3857c8eec69aa8247e830f279d6d49c35f6c62bfd2b291bd4a62e44b258dbeef56c5e2a0"
+        },
+        "message": {
+          "vault": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000456",
+          "tx": {
+            "to": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042",
+            "value": "0",
+            "data": "0x",
+            "operation": 0,
+            "txGas": "0",
+            "baseGas": "0",
+            "gasPrice": "0",
+            "gasToken": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "refundReceiver": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "nonce": "0",
+            "validUntil": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          }
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultApproval(address vault,VaultTx tx)VaultTx(address to,uint256 value,bytes data,uint8 operation,uint256 txGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce,uint256 validUntil)",
+      "typeHashHex": "0x964024dd58562349be730d43521d2d528ceda163a792cc04e7d6e4c5a3b4d36d4bd66fd6290b126cc12f2a859d659b0c5ad9fbb7f62f6d76a85da18b2d2386bf",
+      "domainHashHex": "0xc87b6c25355392310ac33df318162e0e94e21bb54b1ee4fbc5b485abd45c9d8db5041309c65fdf2e7e3f695f43dee8d56d2b0838bf143f50abf2d519cf2131c6",
+      "messageHashHex": "0xded01473b7aab6e8387e77d5375d4100456bb859659187b5e8fc30042cb567ba449196e9f4f11c3e5ef5491443cb55cde73047386e603ab8cf71940a266059a4",
+      "digestHex": "0x550227bf3bbf8f60b7cd0d2802c2f81b636c793cb3d2dd38870d273faf62b0786bd5a077863b58085dc9dd70f2f6822f96eaf66571ed25f3e89a2885dd93ef23"
+    },
+    {
+      "label": "approval-other-chain",
+      "payload": {
+        "types": {
+          "QRLDomain": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "version",
+              "type": "string"
+            },
+            {
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "name": "verifyingContract",
+              "type": "address"
+            }
+          ],
+          "VaultApproval": [
+            {
+              "name": "vault",
+              "type": "address"
+            },
+            {
+              "name": "tx",
+              "type": "VaultTx"
+            }
+          ],
+          "VaultTx": [
+            {
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "name": "operation",
+              "type": "uint8"
+            },
+            {
+              "name": "txGas",
+              "type": "uint256"
+            },
+            {
+              "name": "baseGas",
+              "type": "uint256"
+            },
+            {
+              "name": "gasPrice",
+              "type": "uint256"
+            },
+            {
+              "name": "gasToken",
+              "type": "address"
+            },
+            {
+              "name": "refundReceiver",
+              "type": "address"
+            },
+            {
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint256"
+            }
+          ]
+        },
+        "primaryType": "VaultApproval",
+        "domain": {
+          "name": "QuantaVault",
+          "version": "1",
+          "chainId": "2",
+          "verifyingContract": "Qd1e912c7d150bd893b9f276fb205557637d8edc96e8030482d23656c3857c8eec69aa8247e830f279d6d49c35f6c62bfd2b291bd4a62e44b258dbeef56c5e2a0"
+        },
+        "message": {
+          "vault": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69",
+          "tx": {
+            "to": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042",
+            "value": "0",
+            "data": "0x",
+            "operation": 0,
+            "txGas": "0",
+            "baseGas": "0",
+            "gasPrice": "0",
+            "gasToken": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "refundReceiver": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "nonce": "0",
+            "validUntil": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          }
+        }
+      },
+      "schemeVersion": "QRL-SIGN-TYPED-v2",
+      "encodeTypeString": "VaultApproval(address vault,VaultTx tx)VaultTx(address to,uint256 value,bytes data,uint8 operation,uint256 txGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce,uint256 validUntil)",
+      "typeHashHex": "0x964024dd58562349be730d43521d2d528ceda163a792cc04e7d6e4c5a3b4d36d4bd66fd6290b126cc12f2a859d659b0c5ad9fbb7f62f6d76a85da18b2d2386bf",
+      "domainHashHex": "0x3ae138b72efdd6022e0e3fffe5e55d19aad273a76fa714780cb73431565e4e866dbcaa1d9c2bdd75d754430f58c798d15100433e4edaa21bcb9558449e6291af",
+      "messageHashHex": "0x038678b8a13e8c163336ccac0632891b026f451630379a051e23f25b41933c709d3281f8a149a26f3450d1edaad97a2275e04208700c61d9c6a3f90c17d8d307",
+      "digestHex": "0x74af5c0a116a803b1f80317336e3af8ec5321584349c9f16ab7709dd1fb131ed3e1bb3d3f2e79ef71a397c09f03862d570e1d1dd513dba16a1044f09731625d9"
+    }
+  ]
+}
