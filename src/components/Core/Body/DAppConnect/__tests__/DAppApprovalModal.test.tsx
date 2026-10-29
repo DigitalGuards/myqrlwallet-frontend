@@ -24,6 +24,8 @@ import { logger } from "@/utils/log";
 import { mockReviewObservers } from "@/test-utils/reviewObserver";
 import { deferred } from "@/test-utils/deferred";
 import { SignTypedDataParamsSchema } from "@/utils/signing";
+import { vaultPayload } from "@/utils/signing/__tests__/quantaVaultFixtures";
+import { isRecord } from "@/utils/guards";
 let visibility: ReturnType<typeof mockReviewObservers>;
 let mockDesktop = true;
 const address = `Q${"a".repeat(128)}`;
@@ -38,7 +40,11 @@ const mockQrlStore = {
 };
 
 jest.mock("@/stores/store", () => ({
-  useStore: () => ({ dappConnectStore: mockDappStore, qrlStore: mockQrlStore }),
+  useStore: () => ({
+    dappConnectStore: mockDappStore,
+    qrlStore: mockQrlStore,
+    tokenStore: { tokenList: [] },
+  }),
 }));
 jest.mock("react-router", () => ({ useNavigate: () => jest.fn() }));
 jest.mock("@/stores/qrlStore", () => ({
@@ -954,5 +960,81 @@ it.each(["qrl_signMessage", "qrl_signTypedData", "qrl_sendTransaction"])(
     expect(checkLockout().isLocked).toBe(true);
     expect(approveRequestSpy).not.toHaveBeenCalled();
     expect(rejectRequestSpy).not.toHaveBeenCalled();
+  },
+);
+
+describe.each([false, true])(
+  "QuantaVault refund gate (desktop=%s)",
+  (desktop) => {
+    beforeEach(() => {
+      mockDesktop = desktop;
+    });
+
+    it.each(["baseGas", "gasPrice", "gasToken", "refundReceiver"])(
+      "blocks %s for direct and nested approvals through button and PIN Enter",
+      async (field) => {
+        const signer = jest
+          .spyOn(desktopSigner, "signTypedData")
+          .mockReturnValue(new Promise(() => undefined));
+        for (const label of ["empty-call", "approval-empty"]) {
+          const payload = vaultPayload(label);
+          const tx =
+            label === "empty-call" ? payload.message : payload.message["tx"];
+          if (!isRecord(tx)) throw new Error("Missing vault transaction");
+          tx[field] =
+            field === "gasToken" || field === "refundReceiver"
+              ? address
+              : "0x1";
+          await showApproval("qrl_signTypedData", [address, payload]);
+          expect(
+            screen.getByText(/the vault will reject this transaction/),
+          ).toBeTruthy();
+          const button = screen.getByRole("button", { name: "Approve" });
+          expect(button.hasAttribute("disabled")).toBe(true);
+          // Exercise a stale enabled DOM element as well as the keyboard path.
+          button.removeAttribute("disabled");
+          await approve();
+          if (!desktop) {
+            const pinInput = screen.getByPlaceholderText("Enter PIN");
+            fireEvent.change(pinInput, { target: { value: "123456" } });
+            await act(async () => {
+              fireEvent.keyDown(pinInput, { key: "Enter" });
+              await Promise.resolve();
+            });
+          }
+          expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+          expect(signer).not.toHaveBeenCalled();
+          expect(approveRequestSpy).not.toHaveBeenCalled();
+          cleanup();
+        }
+      },
+    );
+
+    it("keeps origin and chain warnings nonblocking and passes the same typed payload to the signer", async () => {
+      const signer = jest
+        .spyOn(desktopSigner, "signTypedData")
+        .mockReturnValue(new Promise(() => undefined));
+      const payload = vaultPayload();
+      payload.message["txGas"] = "123456";
+      const pending = await showApproval("qrl_signTypedData", [
+        address,
+        payload,
+      ]);
+      expect(screen.getByText(/self-reported origin is outside/)).toBeTruthy();
+      expect(screen.getByText(/differs from the connected chain/)).toBeTruthy();
+      expect(
+        screen
+          .getByRole("button", { name: "Approve" })
+          .hasAttribute("disabled"),
+      ).toBe(false);
+      await approve();
+      if (desktop)
+        expect(signer).toHaveBeenCalledWith(
+          payload,
+          address,
+          expect.objectContaining({ channelId: pending.sessionId }),
+        );
+      else expect(screen.getByText("Please enter your PIN")).toBeTruthy();
+    });
   },
 );

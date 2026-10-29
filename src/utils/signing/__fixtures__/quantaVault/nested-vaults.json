@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "outer": "Qc71077c5fd97004bf34d2a1cd4773460ae7de3006110d8ebc5aa37b9e6b8caf44e69a59642c4f02c1f08de0754a1294b78b6b9929d0cf21bdfad7b7f105f3d69",
+  "inner": "Qd1e912c7d150bd893b9f276fb205557637d8edc96e8030482d23656c3857c8eec69aa8247e830f279d6d49c35f6c62bfd2b291bd4a62e44b258dbeef56c5e2a0",
+  "outerDigest": "0x2f0a4e2597f5bc2bf5b4b8d1435de807fd52fd3fa2624ff378c88943a65b68d01a007331107e49a489bc111e2702ca1c93b509f55bb0869dfa2054891ae7f32f",
+  "messagePayload": {
+    "types": {
+      "QRLDomain": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        },
+        {
+          "name": "chainId",
+          "type": "uint256"
+        },
+        {
+          "name": "verifyingContract",
+          "type": "address"
+        }
+      ],
+      "VaultMessage": [
+        {
+          "name": "message",
+          "type": "bytes"
+        }
+      ]
+    },
+    "primaryType": "VaultMessage",
+    "domain": {
+      "name": "QuantaVault",
+      "version": "1",
+      "chainId": "1",
+      "verifyingContract": "Qd1e912c7d150bd893b9f276fb205557637d8edc96e8030482d23656c3857c8eec69aa8247e830f279d6d49c35f6c62bfd2b291bd4a62e44b258dbeef56c5e2a0"
+    },
+    "message": {
+      "message": "0x2f0a4e2597f5bc2bf5b4b8d1435de807fd52fd3fa2624ff378c88943a65b68d01a007331107e49a489bc111e2702ca1c93b509f55bb0869dfa2054891ae7f32f"
+    }
+  },
+  "messageDigest": "0x4797b7537d895898fe735c527e429fca2184cf8e500f12e93fc782e147b733ca9e1eb6a8bf4500e0e08e67414a824146e8f0f2b6c133dc9a27f92c31b7385534"
+}

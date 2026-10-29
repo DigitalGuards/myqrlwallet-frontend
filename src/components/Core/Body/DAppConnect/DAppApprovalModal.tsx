@@ -26,6 +26,7 @@ import { Button } from "@/components/UI/Button";
 import DAppTransactionReview from "./DAppTransactionReview";
 import DAppMessageReview from "./DAppMessageReview";
 import DAppTypedDataReview from "./DAppTypedDataReview";
+import { recognizeVaultRequest, vaultApprovalBlocked } from "@/utils/signing/quantaVault";
 import { useReviewVisibility } from "./useReviewVisibility";
 import { reviewGeneration, reviewValueKey } from "./reviewIdentity";
 import { formatDAppRequestError } from "./requestError";
@@ -170,7 +171,7 @@ async function resolveDAppGasLimit(
   return 21000;
 }
 
-/** "Up to N Quanta", the ceiling rather than the expected cost. */
+/** "Up to N Quanta", the approved fee ceiling. */
 function formatMaxNetworkFee(gasLimit: number, maxFeePerGas: bigint): string {
   return formatQuantaValue(BigInt(gasLimit) * maxFeePerGas);
 }
@@ -248,7 +249,7 @@ function assertSigningGenerationCurrent(token: WalletMutationToken): void {
 
 const DAppApprovalModalContent = observer(({ generation }: { generation: number }) => {
   const { t } = useTranslation(["dapps", "common", "settings", "transfer"]);
-  const { dappConnectStore, qrlStore } = useStore();
+  const { dappConnectStore, qrlStore, tokenStore } = useStore();
   const { currentApproval, approvalModalOpen, txProgress, txHash, txError } =
     dappConnectStore;
   /**
@@ -310,8 +311,8 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
   /**
    * Preview for the two signing methods. Read nested observable params on
    * every render so an in-place edit updates the review and its visibility
-   * requirement. Pre-validate so the user sees a clear "this request
-   * is malformed" reason rather than only learning at Approve time.
+   * requirement. Pre-validation gives malformed requests a clear explanation
+   * before the user approves.
    *
    */
   const signingPreview = (() => {
@@ -364,6 +365,8 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     return null;
   })();
 
+  const vaultBlocked = signingPreview?.kind === "typed" && vaultApprovalBlocked(signingPreview.payload);
+
   const domainChainId = signingPreview?.kind === "typed"
     ? signingPreview.payload.domain["chainId"]
     : undefined;
@@ -406,7 +409,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     if (reviewedContent !== reviewContentKey(dappConnectStore.currentApproval,
       qrlStore.activeAccount.accountAddress, qrlStore.qrlConnection.blockchain)) return;
     // Guard every entry path, including PIN Enter and a stale enabled button.
-    if (chainApprovalPending || (requiresChainCheck && web3 !== qrlStore.qrlInstance)) return;
+    if (vaultBlocked || chainApprovalPending || (requiresChainCheck && web3 !== qrlStore.qrlInstance)) return;
     // Synchronous, because `loading` is React state and does not update until
     // the next render: a second Enter in the same tick would otherwise start a
     // second sign and broadcast, and pay twice.
@@ -579,8 +582,8 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
         // Desktop is single-network: main builds/signs/broadcasts against its
         // configured RPC + chain id, so honouring a renderer-side switch would
         // silently sign for a different chain than the dApp expects. Reject
-        // with 4902 (EIP-3326 unrecognized/unavailable chain) instead of
-        // flipping renderer state; 4901 would falsely signal a transient
+        // with 4902 (EIP-3326 unrecognized/unavailable chain) and leave the
+        // renderer state unchanged. Code 4901 would falsely signal a transient
         // provider disconnect and invite reconnect loops.
         if (isDesktop) {
           dappConnectStore.rejectRequestById(
@@ -967,8 +970,8 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
           },
           {
             // Derived from the signed bytes, so it is known before the
-            // broadcast. When the node never answers, this is what the dApp is
-            // given rather than a rejection it would act on by sending again.
+            // broadcast. When the node never answers, the dApp gets this hash,
+            // so it tracks the submitted transaction and does not send it again.
             localHash:
               typeof signedTx.transactionHash === "string"
                 ? signedTx.transactionHash
@@ -1064,9 +1067,8 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             result,
           );
         } catch (e) {
-          // Reject the dApp on a signing failure instead of relying on the
-          // outer catch, so the error message is specific and the request is
-          // always answered (never left hanging).
+          // Reject the dApp here on a signing failure, so the error message is
+          // specific and the request is always answered.
           const errMsg = e instanceof Error ? e.message : String(e);
           setError(`Message signing failed: ${errMsg}`);
           dappConnectStore.rejectRequestById(
@@ -1091,6 +1093,11 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
           return;
         }
         const [signerParam, payload] = parsed.data;
+        if (vaultApprovalBlocked(payload)) {
+          setError(t("dapps:vaultRefundError"));
+          setLoading(false);
+          return;
+        }
         const activeAddress = qrlStore.activeAccount.accountAddress;
         if (!activeAddress) {
           setError("No active account");
@@ -1178,8 +1185,8 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             result,
           );
         } catch (e) {
-          // Reject the dApp on encode/sign failure so its request is answered
-          // rather than left hanging until its own timeout.
+          // Reject the dApp on an encode or sign failure, so its request is
+          // answered before its own timeout.
           const errMsg = e instanceof Error ? e.message : String(e);
           setError(`Typed data signing failed: ${errMsg}`);
           dappConnectStore.rejectRequestById(
@@ -1237,7 +1244,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
       approveInFlightRef.current = false;
       if (isStillCurrent()) setLoading(false);
     }
-  }, [currentApproval, pin, dappConnectStore, qrlStore, blockchain, canApprove, reviewedContent, chainApprovalPending, requiresChainCheck, web3]);
+  }, [currentApproval, pin, dappConnectStore, qrlStore, blockchain, canApprove, reviewedContent, chainApprovalPending, requiresChainCheck, web3, vaultBlocked, t]);
 
   const handleReject = useCallback(() => {
     dappConnectStore.rejectCurrentRequest(
@@ -1584,6 +1591,8 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                   payload={signingPreview.payload}
                   digestHex={signingPreview.digestHex}
                   connectedChainId={connectedChainId}
+                  origin={dappInfo.url}
+                  knownTokens={recognizeVaultRequest(signingPreview.payload) ? tokenStore.tokenList : []}
                 />
               )}
 
@@ -1615,7 +1624,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        if (pin && !loading && !feeApprovalPending && !chainApprovalPending) void handleApprove();
+                        if (pin && !loading && !feeApprovalPending && !chainApprovalPending && !vaultBlocked) void handleApprove();
                       }
                     }}
                     placeholder={t("dapps:enterPin")}
@@ -1655,10 +1664,11 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                 onClick={() => {
                   void handleApprove();
                 }}
-                disabled={loading || feeApprovalPending || chainApprovalPending || !reviewReady}
+                disabled={loading || feeApprovalPending || chainApprovalPending || vaultBlocked || !reviewReady}
                 aria-describedby={[
                   !reviewReady && "approval-visibility-hint",
                   chainApprovalPending && "approval-chain-hint",
+                  vaultBlocked && "vault-refund-error",
                 ].filter(Boolean).join(" ") || undefined}
                 // A transaction cannot be approved before its fee is on
                 // screen: approving while the quote is loading or failed is
