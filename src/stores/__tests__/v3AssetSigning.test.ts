@@ -57,6 +57,7 @@ jest.mock("@/config", () => ({
     TEST_NET_V3: {
       id: "TEST_NET_V3",
       url: "https://v3.example/rpc",
+      explorer: "https://explorer.example",
       expectedChainId: "0x301825",
     },
   },
@@ -294,6 +295,35 @@ it.each([101n, 101, '0x65'])(
     );
   },
 );
+
+it("records the creation hash for the status screen and ignores a superseded attempt's hash", async () => {
+  const { tokens } = assetFixture('ERC20');
+  await tokens.createToken('First', 'ONE', '100', 8, '1000', RECIPIENT, '10', '10', 'test mnemonic');
+  const firstHash = mockHandlers.get('transactionHash');
+  if (!isCallable(firstHash)) throw new Error('Hash handler missing');
+  await tokens.createToken('Second', 'TWO', '100', 8, '1000', RECIPIENT, '10', '10', 'test mnemonic');
+  const secondHash = mockHandlers.get('transactionHash');
+  const failed = mockHandlers.get('error');
+  if (!isCallable(secondHash) || !isCallable(failed)) throw new Error('Creation handlers missing');
+  firstHash(`0x${'e'.repeat(64)}`);
+  expect(tokens.creatingToken.txHash).toBeUndefined();
+  secondHash('../address/not-a-hash');
+  expect(tokens.creatingToken.txHash).toBeUndefined();
+  const hash = `0x${'d'.repeat(64)}`;
+  secondHash(hash);
+  expect(tokens.creatingToken).toMatchObject({ name: 'Second', creating: true, txHash: hash });
+  expect(tokens.creatingToken.txUrl).toBe(`https://explorer.example/tx/${hash}`);
+  const txUrl = tokens.creatingToken.txUrl;
+  // A failure after broadcast keeps the explorer link.
+  failed(new Error('Token creation confirmation timed out.'));
+  await Promise.resolve();
+  expect(tokens.creatingToken).toEqual({
+    name: '', creating: false, error: 'Token creation confirmation timed out.', txHash: hash, txUrl,
+  });
+  // A new attempt starts without the old link.
+  await tokens.setCreatingToken('Third', true);
+  expect(tokens.creatingToken).toEqual({ name: 'Third', creating: true, error: undefined });
+});
 
 it('finishes a creation receipt while its persistence promise remains pending', async () => {
   const { tokens } = assetFixture('ERC20');
