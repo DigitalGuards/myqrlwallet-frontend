@@ -5,6 +5,7 @@
   "nameRequired": "Token-Name ist erforderlich",
   "symbolRequired": "Token-Symbol ist erforderlich",
   "decimalsRequired": "Dezimalstellen sind erforderlich",
+  "decimalsRange": "Eine ganze Zahl von 1 bis 18 verwenden",
   "profanity": "Dieser Name enthält unzulässige Ausdrücke. Bitte einen anderen Namen wählen.",
   "recipientInvalid": "Ungültige Empfängeradresse. Q gefolgt von 128 Hex-Zeichen mit gültiger Prüfsumme verwenden",
   "invalidValue": "Ungültiger Wert",

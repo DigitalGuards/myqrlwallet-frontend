@@ -110,6 +110,8 @@ export function creationValidationMessage(
       return t("creation:symbolRequired");
     case "creation:decimalsRequired":
       return t("creation:decimalsRequired");
+    case "creation:decimalsRange":
+      return t("creation:decimalsRange");
     case "creation:recipientInvalid":
       return t("creation:recipientInvalid");
     case "creation:profanity":

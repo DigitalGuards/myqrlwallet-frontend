@@ -63,7 +63,15 @@ const FormSchema = z
         message: "creation:profanity",
       }),
     initialSupply: z.string(),
-    decimals: z.number().min(1, { message: "creation:decimalsRequired" }),
+    // The factory stores decimals as uint8; the form allows the common
+    // token range of whole numbers from 1 to 18.
+    // An empty field is NaN, which reads as "required"; 0 and values above
+    // 18 get the range message.
+    decimals: z
+      .number({ message: "creation:decimalsRequired" })
+      .int({ message: "creation:decimalsRange" })
+      .min(1, { message: "creation:decimalsRange" })
+      .max(18, { message: "creation:decimalsRange" }),
     mintable: z.boolean(),
     maxSupply: z.string().optional(),
     changeInitialRecipient: z.boolean(),
@@ -431,11 +439,20 @@ export const TokenCreationForm = observer(
                     <FormControl>
                       <Input
                         {...field}
+                        value={
+                          Number.isNaN(field.value) ? "" : String(field.value)
+                        }
                         disabled={isSubmitting}
                         placeholder={t("creation:decimalsPlaceholder")}
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        maxLength={2}
                         onChange={(e) => {
-                          field.onChange(Number(e.target.value));
+                          const digits = e.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 2);
+                          field.onChange(digits === "" ? Number.NaN : Number(digits));
                         }}
                       />
                     </FormControl>

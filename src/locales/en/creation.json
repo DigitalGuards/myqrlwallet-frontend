@@ -5,6 +5,7 @@
   "nameRequired": "Token name is required",
   "symbolRequired": "Token symbol is required",
   "decimalsRequired": "Decimals is required",
+  "decimalsRange": "Use a whole number from 1 to 18",
   "profanity": "This name contains language that isn't allowed. Please choose a different name.",
   "recipientInvalid": "Invalid recipient address. Use Q followed by 128 hex characters with a valid checksum",
   "invalidValue": "Invalid value",

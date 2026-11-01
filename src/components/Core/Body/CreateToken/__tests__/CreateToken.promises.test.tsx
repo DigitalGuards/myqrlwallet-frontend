@@ -17,6 +17,10 @@ const mockCreate = jest.fn<Promise<void>, unknown[]>();
 const mockSetCreating = jest.fn<Promise<void>, [string, boolean]>();
 const mockAdd = jest.fn<Promise<TokenInterface | null>, [TokenInterface]>();
 const mockCopy = jest.fn<Promise<boolean>, [string]>();
+let mockCreating: { name: string; creating: boolean; txHash?: string } = {
+  name: "Test token",
+  creating: false,
+};
 const mockStore = {
   qrlStore: {
     activeAccount: { accountAddress: `Q${"1".repeat(128)}` },
@@ -27,7 +31,9 @@ const mockStore = {
     createToken: mockCreate,
     setCreatingToken: mockSetCreating,
     addToken: mockAdd,
-    creatingToken: { name: "Test token", creating: false },
+    get creatingToken() {
+      return mockCreating;
+    },
     createdToken: {
       name: "Test token",
       symbol: "TOK",
@@ -99,11 +105,17 @@ beforeEach(() => {
   mockSetCreating.mockResolvedValue();
   mockAdd.mockImplementation((token) => Promise.resolve(token));
   mockCopy.mockResolvedValue(true);
+  mockCreating = { name: "Test token", creating: false };
 });
 afterEach(cleanup);
 
-async function submitToken() {
+async function submitToken(decimals?: string) {
   render(<CreateToken />);
+  if (decimals !== undefined) {
+    fireEvent.change(screen.getByPlaceholderText("Example: 18"), {
+      target: { value: decimals },
+    });
+  }
   fireEvent.change(screen.getByPlaceholderText("Example: MyQRLWallet"), {
     target: { value: "Test token" },
   });
@@ -226,4 +238,50 @@ it("labels the token creation fee in Quanta as Network fee", () => {
     "Network fee0.000021 Quanta",
   );
   expect(screen.queryByText(/gas used/i)).toBeNull();
+});
+
+
+it("keeps decimals to whole numbers from 1 to 18", async () => {
+  render(<CreateToken />);
+  const decimals = screen.getByPlaceholderText("Example: 18");
+  if (!(decimals instanceof HTMLInputElement)) throw new Error("Missing decimals input");
+  expect(decimals.getAttribute("inputmode")).toBe("numeric");
+  fireEvent.change(decimals, { target: { value: "7477474746464646" } });
+  expect(decimals.value).toBe("74");
+  expect(await screen.findByText("Use a whole number from 1 to 18")).toBeTruthy();
+  fireEvent.change(decimals, { target: { value: "1.5e8" } });
+  expect(decimals.value).toBe("15");
+  await waitFor(() => {
+    expect(screen.queryByText("Use a whole number from 1 to 18")).toBeNull();
+  });
+  fireEvent.change(decimals, { target: { value: "0" } });
+  expect(decimals.value).toBe("0");
+  expect(await screen.findByText("Use a whole number from 1 to 18")).toBeTruthy();
+  fireEvent.change(decimals, { target: { value: "" } });
+  expect(decimals.value).toBe("");
+  expect(await screen.findByText("Decimals is required")).toBeTruthy();
+});
+
+it("creates with the decimals the user entered", async () => {
+  await submitToken("8");
+  await waitFor(() => {
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+  expect(mockCreate.mock.calls[0]?.slice(2, 5)).toEqual([
+    "100000000",
+    8,
+    "100000000",
+  ]);
+});
+
+it("links a pending creation to the explorer once its hash is known", () => {
+  mockCreating = { name: "Test token", creating: true };
+  const { unmount } = render(<TokenStatus />);
+  expect(screen.queryByRole("link", { name: "View on Explorer" })).toBeNull();
+  unmount();
+  mockCreating = { name: "Test token", creating: true, txHash: `0x${"c".repeat(64)}` };
+  render(<TokenStatus />);
+  expect(
+    screen.getByRole("link", { name: "View on Explorer" }).getAttribute("href"),
+  ).toBe(`https://explorer.example/tx/0x${"c".repeat(64)}`);
 });

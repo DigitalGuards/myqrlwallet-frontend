@@ -5005,7 +5005,7 @@ exports[`creation validation decimals 1`] = `
       ],
     ],
   ],
-  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsDecimals is requiredMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsUse a whole number from 1 to 18MintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
   "title": "Create QRC20 Token | MyQRLWallet",
   "values": [
     "Untranslated Token",

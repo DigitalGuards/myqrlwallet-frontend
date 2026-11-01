@@ -295,6 +295,23 @@ it.each([101n, 101, '0x65'])(
   },
 );
 
+it('records the creation hash for the pending screen and ignores a superseded attempt', async () => {
+  const { tokens } = assetFixture('ERC20');
+  await tokens.createToken('First', 'ONE', '100', 8, '1000', RECIPIENT, '10', '10', 'test mnemonic');
+  const firstHash = mockHandlers.get('transactionHash');
+  if (!isCallable(firstHash)) throw new Error('Hash handler missing');
+  await tokens.createToken('Second', 'TWO', '100', 8, '1000', RECIPIENT, '10', '10', 'test mnemonic');
+  const secondHash = mockHandlers.get('transactionHash');
+  if (!isCallable(secondHash)) throw new Error('Hash handler missing');
+  firstHash(`0x${'e'.repeat(64)}`);
+  expect(tokens.creatingToken.txHash).toBeUndefined();
+  secondHash(`0x${'d'.repeat(64)}`);
+  expect(tokens.creatingToken).toEqual({ name: 'Second', creating: true, txHash: `0x${'d'.repeat(64)}` });
+  await tokens.setCreatingToken('', false);
+  secondHash(`0x${'f'.repeat(64)}`);
+  expect(tokens.creatingToken.txHash).toBeUndefined();
+});
+
 it('finishes a creation receipt while its persistence promise remains pending', async () => {
   const { tokens } = assetFixture('ERC20');
   const persisted = deferred();

@@ -5,6 +5,7 @@
   "nameRequired": "El nombre del token es obligatorio",
   "symbolRequired": "El símbolo del token es obligatorio",
   "decimalsRequired": "Los decimales son obligatorios",
+  "decimalsRange": "Usa un número entero del 1 al 18",
   "profanity": "Este nombre contiene lenguaje no permitido. Elige otro nombre.",
   "recipientInvalid": "Dirección del destinatario no válida. Usa Q seguida de 128 caracteres hexadecimales con una suma de verificación válida",
   "invalidValue": "Valor no válido",

@@ -58,6 +58,8 @@ type CreatingTokenType = {
   name: string;
   creating: boolean;
   error?: string;
+  /** Broadcast hash while the creation waits for its receipt. */
+  txHash?: string;
 };
 
 type CreatedTokenType = {
@@ -98,6 +100,7 @@ class TokenStore {
   // fetch resolves so the digits settle visibly.
   isRefreshingBalances = false;
   _balanceRequestId = 0;
+  _creationRequestId = 0;
 
   constructor(private qrlStore: QrlStore) {
     makeAutoObservable(this, {
@@ -108,9 +111,11 @@ class TokenStore {
       discoveredTokens: observable.struct,
       isRefreshingBalances: observable,
       _balanceRequestId: false,
+      _creationRequestId: false,
       visibleTokenList: computed,
       pendingDiscoveredTokens: computed,
       setCreatingToken: action.bound,
+      setCreatingTokenHash: action.bound,
       setCreatedToken: action.bound,
       addToken: action.bound,
       removeToken: action.bound,
@@ -308,6 +313,12 @@ class TokenStore {
     });
   }
 
+  /** Records the broadcast hash so the pending screen can link to the explorer. */
+  setCreatingTokenHash(request: number, txHash: string): void {
+    if (request !== this._creationRequestId || !this.creatingToken.creating) return;
+    this.creatingToken = { ...this.creatingToken, txHash };
+  }
+
   async setCreatedToken(
     name: string,
     symbol: string,
@@ -502,6 +513,7 @@ class TokenStore {
     mnemonicPhrases: string,
   ) {
     this.qrlStore.resetTransactionStatus();
+    const creationRequest = ++this._creationRequestId;
     const signingGeneration = isDesktop
       ? null
       : walletMutations.captureGeneration();
@@ -650,6 +662,13 @@ class TokenStore {
         void this.setCreatingToken("", false, error.message || "Transaction failed");
       };
 
+      const transactionHashHandler = (hash: unknown) => {
+        if (typeof hash === "string") this.setCreatingTokenHash(creationRequest, hash);
+        else if (hash instanceof Uint8Array) {
+          this.setCreatingTokenHash(creationRequest, utils.bytesToHex(hash));
+        }
+      };
+
       const customERC20Factorycontract = new web3.qrl.Contract(
         customERC20FactoryABI,
         contractAddress,
@@ -679,6 +698,7 @@ class TokenStore {
           data,
         });
         log(`Desktop token creation broadcast with hash: ${transactionHash}`);
+        this.setCreatingTokenHash(creationRequest, transactionHash);
         // Poll for the receipt (the signer/main already broadcast it).
         const maxAttempts = 60;
         const pollInterval = 5000;
@@ -722,6 +742,7 @@ class TokenStore {
         }, undefined, {
           checkRevertBeforeSending: true,
         })
+        .on("transactionHash", transactionHashHandler)
         .on("confirmation", confirmationHandler)
         .on("receipt", receiptHandler)
         .on("error", errorHandler);

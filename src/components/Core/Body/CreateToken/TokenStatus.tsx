@@ -133,6 +133,18 @@ const TokenStatus = observer(() => {
                   {t("creation:deploying")}
                 </p>
               </div>
+              {creatingToken.txHash && (
+                <a
+                  href={`${explorerUrl}/tx/${creatingToken.txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={creatingToken.txHash}
+                  className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
+                >
+                  {t("transfer:viewExplorer")}
+                  <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
+                </a>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -5,6 +5,7 @@
   "nameRequired": "请输入代币名称",
   "symbolRequired": "请输入代币符号",
   "decimalsRequired": "请输入小数位数",
+  "decimalsRange": "请输入 1 到 18 之间的整数",
   "profanity": "此名称包含不允许的用语。请选择其他名称。",
   "recipientInvalid": "收款人地址无效。请使用 Q 后接 128 个十六进制字符，且校验和必须有效",
   "invalidValue": "无效值",
