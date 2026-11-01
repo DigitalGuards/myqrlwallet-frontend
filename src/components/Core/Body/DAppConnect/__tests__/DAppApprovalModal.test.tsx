@@ -1075,3 +1075,14 @@ describe.each([false, true])(
     });
   },
 );
+
+it.each(["12a4", "123", "1234567"])("refuses the malformed PIN %p without spending an unlock attempt", async (pin) => {
+  mockDesktop = false;
+  await showApproval("qrl_signMessage");
+  const input = screen.getByPlaceholderText("Enter PIN");
+  expect(input.hasAttribute("maxlength")).toBe(false);
+  fireEvent.change(input, { target: { value: pin } });
+  await approve();
+  expect(screen.getByText("PIN must be 4 to 6 digits")).toBeTruthy();
+  expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+});

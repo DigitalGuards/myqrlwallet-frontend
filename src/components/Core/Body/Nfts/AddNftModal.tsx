@@ -41,6 +41,11 @@ import {
 import { formatAddressFingerprint } from "@/utils/formatting";
 import type { NFTInterface } from "@/constants";
 
+/** A token ID as plain decimal digits within uint256, so one NFT has one stored form. */
+function isTokenIdText(text: string): boolean {
+  return /^(0|[1-9]\d{0,77})$/.test(text) && BigInt(text) <= 2n ** 256n - 1n;
+}
+
 interface AddNftModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -223,6 +228,11 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
             setIsAdding(false);
             return;
           }
+          if (!isTokenIdText(tokenId.trim())) {
+            setError({ key: "nfts:tokenIdInvalid" });
+            setIsAdding(false);
+            return;
+          }
           const owned = await isErc721Owner(
             contractAddress,
             accountAddress,
@@ -240,6 +250,11 @@ export const AddNftModal = observer(({ isOpen, onClose }: AddNftModalProps) => {
         // ERC-1155 requires explicit tokenId.
         if (!tokenId.trim()) {
           setError({ key: "nfts:id1155" });
+          setIsAdding(false);
+          return;
+        }
+        if (!isTokenIdText(tokenId.trim())) {
+          setError({ key: "nfts:tokenIdInvalid" });
           setIsAdding(false);
           return;
         }

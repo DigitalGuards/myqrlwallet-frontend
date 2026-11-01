@@ -141,3 +141,16 @@ it("preserves the error text and stored wallet when activation rejects", async (
   expect(notifySeedStored).toHaveBeenCalledTimes(1);
   expect(screen.queryByRole("button", { name: "Encrypting..." })).toBeNull();
 });
+
+it("refuses a password longer than the backup encryption accepts", async () => {
+  render(<AccountCreationForm onAccountCreated={mockCreated} />);
+  const password = await screen.findByPlaceholderText("Password");
+  fireEvent.change(password, { target: { value: `Aa1!${"x".repeat(1021)}` } });
+  expect(
+    await screen.findByText("Password must be at most 1024 characters"),
+  ).toBeTruthy();
+  fireEvent.change(password, { target: { value: `Aa1!${"x".repeat(1020)}` } });
+  await waitFor(() => {
+    expect(screen.queryByText("Password must be at most 1024 characters")).toBeNull();
+  });
+});

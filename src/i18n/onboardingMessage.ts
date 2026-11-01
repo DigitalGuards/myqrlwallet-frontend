@@ -114,6 +114,8 @@ export function onboardingMessage(
     case "Password must be at least 8 characters":
     case "onboarding:passwordMin":
       return t("onboarding:passwordMin");
+    case "onboarding:passwordMax":
+      return t("onboarding:passwordMax");
     case "Password must contain at least one uppercase letter":
     case "onboarding:passwordUpper":
       return t("onboarding:passwordUpper");
@@ -165,6 +167,8 @@ export function onboardingMessage(
     case "Invalid hex seed format. Must start with '0x' followed by hex characters":
     case "onboarding:hexFormat":
       return t("onboarding:hexFormat");
+    case "onboarding:hexLength":
+      return t("onboarding:hexLength");
     case "Failed to derive mnemonic from hex seed":
     case "onboarding:hexMnemonicFailed":
       return t("onboarding:hexMnemonicFailed");

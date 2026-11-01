@@ -591,5 +591,11 @@
   "dapps:vaultExpiredWarning": "Nonblocking expiry warning based on the device clock. validUntil is expired only when strictly earlier than the current timestamp, including zero. The vault rejects expired approvals with GS014; device clock uncertainty keeps approval available.",
   "dapps:vaultInvalidOperationWarning": "The vault accepts only Call (0) and DelegateCall (1). An unsupported operation cannot execute. Calldata is still decoded for review.",
   "dapps:vaultUnlimitedAllowance": "Warn for a QRC-20 approve amount equal to the maximum uint256 value. This grants the spender an unlimited allowance over the vault balance of this token.",
-  "dapps:vaultZeroTarget": "A packed batch entry specified the zero address. Its displayed effective destination is the executing contract: the vault for DelegateCall or the batch contract for Call. VaultApproval uses the outer executing vault."
+  "dapps:vaultZeroTarget": "A packed batch entry specified the zero address. Its displayed effective destination is the executing contract: the vault for DelegateCall or the batch contract for Call. VaultApproval uses the outer executing vault.",
+  "transfer:amountComma": "Send form validation. The wallet uses a dot as the decimal separator; a comma is refused because it may be a thousands separator. Keep (.) exactly.",
+  "transfer:amountTooLarge": "Send form validation: the typed amount is far too long to be a valid amount.",
+  "nfts:tokenIdInvalid": "Add NFT validation: the token ID must be a plain decimal whole number. Keep 0 and 9 unchanged.",
+  "onboarding:hexLength": "Hex seed import validation: a seed is 0x followed by exactly 102 hexadecimal characters. Keep 0x and 102 unchanged.",
+  "onboarding:passwordMax": "Password validation: at most 1024 characters. Keep the number 1024.",
+  "contacts:nameInvalid": "Address book validation: a contact name has at most 40 characters and no hidden or control characters. Keep the number 40."
 }

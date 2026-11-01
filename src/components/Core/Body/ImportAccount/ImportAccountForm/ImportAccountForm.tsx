@@ -111,6 +111,9 @@ export const ImportAccountForm = ({
                       {...field}
                       placeholder={t("onboarding:mnemonicPlaceholder")}
                       autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
                     />
                   </FormControl>
                   <FormDescription>

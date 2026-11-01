@@ -194,5 +194,7 @@
   "typeErrorReason": "Error de tipo: {{reason}}",
   "storedArrayExpected": "Se esperaba un arreglo",
   "storedStringExpected": "Se esperaba una cadena de texto",
-  "storedTokenListInvalid": "Lista de tokens no válida"
+  "storedTokenListInvalid": "Lista de tokens no válida",
+  "hexLength": "Una semilla hexadecimal es 0x seguido de 102 caracteres hexadecimales",
+  "passwordMax": "La contraseña puede tener como máximo 1024 caracteres"
 }

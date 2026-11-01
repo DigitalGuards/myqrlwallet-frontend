@@ -118,7 +118,13 @@ const Transfer = observer(() => {
         .object({
           asset: z.string().min(1, "transfer:selectAssetRequired"),
           receiverAddress: z.string().min(1, "transfer:receiverRequired"),
-          amount: z.string().regex(/^\d*\.?\d+$/, "transfer:decimalAmount")
+          // The amount is validated as typed and never rewritten. The wallet
+          // groups thousands with commas, so a comma is refused: converting it
+          // would sign 1 for a pasted "1,000".
+          amount: z.string()
+            .refine((value) => !value.includes(","), "transfer:amountComma")
+            .refine((value) => value.length <= 100, "transfer:amountTooLarge")
+            .regex(/^\d*\.?\d+$/, "transfer:decimalAmount")
             .refine((value) => new BigNumber(value).gt(0), "transfer:positiveAmount"),
           pin: z.string().optional(),
         })
@@ -1038,25 +1044,23 @@ const Transfer = observer(() => {
                               disabled={isSubmitting}
                               value={amountInputValue}
                               onChange={(e) => {
-                                const value = e.target.value.replace(",", ".");
-                                if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                                  setPercentageQuote(null);
-                                  setAmountInputValue(value);
-                                  const numValue =
-                                    value === "" ? 0 : parseFloat(value) || 0;
-                                  field.onChange(value);
-                                  if (
-                                    maxSendableBalance &&
-                                    parseFloat(toTemplateString(maxSendableBalance)) > 0
-                                  ) {
-                                    const percentage = Math.min(
+                                const value = e.target.value;
+                                setPercentageQuote(null);
+                                setAmountInputValue(value);
+                                const numValue =
+                                  value === "" ? 0 : parseFloat(value) || 0;
+                                field.onChange(value);
+                                if (
+                                  maxSendableBalance &&
+                                  parseFloat(toTemplateString(maxSendableBalance)) > 0
+                                ) {
+                                  const percentage = Math.min(
+                                    100,
+                                    (numValue /
+                                      parseFloat(toTemplateString(maxSendableBalance))) *
                                       100,
-                                      (numValue /
-                                        parseFloat(toTemplateString(maxSendableBalance))) *
-                                        100,
-                                    );
-                                    setSliderValue(Math.round(percentage));
-                                  }
+                                  );
+                                  setSliderValue(Math.round(percentage));
                                 }
                               }}
                             />

@@ -7,6 +7,7 @@ import {
   PinVerificationError,
   verifyPinWithLimit,
 } from "@/utils/crypto/verifyPinWithLimit";
+import { MAX_WALLET_PASSWORD_LENGTH } from "@/utils/crypto/walletPasswordLimits";
 import { useState, useEffect, useRef } from "react";
 import { ShinyButton } from "@/components/UI/ShinyButton";
 import { Card, CardContent, CardFooter } from "@/components/UI/Card";
@@ -49,6 +50,7 @@ import { DeviceCredentialRecovery } from "../../PinSetup/DeviceCredentialRecover
 const passwordValidation = z
   .string()
   .superRefine(minUtf16Length(8, "onboarding:passwordMin"))
+  .max(MAX_WALLET_PASSWORD_LENGTH, "onboarding:passwordMax")
   .regex(/[A-Z]/, "onboarding:passwordUpper")
   .regex(/[a-z]/, "onboarding:passwordLower")
   .regex(/\d/, "onboarding:passwordNumber")

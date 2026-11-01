@@ -194,5 +194,7 @@
   "typeErrorReason": "TypeError: {{reason}}",
   "storedArrayExpected": "Expected an array",
   "storedStringExpected": "Expected a string",
-  "storedTokenListInvalid": "Invalid token list"
+  "storedTokenListInvalid": "Invalid token list",
+  "hexLength": "A hex seed is 0x followed by 102 hex characters",
+  "passwordMax": "Password must be at most 1024 characters"
 }

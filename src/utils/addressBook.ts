@@ -66,11 +66,20 @@ export function findByAddress(address: string): AddressBookEntry | undefined {
   return loadAddressBook().find((e) => e.address.toLowerCase() === needle);
 }
 
+export const CONTACT_NAME_MAX = 40;
+export const CONTACT_NAME_INVALID = "Name has hidden characters or is too long";
+
+/** Up to 40 characters, none of them control, format (bidi or zero-width) or unassigned. */
+export function isValidContactName(name: string): boolean {
+  return Array.from(name).length <= CONTACT_NAME_MAX && !/\p{C}/u.test(name);
+}
+
 /** Add a contact. Returns the new entry, or an error message string. */
 export function addEntry(name: string, address: string): AddressBookEntry | string {
   const cleanName = name.trim();
   const cleanAddress = address.trim();
   if (!cleanName) return "Name is required";
+  if (!isValidContactName(cleanName)) return CONTACT_NAME_INVALID;
   const normalizedAddress = normalizeQrlAddress(cleanAddress);
   if (!normalizedAddress) return "Not a valid QRL address (Q + 128 hex characters)";
   if (findByAddress(normalizedAddress)) return "This address is already saved";
@@ -87,7 +96,7 @@ export function addEntry(name: string, address: string): AddressBookEntry | stri
 /** Rename a contact. Returns true when an entry was updated. */
 export function renameEntry(id: string, name: string): boolean {
   const cleanName = name.trim();
-  if (!cleanName) return false;
+  if (!cleanName || !isValidContactName(cleanName)) return false;
   const entries = loadAddressBook();
   const target = entries.find((e) => e.id === id);
   if (!target) return false;

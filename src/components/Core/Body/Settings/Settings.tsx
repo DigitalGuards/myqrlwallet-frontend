@@ -74,7 +74,7 @@ type SettingsFormValues = {
 
 const SettingsFormSchema: z.ZodType<SettingsFormValues, SettingsFormValues> =
   z.object({
-    autoLockTimeout: z.number().min(1).max(60),
+    autoLockTimeout: z.number().int().min(1).max(60),
     showTokensCard: z.boolean(),
     showNftsCard: z.boolean(),
   });

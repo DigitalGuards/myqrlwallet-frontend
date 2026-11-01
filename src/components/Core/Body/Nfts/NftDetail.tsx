@@ -189,8 +189,14 @@ const NftDetail = observer(() => {
       return;
     }
 
+    // Digits only: BigInt would also read "0x10" as 16.
+    if (/^-\d+$/.test(amount)) {
+      setSendError({ key: "nfts:positiveAmount" });
+      return;
+    }
     let amountBig: bigint;
     try {
+      if (!/^\d{1,78}$/.test(amount)) throw new Error("Not a whole number");
       amountBig = BigInt(amount);
     } catch {
       setSendError({ key: "nfts:wholeAmount" });
