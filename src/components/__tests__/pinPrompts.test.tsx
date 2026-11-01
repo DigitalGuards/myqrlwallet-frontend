@@ -206,6 +206,7 @@ async function prompt(kind: string): Promise<HTMLElement> {
   render(<TokenCreationForm onTokenCreated={mockCreated} />);
   fill(screen.getByPlaceholderText("Example: MyQRLWallet"), "Token");
   fill(screen.getByPlaceholderText("Example: MQW"), "TOK");
+  fill(screen.getByPlaceholderText("Example: 1000000000"), "1000");
   return screen.getByLabelText("Enter your PIN");
 }
 

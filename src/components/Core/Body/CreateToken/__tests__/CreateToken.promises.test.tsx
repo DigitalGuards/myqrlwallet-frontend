@@ -17,7 +17,13 @@ const mockCreate = jest.fn<Promise<void>, unknown[]>();
 const mockSetCreating = jest.fn<Promise<void>, [string, boolean]>();
 const mockAdd = jest.fn<Promise<TokenInterface | null>, [TokenInterface]>();
 const mockCopy = jest.fn<Promise<boolean>, [string]>();
-let mockCreating: { name: string; creating: boolean; txHash?: string } = {
+let mockCreating: {
+  name: string;
+  creating: boolean;
+  error?: string;
+  txHash?: string;
+  txUrl?: string;
+} = {
   name: "Test token",
   creating: false,
 };
@@ -78,7 +84,7 @@ jest.mock("@/utils/crypto", () => ({
 jest.mock("@/desktop/bridge", () => ({ isDesktop: true }));
 jest.mock("@/utils/web3", () => ({
   QRL_ZERO_ADDRESS: `Q${"0".repeat(128)}`,
-  isValidQrlAddress: () => true,
+  isValidQrlAddress: (value: string) => /^Q[0-9a-f]{128}$/i.test(value),
 }));
 jest.mock("@/utils/nativeApp", () => ({
   copyToClipboard: (text: string) => mockCopy(text),
@@ -241,24 +247,27 @@ it("labels the token creation fee in Quanta as Network fee", () => {
 });
 
 
-it("keeps decimals to whole numbers from 1 to 18", async () => {
+it("keeps decimals to whole numbers from 1 to 18 and never rewrites the input", async () => {
   render(<CreateToken />);
   const decimals = screen.getByPlaceholderText("Example: 18");
   if (!(decimals instanceof HTMLInputElement)) throw new Error("Missing decimals input");
   expect(decimals.getAttribute("inputmode")).toBe("numeric");
-  fireEvent.change(decimals, { target: { value: "7477474746464646" } });
-  expect(decimals.value).toBe("74");
-  expect(await screen.findByText("Use a whole number from 1 to 18")).toBeTruthy();
-  fireEvent.change(decimals, { target: { value: "1.5e8" } });
-  expect(decimals.value).toBe("15");
+  expect(decimals.getAttribute("maxlength")).toBeNull();
+  for (const value of ["7477474746464646", "1.5", "1e8", "0", "19", "abc"]) {
+    // Start each case from a valid value so a stale message cannot pass it.
+    fireEvent.change(decimals, { target: { value: "8" } });
+    await waitFor(() => {
+      expect(screen.queryByText("Use a whole number from 1 to 18")).toBeNull();
+    });
+    fireEvent.change(decimals, { target: { value } });
+    expect(decimals.value).toBe(value);
+    expect(await screen.findByText("Use a whole number from 1 to 18")).toBeTruthy();
+  }
+  fireEvent.change(decimals, { target: { value: " 18" } });
   await waitFor(() => {
     expect(screen.queryByText("Use a whole number from 1 to 18")).toBeNull();
   });
-  fireEvent.change(decimals, { target: { value: "0" } });
-  expect(decimals.value).toBe("0");
-  expect(await screen.findByText("Use a whole number from 1 to 18")).toBeTruthy();
   fireEvent.change(decimals, { target: { value: "" } });
-  expect(decimals.value).toBe("");
   expect(await screen.findByText("Decimals is required")).toBeTruthy();
 });
 
@@ -274,14 +283,131 @@ it("creates with the decimals the user entered", async () => {
   ]);
 });
 
-it("links a pending creation to the explorer once its hash is known", () => {
+it("links a creation to the explorer once its hash is known, also after a failure", () => {
+  const txHash = `0x${"c".repeat(64)}`;
+  const txUrl = `https://explorer.example/tx/${txHash}`;
   mockCreating = { name: "Test token", creating: true };
   const { unmount } = render(<TokenStatus />);
   expect(screen.queryByRole("link", { name: "View on Explorer" })).toBeNull();
   unmount();
-  mockCreating = { name: "Test token", creating: true, txHash: `0x${"c".repeat(64)}` };
-  render(<TokenStatus />);
+  mockCreating = { name: "Test token", creating: true, txHash, txUrl };
+  const pending = render(<TokenStatus />);
   expect(
     screen.getByRole("link", { name: "View on Explorer" }).getAttribute("href"),
-  ).toBe(`https://explorer.example/tx/0x${"c".repeat(64)}`);
+  ).toBe(txUrl);
+  pending.unmount();
+  mockCreating = {
+    name: "",
+    creating: false,
+    error: "Token creation confirmation timed out.",
+    txHash,
+    txUrl,
+  };
+  render(<TokenStatus />);
+  expect(screen.getByRole("heading").textContent).toBe("Token Creation Failed");
+  expect(
+    screen.getByRole("link", { name: "View on Explorer" }).getAttribute("href"),
+  ).toBe(txUrl);
+});
+
+it.each([
+  ["Example: MyQRLWallet", "x".repeat(51), "Use up to 50 characters, without hidden or control characters"],
+  ["Example: MyQRLWallet", "Bad\u202Ename", "Use up to 50 characters, without hidden or control characters"],
+  ["Example: MQW", "MQ-W", "Use up to 11 letters or digits (A to Z, 0 to 9)"],
+  ["Example: MQW", "ABCDEFGHIJKL", "Use up to 11 letters or digits (A to Z, 0 to 9)"],
+  ["Example: 1000000000", "1,000", "Enter a plain number, such as 1000 or 0.5"],
+  ["Example: 1000000000", "1e5", "Enter a plain number, such as 1000 or 0.5"],
+  ["Example: 1000000000", "-5", "Enter a plain number, such as 1000 or 0.5"],
+  ["Example: 1000000000", "0.1234567890123456789", "Too many decimal places for the token's decimals"],
+  ["Example: 1000000000", "9".repeat(80), "This number is too large for a token"],
+  ["Example: 1000000000", "0", "Enter an amount above 0"],
+])("rejects %s input %p as typed", async (placeholder, value, message) => {
+  render(<CreateToken />);
+  const input = screen.getByPlaceholderText(placeholder);
+  if (!(input instanceof HTMLInputElement)) throw new Error("Missing input");
+  fireEvent.change(input, { target: { value } });
+  expect(input.value).toBe(value);
+  expect(await screen.findByText(message)).toBeTruthy();
+});
+
+it("requires a mintable max supply of at least the initial supply", async () => {
+  render(<CreateToken />);
+  fireEvent.change(screen.getByPlaceholderText("Example: 1000000000"), {
+    target: { value: "100" },
+  });
+  fireEvent.click(screen.getByRole("checkbox", { name: "Mintable" }));
+  const max = await screen.findByPlaceholderText("Example: 999999999");
+  fireEvent.change(max, { target: { value: "50" } });
+  expect(
+    await screen.findByText("Max supply must be at least the initial supply"),
+  ).toBeTruthy();
+  fireEvent.change(max, { target: { value: "" } });
+  expect(await screen.findByText("Enter an amount above 0")).toBeTruthy();
+  fireEvent.change(max, { target: { value: "100" } });
+  await waitFor(() => {
+    expect(screen.queryByText("Enter an amount above 0")).toBeNull();
+  });
+  expect(
+    screen.queryByText("Max supply must be at least the initial supply"),
+  ).toBeNull();
+});
+
+it("rejects a missing or zero recipient once the recipient is changed", async () => {
+  render(<CreateToken />);
+  const message =
+    "Invalid recipient address. Use Q followed by 128 hex characters with a valid checksum";
+  fireEvent.click(screen.getByRole("checkbox", { name: "Change Initial recipient" }));
+  const recipient = await screen.findByPlaceholderText("Q followed by 128 hex characters");
+  fireEvent.change(recipient, { target: { value: "Q123" } });
+  expect(await screen.findByText(message)).toBeTruthy();
+  fireEvent.change(recipient, { target: { value: `Q${"1".repeat(128)}` } });
+  await waitFor(() => {
+    expect(screen.queryByText(message)).toBeNull();
+  });
+  fireEvent.change(recipient, { target: { value: "" } });
+  expect(await screen.findByText(message)).toBeTruthy();
+  fireEvent.change(recipient, { target: { value: `Q${"1".repeat(128)}` } });
+  await waitFor(() => {
+    expect(screen.queryByText(message)).toBeNull();
+  });
+  fireEvent.change(recipient, { target: { value: `Q${"0".repeat(128)}` } });
+  expect(await screen.findByText(message)).toBeTruthy();
+});
+
+it("does not deploy a cap or max supply that was typed and then switched off", async () => {
+  render(<CreateToken />);
+  fireEvent.change(screen.getByPlaceholderText("Example: MyQRLWallet"), {
+    target: { value: "Test token" },
+  });
+  fireEvent.change(screen.getByPlaceholderText("Example: MQW"), {
+    target: { value: "TOK" },
+  });
+  fireEvent.change(screen.getByPlaceholderText("Example: 1000000000"), {
+    target: { value: "1" },
+  });
+  for (const name of ["Mintable", "Max Wallet Amount", "Max Transaction Limit"]) {
+    fireEvent.click(screen.getByRole("checkbox", { name }));
+  }
+  for (const input of await screen.findAllByPlaceholderText("Example: 999999999")) {
+    fireEvent.change(input, { target: { value: "5" } });
+  }
+  for (const name of ["Mintable", "Max Wallet Amount", "Max Transaction Limit"]) {
+    fireEvent.click(screen.getByRole("checkbox", { name }));
+  }
+  const submit = screen.getByRole("button", { name: "Create Token" });
+  await waitFor(() => {
+    expect(submit.getAttribute("disabled")).toBeNull();
+  });
+  fireEvent.click(submit);
+  await waitFor(() => {
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+  expect(mockCreate.mock.calls[0]?.slice(2, 8)).toEqual([
+    "1000000000000000000",
+    18,
+    "1000000000000000000",
+    `Q${"0".repeat(128)}`,
+    "0",
+    "0",
+  ]);
 });

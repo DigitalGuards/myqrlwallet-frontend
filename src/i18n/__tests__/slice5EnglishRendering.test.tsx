@@ -342,6 +342,7 @@ async function creation() {
     "Untranslated Token",
   );
   await change(screen.getByPlaceholderText("Example: MQW"), "EX");
+  await change(screen.getByPlaceholderText("Example: 1000000000"), "1000");
 }
 
 it.each(["empty", "seed", "extension", "mobile", "desktop"])(
@@ -369,14 +370,14 @@ it("creation all fields and real value", async () => {
     });
   await change(
     required(
-      screen.getAllByPlaceholderText("Example: 999,999,999,999,999,999")[0],
+      screen.getAllByPlaceholderText("Example: 999999999")[0],
     ),
     "1000000000000000000",
   );
   snapshot();
   await change(
     required(
-      screen.getAllByPlaceholderText("Example: 999,999,999,999,999,999")[0],
+      screen.getAllByPlaceholderText("Example: 999999999")[0],
     ),
     "invalid",
   );

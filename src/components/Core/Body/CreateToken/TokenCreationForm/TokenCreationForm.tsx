@@ -29,7 +29,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useEffect, useState } from "react";
 import { useStore } from "@/stores/store";
-import { formatUnits, parseUnits } from "@/utils/web3/units";
 import { useNavigate } from "react-router";
 import { ROUTES } from "@/router/router";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
@@ -45,55 +44,141 @@ import { StorageUtil } from "@/utils/storage";
 import { getAddressFromMnemonicAsync } from "@/utils/crypto";
 import { isDesktop } from "@/desktop/bridge";
 import { Label } from "@/components/UI/Label";
-import { isValidQrlAddress } from "@/utils/web3";
+import { isValidQrlAddress, QRL_ZERO_ADDRESS } from "@/utils/web3";
+import {
+  isValidTokenName,
+  isValidTokenSymbol,
+  parseTokenAmount,
+  tokenDecimals,
+} from "./tokenFormRules";
 import { containsProfanity } from "@/utils/moderation";
 
+type AmountField =
+  | "initialSupply"
+  | "maxSupply"
+  | "maxWalletAmount"
+  | "maxTransactionLimit";
+
+function amountMessage(reason: "format" | "precision" | "range"): string {
+  switch (reason) {
+    case "format":
+      return "creation:amountInvalid";
+    case "precision":
+      return "creation:amountPrecision";
+    case "range":
+      return "creation:amountTooLarge";
+  }
+}
+
+// Everything here is written into an immutable contract, so each field is
+// validated as typed and never rewritten (see tokenFormRules.ts). The first
+// issue of a field is the one shown, so the checks are ordered by relevance.
 const FormSchema = z
   .object({
     tokenName: z
       .string()
+      .trim()
       .min(1, { message: "creation:nameRequired" })
+      .refine(isValidTokenName, { message: "creation:nameInvalid" })
       .refine((value) => !containsProfanity(value), {
         message: "creation:profanity",
       }),
     tokenSymbol: z
       .string()
+      .trim()
       .min(1, { message: "creation:symbolRequired" })
+      .refine(isValidTokenSymbol, { message: "creation:symbolInvalid" })
       .refine((value) => !containsProfanity(value), {
         message: "creation:profanity",
       }),
-    initialSupply: z.string(),
-    // The factory stores decimals as uint8; the form allows the common
-    // token range of whole numbers from 1 to 18.
-    // An empty field is NaN, which reads as "required"; 0 and values above
-    // 18 get the range message.
+    initialSupply: z.string().trim(),
+    // The factory stores decimals as uint8; the form allows the common token
+    // range of whole numbers from 1 to 18.
     decimals: z
-      .number({ message: "creation:decimalsRequired" })
-      .int({ message: "creation:decimalsRange" })
-      .min(1, { message: "creation:decimalsRange" })
-      .max(18, { message: "creation:decimalsRange" }),
+      .string()
+      .trim()
+      .min(1, { message: "creation:decimalsRequired" })
+      .refine((value) => tokenDecimals(value) !== null, {
+        message: "creation:decimalsRange",
+      }),
     mintable: z.boolean(),
-    maxSupply: z.string().optional(),
+    maxSupply: z.string().trim().optional(),
     changeInitialRecipient: z.boolean(),
-    recipientAddress: z.string().optional(),
+    recipientAddress: z.string().trim().optional(),
     setMaxWalletAmount: z.boolean(),
-    maxWalletAmount: z.string().optional(),
+    maxWalletAmount: z.string().trim().optional(),
     setMaxTransactionLimit: z.boolean(),
-    maxTransactionLimit: z.string().optional(),
+    maxTransactionLimit: z.string().trim().optional(),
   })
-  .refine(
-    (data) => {
-      // Validate recipient address if changeInitialRecipient is true
-      if (data.changeInitialRecipient && data.recipientAddress) {
-        return isValidQrlAddress(data.recipientAddress);
+  .superRefine((data, ctx) => {
+    if (data.changeInitialRecipient) {
+      const recipient = data.recipientAddress ?? "";
+      if (
+        !isValidQrlAddress(recipient) ||
+        recipient.toLowerCase() === QRL_ZERO_ADDRESS.toLowerCase()
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["recipientAddress"],
+          message: "creation:recipientInvalid",
+        });
       }
-      return true;
-    },
-    {
-      message: "creation:recipientInvalid",
-      path: ["recipientAddress"],
-    },
-  );
+    }
+    // Amounts depend on the decimals, which show their own message.
+    const decimals = tokenDecimals(data.decimals);
+    if (decimals === null) return;
+    const amount = (
+      field: AmountField,
+      text: string,
+      positive: boolean,
+    ): bigint | null => {
+      // An empty field means 0: missing where a positive amount is needed.
+      if (text === "") {
+        if (!positive) return 0n;
+        ctx.addIssue({
+          code: "custom",
+          path: [field],
+          message: "creation:amountPositive",
+        });
+        return null;
+      }
+      const parsed = parseTokenAmount(text, decimals);
+      if (!parsed.ok) {
+        ctx.addIssue({
+          code: "custom",
+          path: [field],
+          message: amountMessage(parsed.reason),
+        });
+        return null;
+      }
+      if (positive && parsed.units === 0n) {
+        ctx.addIssue({
+          code: "custom",
+          path: [field],
+          message: "creation:amountPositive",
+        });
+        return null;
+      }
+      return parsed.units;
+    };
+    // Without minting the initial supply is the whole supply, which the
+    // contract requires to be above zero.
+    const initial = amount("initialSupply", data.initialSupply, !data.mintable);
+    if (data.mintable) {
+      const max = amount("maxSupply", data.maxSupply ?? "", true);
+      if (initial !== null && max !== null && max < initial) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["maxSupply"],
+          message: "creation:maxSupplyBelowInitial",
+        });
+      }
+    }
+    if (data.setMaxWalletAmount)
+      amount("maxWalletAmount", data.maxWalletAmount ?? "", true);
+    if (data.setMaxTransactionLimit)
+      amount("maxTransactionLimit", data.maxTransactionLimit ?? "", true);
+  });
 
 type TokenCreationFormProps = {
   onTokenCreated: (
@@ -135,8 +220,8 @@ export const TokenCreationForm = observer(
       defaultValues: {
         tokenName: "",
         tokenSymbol: "",
-        initialSupply: "0",
-        decimals: 18,
+        initialSupply: "",
+        decimals: "18",
         mintable: false,
         changeInitialRecipient: false,
         setMaxWalletAmount: false,
@@ -154,12 +239,13 @@ export const TokenCreationForm = observer(
     const isUsingRemoteSigner =
       activeAccountSource === "extension" || activeAccountSource === "mobile";
 
-    const formatRealValue = (supply: string, decimals: number) => {
-      try {
-        return formatUnits(supply, decimals);
-      } catch {
-        return t("creation:invalidValue");
-      }
+    // The on-chain value of an amount: the number entered, in the token's
+    // smallest units, exactly as it is submitted.
+    const realValue = (text: string): string => {
+      const decimals = tokenDecimals(form.watch("decimals"));
+      if (decimals === null) return t("creation:invalidValue");
+      const parsed = parseTokenAmount(text, decimals);
+      return parsed.ok ? parsed.units.toString() : t("creation:invalidValue");
     };
 
     async function onSubmit(formData: z.output<typeof FormSchema>) {
@@ -259,20 +345,30 @@ export const TokenCreationForm = observer(
 
         const tokenName = formData.tokenName;
         const tokenSymbol = formData.tokenSymbol;
-        const initialSupply = parseUnits(
-          formData.initialSupply,
-          formData.decimals,
-        ).toString();
-        const decimals = formData.decimals;
-        const maxSupply = formData.maxSupply
-          ? parseUnits(formData.maxSupply, decimals).toString()
+        // The schema has already validated every value used here. Optional
+        // values count only while their box is ticked: unticking hides a
+        // field without clearing it.
+        const decimals = tokenDecimals(formData.decimals);
+        if (decimals === null) throw new Error("Invalid token decimals");
+        const units = (text: string): string => {
+          const parsed = parseTokenAmount(text, decimals);
+          if (!parsed.ok) throw new Error("Invalid token amount");
+          return parsed.units.toString();
+        };
+        // An empty initial supply is valid only for a mintable token (0).
+        const initialSupply =
+          formData.initialSupply === "" ? "0" : units(formData.initialSupply);
+        const maxSupply = formData.mintable
+          ? units(formData.maxSupply ?? "")
           : undefined;
-        const recipientAddress = formData.recipientAddress;
-        const maxWalletAmount = formData.maxWalletAmount
-          ? parseUnits(formData.maxWalletAmount, decimals).toString()
+        const recipientAddress = formData.changeInitialRecipient
+          ? formData.recipientAddress
           : undefined;
-        const maxTransactionLimit = formData.maxTransactionLimit
-          ? parseUnits(formData.maxTransactionLimit, decimals).toString()
+        const maxWalletAmount = formData.setMaxWalletAmount
+          ? units(formData.maxWalletAmount ?? "")
+          : undefined;
+        const maxTransactionLimit = formData.setMaxTransactionLimit
+          ? units(formData.maxTransactionLimit ?? "")
           : undefined;
 
         // Navigate immediately to show loading state, then start creation
@@ -308,8 +404,8 @@ export const TokenCreationForm = observer(
       form.reset({
         tokenName: "",
         tokenSymbol: "",
-        initialSupply: "0",
-        decimals: 18,
+        initialSupply: "",
+        decimals: "18",
         mintable: false,
         changeInitialRecipient: false,
         setMaxWalletAmount: false,
@@ -375,6 +471,8 @@ export const TokenCreationForm = observer(
                         disabled={isSubmitting}
                         placeholder={t("creation:namePlaceholder")}
                         type="text"
+                        autoComplete="off"
+                        spellCheck={false}
                         {...field}
                       />
                     </FormControl>
@@ -398,6 +496,9 @@ export const TokenCreationForm = observer(
                         disabled={isSubmitting}
                         placeholder={t("creation:symbolPlaceholder")}
                         type="text"
+                        autoComplete="off"
+                        autoCapitalize="characters"
+                        spellCheck={false}
                       />
                     </FormControl>
                     <FormMessage
@@ -419,7 +520,9 @@ export const TokenCreationForm = observer(
                         {...field}
                         disabled={isSubmitting}
                         placeholder={t("creation:supplyPlaceholder")}
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
                       />
                     </FormControl>
                     <FormMessage
@@ -439,21 +542,11 @@ export const TokenCreationForm = observer(
                     <FormControl>
                       <Input
                         {...field}
-                        value={
-                          Number.isNaN(field.value) ? "" : String(field.value)
-                        }
                         disabled={isSubmitting}
                         placeholder={t("creation:decimalsPlaceholder")}
                         type="text"
                         inputMode="numeric"
                         autoComplete="off"
-                        maxLength={2}
-                        onChange={(e) => {
-                          const digits = e.target.value
-                            .replace(/\D/g, "")
-                            .slice(0, 2);
-                          field.onChange(digits === "" ? Number.NaN : Number(digits));
-                        }}
                       />
                     </FormControl>
                     <FormMessage
@@ -506,14 +599,13 @@ export const TokenCreationForm = observer(
                           disabled={isSubmitting}
                           placeholder={t("creation:limitPlaceholder")}
                           type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
                         />
                       </FormControl>
-                      <FormDescription>
+                      <FormDescription className="[overflow-wrap:anywhere]">
                         {t("creation:realValue", {
-                          value: formatRealValue(
-                            field.value || "0",
-                            form.watch("decimals"),
-                          ),
+                          value: realValue(field.value ?? ""),
                         })}
                       </FormDescription>
                       <FormMessage
@@ -567,6 +659,9 @@ export const TokenCreationForm = observer(
                           disabled={isSubmitting}
                           placeholder={t("creation:recipientPlaceholder")}
                           type="text"
+                          autoComplete="off"
+                          autoCapitalize="none"
+                          spellCheck={false}
                         />
                       </FormControl>
                       <FormMessage
@@ -619,7 +714,9 @@ export const TokenCreationForm = observer(
                           {...field}
                           disabled={isSubmitting}
                           placeholder={t("creation:limitPlaceholder")}
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
                         />
                       </FormControl>
                       <FormMessage
@@ -672,7 +769,9 @@ export const TokenCreationForm = observer(
                           {...field}
                           disabled={isSubmitting}
                           placeholder={t("creation:limitPlaceholder")}
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
                         />
                       </FormControl>
                       <FormMessage

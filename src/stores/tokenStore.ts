@@ -58,8 +58,9 @@ type CreatingTokenType = {
   name: string;
   creating: boolean;
   error?: string;
-  /** Broadcast hash while the creation waits for its receipt. */
+  /** Broadcast hash and its explorer link; kept when the creation fails. */
   txHash?: string;
+  txUrl?: string;
 };
 
 type CreatedTokenType = {
@@ -309,14 +310,23 @@ class TokenStore {
 
   setCreatingToken(name: string, creating: boolean, error?: string): Promise<void> {
     return runAsPromise(() => {
-      this.creatingToken = { name, creating, error };
+      // A failure after broadcast keeps the explorer link: a timed-out
+      // creation may still be mined.
+      const { txHash, txUrl } = this.creatingToken;
+      this.creatingToken =
+        error && txHash && txUrl
+          ? { name, creating, error, txHash, txUrl }
+          : { name, creating, error };
     });
   }
 
-  /** Records the broadcast hash so the pending screen can link to the explorer. */
-  setCreatingTokenHash(request: number, txHash: string): void {
+  /** Records the broadcast hash so the status screen can link to the explorer. */
+  setCreatingTokenHash(request: number, txHash: string, explorer: string): void {
     if (request !== this._creationRequestId || !this.creatingToken.creating) return;
-    this.creatingToken = { ...this.creatingToken, txHash };
+    if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) return;
+    this.creatingToken = explorer
+      ? { ...this.creatingToken, txHash, txUrl: `${explorer}/tx/${txHash}` }
+      : { ...this.creatingToken, txHash };
   }
 
   async setCreatedToken(
@@ -529,7 +539,7 @@ class TokenStore {
       void this.setCreatingToken(tokenName, true);
       if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady();
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { url } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
+      const { url, explorer } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
       const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
 
@@ -663,9 +673,9 @@ class TokenStore {
       };
 
       const transactionHashHandler = (hash: unknown) => {
-        if (typeof hash === "string") this.setCreatingTokenHash(creationRequest, hash);
+        if (typeof hash === "string") this.setCreatingTokenHash(creationRequest, hash, explorer);
         else if (hash instanceof Uint8Array) {
-          this.setCreatingTokenHash(creationRequest, utils.bytesToHex(hash));
+          this.setCreatingTokenHash(creationRequest, utils.bytesToHex(hash), explorer);
         }
       };
 
@@ -698,7 +708,7 @@ class TokenStore {
           data,
         });
         log(`Desktop token creation broadcast with hash: ${transactionHash}`);
-        this.setCreatingTokenHash(creationRequest, transactionHash);
+        this.setCreatingTokenHash(creationRequest, transactionHash, explorer);
         // Poll for the receipt (the signer/main already broadcast it).
         const maxAttempts = 60;
         const pollInterval = 5000;

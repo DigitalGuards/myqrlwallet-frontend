@@ -112,6 +112,20 @@ export function creationValidationMessage(
       return t("creation:decimalsRequired");
     case "creation:decimalsRange":
       return t("creation:decimalsRange");
+    case "creation:nameInvalid":
+      return t("creation:nameInvalid");
+    case "creation:symbolInvalid":
+      return t("creation:symbolInvalid");
+    case "creation:amountInvalid":
+      return t("creation:amountInvalid");
+    case "creation:amountPrecision":
+      return t("creation:amountPrecision");
+    case "creation:amountTooLarge":
+      return t("creation:amountTooLarge");
+    case "creation:amountPositive":
+      return t("creation:amountPositive");
+    case "creation:maxSupplyBelowInitial":
+      return t("creation:maxSupplyBelowInitial");
     case "creation:recipientInvalid":
       return t("creation:recipientInvalid");
     case "creation:profanity":

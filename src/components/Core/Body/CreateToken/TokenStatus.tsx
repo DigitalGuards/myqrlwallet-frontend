@@ -16,6 +16,26 @@ import { Link } from "react-router";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { QRL_PROVIDER } from "@/config";
 
+/** Explorer link for a broadcast creation, shown while pending and after a failure. */
+const CreationTxLink = observer(() => {
+  const { t } = useTranslation(["transfer"]);
+  const { tokenStore } = useStore();
+  const { txHash, txUrl } = tokenStore.creatingToken;
+  if (!txUrl) return null;
+  return (
+    <a
+      href={txUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={txHash}
+      className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
+    >
+      {t("transfer:viewExplorer")}
+      <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
+    </a>
+  );
+});
+
 const TokenStatus = observer(() => {
   const { t } = useTranslation([
     "creation",
@@ -133,18 +153,7 @@ const TokenStatus = observer(() => {
                   {t("creation:deploying")}
                 </p>
               </div>
-              {creatingToken.txHash && (
-                <a
-                  href={`${explorerUrl}/tx/${creatingToken.txHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={creatingToken.txHash}
-                  className="flex items-center gap-2 text-sm text-secondary hover:text-secondary/80"
-                >
-                  {t("transfer:viewExplorer")}
-                  <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
-                </a>
-              )}
+              <CreationTxLink />
             </div>
           </CardContent>
         </Card>
@@ -166,6 +175,7 @@ const TokenStatus = observer(() => {
                   )}
                 </p>
               </div>
+              <CreationTxLink />
             </div>
           </CardContent>
           <CardFooter>
