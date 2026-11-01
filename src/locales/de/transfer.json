@@ -121,5 +121,7 @@
   "nameRpcNoResult": "QRNS-RPC-Antwort enthält kein Ergebnis",
   "nameRpcTimeout": "QRNS-RPC-Anfrage ist abgelaufen",
   "nameMalformedAddress": "QRNS hat eine fehlerhafte 64-Byte-Adresse geliefert",
-  "nameInvalidAddress": "QRNS hat eine ungültige QIP-55-Adresse geliefert"
+  "nameInvalidAddress": "QRNS hat eine ungültige QIP-55-Adresse geliefert",
+  "amountComma": "Einen Punkt (.) als Dezimaltrennzeichen verwenden, ohne Tausendertrennzeichen",
+  "amountTooLarge": "Dieser Betrag ist zu groß"
 }

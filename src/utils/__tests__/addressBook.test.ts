@@ -7,9 +7,11 @@ jest.mock("../nativeApp", () => ({
 
 import {
   addEntry,
+  CONTACT_NAME_INVALID,
   clearAddressBook,
   loadAddressBook,
   mergeContacts,
+  renameEntry,
 } from "../addressBook";
 
 const STORAGE_KEY = "qrl:addressBook:qip55:v2";
@@ -141,5 +143,32 @@ describe("QIP-55 address-book persistence", () => {
     expect(loadAddressBook()).toEqual([
       { id: "first", name: "First", address: CANONICAL, createdAt: 1 },
     ]);
+  });
+});
+
+describe("contact names", () => {
+  const address = `Q${"a".repeat(128)}`;
+  beforeEach(() => {
+    clearAddressBook();
+  });
+
+  it.each(["Cold\u202Estorage", "Zero\u200Bwidth", "Line\nbreak", "x".repeat(41)])(
+    "refuses %p",
+    (name) => {
+      expect(addEntry(name, address)).toBe(CONTACT_NAME_INVALID);
+      expect(loadAddressBook()).toEqual([]);
+    },
+  );
+
+  it("accepts emoji sequences and Persian text, which need joiners", () => {
+    expect(addEntry("Mom \u{1F469}\u200D\u{1F467}", address)).toMatchObject({ name: "Mom \u{1F469}\u200D\u{1F467}" });
+    expect(addEntry("\u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u0645", `Q${"b".repeat(128)}`)).toMatchObject({ name: "\u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u0645" });
+  });
+
+  it("accepts 40 visible characters and refuses a hidden-character rename", () => {
+    const entry = addEntry("x".repeat(40), address);
+    if (typeof entry === "string") throw new Error(entry);
+    expect(renameEntry(entry.id, "Cold\u202Estorage")).toBe(false);
+    expect(loadAddressBook()[0]?.name).toBe("x".repeat(40));
   });
 });

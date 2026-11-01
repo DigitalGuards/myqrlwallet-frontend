@@ -232,3 +232,27 @@ it("shows invalid stored balance errors before attempting an NFT transfer", asyn
   expect(transferNft).not.toHaveBeenCalled();
   expect(nft.balance).toBe("invalid");
 });
+
+it.each([
+  ["0x10", "Amount must be a whole number."],
+  ["1e2", "Amount must be a whole number."],
+  ["-1", "Amount must be positive."],
+])("refuses the NFT amount %p before any transfer", async (amount, message) => {
+  const nft: NFTInterface = { contractAddress: CONTRACT, tokenId: "7", standard: "ERC1155", balance: "100" };
+  const transferNft = jest.fn();
+  mockUseStore.mockReturnValue({
+    qrlStore: {
+      activeAccount: { accountAddress: ACCOUNT }, activeAccountSource: "seed", qrlConnection: { blockchain: "TEST_NET" },
+      transactionStatus: { state: "idle" }, resetTransactionStatus: jest.fn(),
+    },
+    nftStore: { nftList: [nft], transferNft },
+  });
+  jest.mocked(useParams).mockReturnValue({ contractAddress: CONTRACT, tokenId: "7" });
+  jest.mocked(useNetworkQrnsRecipient).mockReturnValue(resolvedRecipient());
+  render(<NftDetail />);
+  fireEvent.change(screen.getByLabelText("Recipient address or QNS name"), { target: { value: "alice.qrl" } });
+  fireEvent.change(screen.getByLabelText("Amount"), { target: { value: amount } });
+  fireEvent.click(screen.getByRole("button", { name: "Transfer" }));
+  expect((await screen.findByRole("alert")).textContent).toContain(message);
+  expect(transferNft).not.toHaveBeenCalled();
+});

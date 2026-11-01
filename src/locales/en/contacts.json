@@ -23,5 +23,6 @@
   "nameRequired": "Name is required",
   "invalidAddress": "Not a valid QRL address (Q + 128 hex characters)",
   "alreadySaved": "This address is already saved",
-  "serviceError": "{{reason}}"
+  "serviceError": "{{reason}}",
+  "nameInvalid": "Use up to 40 characters, without hidden or control characters"
 }

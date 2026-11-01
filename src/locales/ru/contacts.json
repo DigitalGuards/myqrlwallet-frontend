@@ -23,5 +23,6 @@
   "nameRequired": "Укажите имя",
   "invalidAddress": "Некорректный адрес QRL (Q + 128 шестнадцатеричных символов)",
   "alreadySaved": "Этот адрес уже сохранён",
-  "serviceError": "{{reason}}"
+  "serviceError": "{{reason}}",
+  "nameInvalid": "Используйте не более 40 символов, без скрытых и управляющих символов"
 }

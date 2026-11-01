@@ -194,5 +194,6 @@
   "typeErrorReason": "Ошибка типа: {{reason}}",
   "storedArrayExpected": "Ожидался массив",
   "storedStringExpected": "Ожидалась строка",
-  "storedTokenListInvalid": "Недопустимый список токенов"
+  "storedTokenListInvalid": "Недопустимый список токенов",
+  "hexLength": "Hex-сид состоит из 0x и 102 шестнадцатеричных символов"
 }

@@ -47,6 +47,7 @@ export default function AddressBook() {
   const [newName, setNewName] = useState("");
   const [newAddress, setNewAddress] = useState("");
   const [addError, setAddError] = useState<ReturnType<typeof contactErrorKey> | null>(null);
+  const [renameError, setRenameError] = useState(false);
   const [renameTarget, setRenameTarget] = useState<AddressBookEntry | null>(
     null,
   );
@@ -74,9 +75,13 @@ export default function AddressBook() {
   };
 
   const handleRename = () => {
-    if (renameTarget && renameEntry(renameTarget.id, renameValue)) {
+    if (!renameTarget) return;
+    if (renameEntry(renameTarget.id, renameValue)) {
       setRenameTarget(null);
+      setRenameError(false);
       refresh();
+    } else {
+      setRenameError(true);
     }
   };
 
@@ -279,9 +284,13 @@ export default function AddressBook() {
             value={renameValue}
             onChange={(e) => {
               setRenameValue(e.target.value);
+              setRenameError(false);
             }}
             maxLength={40}
           />
+          {renameError ? (
+            <p className="text-sm text-destructive">{t("contacts:nameInvalid")}</p>
+          ) : null}
           <DialogFooter>
             <Button
               variant="outline"

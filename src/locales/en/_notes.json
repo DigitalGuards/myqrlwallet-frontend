@@ -525,5 +525,10 @@
   "dapps:unsafeMessage": "Security: unsafe invisible or control characters prevent a safe printable preview. The complete signed bytes are shown as hex, without changing them. Preserve UTF-8.",
   "dapps:checkingChain": "Security: typed-data approval is blocked while the wallet checks its connected chain against the signed domain chain ID. This status must not imply that the check has succeeded.",
   "dapps:chainUnavailable": "Security: failure to read the wallet network blocks approval until a successful retry. Preserve both the failed check and the consequence; this does not assert a chain mismatch.",
-  "dapps:waitingChain": "Security: accessible hint on disabled Approve while the typed-data wallet-network check is pending or failed. Approval requires a successful check."
+  "dapps:waitingChain": "Security: accessible hint on disabled Approve while the typed-data wallet-network check is pending or failed. Approval requires a successful check.",
+  "transfer:amountComma": "Send form validation. The wallet uses a dot as the decimal separator; a comma is refused because it may be a thousands separator. Keep (.) exactly.",
+  "transfer:amountTooLarge": "Send form validation: the typed amount is far too long to be a valid amount.",
+  "nfts:tokenIdInvalid": "Add NFT validation: the token ID must be a plain decimal whole number. Keep 0 and 9 unchanged.",
+  "onboarding:hexLength": "Hex seed import validation: a seed is 0x followed by exactly 102 hexadecimal characters. Keep 0x and 102 unchanged.",
+  "contacts:nameInvalid": "Address book validation: a contact name has at most 40 characters and no hidden or control characters. Keep the number 40."
 }

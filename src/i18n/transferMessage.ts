@@ -29,6 +29,10 @@ export function transferMessage(
     case "Enter a decimal amount":
     case "transfer:decimalAmount":
       return t("transfer:decimalAmount");
+    case "transfer:amountComma":
+      return t("transfer:amountComma");
+    case "transfer:amountTooLarge":
+      return t("transfer:amountTooLarge");
     case "Amount should be more than 0":
     case "transfer:positiveAmount":
       return t("transfer:positiveAmount");

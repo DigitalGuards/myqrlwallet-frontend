@@ -121,5 +121,7 @@
   "nameRpcNoResult": "Ответ RPC QRNS не содержит результата",
   "nameRpcTimeout": "Время ожидания запроса RPC QRNS истекло",
   "nameMalformedAddress": "QRNS вернул некорректный 64-байтовый адрес",
-  "nameInvalidAddress": "QRNS вернул некорректный адрес QIP-55"
+  "nameInvalidAddress": "QRNS вернул некорректный адрес QIP-55",
+  "amountComma": "Используйте точку (.) для дробной части, без разделителей тысяч",
+  "amountTooLarge": "Это значение слишком велико"
 }

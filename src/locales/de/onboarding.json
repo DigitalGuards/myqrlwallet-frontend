@@ -194,5 +194,6 @@
   "typeErrorReason": "Typfehler: {{reason}}",
   "storedArrayExpected": "Ein Array wurde erwartet",
   "storedStringExpected": "Eine Zeichenfolge wurde erwartet",
-  "storedTokenListInvalid": "Ungültige Tokenliste"
+  "storedTokenListInvalid": "Ungültige Tokenliste",
+  "hexLength": "Ein Hex-Seed besteht aus 0x und 102 Hex-Zeichen"
 }

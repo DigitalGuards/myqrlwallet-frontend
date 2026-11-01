@@ -59,5 +59,6 @@
   "items_one": "{{count}} elemento",
   "items_few": "{{count}} elementos",
   "items_many": "{{count}} elementos",
-  "items_other": "{{count}} elementos"
+  "items_other": "{{count}} elementos",
+  "tokenIdInvalid": "El ID del token debe ser un número entero (solo cifras del 0 al 9)"
 }

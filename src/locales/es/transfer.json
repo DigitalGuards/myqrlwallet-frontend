@@ -121,5 +121,7 @@
   "nameRpcNoResult": "La respuesta RPC de QRNS no contiene un resultado",
   "nameRpcTimeout": "La solicitud RPC de QRNS ha caducado",
   "nameMalformedAddress": "QRNS devolvió una dirección de 64 bytes mal formada",
-  "nameInvalidAddress": "QRNS devolvió una dirección QIP-55 no válida"
+  "nameInvalidAddress": "QRNS devolvió una dirección QIP-55 no válida",
+  "amountComma": "Usa un punto (.) para los decimales, sin separadores de miles",
+  "amountTooLarge": "Esta cantidad es demasiado grande"
 }
