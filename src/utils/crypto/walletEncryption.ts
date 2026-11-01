@@ -1,3 +1,4 @@
+import { MAX_WALLET_PASSWORD_LENGTH } from "./walletPasswordLimits";
 import type { Web3BaseWalletAccount } from '@theqrl/web3';
 import { isRecord } from '@/utils/guards';
 import { isInNativeApp, shareContent } from '@/utils/nativeApp';
@@ -58,8 +59,7 @@ const MAX_HEX_SEED_LENGTH = 512;
 // File-picker callers enforce this before File.text(); direct decrypt callers
 // still receive the field-level bounds below.
 export const MAX_WALLET_FILE_BYTES = 1024 * 1024;
-export { MAX_WALLET_PASSWORD_LENGTH } from "./walletPasswordLimits";
-import { MAX_WALLET_PASSWORD_LENGTH } from "./walletPasswordLimits";
+export { MAX_WALLET_PASSWORD_LENGTH };
 
 /**
  * Custom error class for PIN decryption failures.

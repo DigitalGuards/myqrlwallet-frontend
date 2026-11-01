@@ -195,6 +195,5 @@
   "storedArrayExpected": "需要数组",
   "storedStringExpected": "需要字符串",
   "storedTokenListInvalid": "代币列表无效",
-  "hexLength": "十六进制种子由 0x 加 102 个十六进制字符组成",
-  "passwordMax": "密码最多 1024 个字符"
+  "hexLength": "十六进制种子由 0x 加 102 个十六进制字符组成"
 }

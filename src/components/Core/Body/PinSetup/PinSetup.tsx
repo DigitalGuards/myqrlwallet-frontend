@@ -43,7 +43,7 @@ import { logger } from "@/utils/log";
 const passwordValidation = z
   .string()
   .superRefine(minUtf16Length(8, "onboarding:passwordMin"))
-  .max(MAX_WALLET_PASSWORD_LENGTH, "onboarding:passwordMax")
+  .superRefine(maxUtf16Length(MAX_WALLET_PASSWORD_LENGTH, "onboarding:passwordLong"))
   .regex(/[A-Z]/, "onboarding:passwordUpper")
   .regex(/[a-z]/, "onboarding:passwordLower")
   .regex(/\d/, "onboarding:passwordNumber")

@@ -596,6 +596,5 @@
   "transfer:amountTooLarge": "Send form validation: the typed amount is far too long to be a valid amount.",
   "nfts:tokenIdInvalid": "Add NFT validation: the token ID must be a plain decimal whole number. Keep 0 and 9 unchanged.",
   "onboarding:hexLength": "Hex seed import validation: a seed is 0x followed by exactly 102 hexadecimal characters. Keep 0x and 102 unchanged.",
-  "onboarding:passwordMax": "Password validation: at most 1024 characters. Keep the number 1024.",
   "contacts:nameInvalid": "Address book validation: a contact name has at most 40 characters and no hidden or control characters. Keep the number 40."
 }

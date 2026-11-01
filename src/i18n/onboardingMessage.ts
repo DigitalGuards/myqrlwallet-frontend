@@ -114,8 +114,6 @@ export function onboardingMessage(
     case "Password must be at least 8 characters":
     case "onboarding:passwordMin":
       return t("onboarding:passwordMin");
-    case "onboarding:passwordMax":
-      return t("onboarding:passwordMax");
     case "Password must contain at least one uppercase letter":
     case "onboarding:passwordUpper":
       return t("onboarding:passwordUpper");

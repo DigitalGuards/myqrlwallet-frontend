@@ -69,9 +69,16 @@ export function findByAddress(address: string): AddressBookEntry | undefined {
 export const CONTACT_NAME_MAX = 40;
 export const CONTACT_NAME_INVALID = "Name has hidden characters or is too long";
 
-/** Up to 40 characters, none of them control, format (bidi or zero-width) or unassigned. */
+/**
+ * Up to 40 characters, without control characters, bidi controls, zero-width
+ * spaces or byte-order marks. Joiners stay allowed: emoji sequences and
+ * Persian or Indic text need them.
+ */
 export function isValidContactName(name: string): boolean {
-  return Array.from(name).length <= CONTACT_NAME_MAX && !/\p{C}/u.test(name);
+  return (
+    Array.from(name).length <= CONTACT_NAME_MAX &&
+    !/[\p{Cc}\u200B\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/u.test(name)
+  );
 }
 
 /** Add a contact. Returns the new entry, or an error message string. */

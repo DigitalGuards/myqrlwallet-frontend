@@ -228,6 +228,18 @@ it("keeps the amount as typed and refuses a comma or an oversized amount", async
   await waitFor(() => {
     expect(screen.queryByText(comma)).toBeNull();
   });
+  // A comma keypad's single decimal comma is read as a decimal mark.
+  fireEvent.change(amount, { target: { value: "1,5" } });
+  expect(amount.value).toBe("1,5");
+  expect(screen.queryByText(comma)).toBeNull();
+  for (const grouped of ["12,345", "1,000.5"]) {
+    fireEvent.change(amount, { target: { value: "2" } });
+    await waitFor(() => {
+      expect(screen.queryByText(comma)).toBeNull();
+    });
+    fireEvent.change(amount, { target: { value: grouped } });
+    expect(await screen.findByText(comma)).toBeTruthy();
+  }
   fireEvent.change(amount, { target: { value: "9".repeat(101) } });
   expect(await screen.findByText("This amount is too large")).toBeTruthy();
 });

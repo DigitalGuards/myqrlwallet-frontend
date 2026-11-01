@@ -1,3 +1,4 @@
+import { normalizeAmount } from "@/utils/formatting/amountInput";
 import { transferError } from "@/i18n/transferError";
 import { transferMessage } from "@/i18n/transferMessage";
 import { Trans, useTranslation } from "react-i18next";
@@ -90,6 +91,7 @@ import { formatUnits, parseUnits } from "@/utils/web3/units";
 import { nativeMaxReserve } from "@/utils/web3/nativeMaxReserve";
 import { BigNumber } from "bignumber.js";
 
+
 const Transfer = observer(() => {
   const { t } = useTranslation(["transfer", "common", "settings"]);
   const navigate = useNavigate();
@@ -118,9 +120,8 @@ const Transfer = observer(() => {
         .object({
           asset: z.string().min(1, "transfer:selectAssetRequired"),
           receiverAddress: z.string().min(1, "transfer:receiverRequired"),
-          // The amount is validated as typed and never rewritten. The wallet
-          // groups thousands with commas, so a comma is refused: converting it
-          // would sign 1 for a pasted "1,000".
+          // The amount is checked after normalizeAmount: a comma left in it
+          // could be a thousands separator ("1,000" is never read as 1).
           amount: z.string()
             .refine((value) => !value.includes(","), "transfer:amountComma")
             .refine((value) => value.length <= 100, "transfer:amountTooLarge")
@@ -1044,11 +1045,14 @@ const Transfer = observer(() => {
                               disabled={isSubmitting}
                               value={amountInputValue}
                               onChange={(e) => {
-                                const value = e.target.value;
+                                const raw = e.target.value;
+                                const value = normalizeAmount(raw);
                                 setPercentageQuote(null);
-                                setAmountInputValue(value);
-                                const numValue =
-                                  value === "" ? 0 : parseFloat(value) || 0;
+                                setAmountInputValue(raw);
+                                // The slider follows only a valid amount.
+                                const numValue = /^\d*\.?\d+$/.test(value)
+                                  ? parseFloat(value)
+                                  : 0;
                                 field.onChange(value);
                                 if (
                                   maxSendableBalance &&

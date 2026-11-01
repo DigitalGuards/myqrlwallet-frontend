@@ -160,6 +160,11 @@ describe("contact names", () => {
     },
   );
 
+  it("accepts emoji sequences and Persian text, which need joiners", () => {
+    expect(addEntry("Mom \u{1F469}\u200D\u{1F467}", address)).toMatchObject({ name: "Mom \u{1F469}\u200D\u{1F467}" });
+    expect(addEntry("\u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u0645", `Q${"b".repeat(128)}`)).toMatchObject({ name: "\u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u0645" });
+  });
+
   it("accepts 40 visible characters and refuses a hidden-character rename", () => {
     const entry = addEntry("x".repeat(40), address);
     if (typeof entry === "string") throw new Error(entry);

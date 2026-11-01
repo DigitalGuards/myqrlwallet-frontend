@@ -147,10 +147,10 @@ it("refuses a password longer than the backup encryption accepts", async () => {
   const password = await screen.findByPlaceholderText("Password");
   fireEvent.change(password, { target: { value: `Aa1!${"x".repeat(1021)}` } });
   expect(
-    await screen.findByText("Password must be at most 1024 characters"),
+    await screen.findByText("Password is too long"),
   ).toBeTruthy();
   fireEvent.change(password, { target: { value: `Aa1!${"x".repeat(1020)}` } });
   await waitFor(() => {
-    expect(screen.queryByText("Password must be at most 1024 characters")).toBeNull();
+    expect(screen.queryByText("Password is too long")).toBeNull();
   });
 });
