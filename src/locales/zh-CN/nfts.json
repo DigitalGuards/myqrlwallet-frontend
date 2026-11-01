@@ -59,5 +59,6 @@
   "items_one": "{{count}} 件",
   "items_few": "{{count}} 件",
   "items_many": "{{count}} 件",
-  "items_other": "{{count}} 件"
+  "items_other": "{{count}} 件",
+  "tokenIdInvalid": "代币 ID 必须是整数（仅限数字 0 到 9）"
 }

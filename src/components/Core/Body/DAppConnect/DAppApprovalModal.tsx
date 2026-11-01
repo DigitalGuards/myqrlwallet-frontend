@@ -205,6 +205,8 @@ async function unlockHexSeed(
   signingGeneration: WalletMutationToken,
 ): Promise<{ hexSeed: string } | { error: string; retryPin?: boolean }> {
   if (!pinToUse) return { error: "Please enter your PIN" };
+  // A malformed PIN never reaches the decryption, so it costs no attempt.
+  if (!/^\d{4,6}$/.test(pinToUse)) return { error: "PIN must be 4 to 6 digits" };
   if (!walletMutations.isCurrent(signingGeneration)) {
     return { error: "Wallet changed while preparing the request" };
   }
@@ -763,6 +765,12 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
         // and leave the dApp request unanswered.
         if (!pinToUse) {
           setError("Please enter your PIN");
+          setLoading(false);
+          return;
+        }
+        // A malformed PIN never reaches the unlock, so it costs no attempt.
+        if (!/^\d{4,6}$/.test(pinToUse)) {
+          setError("PIN must be 4 to 6 digits");
           setLoading(false);
           return;
         }
@@ -1614,7 +1622,6 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
                     type="password"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    maxLength={6}
                     autoComplete="one-time-code"
                     value={pin}
                     onChange={(e) => {

@@ -121,5 +121,7 @@
   "nameRpcNoResult": "QRNS RPC response has no result",
   "nameRpcTimeout": "QRNS RPC request timed out",
   "nameMalformedAddress": "QRNS returned a malformed 64-byte address",
-  "nameInvalidAddress": "QRNS returned an invalid QIP-55 address"
+  "nameInvalidAddress": "QRNS returned an invalid QIP-55 address",
+  "amountComma": "Use a dot (.) for decimals, without thousands separators",
+  "amountTooLarge": "This amount is too large"
 }

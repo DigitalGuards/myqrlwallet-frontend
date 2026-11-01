@@ -35,6 +35,8 @@ import { applyLanguage } from "../index";
 
 const ADDRESS = `Q${"1".repeat(128)}`;
 const SEED = `0x${"12".repeat(48)}`;
+// A typed hex seed must be a full 51-byte extended seed to pass the form.
+const IMPORT_SEED = `0x${"12".repeat(51)}`;
 // Synthetic display data, never an account with funds.
 const PHRASE = "synthetic recovery words";
 const account: Web3BaseWalletAccount = {
@@ -674,7 +676,7 @@ it.each(["mnemonic", "hex"])(
     }
     mockDerive.mockRejectedValue(new Error("Malformed phrase"));
     mockSeedAccount.mockReturnValue(undefined);
-    await fill(placeholder, kind === "mnemonic" ? PHRASE : SEED);
+    await fill(placeholder, kind === "mnemonic" ? PHRASE : IMPORT_SEED);
     await submit();
     snapshot();
     if (kind === "mnemonic") {

@@ -74,7 +74,7 @@ type SettingsFormValues = {
 
 const SettingsFormSchema: z.ZodType<SettingsFormValues, SettingsFormValues> =
   z.object({
-    autoLockTimeout: z.number().min(1).max(60),
+    autoLockTimeout: z.number().int().min(1).max(60),
     showTokensCard: z.boolean(),
     showNftsCard: z.boolean(),
   });
@@ -221,7 +221,7 @@ const Settings = observer(() => {
   const flushSave = useCallback(
     (sanitizeTimer: boolean) => {
       const timer = form.getValues("autoLockTimeout");
-      const invalid = !Number.isFinite(timer) || timer < 1 || timer > 60;
+      const invalid = !Number.isInteger(timer) || timer < 1 || timer > 60;
       if (invalid && !sanitizeTimer) {
         void form.trigger("autoLockTimeout").catch((error: unknown) => {
           logger.error("Failed to validate wallet settings:", error);
@@ -603,7 +603,7 @@ const Settings = observer(() => {
                             field.onBlur();
                             const t = form.getValues("autoLockTimeout");
                             const invalid =
-                              !Number.isFinite(t) || t < 1 || t > 60;
+                              !Number.isInteger(t) || t < 1 || t > 60;
                             // Flush a pending save early; leaving the field
                             // invalid reverts it to the last saved value.
                             if (invalid || saveTimer.current !== null) {

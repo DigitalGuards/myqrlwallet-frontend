@@ -59,5 +59,6 @@
   "items_one": "{{count}} item",
   "items_few": "{{count}} items",
   "items_many": "{{count}} items",
-  "items_other": "{{count}} items"
+  "items_other": "{{count}} items",
+  "tokenIdInvalid": "Token ID must be a whole number (digits 0 to 9 only)"
 }

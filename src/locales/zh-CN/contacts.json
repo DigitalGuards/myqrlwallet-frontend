@@ -23,5 +23,6 @@
   "nameRequired": "请输入名称",
   "invalidAddress": "QRL 地址无效（Q + 128 个十六进制字符）",
   "alreadySaved": "此地址已保存",
-  "serviceError": "{{reason}}"
+  "serviceError": "{{reason}}",
+  "nameInvalid": "最多 40 个字符，不能包含隐藏字符或控制字符"
 }
