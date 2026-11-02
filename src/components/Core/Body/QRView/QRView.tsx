@@ -14,20 +14,24 @@ const QRView = observer(() => {
     activeAccount: { accountAddress },
     qrlConnection: { blockchain },
   } = qrlStore;
+  // Empty on a network without an explorer: there is nothing to scan to.
+  const explorerUrl = getExplorerAddressUrl(accountAddress, blockchain);
 
   return (
     <PageShell title={t("qrTitle")} seoTitle={t("qrSeo")}>
-      <Card className="flex flex-col items-center gap-2 p-6">
-        <QRCodeSVG
-          value={getExplorerAddressUrl(accountAddress, blockchain)}
-          size={200}
-          bgColor="#000000"
-          fgColor="#ffffff"
-          level="L"
-          marginSize={0}
-        />
-        <Label className="text-xs text-muted-foreground">{t("qrScan")}</Label>
-      </Card>
+      {explorerUrl && (
+        <Card className="flex flex-col items-center gap-2 p-6">
+          <QRCodeSVG
+            value={explorerUrl}
+            size={200}
+            bgColor="#000000"
+            fgColor="#ffffff"
+            level="L"
+            marginSize={0}
+          />
+          <Label className="text-xs text-muted-foreground">{t("qrScan")}</Label>
+        </Card>
+      )}
     </PageShell>
   );
 });

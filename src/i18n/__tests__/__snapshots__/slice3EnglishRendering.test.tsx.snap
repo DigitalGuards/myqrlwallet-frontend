@@ -7137,7 +7137,7 @@ exports[`import success empty=true and copied 1`] = `
       "QRL, QRL 2.0, Quantum Resistant Ledger, post-quantum blockchain, QRL wallet, web wallet, cryptocurrency wallet",
     ],
   ],
-  "text": "Account importedAccount public address:You can share this account public address with anyone. Others need it to interact with you.CopyView on ExplorerDone",
+  "text": "Account importedAccount public address:You can share this account public address with anyone. Others need it to interact with you.CopyDone",
   "title": "Import Account | MyQRLWallet",
 }
 `;
@@ -7162,7 +7162,7 @@ exports[`import success empty=true and copied 2`] = `
       "QRL, QRL 2.0, Quantum Resistant Ledger, post-quantum blockchain, QRL wallet, web wallet, cryptocurrency wallet",
     ],
   ],
-  "text": "Account importedAccount public address:You can share this account public address with anyone. Others need it to interact with you.CopiedView on ExplorerDone",
+  "text": "Account importedAccount public address:You can share this account public address with anyone. Others need it to interact with you.CopiedDone",
   "title": "Import Account | MyQRLWallet",
 }
 `;

@@ -38,8 +38,13 @@ export const ActiveAccount = observer(() => {
   const activeAccountLabel = t("accounts:active");
   const [txHistoryOpen, setTxHistoryOpen] = useState(false);
 
+  // Empty on a network without an explorer, which hides the explorer button
+  // and its QR code.
+  const explorerUrl = accountAddress
+    ? getExplorerAddressUrl(accountAddress, blockchain)
+    : "";
   const viewInExplorer = () => {
-    openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
+    openExternalUrl(explorerUrl);
   };
 
   // Mobile-app pairings get an explicit Disconnect: it ends the relay session
@@ -69,38 +74,40 @@ export const ActiveAccount = observer(() => {
           </div>
           <div className="flex gap-4 items-center shrink-0">
             <CopyAddressButton accountAddress={accountAddress} />
-            <span className="group relative">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="hover:text-secondary"
-                      variant="outline"
-                      size="icon"
-                      onClick={viewInExplorer}
-                    >
-                      <ExternalLink size={18} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <Label>{t("accounts:viewExplorer")}</Label>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <div className="absolute invisible group-hover:visible -bottom-[220px] left-1/2 transform -translate-x-1/2 bg-card rounded-lg p-4 shadow-lg z-50 border border-border">
-                <div className="flex flex-col items-center gap-2">
-                  <QRCodeSVG
-                    value={getExplorerAddressUrl(accountAddress, blockchain)}
-                    size={150}
-                    bgColor="#000000"
-                    fgColor="#ffffff"
-                    level="L"
-                    marginSize={0}
-                  />
-                  <Label className="text-xs text-muted-foreground">{t("accounts:scanExplorer")}</Label>
+            {explorerUrl && (
+              <span className="group relative">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="hover:text-secondary"
+                        variant="outline"
+                        size="icon"
+                        onClick={viewInExplorer}
+                      >
+                        <ExternalLink size={18} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <Label>{t("accounts:viewExplorer")}</Label>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <div className="absolute invisible group-hover:visible -bottom-[220px] left-1/2 transform -translate-x-1/2 bg-card rounded-lg p-4 shadow-lg z-50 border border-border">
+                  <div className="flex flex-col items-center gap-2">
+                    <QRCodeSVG
+                      value={explorerUrl}
+                      size={150}
+                      bgColor="#000000"
+                      fgColor="#ffffff"
+                      level="L"
+                      marginSize={0}
+                    />
+                    <Label className="text-xs text-muted-foreground">{t("accounts:scanExplorer")}</Label>
+                  </div>
                 </div>
-              </div>
-            </span>
+              </span>
+            )}
             <span>
               <TooltipProvider>
                 <Tooltip delayDuration={0}>

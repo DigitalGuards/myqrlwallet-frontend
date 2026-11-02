@@ -5362,6 +5362,15 @@ exports[`shared service Account changed during identity verification 1`] = `
 }
 `;
 
+exports[`shared service Network chain identity mismatch 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongNetwork chain identity mismatchTry Again",
+  "title": "Token Status | MyQRLWallet",
+  "values": [],
+}
+`;
+
 exports[`shared service Network changed during identity verification 1`] = `
 {
   "labels": [],
@@ -5371,37 +5380,28 @@ exports[`shared service Network changed during identity verification 1`] = `
 }
 `;
 
+exports[`shared service Network genesis identity mismatch 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongNetwork genesis identity mismatchTry Again",
+  "title": "Token Status | MyQRLWallet",
+  "values": [],
+}
+`;
+
+exports[`shared service Network identity has not been verified 1`] = `
+{
+  "labels": [],
+  "text": "Token Creation FailedSomething went wrongNetwork identity has not been verifiedTry Again",
+  "title": "Token Status | MyQRLWallet",
+  "values": [],
+}
+`;
+
 exports[`shared service Network identity is not configured 1`] = `
 {
   "labels": [],
   "text": "Token Creation FailedSomething went wrongNetwork identity is not configuredTry Again",
-  "title": "Token Status | MyQRLWallet",
-  "values": [],
-}
-`;
-
-exports[`shared service Testnet v3 chain identity mismatch 1`] = `
-{
-  "labels": [],
-  "text": "Token Creation FailedSomething went wrongTestnet v3 chain identity mismatchTry Again",
-  "title": "Token Status | MyQRLWallet",
-  "values": [],
-}
-`;
-
-exports[`shared service Testnet v3 genesis identity mismatch 1`] = `
-{
-  "labels": [],
-  "text": "Token Creation FailedSomething went wrongTestnet v3 genesis identity mismatchTry Again",
-  "title": "Token Status | MyQRLWallet",
-  "values": [],
-}
-`;
-
-exports[`shared service Testnet v3 network identity has not been verified 1`] = `
-{
-  "labels": [],
-  "text": "Token Creation FailedSomething went wrongTestnet v3 network identity has not been verifiedTry Again",
   "title": "Token Status | MyQRLWallet",
   "values": [],
 }

@@ -17,6 +17,7 @@ export const ActiveAccountDisplay = observer(
       activeAccountBalanceUsd,
       qrlPrice,
       qrlPriceChange24h,
+      showsFiatValue,
     } = qrlStore;
     const { accountAddress } = activeAccount;
     const [copiedItem, setCopiedItem] = useState<"balance" | "address" | null>(
@@ -119,7 +120,7 @@ export const ActiveAccountDisplay = observer(
             Quanta
           </span>
         </div>
-        {qrlStore.qrlConnection.blockchain === "MAIN_NET" && qrlPrice > 0 && (
+        {showsFiatValue && qrlPrice > 0 && (
           <div className="flex items-center justify-center gap-2 text-sm mt-1 mb-4 font-numeric">
             <span className="text-muted-foreground">
               ≈ $

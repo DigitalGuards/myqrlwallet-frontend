@@ -239,6 +239,14 @@ class DAppConnectStore {
     this.removeApproval(sessionId, id);
   }
 
+  /**
+   * Why a signing or transaction request from this session must be refused on
+   * the active network, or null. See DAppConnectService.sessionNetworkError.
+   */
+  sessionNetworkError(sessionId: string): string | null {
+    return dappConnectService.sessionNetworkError(sessionId);
+  }
+
   /** Send approval result to dApp without closing the modal (for progress UI) */
   sendApprovalResultById(
     sessionId: string,

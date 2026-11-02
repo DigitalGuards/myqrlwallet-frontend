@@ -8,6 +8,10 @@ jest.mock("@/config", () => ({
     },
   },
 }));
+// Callers that name no network are qualified against the selected one.
+jest.mock("@/utils/storage", () => ({
+  StorageUtil: { getBlockChain: () => Promise.resolve("TEST_NET_V3") },
+}));
 
 import { assertQualifiedV3Provider, qualifyV3Provider } from "../v3Provider";
 import { connectWithProvider } from "../extensionConnection";

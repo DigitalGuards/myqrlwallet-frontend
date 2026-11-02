@@ -19,7 +19,7 @@ const quantity = z
 
 export const localTransactionSchema = z
   .object({
-    blockchain: z.enum(["TEST_NET", "TEST_NET_V3", "MAIN_NET"]),
+    blockchain: z.enum(["TEST_NET", "TEST_NET_V3", "MAIN_NET", "MAIN_NET_V3"]),
     from: address,
     to: z.union([address, z.literal("")]),
     hash: z

@@ -51,7 +51,7 @@ const MobilePairingDialog = ({
         return t("home:pairingReconnecting");
       case "Your phone did not respond. Open MyQRLWallet on your phone and try again.":
         return t("home:mobileUnresponsive");
-      case "This MyQRLWallet app is not yet qualified for Testnet v3. Update the app and pair again.":
+      case "This MyQRLWallet app is not yet qualified for this network. Update the app and pair again.":
         return t("home:mobileUnqualified");
       default:
         return value;

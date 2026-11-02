@@ -150,6 +150,12 @@ export interface QrlWalletBridge {
   readonly addressScheme?: "qip55-64";
   /** Optional-field capability flags; absent on shells that predate them. */
   readonly features?: QrlWalletFeatures;
+  /**
+   * The network the shell was built for, in the native capability shape
+   * (networkProfile v3-private or v3-mainnet, hex chain id, lowercase genesis
+   * hash). Compatibility metadata; absent on shells that predate it.
+   */
+  readonly network?: unknown;
   createWallet(args: {
     password: string;
     useKeychain?: boolean;

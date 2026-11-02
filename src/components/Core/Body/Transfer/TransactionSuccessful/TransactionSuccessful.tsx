@@ -45,10 +45,12 @@ export const TransactionSuccessful = ({
     "txHash" | "blockHash"
   >();
 
-  const explorerUrl =
-    Object.entries(QRL_PROVIDER).find(
-      ([id]) => id === (submittedBlockchain ?? blockchain),
-    )?.[1].explorer || "https://zondscan.com";
+  // A configured network without an explorer gets no links. The zondscan
+  // fallback covers only an unknown network id.
+  const network = Object.entries(QRL_PROVIDER).find(
+    ([id]) => id === (submittedBlockchain ?? blockchain),
+  )?.[1];
+  const explorerUrl = network ? network.explorer : "https://zondscan.com";
 
   const gasInQrl = new BigNumber(
     utils.fromPlanck(
@@ -93,7 +95,7 @@ export const TransactionSuccessful = ({
             <div>{t("transfer:completedHash")}</div>
             <div className="flex min-w-0 items-center gap-2">
               <a
-                href={`${explorerUrl}/tx/${transactionHash.toString()}`}
+                href={explorerUrl ? `${explorerUrl}/tx/${transactionHash.toString()}` : undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={t("transfer:viewTransaction", { hash: transactionHash.toString() })}
@@ -162,7 +164,7 @@ export const TransactionSuccessful = ({
             <div className="flex min-w-0 flex-col gap-2">
               <div>{t("transfer:blockNumber")}</div>
               <a
-                href={`${explorerUrl}/block/${blockNumber}`}
+                href={explorerUrl ? `${explorerUrl}/block/${blockNumber}` : undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex min-w-0 items-center gap-2 font-numeric font-bold text-secondary hover:text-secondary/80"

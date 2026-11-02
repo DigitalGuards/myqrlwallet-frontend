@@ -16,6 +16,8 @@ jest.mock("@/config", () => ({
     },
   },
   EXPLORER_BASE: "https://explorer.invalid",
+  AVAILABLE_NETWORKS: [{ id: "TEST_NET_V3" }],
+  DEFAULT_NETWORK_ID: "TEST_NET_V3",
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({ deriveHexSeedAsync: jest.fn() }));

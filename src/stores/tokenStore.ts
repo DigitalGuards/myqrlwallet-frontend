@@ -501,7 +501,7 @@ class TokenStore {
       const promiEvent = web3.qrl.sendTransaction({
         type: '0x2', gas: estimateGas, from, data, to: token.address,
         maxFeePerGas, maxPriorityFeePerGas,
-        ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+        ...(IS_V3_PROFILE ? { chainId: this.qrlStore.signingChainId() } : {}),
       }, undefined, { checkRevertBeforeSending: true });
       this.qrlStore.observeSend(attempt, promiEvent, () => { void this.refreshTokenBalances(); });
       return true;
@@ -539,11 +539,13 @@ class TokenStore {
       void this.setCreatingToken(tokenName, true);
       if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady();
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { url, explorer } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
+      const { url, explorer, tokenFactory } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
       const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
 
-      const contractAddress = TOKEN_FACTORY_ADDRESS;
+      // Each v3 network carries its own factory (empty when creation is off);
+      // the legacy networks share the build-wide one.
+      const contractAddress = tokenFactory ?? TOKEN_FACTORY_ADDRESS;
 
       if (!contractAddress) {
         throw new Error(
@@ -748,7 +750,7 @@ class TokenStore {
       assertSigningCurrent();
       await web3.qrl
         .sendTransaction({ ...txObj,
-          ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+          ...(IS_V3_PROFILE ? { chainId: this.qrlStore.signingChainId() } : {}),
         }, undefined, {
           checkRevertBeforeSending: true,
         })

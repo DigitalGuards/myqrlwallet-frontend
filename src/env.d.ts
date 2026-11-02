@@ -36,6 +36,15 @@ declare global {
     readonly VITE_V3_QNS_REGISTRY?: string
     readonly VITE_V3_RPC_URL?: string
     readonly VITE_V3_SERVER_URL?: string
+    readonly VITE_V3_NATIVE_NETWORK?: string
+    readonly VITE_DEFAULT_NETWORK?: string
+    readonly VITE_MAINNET_CHAIN_ID?: string
+    readonly VITE_MAINNET_GENESIS_HASH?: string
+    readonly VITE_MAINNET_RPC_URL?: string
+    readonly VITE_MAINNET_SERVER_URL?: string
+    readonly VITE_MAINNET_EXPLORER_URL?: string
+    readonly VITE_MAINNET_QNS_REGISTRY?: string
+    readonly VITE_MAINNET_FACTORY_ADDRESS?: string
     readonly DEV: boolean
     readonly PROD: boolean
     readonly MODE: string

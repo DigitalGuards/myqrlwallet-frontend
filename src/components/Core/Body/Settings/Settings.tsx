@@ -101,10 +101,11 @@ const ChangePinSchema = z
 type ChangePinFormValues = z.infer<typeof ChangePinSchema>;
 
 import { IS_V3_PROFILE } from "@/config/runtimeProfile";
+import { V3_NETWORK_IDS } from "@/config/deploymentProfile";
 const configuredNetworks = () =>
   IS_V3_PROFILE
-    ? ["TEST_NET_V3"]
-    : Object.keys(QRL_PROVIDER).filter((id) => id !== "TEST_NET_V3");
+    ? [...V3_NETWORK_IDS]
+    : Object.keys(QRL_PROVIDER).filter((id) => !V3_NETWORK_IDS.includes(id));
 
 const Settings = observer(() => {
   const { t } = useTranslation(["settings", "common"]);

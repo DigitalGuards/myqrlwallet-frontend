@@ -4,6 +4,7 @@ import type { AccountSource } from "@/utils/storage";
 import type { ExtensionProvider } from "@/stores/qrlStore";
 import { getErrorMessage, getProviderErrorCode } from "@/utils/errors";
 import { qualifyV3Provider } from "./v3Provider";
+import type { NetworkConfig } from "@/config/deploymentProfile";
 import { isValidQrlAddress } from "@/utils/web3/address";
 
 declare const __QRL_DIAGNOSTICS__: boolean | undefined;
@@ -148,6 +149,7 @@ export async function extensionAuthorizesAccount(
 export async function restoreExtensionProvider(
   address: string,
   current: ExtensionProvider | null = null,
+  network?: NetworkConfig,
 ): Promise<ExtensionProvider | null> {
   if (!isValidQrlAddress(address)) return null;
   if (current && (await extensionAuthorizesAccount(current, address)))
@@ -161,7 +163,7 @@ export async function restoreExtensionProvider(
         !(await extensionAuthorizesAccount(provider, address))
       )
         return null;
-      await qualifyV3Provider(provider);
+      await qualifyV3Provider(provider, network);
       return provider;
     }),
   );

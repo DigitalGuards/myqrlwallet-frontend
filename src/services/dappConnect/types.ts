@@ -39,6 +39,12 @@ export interface DAppSession {
   lastActivity: number;
   /** Wallet identity generation that is allowed to restore this key. */
   walletEpoch?: WalletEpoch;
+  /**
+   * The canonical chain id the wallet last announced to this dApp (WALLET_INFO
+   * or an approved wallet_switchQrlChain). Signing requests are refused on any
+   * other chain. Records written before the wallet kept it have none.
+   */
+  chainId?: string;
 }
 
 export enum SessionStatus {

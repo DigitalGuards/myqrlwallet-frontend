@@ -7,7 +7,7 @@ import { isArray } from "@/utils/guards";
 import { isUserRejection } from "@/utils/signerRejection";
 import { isValidQrlAddress } from "@/utils/web3/address";
 import { IS_V3_PROFILE } from '@/config/runtimeProfile';
-import { qualifyV3MobileProvider, V3_MOBILE_UNRESPONSIVE_MESSAGE } from '@/utils/extension/v3Provider';
+import { qualifyV3MobileProvider, selectedV3Network, V3_MOBILE_UNRESPONSIVE_MESSAGE } from '@/utils/extension/v3Provider';
 
 /**
  * dApp-side QRL Connect client: pairs this web wallet with the MyQRLWallet
@@ -204,10 +204,10 @@ function adoptConnectedAccount(qrl: QRLConnect, store: MobileConnectStore): void
 async function createInstance(store: MobileConnectStore): Promise<QRLConnect> {
   const { QRLConnect } = await import("@qrlwallet/connect");
   const v3ChainId = IS_V3_PROFILE
-    ? (await import("@/config")).QRL_PROVIDER.TEST_NET_V3.expectedChainId
+    ? (await selectedV3Network()).expectedChainId
     : undefined;
   const qrl = new QRLConnect({
-    // Testnet v3 pairings are bound to the configured chain.
+    // v3 pairings are bound to the selected network's pinned chain.
     ...(v3ChainId ? { chainId: v3ChainId } : {}),
     dappMetadata: {
       name: "MyQRLWallet Web",

@@ -61,10 +61,12 @@ const TokenStatus = observer(() => {
     gasUsed,
     effectiveGasPrice,
   } = createdToken;
-  const explorerUrl =
-    Object.entries(QRL_PROVIDER).find(
-      ([id]) => id === qrlConnection.blockchain,
-    )?.[1].explorer || "https://zondscan.com";
+  // A configured network without an explorer gets no links. The zondscan
+  // fallback covers only an unknown network id.
+  const network = Object.entries(QRL_PROVIDER).find(
+    ([id]) => id === qrlConnection.blockchain,
+  )?.[1];
+  const explorerUrl = network ? network.explorer : "https://zondscan.com";
 
   const { copiedItem, copyToClipboard } = useCopyToClipboard<
     "txHash" | "tokenAddress" | "blockHash"
@@ -198,7 +200,7 @@ const TokenStatus = observer(() => {
               </span>
               <div className="flex items-center gap-2">
                 <a
-                  href={`${explorerUrl}/tx/${tx}`}
+                  href={explorerUrl ? `${explorerUrl}/tx/${tx}` : undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex min-w-0 items-center gap-2 font-medium text-secondary hover:text-secondary/80"
@@ -312,7 +314,7 @@ const TokenStatus = observer(() => {
                   {t("creation:blockNumber")}
                 </span>
                 <a
-                  href={`${explorerUrl}/block/${blockNumber}`}
+                  href={explorerUrl ? `${explorerUrl}/block/${blockNumber}` : undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 font-numeric font-medium text-secondary hover:text-secondary/80"

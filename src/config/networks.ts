@@ -1,6 +1,6 @@
 import type { BlockchainSelection } from "@/utils/storage/storage";
-import { IS_V3_PROFILE } from "./runtimeProfile";
-import { v3Deployment } from "./deploymentProfile";
+import { IS_NATIVE_BUILD, IS_V3_PROFILE } from "./runtimeProfile";
+import { MAINNET_V3_ID, TESTNET_V3_ID, v3Profile } from "./deploymentProfile";
 import type { NetworkConfig } from "./deploymentProfile";
 
 const IS_PRODUCTION = import.meta.env.PROD;
@@ -22,9 +22,21 @@ const v3Env = {
   VITE_V3_EXPLORER_URL: import.meta.env.VITE_V3_EXPLORER_URL,
   VITE_V3_RPC_URL: import.meta.env.VITE_V3_RPC_URL,
   VITE_V3_SERVER_URL: import.meta.env.VITE_V3_SERVER_URL,
+  VITE_V3_NATIVE_NETWORK: import.meta.env.VITE_V3_NATIVE_NETWORK,
+  VITE_DEFAULT_NETWORK: import.meta.env.VITE_DEFAULT_NETWORK,
+  VITE_MAINNET_CHAIN_ID: import.meta.env.VITE_MAINNET_CHAIN_ID,
+  VITE_MAINNET_GENESIS_HASH: import.meta.env.VITE_MAINNET_GENESIS_HASH,
+  VITE_MAINNET_RPC_URL: import.meta.env.VITE_MAINNET_RPC_URL,
+  VITE_MAINNET_SERVER_URL: import.meta.env.VITE_MAINNET_SERVER_URL,
+  VITE_MAINNET_EXPLORER_URL: import.meta.env.VITE_MAINNET_EXPLORER_URL,
+  VITE_MAINNET_QNS_REGISTRY: import.meta.env.VITE_MAINNET_QNS_REGISTRY,
+  VITE_MAINNET_FACTORY_ADDRESS: import.meta.env.VITE_MAINNET_FACTORY_ADDRESS,
 };
 
-const v3 = IS_V3_PROFILE ? v3Deployment(v3Env) : null;
+const profile = IS_V3_PROFILE ? v3Profile(v3Env, IS_NATIVE_BUILD) : null;
+// The deployment the build starts on. Build-wide values (the wallet API for
+// the relay and IPFS, the footer explorer link) follow it.
+const v3 = profile?.initial ?? null;
 export const TOKEN_FACTORY_ADDRESS = IS_V3_PROFILE
   ? v3?.tokenFactory || ""
   : import.meta.env.VITE_CUSTOMERC20FACTORY_ADDRESS || "";
@@ -49,15 +61,31 @@ export const EXPLORER_BASE =
     : import.meta.env.VITE_EXPLORER_URL_DEVELOPMENT) ||
     "https://zondscan.com");
 
-export const QRL_PROVIDER = {
-  TEST_NET_V3: v3?.network ?? {
-    id: "TEST_NET_V3",
+export const QRL_PROVIDER: Record<
+  "TEST_NET_V3" | "MAIN_NET_V3" | "TEST_NET" | "MAIN_NET",
+  NetworkConfig
+> = {
+  TEST_NET_V3: profile?.testnet.network ?? {
+    id: TESTNET_V3_ID,
     name: "QRL Testnet v3 (Private)",
     url: "",
     explorer: "",
     expectedChainId: "",
     genesisHash: "",
     qrns: { expectedChainId: "", registry: "" },
+    tokenFactory: "",
+  },
+  // Dormant until both mainnet pins are configured: no endpoint, no identity,
+  // and absent from AVAILABLE_NETWORKS, so nothing can select or sign for it.
+  MAIN_NET_V3: profile?.mainnet?.network ?? {
+    id: MAINNET_V3_ID,
+    name: "QRL 2.0 Mainnet",
+    url: "",
+    explorer: "",
+    expectedChainId: "",
+    genesisHash: "",
+    qrns: { expectedChainId: "", registry: "" },
+    tokenFactory: "",
   },
   TEST_NET: {
     id: "TEST_NET",
@@ -81,10 +109,13 @@ export const QRL_PROVIDER = {
   },
 };
 
-export const AVAILABLE_NETWORKS = IS_V3_PROFILE
-  ? [QRL_PROVIDER.TEST_NET_V3]
-  : [QRL_PROVIDER.TEST_NET, QRL_PROVIDER.MAIN_NET];
-export const DEFAULT_NETWORK_ID = IS_V3_PROFILE ? "TEST_NET_V3" : "TEST_NET";
+// The legacy MAIN_NET entry has no identity pins, so no build lists it: a
+// legacy build offers its testnet alone, and QRL 2.0 mainnet arrives as the
+// pinned MAIN_NET_V3 of the v3 profile.
+export const AVAILABLE_NETWORKS: NetworkConfig[] = profile
+  ? profile.available
+  : [QRL_PROVIDER.TEST_NET];
+export const DEFAULT_NETWORK_ID = profile ? profile.initial.network.id : "TEST_NET";
 export const isAvailableNetwork = (id: string): boolean =>
   AVAILABLE_NETWORKS.some((network) => network.id === id);
 
@@ -98,16 +129,19 @@ function requireNetworkConfig(blockchain: BlockchainSelection): NetworkConfig {
   return network;
 }
 
+// A network without an explorer (an optional mainnet setting) gets no link:
+// the helpers below return an empty string, which openExternalUrl refuses and
+// the link sites hide.
 export const getExplorerAddressUrl = (address: string, blockchain: BlockchainSelection) => {
   const provider = requireNetworkConfig(blockchain);
-  return `${provider.explorer}/address/${address}`;
+  return provider.explorer ? `${provider.explorer}/address/${address}` : "";
 };
 
 // New function to get explorer URL for a transaction hash
 export const getExplorerTxUrl = (txHash: string, blockchain: BlockchainSelection) => {
   const provider = requireNetworkConfig(blockchain);
   // Assuming the explorer path for transactions is /tx/
-  return `${provider.explorer}/tx/${txHash}`;
+  return provider.explorer ? `${provider.explorer}/tx/${txHash}` : "";
 };
 
 // Get API endpoint for token discovery by address. Phase 3b on zondscan
@@ -121,7 +155,9 @@ export const getTokenDiscoveryApiUrl = (
   blockchain: BlockchainSelection,
 ) => {
   const provider = requireNetworkConfig(blockchain);
-  return `${provider.explorer}/api/address/${address}/tokens?standard=ERC-20`;
+  return provider.explorer
+    ? `${provider.explorer}/api/address/${address}/tokens?standard=ERC-20`
+    : "";
 };
 
 // Get API endpoint for NFT discovery by address. The /nfts endpoint
@@ -131,5 +167,5 @@ export const getTokenDiscoveryApiUrl = (
 // call powers the wallet's NFT picker with thumbnails and names.
 export const getNFTDiscoveryApiUrl = (address: string, blockchain: BlockchainSelection) => {
   const provider = requireNetworkConfig(blockchain);
-  return `${provider.explorer}/api/address/${address}/nfts`;
+  return provider.explorer ? `${provider.explorer}/api/address/${address}/nfts` : "";
 };

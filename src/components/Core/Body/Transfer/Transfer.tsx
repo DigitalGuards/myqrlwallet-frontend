@@ -431,10 +431,12 @@ const Transfer = observer(() => {
     }
   };
 
+  // Empty on a network without an explorer, which hides the explorer button.
+  const explorerUrl = accountAddress
+    ? getExplorerAddressUrl(accountAddress, blockchain)
+    : "";
   const onViewInExplorer = () => {
-    if (accountAddress) {
-      openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
-    }
+    if (explorerUrl) openExternalUrl(explorerUrl);
   };
 
   function revalidateRecipient(
@@ -931,15 +933,17 @@ const Transfer = observer(() => {
                         <Copy className="mr-2 h-4 w-4" />
                         {hasJustCopied ? t("common:copied") : t("common:copy")}
                       </Button>
-                      <Button
-                        className="w-full"
-                        type="button"
-                        variant="outline"
-                        onClick={onViewInExplorer}
-                      >
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        {t("transfer:viewExplorer")}
-                      </Button>
+                      {explorerUrl && (
+                        <Button
+                          className="w-full"
+                          type="button"
+                          variant="outline"
+                          onClick={onViewInExplorer}
+                        >
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          {t("transfer:viewExplorer")}
+                        </Button>
+                      )}
                     </div>
                   </div>
 

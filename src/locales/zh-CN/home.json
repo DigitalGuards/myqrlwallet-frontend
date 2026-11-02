@@ -29,7 +29,7 @@
   "copyCode": "复制配对码",
   "newCode": "新配对码",
   "mobileUnresponsive": "手机未响应。请在手机上打开 MyQRLWallet 后重试。",
-  "mobileUnqualified": "此 MyQRLWallet 应用尚未通过 测试网 v3 兼容性验证。请更新应用后重新配对。",
+  "mobileUnqualified": "此 MyQRLWallet 应用尚未通过此网络的兼容性验证。请更新应用后重新配对。",
   "nfts": "NFT",
   "nftRefresh": "刷新所有权、余额和元数据",
   "addNft": "添加 NFT",

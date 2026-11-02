@@ -30,12 +30,16 @@ const address = `Q${"a".repeat(128)}`;
 let mockDappStore: DAppConnectStore;
 let rejectRequestSpy: jest.SpiedFunction<typeof dappConnectService.rejectRequest>;
 let approveRequestSpy: jest.SpiedFunction<typeof dappConnectService.approveRequest>;
+let mockActiveNetwork: { name: string } | undefined;
 const mockQrlStore = {
   activeAccount: { accountAddress: address },
   qrlConnection: { blockchain: "TEST_NET" },
   qrlAccounts: { isLoading: false },
   qrlInstance: { requestManager: { send: () => Promise.resolve("0x301825") } },
+  get activeNetwork() { return mockActiveNetwork; },
+  assertNetworkReady: jest.fn(() => Promise.resolve()),
 };
+let mockV3Profile = false;
 
 jest.mock("@/stores/store", () => ({
   useStore: () => ({ dappConnectStore: mockDappStore, qrlStore: mockQrlStore }),
@@ -52,6 +56,7 @@ jest.mock("@/services/dappConnect/DAppConnectService", () => ({
     reconnectAll: () => Promise.resolve(),
     rejectRequest: jest.fn(),
     approveRequest: jest.fn(),
+    sessionNetworkError: jest.fn(() => null),
   },
 }));
 jest.mock("@/services/dappConnect/qrUri", () => ({
@@ -64,7 +69,10 @@ jest.mock("@/desktop/bridge", () => ({
 jest.mock("@/config", () => ({
   getExplorerTxUrl: () => "https://explorer.example/tx",
 }));
-jest.mock("@/config/runtimeProfile", () => ({ IS_V3_PROFILE: false, profileStorageKey: (key: string) => key }));
+jest.mock("@/config/runtimeProfile", () => ({
+  get IS_V3_PROFILE() { return mockV3Profile; },
+  profileStorageKey: (key: string) => key,
+}));
 jest.mock("@/utils/crypto", () => ({ decryptStoredSeedWithPin: jest.fn(), DeviceCredentialUnavailableError: class extends Error {} }));
 jest.mock("@/utils/storage/storage", () => ({ __esModule: true, default: { getBlockChain: () => Promise.resolve("TEST_NET"), getEncryptedSeed: () => Promise.resolve("fixture") } }));
 jest.mock("@/utils/nativeWalletMutation", () => ({ walletMutations: { captureGeneration: () => 0, isCurrent: () => true } }));
@@ -149,6 +157,8 @@ beforeEach(() => {
     maxPriorityFeePerGas: 1n,
     expectedFeePerGas: 1n,
   });
+  mockV3Profile = false;
+  mockActiveNetwork = undefined;
   mockDappStore = new DAppConnectStore();
   rejectRequestSpy = jest.spyOn(dappConnectService, "rejectRequest");
   approveRequestSpy = jest.spyOn(dappConnectService, "approveRequest");
@@ -367,6 +377,78 @@ async function approve(): Promise<void> {
     return Promise.resolve();
   });
 }
+
+describe("dApp session on another network", () => {
+  const MISMATCH =
+    "This dApp was connected on QRL Testnet v3 (Private), and the wallet is now on QRL 2.0 Mainnet. Switch the wallet back to QRL Testnet v3 (Private) or reconnect the dApp.";
+
+  it.each(["qrl_signMessage", "qrl_signTypedData", "qrl_sendTransaction", "qrl_signTransaction"])(
+    "refuses %s before signing and answers the dApp with the reason on Close",
+    async (method) => {
+      mockV3Profile = true;
+      const signMessage = jest.spyOn(desktopSigner, "signMessage");
+      const signTypedData = jest.spyOn(desktopSigner, "signTypedData");
+      const signAndSend = jest.spyOn(desktopSigner, "signAndSendTransaction");
+      const signOnly = jest.spyOn(desktopSigner, "signTransactionOnly");
+      const sessionNetworkError = jest
+        .spyOn(dappConnectService, "sessionNetworkError")
+        .mockReturnValue(MISMATCH);
+      const pending = await showApproval(method);
+      await approve();
+
+      expect(sessionNetworkError).toHaveBeenCalledWith(pending.sessionId);
+      expect(screen.getByRole("alert").textContent).toBe(MISMATCH);
+      expect(signMessage).not.toHaveBeenCalled();
+      expect(signTypedData).not.toHaveBeenCalled();
+      expect(signAndSend).not.toHaveBeenCalled();
+      expect(signOnly).not.toHaveBeenCalled();
+      expect(approveRequestSpy).not.toHaveBeenCalled();
+      expect(rejectRequestSpy).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByText("Close", { selector: "button" }));
+      expect(rejectRequestSpy).toHaveBeenCalledWith(
+        pending.sessionId,
+        pending.id,
+        MISMATCH,
+        4100,
+      );
+    },
+  );
+
+  it("leaves account requests to the account flow", async () => {
+    mockV3Profile = true;
+    const sessionNetworkError = jest.spyOn(dappConnectService, "sessionNetworkError");
+    const pending = await showApproval("qrl_requestAccounts");
+    await approve();
+    expect(sessionNetworkError).not.toHaveBeenCalled();
+    expect(approveRequestSpy).toHaveBeenCalledWith(pending.sessionId, pending.id, [address]);
+  });
+});
+
+describe("transaction network row", () => {
+  it.each([
+    ["QRL 2.0 Mainnet", "QRL 2.0 Mainnet"],
+    ["QRL Testnet v3 (Private)", "QRL Testnet v3 (Private)"],
+  ])("names the active network %s in the review", async (name, shown) => {
+    mockV3Profile = true;
+    mockActiveNetwork = { name };
+    await showApproval("qrl_sendTransaction");
+    const value = screen.getByText(shown);
+    expect(value.closest("[data-review-block]")?.textContent).toBe(`Network${shown}`);
+  });
+
+  it("shows no network row before the wallet knows its network", async () => {
+    mockV3Profile = true;
+    await showApproval("qrl_sendTransaction");
+    expect(screen.queryByText("Network")).toBeNull();
+  });
+
+  it("keeps the legacy profile's single-network review as it was", async () => {
+    mockActiveNetwork = { name: "QRL 2.0 Testnet" };
+    await showApproval("qrl_sendTransaction");
+    expect(screen.queryByText("Network")).toBeNull();
+  });
+});
 
 describe("network request details", () => {
   it.each(["0x003018aB", `0x${"aB".repeat(32)}`])(
