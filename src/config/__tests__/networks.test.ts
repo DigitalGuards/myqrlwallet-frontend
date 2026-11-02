@@ -141,6 +141,15 @@ describe.each(["", "v3-private"])(
       },
     );
 
+    it("never lists the unpinned legacy MAIN_NET", () => {
+      expect(networkIds(networks)).toEqual([
+        profile ? "TEST_NET_V3" : "TEST_NET",
+      ]);
+      expect(exportedFunction(networks, "isAvailableNetwork")("MAIN_NET")).toBe(
+        false,
+      );
+    });
+
     it.each(["", "UNKNOWN", "constructor", "__proto__", "toString"])(
       "fails closed for unknown network %s",
       (blockchain) => {

@@ -300,8 +300,26 @@ class QrlStore {
   /** The chain id a v3 transaction is signed for: the active network's pin. */
   signingChainId(): string {
     const chainId = this.activeNetwork?.expectedChainId;
-    if (!chainId) throw new Error('Testnet v3 network identity has not been verified');
+    if (!chainId) throw new Error('Network identity has not been verified');
     return chainId;
+  }
+
+  /**
+   * Why a dApp session set up on `sessionChainId` may not sign on the active
+   * network, or null when it may. Only the v3 networks pin a chain. A session
+   * stored before the wallet recorded its chain was set up on the v3 testnet,
+   * the only v3 network any earlier build listed.
+   */
+  dappSessionNetworkError(sessionChainId: string | null): string | null {
+    const active = this.activeNetwork;
+    if (!IS_V3_PROFILE || !active?.expectedChainId) return null;
+    const chainId = sessionChainId ?? QRL_PROVIDER.TEST_NET_V3.expectedChainId;
+    if (chainId === active.expectedChainId) return null;
+    const sessionNetwork =
+      Object.values(QRL_PROVIDER).find(
+        (network) => !!network.expectedChainId && network.expectedChainId === chainId,
+      )?.name ?? `chain ${chainId}`;
+    return `This dApp was connected on ${sessionNetwork}, and the wallet is now on ${active.name}. Switch the wallet back to ${sessionNetwork} or reconnect the dApp.`;
   }
 
   constructor() {
@@ -1445,7 +1463,7 @@ class QrlStore {
     const network = this.activeNetwork;
     if (!provider || !current || !network || typeof blockchain !== 'string' || !V3_NETWORK_IDS.includes(blockchain)
       || !this.qrlConnection.isConnected) {
-      throw new Error('Testnet v3 network identity has not been verified');
+      throw new Error('Network identity has not been verified');
     }
     try {
       if (source === 'mobile') {

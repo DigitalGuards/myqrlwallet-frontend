@@ -29,7 +29,7 @@
   "copyCode": "Copiar código",
   "newCode": "Nuevo código",
   "mobileUnresponsive": "Tu teléfono no ha respondido. Abre MyQRLWallet en el teléfono e inténtalo de nuevo.",
-  "mobileUnqualified": "Esta app MyQRLWallet aún no está validada para Red de prueba v3. Actualízala y vuelve a enlazarla.",
+  "mobileUnqualified": "Esta app MyQRLWallet aún no está validada para esta red. Actualízala y vuelve a enlazarla.",
   "nfts": "NFT",
   "nftRefresh": "Actualizar propiedad, saldos y metadatos",
   "addNft": "Añadir NFT",

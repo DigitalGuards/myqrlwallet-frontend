@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
+import { observer } from "mobx-react-lite";
 import { EXPLORER_BASE } from "@/config";
 import { ROUTES } from "@/router/router";
+import { useStore } from "@/stores/store";
 import { Link } from "react-router";
 import { cn } from "@/utils/cn";
 
@@ -10,8 +12,12 @@ import { cn } from "@/utils/cn";
  * - mobile: inlined at the end of the page content (the fixed footer is
  *   hidden so it does not collide with the bottom tab bar).
  */
-export function FooterLinks({ className }: { className?: string }) {
+export const FooterLinks = observer(({ className }: { className?: string }) => {
   const { t } = useTranslation("common");
+  const { qrlStore } = useStore();
+  // The active network's explorer. Before the wallet connects, the explorer
+  // of the network the build starts on.
+  const explorer = qrlStore.activeNetwork?.explorer ?? EXPLORER_BASE;
   const linkClass =
     "text-xs md:text-sm cursor-pointer text-identity-accent/70 hover:text-identity-accent transition-colors";
 
@@ -34,9 +40,9 @@ export function FooterLinks({ className }: { className?: string }) {
       <Link className={linkClass} to={ROUTES.LEGAL}>
         {t("legal")}
       </Link>
-      {EXPLORER_BASE && (
+      {explorer && (
         <a
-          href={EXPLORER_BASE}
+          href={explorer}
           target="_blank"
           rel="noopener noreferrer"
           className={linkClass}
@@ -46,7 +52,7 @@ export function FooterLinks({ className }: { className?: string }) {
       )}
     </div>
   );
-}
+});
 
 export default function Footer() {
   return (

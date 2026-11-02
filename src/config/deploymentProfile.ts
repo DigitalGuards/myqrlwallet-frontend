@@ -257,7 +257,7 @@ export async function verifyNetworkIdentity(
   };
   const chain = await request("qrl_chainId", []);
   if (canonicalChainId(chain) !== network.expectedChainId)
-    throw new Error("Testnet v3 chain identity mismatch");
+    throw new Error("Network chain identity mismatch");
   const block = await request("qrl_getBlockByNumber", ["0x0", false]);
   if (
     typeof block !== "object" ||
@@ -268,5 +268,5 @@ export async function verifyNetworkIdentity(
     typeof block.hash !== "string" ||
     block.hash.toLowerCase() !== network.genesisHash
   )
-    throw new Error("Testnet v3 genesis identity mismatch");
+    throw new Error("Network genesis identity mismatch");
 }

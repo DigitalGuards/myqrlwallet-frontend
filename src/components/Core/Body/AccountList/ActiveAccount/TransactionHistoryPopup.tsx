@@ -106,8 +106,10 @@ export const TransactionHistoryPopup = observer(
       };
     }, [isOpen, accountAddress, network]);
 
+    // Empty on a network without an explorer, which hides "view all".
+    const explorerUrl = getExplorerAddressUrl(accountAddress, blockchain);
     const viewAllTransactions = () => {
-      openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
+      openExternalUrl(explorerUrl);
       onClose();
     };
 
@@ -168,85 +170,99 @@ export const TransactionHistoryPopup = observer(
             <ul className="mt-3 divide-y divide-border">
               {transactions.map((tx) => {
                 const view = historyRowView(tx);
+                // Empty on a network without an explorer: the row then shows
+                // the transaction without linking anywhere.
+                const txUrl = getExplorerTxUrl(tx.TxHash, blockchain);
+                const row = (
+                  <>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">
+                        {t(
+                          view.title === "Received"
+                            ? "history:received"
+                            : "history:sent",
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {view.counterparty ? (
+                          <Trans
+                            t={t}
+                            i18nKey={
+                              view.title === "Received"
+                                ? "history:from"
+                                : "history:to"
+                            }
+                            components={{
+                              address: (
+                                <CompactAddressText
+                                  address={view.counterparty}
+                                />
+                              ),
+                            }}
+                          />
+                        ) : view.title === "Received" ? (
+                          t("history:unknownSender")
+                        ) : (
+                          t("history:contractCreation")
+                        )}
+                      </div>
+                      <div
+                        className={`mt-1 text-xs ${TONE_CLASS[view.statusTone]}`}
+                      >
+                        {t(historyStatusKey(tx))}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {view.time === "Unknown time"
+                          ? t("history:unknownTime")
+                          : view.time}
+                      </div>
+                      <div className="mt-1 break-all font-data text-[11px] text-muted-foreground">
+                        {view.hash}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div
+                        className={`text-sm font-numeric ${TONE_CLASS[view.amountTone]}`}
+                      >
+                        {view.amount}
+                      </div>
+                      <div className="text-xs font-numeric text-muted-foreground">
+                        {view.unit}
+                      </div>
+                    </div>
+                  </>
+                );
                 return (
                   <li key={tx.ID}>
-                    <button
-                      type="button"
-                      title={t("history:view")}
-                      onClick={() => {
-                        openExternalUrl(
-                          getExplorerTxUrl(tx.TxHash, blockchain),
-                        );
-                      }}
-                      className="flex w-full items-start justify-between gap-3 rounded-md px-1 py-3 text-left transition-colors hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">
-                          {t(
-                            view.title === "Received"
-                              ? "history:received"
-                              : "history:sent",
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {view.counterparty ? (
-                            <Trans
-                              t={t}
-                              i18nKey={
-                                view.title === "Received"
-                                  ? "history:from"
-                                  : "history:to"
-                              }
-                              components={{
-                                address: (
-                                  <CompactAddressText
-                                    address={view.counterparty}
-                                  />
-                                ),
-                              }}
-                            />
-                          ) : view.title === "Received" ? (
-                            t("history:unknownSender")
-                          ) : (
-                            t("history:contractCreation")
-                          )}
-                        </div>
-                        <div
-                          className={`mt-1 text-xs ${TONE_CLASS[view.statusTone]}`}
-                        >
-                          {t(historyStatusKey(tx))}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {view.time === "Unknown time"
-                            ? t("history:unknownTime")
-                            : view.time}
-                        </div>
-                        <div className="mt-1 break-all font-data text-[11px] text-muted-foreground">
-                          {view.hash}
-                        </div>
+                    {txUrl ? (
+                      <button
+                        type="button"
+                        title={t("history:view")}
+                        onClick={() => {
+                          openExternalUrl(txUrl);
+                        }}
+                        className="flex w-full items-start justify-between gap-3 rounded-md px-1 py-3 text-left transition-colors hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {row}
+                      </button>
+                    ) : (
+                      <div className="flex w-full items-start justify-between gap-3 px-1 py-3 text-left">
+                        {row}
                       </div>
-                      <div className="shrink-0 text-right">
-                        <div
-                          className={`text-sm font-numeric ${TONE_CLASS[view.amountTone]}`}
-                        >
-                          {view.amount}
-                        </div>
-                        <div className="text-xs font-numeric text-muted-foreground">
-                          {view.unit}
-                        </div>
-                      </div>
-                    </button>
+                    )}
                   </li>
                 );
               })}
             </ul>
           )}
 
-          <div className="mt-4 flex justify-center">
-            <Button variant="outline" onClick={viewAllTransactions}>
-              {t("history:viewAll")}
-            </Button>
-          </div>
+          {explorerUrl && (
+            <div className="mt-4 flex justify-center">
+              <Button variant="outline" onClick={viewAllTransactions}>
+                {t("history:viewAll")}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     );

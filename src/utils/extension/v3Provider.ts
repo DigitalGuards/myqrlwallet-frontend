@@ -28,7 +28,7 @@ export async function selectedV3Network(): Promise<NetworkConfig> {
     ([id]) => id === selected,
   )?.[1];
   if (!network)
-    throw new Error("Testnet v3 network identity has not been verified");
+    throw new Error("Network identity has not been verified");
   return network;
 }
 
@@ -37,7 +37,7 @@ export function assertQualifiedV3Provider(
 ): void {
   if (IS_V3_PROFILE && (!provider || !qualifiedProviders.has(provider))) {
     throw new Error(
-      "This extension is not yet qualified for Testnet v3. Connect an updated MyQRLWallet extension.",
+      "This extension is not yet qualified for this network. Connect an updated MyQRLWallet extension.",
     );
   }
 }
@@ -105,7 +105,7 @@ async function verifyV3Provider(
     capabilities.genesisHash.toLowerCase() !== network.genesisHash
   ) {
     throw new Error(
-      "This extension is not yet qualified for the configured Testnet v3 network.",
+      "This extension is not yet qualified for the configured network.",
     );
   }
   await verifyNetworkIdentity(provider, network);
@@ -121,7 +121,7 @@ const qualifiedMobileProviders = new WeakMap<
 export const V3_MOBILE_QUALIFICATION_TTL_MS = 60_000;
 
 export const V3_UNQUALIFIED_MOBILE_MESSAGE =
-  "This MyQRLWallet app is not yet qualified for Testnet v3. Update the app and pair again.";
+  "This MyQRLWallet app is not yet qualified for this network. Update the app and pair again.";
 
 export const V3_MOBILE_UNRESPONSIVE_MESSAGE =
   "Your phone did not respond. Open MyQRLWallet on your phone and try again.";

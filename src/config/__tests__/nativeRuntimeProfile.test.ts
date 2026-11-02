@@ -179,6 +179,73 @@ it("requires the native bridge and application context", () => {
   expect(isUnsupportedV3Context()).toBe(false);
 });
 
+describe("desktop shell network metadata", () => {
+  // The desktop preload advertises its build's network beside addressScheme.
+  function desktopShell(advertised?: unknown) {
+    delete window.ReactNativeWebView;
+    jest
+      .spyOn(navigator, "userAgent", "get")
+      .mockReturnValue("Mozilla/5.0 Electron/44.10.0");
+    window.qrlWallet = malformed<NonNullable<typeof window.qrlWallet>>({
+      addressScheme: "qip55-64",
+      ...(advertised === undefined ? {} : { network: advertised }),
+    });
+  }
+
+  afterEach(() => {
+    delete window.qrlWallet;
+  });
+
+  it("keeps a shell without network metadata supported", () => {
+    desktopShell();
+    expect(isUnsupportedV3Context()).toBe(false);
+  });
+
+  it("accepts the shell built for the renderer's network", () => {
+    desktopShell({ ...network });
+    expect(isUnsupportedV3Context()).toBe(false);
+    // The shell's chain id is hex from a number; the genesis case may differ.
+    desktopShell({
+      ...network,
+      chainId: "0x0301825",
+      genesisHash: network.genesisHash.toUpperCase().replace("0X", "0x"),
+    });
+    expect(isUnsupportedV3Context()).toBe(false);
+  });
+
+  it.each([
+    ["networkProfile", "v3-mainnet"],
+    ["chainId", "0x1"],
+    ["chainId", 3151909],
+    ["genesisHash", `0x${"cd".repeat(32)}`],
+    ["genesisHash", null],
+  ])("refuses a shell whose %s is %p", (field, value) => {
+    desktopShell({ ...network, [field]: value });
+    expect(isUnsupportedV3Context()).toBe(true);
+  });
+
+  it.each([null, "v3-private", [network]])(
+    "refuses malformed shell network metadata %p",
+    (value) => {
+      desktopShell(value);
+      expect(isUnsupportedV3Context()).toBe(true);
+    },
+  );
+
+  it("refuses a testnet shell under a mainnet renderer", () => {
+    Object.defineProperty(globalThis, "__QRL_NATIVE_NETWORK__", {
+      value: {
+        chainId: "0x1",
+        genesisHash: `0x${"cd".repeat(32)}`,
+        networkProfile: "v3-mainnet",
+      },
+      configurable: true,
+    });
+    desktopShell({ ...network });
+    expect(isUnsupportedV3Context()).toBe(true);
+  });
+});
+
 it("preserves exact document binding and rechecks capability for bridge messages", () => {
   const native = jest.requireActual<typeof import("../../utils/nativeApp")>(
     "../../utils/nativeApp",

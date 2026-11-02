@@ -109,11 +109,12 @@ export const QRL_PROVIDER: Record<
   },
 };
 
-// The legacy MAIN_NET entry has no identity pins and never appears in a v3
-// build's list.
+// The legacy MAIN_NET entry has no identity pins, so no build lists it: a
+// legacy build offers its testnet alone, and QRL 2.0 mainnet arrives as the
+// pinned MAIN_NET_V3 of the v3 profile.
 export const AVAILABLE_NETWORKS: NetworkConfig[] = profile
   ? profile.available
-  : [QRL_PROVIDER.TEST_NET, QRL_PROVIDER.MAIN_NET];
+  : [QRL_PROVIDER.TEST_NET];
 export const DEFAULT_NETWORK_ID = profile ? profile.initial.network.id : "TEST_NET";
 export const isAvailableNetwork = (id: string): boolean =>
   AVAILABLE_NETWORKS.some((network) => network.id === id);

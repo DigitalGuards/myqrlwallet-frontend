@@ -204,6 +204,11 @@ describe("testnet storage", () => {
     expect(await StorageUtil.getBlockChain()).toBe("TEST_NET_V3");
     await StorageUtil.setBlockChain("MAIN_NET_V3");
     expect(await StorageUtil.getBlockChain()).toBe("MAIN_NET_V3");
+    // The choice outlives the six-hour expiry of other web wallet storage.
+    const old = stored("MAIN_NET_V3", Date.now() - 7 * 60 * 60 * 1000);
+    localStorage.setItem(SELECTION_KEY, old);
+    expect(await StorageUtil.getBlockChain()).toBe("MAIN_NET_V3");
+    expect(localStorage.getItem(SELECTION_KEY)).toBe(old);
     for (const value of ["MAIN_NET", "TEST_NET", ["MAIN_NET_V3"], null]) {
       localStorage.setItem(SELECTION_KEY, stored(value));
       expect(await StorageUtil.getBlockChain()).toBe("TEST_NET_V3");
@@ -306,5 +311,44 @@ describe("store on the pinned mainnet", () => {
     await expect(store.selectBlockchain("MAIN_NET")).rejects.toThrow(
       "not available in this build",
     );
+  });
+});
+
+describe("dApp sessions across a network switch", () => {
+  const TESTNET_NAME = "QRL Testnet v3 (Private)";
+  const MAINNET_NAME = "QRL 2.0 Mainnet";
+
+  it("refuses a testnet session once the wallet is on the mainnet", async () => {
+    mockAvailableIds = ["TEST_NET_V3", "MAIN_NET_V3"];
+    const { store } = storeOn("MAIN_NET_V3", {
+      chainId: "0x1",
+      genesisHash: MAINNET_GENESIS,
+    });
+    await store.initializeBlockchain();
+    const error = store.dappSessionNetworkError("0x301825");
+    expect(error).toBe(
+      `This dApp was connected on ${TESTNET_NAME}, and the wallet is now on ${MAINNET_NAME}. Switch the wallet back to ${TESTNET_NAME} or reconnect the dApp.`,
+    );
+    // A record from before the wallet kept the chain was set up on the testnet.
+    expect(store.dappSessionNetworkError(null)).toBe(error);
+    expect(store.dappSessionNetworkError("0x1")).toBeNull();
+  });
+
+  it("refuses a mainnet session once the wallet is back on the testnet", async () => {
+    mockAvailableIds = ["TEST_NET_V3", "MAIN_NET_V3"];
+    const { store } = storeOn("TEST_NET_V3", {
+      chainId: "0x301825",
+      genesisHash: TESTNET_GENESIS,
+    });
+    await store.initializeBlockchain();
+    expect(store.dappSessionNetworkError("0x1")).toBe(
+      `This dApp was connected on ${MAINNET_NAME}, and the wallet is now on ${TESTNET_NAME}. Switch the wallet back to ${MAINNET_NAME} or reconnect the dApp.`,
+    );
+    expect(store.dappSessionNetworkError("0x99")).toContain(
+      "connected on chain 0x99",
+    );
+    expect(store.dappSessionNetworkError("0x301825")).toBeNull();
+    // Every session stored by a testnet build keeps working.
+    expect(store.dappSessionNetworkError(null)).toBeNull();
   });
 });

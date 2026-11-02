@@ -241,7 +241,7 @@ describe.each(["ERC20", "ERC721", "ERC1155"] as const)(
     it("stops before loading a signing seed when initial identity verification fails", async () => {
       const { store, ready, send } = assetFixture(asset);
       ready.mockRejectedValueOnce(
-        new Error("Testnet v3 genesis identity mismatch"),
+        new Error("Network genesis identity mismatch"),
       );
       expect(await send()).toBe(false);
       expect(deriveHexSeedAsync).not.toHaveBeenCalled();

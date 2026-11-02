@@ -9,6 +9,8 @@ jest.mock("@/config", () => ({
     MAIN_NET: { id: "MAIN_NET", url: "https://main.invalid" },
     TEST_NET_V3: { id: "TEST_NET_V3", url: "https://v3.invalid" },
   },
+  // A legacy build lists its testnet alone.
+  AVAILABLE_NETWORKS: [{ id: "TEST_NET", url: "https://test.invalid" }],
 }));
 jest.mock("@/config/runtimeProfile", () => ({
   IS_V3_PROFILE: false,
@@ -72,7 +74,7 @@ const cases: AccessorCase[] = [
   {
     label: "chain",
     key: "BLOCKCHAIN_SELECTION",
-    value: "MAIN_NET",
+    value: "TEST_NET",
     read: () => StorageUtil.getBlockChain(),
   },
   {
@@ -342,12 +344,8 @@ it.each(cases.filter(({ label }) => [
 });
 
 it.each([
-  { value: "MAIN_NET", key: "MAIN_NET", account: ADDRESS },
-  { value: ["MAIN_NET"], key: "MAIN_NET", account: ADDRESS },
-  { value: [[["MAIN_NET"]]], key: "MAIN_NET", account: ADDRESS },
   { value: ["TEST_NET"], key: "TEST_NET", account: SECOND },
-  { value: ["TEST_NET_V3"], key: "TEST_NET_V3", account: ADDRESS },
-  { value: [["TEST_NET_V3"]], key: "TEST_NET_V3", account: ADDRESS },
+  { value: [["TEST_NET"]], key: "TEST_NET", account: SECOND },
 ])("keeps the provider, account and raw selection for $value", async ({ value, key, account }) => {
   await StorageUtil.setActiveAccount("MAIN_NET", ADDRESS);
   await StorageUtil.setActiveAccount("TEST_NET", SECOND);
@@ -359,6 +357,23 @@ it.each([
   expect(QRL_PROVIDER[blockchainKey(selected)].id).toBe(key);
   expect(await StorageUtil.getActiveAccount(selected)).toBe(account);
   expect(localStorage.getItem("BLOCKCHAIN_SELECTION")).toBe(raw);
+});
+
+it.each([
+  "MAIN_NET",
+  ["MAIN_NET"],
+  [[["MAIN_NET"]]],
+  "TEST_NET_V3",
+  ["TEST_NET_V3"],
+  [["TEST_NET_V3"]],
+])("moves a selection this build does not list (%j) back to TEST_NET", async (value) => {
+  // The unpinned legacy MAIN_NET is no longer offered, so a stored choice of
+  // it must not reconnect the wallet to that endpoint.
+  put("BLOCKCHAIN_SELECTION", value);
+  expect(await StorageUtil.getBlockChain()).toBe("TEST_NET");
+  await expect(StorageUtil.setBlockChain("MAIN_NET")).rejects.toThrow(
+    "not available in this build",
+  );
 });
 
 it.each([{ toString: null }, [{ toString: 0 }]])("preserves network property-key coercion errors for %j", async (value) => {

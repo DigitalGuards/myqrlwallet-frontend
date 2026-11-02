@@ -125,6 +125,14 @@ const METHOD_LABELS: Record<string, ParseKeys<["dapps", "common", "settings", "t
   wallet_switchQrlChain: "dapps:switchNetwork",
 };
 
+/** Requests that sign or send for the session's chain. */
+const SESSION_CHAIN_METHODS: ReadonlySet<string> = new Set([
+  "qrl_sendTransaction",
+  "qrl_signTransaction",
+  "qrl_signMessage",
+  "qrl_signTypedData",
+]);
+
 const GAS_ESTIMATE_BUFFER_MULTIPLIER = 1.2;
 // dApp requests carry no fee selector; sign at the send screen's default level.
 const DAPP_FEE_LEVEL: FeeLevel = "medium";
@@ -538,6 +546,18 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     try {
       const { method } = currentApproval;
       if (IS_V3_PROFILE) await qrlStore.assertNetworkReady();
+      // The network may have changed while this request waited. Its session
+      // signs only on the chain it was set up on; the failure stays on screen
+      // until Close answers the dApp with it.
+      const networkError = IS_V3_PROFILE && SESSION_CHAIN_METHODS.has(method)
+        ? dappConnectStore.sessionNetworkError(approvalSessionId)
+        : null;
+      if (networkError !== null) {
+        setSigningFailure({ code: 4100, message: networkError });
+        setError(networkError);
+        setPin("");
+        return;
+      }
       // currentApproval is a deep MobX observable, so its nested params objects
       // carry a Symbol(mobx administration) key. zod's z.record key check walks
       // own symbols and rejects that key (and the signing encoders must hash a
@@ -1543,6 +1563,9 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
               {isTransaction && params?.[0] != null && (
                 <DAppTransactionReview
                   params={firstParamRecord(params)}
+                  // The v3 networks are the pinned ones a web build can switch
+                  // between; the legacy profile lists a single testnet.
+                  networkName={IS_V3_PROFILE ? qrlStore.activeNetwork?.name : undefined}
                   maxNetworkFee={
                     feePreview?.status === "ready"
                       ? feePreview.display

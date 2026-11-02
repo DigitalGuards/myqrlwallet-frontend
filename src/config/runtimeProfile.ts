@@ -1,6 +1,10 @@
 import type { BlockchainSelection } from "@/utils/storage/storage";
 import { isRecord } from "@/utils/guards";
-import { MAINNET_V3_ID, TESTNET_V3_ID } from "./deploymentProfile";
+import {
+  canonicalChainId,
+  MAINNET_V3_ID,
+  TESTNET_V3_ID,
+} from "./deploymentProfile";
 
 declare const __QRL_WALLET_PROFILE__: string | undefined;
 declare const __QRL_NATIVE_BUILD__: boolean | undefined;
@@ -92,11 +96,32 @@ export function historyNetwork(
   return blockchain === "MAIN_NET" ? "mainnet" : null;
 }
 
+/**
+ * True when the desktop shell advertises a network (window.qrlWallet.network)
+ * other than the one this renderer was built for. A shell that predates the
+ * metadata advertises none and keeps working as before.
+ */
+function isDesktopNetworkMismatch(): boolean {
+  const advertised = window.qrlWallet?.network;
+  if (advertised === undefined) return false;
+  const expected =
+    typeof __QRL_NATIVE_NETWORK__ === "undefined" ? null : __QRL_NATIVE_NETWORK__;
+  if (!expected || !isRecord(advertised)) return true;
+  const genesisHash = advertised["genesisHash"];
+  return !(
+    advertised["networkProfile"] === expected.networkProfile &&
+    canonicalChainId(advertised["chainId"]) === expected.chainId &&
+    typeof genesisHash === "string" &&
+    genesisHash.toLowerCase() === expected.genesisHash.toLowerCase()
+  );
+}
+
 export function isUnsupportedV3Context(): boolean {
   return (
     IS_V3_PROFILE &&
     typeof window !== "undefined" &&
     ((!!window.qrlWallet && window.qrlWallet.addressScheme !== "qip55-64") ||
+      (!!window.qrlWallet && isDesktopNetworkMismatch()) ||
       (!!window.ReactNativeWebView && !isQualifiedV3NativeContext()) ||
       (typeof navigator !== "undefined" &&
         navigator.userAgent.includes("MyQRLWallet") &&

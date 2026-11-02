@@ -35,7 +35,11 @@ import { IS_EMBEDDED_BUILD } from "@/utils/embeddedRuntime";
 import { EMBEDDED_RELAY_URLS } from "@/config/embeddedBuild";
 import { isArray, isRecord } from "@/utils/guards";
 import { RequestHandler } from "./RequestHandler";
-import { getRequestProvider, readWalletChainId } from "./rpcProvider";
+import {
+  canonicalChainId,
+  getRequestProvider,
+  readWalletChainId,
+} from "./rpcProvider";
 import {
   isExactQrlAccount,
   isQrlAccount,
@@ -399,6 +403,12 @@ interface ActiveConnection {
   // Identity epoch captured when this connection was created or restored.
   // Checkpoints from an older epoch must never survive a wallet wipe.
   walletEpoch: WalletEpoch;
+  // The chain the wallet last announced to this dApp: WALLET_INFO at setup
+  // and on account approval, or an approved wallet_switchQrlChain. Signing and
+  // transaction requests are refused while the active network is on another
+  // chain. Null until the handshake completes, and on a restored record
+  // written before the wallet kept it.
+  chainId: string | null;
 }
 
 type ServiceEventHandler = {
@@ -426,6 +436,8 @@ interface PendingRestrictedRequestState {
   method: string;
   /** Authorization snapshot captured when an account-bound request entered. */
   authorizedAccount: string | null;
+  /** The canonical chain a wallet_switchQrlChain request asks for. */
+  requestedChainId?: string;
 }
 
 export class DAppConnectService {
@@ -738,6 +750,7 @@ export class DAppConnectService {
       qrFingerprint: parsed.fp.slice(),
       originatedViaDeepLink: origin === "deeplink",
       walletEpoch: operationEpoch,
+      chainId: null,
     };
     this.connections.set(channelId, connection);
     this.handlers?.onSessionsChanged();
@@ -883,6 +896,20 @@ export class DAppConnectService {
       return;
     }
 
+    // The session belongs to this chain from here on. Checkpointed before
+    // WALLET_INFO announces it, so a reload restores the session with it even
+    // when the announcement waits for the relay.
+    conn.chainId = walletChainId;
+    try {
+      await this.persistSession(channelId, conn);
+    } catch (err) {
+      logger.error(
+        "[DAppConnect] Failed to persist the session chain:",
+        err,
+      );
+      return;
+    }
+
     const walletInfo = await this.sendEncrypted(channelId, {
       type: MessageType.WALLET_INFO,
       accounts: [],
@@ -954,6 +981,7 @@ export class DAppConnectService {
         createdAt: existing?.createdAt || Date.now(),
         lastActivity: Date.now(),
         walletEpoch: operationEpoch,
+        ...(conn.chainId === null ? {} : { chainId: conn.chainId }),
       };
       if (
         !this.isCurrentConnection(channelId, conn) ||
@@ -1219,6 +1247,18 @@ export class DAppConnectService {
               });
               return;
             }
+            // After a network switch the dApp still expects the chain this
+            // session was set up on. A request without chainId would otherwise
+            // be signed for the new network.
+            const networkError = this.sessionNetworkError(channelId);
+            if (networkError !== null) {
+              await this.sendJsonRpcResponse(channelId, {
+                jsonrpc: "2.0",
+                id,
+                error: { code: 4100, message: networkError },
+              });
+              return;
+            }
           }
 
           const idKey = requestIdKey(id);
@@ -1235,11 +1275,19 @@ export class DAppConnectService {
             });
             return;
           }
+          const switchRequest =
+            method === "wallet_switchQrlChain" ? params?.[0] : undefined;
+          const switchTarget = isRecord(switchRequest)
+            ? switchRequest["chainId"]
+            : undefined;
           pending.set(idKey, {
             method,
             authorizedAccount: ACCOUNT_BOUND_METHODS.has(method)
               ? conn.authorizedAccount
               : null,
+            ...(typeof switchTarget === "string"
+              ? { requestedChainId: canonicalChainId(switchTarget) }
+              : {}),
           });
           const pendingRequest = RequestHandler.createPendingRequest(
             channelId,
@@ -1356,6 +1404,18 @@ export class DAppConnectService {
     return readWalletChainId(store.qrlStore.qrlInstance);
   }
 
+  /**
+   * Why a signing or transaction request on this session must be refused on
+   * the wallet's active network, or null when it may go ahead. The approval
+   * modal asks again just before signing, which covers a network switch while
+   * the request waits for the user.
+   */
+  sessionNetworkError(sessionId: string): string | null {
+    const conn = this.connections.get(sessionId);
+    if (!conn) return null;
+    return store.qrlStore.dappSessionNetworkError(conn.chainId);
+  }
+
   private async approveRequestInternal(
     sessionId: string,
     requestId: string | number,
@@ -1388,6 +1448,17 @@ export class DAppConnectService {
     if (pending.method === "qrl_requestAccounts") {
       await this.approveAccountRequest(sessionId, requestId, result, conn);
       return;
+    }
+
+    if (
+      pending.method === "wallet_switchQrlChain" &&
+      pending.requestedChainId !== undefined
+    ) {
+      // The approval confirmed that the wallet is on the requested chain, and
+      // the dApp follows it once this answer arrives.
+      conn.chainId = pending.requestedChainId;
+      await this.persistSession(sessionId, conn);
+      if (!this.isCurrentConnection(sessionId, conn)) return;
     }
 
     // Send the response first, and only bounce back to the dApp once it was
@@ -1455,6 +1526,8 @@ export class DAppConnectService {
     if (!this.isCurrentConnection(sessionId, conn)) return;
     const previousAccount = conn.authorizedAccount;
     conn.authorizedAccount = approvedAccount;
+    // WALLET_INFO below announces this chain, so the session follows it.
+    conn.chainId = chainId;
 
     // Commit the consent binding before either WALLET_INFO or the JSON-RPC
     // response can disclose it. A failed checkpoint retires the session.
@@ -1997,6 +2070,7 @@ export class DAppConnectService {
             // fires; a fresh same-device deep-link approval still does.
             originatedViaDeepLink: false,
             walletEpoch: operationEpoch,
+            chainId: session.chainId ?? null,
           });
 
           // Same as the fresh-scan path: connect() resolves only after the

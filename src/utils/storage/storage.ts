@@ -181,7 +181,8 @@ function isExpired(timestamp: unknown): boolean {
   return Date.now() - Number(timestamp) > MAX_STORAGE_AGE;
 }
 
-function getItem(key: string): unknown {
+/** `expires: false` reads a value at any age, for a setting that must last. */
+function getItem(key: string, expires = true): unknown {
   try {
     const item = localStorage.getItem(key);
     if (!item) return null;
@@ -190,7 +191,7 @@ function getItem(key: string): unknown {
     if (!isRecord(parsed)) return null;
 
     // Check expiration
-    if (isExpired(parsed["timestamp"])) {
+    if (expires && isExpired(parsed["timestamp"])) {
       localStorage.removeItem(key);
       return null;
     }
@@ -335,10 +336,10 @@ const StorageUtil = {
    */
   setBlockChain: (selectedBlockchain: string): Promise<void> => {
     return runAsPromise(() => {
-      if (IS_V3_PROFILE && !AVAILABLE_NETWORKS.some((network) => network.id === selectedBlockchain)) {
+      if (!IS_V3_PROFILE && V3_NETWORK_IDS.includes(selectedBlockchain)) throw new Error('This network requires its dedicated v3 build');
+      if (!AVAILABLE_NETWORKS.some((network) => network.id === selectedBlockchain)) {
         throw new Error('This network is not available in this build');
       }
-      if (!IS_V3_PROFILE && V3_NETWORK_IDS.includes(selectedBlockchain)) throw new Error('This network requires its dedicated v3 build');
       setItem(BLOCKCHAIN_SELECTION_IDENTIFIER, selectedBlockchain);
     });
   },
@@ -447,7 +448,9 @@ const StorageUtil = {
         // reads the stored selection, so its storage stays exactly as before.
         const [only] = AVAILABLE_NETWORKS;
         if (only && AVAILABLE_NETWORKS.length === 1) return only.id;
-        const stored = getItem(BLOCKCHAIN_SELECTION_IDENTIFIER);
+        // The chosen network lasts: a user who left the wallet on mainnet
+        // finds it on mainnet however long they were away.
+        const stored = getItem(BLOCKCHAIN_SELECTION_IDENTIFIER, false);
         return typeof stored === 'string' && AVAILABLE_NETWORKS.some((network) => network.id === stored)
           ? stored
           : DEFAULT_NETWORK_ID;
@@ -456,12 +459,13 @@ const StorageUtil = {
       const storedBlockchain = getItem(
         BLOCKCHAIN_SELECTION_IDENTIFIER,
       );
-      // Guard against stale keys (e.g. "CUSTOM_RPC") that no longer exist in
-      // QRL_PROVIDER - silently migrate those users to TEST_NET (default until
-      // mainnet launch).
+      // Guard against stale keys (e.g. "CUSTOM_RPC", or the unpinned legacy
+      // "MAIN_NET") that this build does not list: silently migrate those
+      // users to TEST_NET.
       const isValid =
         storedBlockchain != null && storedBlockchain !== 'TEST_NET_V3' && storedBlockchain !== 'MAIN_NET_V3' &&
-        Object.prototype.hasOwnProperty.call(QRL_PROVIDER, toTemplateString(storedBlockchain));
+        Object.prototype.hasOwnProperty.call(QRL_PROVIDER, toTemplateString(storedBlockchain)) &&
+        AVAILABLE_NETWORKS.some((network) => network.id === toTemplateString(storedBlockchain));
       if (!isValid) return DEFAULT_BLOCKCHAIN;
       return checkedValue(storedBlockchain, isBlockchainSelection);
     });
