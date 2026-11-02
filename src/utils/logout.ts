@@ -3,6 +3,7 @@ import { ROUTES } from "@/router/router";
 import StorageUtil from "./storage/storage";
 import { QRL_PROVIDER } from "@/config";
 import { IS_V3_PROFILE } from "@/config/runtimeProfile";
+import { V3_NETWORK_IDS } from "@/config/deploymentProfile";
 import { isInNativeApp, clearNativeInjectedPin } from "./nativeApp";
 import { clearAttemptTracker } from "./crypto/pinAttemptTracker";
 import { terminateCryptoWorker } from "./crypto/cryptoWorkerClient";
@@ -135,8 +136,8 @@ export const handleLogout = async (navigate: (path: string) => void) => {
   try {
     const nativeApp = isInNativeApp();
     const blockchains = IS_V3_PROFILE
-      ? ["TEST_NET_V3"]
-      : Object.keys(QRL_PROVIDER).filter((id) => id !== "TEST_NET_V3");
+      ? [...V3_NETWORK_IDS]
+      : Object.keys(QRL_PROVIDER).filter((id) => !V3_NETWORK_IDS.includes(id));
 
     const clearWalletStorage = async () => {
       for (const blockchain of blockchains) {

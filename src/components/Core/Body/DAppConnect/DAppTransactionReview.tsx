@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
  */
 
 import { formatQuantaValue } from "@/utils/formatting";
+import { networkName as localizedNetworkName } from "@/i18n/networkName";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 import { isDesktop } from "@/desktop/bridge";
 import { reviewValueKey } from "./reviewIdentity";
@@ -17,6 +18,11 @@ interface TransactionReviewProps {
    */
   maxNetworkFee?: string | undefined;
   feeReviewValue?: string | undefined;
+  /**
+   * The wallet's active network, which the transaction is signed for. The
+   * dApp's own chainId, when it sends one, is shown separately.
+   */
+  networkName?: string | undefined;
 }
 
 function formatGasLimit(gas: unknown, unknownLabel: string): string {
@@ -45,8 +51,10 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
   params,
   maxNetworkFee,
   feeReviewValue,
+  networkName,
 }) => {
   const { t } = useTranslation(["dapps", "common", "settings", "transfer"]);
+  const { t: common } = useTranslation("common");
   const from = stringParam(params["from"]) || "Unknown";
   const to = stringParam(params["to"]) || "Unknown";
   const value = stringParam(params["value"]);
@@ -103,6 +111,12 @@ const DAppTransactionReview: React.FC<TransactionReviewProps> = ({
               Unused headroom in the base fee is refunded. */}
           <span className="text-muted-foreground">{t("dapps:maxFee")}</span>
           <span className="font-numeric">{maxNetworkFee}</span>
+        </div>
+      )}
+      {networkName && (
+        <div data-review-block data-review-value={reviewValueKey(networkName)} className="flex justify-between gap-2">
+          <span className="text-muted-foreground">{t("settings:network")}</span>
+          <span className="text-right">{localizedNetworkName(networkName, common)}</span>
         </div>
       )}
       {typeof params['chainId'] === 'string' && (

@@ -14,6 +14,10 @@ const mockQrlAccount = `Q${"0".repeat(128)}`;
 const mockQrlRecipient = `Q${"1".repeat(128)}`;
 const mockQrlOther = `Q${"2".repeat(128)}`;
 const mockChainIdRequest = jest.fn<() => Promise<string>>(() => Promise.resolve("0x539"));
+/** The wallet store's verdict on a session chain; null lets a request through. */
+const mockSessionNetworkError = jest.fn<(chainId: string | null) => string | null>(
+  () => null,
+);
 
 interface MockSocketHandlers {
   onMessage: (data: RelayMessage) => void;
@@ -220,6 +224,8 @@ jest.mock("@/stores/store", () => ({
       activeAccount: {
         accountAddress: `Q${"0".repeat(128)}`,
       },
+      dappSessionNetworkError: (chainId: string | null) =>
+        mockSessionNetworkError(chainId),
       qrlInstance: {
         currentProvider: {
           request: jest.fn(({ method }: { method: string }) => {
@@ -592,6 +598,7 @@ function approveTracked(
 
 beforeEach(() => {
   mockChainIdRequest.mockReset().mockResolvedValue("0x539");
+  mockSessionNetworkError.mockReset().mockReturnValue(null);
   storage = new MemoryStorage();
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
@@ -2139,6 +2146,182 @@ describe("wallet-side direct relay RPC enforcement", () => {
       error: { code: 4100 },
     });
     expect(observed.pending).toHaveLength(0);
+  });
+
+  describe("session chain", () => {
+    const MISMATCH =
+      "This dApp was connected on QRL Testnet v3 (Private), and the wallet is now on QRL 2.0 Mainnet. Switch the wallet back to QRL Testnet v3 (Private) or reconnect the dApp.";
+
+    it.each([
+      ["qrl_signMessage", [mockQrlAccount, "0x01"]],
+      ["qrl_signTypedData", [mockQrlAccount, {
+        types: {
+          QRLDomain: [{ name: "name", type: "string" }],
+          Payload: [{ name: "value", type: "uint16" }],
+        },
+        primaryType: "Payload",
+        domain: { name: "Session chain dApp" },
+        message: { value: 7 },
+      }]],
+      ["qrl_sendTransaction", [{ from: mockQrlAccount, to: mockQrlRecipient, value: "0x0" }]],
+      ["qrl_signTransaction", [{ from: mockQrlAccount, to: mockQrlRecipient, value: "0x0" }]],
+    ])("refuses %s on a session set up on another chain", async (method, params) => {
+      const pairing = await makePairing(`session-chain-${method}`);
+      pairing.session.chainId = "0x301825";
+      const { observed } = await reconnect(pairing.session);
+      const socket = firstSocket();
+      mockSessionNetworkError.mockReturnValue(MISMATCH);
+
+      await deliverEncrypted(pairing, socket, {
+        type: MessageType.JSONRPC,
+        jsonrpc: "2.0",
+        id: 31,
+        method,
+        params,
+      });
+      await waitFor(() => socket.sent.length === 1);
+
+      expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
+        id: 31,
+        error: { code: 4100, message: MISMATCH },
+      });
+      expect(mockSessionNetworkError).toHaveBeenCalledWith("0x301825");
+      expect(observed.pending).toHaveLength(0);
+    });
+
+    it("queues a signing request when the session chain matches", async () => {
+      const pairing = await makePairing("session-chain-match");
+      pairing.session.chainId = "0x539";
+      const { service, observed } = await reconnect(pairing.session);
+      const socket = firstSocket();
+
+      await deliverEncrypted(pairing, socket, {
+        type: MessageType.JSONRPC,
+        jsonrpc: "2.0",
+        id: 32,
+        method: "qrl_signMessage",
+        params: [mockQrlAccount, "0x01"],
+      });
+      await waitFor(() => observed.pending.length === 1);
+
+      expect(mockSessionNetworkError).toHaveBeenCalledWith("0x539");
+      expect(service.sessionNetworkError(pairing.session.id)).toBeNull();
+      // The approval modal asks again before it signs.
+      mockSessionNetworkError.mockReturnValue(MISMATCH);
+      expect(service.sessionNetworkError(pairing.session.id)).toBe(MISMATCH);
+    });
+
+    it("leaves read requests on any chain alone", async () => {
+      const pairing = await makePairing("session-chain-read");
+      const { observed } = await reconnect(pairing.session);
+      const socket = firstSocket();
+      mockSessionNetworkError.mockReturnValue(MISMATCH);
+
+      await deliverEncrypted(pairing, socket, {
+        type: MessageType.JSONRPC,
+        jsonrpc: "2.0",
+        id: 33,
+        method: "qrl_requestAccounts",
+        params: [],
+      });
+      await waitFor(() => observed.pending.length === 1);
+      expect(mockSessionNetworkError).not.toHaveBeenCalled();
+    });
+
+    it("hands a record without a chain to the store as null", async () => {
+      const pairing = await makePairing("session-chain-legacy");
+      const { service } = await reconnect(pairing.session);
+      expect(SessionStore.get(pairing.session.id)?.chainId).toBeUndefined();
+      service.sessionNetworkError(pairing.session.id);
+      expect(mockSessionNetworkError).toHaveBeenCalledWith(null);
+    });
+
+    it("records and persists the chain the handshake announces", async () => {
+      const pairing = await makePairing("session-chain-handshake");
+      const { service } = await reconnect(pairing.session);
+      const socket = firstSocket();
+
+      await service["onKeysExchanged"](pairing.session.id);
+      await waitFor(() => socket.sent.length === 1);
+
+      expect(SessionStore.get(pairing.session.id)?.chainId).toBe("0x539");
+      expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
+        type: MessageType.WALLET_INFO,
+        chainId: "0x539",
+      });
+      service.sessionNetworkError(pairing.session.id);
+      expect(mockSessionNetworkError).toHaveBeenLastCalledWith("0x539");
+    });
+
+    it("moves the session to the chain an approved account request announces", async () => {
+      const pairing = await makePairing("session-chain-accounts");
+      pairing.session.chainId = "0x301825";
+      pairing.session.accountAuthorized = false;
+      pairing.session.connectedAccount = "";
+      const { service, observed } = await reconnect(pairing.session);
+      const socket = firstSocket();
+
+      await deliverEncrypted(pairing, socket, {
+        type: MessageType.JSONRPC,
+        jsonrpc: "2.0",
+        id: 34,
+        method: "qrl_requestAccounts",
+        params: [],
+      });
+      await waitFor(() => observed.pending.length === 1);
+      service.approveRequest(pairing.session.id, 34, [mockQrlAccount]);
+      await waitFor(() => socket.sent.length === 2);
+
+      expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
+        type: MessageType.WALLET_INFO,
+        chainId: "0x539",
+      });
+      expect(SessionStore.get(pairing.session.id)?.chainId).toBe("0x539");
+    });
+
+    it("moves the session to the chain an approved switch request names", async () => {
+      const pairing = await makePairing("session-chain-switch");
+      pairing.session.chainId = "0x301825";
+      const { service, observed } = await reconnect(pairing.session);
+      const socket = firstSocket();
+
+      await deliverEncrypted(pairing, socket, {
+        type: MessageType.JSONRPC,
+        jsonrpc: "2.0",
+        id: 35,
+        method: "wallet_switchQrlChain",
+        params: [{ chainId: "0x0539" }],
+      });
+      await waitFor(() => observed.pending.length === 1);
+      service.approveRequest(pairing.session.id, 35, null);
+      await waitFor(() => socket.sent.length === 1);
+
+      expect(SessionStore.get(pairing.session.id)?.chainId).toBe("0x539");
+      expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
+        id: 35,
+        result: null,
+      });
+    });
+
+    it("keeps the session chain when a switch request is rejected", async () => {
+      const pairing = await makePairing("session-chain-switch-rejected");
+      pairing.session.chainId = "0x301825";
+      const { service, observed } = await reconnect(pairing.session);
+      const socket = firstSocket();
+
+      await deliverEncrypted(pairing, socket, {
+        type: MessageType.JSONRPC,
+        jsonrpc: "2.0",
+        id: 36,
+        method: "wallet_switchQrlChain",
+        params: [{ chainId: "0x1" }],
+      });
+      await waitFor(() => observed.pending.length === 1);
+      service.rejectRequest(pairing.session.id, 36, "Cannot switch", 4902);
+      await waitFor(() => socket.sent.length === 1);
+
+      expect(SessionStore.get(pairing.session.id)?.chainId).toBe("0x301825");
+    });
   });
 
   it("requires pinned origin metadata before queuing any JSON-RPC approval", async () => {

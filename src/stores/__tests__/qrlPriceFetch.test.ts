@@ -1,6 +1,20 @@
 jest.mock("@/config", () => ({
-  QRL_PROVIDER: {},
-  EXPLORER_BASE: "https://explorer.invalid",
+  QRL_PROVIDER: {
+    TEST_NET_V3: {
+      id: "TEST_NET_V3",
+      explorer: "https://testnet-explorer.invalid",
+      expectedChainId: "0x301825",
+      genesisHash: `0x${"ab".repeat(32)}`,
+    },
+    MAIN_NET_V3: {
+      id: "MAIN_NET_V3",
+      explorer: "https://explorer.invalid",
+      expectedChainId: "0x1",
+      genesisHash: `0x${"cd".repeat(32)}`,
+    },
+    MAIN_NET: { id: "MAIN_NET", explorer: "https://legacy.invalid" },
+  },
+  EXPLORER_BASE: "https://testnet-explorer.invalid",
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({ deriveHexSeedAsync: jest.fn() }));
@@ -8,6 +22,7 @@ jest.mock("@/utils/storage", () => ({ StorageUtil: {} }));
 jest.mock("@/utils/web3", () => ({ getQrlWeb3: jest.fn() }));
 
 import { runInAction } from "mobx";
+import { QRL_PROVIDER } from "@/config";
 import QrlStore from "../qrlStore";
 
 const MAX_BYTES = 64 * 1024;
@@ -65,10 +80,54 @@ beforeEach(async () => {
     .mockRejectedValue(new Error("Unexpected fetch"));
   store = new QrlStore();
   runInAction(() => {
+    // The price is looked up only on the verified, pinned mainnet.
+    store.qrlConnection = {
+      ...store.qrlConnection,
+      blockchain: "MAIN_NET_V3",
+      isConnected: true,
+    };
     store.qrlPrice = 2;
     store.qrlPriceChange24h = 7;
   });
   await jest.advanceTimersByTimeAsync(0);
+});
+
+it.each([
+  ["the v3 testnet", "TEST_NET_V3", true],
+  ["the unpinned legacy mainnet", "MAIN_NET", true],
+  ["an unverified pinned mainnet", "MAIN_NET_V3", false],
+  ["no network", "", false],
+])("skips the price lookup on %s", async (_label, blockchain, isConnected) => {
+  runInAction(() => {
+    store.qrlConnection = { ...store.qrlConnection, blockchain, isConnected };
+  });
+  await store.fetchQrlPrice();
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(store.showsFiatValue).toBe(false);
+  expect(store.activeAccountBalanceUsd).toBe(0);
+});
+
+it("skips the price lookup on a pinned mainnet without an explorer", async () => {
+  const explorer = QRL_PROVIDER.MAIN_NET_V3.explorer;
+  QRL_PROVIDER.MAIN_NET_V3.explorer = "";
+  try {
+    await store.fetchQrlPrice();
+    expect(fetchMock).not.toHaveBeenCalled();
+  } finally {
+    QRL_PROVIDER.MAIN_NET_V3.explorer = explorer;
+  }
+});
+
+it("shows fiat only on the verified pinned mainnet", () => {
+  runInAction(() => {
+    store.activeAccount = { ...store.activeAccount, accountAddress: "Q1" };
+    store.qrlAccounts = {
+      ...store.qrlAccounts,
+      accounts: [{ accountAddress: "Q1", accountBalance: "3", source: "seed" }],
+    };
+  });
+  expect(store.showsFiatValue).toBe(true);
+  expect(store.activeAccountBalanceUsd).toBe(6);
 });
 
 afterEach(() => {

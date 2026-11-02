@@ -111,10 +111,10 @@ export function SendStatus({
               <div>{t("transfer:hash")}</div>
               <div className="flex min-w-0 items-center gap-2">
                 <a
-                  href={getExplorerTxUrl(
-                    txHash,
-                    details?.blockchain ?? blockchain,
-                  )}
+                  href={
+                    getExplorerTxUrl(txHash, details?.blockchain ?? blockchain) ||
+                    undefined
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   title={txHash}

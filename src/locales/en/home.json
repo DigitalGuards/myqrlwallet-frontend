@@ -29,7 +29,7 @@
   "copyCode": "Copy code",
   "newCode": "New code",
   "mobileUnresponsive": "Your phone did not respond. Open MyQRLWallet on your phone and try again.",
-  "mobileUnqualified": "This MyQRLWallet app is not yet qualified for Testnet v3. Update the app and pair again.",
+  "mobileUnqualified": "This MyQRLWallet app is not yet qualified for this network. Update the app and pair again.",
   "nfts": "NFTs",
   "nftRefresh": "Refresh ownership, balances, and metadata",
   "addNft": "Add NFT",

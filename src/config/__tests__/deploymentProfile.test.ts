@@ -1,6 +1,10 @@
 import {
   canonicalChainId,
+  isPinnedMainnet,
+  nativeNetworkProfile,
   v3Deployment,
+  v3MainnetDeployment,
+  v3Profile,
   verifyNetworkIdentity,
 } from "../deploymentProfile";
 
@@ -171,4 +175,143 @@ it("bounds a stalled identity lookup without leaking its timer", async () => {
   await rejected;
   expect(jest.getTimerCount()).toBe(0);
   jest.useRealTimers();
+});
+
+describe("dormant mainnet block", () => {
+  const MAINNET_HASH = `0x${"CD".repeat(32)}`;
+  const PINS = {
+    VITE_MAINNET_CHAIN_ID: "1",
+    VITE_MAINNET_GENESIS_HASH: MAINNET_HASH,
+  };
+  const testnet = () => v3Deployment(ENV);
+
+  it.each([{}, { VITE_MAINNET_CHAIN_ID: "", VITE_MAINNET_GENESIS_HASH: "" }])(
+    "stays dormant without both pins: %p",
+    (pins) => {
+      expect(v3MainnetDeployment({ ...ENV, ...pins }, testnet())).toBeNull();
+      const profile = v3Profile({ ...ENV, ...pins }, false);
+      expect(profile.mainnet).toBeNull();
+      expect(profile.available.map(({ id }) => id)).toEqual(["TEST_NET_V3"]);
+      expect(profile.initial.network.id).toBe("TEST_NET_V3");
+      expect(profile.nativeNetwork.id).toBe("TEST_NET_V3");
+    },
+  );
+
+  it("pins a mainnet that differs from the testnet, with every optional feature off", () => {
+    const mainnet = v3MainnetDeployment({ ...ENV, ...PINS }, testnet());
+    expect(mainnet).toEqual({
+      network: {
+        id: "MAIN_NET_V3",
+        name: "QRL 2.0 Mainnet",
+        url: "https://qrlwallet.com/api/qrl-rpc/mainnet",
+        explorer: "",
+        expectedChainId: "0x1",
+        genesisHash: MAINNET_HASH.toLowerCase(),
+        qrns: { expectedChainId: "", registry: "" },
+        tokenFactory: "",
+      },
+      serverUrl: ENV.VITE_V3_SERVER_URL,
+      tokenFactory: "",
+    });
+    expect(isPinnedMainnet(mainnet?.network)).toBe(true);
+    expect(isPinnedMainnet(testnet().network)).toBe(false);
+    expect(
+      isPinnedMainnet({ id: "MAIN_NET_V3", expectedChainId: "", genesisHash: "" }),
+    ).toBe(false);
+  });
+
+  it("scopes explorer, factory and QNS to the mainnet entry", () => {
+    const registry = `Q${"5".repeat(128)}`;
+    const factory = `Q${"6".repeat(128)}`;
+    const mainnet = v3MainnetDeployment(
+      {
+        ...ENV,
+        ...PINS,
+        VITE_MAINNET_RPC_URL: "https://rpc.example/mainnet",
+        VITE_MAINNET_EXPLORER_URL: "https://mainnet-explorer.example/",
+        VITE_MAINNET_QNS_REGISTRY: registry,
+        VITE_MAINNET_FACTORY_ADDRESS: factory,
+        // Testnet deployments never leak into the mainnet entry.
+        VITE_V3_QNS_REGISTRY: `Q${"1".repeat(128)}`,
+        VITE_V3_FACTORY_ADDRESS: `Q${"2".repeat(128)}`,
+      },
+      testnet(),
+    );
+    expect(mainnet?.network).toMatchObject({
+      url: "https://rpc.example/mainnet",
+      explorer: "https://mainnet-explorer.example",
+      qrns: { expectedChainId: "0x1", registry },
+      tokenFactory: factory,
+    });
+    expect(mainnet?.tokenFactory).toBe(factory);
+  });
+
+  it.each([
+    [{ VITE_MAINNET_CHAIN_ID: "1" }, "must be set together"],
+    [{ VITE_MAINNET_GENESIS_HASH: MAINNET_HASH }, "must be set together"],
+    [{ ...PINS, VITE_MAINNET_CHAIN_ID: "3151909" }, "must differ from the testnet chain id"],
+    [{ ...PINS, VITE_MAINNET_CHAIN_ID: "0x301825" }, "must differ from the testnet chain id"],
+    [{ ...PINS, VITE_MAINNET_GENESIS_HASH: HASH.toUpperCase().replace("0X", "0x") }, "must differ from the testnet genesis hash"],
+    [{ ...PINS, VITE_MAINNET_CHAIN_ID: "0" }, "VITE_MAINNET_CHAIN_ID"],
+    [{ ...PINS, VITE_MAINNET_CHAIN_ID: " 1" }, "VITE_MAINNET_CHAIN_ID"],
+    [{ ...PINS, VITE_MAINNET_GENESIS_HASH: "0x1234" }, "VITE_MAINNET_GENESIS_HASH"],
+    [{ ...PINS, VITE_MAINNET_RPC_URL: ENV.VITE_V3_RPC_URL }, "must differ from VITE_V3_RPC_URL"],
+    [{ ...PINS, VITE_MAINNET_RPC_URL: "http://remote.example" }, "VITE_MAINNET_RPC_URL"],
+    [{ ...PINS, VITE_MAINNET_EXPLORER_URL: "https://x.example/?k=v" }, "VITE_MAINNET_EXPLORER_URL"],
+    [{ ...PINS, VITE_MAINNET_FACTORY_ADDRESS: `Q${"0".repeat(128)}` }, "VITE_MAINNET_FACTORY_ADDRESS"],
+  ])("fails the profile parse for %p", (env, message) => {
+    expect(() => v3Profile({ ...ENV, ...env }, false)).toThrow(message);
+  });
+
+  it.each([
+    [{ VITE_V3_NATIVE_NETWORK: "mainnet" }, "VITE_V3_NATIVE_NETWORK=mainnet requires"],
+    [{ VITE_DEFAULT_NETWORK: "mainnet" }, "VITE_DEFAULT_NETWORK=mainnet requires"],
+    [{ VITE_V3_NATIVE_NETWORK: "Mainnet" }, "must be testnet or mainnet"],
+    [{ VITE_DEFAULT_NETWORK: "main" }, "must be testnet or mainnet"],
+  ])("refuses a mainnet choice the build cannot honour: %p", (env, message) => {
+    expect(() => v3Profile({ ...ENV, ...env }, false)).toThrow(message);
+    expect(() => v3Profile({ ...ENV, ...env }, true)).toThrow(message);
+  });
+
+  it("lists both networks on the web and starts on the configured default", () => {
+    const web = v3Profile({ ...ENV, ...PINS }, false);
+    expect(web.available.map(({ id }) => id)).toEqual(["TEST_NET_V3", "MAIN_NET_V3"]);
+    expect(web.initial.network.id).toBe("TEST_NET_V3");
+    const mainnetFirst = v3Profile({ ...ENV, ...PINS, VITE_DEFAULT_NETWORK: "mainnet" }, false);
+    expect(mainnetFirst.initial.network.id).toBe("MAIN_NET_V3");
+  });
+
+  it("needs one wallet API for a web build that lists both networks", () => {
+    expect(() =>
+      v3Profile({ ...ENV, ...PINS, VITE_MAINNET_SERVER_URL: "https://other.example/api" }, false),
+    ).toThrow("VITE_MAINNET_SERVER_URL must match VITE_V3_SERVER_URL");
+    const native = v3Profile(
+      {
+        ...ENV,
+        ...PINS,
+        VITE_V3_NATIVE_NETWORK: "mainnet",
+        VITE_MAINNET_SERVER_URL: "https://other.example/api",
+      },
+      true,
+    );
+    expect(native.initial.serverUrl).toBe("https://other.example/api");
+  });
+
+  it.each([
+    [{}, "TEST_NET_V3", "v3-private"],
+    [{ VITE_V3_NATIVE_NETWORK: "testnet" }, "TEST_NET_V3", "v3-private"],
+    [{ VITE_V3_NATIVE_NETWORK: "mainnet" }, "MAIN_NET_V3", "v3-mainnet"],
+  ])("gives a native build exactly its own network: %p", (env, id, capability) => {
+    const native = v3Profile({ ...ENV, ...PINS, ...env }, true);
+    expect(native.available.map((network) => network.id)).toEqual([id]);
+    expect(native.initial.network.id).toBe(id);
+    expect(native.nativeNetwork.id).toBe(id);
+    expect(nativeNetworkProfile(native.nativeNetwork.id)).toBe(capability);
+  });
+
+  it("refuses a native build whose default names another network", () => {
+    expect(() =>
+      v3Profile({ ...ENV, ...PINS, VITE_DEFAULT_NETWORK: "mainnet" }, true),
+    ).toThrow("must match VITE_V3_NATIVE_NETWORK");
+  });
 });

@@ -392,7 +392,7 @@ const NftDetail = observer(() => {
                 value={
                   <QrlAddress
                     address={nft.contractAddress}
-                    href={`${explorerUrl}/address/${nft.contractAddress}`}
+                    href={explorerUrl ? `${explorerUrl}/address/${nft.contractAddress}` : undefined}
                     linkLabel={t("nfts:viewContract")}
                     copyable
                     copyLabel={t("nfts:copyContract")}
@@ -462,7 +462,7 @@ const NftDetail = observer(() => {
                 {t("nfts:confirmed")}{" "}
                 <a
                   className="underline"
-                  href={`${explorerUrl}/tx/${txStatus.txHash}`}
+                  href={explorerUrl ? `${explorerUrl}/tx/${txStatus.txHash}` : undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

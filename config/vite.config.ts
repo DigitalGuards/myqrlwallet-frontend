@@ -4,7 +4,7 @@ import path from 'path'
 import nodePolyfills from 'rollup-plugin-node-polyfills'
 import { createRequire } from 'module'
 import tailwindcss from '@tailwindcss/postcss'
-import { v3Deployment } from '../src/config/deploymentProfile'
+import { nativeNetworkProfile, v3Profile } from '../src/config/deploymentProfile'
 import { findForbiddenEnvKeys, findWholeEnvReferences } from '../src/config/envGuard'
 
 const require = createRequire(import.meta.url)
@@ -21,7 +21,12 @@ const assertNoBrowserSeed = (mode: string, command: string) => {
   }
   const profile = publicEnv.VITE_WALLET_PROFILE || ''
   if (profile && profile !== 'v3-private') throw new Error('Unknown VITE_WALLET_PROFILE')
-  const network = profile === 'v3-private' ? v3Deployment(publicEnv).network : null
+  // The desktop renderer is a native build: it lists only its own network.
+  // config/vite.config.embedded.ts marks the app-embedded document the same way.
+  const nativeBuild = process.env.VITE_DESKTOP === '1'
+  // Validates the testnet block, the optional mainnet pins and the network
+  // choices, so a partial or testnet-equal mainnet pin fails the build here.
+  const network = profile === 'v3-private' ? v3Profile(publicEnv, nativeBuild).nativeNetwork : null
   return { define: {
     // Match dropConsole when guarding diagnostic-only argument evaluation.
     __QRL_DIAGNOSTICS__: JSON.stringify(command !== 'build' || mode !== 'production'),
@@ -36,9 +41,13 @@ const assertNoBrowserSeed = (mode: string, command: string) => {
     // a local frontend. config/vite.config.embedded.ts overrides it to true.
     __QRL_NATIVE_BRIDGE__: command === 'serve' ? 'true' : 'false',
     __QRL_WALLET_PROFILE__: JSON.stringify(profile),
+    __QRL_NATIVE_BUILD__: JSON.stringify(nativeBuild),
+    // The identity a native host must advertise: VITE_V3_NATIVE_NETWORK's
+    // pins and its capability profile (v3-private or v3-mainnet).
     __QRL_NATIVE_NETWORK__: JSON.stringify(network ? {
       chainId: network.expectedChainId,
       genesisHash: network.genesisHash,
+      networkProfile: nativeNetworkProfile(network.id),
     } : null),
   } }
 }

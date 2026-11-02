@@ -735,12 +735,12 @@ it.each([
 });
 
 it.each([
-  "Testnet v3 network identity has not been verified",
+  "Network identity has not been verified",
   "Network changed during identity verification",
   "Account changed during identity verification",
   "Network identity is not configured",
-  "Testnet v3 chain identity mismatch",
-  "Testnet v3 genesis identity mismatch",
+  "Network chain identity mismatch",
+  "Network genesis identity mismatch",
   "This account is signed by the paired mobile app. Confirm the transfer there.",
   "This account is signed by the extension wallet. Confirm the transfer there.",
   "The network fee quoted for this transaction is far above what this network normally charges, so the wallet stopped. Try again in a moment, and tell us if it keeps happening.",
