@@ -165,6 +165,8 @@ export function onboardingMessage(
     case "Invalid hex seed format. Must start with '0x' followed by hex characters":
     case "onboarding:hexFormat":
       return t("onboarding:hexFormat");
+    case "onboarding:hexLength":
+      return t("onboarding:hexLength");
     case "Failed to derive mnemonic from hex seed":
     case "onboarding:hexMnemonicFailed":
       return t("onboarding:hexMnemonicFailed");

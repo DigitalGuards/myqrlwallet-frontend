@@ -23,5 +23,6 @@
   "nameRequired": "El nombre es obligatorio",
   "invalidAddress": "Dirección QRL no válida (Q + 128 caracteres hexadecimales)",
   "alreadySaved": "Esta dirección ya está guardada",
-  "serviceError": "{{reason}}"
+  "serviceError": "{{reason}}",
+  "nameInvalid": "Usa hasta 40 caracteres, sin caracteres ocultos ni de control"
 }

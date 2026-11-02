@@ -6,6 +6,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { useLocation, useSearchParams } from "react-router";
 import { observable, runInAction } from "mobx";
@@ -208,4 +209,37 @@ it("waits for the selected token record and removes its contract when unavailabl
   });
   expect(screen.queryByText("Token contract")).toBeNull();
   expect(screen.queryByLabelText(`QRL address ${token.address}`)).toBeNull();
+});
+
+it("keeps the amount as typed and refuses a comma or an oversized amount", async () => {
+  fixture("native");
+  await act(() => {
+    render(<Transfer />);
+    return Promise.resolve();
+  });
+  const amount = screen.getByPlaceholderText("Enter amount");
+  if (!(amount instanceof HTMLInputElement)) throw new Error("Missing amount input");
+  const comma = "Use a dot (.) for decimals, without thousands separators";
+  fireEvent.change(amount, { target: { value: "1,000" } });
+  // A pasted "1,000" stays as typed and is refused, never signed as 1.
+  expect(amount.value).toBe("1,000");
+  expect(await screen.findByText(comma)).toBeTruthy();
+  fireEvent.change(amount, { target: { value: "1.5" } });
+  await waitFor(() => {
+    expect(screen.queryByText(comma)).toBeNull();
+  });
+  // A comma keypad's single decimal comma is read as a decimal mark.
+  fireEvent.change(amount, { target: { value: "1,5" } });
+  expect(amount.value).toBe("1,5");
+  expect(screen.queryByText(comma)).toBeNull();
+  for (const grouped of ["12,345", "1,000.5"]) {
+    fireEvent.change(amount, { target: { value: "2" } });
+    await waitFor(() => {
+      expect(screen.queryByText(comma)).toBeNull();
+    });
+    fireEvent.change(amount, { target: { value: grouped } });
+    expect(await screen.findByText(comma)).toBeTruthy();
+  }
+  fireEvent.change(amount, { target: { value: "9".repeat(101) } });
+  expect(await screen.findByText("This amount is too large")).toBeTruthy();
 });

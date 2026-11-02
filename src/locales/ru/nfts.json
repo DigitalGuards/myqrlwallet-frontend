@@ -59,5 +59,6 @@
   "items_one": "{{count}} объект",
   "items_few": "{{count}} объекта",
   "items_many": "{{count}} объектов",
-  "items_other": "{{count}} объекта"
+  "items_other": "{{count}} объекта",
+  "tokenIdInvalid": "ID токена должен быть целым числом (только цифры от 0 до 9)"
 }

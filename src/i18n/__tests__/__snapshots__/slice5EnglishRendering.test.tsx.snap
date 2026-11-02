@@ -3424,7 +3424,7 @@ exports[`creation all fields and real value 1`] = `
     [
       [
         "placeholder",
-        "Example: 999,999,999,999,999,999",
+        "Example: 999999999",
       ],
     ],
     [
@@ -3436,13 +3436,13 @@ exports[`creation all fields and real value 1`] = `
     [
       [
         "placeholder",
-        "Example: 999,999,999,999,999,999",
+        "Example: 999999999",
       ],
     ],
     [
       [
         "placeholder",
-        "Example: 999,999,999,999,999,999",
+        "Example: 999999999",
       ],
     ],
     [
@@ -3482,12 +3482,12 @@ exports[`creation all fields and real value 1`] = `
       ],
     ],
   ],
-  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableMax SupplyReal Value: 1.0Change Initial recipientRecipient AddressMax Wallet AmountMax Wallet AmountMax Transaction LimitMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableMax SupplyReal Value: 1000000000000000000000000000000000000Change Initial recipientRecipient AddressMax Wallet AmountMax Wallet AmountMax Transaction LimitMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
   "title": "Create QRC20 Token | MyQRLWallet",
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1000000000000000000",
     "",
@@ -3533,7 +3533,7 @@ exports[`creation all fields and real value 2`] = `
     [
       [
         "placeholder",
-        "Example: 999,999,999,999,999,999",
+        "Example: 999999999",
       ],
     ],
     [
@@ -3545,13 +3545,13 @@ exports[`creation all fields and real value 2`] = `
     [
       [
         "placeholder",
-        "Example: 999,999,999,999,999,999",
+        "Example: 999999999",
       ],
     ],
     [
       [
         "placeholder",
-        "Example: 999,999,999,999,999,999",
+        "Example: 999999999",
       ],
     ],
     [
@@ -3591,12 +3591,12 @@ exports[`creation all fields and real value 2`] = `
       ],
     ],
   ],
-  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableMax SupplyReal Value: Invalid valueChange Initial recipientRecipient AddressMax Wallet AmountMax Wallet AmountMax Transaction LimitMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsMintableMax SupplyReal Value: Invalid valueEnter a plain number, such as 1000 or 0.5Change Initial recipientRecipient AddressMax Wallet AmountMax Wallet AmountMax Transaction LimitMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
   "title": "Create QRC20 Token | MyQRLWallet",
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "invalid",
     "",
@@ -3645,7 +3645,7 @@ exports[`creation desktop 1`] = `
   "values": [
     "",
     "",
-    "0",
+    "",
     "18",
   ],
 }
@@ -3693,7 +3693,7 @@ exports[`creation extension 1`] = `
   "values": [
     "",
     "",
-    "0",
+    "",
     "18",
   ],
 }
@@ -3732,7 +3732,7 @@ exports[`creation mobile 1`] = `
   "values": [
     "",
     "",
-    "0",
+    "",
     "18",
   ],
 }
@@ -3807,7 +3807,7 @@ exports[`creation security busy 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1",
     "2",
@@ -3888,7 +3888,7 @@ exports[`creation security changed 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1",
     "2",
@@ -3969,7 +3969,7 @@ exports[`creation security credential 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1",
     "2",
@@ -4014,7 +4014,7 @@ exports[`creation security desktop 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
   ],
 }
@@ -4089,7 +4089,7 @@ exports[`creation security disconnected 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1",
     "2",
@@ -4134,7 +4134,7 @@ exports[`creation security extension 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
   ],
 }
@@ -4209,7 +4209,7 @@ exports[`creation security external 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1",
     "2",
@@ -4290,7 +4290,7 @@ exports[`creation security locked 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1",
     "2",
@@ -4371,7 +4371,7 @@ exports[`creation security no-seed 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1",
     "2",
@@ -4452,7 +4452,7 @@ exports[`creation security non-error 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1",
     "2",
@@ -4533,7 +4533,7 @@ exports[`creation security pin 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "",
     "",
@@ -4614,7 +4614,7 @@ exports[`creation security unlock 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1",
     "2",
@@ -4695,7 +4695,7 @@ exports[`creation security wrong-pin 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1",
     "2",
@@ -4776,7 +4776,7 @@ exports[`creation security wrong-wallet 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1",
     "2",
@@ -4857,7 +4857,7 @@ exports[`creation seed 1`] = `
   "values": [
     "",
     "",
-    "0",
+    "",
     "18",
     "",
     "",
@@ -5005,12 +5005,12 @@ exports[`creation validation decimals 1`] = `
       ],
     ],
   ],
-  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsDecimals is requiredMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkToken NameToken SymbolInitial SupplyDecimalsUse a whole number from 1 to 18MintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
   "title": "Create QRC20 Token | MyQRLWallet",
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "0",
     "",
     "",
@@ -5091,7 +5091,7 @@ exports[`creation validation profanity 1`] = `
   "values": [
     "fuck",
     "fuck",
-    "0",
+    "1000",
     "18",
     "",
     "",
@@ -5178,7 +5178,7 @@ exports[`creation validation recipient 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "invalid",
     "",
@@ -5260,7 +5260,7 @@ exports[`creation validation required 1`] = `
   "values": [
     "",
     "",
-    "0",
+    "1000",
     "18",
     "",
     "",
@@ -5341,7 +5341,7 @@ exports[`creation while unlocking 1`] = `
   "values": [
     "Untranslated Token",
     "EX",
-    "0",
+    "1000",
     "18",
     "1",
     "2",

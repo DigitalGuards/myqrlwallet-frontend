@@ -22,10 +22,13 @@ import { getMnemonicFromHexSeed } from "@/utils/crypto";
 import { isDesktop } from "@/desktop/bridge";
 
 const FormSchema = z.object({
+  // An extended seed is 51 bytes: 0x followed by 102 hex characters.
   hexSeed: z
     .string()
+    .trim()
     .min(1, "onboarding:hexRequired")
-    .regex(/^0x[0-9a-fA-F]+$/, "onboarding:hexFormat"),
+    .regex(/^0x[0-9a-fA-F]+$/, "onboarding:hexFormat")
+    .regex(/^0x[0-9a-fA-F]{102}$/, "onboarding:hexLength"),
 });
 
 interface ImportHexSeedFormProps {
@@ -121,6 +124,9 @@ export const ImportHexSeedForm = ({
                       {...field}
                       placeholder={t("onboarding:hexPlaceholder")}
                       autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
                     />
                   </FormControl>
                   <FormDescription>{t("onboarding:hexBackup")}</FormDescription>

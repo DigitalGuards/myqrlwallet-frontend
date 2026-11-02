@@ -11,7 +11,7 @@ import {
 } from "@/utils/web3/nftCollections";
 import { reportError } from "@/utils/reportError";
 import { isValidQrlAddress } from "@/utils/web3";
-import { detectTokenStandard, fetchNftCollectionInfo, type NftCollectionInfo } from "@/utils/web3/nft";
+import { detectTokenStandard, fetchErc1155Balance, fetchNftCollectionInfo, type NftCollectionInfo } from "@/utils/web3/nft";
 import { AddNftModal } from "../AddNftModal";
 
 const mockUseStore = jest.fn<unknown, []>();
@@ -190,4 +190,21 @@ describe("discovered collection covers", () => {
       document.body.querySelector('img[src="https://gateway.test/ipfs/bafycover/1.png"]'),
     ).toBeTruthy();
   });
+});
+
+it("refuses a token ID that is not plain decimal digits", async () => {
+  jest.mocked(isValidQrlAddress).mockImplementation((value) => value === DEVNET_PUNKS);
+  jest.mocked(detectTokenStandard).mockResolvedValue("ERC1155");
+  jest.mocked(fetchNftCollectionInfo).mockResolvedValue({ standard: "ERC1155", name: "Multi", supportsEnumerable: false });
+  mount();
+  fireEvent.change(screen.getByLabelText("Contract Address"), { target: { value: DEVNET_PUNKS } });
+  await waitFor(() => { expect(fetchNftCollectionInfo).toHaveBeenCalled(); });
+  fireEvent.change(await screen.findByLabelText("Token ID"), { target: { value: "0x10" } });
+  const buttons = screen.getAllByRole("button", { name: "Add NFT" });
+  const add = buttons[buttons.length - 1];
+  if (!add) throw new Error("Missing add button");
+  await waitFor(() => { expect(add.hasAttribute("disabled")).toBe(false); });
+  fireEvent.click(add);
+  expect(await screen.findByText("Token ID must be a whole number (digits 0 to 9 only)")).toBeTruthy();
+  expect(fetchErc1155Balance).not.toHaveBeenCalled();
 });

@@ -121,5 +121,7 @@
   "nameRpcNoResult": "QRNS RPC 响应中没有结果",
   "nameRpcTimeout": "QRNS RPC 请求超时",
   "nameMalformedAddress": "QRNS 返回了格式错误的 64 字节地址",
-  "nameInvalidAddress": "QRNS 返回了无效的 QIP-55 地址"
+  "nameInvalidAddress": "QRNS 返回了无效的 QIP-55 地址",
+  "amountComma": "请使用点 (.) 作为小数点，不要使用千位分隔符",
+  "amountTooLarge": "这个数量太大了"
 }

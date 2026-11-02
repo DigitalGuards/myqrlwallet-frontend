@@ -58,6 +58,9 @@ type CreatingTokenType = {
   name: string;
   creating: boolean;
   error?: string;
+  /** Broadcast hash and its explorer link; kept when the creation fails. */
+  txHash?: string;
+  txUrl?: string;
 };
 
 type CreatedTokenType = {
@@ -98,6 +101,7 @@ class TokenStore {
   // fetch resolves so the digits settle visibly.
   isRefreshingBalances = false;
   _balanceRequestId = 0;
+  _creationRequestId = 0;
 
   constructor(private qrlStore: QrlStore) {
     makeAutoObservable(this, {
@@ -108,9 +112,11 @@ class TokenStore {
       discoveredTokens: observable.struct,
       isRefreshingBalances: observable,
       _balanceRequestId: false,
+      _creationRequestId: false,
       visibleTokenList: computed,
       pendingDiscoveredTokens: computed,
       setCreatingToken: action.bound,
+      setCreatingTokenHash: action.bound,
       setCreatedToken: action.bound,
       addToken: action.bound,
       removeToken: action.bound,
@@ -304,8 +310,23 @@ class TokenStore {
 
   setCreatingToken(name: string, creating: boolean, error?: string): Promise<void> {
     return runAsPromise(() => {
-      this.creatingToken = { name, creating, error };
+      // A failure after broadcast keeps the explorer link: a timed-out
+      // creation may still be mined.
+      const { txHash, txUrl } = this.creatingToken;
+      this.creatingToken =
+        error && txHash && txUrl
+          ? { name, creating, error, txHash, txUrl }
+          : { name, creating, error };
     });
+  }
+
+  /** Records the broadcast hash so the status screen can link to the explorer. */
+  setCreatingTokenHash(request: number, txHash: string, explorer: string): void {
+    if (request !== this._creationRequestId || !this.creatingToken.creating) return;
+    if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) return;
+    this.creatingToken = explorer
+      ? { ...this.creatingToken, txHash, txUrl: `${explorer}/tx/${txHash}` }
+      : { ...this.creatingToken, txHash };
   }
 
   async setCreatedToken(
@@ -502,6 +523,7 @@ class TokenStore {
     mnemonicPhrases: string,
   ) {
     this.qrlStore.resetTransactionStatus();
+    const creationRequest = ++this._creationRequestId;
     const signingGeneration = isDesktop
       ? null
       : walletMutations.captureGeneration();
@@ -517,7 +539,7 @@ class TokenStore {
       void this.setCreatingToken(tokenName, true);
       if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady();
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      const { url } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
+      const { url, explorer } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
       const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));
 
@@ -650,6 +672,13 @@ class TokenStore {
         void this.setCreatingToken("", false, error.message || "Transaction failed");
       };
 
+      const transactionHashHandler = (hash: unknown) => {
+        if (typeof hash === "string") this.setCreatingTokenHash(creationRequest, hash, explorer);
+        else if (hash instanceof Uint8Array) {
+          this.setCreatingTokenHash(creationRequest, utils.bytesToHex(hash), explorer);
+        }
+      };
+
       const customERC20Factorycontract = new web3.qrl.Contract(
         customERC20FactoryABI,
         contractAddress,
@@ -679,6 +708,7 @@ class TokenStore {
           data,
         });
         log(`Desktop token creation broadcast with hash: ${transactionHash}`);
+        this.setCreatingTokenHash(creationRequest, transactionHash, explorer);
         // Poll for the receipt (the signer/main already broadcast it).
         const maxAttempts = 60;
         const pollInterval = 5000;
@@ -722,6 +752,7 @@ class TokenStore {
         }, undefined, {
           checkRevertBeforeSending: true,
         })
+        .on("transactionHash", transactionHashHandler)
         .on("confirmation", confirmationHandler)
         .on("receipt", receiptHandler)
         .on("error", errorHandler);

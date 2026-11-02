@@ -14,7 +14,7 @@ const address = `Q${"12".repeat(64)}`;
 const mnemonic = "synthetic recovery phrase";
 const parseWallet = jest.spyOn(WalletEncryptionUtil, "parseEncryptedWallet");
 const decryptWallet = jest.spyOn(WalletEncryptionUtil, "decryptWallet");
-const hexSeed = `0x${"12".repeat(48)}`;
+const hexSeed = `0x${"12".repeat(51)}`;
 
 jest.mock("@/stores/store", () => ({
   useStore: () => ({
@@ -144,5 +144,18 @@ it("reports a rejected mnemonic derivation through the existing form error", asy
   jest.mocked(deriveHexSeedAsync).mockRejectedValueOnce(new Error("Derivation failed"));
   await submit("mnemonic");
   await screen.findByText("Invalid mnemonic phrases");
+  expect(mockImported).not.toHaveBeenCalled();
+});
+
+it("refuses a hex seed that is not a full 51-byte extended seed", async () => {
+  render(<ImportHexSeedForm onAccountImported={mockImported} />);
+  const input = screen.getByPlaceholderText("Enter your hex seed (0x...)");
+  expect(input.getAttribute("spellcheck")).toBe("false");
+  expect(input.getAttribute("autocorrect")).toBe("off");
+  fireEvent.change(input, { target: { value: `0x${"12".repeat(48)}` } });
+  fireEvent.click(screen.getByRole("button", { name: "Import Account" }));
+  expect(
+    await screen.findByText("A hex seed is 0x followed by 102 hex characters"),
+  ).toBeTruthy();
   expect(mockImported).not.toHaveBeenCalled();
 });

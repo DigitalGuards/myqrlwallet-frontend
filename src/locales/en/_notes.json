@@ -334,6 +334,14 @@
   "creation:nameRequired": "Token creation UI. Preserve the full source meaning: Token name is required User data and external error details in placeholders stay verbatim; keep numbers and protocol identifiers unchanged.",
   "creation:symbolRequired": "Token creation UI. Preserve the full source meaning: Token symbol is required User data and external error details in placeholders stay verbatim; keep numbers and protocol identifiers unchanged.",
   "creation:decimalsRequired": "Token creation UI. Preserve the full source meaning: Decimals is required User data and external error details in placeholders stay verbatim; keep numbers and protocol identifiers unchanged.",
+  "creation:decimalsRange": "Token creation UI. Validation message for the decimals field: the value must be a whole number from 1 to 18. Keep the numbers 1 and 18 unchanged.",
+  "creation:nameInvalid": "Token creation UI. Validation message for the token name: at most 50 characters and no hidden or control characters. Keep the number 50.",
+  "creation:symbolInvalid": "Token creation UI. Validation message for the token symbol: 1 to 11 ASCII letters or digits. Keep A, Z, 0, 9 and 11 unchanged.",
+  "creation:amountInvalid": "Token creation UI. Validation message for an amount field: a plain decimal number with a dot as the decimal separator. Keep the examples 1000 and 0.5 exactly, including the dot.",
+  "creation:amountPrecision": "Token creation UI. Validation message: the amount has more fractional digits than the token's decimals setting allows.",
+  "creation:amountTooLarge": "Token creation UI. Validation message: the amount exceeds the largest value a token contract can store.",
+  "creation:amountPositive": "Token creation UI. Validation message: the amount must be greater than 0. Keep the number 0.",
+  "creation:maxSupplyBelowInitial": "Token creation UI. Validation message: the max supply must be greater than or equal to the initial supply. Use the same terms as the Max Supply and Initial Supply labels.",
   "creation:profanity": "Token creation UI. Preserve the full source meaning: This name contains language that isn't allowed. Please choose a different name. User data and external error details in placeholders stay verbatim; keep numbers and protocol identifiers unchanged.",
   "creation:recipientInvalid": "Token creation UI. Preserve the full source meaning: Invalid recipient address. Use Q followed by 128 hex characters with a valid checksum User data and external error details in placeholders stay verbatim; keep numbers and protocol identifiers unchanged.",
   "creation:invalidValue": "Token creation UI. Preserve the full source meaning: Invalid value User data and external error details in placeholders stay verbatim; keep numbers and protocol identifiers unchanged.",
@@ -517,5 +525,10 @@
   "dapps:unsafeMessage": "Security: unsafe invisible or control characters prevent a safe printable preview. The complete signed bytes are shown as hex, without changing them. Preserve UTF-8.",
   "dapps:checkingChain": "Security: typed-data approval is blocked while the wallet checks its connected chain against the signed domain chain ID. This status must not imply that the check has succeeded.",
   "dapps:chainUnavailable": "Security: failure to read the wallet network blocks approval until a successful retry. Preserve both the failed check and the consequence; this does not assert a chain mismatch.",
-  "dapps:waitingChain": "Security: accessible hint on disabled Approve while the typed-data wallet-network check is pending or failed. Approval requires a successful check."
+  "dapps:waitingChain": "Security: accessible hint on disabled Approve while the typed-data wallet-network check is pending or failed. Approval requires a successful check.",
+  "transfer:amountComma": "Send form validation. The wallet uses a dot as the decimal separator; a comma is refused because it may be a thousands separator. Keep (.) exactly.",
+  "transfer:amountTooLarge": "Send form validation: the typed amount is far too long to be a valid amount.",
+  "nfts:tokenIdInvalid": "Add NFT validation: the token ID must be a plain decimal whole number. Keep 0 and 9 unchanged.",
+  "onboarding:hexLength": "Hex seed import validation: a seed is 0x followed by exactly 102 hexadecimal characters. Keep 0x and 102 unchanged.",
+  "contacts:nameInvalid": "Address book validation: a contact name has at most 40 characters and no hidden or control characters. Keep the number 40."
 }
