@@ -43,6 +43,15 @@ Edit `.env` with your settings:
 - `VITE_SERVER_URL_*` - Backend API endpoints
 - `VITE_CUSTOMERC20FACTORY_ADDRESS` - Token factory contract address
 - `VITE_DEPLOYER` - Factory deployer account
+- `VITE_WALLET_PROFILE=v3-private` plus `VITE_V3_*` - the v3 testnet build
+- `VITE_MAINNET_*` - dormant QRL 2.0 mainnet. The build lists a mainnet only
+  when both `VITE_MAINNET_CHAIN_ID` and `VITE_MAINNET_GENESIS_HASH` are set;
+  one without the other, or a value equal to the testnet pin, fails the build.
+  USD values show only on this pinned, verified mainnet.
+- `VITE_DEFAULT_NETWORK` - `testnet` (default) or `mainnet`, the network a
+  web build starts on
+- `VITE_V3_NATIVE_NETWORK` - `testnet` (default) or `mainnet`. Native builds
+  (desktop renderer, app-embedded document) list only this network.
 
 Never place seeds, mnemonics, private keys, or credentials in a `VITE_*`
 variable. Vite embeds that namespace in client assets.

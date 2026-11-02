@@ -15,11 +15,14 @@ jest.mock("@/utils/embeddedRuntime", () => ({
   HAS_NATIVE_BRIDGE: true,
 }));
 
-const network = { chainId: "0x301825", genesisHash: `0x${"ab".repeat(32)}` };
+const network = {
+  chainId: "0x301825",
+  genesisHash: `0x${"ab".repeat(32)}`,
+  networkProfile: "v3-private",
+};
 const capabilities = {
   bridgeVersion: 1,
   addressScheme: "qip55-64",
-  networkProfile: "v3-private",
   ...network,
 };
 
@@ -78,6 +81,37 @@ it.each([
     });
   expect(isQualifiedV3NativeContext()).toBe(false);
   expect(isUnsupportedV3Context()).toBe(true);
+});
+
+it("qualifies a mainnet build only against a v3-mainnet record with its own pins", () => {
+  const mainnet = {
+    chainId: "0x1",
+    genesisHash: `0x${"cd".repeat(32)}`,
+    networkProfile: "v3-mainnet",
+  };
+  Object.defineProperty(globalThis, "__QRL_NATIVE_NETWORK__", {
+    value: mainnet,
+    configurable: true,
+  });
+  // The existing testnet app record does not qualify for a mainnet build.
+  expect(isQualifiedV3NativeContext()).toBe(false);
+  nativeBridge().injectedObjectJson = () =>
+    JSON.stringify({ qrlWalletCapabilities: { ...capabilities, ...mainnet } });
+  expect(isQualifiedV3NativeContext()).toBe(true);
+  // A mainnet profile carrying the testnet pins is still refused.
+  nativeBridge().injectedObjectJson = () =>
+    JSON.stringify({
+      qrlWalletCapabilities: { ...capabilities, networkProfile: "v3-mainnet" },
+    });
+  expect(isQualifiedV3NativeContext()).toBe(false);
+});
+
+it("refuses a v3-mainnet record in a testnet build", () => {
+  nativeBridge().injectedObjectJson = () =>
+    JSON.stringify({
+      qrlWalletCapabilities: { ...capabilities, networkProfile: "v3-mainnet" },
+    });
+  expect(isQualifiedV3NativeContext()).toBe(false);
 });
 
 it.each([null, "", "{", "null", "[]", "{}", "x".repeat(4097)])(

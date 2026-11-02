@@ -787,7 +787,7 @@ class NftStore {
       if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady(web3.qrl);
       assertSigningCurrent();
       const promiEvent = web3.qrl.sendTransaction({ ...finalTx,
-        ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+        ...(IS_V3_PROFILE ? { chainId: this.qrlStore.signingChainId() } : {}),
       }, undefined, {
         checkRevertBeforeSending: true,
       });

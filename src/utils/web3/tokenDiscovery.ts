@@ -30,6 +30,8 @@ export async function discoverTokens(
 ): Promise<TokenInterface[]> {
   try {
     const apiUrl = getTokenDiscoveryApiUrl(address, blockchain);
+    // A network without an explorer has no discovery source.
+    if (!apiUrl) return [];
     log(`Discovering tokens for ${address} from ${apiUrl}`);
 
     const response = await fetch(apiUrl);

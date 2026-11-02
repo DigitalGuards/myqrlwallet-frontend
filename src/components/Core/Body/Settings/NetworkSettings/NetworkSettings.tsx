@@ -3,9 +3,12 @@ import { useTranslation } from "react-i18next";
 import { useStore } from "../../../../../stores/store";
 import { observer } from "mobx-react-lite";
 import { AVAILABLE_NETWORKS, IS_V3_PROFILE } from "@/config";
+import { MAINNET_V3_ID } from "@/config/deploymentProfile";
 import { Check, FlaskConical, Globe } from "lucide-react";
 import { SettingsRow, SettingsSection } from "../SettingsList";
 import { logger } from "@/utils/log";
+
+const isMainnet = (id: string) => id === "MAIN_NET" || id === MAINNET_V3_ID;
 
 export const NetworkSettings = observer(() => {
   const { t } = useTranslation(["settings", "common"]);
@@ -16,7 +19,7 @@ export const NetworkSettings = observer(() => {
   const { blockchain, isLoading } = qrlConnection;
   const networks = [...AVAILABLE_NETWORKS].sort(
     (left, right) =>
-      Number(right.id === "MAIN_NET") - Number(left.id === "MAIN_NET"),
+      Number(isMainnet(right.id)) - Number(isMainnet(left.id)),
   );
 
   const activeMark = <Check className="h-4 w-4 shrink-0 text-primary" />;
@@ -26,9 +29,9 @@ export const NetworkSettings = observer(() => {
       {networks.map((network) => (
         <SettingsRow
           key={network.id}
-          icon={network.id === "MAIN_NET" ? Globe : FlaskConical}
+          icon={isMainnet(network.id) ? Globe : FlaskConical}
           tint={
-            network.id === "MAIN_NET"
+            isMainnet(network.id)
               ? "bg-emerald-500/15 text-emerald-400"
               : "bg-amber-500/15 text-amber-400"
           }

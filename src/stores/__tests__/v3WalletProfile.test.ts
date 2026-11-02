@@ -21,6 +21,8 @@ jest.mock("@/config", () => ({
     },
   },
   EXPLORER_BASE: "https://explorer.invalid",
+  AVAILABLE_NETWORKS: [{ id: "TEST_NET_V3" }],
+  DEFAULT_NETWORK_ID: "TEST_NET_V3",
 }));
 jest.mock("@/utils", () => ({ log: jest.fn() }));
 jest.mock("@/utils/crypto", () => ({
@@ -154,10 +156,13 @@ it("defaults to v3 independently of old dev selection and rejects v2/mainnet sel
   expect(await StorageUtil.getBlockChain()).toBe("TEST_NET_V3");
   await StorageUtil.setBlockChain("TEST_NET_V3");
   await expect(StorageUtil.setBlockChain("MAIN_NET")).rejects.toThrow(
-    "Only Testnet v3",
+    "not available in this build",
   );
   await expect(StorageUtil.setBlockChain("TEST_NET")).rejects.toThrow(
-    "Only Testnet v3",
+    "not available in this build",
+  );
+  await expect(StorageUtil.setBlockChain("MAIN_NET_V3")).rejects.toThrow(
+    "not available in this build",
   );
   expect(localStorage.getItem("BLOCKCHAIN_SELECTION")).toBe(original);
   expect(

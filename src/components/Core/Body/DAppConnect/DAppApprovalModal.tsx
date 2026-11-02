@@ -48,7 +48,7 @@ import {
   type FeePreviewState,
 } from "./approvalFeeGate";
 import StorageUtil from "@/utils/storage/storage";
-import { getExplorerTxUrl, QRL_PROVIDER } from "@/config";
+import { getExplorerTxUrl } from "@/config";
 import { IS_V3_PROFILE } from '@/config/runtimeProfile';
 import { formatQuantaValue } from "@/utils/formatting";
 import { QrlAddress } from "@/components/UI/QrlAddress";
@@ -888,7 +888,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
         await assertRequestedTransactionChain(txParams, web3);
         assertSigningGenerationCurrent(signingGeneration);
         const signedTx = await web3.accounts.signTransaction({ ...txObject,
-          ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+          ...(IS_V3_PROFILE ? { chainId: qrlStore.signingChainId() } : {}),
         }, hexSeed);
         assertSigningGenerationCurrent(signingGeneration);
 
@@ -1480,7 +1480,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
               )}
 
               {/* Tx hash link */}
-              {txHash && (
+              {txHash && getExplorerTxUrl(txHash, blockchain) && (
                 <a
                   href={getExplorerTxUrl(txHash, blockchain)}
                   target="_blank"

@@ -1,15 +1,24 @@
 import type { BlockchainSelection } from "@/utils/storage/storage";
 import { isRecord } from "@/utils/guards";
+import { MAINNET_V3_ID, TESTNET_V3_ID } from "./deploymentProfile";
 
 declare const __QRL_WALLET_PROFILE__: string | undefined;
+declare const __QRL_NATIVE_BUILD__: boolean | undefined;
 declare const __QRL_NATIVE_NETWORK__:
-  | { chainId: string; genesisHash: string }
+  | { chainId: string; genesisHash: string; networkProfile: string }
   | null
   | undefined;
 
 export const IS_V3_PROFILE =
   typeof __QRL_WALLET_PROFILE__ !== "undefined" &&
   __QRL_WALLET_PROFILE__ === "v3-private";
+
+/**
+ * True for the desktop renderer and the app-embedded document. A native build
+ * lists only its own network, VITE_V3_NATIVE_NETWORK.
+ */
+export const IS_NATIVE_BUILD =
+  typeof __QRL_NATIVE_BUILD__ !== "undefined" && __QRL_NATIVE_BUILD__;
 
 export const V3_UNSUPPORTED_SIGNER_MESSAGE =
   "Testnet v3 supports this web wallet and updated MyQRLWallet mobile, desktop and extension releases. Older native apps are not yet qualified.";
@@ -45,7 +54,13 @@ export function isQualifiedV3NativeContext(): boolean {
   )
     return false;
   const expected = __QRL_NATIVE_NETWORK__;
-  if (!expected || !expected.chainId || !expected.genesisHash) return false;
+  if (
+    !expected ||
+    !expected.chainId ||
+    !expected.genesisHash ||
+    !expected.networkProfile
+  )
+    return false;
   try {
     if (window.top !== window || !navigator.userAgent.includes("MyQRLWallet"))
       return false;
@@ -54,7 +69,7 @@ export function isQualifiedV3NativeContext(): boolean {
     return (
       record["bridgeVersion"] === 1 &&
       record["addressScheme"] === "qip55-64" &&
-      record["networkProfile"] === "v3-private" &&
+      record["networkProfile"] === expected.networkProfile &&
       record["chainId"] === expected.chainId &&
       record["genesisHash"] === expected.genesisHash
     );
@@ -69,7 +84,10 @@ export const profileStorageKey = (key: string): string =>
 export function historyNetwork(
   blockchain: BlockchainSelection,
 ): "testnet" | "mainnet" | null {
-  if (IS_V3_PROFILE) return blockchain === "TEST_NET_V3" ? "testnet" : null;
+  if (IS_V3_PROFILE) {
+    if (blockchain === TESTNET_V3_ID) return "testnet";
+    return blockchain === MAINNET_V3_ID ? "mainnet" : null;
+  }
   if (blockchain === "TEST_NET") return "testnet";
   return blockchain === "MAIN_NET" ? "mainnet" : null;
 }

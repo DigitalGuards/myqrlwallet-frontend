@@ -1,7 +1,7 @@
 import { blockchainKey, type BlockchainSelection } from "@/utils/storage/storage";
 import { transactionHistoryStore } from "./transactionHistoryStore";
 import { observeHistoryBroadcast } from "@/utils/historyBroadcast";
-import { QRL_PROVIDER, EXPLORER_BASE } from "@/config";
+import { QRL_PROVIDER } from "@/config";
 import { deriveHexSeedAsync } from "@/utils/crypto";
 import { isDesktop, desktopSigner, qrlWallet } from "@/desktop/bridge";
 import { decideActiveAccount, reconcileSignerWallets } from "@/desktop/walletHydration";
@@ -31,7 +31,7 @@ import { z } from "zod";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import { IS_V3_PROFILE, assertSupportedAccountSource, assertV3BrowserContext, V3_UNSUPPORTED_SIGNER_MESSAGE } from '@/config/runtimeProfile';
 import { assertQualifiedV3MobileProvider, assertQualifiedV3Provider, qualifyV3MobileProvider, qualifyV3Provider } from '@/utils/extension/v3Provider';
-import { verifyNetworkIdentity } from '@/config/deploymentProfile';
+import { isPinnedMainnet, V3_NETWORK_IDS, verifyNetworkIdentity, type NetworkConfig } from '@/config/deploymentProfile';
 import { extensionAuthorizesAccount, restoreExtensionProvider } from '@/utils/extension/extensionConnection';
 
 const PRICE_FETCH_TIMEOUT_MS = 10_000;
@@ -275,10 +275,33 @@ class QrlStore {
     return null;
   }
 
-  // 3) Active account balance in USD
+  // 3) Active account balance in USD. Zero wherever fiat is not shown.
   get activeAccountBalanceUsd(): number {
+    if (!this.showsFiatValue) return 0;
     const balance = parseFloat(String(this.activeAccountBalance)) || 0;
     return balance * this.qrlPrice;
+  }
+
+  // 4) The configuration of the network this store is connected to. Every
+  // network-scoped value (chain id, identity pins, explorer, token factory)
+  // is read from here.
+  get activeNetwork(): NetworkConfig | undefined {
+    const blockchain = this.qrlConnection.blockchain;
+    return Object.entries(QRL_PROVIDER).find(([id]) => id === blockchain)?.[1];
+  }
+
+  // 5) Fiat values belong to the pinned QRL 2.0 mainnet alone, and only while
+  // its identity is verified (a v3 connection is marked connected only after
+  // the chain id and genesis checks pass). Never on any testnet.
+  get showsFiatValue(): boolean {
+    return this.qrlConnection.isConnected && isPinnedMainnet(this.activeNetwork);
+  }
+
+  /** The chain id a v3 transaction is signed for: the active network's pin. */
+  signingChainId(): string {
+    const chainId = this.activeNetwork?.expectedChainId;
+    if (!chainId) throw new Error('Testnet v3 network identity has not been verified');
+    return chainId;
   }
 
   constructor() {
@@ -312,6 +335,8 @@ class QrlStore {
       activeAccountSource: computed,
       remoteProvider: computed,
       activeAccountBalanceUsd: computed,
+      activeNetwork: computed,
+      showsFiatValue: computed,
       fetchQrlPrice: action.bound,
       selectBlockchain: action.bound,
       setActiveAccount: action.bound,
@@ -339,7 +364,9 @@ class QrlStore {
   }
 
   async fetchQrlPrice() {
-    if (this._priceFetchInFlight) return;
+    // No price lookup off the pinned mainnet, or when it has no explorer.
+    const explorer = this.showsFiatValue ? this.activeNetwork?.explorer : "";
+    if (!explorer || this._priceFetchInFlight) return;
     this._priceFetchInFlight = true;
     let controller: AbortController | undefined;
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -350,7 +377,7 @@ class QrlStore {
       const requestController = new AbortController();
       controller = requestController;
       timeout = setTimeout(() => { requestController.abort(); }, PRICE_FETCH_TIMEOUT_MS);
-      const res = await fetch(`${EXPLORER_BASE}/api/overview`, {
+      const res = await fetch(`${explorer}/api/overview`, {
         signal: requestController.signal,
       });
       if (!res.ok) return;
@@ -516,8 +543,11 @@ class QrlStore {
         });
       }
       const selectedBlockChain = await StorageUtil.getBlockChain();
-      if (IS_V3_PROFILE && selectedBlockChain !== 'TEST_NET_V3') throw new Error('Only Testnet v3 is available in this build');
-      const { name, url } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
+      if (IS_V3_PROFILE && (typeof selectedBlockChain !== 'string' || !V3_NETWORK_IDS.includes(selectedBlockChain))) {
+        throw new Error('This network is not available in this build');
+      }
+      const network = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
+      const { name, url } = network;
 
       runInAction(() => {
         this.qrlConnection = {
@@ -538,7 +568,7 @@ class QrlStore {
       // watch fires ~100 RPC calls per tx. QRL_TX_POLLING_CONFIG slows it to ~10.
       const { qrl } = new Web3({ provider: httpProvider, config: QRL_TX_POLLING_CONFIG });
       if (IS_V3_PROFILE) {
-        await verifyNetworkIdentity({ request: (args) => qrl.requestManager.send(args) }, QRL_PROVIDER.TEST_NET_V3);
+        await verifyNetworkIdentity({ request: (args) => qrl.requestManager.send(args) }, network);
       }
       if (initialization !== this._initializationRequestId) return;
 
@@ -547,7 +577,7 @@ class QrlStore {
       });
 
       await this.fetchQrlConnection();
-      if (IS_V3_PROFILE && !this.qrlConnection.isConnected) throw new Error('Testnet v3 connection could not be verified');
+      if (IS_V3_PROFILE && !this.qrlConnection.isConnected) throw new Error('The network connection could not be verified');
       // Desktop: reconcile the account list against the signer (source of
       // truth for which wallets exist) BEFORE fetchAccounts reads the list,
       // so a wallet the signer can unlock is never shown as "0 wallets".
@@ -576,7 +606,7 @@ class QrlStore {
   }
 
   async selectBlockchain(selectedBlockchain: string) {
-    if (IS_V3_PROFILE && selectedBlockchain !== 'TEST_NET_V3') throw new Error('Only Testnet v3 is available in this build');
+    if (IS_V3_PROFILE && !V3_NETWORK_IDS.includes(selectedBlockchain)) throw new Error('This network is not available in this build');
     await StorageUtil.setBlockChain(selectedBlockchain);
     await this.initializeBlockchain();
   }
@@ -667,8 +697,12 @@ class QrlStore {
     try {
       if (IS_V3_PROFILE) {
         assertV3BrowserContext();
-        if (!provider || this.qrlConnection.blockchain !== 'TEST_NET_V3') throw new Error('Testnet v3 network is unavailable');
-        await verifyNetworkIdentity({ request: (args) => provider.requestManager.send(args) }, QRL_PROVIDER.TEST_NET_V3);
+        const blockchain = this.qrlConnection.blockchain;
+        const network = this.activeNetwork;
+        if (!provider || !network || typeof blockchain !== 'string' || !V3_NETWORK_IDS.includes(blockchain)) {
+          throw new Error('The v3 network is unavailable');
+        }
+        await verifyNetworkIdentity({ request: (args) => provider.requestManager.send(args) }, network);
       }
       // Add timeout to prevent hanging on unreachable networks
       const connectionCheckPromise = this.qrlInstance?.net.isListening();
@@ -1112,7 +1146,7 @@ class QrlStore {
       const transactionObject = {
         from,
         to,
-        ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+        ...(IS_V3_PROFILE ? { chainId: this.signingChainId() } : {}),
         value: utils.toPlanck(value, "quanta"),
         type: '0x2',
         maxFeePerGas: utils.toHex(maxFeePerGas),
@@ -1208,7 +1242,7 @@ class QrlStore {
     const rpc = this.qrlInstance;
     const current = this.extensionProvider;
     const promise = (async () => {
-      const provider = await restoreExtensionProvider(address, current);
+      const provider = await restoreExtensionProvider(address, current, this.activeNetwork);
       if (version !== this._extensionProviderVersion || current !== this.extensionProvider
         || activeAddress !== this.activeAccount.accountAddress || source !== this.activeAccountSource
         || blockchain !== this.qrlConnection.blockchain || rpc !== this.qrlInstance) {
@@ -1365,7 +1399,7 @@ class QrlStore {
       const transaction = {
         from, to,
         ...(tokenCall ? { data: tokenCall.data } : { value: valueHex }),
-        ...(IS_V3_PROFILE ? { chainId: QRL_PROVIDER.TEST_NET_V3.expectedChainId } : {}),
+        ...(IS_V3_PROFILE ? { chainId: this.signingChainId() } : {}),
       };
       let params: object[] = [transaction];
       if (source === 'extension') {
@@ -1407,25 +1441,28 @@ class QrlStore {
     if (source === 'extension' && this.extensionProvider === null) await this.ensureExtensionProvider(account);
     if (source === 'extension') assertQualifiedV3Provider(this.extensionProvider);
     if (source === 'mobile') assertQualifiedV3MobileProvider(this.mobileProvider);
-    if (!provider || !current || this.qrlConnection.blockchain !== 'TEST_NET_V3' || !this.qrlConnection.isConnected) {
+    const blockchain = this.qrlConnection.blockchain;
+    const network = this.activeNetwork;
+    if (!provider || !current || !network || typeof blockchain !== 'string' || !V3_NETWORK_IDS.includes(blockchain)
+      || !this.qrlConnection.isConnected) {
       throw new Error('Testnet v3 network identity has not been verified');
     }
     try {
       if (source === 'mobile') {
         const mobile = this.mobileProvider;
         if (!mobile) throw new Error('Mobile app wallet is disconnected');
-        await qualifyV3MobileProvider(mobile);
+        await qualifyV3MobileProvider(mobile, network);
         if (mobile !== this.mobileProvider) throw new Error('Mobile app wallet changed during identity verification');
       }
       if (source === 'extension') {
         assertQualifiedV3Provider(this.extensionProvider);
         const extension = this.extensionProvider;
         if (!extension) throw new Error('Extension is disconnected');
-        await qualifyV3Provider(extension);
+        await qualifyV3Provider(extension, network);
         if (extension !== this.extensionProvider) throw new Error('Extension changed during identity verification');
       }
-      await verifyNetworkIdentity({ request: (args) => provider.requestManager.send(args) }, QRL_PROVIDER.TEST_NET_V3);
-      if (current !== this.qrlInstance || !Object.is(this.qrlConnection.blockchain, 'TEST_NET_V3')) throw new Error('Network changed during identity verification');
+      await verifyNetworkIdentity({ request: (args) => provider.requestManager.send(args) }, network);
+      if (current !== this.qrlInstance || !Object.is(this.qrlConnection.blockchain, blockchain)) throw new Error('Network changed during identity verification');
       if (account !== this.activeAccount.accountAddress || source !== this.activeAccountSource) throw new Error('Account changed during identity verification');
       assertSupportedAccountSource(this.activeAccountSource);
     } catch (error) {

@@ -34,14 +34,16 @@ export function FooterLinks({ className }: { className?: string }) {
       <Link className={linkClass} to={ROUTES.LEGAL}>
         {t("legal")}
       </Link>
-      <a
-        href={EXPLORER_BASE}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={linkClass}
-      >
-        {t("explorer")}
-      </a>
+      {EXPLORER_BASE && (
+        <a
+          href={EXPLORER_BASE}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={linkClass}
+        >
+          {t("explorer")}
+        </a>
+      )}
     </div>
   );
 }

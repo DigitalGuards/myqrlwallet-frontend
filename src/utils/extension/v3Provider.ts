@@ -1,12 +1,36 @@
 import {
   canonicalChainId,
   verifyNetworkIdentity,
+  type NetworkConfig,
 } from "@/config/deploymentProfile";
 import { IS_V3_PROFILE } from "@/config/runtimeProfile";
 import type { ExtensionProvider } from "@/stores/qrlStore";
 
 const qualifiedProviders = new WeakSet<ExtensionProvider>();
-const pendingQualifications = new WeakMap<ExtensionProvider, Promise<void>>();
+const pendingQualifications = new WeakMap<
+  ExtensionProvider,
+  { networkId: string; promise: Promise<void> }
+>();
+
+/**
+ * The network the wallet has selected. Signers are qualified against it when
+ * the caller does not name the network itself.
+ */
+export async function selectedV3Network(): Promise<NetworkConfig> {
+  // Loaded on demand like @/config, so modules that only import this file do
+  // not pull the network configuration in at load time.
+  const [{ QRL_PROVIDER }, { StorageUtil }] = await Promise.all([
+    import("@/config"),
+    import("@/utils/storage"),
+  ]);
+  const selected = await StorageUtil.getBlockChain();
+  const network = Object.entries(QRL_PROVIDER).find(
+    ([id]) => id === selected,
+  )?.[1];
+  if (!network)
+    throw new Error("Testnet v3 network identity has not been verified");
+  return network;
+}
 
 export function assertQualifiedV3Provider(
   provider: ExtensionProvider | null,
@@ -20,14 +44,16 @@ export function assertQualifiedV3Provider(
 
 export async function qualifyV3Provider(
   provider: ExtensionProvider,
+  network?: NetworkConfig,
 ): Promise<void> {
   if (!IS_V3_PROFILE) return;
+  const target = network ?? (await selectedV3Network());
   const pending = pendingQualifications.get(provider);
-  if (pending) return pending;
+  if (pending && pending.networkId === target.id) return pending.promise;
 
   // Fee estimation and Send can verify the same recovered provider together.
   // Keep the last successful qualification until the shared check settles.
-  const verification = verifyV3Provider(provider).then(
+  const verification = verifyV3Provider(provider, target).then(
     () => {
       qualifiedProviders.add(provider);
     },
@@ -38,15 +64,20 @@ export async function qualifyV3Provider(
         : new Error("Extension qualification failed");
     },
   );
-  pendingQualifications.set(provider, verification);
+  const entry = { networkId: target.id, promise: verification };
+  pendingQualifications.set(provider, entry);
   try {
     await verification;
   } finally {
-    pendingQualifications.delete(provider);
+    if (pendingQualifications.get(provider) === entry)
+      pendingQualifications.delete(provider);
   }
 }
 
-async function verifyV3Provider(provider: ExtensionProvider): Promise<void> {
+async function verifyV3Provider(
+  provider: ExtensionProvider,
+  network: NetworkConfig,
+): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let capabilities: unknown;
   try {
@@ -61,9 +92,8 @@ async function verifyV3Provider(provider: ExtensionProvider): Promise<void> {
   } finally {
     clearTimeout(timer);
   }
-  const { QRL_PROVIDER } = await import("@/config");
-  const network = QRL_PROVIDER.TEST_NET_V3;
   if (
+    !network.expectedChainId ||
     !capabilities ||
     typeof capabilities !== "object" ||
     !("addressScheme" in capabilities) ||
@@ -81,7 +111,11 @@ async function verifyV3Provider(provider: ExtensionProvider): Promise<void> {
   await verifyNetworkIdentity(provider, network);
 }
 
-const qualifiedMobileProviders = new WeakMap<ExtensionProvider, number>();
+// When each paired phone last proved its network, and which network that was.
+const qualifiedMobileProviders = new WeakMap<
+  ExtensionProvider,
+  { at: number; networkId: string }
+>();
 
 /** A successful network check is reused this long before re-verifying. */
 export const V3_MOBILE_QUALIFICATION_TTL_MS = 60_000;
@@ -123,18 +157,20 @@ export function assertQualifiedV3MobileProvider(
  */
 export async function qualifyV3MobileProvider(
   provider: ExtensionProvider,
+  network?: NetworkConfig,
 ): Promise<void> {
   if (!IS_V3_PROFILE) return;
-  const verifiedAt = qualifiedMobileProviders.get(provider);
+  const target = network ?? (await selectedV3Network());
+  const verified = qualifiedMobileProviders.get(provider);
   if (
-    verifiedAt !== undefined &&
-    Date.now() - verifiedAt < V3_MOBILE_QUALIFICATION_TTL_MS
+    verified !== undefined &&
+    verified.networkId === target.id &&
+    Date.now() - verified.at < V3_MOBILE_QUALIFICATION_TTL_MS
   ) {
     return;
   }
-  const { QRL_PROVIDER } = await import("@/config");
   try {
-    await verifyNetworkIdentity(provider, QRL_PROVIDER.TEST_NET_V3);
+    await verifyNetworkIdentity(provider, target);
   } catch (error) {
     if (error instanceof Error && /timed out/i.test(error.message)) {
       throw new Error(V3_MOBILE_UNRESPONSIVE_MESSAGE);
@@ -142,5 +178,8 @@ export async function qualifyV3MobileProvider(
     qualifiedMobileProviders.delete(provider);
     throw new Error(V3_UNQUALIFIED_MOBILE_MESSAGE);
   }
-  qualifiedMobileProviders.set(provider, Date.now());
+  qualifiedMobileProviders.set(provider, {
+    at: Date.now(),
+    networkId: target.id,
+  });
 }

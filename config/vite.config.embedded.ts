@@ -689,6 +689,8 @@ export default defineConfig((env) => {
       // so the emitted document contains no window.location.reload() at all.
       __QRL_EMBEDDED_BUILD__: 'true',
       __QRL_NATIVE_BRIDGE__: 'true',
+      // The app ships one network per binary, so the document lists only it.
+      __QRL_NATIVE_BUILD__: 'true',
     },
     // Nothing from public/ is copied: every runtime reference to it is turned
     // into a data: URI above, and a copied file could only be fetched remotely.
