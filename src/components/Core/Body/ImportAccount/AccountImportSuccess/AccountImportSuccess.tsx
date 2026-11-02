@@ -47,10 +47,12 @@ const AccountImportSuccess = ({ account }: AccountImportSuccessProps) => {
     }
   };
 
+  // Empty on a network without an explorer, which hides the explorer button.
+  const explorerUrl = accountAddress
+    ? getExplorerAddressUrl(accountAddress, blockchain)
+    : "";
   const onViewInExplorer = () => {
-    if (accountAddress) {
-      openExternalUrl(getExplorerAddressUrl(accountAddress, blockchain));
-    }
+    if (explorerUrl) openExternalUrl(explorerUrl);
   };
 
   return (
@@ -91,15 +93,17 @@ const AccountImportSuccess = ({ account }: AccountImportSuccessProps) => {
               <Copy className="mr-2 h-4 w-4" />
               {hasJustCopied ? t("common:copied") : t("common:copy")}
             </Button>
-            <Button
-              className="w-full"
-              type="button"
-              variant="outline"
-              onClick={onViewInExplorer}
-            >
-              <ExternalLink className="mr-2 h-4 w-4" />
-              {t("onboarding:viewExplorer")}
-            </Button>
+            {explorerUrl && (
+              <Button
+                className="w-full"
+                type="button"
+                variant="outline"
+                onClick={onViewInExplorer}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                {t("onboarding:viewExplorer")}
+              </Button>
+            )}
           </div>
           <Link className="w-full" to={ROUTES.HOME}>
             <Button className="w-full" type="button">

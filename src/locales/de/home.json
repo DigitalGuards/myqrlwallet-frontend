@@ -29,7 +29,7 @@
   "copyCode": "Code kopieren",
   "newCode": "Neuer Code",
   "mobileUnresponsive": "Das Smartphone hat nicht geantwortet. MyQRLWallet auf dem Smartphone öffnen und erneut versuchen.",
-  "mobileUnqualified": "Diese MyQRLWallet-App ist noch nicht für Testnetz v3 freigegeben. Die App aktualisieren und erneut koppeln.",
+  "mobileUnqualified": "Diese MyQRLWallet-App ist noch nicht für dieses Netzwerk freigegeben. Die App aktualisieren und erneut koppeln.",
   "nfts": "NFTs",
   "nftRefresh": "Eigentum, Guthaben und Metadaten aktualisieren",
   "addNft": "NFT hinzufügen",

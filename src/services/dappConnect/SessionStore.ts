@@ -163,6 +163,16 @@ function isSafeRelayUrl(value: unknown): boolean {
   }
 }
 
+/** A canonical 0x chain id as the wallet announces it: lowercase, no leading zeros. */
+function isSessionChainId(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (typeof value === "string" &&
+      value.length <= 66 &&
+      /^0x[1-9a-f][0-9a-f]*$/.test(value))
+  );
+}
+
 function parseSessionTimestamps(
   createdAt: unknown,
   lastActivity: unknown,
@@ -206,6 +216,7 @@ function parseSession(
       ? !isQrlAccount(value["connectedAccount"])
       : value["connectedAccount"] !== "") ||
     !isSafeRelayUrl(value["relayUrl"]) ||
+    !isSessionChainId(value["chainId"]) ||
     !isSessionStatus(status) ||
     timestamps === null
   ) {
@@ -233,6 +244,9 @@ function parseSession(
     createdAt: timestamps.createdAt,
     lastActivity: timestamps.lastActivity,
     walletEpoch: expectedEpoch,
+    ...(typeof value["chainId"] === "string"
+      ? { chainId: value["chainId"] }
+      : {}),
   };
 }
 
@@ -377,6 +391,7 @@ export const SessionStore = {
     }
     if (
       !isPersistedSessionEncodingValid(session.keyExchange) ||
+      !isSessionChainId(session.chainId) ||
       !Object.values(SessionStatus).includes(session.status) ||
       parseSessionTimestamps(session.createdAt, session.lastActivity) === null
     ) {

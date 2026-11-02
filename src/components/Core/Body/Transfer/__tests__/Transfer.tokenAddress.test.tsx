@@ -12,6 +12,7 @@ import { useLocation, useSearchParams } from "react-router";
 import { observable, runInAction } from "mobx";
 import { copyToClipboard } from "@/utils/nativeApp";
 import type { TokenInterface } from "@/constants";
+import { getExplorerAddressUrl } from "@/config";
 import Transfer from "../Transfer";
 
 jest.mock("react-router", () => ({
@@ -186,6 +187,25 @@ it("keeps the native transfer display without a token contract section", async (
     screen.queryByRole("button", { name: "Copy token contract address" }),
   ).toBeNull();
 });
+
+it.each([
+  ["", false],
+  ["https://explorer.invalid/address/value", true],
+])(
+  "shows View on Explorer only for a network with an explorer (%p)",
+  async (url, shown) => {
+    jest.mocked(getExplorerAddressUrl).mockReturnValue(url);
+    fixture("native");
+    await act(() => {
+      render(<Transfer />);
+      return Promise.resolve();
+    });
+    expect(
+      screen.queryByRole("button", { name: "View on Explorer" }) !== null,
+    ).toBe(shown);
+    expect(getExplorerAddressUrl).toHaveBeenCalledWith(ACCOUNT, "TEST_NET_V3");
+  },
+);
 
 it("waits for the selected token record and removes its contract when unavailable", async () => {
   const token = TOKENS[0];

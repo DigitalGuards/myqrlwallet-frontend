@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { observer } from "mobx-react-lite";
 import { AVAILABLE_NETWORKS } from "@/config";
+import { MAINNET_V3_ID } from "@/config/deploymentProfile";
 import { useStore } from "@/stores/store";
 import { ROUTES } from "@/router/router";
 
@@ -13,7 +14,9 @@ const ConnectionBadge = observer(() => {
     qrlStore.qrlConnection;
   const fullName = networkName(qrlNetworkName, t);
   const network =
-    blockchain === "MAIN_NET" ? t("mainnetBadge") : t("testnetBadge");
+    blockchain === "MAIN_NET" || blockchain === MAINNET_V3_ID
+      ? t("mainnetBadge")
+      : t("testnetBadge");
   const label = isLoading
     ? t("networkConnecting", { network })
     : !isConnected

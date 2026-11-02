@@ -392,6 +392,24 @@ describe("SessionStore v4 migration boundary", () => {
     }).not.toThrow();
   });
 
+  it("round-trips the session chain and refuses a malformed one", async () => {
+    const session = await makeStoredSession();
+    // A record written before the wallet kept the chain still restores.
+    SessionStore.save(session);
+    expect(SessionStore.get(session.id)?.chainId).toBeUndefined();
+    SessionStore.save({ ...session, chainId: "0x301825" });
+    expect(SessionStore.get(session.id)?.chainId).toBe("0x301825");
+
+    for (const chainId of ["", "0x", "0x0", "0x01", "0X1", "0xABC", "1", `0x${"f".repeat(65)}`]) {
+      const poisoned = { ...session, chainId };
+      localStorage.setItem("qrlconnect:sessions", JSON.stringify([poisoned]));
+      expect(SessionStore.getAll()).toEqual([]);
+      expect(() => {
+        SessionStore.save(poisoned);
+      }).toThrow("invalid persisted state");
+    }
+  });
+
   it("rejects negative, future, and out-of-order session timestamps", async () => {
     const session = await makeStoredSession();
     const now = Date.now();

@@ -57,27 +57,29 @@ export const OtherAccounts = observer(() => {
             </div>
             <div className="flex gap-4 items-center shrink-0">
               <CopyAddressButton accountAddress={accountAddress} />
-              <span>
-                <TooltipProvider>
-                  <Tooltip delayDuration={0}>
-                    <TooltipTrigger asChild>
-                      <Button
-                        className="hover:text-secondary"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                          viewInExplorer(accountAddress);
-                        }}
-                      >
-                        <ExternalLink size={18} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <Label>{t("accounts:viewExplorer")}</Label>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </span>
+              {getExplorerAddressUrl(accountAddress, blockchain) && (
+                <span>
+                  <TooltipProvider>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          className="hover:text-secondary"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            viewInExplorer(accountAddress);
+                          }}
+                        >
+                          <ExternalLink size={18} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <Label>{t("accounts:viewExplorer")}</Label>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </span>
+              )}
               <span>
                 <TooltipProvider>
                   <Tooltip delayDuration={0}>

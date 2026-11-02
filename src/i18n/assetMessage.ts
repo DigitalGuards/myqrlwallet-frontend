@@ -147,13 +147,12 @@ export function assetPinError(error: PinVerificationError): AssetMessage {
 }
 
 const sharedServiceKeys: Record<string, AssetKey> = {
-  "Testnet v3 network identity has not been verified":
-    "creation:networkUnverified",
+  "Network identity has not been verified": "creation:networkUnverified",
   "Network changed during identity verification": "creation:networkChanged",
   "Account changed during identity verification": "creation:accountChanged",
   "Network identity is not configured": "creation:networkUnconfigured",
-  "Testnet v3 chain identity mismatch": "creation:chainMismatch",
-  "Testnet v3 genesis identity mismatch": "creation:genesisMismatch",
+  "Network chain identity mismatch": "creation:chainMismatch",
+  "Network genesis identity mismatch": "creation:genesisMismatch",
   "This account is signed by the paired mobile app. Confirm the transfer there.":
     "creation:mobileSigner",
   "This account is signed by the extension wallet. Confirm the transfer there.":
