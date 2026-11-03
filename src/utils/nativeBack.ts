@@ -93,6 +93,21 @@ interface TrailEntry {
 
 let routeStack: TrailEntry[] = [];
 
+/**
+ * A browser step back the router has not reported yet. A second Back press
+ * in that gap would step back another entry, past the first screen of this
+ * page load and possibly out of the wallet, so presses are ignored until
+ * the POP arrives, or until a short wait passes when none does.
+ */
+const HISTORY_BACK_SETTLE_MS = 1000;
+let pendingHistoryBack: ReturnType<typeof setTimeout> | null = null;
+
+function clearPendingHistoryBack(): void {
+  if (pendingHistoryBack === null) return;
+  clearTimeout(pendingHistoryBack);
+  pendingHistoryBack = null;
+}
+
 /** Two indexes name different entries only when both are known. */
 function sameIndex(a: number | undefined, b: number | undefined): boolean {
   return a === undefined || b === undefined || a === b;
@@ -202,6 +217,8 @@ export function recordRoute(
   action: RouteAction = "PUSH",
   index?: number,
 ): void {
+  // The router has reported where history went, so Back may act again.
+  clearPendingHistoryBack();
   const entry: TrailEntry = { path, index };
   const top = routeStack.length - 1;
   const below = routeStack[top - 1];
@@ -268,6 +285,8 @@ export function resolveRouteBack(
   fallback?: string,
   history?: HistoryStep,
 ): boolean {
+  // A step back is still on its way: this press has nothing to add.
+  if (pendingHistoryBack !== null) return true;
   const depth = depthBelow(currentPath);
   const previous = routeStack[depth - 1];
   if (history === undefined && previous !== undefined) {
@@ -279,6 +298,9 @@ export function resolveRouteBack(
     history?.index !== undefined &&
     previous?.index === history.index - 1
   ) {
+    pendingHistoryBack = setTimeout(() => {
+      pendingHistoryBack = null;
+    }, HISTORY_BACK_SETTLE_MS);
     history.back();
     return true;
   }
@@ -334,6 +356,7 @@ export function resetNativeBackForTests(): void {
   overlays = [];
   pageBacks = [];
   routeStack = [];
+  clearPendingHistoryBack();
   nextOverlayId = 1;
   nextPageBackId = 1;
 }

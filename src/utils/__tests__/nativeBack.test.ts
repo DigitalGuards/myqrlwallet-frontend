@@ -250,6 +250,44 @@ describe("the web wallet keeps in step with the browser's Back", () => {
     expect(recordedIndexesForTests()).toEqual([0, 1]);
   });
 
+  it("ignores a second press while the step back is still on its way", () => {
+    recordRoute("/", "POP", 0);
+    recordRoute("/legal", "PUSH", 1);
+
+    const step = { index: 1, back };
+    expect(resolveRouteBack(recordingNavigate, "/legal", "/", step)).toBe(
+      true,
+    );
+    // A double click lands before the browser's popstate: one step only,
+    // so the tab cannot leave the wallet for the page before it.
+    expect(resolveRouteBack(recordingNavigate, "/legal", "/", step)).toBe(
+      true,
+    );
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(recordingNavigate).not.toHaveBeenCalled();
+
+    // Once the router reports the POP, Back works again.
+    recordRoute("/", "POP", 0);
+    recordRoute("/legal", "PUSH", 1);
+    resolveRouteBack(recordingNavigate, "/legal", "/", step);
+    expect(back).toHaveBeenCalledTimes(2);
+  });
+
+  it("acts again after a short wait when no POP arrives", () => {
+    jest.useFakeTimers();
+    try {
+      recordRoute("/", "POP", 0);
+      recordRoute("/legal", "PUSH", 1);
+      const step = { index: 1, back };
+      resolveRouteBack(recordingNavigate, "/legal", "/", step);
+      jest.advanceTimersByTime(1000);
+      resolveRouteBack(recordingNavigate, "/legal", "/", step);
+      expect(back).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("takes the parent when the previous screen is not right behind", () => {
     recordRoute("/", "POP", 0);
     recordRoute("/legal", "PUSH", 1);
