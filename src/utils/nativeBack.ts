@@ -51,7 +51,11 @@ export type RouteNavigate = (path: string, options?: { replace: true }) => void;
  * through it. The desktop and phone apps pass none and walk the trail.
  */
 export interface HistoryStep {
-  readonly index: number;
+  /**
+   * Undefined when the browser keeps no index for the entry, as after a
+   * link that changed only the fragment.
+   */
+  readonly index: number | undefined;
   readonly back: () => void;
 }
 
@@ -183,7 +187,7 @@ function pageBackAt(currentPath: string): PageBackTarget | undefined {
  * `action` is how the router got there. A replace swaps the top. A browser
  * back (POP) to the screen below the top removes the screen it left, so the
  * stack keeps matching the way back. A POP to the screen already on top
- * (a change of the fragment alone) changes nothing. Any other POP is a move
+ * (a change of the fragment alone) keeps the stack. Any other POP is a move
  * the stack cannot follow: a browser back after a reload, a jump of several
  * entries, a step forward. The stack then starts over at that screen, as on
  * a fresh arrival, so Back takes the page's parent and never steps forward.
@@ -271,7 +275,10 @@ export function resolveRouteBack(
     navigate(previous.path);
     return true;
   }
-  if (history !== undefined && previous?.index === history.index - 1) {
+  if (
+    history?.index !== undefined &&
+    previous?.index === history.index - 1
+  ) {
     history.back();
     return true;
   }

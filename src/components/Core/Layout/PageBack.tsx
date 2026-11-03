@@ -52,22 +52,22 @@ export function PageBack({
       onBack();
       return;
     }
-    // Read when pressed: the browser moves through history without asking.
-    const index = followsBrowserHistory(platform) ? historyIndex() : undefined;
     resolveRouteBack(
       (target, options) => {
         settle(options ? navigate(target, options) : navigate(target));
       },
       path,
       fallback,
-      index === undefined
-        ? undefined
-        : {
-            index,
+      followsBrowserHistory(platform)
+        ? {
+            // Read when pressed: the browser moves through history without
+            // asking.
+            index: historyIndex(),
             back: () => {
               settle(navigate(-1));
             },
-          },
+          }
+        : undefined,
     );
   };
 

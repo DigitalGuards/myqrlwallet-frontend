@@ -279,6 +279,24 @@ describe("the web wallet keeps in step with the browser's Back", () => {
     expect(recordingNavigate).toHaveBeenCalledWith("/legal", { replace: true });
   });
 
+  it("takes the parent when the browser keeps no index for the entry", () => {
+    recordRoute("/", "POP", 0);
+    recordRoute("/dapp-sessions", "PUSH", 1);
+    // A dApp's link changed only the fragment: an entry with no state.
+    recordRoute("/dapp-sessions", "POP", undefined);
+
+    expect(
+      resolveRouteBack(recordingNavigate, "/dapp-sessions", "/settings", {
+        index: undefined,
+        back,
+      }),
+    ).toBe(true);
+    expect(back).not.toHaveBeenCalled();
+    expect(recordingNavigate).toHaveBeenCalledWith("/settings", {
+      replace: true,
+    });
+  });
+
   it("counts a POP as one step back only onto the entry recorded below", () => {
     recordRoute("/legal", "POP", 0);
     recordRoute("/security", "PUSH", 1);

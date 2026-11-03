@@ -269,6 +269,17 @@ it("keeps the browser's own Back in step on the web", async () => {
   expect(recordedRoutesForTests()).toEqual(["/disclaimer"]);
 });
 
+it("takes the parent on the web when the browser keeps no index", async () => {
+  await mount(["/"]);
+  await open("/legal");
+  await open("/disclaimer");
+  // A link that changed only the fragment leaves an entry with no state.
+  window.history.replaceState(null, "");
+  await pressBack();
+  expect(here()).toBe("/legal");
+  expect(fakeHistory.action()).toBe("REPLACE");
+});
+
 it.each([
   ["the desktop app", "desktop", false],
   ["the phone app", "app", false],
