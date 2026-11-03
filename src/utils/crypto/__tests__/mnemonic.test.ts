@@ -1,6 +1,6 @@
 /**
  * Round-trip + strictness coverage for src/utils/crypto/mnemonic.ts under the
- * upgraded post-quantum stack (@theqrl/wallet.js 6.x + @theqrl/web3 1.x).
+ * upgraded post-quantum stack (@theqrl/wallet.js 6.x + @theqrl/web3 2.x).
  *
  * Why this exists: mnemonic.ts had ZERO direct unit coverage and was the one
  * load-bearing path the @theqrl upgrade validation could only type-check, not

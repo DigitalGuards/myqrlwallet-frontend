@@ -18,6 +18,14 @@ const FEE_DISPLAY = {
   high:   { labelKey: "transfer:fast" },
 } as const;
 
+/**
+ * The Transfer form's own amount pattern (its `amount` field). The fee is
+ * quoted only for an amount that passes it: since @theqrl/web3 2.0.0,
+ * toPlanck throws on a partial entry such as "." and the fee row showed the
+ * validator's raw text.
+ */
+const AMOUNT_PATTERN = /^\d*\.?\d+$/;
+
 type GasFeeNoticeProps = {
   from: string;
   to: string;
@@ -60,7 +68,7 @@ export const GasFeeNotice = ({
   const { t } = useTranslation(["transfer", "common", "settings"]);
   const { qrlStore } = useStore();
   const { qrlInstance } = qrlStore;
-  const hasValuesForGasCalculation = !!from && !!to && !!value;
+  const hasValuesForGasCalculation = !!from && !!to && AMOUNT_PATTERN.test(value);
 
   const [gasFee, setGasFee] = useState({
     estimatedGas: "",

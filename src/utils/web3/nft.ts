@@ -6,7 +6,7 @@ import { erc165ABI, ERC165_INTERFACE_IDS } from "@/abi/ERC165ABI";
 import { erc721ABI } from "@/abi/ERC721ABI";
 import { erc1155ABI } from "@/abi/ERC1155ABI";
 import { SERVER_URL } from "@/config";
-import { isArray, isObject } from "@/utils/guards";
+import { isArray, isObject, isRecord } from "@/utils/guards";
 import { logger } from "@/utils/log";
 
 export type NftStandard = "ERC721" | "ERC1155";
@@ -118,14 +118,44 @@ export async function fetchNftCollectionInfo(
 
 /**
  * Transport-level failures that say nothing about the contract: the RPC
- * was unreachable, slow, rate limited or returned a gateway error. A
- * contract-level failure (revert, empty return data that will not decode)
- * is a real answer and is deliberately absent from this list.
+ * was unreachable, slow, rate limited or returned a gateway error, or the
+ * client refused to trust the reply ("Invalid JSON-RPC response" in
+ * @theqrl/web3 2.0.0, matched with or without the hyphen). A contract-level
+ * failure (revert, empty return data that will not decode) is a real answer
+ * and is deliberately absent from this list.
  */
 const TRANSIENT_RPC_ERROR_PATTERN =
-  /(failed to fetch|fetch failed|network\s*error|load failed|timeout|timed out|etimedout|econnrefused|econnreset|enotfound|eai_again|epipe|socket hang up|socket disconnected|connection (?:refused|reset|closed|error|terminated)|request aborted|the operation was aborted|invalid json rpc response|invalid response|service unavailable|bad gateway|gateway time-?out|too many requests|internal server error|rate limit)/i;
+  /(failed to fetch|fetch failed|network\s*error|load failed|timeout|timed out|etimedout|econnrefused|econnreset|enotfound|eai_again|epipe|socket hang up|socket disconnected|connection (?:refused|reset|closed|error|terminated)|request aborted|the operation was aborted|invalid json[- ]?rpc response|invalid response|service unavailable|bad gateway|gateway time-?out|too many requests|internal server error|rate limit)/i;
 
 const TRANSIENT_RPC_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+/**
+ * `ERR_INVALID_RESPONSE` in @theqrl/web3: the code of an InvalidResponseError,
+ * and the code the client gives the inner error when the client itself raised
+ * the error about a reply. A literal keeps web3 out of this module's static
+ * imports, so the library still loads lazily.
+ */
+const INVALID_RESPONSE_CODE = 101;
+
+/**
+ * True for an InvalidResponseError that carries no error from the node. Since
+ * @theqrl/web3 2.0.0 the client raises one for a reply it will not trust: an
+ * envelope with neither `result` nor `error`, a reply carrying another
+ * request's id, or a `qrl_call` result that is not hex bytes. Nothing in such
+ * a reply comes from the contract. The node's own error arrives as the inner
+ * error with the node's code, and stays an answer. This is the test
+ * isNodeRefusal in dappBroadcastOutcome.ts applies; the message prefix it also
+ * checks is in TRANSIENT_RPC_ERROR_PATTERN.
+ */
+function isUntrustedReply(candidate: Record<string, unknown>): boolean {
+  if (candidate["code"] !== INVALID_RESPONSE_CODE) return false;
+  const inner = candidate["innerError"];
+  return !(
+    isRecord(inner) &&
+    typeof inner["code"] === "number" &&
+    inner["code"] !== INVALID_RESPONSE_CODE
+  );
+}
 
 /**
  * True when an RPC call failed for a reason that may resolve on its own.
@@ -156,6 +186,7 @@ export function isTransientRpcError(error: unknown): boolean {
         return true;
       }
     }
+    if (isUntrustedReply(candidate)) return true;
     current = candidate["cause"] ?? candidate["innerError"];
   }
   return false;

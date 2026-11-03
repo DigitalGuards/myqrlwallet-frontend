@@ -48,6 +48,8 @@ import {
 import { getDeviceEncryptionKey } from '../deviceCredential';
 import { isInNativeApp, shareContent } from '@/utils/nativeApp';
 import { isRecord } from '@/utils/guards';
+import { InvalidSeedError } from '@theqrl/web3';
+import { create, seedToAccount } from '@theqrl/web3-qrl-accounts';
 
 const mockGetDeviceEncryptionKey = jest.mocked(getDeviceEncryptionKey);
 const mockIsInNativeApp = jest.mocked(isInNativeApp);
@@ -182,6 +184,14 @@ describe('WalletEncryptionUtil PIN seed encryption (WebCrypto AES-GCM)', () => {
     ).rejects.toBeInstanceOf(DeviceCredentialUnavailableError);
   });
 
+  it('hands back the 0x seed web3 signs with when a stored seed has the bare hex', async () => {
+    const account = create();
+    const encrypted = await WalletEncryptionUtil.encryptSeedWithPin(MNEMONIC, account.seed.slice(2), PIN);
+    const { seed } = await WalletEncryptionUtil.decryptSeedWithPinVersioned(encrypted, PIN);
+    expect(seed.hexSeed).toBe(account.seed);
+    expect(seedToAccount(seed.hexSeed).address).toBe(account.address);
+  });
+
   it('unlocks authenticated pin_v4 for explicit lazy migration', async () => {
     const legacy = await makePinV4();
     const decrypted = await WalletEncryptionUtil.decryptSeedWithPinVersioned(legacy, PIN);
@@ -299,6 +309,20 @@ describe('WalletEncryptionUtil password wallet file (WebCrypto AES-GCM)', () => 
 
     const decrypted = await WalletEncryptionUtil.decryptWallet(encrypted, PASSWORD);
     expect(decrypted).toEqual(walletData);
+  });
+
+  it('hands back the 0x seed web3 signs with when the file stores the bare hex', async () => {
+    // Accepted by this parser and by @theqrl/web3 1.0.3. Since 2.0.0 web3
+    // refuses a seed without a lowercase 0x, which would break the import
+    // and every later signature with the stored copy.
+    const account = create();
+    const bare = { ...walletData, address: account.address, hexSeed: account.seed.slice(2) };
+    expect(() => seedToAccount(bare.hexSeed)).toThrow(InvalidSeedError);
+
+    const encrypted = await WalletEncryptionUtil.encryptWallet(bare, PASSWORD);
+    const decrypted = await WalletEncryptionUtil.decryptWallet(encrypted, PASSWORD);
+    expect(decrypted.hexSeed).toBe(account.seed);
+    expect(seedToAccount(decrypted.hexSeed).address).toBe(account.address);
   });
 
   it('rejects the wrong password', async () => {

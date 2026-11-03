@@ -12,6 +12,9 @@ describe('published QIP-55 web3 composition', () => {
       request: ({ method }: { method: string }): Promise<string> => {
         rpcMethods.push(method);
         if (method === 'net_version') return Promise.resolve('1');
+        // Since @theqrl/web3 2.0.0 a caller-supplied chain id is checked
+        // against the node before signing.
+        if (method === 'qrl_chainId') return Promise.resolve('0x1');
         return Promise.reject(new Error(`Unexpected composition-test RPC method: ${method}`));
       },
     };
@@ -45,6 +48,38 @@ describe('published QIP-55 web3 composition', () => {
     expect(signed.rawTransaction).toMatch(/^0x[0-9a-f]+$/i);
     expect(signed.rawTransaction.length).toBeGreaterThan(2 + (4_627 + 2_592) * 2);
     expect(signed.transactionHash).toMatch(/^0x[0-9a-f]{64}$/i);
-    expect(rpcMethods).toEqual(['net_version']);
+    expect(rpcMethods).toEqual(['qrl_chainId', 'net_version']);
+  });
+
+  it('refuses to sign for a chain the node is not on', async () => {
+    // @theqrl/web3 2.0.0: with a provider set, a transaction that names a
+    // chain id is signed only when the node reports the same one. 1.0.3
+    // signed it regardless.
+    const provider = {
+      request: ({ method }: { method: string }): Promise<string> => {
+        if (method === 'qrl_chainId') return Promise.resolve('0x301825');
+        if (method === 'net_version') return Promise.resolve('3151909');
+        return Promise.reject(new Error(`Unexpected composition-test RPC method: ${method}`));
+      },
+    };
+    const web3 = new Web3(provider);
+    const account = web3.qrl.accounts.seedToAccount(EXTENDED_SEED);
+    await expect(
+      web3.qrl.accounts.signTransaction(
+        {
+          from: account.address,
+          to: account.address,
+          chainId: 1,
+          nonce: 0,
+          maxPriorityFeePerGas: 1,
+          maxFeePerGas: 2,
+          gas: 21_000,
+          value: 1,
+          data: '0x',
+          type: '0x2',
+        },
+        EXTENDED_SEED,
+      ),
+    ).rejects.toMatchObject({ name: 'NodeChainIdMismatchError' });
   });
 });
