@@ -6,7 +6,8 @@ import { logger } from "@/utils/log";
 import { recordRoute } from "@/utils/nativeBack";
 
 const mockNavigate = jest.fn(
-  (_path: string): void | Promise<void> => undefined,
+  (_path: string, _options?: { replace: true }): void | Promise<void> =>
+    undefined,
 );
 const mockGetActivePage = jest.fn(() => Promise.resolve(mockSavedPage));
 const mockSetActivePage = jest.fn((path: string) => {
@@ -15,6 +16,8 @@ const mockSetActivePage = jest.fn((path: string) => {
 });
 let mockConnected = false;
 let mockPathname = "/transfer";
+let mockSearch = "";
+let mockNavigationType = "POP";
 let mockSavedPage: unknown = "/";
 let mockDesktop = false;
 jest.mock("@/stores/store", () => ({
@@ -42,8 +45,10 @@ jest.mock("mobx-react-lite", () => ({
 }));
 jest.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
-  useLocation: () => ({ pathname: mockPathname }),
+  useLocation: () => ({ pathname: mockPathname, search: mockSearch }),
+  useNavigationType: () => mockNavigationType,
 }));
+const restore = { replace: true };
 
 beforeEach(() => {
   mockNavigate.mockReset();
@@ -52,6 +57,8 @@ beforeEach(() => {
   jest.mocked(recordRoute).mockClear();
   mockConnected = false;
   mockPathname = "/transfer";
+  mockSearch = "";
+  mockNavigationType = "POP";
   mockSavedPage = "/";
   mockDesktop = false;
   jest.spyOn(window, "scrollTo").mockImplementation(() => undefined);
@@ -66,7 +73,7 @@ it("starts route persistence and records back history while restoration is pendi
   const view = render(<RouteMonitor />);
   expect(mockGetActivePage).toHaveBeenCalledTimes(1);
   expect(mockSetActivePage).toHaveBeenCalledWith("/transfer");
-  expect(recordRoute).toHaveBeenCalledWith("/transfer");
+  expect(recordRoute).toHaveBeenCalledWith("/transfer", "POP");
   expect(mockNavigate).not.toHaveBeenCalled();
 
   // The effect retains the connection value captured when its read began.
@@ -76,7 +83,7 @@ it("starts route persistence and records back history while restoration is pendi
     savedPage.resolve("/accounts");
     await savedPage.promise;
   });
-  expect(mockNavigate).toHaveBeenCalledWith("/accounts");
+  expect(mockNavigate).toHaveBeenCalledWith("/accounts", restore);
   savedWrite.resolve(undefined);
 });
 
@@ -96,7 +103,7 @@ it("reports restoration failures without starting another read or navigation", a
   });
   expect(mockGetActivePage).toHaveBeenCalledTimes(1);
   expect(mockNavigate).not.toHaveBeenCalled();
-  expect(recordRoute).toHaveBeenCalledWith("/transfer");
+  expect(recordRoute).toHaveBeenCalledWith("/transfer", "POP");
 });
 
 it("reports a failed write while recording back history immediately", async () => {
@@ -107,7 +114,7 @@ it("reports a failed write while recording back history immediately", async () =
     .mockImplementation(() => undefined);
   mockSetActivePage.mockReturnValueOnce(write.promise);
   render(<RouteMonitor />);
-  expect(recordRoute).toHaveBeenCalledWith("/transfer");
+  expect(recordRoute).toHaveBeenCalledWith("/transfer", "POP");
   await act(async () => {
     write.reject(failure);
     await write.promise.catch(() => undefined);
@@ -133,7 +140,7 @@ it.each(["/accounts", ""])(
       );
     });
     expect(mockNavigate).toHaveBeenCalledTimes(1);
-    expect(mockNavigate).toHaveBeenCalledWith(page || "/");
+    expect(mockNavigate).toHaveBeenCalledWith(page || "/", restore);
   },
 );
 afterEach(() => {
@@ -149,7 +156,7 @@ it("preserves a direct route while network identity is loading", async () => {
   mockConnected = true;
   view.rerender(<RouteMonitor />);
   await waitFor(() => {
-    expect(mockNavigate).toHaveBeenCalledWith("/transfer");
+    expect(mockNavigate).toHaveBeenCalledWith("/transfer", restore);
   });
 });
 
@@ -158,7 +165,7 @@ it("keeps the current route during a transient disconnect", async () => {
   mockSavedPage = "/transfer";
   const view = render(<RouteMonitor />);
   await waitFor(() => {
-    expect(mockNavigate).toHaveBeenCalledWith("/transfer");
+    expect(mockNavigate).toHaveBeenCalledWith("/transfer", restore);
   });
   mockNavigate.mockClear();
   mockConnected = false;
@@ -175,7 +182,7 @@ it.each([false, true])(
     mockSavedPage = "/settings";
     render(<RouteMonitor />);
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith("/settings");
+      expect(mockNavigate).toHaveBeenCalledWith("/settings", restore);
     });
   },
 );
@@ -187,7 +194,24 @@ it.each([-1, { pathname: "/tokens", search: "?view=all" }])(
     mockSavedPage = page;
     render(<RouteMonitor />);
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(page);
+      expect(mockNavigate).toHaveBeenCalledWith(page, restore);
     });
   },
 );
+
+it("records each screen with its query and how the router reached it", () => {
+  mockPathname = "/";
+  mockSearch = "?collection=abc";
+  mockNavigationType = "PUSH";
+  const view = render(<RouteMonitor />);
+  expect(recordRoute).toHaveBeenLastCalledWith("/?collection=abc", "PUSH");
+
+  // Closing the collection changes only the query: still a new screen.
+  mockSearch = "";
+  mockNavigationType = "POP";
+  view.rerender(<RouteMonitor />);
+  expect(recordRoute).toHaveBeenLastCalledWith("/", "POP");
+  expect(recordRoute).toHaveBeenCalledTimes(2);
+  // The saved page stays the pathname alone.
+  expect(mockSetActivePage).toHaveBeenLastCalledWith("/");
+});

@@ -4,7 +4,7 @@ import { StorageUtil } from "@/utils/storage";
 import { recordRoute } from "@/utils/nativeBack";
 import { observer } from "mobx-react-lite";
 import { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate, useNavigationType } from "react-router";
 import { logger } from "@/utils/log";
 
 const RouteMonitor = observer(() => {
@@ -13,21 +13,32 @@ const RouteMonitor = observer(() => {
   const { isConnected } = qrlConnection;
 
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const navigationType = useNavigationType();
 
   useEffect(() => {
     if (!isConnected) return;
     void (async () => {
       const activePage = await StorageUtil.getActivePage();
+      // The user did not move here, so the restore replaces the current
+      // entry. It then adds no browser history and no step to the Back
+      // trail: Back on a restored sub-page goes to its parent, as it does
+      // after a fresh load.
+      const restore = { replace: true } as const;
       if (activePage) {
-        const navigation: unknown = Reflect.apply(navigate, undefined, [activePage]);
+        const navigation: unknown = Reflect.apply(navigate, undefined, [
+          activePage,
+          restore,
+        ]);
         void Promise.resolve(navigation).catch((error: unknown) => {
           logger.error("Failed to restore active page:", error);
         });
       } else {
-        void Promise.resolve(navigate(ROUTES.HOME)).catch((error: unknown) => {
-          logger.error("Failed to restore active page:", error);
-        });
+        void Promise.resolve(navigate(ROUTES.HOME, restore)).catch(
+          (error: unknown) => {
+            logger.error("Failed to restore active page:", error);
+          },
+        );
       }
     })().catch((error: unknown) => {
       logger.error("Failed to restore active page:", error);
@@ -39,10 +50,15 @@ const RouteMonitor = observer(() => {
     void StorageUtil.setActivePage(pathname).catch((error: unknown) => {
       logger.error("Failed to save active page:", error);
     });
-    // The hash router replaces history entries, so Android's back button has
-    // no browser history to walk. This is the stack it walks instead.
-    recordRoute(pathname);
   }, [pathname]);
+
+  // The trail Android back and the on-screen Back walk. Browser history
+  // cannot tell an in-app screen from the site that opened the wallet, so
+  // this records the screens of this page load. The query is part of the
+  // screen: an NFT's way back is its open collection, `/?collection=...`.
+  useEffect(() => {
+    recordRoute(`${pathname}${search}`, navigationType);
+  }, [pathname, search, navigationType]);
 
   return null;
 });

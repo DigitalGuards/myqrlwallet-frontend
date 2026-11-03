@@ -1,13 +1,25 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import {
+  recordedRoutesForTests,
   registerBackDismiss,
+  registerPageBack,
   recordRoute,
   registeredOverlayCount,
   resetNativeBackForTests,
   resolveNativeBack,
+  resolveRouteBack,
 } from "@/utils/nativeBack";
 
-const navigate = jest.fn((_path: string) => undefined);
+const navigate = jest.fn(
+  (_path: string, _options?: { replace: true }) => undefined,
+);
+
+/** Stand-in for RouteMonitor: record where every navigation lands. */
+const recordingNavigate = jest.fn(
+  (path: string, options?: { replace: true }) => {
+    recordRoute(path, options?.replace ? "REPLACE" : "PUSH");
+  },
+);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -79,8 +91,9 @@ describe("overlays answer back first", () => {
 
 describe("route navigation when nothing is open", () => {
   it("walks back through the in-memory stack", () => {
-    // The hash router replaces history entries, so this stack is the only
-    // record of where the user came from.
+    // Browser history cannot tell an in-app screen from the site that
+    // opened the wallet, so this stack is the record of where the user
+    // came from.
     recordRoute("/");
     recordRoute("/account-list");
     recordRoute("/transfer");
@@ -125,5 +138,184 @@ describe("route navigation when nothing is open", () => {
     // Still resolves, and the oldest entries were dropped rather than kept.
     expect(resolveNativeBack(navigate, "/route-199")).toBe("handled");
     expect(navigate).toHaveBeenCalledWith("/route-198");
+  });
+});
+
+describe("the on-screen Back target", () => {
+  it("goes to the previous in-app screen, query included", () => {
+    recordRoute("/", "POP");
+    recordRoute("/?collection=abc", "PUSH");
+    recordRoute("/nft/abc/1", "PUSH");
+
+    expect(resolveRouteBack(recordingNavigate, "/nft/abc/1", "/")).toBe(true);
+    expect(recordingNavigate).toHaveBeenCalledWith("/?collection=abc");
+    expect(recordedRoutesForTests()).toEqual(["/", "/?collection=abc"]);
+  });
+
+  it("replaces a deep link with its parent when nothing came before", () => {
+    // A deep link, a fresh load and a reload all start the trail at the
+    // current page: browser history state survives a reload, this does not.
+    recordRoute("/disclaimer", "POP");
+
+    expect(resolveRouteBack(recordingNavigate, "/disclaimer", "/legal")).toBe(
+      true,
+    );
+    expect(recordingNavigate).toHaveBeenCalledWith("/legal", { replace: true });
+    expect(recordedRoutesForTests()).toEqual(["/legal"]);
+  });
+
+  it("walks a chain of parents to a menu page without a loop", () => {
+    recordRoute("/disclaimer", "POP");
+    resolveRouteBack(recordingNavigate, "/disclaimer", "/legal");
+    resolveRouteBack(recordingNavigate, "/legal", "/");
+
+    expect(recordingNavigate.mock.calls).toEqual([
+      ["/legal", { replace: true }],
+      ["/", { replace: true }],
+    ]);
+    expect(recordedRoutesForTests()).toEqual(["/"]);
+  });
+
+  it("walks the visits back one by one and never forward", () => {
+    recordRoute("/", "POP");
+    recordRoute("/legal", "PUSH");
+    recordRoute("/security", "PUSH");
+    recordRoute("/legal", "PUSH");
+    recordRoute("/disclaimer", "PUSH");
+
+    const visited: string[] = [];
+    let current = "/disclaimer";
+    const fallbacks: Record<string, string> = {
+      "/disclaimer": "/legal",
+      "/security": "/legal",
+      "/legal": "/",
+    };
+    for (let press = 0; press < 10 && current !== "/"; press += 1) {
+      resolveRouteBack(
+        (path, options) => {
+          recordingNavigate(path, options);
+          current = path;
+        },
+        current,
+        fallbacks[current],
+      );
+      visited.push(current);
+    }
+    expect(visited).toEqual(["/legal", "/security", "/legal", "/"]);
+  });
+
+  it("does nothing when the parent is the page itself", () => {
+    recordRoute("/legal", "POP");
+
+    expect(resolveRouteBack(recordingNavigate, "/legal", "/legal")).toBe(false);
+    expect(resolveRouteBack(recordingNavigate, "/legal")).toBe(false);
+    expect(recordingNavigate).not.toHaveBeenCalled();
+    expect(recordedRoutesForTests()).toEqual(["/legal"]);
+  });
+
+  it("never steps browser history", () => {
+    recordRoute("/", "POP");
+    recordRoute("/create-token", "PUSH");
+    resolveRouteBack(navigate, "/create-token", "/");
+    resolveRouteBack(navigate, "/", "/");
+
+    for (const [target] of navigate.mock.calls) {
+      expect(typeof target).toBe("string");
+    }
+  });
+});
+
+describe("recording follows the router", () => {
+  it("drops the screen a browser back left", () => {
+    recordRoute("/", "POP");
+    recordRoute("/nft/abc/1", "PUSH");
+    recordRoute("/", "POP");
+
+    expect(recordedRoutesForTests()).toEqual(["/"]);
+    // Android back on Home therefore leaves the app, and never opens the
+    // NFT page again.
+    expect(resolveNativeBack(navigate, "/")).toBe("at-root");
+  });
+
+  it("records a browser forward as a visit", () => {
+    recordRoute("/", "POP");
+    recordRoute("/legal", "POP");
+
+    expect(recordedRoutesForTests()).toEqual(["/", "/legal"]);
+  });
+
+  it("swaps the top on a replace and merges it into an equal screen below", () => {
+    recordRoute("/", "POP");
+    recordRoute("/?collection=abc", "PUSH");
+    recordRoute("/?collection=def", "REPLACE");
+    expect(recordedRoutesForTests()).toEqual(["/", "/?collection=def"]);
+
+    recordRoute("/", "REPLACE");
+    expect(recordedRoutesForTests()).toEqual(["/"]);
+  });
+
+  it("starts with a replace when nothing is recorded yet", () => {
+    recordRoute("/legal", "REPLACE");
+
+    expect(recordedRoutesForTests()).toEqual(["/legal"]);
+  });
+
+  it("collapses a restore of the page already shown", () => {
+    recordRoute("/create-token", "POP");
+    recordRoute("/create-token", "REPLACE");
+    recordRoute("/create-token", "PUSH");
+
+    expect(recordedRoutesForTests()).toEqual(["/create-token"]);
+  });
+});
+
+describe("Android back agrees with the page's on-screen Back", () => {
+  it("uses the page's parent when the trail is empty", () => {
+    recordRoute("/disclaimer", "POP");
+    registerPageBack({ path: "/disclaimer", fallback: "/legal", disabled: false });
+
+    expect(resolveNativeBack(navigate, "/disclaimer")).toBe("handled");
+    expect(navigate).toHaveBeenCalledWith("/legal", { replace: true });
+  });
+
+  it("holds while the page holds its Back", () => {
+    recordRoute("/", "POP");
+    recordRoute("/token-status", "PUSH");
+    registerPageBack({ path: "/token-status", fallback: "/", disabled: true });
+
+    expect(resolveNativeBack(navigate, "/token-status")).toBe("handled");
+    expect(navigate).not.toHaveBeenCalled();
+    expect(recordedRoutesForTests()).toEqual(["/", "/token-status"]);
+  });
+
+  it("closes an open overlay before honouring a held page", () => {
+    const close = jest.fn(() => true);
+    registerPageBack({ path: "/token-status", fallback: "/", disabled: true });
+    registerBackDismiss(close);
+
+    expect(resolveNativeBack(navigate, "/token-status")).toBe("handled");
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a registration left by the page being replaced", () => {
+    recordRoute("/settings", "POP");
+    registerPageBack({ path: "/disclaimer", fallback: "/legal", disabled: true });
+
+    expect(resolveNativeBack(navigate, "/settings")).toBe("handled");
+    expect(navigate).toHaveBeenCalledWith("/");
+  });
+
+  it("forgets a page Back once its control unmounts", () => {
+    recordRoute("/disclaimer", "POP");
+    const unregister = registerPageBack({
+      path: "/disclaimer",
+      fallback: "/legal",
+      disabled: true,
+    });
+    unregister();
+
+    expect(resolveNativeBack(navigate, "/disclaimer")).toBe("handled");
+    // No page Back left: the default last resort, Home.
+    expect(navigate).toHaveBeenCalledWith("/");
   });
 });
