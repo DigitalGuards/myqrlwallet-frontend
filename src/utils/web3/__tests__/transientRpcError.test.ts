@@ -7,7 +7,8 @@
 // classifier under test needs none of it.
 jest.mock("@/config", () => ({ SERVER_URL: "https://wallet.example" }));
 
-import { isTransientRpcError } from "../nft";
+import { createServer } from "node:http";
+import { fetchCollectionNameSymbol, isTransientRpcError } from "../nft";
 
 describe("isTransientRpcError", () => {
   it("flags transport failures", () => {
@@ -71,5 +72,81 @@ describe("isTransientRpcError", () => {
     };
     loop.cause = loop;
     expect(isTransientRpcError(loop)).toBe(false);
+  });
+});
+
+/**
+ * Driven through the real client and a real HttpProvider, because the class
+ * and fields of a transport error are web3's choice. Since @theqrl/web3 2.0.0
+ * a non-2xx reply is an HttpStatusError carrying `status`, so a gateway error
+ * is recognised as transient. 1.0.3 raised a bare ResponseError with neither
+ * a status nor a telling message, and a 502 was cached as "this contract has
+ * no name".
+ */
+describe("fetchCollectionNameSymbol through a real HttpProvider", () => {
+  type Reply = { status: number; contentType: string; body: (id: unknown) => string };
+
+  async function readNameSymbolAnswering(reply: Reply) {
+    const server = createServer((req, res) => {
+      let body = "";
+      req.setEncoding("utf8");
+      req.on("data", (chunk: unknown) => {
+        if (typeof chunk === "string") body += chunk;
+      });
+      req.on("end", () => {
+        let id: unknown = null;
+        try {
+          const parsed: unknown = JSON.parse(body);
+          if (typeof parsed === "object" && parsed !== null && "id" in parsed) id = parsed.id;
+        } catch {
+          // An unparseable request gets the scripted reply all the same.
+        }
+        res.writeHead(reply.status, { "content-type": reply.contentType });
+        res.end(reply.body(id));
+      });
+    });
+    await new Promise<void>((resolve) => {
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    try {
+      const address = server.address();
+      if (typeof address !== "object" || address === null) throw new Error("no TCP port");
+      return await fetchCollectionNameSymbol(`Q${"3".repeat(128)}`, `http://127.0.0.1:${address.port}`);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => {
+        server.close(() => {
+          resolve();
+        });
+      });
+    }
+  }
+
+  it.each([
+    ["a 502 HTML page", 502, "text/html"],
+    ["a 503 JSON error", 503, "application/json"],
+    ["a 500 with no body", 500, "text/plain"],
+  ])("keeps %s out of the negative cache", async (_label, status, contentType) => {
+    const result = await readNameSymbolAnswering({
+      status,
+      contentType,
+      body: (id) =>
+        contentType === "application/json"
+          ? JSON.stringify({ jsonrpc: "2.0", id, error: { code: -32000, message: "unavailable" } })
+          : contentType === "text/html"
+            ? "<html><body>Bad gateway</body></html>"
+            : "",
+    });
+    expect(result).toEqual({ name: undefined, symbol: undefined, definitive: false });
+  });
+
+  it("caches a contract that reverts both reads", async () => {
+    const result = await readNameSymbolAnswering({
+      status: 200,
+      contentType: "application/json",
+      body: (id) =>
+        JSON.stringify({ jsonrpc: "2.0", id, error: { code: 3, message: "execution reverted", data: "0x" } }),
+    });
+    expect(result).toEqual({ name: undefined, symbol: undefined, definitive: true });
   });
 });
