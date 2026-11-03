@@ -28,7 +28,8 @@
  *   backend 500 or 503 with JSON        HttpStatusError         unknown
  *   proxy 502 or 524 with an HTML body  HttpStatusError         unknown
  *   connection refused or reset         InvalidConnectionError  unknown
- *   client timeout                      RequestTimeoutError     unknown
+ *   client timeout waiting for headers  ConnectionTimeoutError  unknown
+ *   client timeout on the whole request RequestTimeoutError     unknown
  *   a hash other than keccak256(raw)    InvalidResponseError *  unknown
  *   a result that is not a hash         InvalidResponseError *  unknown
  *   a reply carrying another id         InvalidResponseError *  unknown

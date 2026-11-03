@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "@jest/globals";
 import { createServer } from "node:http";
-import { HttpProvider, InvalidResponseError, Web3 } from "@theqrl/web3";
+import { ConnectionTimeoutError, HttpProvider, InvalidResponseError, RequestTimeoutError, Web3 } from "@theqrl/web3";
 import type { JsonRpcId } from "@theqrl/web3";
 import { isDefinitiveBroadcastRejection } from "../dappBroadcastOutcome";
 import { waitForDAppBroadcastSettlement } from "../dappBroadcastSettlement";
@@ -274,7 +274,7 @@ describe("the node refused it", () => {
   });
 });
 
-describe("the node answered, but not with a refusal", () => {
+describe("the node answered and left the outcome open", () => {
   // Since @theqrl/web3 2.0.0 the client checks a broadcast reply before it
   // trusts it, and raises InvalidResponseError, the class an in-band refusal
   // also arrives as, when the check fails. Nothing in these replies says the
@@ -350,6 +350,8 @@ describe("we never heard back", () => {
   }, HTTP_BROADCAST_TIMEOUT);
 
   it.each([
+    ["a client timeout waiting for headers", new ConnectionTimeoutError(30_000)],
+    ["a client timeout on the whole request", new RequestTimeoutError(120_000, "qrl_sendRawTransaction")],
     ["a dropped connection", new TypeError("Failed to fetch")],
     ["an unrecognised failure", new Error("something else entirely")],
   ])("treats %s as open", (_label, error) => {
