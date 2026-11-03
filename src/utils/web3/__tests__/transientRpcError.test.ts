@@ -8,6 +8,7 @@
 jest.mock("@/config", () => ({ SERVER_URL: "https://wallet.example" }));
 
 import { createServer } from "node:http";
+import { ERR_INVALID_RESPONSE, InvalidResponseError } from "@theqrl/web3";
 import { fetchCollectionNameSymbol, isTransientRpcError } from "../nft";
 
 describe("isTransientRpcError", () => {
@@ -19,6 +20,8 @@ describe("isTransientRpcError", () => {
       new Error("socket hang up"),
       new Error("Request timed out"),
       new Error("Invalid JSON RPC response: \"\""),
+      // The same check in @theqrl/web3 2.0.0 wording, with the hyphen.
+      new Error("Invalid JSON-RPC response: qrl_call returned 123, expected hex encoded bytes at result"),
       new Error("Bad Gateway"),
       new Error("The operation was aborted"),
       { code: "ETIMEDOUT" },
@@ -62,6 +65,34 @@ describe("isTransientRpcError", () => {
     expect(
       isTransientRpcError(
         Object.assign(new Error("Response error"), { statusCode: 404 }),
+      ),
+    ).toBe(false);
+  });
+
+  it("flags an InvalidResponseError that carries no error from the node", () => {
+    // Since @theqrl/web3 2.0.0 the client raises InvalidResponseError about a
+    // reply it will not trust, with no inner error or with its own code there.
+    // The messages below carry neither check's prefix, so only that test can
+    // tell them apart from the node's own error, which stays an answer.
+    const noInnerError = new InvalidResponseError({ jsonrpc: "2.0", id: 1, result: "0x" });
+    expect(noInnerError.message).toBe("Returned error: ");
+    expect(isTransientRpcError(noInnerError)).toBe(true);
+    expect(
+      isTransientRpcError(
+        new InvalidResponseError({
+          jsonrpc: "2.0",
+          id: 1,
+          error: { code: ERR_INVALID_RESPONSE, message: "checked by the client" },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isTransientRpcError(
+        new InvalidResponseError({
+          jsonrpc: "2.0",
+          id: 1,
+          error: { code: -32000, message: "invalid opcode: INVALID" },
+        }),
       ),
     ).toBe(false);
   });
@@ -138,6 +169,31 @@ describe("fetchCollectionNameSymbol through a real HttpProvider", () => {
             : "",
     });
     expect(result).toEqual({ name: undefined, symbol: undefined, definitive: false });
+  });
+
+  // Since 2.0.0 the client checks the reply before it trusts it and raises
+  // InvalidResponseError when a check fails. Under 1.0.3 the first was a
+  // ResponseError, recognised as transient, and the other two resolved.
+  it.each([
+    ["a reply with neither result nor error", (id: unknown) => JSON.stringify({ jsonrpc: "2.0", id })],
+    [
+      "a reply carrying another request's id",
+      () => JSON.stringify({ jsonrpc: "2.0", id: "another-request", result: "0x" }),
+    ],
+    ["a qrl_call result that is not hex bytes", (id: unknown) => JSON.stringify({ jsonrpc: "2.0", id, result: 123 })],
+  ])("keeps %s out of the negative cache", async (_label, body) => {
+    const result = await readNameSymbolAnswering({ status: 200, contentType: "application/json", body });
+    expect(result).toEqual({ name: undefined, symbol: undefined, definitive: false });
+  });
+
+  it("caches a contract whose reads fail with the node's own error", async () => {
+    const result = await readNameSymbolAnswering({
+      status: 200,
+      contentType: "application/json",
+      body: (id) =>
+        JSON.stringify({ jsonrpc: "2.0", id, error: { code: -32000, message: "invalid opcode: INVALID" } }),
+    });
+    expect(result).toEqual({ name: undefined, symbol: undefined, definitive: true });
   });
 
   it("caches a contract that reverts both reads", async () => {
