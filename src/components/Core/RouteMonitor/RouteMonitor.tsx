@@ -4,7 +4,7 @@ import { useStore } from "../../../stores/store";
 import { StorageUtil } from "@/utils/storage";
 import { recordRoute } from "@/utils/nativeBack";
 import { observer } from "mobx-react-lite";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation, useNavigate, useNavigationType } from "react-router";
 import { logger } from "@/utils/log";
 
@@ -17,30 +17,30 @@ const RouteMonitor = observer(() => {
   const { pathname, search } = useLocation();
   const navigationType = useNavigationType();
 
+  // The page shown, for the restore below when the stored page arrives. A
+  // ref, so the restore runs once per connection and not on every move.
+  const shownPathname = useRef(pathname);
+  useEffect(() => {
+    shownPathname.current = pathname;
+  }, [pathname]);
+
   useEffect(() => {
     if (!isConnected) return;
     void (async () => {
       const activePage = await StorageUtil.getActivePage();
-      // The user did not move here, so the restore replaces the current
-      // entry. It then adds no browser history and no step to the Back
-      // trail: Back on a restored sub-page goes to its parent, as it does
-      // after a fresh load.
-      const restore = { replace: true } as const;
-      if (activePage) {
-        const navigation: unknown = Reflect.apply(navigate, undefined, [
-          activePage,
-          restore,
-        ]);
-        void Promise.resolve(navigation).catch((error: unknown) => {
-          logger.error("Failed to restore active page:", error);
-        });
-      } else {
-        void Promise.resolve(navigate(ROUTES.HOME, restore)).catch(
-          (error: unknown) => {
-            logger.error("Failed to restore active page:", error);
-          },
-        );
-      }
+      const page: unknown = activePage ? activePage : ROUTES.HOME;
+      // Restoring the page already shown replaces its entry, so history
+      // holds it once. Any other page is pushed, so the page that was
+      // opened (a deep link, or /dapp-sessions from a dApp's link) stays
+      // one browser Back away.
+      const navigation: unknown = Reflect.apply(
+        navigate,
+        undefined,
+        page === shownPathname.current ? [page, { replace: true }] : [page],
+      );
+      void Promise.resolve(navigation).catch((error: unknown) => {
+        logger.error("Failed to restore active page:", error);
+      });
     })().catch((error: unknown) => {
       logger.error("Failed to restore active page:", error);
     });

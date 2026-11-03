@@ -85,7 +85,9 @@ it("starts route persistence and records back history while restoration is pendi
     savedPage.resolve("/accounts");
     await savedPage.promise;
   });
-  expect(mockNavigate).toHaveBeenCalledWith("/accounts", restore);
+  // Another page than the one shown: a push, so /transfer stays one Back
+  // away.
+  expect(mockNavigate.mock.calls).toEqual([["/accounts"]]);
   savedWrite.resolve(undefined);
 });
 
@@ -142,7 +144,7 @@ it.each(["/accounts", ""])(
       );
     });
     expect(mockNavigate).toHaveBeenCalledTimes(1);
-    expect(mockNavigate).toHaveBeenCalledWith(page || "/", restore);
+    expect(mockNavigate).toHaveBeenCalledWith(page || "/");
   },
 );
 afterEach(() => {
@@ -184,7 +186,7 @@ it.each([false, true])(
     mockSavedPage = "/settings";
     render(<RouteMonitor />);
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith("/settings", restore);
+      expect(mockNavigate).toHaveBeenCalledWith("/settings");
     });
   },
 );
@@ -196,7 +198,7 @@ it.each([-1, { pathname: "/tokens", search: "?view=all" }])(
     mockSavedPage = page;
     render(<RouteMonitor />);
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(page, restore);
+      expect(mockNavigate.mock.calls).toEqual([[page]]);
     });
   },
 );
@@ -255,4 +257,48 @@ it("opens a new page at its top, and keeps the position on a query change", () =
   } finally {
     root.remove();
   }
+});
+
+describe("the restore on connect", () => {
+  it("pushes a stored page other than the one opened, which stays one Back away", async () => {
+    // A dApp's link opened /dapp-sessions; the last session ended on Settings.
+    mockConnected = true;
+    mockPathname = "/dapp-sessions";
+    mockSavedPage = "/settings";
+    render(<RouteMonitor />);
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalled();
+    });
+    expect(mockNavigate.mock.calls).toEqual([["/settings"]]);
+  });
+
+  it.each([
+    ["the stored page", "/transfer", "/transfer"],
+    ["Home with nothing stored", "/", ""],
+  ])("replaces the entry when %s is the page shown", async (_name, shown, saved) => {
+    mockConnected = true;
+    mockPathname = shown;
+    mockSavedPage = saved;
+    render(<RouteMonitor />);
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalled();
+    });
+    expect(mockNavigate.mock.calls).toEqual([[shown, restore]]);
+  });
+
+  it("compares with the page shown when the stored page arrives", async () => {
+    const savedPage = deferred<string>();
+    mockConnected = true;
+    mockGetActivePage.mockReturnValueOnce(savedPage.promise);
+    const view = render(<RouteMonitor />);
+    mockPathname = "/terms";
+    view.rerender(<RouteMonitor />);
+    await act(async () => {
+      savedPage.resolve("/terms");
+      await savedPage.promise;
+    });
+    expect(mockNavigate.mock.calls).toEqual([["/terms", restore]]);
+    // The restore ran once, for the connection, and not for the move.
+    expect(mockGetActivePage).toHaveBeenCalledTimes(1);
+  });
 });
