@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { Web3 } from "@theqrl/web3";
+import { ContractExecutionError, Web3 } from "@theqrl/web3";
+import type { JsonRpcId } from "@theqrl/web3";
 import {
   TransactionWouldRevertError,
   asOptionalString,
@@ -8,13 +9,20 @@ import {
 
 const tx = { from: `Q${"1".repeat(128)}`, to: `Q${"2".repeat(128)}`, value: "0x0", data: "0xdead", gas: "0x5208" };
 
-/** A real Web3 whose node answers qrl_call with one JSON-RPC error. */
+/**
+ * A real Web3 whose node answers qrl_call with one JSON-RPC error.
+ *
+ * The reply echoes the request id. @theqrl/web3 2.0.0 refuses a reply whose id
+ * does not match with its own InvalidResponseError, and that error's message
+ * quotes the node's text: a fixed id here turned every case below into the
+ * text-scan path and stopped exercising the ContractExecutionError one.
+ */
 function nodeAnswering(error: { code: number; message: string; data?: string }) {
   return new Web3({
     provider: {
-      request: ({ method }: { method: string }) => {
-        if (method === "qrl_call") return Promise.resolve({ jsonrpc: "2.0", id: 1, error });
-        return Promise.resolve({ jsonrpc: "2.0", id: 1, result: null });
+      request: ({ id, method }: { id?: JsonRpcId; method: string }) => {
+        if (method === "qrl_call") return Promise.resolve({ jsonrpc: "2.0", id, error });
+        return Promise.resolve({ jsonrpc: "2.0", id, result: null });
       },
       supportsSubscriptions: () => false,
     },
@@ -58,6 +66,7 @@ describe("revert pre-check", () => {
       message: "execution reverted: ERC20: transfer amount exceeds balance",
       data: "0x08c379a0",
     });
+    await expect(web3.qrl.call(tx, "pending")).rejects.toBeInstanceOf(ContractExecutionError);
     await expect(
       assertTransactionWouldNotRevert(web3.qrl, tx),
     ).rejects.toThrow(TransactionWouldRevertError);

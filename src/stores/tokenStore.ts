@@ -734,12 +734,15 @@ class TokenStore {
         from: fromAddress,
       });
       const gas = (estimatedGas * 12n) / 10n;
-      const currentGasPrice: unknown = await web3.qrl.getGasPrice();
-      const gasPrice = (toBigInt(currentGasPrice) * 11n) / 10n;
 
+      // No fee fields: web3 fills the EIP-1559 pair from the latest block,
+      // with its default 2.5 gwei tip and a cap of 2 * baseFee + tip. Token
+      // creation has always signed exactly that. This object used to carry a
+      // legacy gasPrice, which @theqrl/web3 1.0.3 dropped without a word and
+      // 2.0.0 refuses with InvalidPropertiesForTransactionTypeError.
       const txObj = {
+        type: "0x2",
         gas,
-        gasPrice,
         from: fromAddress,
         data,
         to: contractAddress,

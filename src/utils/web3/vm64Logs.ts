@@ -29,8 +29,11 @@ function hasSend(value: Record<string, unknown>): value is Record<string, unknow
 
 /**
  * Request logs through the request manager so VM64 topics reach go-qrl intact.
- * The current frontier web3 filter validator still accepts only 32-byte
- * topics, which would reject the exact 64-byte topic before the RPC call.
+ * This began as a workaround: the @theqrl/web3 1.x filter validator accepted
+ * only 32-byte topics and rejected the exact 64-byte topic before the RPC
+ * call. 2.0.0 validates 64-byte topics, so getPastLogs could carry this
+ * filter now; the raw request stays because it sends exactly the filter
+ * checked below.
  */
 export async function requestQrlVm64Logs(
   web3: unknown,
