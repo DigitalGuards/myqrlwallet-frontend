@@ -29,7 +29,6 @@
   "idPlaceholder": "例如 42",
   "details": "NFT 详情",
   "detailsSeo": "NFT 详情",
-  "back": "返回",
   "missing": "钱包中未找到此 NFT。请先从首页添加。",
   "selfSend": "不能发送到自己的地址。",
   "wholeAmount": "数量必须是整数。",

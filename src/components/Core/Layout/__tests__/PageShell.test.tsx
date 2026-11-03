@@ -45,8 +45,32 @@ it.each([
       heading.closest("header"),
     );
     expect(container.querySelectorAll("h1")).toHaveLength(1);
+    // A menu destination: no Back unless the page asks for one.
+    expect(container.querySelector("[data-page-back]")).toBeNull();
   },
 );
+
+it("puts a sub-page's Back on its own row above the heading", () => {
+  render(
+    <PageShell
+      title="Disclaimer"
+      back={<button type="button">Back</button>}
+      action={<button type="button">Add</button>}
+    >
+      <Card>Legal text</Card>
+    </PageShell>,
+  );
+  const heading = screen.getByRole("heading", { level: 1, name: "Disclaimer" });
+  const back = screen.getByRole("button", { name: "Back" });
+  const header = heading.closest("header");
+  // First in the page frame, outside the heading row, which keeps its
+  // action beside the title.
+  expect(header?.parentElement?.firstElementChild).toBe(back);
+  expect(header?.contains(back)).toBe(false);
+  expect(screen.getByRole("button", { name: "Add" }).closest("header")).toBe(
+    header,
+  );
+});
 
 it("keeps the optional action in the wrapping heading row and preserves its handler", () => {
   const add = jest.fn();

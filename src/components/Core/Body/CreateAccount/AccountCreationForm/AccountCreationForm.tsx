@@ -124,6 +124,12 @@ type AccountCreationFormProps = {
     password: string,
     desktopBackup?: { address: string; mnemonic: string },
   ) => void | Promise<void>;
+  /**
+   * Told while a submission runs. The wallet is stored and selected before
+   * the submission ends, so the page holds its Back meanwhile: leaving
+   * would keep a wallet whose recovery phrase was never shown.
+   */
+  onBusyChange?: (busy: boolean) => void;
 };
 
 type InnerFormProps = {
@@ -135,6 +141,7 @@ type InnerFormProps = {
   hasExistingSeeds: boolean;
   existingSeeds: EncryptedSeedData[];
   blockchain: BlockchainSelection;
+  onBusyChange?: (busy: boolean) => void;
 };
 
 /**
@@ -147,6 +154,7 @@ const InnerForm = observer(
     hasExistingSeeds,
     existingSeeds,
     blockchain,
+    onBusyChange,
   }: InnerFormProps) => {
     const { t } = useTranslation(["onboarding", "common", "settings"]);
     const { qrlStore } = useStore();
@@ -314,6 +322,13 @@ const InnerForm = observer(
     }
 
     const isProcessing = isSubmitting || isEncrypting;
+    useEffect(() => {
+      if (!isProcessing || !onBusyChange) return;
+      onBusyChange(true);
+      return () => {
+        onBusyChange(false);
+      };
+    }, [isProcessing, onBusyChange]);
     const buttonText = isEncrypting
       ? t("onboarding:encrypting")
       : isSubmitting
@@ -499,7 +514,7 @@ const InnerForm = observer(
  * This ensures the form schema is determined correctly.
  */
 export const AccountCreationForm = observer(
-  ({ onAccountCreated }: AccountCreationFormProps) => {
+  ({ onAccountCreated, onBusyChange }: AccountCreationFormProps) => {
     const { t } = useTranslation(["onboarding", "common", "settings"]);
     const { qrlStore } = useStore();
     const { qrlConnection } = qrlStore;
@@ -546,6 +561,7 @@ export const AccountCreationForm = observer(
         hasExistingSeeds={hasExistingSeeds}
         existingSeeds={existingSeeds}
         blockchain={blockchain}
+        onBusyChange={onBusyChange}
       />
     );
   },

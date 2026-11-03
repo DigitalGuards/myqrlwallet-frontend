@@ -2,6 +2,7 @@ import { assetMessage, assetServiceError } from "@/i18n/assetMessage";
 import { useTranslation } from "react-i18next";
 import { reportError } from "@/utils/reportError";
 import { PageShell } from "@/components/Core/Layout/PageShell";
+import { RouteBack } from "@/components/Core/Layout/PageBack";
 import { observer } from "mobx-react-lite";
 import { useStore } from "@/stores/store";
 import { useEffect } from "react";
@@ -135,6 +136,14 @@ const TokenStatus = observer(() => {
         </span>
       }
       seoTitle={t("creation:status")}
+      back={
+        // Held while the token is being created: this page adds the new
+        // token to the list when the creation lands. A created token ends
+        // the flow with Done.
+        !isSuccess && (
+          <RouteBack route={ROUTES.TOKEN_STATUS} disabled={isCreating} />
+        )
+      }
     >
       {!isCreating && !hasError && !isSuccess && (
         <Card className="space-y-4 p-6">

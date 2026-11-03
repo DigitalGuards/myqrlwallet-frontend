@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { ImportedAccount } from "./importedAccount";
 import { Card } from "@/components/UI/Card";
 import { PageShell } from "@/components/Core/Layout/PageShell";
+import { RouteBack } from "@/components/Core/Layout/PageBack";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../../stores/store";
 import { useState } from "react";
@@ -32,6 +33,7 @@ const ImportAccount = observer(() => {
   const { isWalletLimitReached, walletCount, maxWallets } = useWalletLimit(
     qrlConnection.blockchain,
   );
+  const hasWallet = Boolean(qrlStore.activeAccount.accountAddress);
 
   const onAccountImported = (importedAccount: ImportedAccount) => {
     if (!isDesktop && (!importedAccount.mnemonic || !importedAccount.hexSeed)) {
@@ -61,6 +63,7 @@ const ImportAccount = observer(() => {
   };
 
   if (hasAccountImported && !isWalletLimitReached) {
+    // The success screen ends the flow with its own Done, and no Back.
     if (isPinSetupComplete) return <AccountImportSuccess account={account} />;
     // Desktop accepts either recovery encoding. Web and native require both.
     if (
@@ -75,6 +78,15 @@ const ImportAccount = observer(() => {
           mnemonic={account.mnemonic ?? ""}
           hexSeed={account.hexSeed ?? ""}
           onPinSetupComplete={onPinSetupComplete}
+          // Nothing is stored before the PIN is submitted, so Back cancels
+          // the import until then.
+          renderBack={(held) => (
+            <RouteBack
+              route={ROUTES.IMPORT_ACCOUNT}
+              hasWallet={hasWallet}
+              disabled={held}
+            />
+          )}
         />
       );
     }
@@ -95,6 +107,7 @@ const ImportAccount = observer(() => {
             : t("onboarding:importTitle")
         }
         subtitle={isWalletLimitReached ? undefined : t("onboarding:importHelp")}
+        back={<RouteBack route={ROUTES.IMPORT_ACCOUNT} hasWallet={hasWallet} />}
       >
         <div className="relative z-10">
           {isWalletLimitReached ? (

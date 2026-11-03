@@ -1,5 +1,6 @@
 import { LegalLanguageNote } from "@/components/Core/Layout/LegalLanguageNote";
 import { PageShell } from "@/components/Core/Layout/PageShell";
+import { RouteBack } from "@/components/Core/Layout/PageBack";
 import { Card } from "@/components/UI/Card";
 import { Link } from "react-router";
 import { SEO } from "@/components/SEO/SEO";
@@ -10,7 +11,11 @@ const linkClass =
 
 const Privacy = () => {
     return (
-        <PageShell title="Privacy Policy" width="wide">
+        <PageShell
+          title="Privacy Policy"
+          width="wide"
+          back={<RouteBack route={ROUTES.PRIVACY} />}
+        >
             <SEO
                 title="Privacy Policy"
                 description="How DigitalGuards processes personal data in connection with MyQRLWallet, the self-custody wallet for QRL 2.0."

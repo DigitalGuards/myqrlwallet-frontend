@@ -12,7 +12,10 @@ import { reportError } from "@/utils/reportError";
 import CreateToken from "../CreateToken";
 import TokenStatus from "../TokenStatus";
 
-const mockNavigate = jest.fn<Promise<void> | void, [string]>();
+const mockNavigate = jest.fn<
+  Promise<void> | void,
+  [string, { replace: true }?]
+>();
 const mockCreate = jest.fn<Promise<void>, unknown[]>();
 const mockSetCreating = jest.fn<Promise<void>, [string, boolean]>();
 const mockAdd = jest.fn<Promise<TokenInterface | null>, [TokenInterface]>();
@@ -54,6 +57,18 @@ const mockStore = {
   },
 };
 
+// The page Back has its own tests. This stand-in shows where it is and
+// whether it is held, without a router.
+jest.mock("@/components/Core/Layout/PageBack", () => ({
+  PageBack: () => null,
+  RouteBack: ({ route, disabled }: { route: string; disabled?: boolean }) => (
+    <span
+      data-testid="route-back"
+      data-route={route}
+      data-held={String(disabled === true)}
+    />
+  ),
+}));
 jest.mock("@/utils", () => ({
   cn: (...values: unknown[]) =>
     values.filter((value) => typeof value === "string").join(" "),
@@ -410,4 +425,56 @@ it("does not deploy a cap or max supply that was typed and then switched off", a
     "0",
     "0",
   ]);
+});
+
+const backHeld = () => screen.getByTestId("route-back").dataset["held"];
+
+it("holds Back while the form submits, then replaces the form with the status page", async () => {
+  let markCreating: () => void = () => {
+    throw new Error("Submission did not start");
+  };
+  mockSetCreating.mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        markCreating = resolve;
+      }),
+  );
+  await submitToken();
+  await waitFor(() => {
+    expect(mockSetCreating).toHaveBeenCalledTimes(1);
+  });
+  expect(screen.getByTestId("route-back").dataset["route"]).toBe(
+    "/create-token",
+  );
+  expect(backHeld()).toBe("true");
+  markCreating();
+  await waitFor(() => {
+    expect(mockNavigate).toHaveBeenCalledWith("/token-status", {
+      replace: true,
+    });
+  });
+  await waitFor(() => {
+    expect(backHeld()).toBe("false");
+  });
+});
+
+it("holds Back while the token is created and shows none once it is", () => {
+  // TokenStatus is an observer, so each state gets a fresh render.
+  mockCreating = { name: "Test token", creating: true };
+  const creating = render(<TokenStatus />);
+  expect(screen.getByTestId("route-back").dataset["route"]).toBe(
+    "/token-status",
+  );
+  expect(backHeld()).toBe("true");
+  creating.unmount();
+
+  mockCreating = { name: "Test token", creating: false, error: "Reverted" };
+  const failed = render(<TokenStatus />);
+  expect(backHeld()).toBe("false");
+  failed.unmount();
+
+  // Created: the flow ends with Done.
+  mockCreating = { name: "Test token", creating: false };
+  render(<TokenStatus />);
+  expect(screen.queryByTestId("route-back")).toBeNull();
 });

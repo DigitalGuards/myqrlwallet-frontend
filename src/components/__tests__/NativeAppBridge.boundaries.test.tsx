@@ -1,10 +1,15 @@
 /** @jest-environment jsdom */
-import { afterEach, beforeEach, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { cleanup, render, waitFor } from '@testing-library/react';
 import NativeAppBridge from '../NativeAppBridge';
 import { dappConnectService } from '@/services/dappConnect/DAppConnectService';
 import { walletMutations } from '@/utils/nativeWalletMutation';
 import StorageUtil from '@/utils/storage/storage';
+import {
+  recordRoute,
+  registerPageBack,
+  resetNativeBackForTests,
+} from '@/utils/nativeBack';
 import {
   confirmWalletCleared,
   logToNative,
@@ -15,7 +20,8 @@ import {
   type NativeMessage,
 } from '@/utils/nativeApp';
 
-const mockNavigate = jest.fn<(path: string) => void | Promise<void>>();
+const mockNavigate =
+  jest.fn<(path: string, options?: { replace: true }) => void | Promise<void>>();
 const mockError = jest.fn<(message: string, ...details: unknown[]) => void>();
 
 jest.mock('react-router', () => ({
@@ -256,4 +262,66 @@ it('reports a rejected display-preference write', async () => {
     expect(mockError).toHaveBeenCalledWith('[Bridge] Error applying SET_DISPLAY_PREFS:', failure);
   });
   expect(logToNative).toHaveBeenCalledWith('Error applying display prefs: storage denied');
+});
+
+describe('NATIVE_BACK goes where the page Back goes', () => {
+  beforeEach(() => {
+    resetNativeBackForTests();
+  });
+  afterEach(() => {
+    resetNativeBackForTests();
+  });
+
+  it('replaces a deep-linked sub-page with its parent route', () => {
+    recordRoute('/disclaimer', 'POP');
+    registerPageBack({ path: '/disclaimer', fallback: '/legal', disabled: false });
+    window.location.hash = '#/disclaimer';
+    receive({ type: 'NATIVE_BACK' });
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('/legal', { replace: true });
+    expect(sendToNative).toHaveBeenCalledWith('BACK_HANDLED');
+  });
+
+  it('returns to the previous screen, query included', () => {
+    recordRoute('/', 'POP');
+    recordRoute('/?collection=abc', 'PUSH');
+    recordRoute('/nft/abc/1', 'PUSH');
+    registerPageBack({ path: '/nft/abc/1', fallback: '/?collection=abc', disabled: false });
+    window.location.hash = '#/nft/abc/1';
+    receive({ type: 'NATIVE_BACK' });
+    expect(mockNavigate).toHaveBeenCalledWith('/?collection=abc');
+    expect(sendToNative).toHaveBeenCalledWith('BACK_HANDLED');
+  });
+
+  it('holds while the page holds its Back', () => {
+    recordRoute('/', 'POP');
+    recordRoute('/token-status', 'PUSH');
+    registerPageBack({ path: '/token-status', fallback: '/', disabled: true });
+    window.location.hash = '#/token-status';
+    receive({ type: 'NATIVE_BACK' });
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(sendToNative).toHaveBeenCalledWith('BACK_HANDLED');
+  });
+
+  it('finds the page when the fragment escapes its query differently', () => {
+    // The router keeps a backtick in the query; the address bar escapes it
+    // in the fragment, which is where the bridge reads the route.
+    const routerPath = '/token-status?name=a`b';
+    recordRoute('/', 'POP');
+    recordRoute(routerPath, 'PUSH');
+    registerPageBack({ path: routerPath, fallback: '/', disabled: true });
+    window.location.hash = `#${routerPath}`;
+    expect(window.location.hash).toBe('#/token-status?name=a%60b');
+    receive({ type: 'NATIVE_BACK' });
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(sendToNative).toHaveBeenCalledWith('BACK_HANDLED');
+  });
+
+  it('reports at-root on Home with nothing to close', () => {
+    recordRoute('/', 'POP');
+    window.location.hash = '';
+    receive({ type: 'NATIVE_BACK' });
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(sendToNative).toHaveBeenCalledWith('BACK_AT_ROOT');
+  });
 });

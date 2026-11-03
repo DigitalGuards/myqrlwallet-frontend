@@ -33,9 +33,22 @@ const mockAccount = {
   hexSeed: "synthetic extended seed",
 };
 
+// The page Back has its own tests. This stand-in shows where it is and
+// whether it is held, without a router.
+jest.mock("@/components/Core/Layout/PageBack", () => ({
+  PageBack: () => null,
+  RouteBack: ({ route, disabled }: { route: string; disabled?: boolean }) => (
+    <span
+      data-testid="route-back"
+      data-route={route}
+      data-held={String(disabled === true)}
+    />
+  ),
+}));
 jest.mock("@/stores/store", () => ({
   useStore: () => ({
     qrlStore: {
+      activeAccount: { accountAddress: "" },
       setActiveAccount: mockSelectAccount,
       qrlConnection: { blockchain: "TEST_NET_V3" },
     },
@@ -51,7 +64,9 @@ jest.mock("@/hooks/useWalletLimit", () => ({
   useWalletLimit: () => ({ isWalletLimitReached: false }),
 }));
 jest.mock("@/components/SEO/SEO", () => ({ SEO: () => null }));
-jest.mock("@/router/router", () => ({ ROUTES: {} }));
+jest.mock("@/router/router", () => ({
+  ROUTES: { IMPORT_ACCOUNT: "/import-account" },
+}));
 jest.mock("react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => children,
 }));
@@ -413,4 +428,32 @@ it("retains the desktop import error and leaves activation untouched", async () 
     "Signer unavailable There was an error importing your wallet",
   );
   expect(mockSelectAccount).not.toHaveBeenCalled();
+});
+
+it("offers Back until the PIN is saved, holds it while saving, and ends without one", async () => {
+  const acknowledgement =
+    deferred<Awaited<ReturnType<typeof notifySeedStored>>>();
+  jest.mocked(notifySeedStored).mockReturnValue(acknowledgement.promise);
+  const back = () => screen.getByTestId("route-back").dataset;
+  render(<ImportAccount />);
+  expect(back()["route"]).toBe("/import-account");
+  expect(back()["held"]).toBe("false");
+
+  fireEvent.click(screen.getByRole("button", { name: "Supply mnemonic" }));
+  await screen.findByText("Set Transaction PIN");
+  // Nothing is stored yet, so Back cancels the import.
+  expect(back()["held"]).toBe("false");
+
+  await enterPin();
+  await waitFor(() => {
+    expect(notifySeedStored).toHaveBeenCalledTimes(1);
+  });
+  expect(back()["held"]).toBe("true");
+
+  await act(() => {
+    acknowledgement.resolve({ revision: 1, ciphertextHash: "ab".repeat(32) });
+    return acknowledgement.promise;
+  });
+  await screen.findByText("Import complete");
+  expect(screen.queryByTestId("route-back")).toBeNull();
 });

@@ -10,7 +10,8 @@ const catalogKey =
 
 /** Exercise real routes, including the shared navigation in unconverted pages. */
 export async function helperRouteProbes(browser, origin) {
-  const routerSource = await readFile("src/router/router.tsx", "utf8");
+  // The route list lives in routes.ts; router.tsx imports it.
+  const routerSource = await readFile("src/router/routes.ts", "utf8");
   const routes = [...routerSource.matchAll(/^  (\w+): "(\/[^"]*)",$/gm)].map(
     ([, , path]) =>
       path.replace(":contractAddress", address).replace(":tokenId", "1"),

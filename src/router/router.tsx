@@ -3,6 +3,7 @@ import { RouterProvider } from "react-router/dom";
 import { lazy, Suspense } from "react";
 import { Loading } from "@/components/UI/Loading";
 import { isEmbeddedRuntime } from "@/utils/embeddedRuntime";
+import { ROUTES } from "./routes";
 
 // Kick off the two chunks needed on every page-load immediately so they
 // download in parallel with the main bundle instead of sequentially.
@@ -36,30 +37,6 @@ const AddressBook = lazy(() => import("../components/Core/Body/AddressBook/Addre
 const TelegramControlCenter = lazy(
   () => import("../components/Telegram/TelegramControlCenter.tsx"),
 );
-
-const ROUTES = {
-  HOME: "/",
-  CREATE_ACCOUNT: "/create-account",
-  IMPORT_ACCOUNT: "/import-account",
-  ADD_ACCOUNT: "/add-account",
-  ACCOUNT_LIST: "/account-list",
-  CREATE_TOKEN: "/create-token",
-  QR_VIEW: "/qr-view",
-  TRANSFER: "/transfer",
-  SETTINGS: "/settings",
-  TERMS: "/terms",
-  PRIVACY: "/privacy",
-  DISCLAIMER: "/disclaimer",
-  LEGAL: "/legal",
-  SECURITY: "/security",
-  DEFAULT: "*",
-  TOKEN_STATUS: "/token-status",
-  TRANSACTION_HISTORY: "/tx-history",
-  DAPP_SESSIONS: "/dapp-sessions",
-  ADDRESS_BOOK: "/address-book",
-  NFT_DETAIL: "/nft/:contractAddress/:tokenId",
-  TELEGRAM: "/telegram",
-} as const;
 
 // Under the MyQRLWallet desktop shell the app is loaded from disk via
 // loadFile (file:// origin), where the HTML5 history API does not work and

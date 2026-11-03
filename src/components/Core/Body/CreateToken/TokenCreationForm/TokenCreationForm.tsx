@@ -192,10 +192,15 @@ type TokenCreationFormProps = {
     maxTransactionLimit: undefined | string,
     mnemonicPhrases: string,
   ) => Promise<void>;
+  /**
+   * Told while a submission runs, so the page holds its Back: the
+   * submission opens the status page when it finishes.
+   */
+  onBusyChange?: (busy: boolean) => void;
 };
 
 export const TokenCreationForm = observer(
-  ({ onTokenCreated }: TokenCreationFormProps) => {
+  ({ onTokenCreated, onBusyChange }: TokenCreationFormProps) => {
     const { t } = useTranslation([
       "creation",
       "nfts",
@@ -371,9 +376,11 @@ export const TokenCreationForm = observer(
           ? units(formData.maxTransactionLimit ?? "")
           : undefined;
 
-        // Navigate immediately to show loading state, then start creation
+        // Navigate immediately to show loading state, then start creation.
+        // The status page takes this form's place in history, so its Back
+        // returns to the page that opened the form.
         await tokenStore.setCreatingToken(tokenName, true);
-        Promise.resolve(navigate(ROUTES.TOKEN_STATUS)).catch(
+        Promise.resolve(navigate(ROUTES.TOKEN_STATUS, { replace: true })).catch(
           (error: unknown) => {
             reportError("Failed to open token status:", error);
           },
@@ -412,6 +419,14 @@ export const TokenCreationForm = observer(
         setMaxTransactionLimit: false,
       });
     }, [form]);
+
+    useEffect(() => {
+      if (!isSubmitting || !onBusyChange) return;
+      onBusyChange(true);
+      return () => {
+        onBusyChange(false);
+      };
+    }, [isSubmitting, onBusyChange]);
 
     // Check if user has an active account
     if (!activeAccount.accountAddress) {
