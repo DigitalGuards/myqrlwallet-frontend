@@ -2,6 +2,8 @@ import { logger } from "./log";
 /**
  * Back, resolved by the page: Android hardware back and the on-screen Back
  * control of sub-pages share this module, so both reach the same screen.
+ * On the web wallet the on-screen Back also keeps in step with the
+ * browser's own Back (see `resolveRouteBack`).
  *
  * The native shell used to swallow BACK: it called `goBack()` and returned
  * true unconditionally, so back never left the app and an open modal stayed
@@ -43,6 +45,16 @@ export type RouteAction = "PUSH" | "REPLACE" | "POP";
 /** The router's navigate. `replace` swaps the current history entry. */
 export type RouteNavigate = (path: string, options?: { replace: true }) => void;
 
+/**
+ * The browser's own history, which the web wallet's on-screen Back keeps in
+ * step with: the router's index of the current entry, and one step back
+ * through it. The desktop and phone apps pass none and walk the trail.
+ */
+export interface HistoryStep {
+  readonly index: number;
+  readonly back: () => void;
+}
+
 interface RegisteredOverlay {
   readonly id: number;
   readonly dismiss: BackDismissHandler;
@@ -60,11 +72,27 @@ let nextOverlayId = 1;
  * entry before the first one belongs to another site, and history state
  * survives a reload. This stack starts empty on every load and skips
  * repeats, so it holds exactly the screens the user moved through. It holds
- * paths only, never state, and is capped so a long session cannot grow it
- * without bound.
+ * paths and history indexes only, never state, and is capped so a long
+ * session cannot grow it without bound.
  */
 const MAX_ROUTE_STACK = 32;
-let routeStack: string[] = [];
+
+interface TrailEntry {
+  /** `pathname + search`, as the router reports it. */
+  readonly path: string;
+  /**
+   * The router's index of the history entry (`history.state.idx`), recorded
+   * on the web wallet only. The top entry carries the current one.
+   */
+  readonly index: number | undefined;
+}
+
+let routeStack: TrailEntry[] = [];
+
+/** Two indexes name different entries only when both are known. */
+function sameIndex(a: number | undefined, b: number | undefined): boolean {
+  return a === undefined || b === undefined || a === b;
+}
 
 /** The route the wallet treats as root. */
 export const HOME_ROUTE = "/";
@@ -134,29 +162,51 @@ function pageBackAt(currentPath: string): PageBackTarget | undefined {
  * entries, a step forward. The stack then starts over at that screen, as on
  * a fresh arrival, so Back takes the page's parent and never steps forward.
  * Anything else is a visit; a repeat of the top is skipped.
+ *
+ * `index` is the router's index of the entry reached, given on the web
+ * wallet only. There a one-step back must also land on the entry recorded
+ * below the top.
  */
-export function recordRoute(path: string, action: RouteAction = "PUSH"): void {
+export function recordRoute(
+  path: string,
+  action: RouteAction = "PUSH",
+  index?: number,
+): void {
+  const entry: TrailEntry = { path, index };
   const top = routeStack.length - 1;
+  const below = routeStack[top - 1];
   if (action === "REPLACE" && top >= 0) {
-    routeStack[top] = path;
+    routeStack[top] = entry;
     // Replacing a screen with the one below it leaves one entry for both.
-    if (routeStack[top - 1] === path) routeStack.pop();
+    if (below?.path === path) {
+      routeStack.pop();
+      routeStack[top - 1] = entry;
+    }
     return;
   }
   if (action === "POP") {
-    if (top >= 1 && routeStack[top - 1] === path) routeStack.pop();
-    else if (routeStack[top] !== path) routeStack = [path];
+    if (below?.path === path && sameIndex(below.index, index)) {
+      routeStack.pop();
+      routeStack[top - 1] = entry;
+    } else if (routeStack[top]?.path === path) {
+      routeStack[top] = entry;
+    } else {
+      routeStack = [entry];
+    }
     return;
   }
-  if (routeStack[top] === path) return;
-  routeStack.push(path);
+  if (routeStack[top]?.path === path) {
+    routeStack[top] = entry;
+    return;
+  }
+  routeStack.push(entry);
   if (routeStack.length > MAX_ROUTE_STACK) routeStack.shift();
 }
 
 /** Stack depth once the entries for the screen being left are set aside. */
 function depthBelow(currentPath: string): number {
   let depth = routeStack.length;
-  while (depth > 0 && routeStack[depth - 1] === currentPath) depth -= 1;
+  while (depth > 0 && routeStack[depth - 1]?.path === currentPath) depth -= 1;
   return depth;
 }
 
@@ -165,9 +215,16 @@ function depthBelow(currentPath: string): number {
  *
  * Goes to the previous screen on the stack. With none recorded (a deep link,
  * a fresh load or a reload), goes to `fallback` and replaces the current
- * entry, so the screen being left cannot come back on a later back. Always
- * an in-app path: this never steps browser history, which could leave the
- * wallet for the site that opened it.
+ * entry, so the screen being left cannot come back on a later back.
+ *
+ * `history` is given on the web wallet only, where Back keeps in step with
+ * the browser's own Back. When the previous screen is the history entry
+ * right behind this one (`history.index - 1`, recorded in this page load),
+ * Back steps back to it, and the router's POP then takes it off the trail.
+ * Otherwise it takes `fallback` as above. Without `history` (the desktop
+ * and phone apps), the previous screen is pushed. No path steps back past
+ * the first screen of this page load, which could leave the wallet for the
+ * site that opened it.
  *
  * Returns false, having changed nothing, when there is nowhere to go.
  */
@@ -175,16 +232,23 @@ export function resolveRouteBack(
   navigate: RouteNavigate,
   currentPath: string,
   fallback?: string,
+  history?: HistoryStep,
 ): boolean {
   const depth = depthBelow(currentPath);
   const previous = routeStack[depth - 1];
-  if (previous !== undefined) {
+  if (history === undefined && previous !== undefined) {
     routeStack.length = depth - 1;
-    navigate(previous);
+    navigate(previous.path);
+    return true;
+  }
+  if (history !== undefined && previous?.index === history.index - 1) {
+    history.back();
     return true;
   }
   if (fallback === undefined || fallback === currentPath) return false;
-  routeStack.length = depth;
+  // The trail starts over at the parent: whatever was below this page is
+  // not behind it in the browser.
+  routeStack.length = 0;
   navigate(fallback, { replace: true });
   return true;
 }
@@ -244,5 +308,10 @@ export function registeredOverlayCount(): number {
 
 /** Test seam: the recorded routes, oldest first. */
 export function recordedRoutesForTests(): readonly string[] {
-  return [...routeStack];
+  return routeStack.map((entry) => entry.path);
+}
+
+/** Test seam: the history index recorded with each route, oldest first. */
+export function recordedIndexesForTests(): readonly (number | undefined)[] {
+  return routeStack.map((entry) => entry.index);
 }

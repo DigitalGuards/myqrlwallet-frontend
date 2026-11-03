@@ -10,7 +10,7 @@ import { useNavigate } from "react-router";
 import RouteMonitor from "../../RouteMonitor/RouteMonitor";
 import { PageShell } from "../PageShell";
 import { PageBack, RouteBack } from "../PageBack";
-import type { PageBackConfig } from "@/router/pageBack";
+import type { BackPlatform, PageBackConfig } from "@/router/pageBack";
 import { ROUTES, type RoutePath } from "@/router/routes";
 import {
   recordedRoutesForTests,
@@ -18,11 +18,13 @@ import {
   resolveNativeBack,
 } from "@/utils/nativeBack";
 import { applyLanguage } from "@/i18n";
+import { EMBEDDED_GLOBAL_FLAG } from "@/utils/embeddedRuntime";
 
 /**
  * The on-screen Back against a model of browser history, with the real
  * RouteMonitor recording the trail, and Android back resolved by the same
- * function the phone app's bridge calls.
+ * function the phone app's bridge calls. The pages run as the web wallet
+ * unless a test sets another platform.
  */
 
 jest.mock("react-router", () => mockRouterModule());
@@ -67,6 +69,8 @@ const PAGES: Record<
 
 /** A page-specific Back for the token status page, when a test sets one. */
 let tokenStatusBack: PageBackConfig | undefined;
+/** Where the pages run. */
+let platform: BackPlatform = "web";
 
 function Page({ path }: { path: string }) {
   const navigate = useNavigate();
@@ -76,7 +80,7 @@ function Page({ path }: { path: string }) {
     path === "/token-status" && tokenStatusBack ? (
       <PageBack {...tokenStatusBack} />
     ) : (
-      <RouteBack route={page.route} platform="web" />
+      <RouteBack route={page.route} platform={platform} />
     );
   return (
     <PageShell title={page.title} back={back}>
@@ -144,6 +148,7 @@ function pressAndroidBack() {
 beforeEach(() => {
   resetNativeBackForTests();
   tokenStatusBack = undefined;
+  platform = "web";
   jest.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 });
 afterEach(async () => {
@@ -160,6 +165,11 @@ type Scenario = {
   opens: string[];
   /** Where one Back press must land. */
   expected: string;
+  /**
+   * How Back gets there on the web: a step back through browser history
+   * when the previous screen is the entry right behind, else a replace.
+   */
+  step: "POP" | "REPLACE";
 };
 
 const scenarios: Record<string, Scenario> = {
@@ -167,8 +177,14 @@ const scenarios: Record<string, Scenario> = {
     urls: ["/"],
     opens: ["/legal", "/disclaimer"],
     expected: "/legal",
+    step: "POP",
   },
-  "a deep link": { urls: ["/disclaimer"], opens: [], expected: "/legal" },
+  "a deep link": {
+    urls: ["/disclaimer"],
+    opens: [],
+    expected: "/legal",
+    step: "REPLACE",
+  },
   // Browser history survives a reload, the in-app trail does not. The
   // entry behind the page is another screen, and Back still takes the
   // parent.
@@ -176,6 +192,7 @@ const scenarios: Record<string, Scenario> = {
     urls: ["/create-token", "/disclaimer"],
     opens: [],
     expected: "/legal",
+    step: "REPLACE",
   },
 };
 
@@ -186,15 +203,19 @@ describe.each(Object.entries(scenarios))("after %s", (_name, scenario) => {
     expect(here()).toBe("/disclaimer");
   }
 
-  it("Back lands on the expected screen without stepping history", async () => {
+  it("Back lands on the expected screen, in step with browser history", async () => {
     await arrive();
     const entriesBefore = fakeHistory.length();
+    const indexBefore = fakeHistory.index();
     await pressBack();
     expect(here()).toBe(scenario.expected);
-    // A push or a replace: never a step back through browser history,
-    // which could leave the wallet.
-    expect(fakeHistory.action()).not.toBe("POP");
-    expect(fakeHistory.length()).toBeGreaterThanOrEqual(entriesBefore);
+    expect(fakeHistory.action()).toBe(scenario.step);
+    expect(fakeHistory.length()).toBe(entriesBefore);
+    // One entry back onto a screen of this page load, or none at all: the
+    // entry behind the first screen can belong to another site.
+    expect(fakeHistory.index()).toBe(
+      scenario.step === "POP" ? indexBefore - 1 : indexBefore,
+    );
   });
 
   it("Android back lands on the same screen", async () => {
@@ -230,6 +251,49 @@ it("walks every visit back once and stops at the menu page", async () => {
   expect(landed).toEqual(["/legal", "/security", "/legal", "/"]);
   expect(pressAndroidBack()).toBe("at-root");
 });
+
+it("keeps the browser's own Back in step on the web", async () => {
+  await mount(["/"]);
+  await open("/legal");
+  await open("/disclaimer");
+  await pressBack();
+  expect(here()).toBe("/legal");
+  expect(fakeHistory.action()).toBe("POP");
+  // The browser's Back goes on to Home, and its Forward returns to the
+  // page Back left, as the browser's own Back would have it.
+  fakeHistory.back();
+  expect(here()).toBe("/");
+  fakeHistory.forward();
+  fakeHistory.forward();
+  expect(here()).toBe("/disclaimer");
+  expect(recordedRoutesForTests()).toEqual(["/disclaimer"]);
+});
+
+it.each([
+  ["the desktop app", "desktop", false],
+  ["the phone app", "app", false],
+  ["the app-shipped document in a browser", "web", true],
+] as const)(
+  "walks the trail in %s and pushes the previous screen",
+  async (_name, where, embedded) => {
+    platform = where;
+    if (embedded) Reflect.set(window, EMBEDDED_GLOBAL_FLAG, true);
+    try {
+      await mount(["/"]);
+      await open("/legal");
+      await open("/disclaimer");
+      await pressBack();
+      expect(here()).toBe("/legal");
+      expect(fakeHistory.action()).toBe("PUSH");
+      expect(fakeHistory.length()).toBe(4);
+      await pressBack();
+      expect(here()).toBe("/");
+      expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+    } finally {
+      Reflect.deleteProperty(window, EMBEDDED_GLOBAL_FLAG);
+    }
+  },
+);
 
 it("continues from where a browser back landed", async () => {
   await mount(["/"]);

@@ -2,6 +2,8 @@ import { ROUTES, type RoutePath } from "@/router/routes";
 import {
   backParent,
   currentBackPlatform,
+  followsBrowserHistory,
+  historyIndex,
   pageBack,
   type BackPlatform,
 } from "@/router/pageBack";
@@ -182,6 +184,13 @@ describe("pageBack", () => {
     ).toEqual({ fallback: "/?collection=abc", disabled: true, onBack });
   });
 
+  it("passes the platform through, which decides how Back walks", () => {
+    expect(pageBack(ROUTES.LEGAL, { platform: "desktop" })?.platform).toBe(
+      "desktop",
+    );
+    expect(pageBack(ROUTES.LEGAL)?.platform).toBeUndefined();
+  });
+
   it("reads the wallet state for the account pages", () => {
     expect(pageBack(ROUTES.IMPORT_ACCOUNT)?.fallback).toBe(ROUTES.HOME);
     expect(
@@ -197,6 +206,22 @@ describe("the running platform", () => {
     expect(currentBackPlatform()).toBe("app");
     mockDesktop = true;
     expect(currentBackPlatform()).toBe("desktop");
+  });
+
+  it("keeps Back in step with browser history on the web only", () => {
+    expect(followsBrowserHistory("web")).toBe(true);
+    expect(followsBrowserHistory("desktop")).toBe(false);
+    expect(followsBrowserHistory("app")).toBe(false);
+    expect(followsBrowserHistory()).toBe(true);
+    mockInApp = true;
+    expect(followsBrowserHistory()).toBe(false);
+    mockInApp = false;
+    mockDesktop = true;
+    expect(followsBrowserHistory()).toBe(false);
+  });
+
+  it("knows no history index without a browser", () => {
+    expect(historyIndex()).toBeUndefined();
   });
 
   it("uses it when the caller leaves the platform out", () => {

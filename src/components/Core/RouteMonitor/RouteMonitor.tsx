@@ -1,4 +1,5 @@
 import { ROUTES } from "../../../router/router";
+import { followsBrowserHistory, historyIndex } from "@/router/pageBack";
 import { useStore } from "../../../stores/store";
 import { StorageUtil } from "@/utils/storage";
 import { recordRoute } from "@/utils/nativeBack";
@@ -56,8 +57,14 @@ const RouteMonitor = observer(() => {
   // cannot tell an in-app screen from the site that opened the wallet, so
   // this records the screens of this page load. The query is part of the
   // screen: an NFT's way back is its open collection, `/?collection=...`.
+  // On the web wallet each screen also carries its history index, so Back
+  // can step the browser's history when the previous screen is right behind.
   useEffect(() => {
-    recordRoute(`${pathname}${search}`, navigationType);
+    recordRoute(
+      `${pathname}${search}`,
+      navigationType,
+      followsBrowserHistory() ? historyIndex() : undefined,
+    );
   }, [pathname, search, navigationType]);
 
   return null;

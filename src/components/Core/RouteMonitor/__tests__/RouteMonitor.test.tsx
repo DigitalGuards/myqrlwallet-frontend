@@ -62,6 +62,8 @@ beforeEach(() => {
   mockSavedPage = "/";
   mockDesktop = false;
   jest.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  // The browser router's record of the entry shown: its index is 4.
+  window.history.replaceState({ usr: null, key: "k4", idx: 4 }, "");
 });
 
 it("starts route persistence and records back history while restoration is pending", async () => {
@@ -73,7 +75,7 @@ it("starts route persistence and records back history while restoration is pendi
   const view = render(<RouteMonitor />);
   expect(mockGetActivePage).toHaveBeenCalledTimes(1);
   expect(mockSetActivePage).toHaveBeenCalledWith("/transfer");
-  expect(recordRoute).toHaveBeenCalledWith("/transfer", "POP");
+  expect(recordRoute).toHaveBeenCalledWith("/transfer", "POP", 4);
   expect(mockNavigate).not.toHaveBeenCalled();
 
   // The effect retains the connection value captured when its read began.
@@ -103,7 +105,7 @@ it("reports restoration failures without starting another read or navigation", a
   });
   expect(mockGetActivePage).toHaveBeenCalledTimes(1);
   expect(mockNavigate).not.toHaveBeenCalled();
-  expect(recordRoute).toHaveBeenCalledWith("/transfer", "POP");
+  expect(recordRoute).toHaveBeenCalledWith("/transfer", "POP", 4);
 });
 
 it("reports a failed write while recording back history immediately", async () => {
@@ -114,7 +116,7 @@ it("reports a failed write while recording back history immediately", async () =
     .mockImplementation(() => undefined);
   mockSetActivePage.mockReturnValueOnce(write.promise);
   render(<RouteMonitor />);
-  expect(recordRoute).toHaveBeenCalledWith("/transfer", "POP");
+  expect(recordRoute).toHaveBeenCalledWith("/transfer", "POP", 4);
   await act(async () => {
     write.reject(failure);
     await write.promise.catch(() => undefined);
@@ -204,14 +206,28 @@ it("records each screen with its query and how the router reached it", () => {
   mockSearch = "?collection=abc";
   mockNavigationType = "PUSH";
   const view = render(<RouteMonitor />);
-  expect(recordRoute).toHaveBeenLastCalledWith("/?collection=abc", "PUSH");
+  expect(recordRoute).toHaveBeenLastCalledWith("/?collection=abc", "PUSH", 4);
 
   // Closing the collection changes only the query: still a new screen.
   mockSearch = "";
   mockNavigationType = "POP";
   view.rerender(<RouteMonitor />);
-  expect(recordRoute).toHaveBeenLastCalledWith("/", "POP");
+  expect(recordRoute).toHaveBeenLastCalledWith("/", "POP", 4);
   expect(recordRoute).toHaveBeenCalledTimes(2);
   // The saved page stays the pathname alone.
   expect(mockSetActivePage).toHaveBeenLastCalledWith("/");
+});
+
+it("records the history index on the web wallet only", () => {
+  // The desktop app runs a hash router and walks the trail by path.
+  mockDesktop = true;
+  render(<RouteMonitor />);
+  expect(recordRoute).toHaveBeenCalledWith("/transfer", "POP", undefined);
+});
+
+it("records no index when the browser keeps none for the entry", () => {
+  // A link that changes only the fragment makes an entry with no state.
+  window.history.replaceState(null, "");
+  render(<RouteMonitor />);
+  expect(recordRoute).toHaveBeenCalledWith("/transfer", "POP", undefined);
 });

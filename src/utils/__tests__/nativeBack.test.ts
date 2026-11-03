@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import {
+  recordedIndexesForTests,
   recordedRoutesForTests,
   registerBackDismiss,
   registerPageBack,
@@ -213,7 +214,8 @@ describe("the on-screen Back target", () => {
     expect(recordedRoutesForTests()).toEqual(["/legal"]);
   });
 
-  it("never steps browser history", () => {
+  it("never steps browser history without the browser's history", () => {
+    // The desktop and phone apps, and Android back, pass none.
     recordRoute("/", "POP");
     recordRoute("/create-token", "PUSH");
     resolveRouteBack(navigate, "/create-token", "/");
@@ -222,6 +224,72 @@ describe("the on-screen Back target", () => {
     for (const [target] of navigate.mock.calls) {
       expect(typeof target).toBe("string");
     }
+  });
+});
+
+describe("the web wallet keeps in step with the browser's Back", () => {
+  const back = jest.fn();
+
+  it("steps back when the previous screen is the entry right behind", () => {
+    recordRoute("/", "POP", 0);
+    recordRoute("/legal", "PUSH", 1);
+    recordRoute("/disclaimer", "PUSH", 2);
+
+    expect(
+      resolveRouteBack(recordingNavigate, "/disclaimer", "/legal", {
+        index: 2,
+        back,
+      }),
+    ).toBe(true);
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(recordingNavigate).not.toHaveBeenCalled();
+
+    // The router's POP takes the page left off the trail.
+    recordRoute("/legal", "POP", 1);
+    expect(recordedRoutesForTests()).toEqual(["/", "/legal"]);
+    expect(recordedIndexesForTests()).toEqual([0, 1]);
+  });
+
+  it("takes the parent when the previous screen is not right behind", () => {
+    recordRoute("/", "POP", 0);
+    recordRoute("/legal", "PUSH", 1);
+    // The same screen pushed again: the entry behind it is that screen.
+    recordRoute("/legal", "PUSH", 2);
+
+    expect(
+      resolveRouteBack(recordingNavigate, "/legal", "/", { index: 2, back }),
+    ).toBe(true);
+    expect(back).not.toHaveBeenCalled();
+    expect(recordingNavigate).toHaveBeenCalledWith("/", { replace: true });
+    expect(recordedRoutesForTests()).toEqual(["/"]);
+  });
+
+  it("takes the parent with nothing recorded before the page", () => {
+    // A reload on the third entry of the tab: the entries behind it are
+    // from an earlier load.
+    recordRoute("/disclaimer", "POP", 2);
+
+    expect(
+      resolveRouteBack(recordingNavigate, "/disclaimer", "/legal", {
+        index: 2,
+        back,
+      }),
+    ).toBe(true);
+    expect(back).not.toHaveBeenCalled();
+    expect(recordingNavigate).toHaveBeenCalledWith("/legal", { replace: true });
+  });
+
+  it("counts a POP as one step back only onto the entry recorded below", () => {
+    recordRoute("/legal", "POP", 0);
+    recordRoute("/security", "PUSH", 1);
+    recordRoute("/legal", "PUSH", 2);
+    recordRoute("/disclaimer", "PUSH", 3);
+    // Three entries back at once, onto the first Imprint: the screen below
+    // the top has the same path but is another entry.
+    recordRoute("/legal", "POP", 0);
+
+    expect(recordedRoutesForTests()).toEqual(["/legal"]);
+    expect(recordedIndexesForTests()).toEqual([0]);
   });
 });
 

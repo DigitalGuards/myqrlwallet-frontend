@@ -1,4 +1,6 @@
 import { isDesktop } from "@/desktop/bridge";
+import { isEmbeddedRuntime } from "@/utils/embeddedRuntime";
+import { isRecord } from "@/utils/guards";
 import { isInNativeApp } from "@/utils/nativeApp";
 import { ROUTES, type RoutePath } from "./routes";
 
@@ -36,6 +38,8 @@ export interface PageBackConfig {
    * the recorded trail to the same screen.
    */
   readonly onBack?: () => void;
+  /** Where the wallet runs, which decides how Back walks. Detected when left out. */
+  readonly platform?: BackPlatform;
 }
 
 export interface PageBackOptions extends BackContext {
@@ -50,6 +54,35 @@ export function currentBackPlatform(): BackPlatform {
   if (isDesktop) return "desktop";
   if (isInNativeApp()) return "app";
   return "web";
+}
+
+/**
+ * True on the web wallet in a browser tab. Its browser router shares
+ * history with the browser's own Back, so the on-screen Back steps that
+ * history back when the previous screen is the entry right behind. The
+ * desktop app, the phone app and the app-shipped document run a hash router
+ * and walk the trail.
+ */
+export function followsBrowserHistory(
+  platform: BackPlatform = currentBackPlatform(),
+): boolean {
+  return platform === "web" && !isEmbeddedRuntime();
+}
+
+/**
+ * The router's index of the current history entry, or undefined when it is
+ * not known. React Router keeps it in `history.state.idx`: 0 for the first
+ * entry it makes in a tab, one more for each push, the same for a replace,
+ * and a reload keeps it.
+ */
+export function historyIndex(): number | undefined {
+  if (typeof window === "undefined") return undefined;
+  const state: unknown = window.history.state;
+  if (!isRecord(state)) return undefined;
+  const index = state["idx"];
+  return typeof index === "number" && Number.isInteger(index)
+    ? index
+    : undefined;
 }
 
 type ParentRule =
@@ -119,5 +152,6 @@ export function pageBack(
     fallback: options.fallback ?? parent,
     disabled: options.disabled === true,
     onBack: options.onBack,
+    platform: options.platform,
   };
 }

@@ -2,7 +2,8 @@
  * A tiny stand-in for the router's history, used by the navigation tests
  * (jest cannot load the ESM-only react-router). It models entries, an index
  * into them, and the difference between pushing, replacing, and going back
- * or forward, which it also reports as react-router's navigation type.
+ * or forward, which it also reports as react-router's navigation type. Like
+ * the browser router, it keeps the entry's index in `history.state.idx`.
  * Components read it through the same hook names react-router exports, so
  * the components under test stay unmodified.
  *
@@ -43,7 +44,22 @@ function makeEntry(url: string, state: unknown): FakeEntry {
   };
 }
 
+/**
+ * The browser's own record of the current entry, as React Router writes it:
+ * the user state, the key, and the entry's index (`idx`), which equals its
+ * position here because every entry belongs to the wallet.
+ */
+function syncBrowserState() {
+  const entry = entries[index];
+  if (!entry || typeof window === "undefined") return;
+  window.history.replaceState(
+    { usr: entry.state, key: entry.key, idx: index },
+    "",
+  );
+}
+
 function emit() {
+  syncBrowserState();
   for (const listener of [...listeners]) listener();
 }
 
