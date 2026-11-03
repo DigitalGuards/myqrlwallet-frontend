@@ -57,12 +57,11 @@ let nextOverlayId = 1;
  * first, as `pathname + search`.
  *
  * Browser history cannot answer "is there an earlier in-app screen": the
- * entry before the first one belongs to another site, the restore in
- * RouteMonitor pushes a duplicate of the current page whenever the network
- * connects, and history state survives a reload. This stack starts empty on
- * every load and skips repeats, so it holds exactly the screens the user
- * moved through. It holds paths only, never state, and is capped so a long
- * session cannot grow it without bound.
+ * entry before the first one belongs to another site, and history state
+ * survives a reload. This stack starts empty on every load and skips
+ * repeats, so it holds exactly the screens the user moved through. It holds
+ * paths only, never state, and is capped so a long session cannot grow it
+ * without bound.
  */
 const MAX_ROUTE_STACK = 32;
 let routeStack: string[] = [];
