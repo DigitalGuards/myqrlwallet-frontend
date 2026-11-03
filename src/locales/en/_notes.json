@@ -13,6 +13,7 @@
   "common:qrlAddress": "Accessible label. {{address}} is the complete Q-prefixed account address and must remain byte-for-byte unchanged.",
   "common:pinDigit": "Accessible label for one PIN entry box. {{position}} is its one-based position.",
   "common:back": "Control above a page title that returns to the previous screen, or to the page's parent screen when there is none. Keep it to one short word: it sits beside an arrow and must not wrap.",
+  "home:backCollections": "Accessible name of the Back control above an open NFT collection. Start it with the word used for common:back, which is the visible label.",
   "home:setupLocal": "Local account setup. A new account generates a seed; importing restores an existing seed.",
   "home:setupWeb": "Browser setup with local accounts, browser extension signing, or mobile signing. Preserve all listed options.",
   "home:pairingFailed": "Pairing failed before a mobile session could start. {{reason}} is a verbatim service error. Keep it in the sentence.",
