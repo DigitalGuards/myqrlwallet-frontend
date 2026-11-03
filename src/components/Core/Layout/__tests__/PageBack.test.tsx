@@ -408,6 +408,18 @@ it("holds both backs while the page holds its Back", async () => {
   expect(here()).toBe("/token-status");
 });
 
+it("hides the control and keeps a held page held for Android back", async () => {
+  tokenStatusBack = { fallback: ROUTES.HOME, disabled: true, hidden: true };
+  await mount(["/"]);
+  await open("/create-token");
+  await open("/token-status");
+  expect(screen.getByRole("heading", { name: "Token status" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+  expect(document.querySelector("[data-page-back]")).toBeNull();
+  expect(pressAndroidBack()).toBe("handled");
+  expect(here()).toBe("/token-status");
+});
+
 it("lets a page replace the walk back", async () => {
   const onBack = jest.fn();
   tokenStatusBack = { fallback: ROUTES.HOME, onBack };

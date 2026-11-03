@@ -77,10 +77,12 @@ const CreateAccount = observer(() => {
           <RouteBack
             route={ROUTES.CREATE_ACCOUNT}
             hasWallet={Boolean(qrlStore.activeAccount.accountAddress)}
-            // Held while the wallet is being stored, and on the recovery
-            // phrase: it is stored by then, and its own Done asks for the
-            // backup first.
+            // Held while the wallet is being stored. The recovery phrase
+            // shows no Back, as the other finished steps, and Android back
+            // still holds there: the wallet is stored by then, and the
+            // phrase's own Done asks for the backup first.
             disabled={isCreating || hasAccountCreated}
+            hidden={hasAccountCreated}
           />
         }
       >

@@ -33,6 +33,7 @@ function settle(navigation: void | Promise<void>): void {
 export function PageBack({
   fallback,
   disabled = false,
+  hidden = false,
   onBack,
   platform,
 }: PageBackConfig) {
@@ -70,6 +71,7 @@ export function PageBack({
     );
   };
 
+  if (hidden) return null;
   return (
     <div data-page-back="" className="-mt-2 mb-2">
       <BackButton onClick={goBack} disabled={disabled} />

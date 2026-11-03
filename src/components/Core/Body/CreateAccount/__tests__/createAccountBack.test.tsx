@@ -4,9 +4,10 @@ import type { ReactNode } from "react";
 import CreateAccount from "../CreateAccount";
 
 /**
- * Create account holds its Back while the new wallet is stored, and on the
- * recovery phrase: by then the wallet exists, and the phrase screen's own
- * Done asks for the backup first.
+ * Create account holds its Back while the new wallet is stored. The
+ * recovery phrase shows no Back, and the page keeps it held there for
+ * Android back: by then the wallet exists, and the phrase screen's own Done
+ * asks for the backup first.
  */
 
 const mockAddress = `Q${"12".repeat(64)}`;
@@ -45,16 +46,19 @@ jest.mock("@/components/Core/Layout/PageBack", () => ({
   RouteBack: ({
     route,
     disabled,
+    hidden,
     hasWallet,
   }: {
     route: string;
     disabled?: boolean;
+    hidden?: boolean;
     hasWallet?: boolean;
   }) => (
     <span
       data-testid="route-back"
       data-route={route}
       data-held={String(disabled === true)}
+      data-hidden={String(hidden === true)}
       data-has-wallet={String(hasWallet === true)}
     />
   ),
@@ -108,12 +112,15 @@ it("goes back to onboarding before the first wallet, and to Wallets after", () =
   expect(back()["hasWallet"]).toBe("true");
 });
 
-it("holds Back while the wallet is stored and on the recovery phrase", async () => {
+it("holds Back while the wallet is stored, and hides it on the recovery phrase", async () => {
   render(<CreateAccount />);
   expect(back()["held"]).toBe("false");
+  expect(back()["hidden"]).toBe("false");
 
   fireEvent.click(screen.getByRole("button", { name: "Start" }));
   expect(back()["held"]).toBe("true");
+  // Shown and disabled while the wallet is stored.
+  expect(back()["hidden"]).toBe("false");
 
   // A failed submission releases it.
   fireEvent.click(screen.getByRole("button", { name: "Fail" }));
@@ -125,5 +132,7 @@ it("holds Back while the wallet is stored and on the recovery phrase", async () 
     await Promise.resolve();
   });
   await screen.findByText("Recovery phrase");
+  // No control on the phrase, and still held for Android back.
+  expect(back()["hidden"]).toBe("true");
   expect(back()["held"]).toBe("true");
 });

@@ -33,6 +33,11 @@ export interface PageBackConfig {
   /** Holds Back while an action runs or a step must be finished first. */
   readonly disabled?: boolean;
   /**
+   * Shows no control. The page's Back stays registered, so Android back
+   * still goes where it would, and holds while `disabled` holds.
+   */
+  readonly hidden?: boolean;
+  /**
    * Replaces the walk back, for a page that keeps its own way back (the NFT
    * detail page returns to its collection view). Android back still walks
    * the recorded trail to the same screen.
@@ -44,6 +49,7 @@ export interface PageBackConfig {
 
 export interface PageBackOptions extends BackContext {
   readonly disabled?: boolean;
+  readonly hidden?: boolean;
   readonly onBack?: () => void;
   /** A closer parent the page knows, such as an NFT's open collection. */
   readonly fallback?: string;
@@ -151,6 +157,7 @@ export function pageBack(
   return {
     fallback: options.fallback ?? parent,
     disabled: options.disabled === true,
+    hidden: options.hidden,
     onBack: options.onBack,
     platform: options.platform,
   };
