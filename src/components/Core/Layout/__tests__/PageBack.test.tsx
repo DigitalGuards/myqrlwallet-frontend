@@ -319,8 +319,8 @@ it("continues from where a browser back landed", async () => {
 
 /**
  * Browser moves the trail cannot follow. Each lands on a page whose
- * previous browser entry is not the screen below it on the trail, so both
- * backs must take the page's parent, and never the page ahead.
+ * previous browser entry is another screen than the one below it on the
+ * trail, so both backs must take the page's parent.
  */
 const unfollowedMoves: Record<
   string,

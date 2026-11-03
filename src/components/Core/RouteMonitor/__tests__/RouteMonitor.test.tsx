@@ -298,7 +298,7 @@ describe("the restore on connect", () => {
       await savedPage.promise;
     });
     expect(mockNavigate.mock.calls).toEqual([["/terms", restore]]);
-    // The restore ran once, for the connection, and not for the move.
+    // The restore ran once, for the connection.
     expect(mockGetActivePage).toHaveBeenCalledTimes(1);
   });
 });

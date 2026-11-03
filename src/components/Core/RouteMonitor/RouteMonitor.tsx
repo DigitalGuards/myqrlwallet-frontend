@@ -18,7 +18,7 @@ const RouteMonitor = observer(() => {
   const navigationType = useNavigationType();
 
   // The page shown, for the restore below when the stored page arrives. A
-  // ref, so the restore runs once per connection and not on every move.
+  // ref keeps the restore to one run per connection.
   const shownPathname = useRef(pathname);
   useEffect(() => {
     shownPathname.current = pathname;
