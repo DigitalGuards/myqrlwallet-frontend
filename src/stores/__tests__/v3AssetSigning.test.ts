@@ -34,7 +34,7 @@ const mockRpc = {
   getGasPrice: jest.fn((): Promise<unknown> => Promise.resolve(1n)),
   getCode: jest.fn(() => Promise.resolve('0x01')),
   estimateGas: jest.fn((): Promise<unknown> => Promise.resolve(50000n)),
-  sendTransaction: jest.fn(() => mockSendEvent),
+  sendTransaction: jest.fn((_transaction: unknown, ..._rest: unknown[]) => mockSendEvent),
   Contract: class {
     methods = {
       createToken: () => ({ encodeABI: () => '0x1234', estimateGas: mockContractGas }),
@@ -284,17 +284,22 @@ describe.each(assets)('%s fee conversions', (asset) => {
   });
 });
 
-it.each([101n, 101, '0x65'])(
-  'preserves token-creation gas rounding and gas-price conversion for %p', async (price) => {
-    const { tokens } = assetFixture('ERC20');
-    mockRpc.getGasPrice.mockResolvedValueOnce(price);
-    await tokens.createToken('Created', 'CRT', '100', 8, '1000', RECIPIENT, '10', '10', 'test mnemonic');
-    expect(mockRpc.sendTransaction).toHaveBeenCalledWith(
-      expect.objectContaining({ gas: 60001n, gasPrice: 111n }),
-      undefined, { checkRevertBeforeSending: true },
-    );
-  },
-);
+it('preserves token-creation gas rounding and leaves the fee pair to web3', async () => {
+  // @theqrl/web3 2.0.0 refuses a legacy gasPrice on a type-2 send, and 1.0.3
+  // had been dropping it. The fee pair is filled by web3, as it always was
+  // (see createTokenFees.test.ts for the signed values).
+  const { tokens } = assetFixture('ERC20');
+  await tokens.createToken('Created', 'CRT', '100', 8, '1000', RECIPIENT, '10', '10', 'test mnemonic');
+  expect(mockRpc.sendTransaction).toHaveBeenCalledWith(
+    expect.objectContaining({ type: '0x2', gas: 60001n, chainId: CHAIN_ID }),
+    undefined, { checkRevertBeforeSending: true },
+  );
+  const sent = mockRpc.sendTransaction.mock.calls[0]?.[0];
+  for (const field of ['gasPrice', 'maxFeePerGas', 'maxPriorityFeePerGas']) {
+    expect(sent).not.toHaveProperty(field);
+  }
+  expect(mockRpc.getGasPrice).not.toHaveBeenCalled();
+});
 
 it("records the creation hash for the status screen and ignores a superseded attempt's hash", async () => {
   const { tokens } = assetFixture('ERC20');
