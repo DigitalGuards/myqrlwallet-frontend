@@ -186,9 +186,23 @@ Both CI and embedded builds run `node scripts/audit-gate.mjs` immediately after 
 | Blockchain | @theqrl/web3                |
 | Container  | nginx-unprivileged (Alpine) |
 
-`@theqrl/web3` is intentionally pinned to `1.0.1`: the deployed wallet and
-testnet v2 use canonical `Q` + 40-hex account addresses. Expanded-address
-support is roadmap work and must ship as an explicit, ecosystem-wide migration.
+`@theqrl/web3` is pinned to an exact version (`2.0.0`). An upgrade changes
+what the wallet signs and how it reads node errors, so bump it deliberately
+and run the full gate set.
+
+`package.json` keeps one override for it,
+`"@theqrl/web3-validator": { "zod": "$zod" }`. It is a dedupe guard. The
+validator pins zod exactly, and `src/utils/zodJitless.ts` switches zod's JIT
+compiler off only in the zod copy it imports. The override hands the
+validator the app's own `zod` range, so npm installs a single copy and the
+setting also reaches the validator's schemas, which keeps the strict CSP free
+of `new Function` probes. The app's range starts at the validator's pin
+(`^4.6.7`). `npm ls zod` must show one version.
+
+The `@theqrl/mldsa87`, `@theqrl/wallet.js` and `@theqrl/qrl-cryptography`
+overrides went away with web3 2.0.0, which pins those hardened releases
+itself. Web3 still pins them exactly, so a crypto patch release published
+before the next web3 release needs a temporary override again.
 
 ## Project Structure
 

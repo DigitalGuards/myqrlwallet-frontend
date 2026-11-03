@@ -4,12 +4,16 @@
  * rejection. Never hearing back is not: the transaction may be in the mempool,
  * and reporting a rejection is what makes a user send it a second time.
  *
- * The shapes below were measured against @theqrl/web3 1.0.3 driven through a
- * fake provider, which is also how this file produces them.
+ * The shapes below are produced by the installed @theqrl/web3 driven through a
+ * fake provider or a real HttpProvider, so an upgrade that changes them fails
+ * here. Every fixture echoes the request id: since 2.0.0 the client refuses a
+ * reply whose id does not match, which would otherwise mask the error under
+ * test.
  */
 import { describe, expect, it } from "@jest/globals";
 import { createServer } from "node:http";
 import { Web3, HttpProvider } from "@theqrl/web3";
+import type { JsonRpcId } from "@theqrl/web3";
 import { isDefinitiveBroadcastRejection } from "../dappBroadcastOutcome";
 import { waitForDAppBroadcastSettlement } from "../dappBroadcastSettlement";
 
@@ -50,7 +54,8 @@ async function signedTransaction(): Promise<string> {
   if (rawSigned !== null) return rawSigned;
   const web3 = new Web3({
     provider: {
-      request: () => Promise.resolve({ jsonrpc: "2.0", id: 1, result: null }),
+      request: ({ id, method }: { id?: JsonRpcId; method: string }) =>
+        Promise.resolve({ jsonrpc: "2.0", id, result: healthyResultFor(method) }),
       supportsSubscriptions: () => false,
     },
   });
@@ -75,15 +80,22 @@ async function signedTransaction(): Promise<string> {
   return rawSigned;
 }
 
+/** What the node puts in the reply envelope for the broadcast. */
+type BroadcastReply = { error?: unknown; result?: unknown; id?: JsonRpcId };
+
 /** Run a broadcast whose node behaves as given, and return the real error. */
 async function broadcastError(
-  behaviour: () => { jsonrpc: string; id: number; error?: unknown; result?: unknown },
+  behaviour: (rawTransaction: string) => BroadcastReply,
 ): Promise<Error> {
   const provider = {
-    request: ({ method }: { method: string }) => Promise.resolve().then(() => {
-      if (method === "qrl_sendRawTransaction") return behaviour();
-      return { jsonrpc: "2.0", id: 1, result: healthyResultFor(method) };
-    }),
+    request: ({ id, method, params }: { id?: JsonRpcId; method: string; params?: unknown }) =>
+      Promise.resolve().then(() => {
+        if (method === "qrl_sendRawTransaction") {
+          const raw = Array.isArray(params) && typeof params[0] === "string" ? params[0] : "";
+          return { jsonrpc: "2.0", id, ...behaviour(raw) };
+        }
+        return { jsonrpc: "2.0", id, result: healthyResultFor(method) };
+      }),
     supportsSubscriptions: () => false,
   };
   const web3 = new Web3({ provider, config: SHORT_POLLING });
@@ -124,7 +136,8 @@ async function broadcastError(
 async function broadcastThroughHttp(answer: {
   status: number;
   contentType: string;
-  body: string;
+  /** The reply body, or a builder given the request id to echo. */
+  body: string | ((id: unknown) => string);
 }): Promise<unknown> {
   const rawTransaction = await signedTransaction();
   const server = createServer((req, res) => {
@@ -142,6 +155,7 @@ async function broadcastThroughHttp(answer: {
       // try/finally that clears its 750 second send timer: the suite then
       // passed, the process sat there, and the timer rejected long after.
       let method = "";
+      let id: unknown = null;
       try {
         const parsed: unknown = JSON.parse(body);
         if (
@@ -151,6 +165,7 @@ async function broadcastThroughHttp(answer: {
           typeof parsed.method === "string"
         ) {
           method = parsed.method;
+          id = "id" in parsed ? parsed.id : null;
         }
       } catch {
         // An unparseable body cannot be the broadcast.
@@ -165,14 +180,14 @@ async function broadcastThroughHttp(answer: {
         res.end(
           JSON.stringify({
             jsonrpc: "2.0",
-            id: 1,
+            id,
             result: healthyResultFor(method),
           }),
         );
         return;
       }
       res.writeHead(answer.status, { "content-type": answer.contentType });
-      res.end(answer.body);
+      res.end(typeof answer.body === "function" ? answer.body(id) : answer.body);
     });
   });
   await new Promise<void>((resolve, reject) => {
@@ -213,18 +228,20 @@ async function broadcastThroughHttp(answer: {
   }
 }
 
-const nodeError = (message: string, code = -32000) => () => ({
-  jsonrpc: "2.0",
-  id: 1,
+const nodeError = (message: string, code = -32000) => (): BroadcastReply => ({
   error: { code, message },
 });
+
+/** A JSON-RPC envelope that echoes the request id, as the backend proxy does. */
+const rpcBody = (fields: Record<string, unknown>) => (id: unknown) =>
+  JSON.stringify({ jsonrpc: "2.0", id, ...fields });
 
 describe("the node refused it, through a real HttpProvider", () => {
   it("treats an in-band JSON-RPC error on HTTP 200 as definitive", async () => {
     const error = await broadcastThroughHttp({
       status: 200,
       contentType: "application/json",
-      body: '{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"nonce too low"}}',
+      body: rpcBody({ error: { code: -32000, message: "nonce too low" } }),
     });
     expect(isDefinitiveBroadcastRejection(error)).toBe(true);
   }, HTTP_BROADCAST_TIMEOUT);
@@ -251,8 +268,6 @@ describe("the node refused it", () => {
 
   it("treats a revert at broadcast as definitive", async () => {
     const error = await broadcastError(() => ({
-      jsonrpc: "2.0",
-      id: 1,
       error: { code: 3, message: "execution reverted: nope", data: "0x" },
     }));
     expect(isDefinitiveBroadcastRejection(error)).toBe(true);
@@ -261,15 +276,16 @@ describe("the node refused it", () => {
 
 describe("we never heard back", () => {
   // Driven through a real HttpProvider against a local server, because the
-  // provider throws a bare ResponseError for ANY non-2xx and for a body it
-  // cannot parse, before any JSON-RPC processing. Hand-built Errors hide
+  // provider throws its own transport error for ANY non-2xx (HttpStatusError
+  // since @theqrl/web3 2.0.0, a bare ResponseError before it) and for a body
+  // it cannot parse, before any JSON-RPC processing. Hand-built Errors hide
   // that, and treating those as definitive rejected the very case this
   // module exists for: the wallet's own backend answers 502 when its upstream
   // call times out, which is exactly when the node may have accepted the
   // transaction.
   it.each([
     ["the backend's 502 on an upstream timeout", 502, "application/json", '{"error":"RPC upstream timeout"}'],
-    ["a 503 carrying a JSON-RPC envelope", 503, "application/json", '{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"unavailable"}}'],
+    ["a 503 carrying a JSON-RPC envelope", 503, "application/json", rpcBody({ error: { code: -32000, message: "unavailable" } })],
     ["a proxy 502 HTML page", 502, "text/html", "<html><body>Bad gateway</body></html>"],
     ["a proxy 524 HTML page", 524, "text/html", "<html><body>A timeout occurred</body></html>"],
   ])("treats %s as open", async (_label, status, contentType, body) => {
