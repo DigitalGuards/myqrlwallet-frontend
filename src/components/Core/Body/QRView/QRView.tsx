@@ -5,6 +5,8 @@ import { QRCodeSVG } from "qrcode.react";
 import { Label } from "@/components/UI/Label";
 import { useStore } from "@/stores/store";
 import { PageShell } from "@/components/Core/Layout/PageShell";
+import { RouteBack } from "@/components/Core/Layout/PageBack";
+import { ROUTES } from "@/router/routes";
 import { Card } from "@/components/UI/Card";
 
 const QRView = observer(() => {
@@ -18,7 +20,11 @@ const QRView = observer(() => {
   const explorerUrl = getExplorerAddressUrl(accountAddress, blockchain);
 
   return (
-    <PageShell title={t("qrTitle")} seoTitle={t("qrSeo")}>
+    <PageShell
+      title={t("qrTitle")}
+      seoTitle={t("qrSeo")}
+      back={<RouteBack route={ROUTES.QR_VIEW} />}
+    >
       {explorerUrl && (
         <Card className="flex flex-col items-center gap-2 p-6">
           <QRCodeSVG

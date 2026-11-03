@@ -424,7 +424,6 @@
   "nfts:idPlaceholder": "NFT import or transfer UI. Preserve the full source meaning: e.g. 42 User data and external error details in placeholders stay verbatim; keep numbers and protocol identifiers unchanged.",
   "nfts:details": "NFT import or transfer UI. Preserve the full source meaning: NFT details User data and external error details in placeholders stay verbatim; keep numbers and protocol identifiers unchanged.",
   "nfts:detailsSeo": "NFT import or transfer UI. Preserve the full source meaning: NFT Details User data and external error details in placeholders stay verbatim; keep numbers and protocol identifiers unchanged.",
-  "nfts:back": "NFT import or transfer UI. Preserve the full source meaning: Back User data and external error details in placeholders stay verbatim; keep numbers and protocol identifiers unchanged.",
   "nfts:missing": "NFT import or transfer UI. Preserve the full source meaning: NFT not found in your wallet. Add it from the Home page first. User data and external error details in placeholders stay verbatim; keep numbers and protocol identifiers unchanged.",
   "nfts:selfSend": "Reject sending to the active account itself. Preserve the prohibition and the identity of the recipient; do not imply a network fee exception.",
   "nfts:wholeAmount": "NFT import or transfer UI. Preserve the full source meaning: Amount must be a whole number. User data and external error details in placeholders stay verbatim; keep numbers and protocol identifiers unchanged.",

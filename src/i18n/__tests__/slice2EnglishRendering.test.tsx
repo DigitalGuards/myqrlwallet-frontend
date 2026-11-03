@@ -115,6 +115,12 @@ function fixture() {
   };
 }
 let mockStore = fixture();
+// The page Back control is excluded from the English oracle, like the
+// Language row (docs/I18N.md). It has its own tests.
+jest.mock("@/components/Core/Layout/PageBack", () => ({
+  PageBack: () => null,
+  RouteBack: () => null,
+}));
 jest.mock("@/stores/store", () => ({ useStore: () => mockStore }));
 jest.mock("@/stores/qrlStore", () => ({
   quoteFees: () =>

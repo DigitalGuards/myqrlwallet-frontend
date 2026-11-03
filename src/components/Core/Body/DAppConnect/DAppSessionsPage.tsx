@@ -9,6 +9,8 @@ import { Card } from "@/components/UI/Card";
 import DAppSessionsList from "./DAppSessionsList";
 import { observer } from "mobx-react-lite";
 import { PageShell } from "@/components/Core/Layout/PageShell";
+import { RouteBack } from "@/components/Core/Layout/PageBack";
+import { ROUTES } from "@/router/routes";
 import { Button } from "@/components/UI/Button";
 import { useStore } from "@/stores/store";
 
@@ -21,6 +23,8 @@ const DAppSessionsPage = observer(() => {
       subtitle={t("dapps:sessionsSubtitle")}
       width="wide"
       seoTitle={t("dapps:sessionsSeo")}
+      // The desktop sidebar lists this page, so it shows no Back there.
+      back={<RouteBack route={ROUTES.DAPP_SESSIONS} />}
       action={
         dappConnectStore.activeSessions.length > 0 && (
           <Button

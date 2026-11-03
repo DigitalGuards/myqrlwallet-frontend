@@ -33,9 +33,15 @@ const mockAccount = {
   hexSeed: "synthetic extended seed",
 };
 
+// The page Back has its own tests; this one renders the page without a router.
+jest.mock("@/components/Core/Layout/PageBack", () => ({
+  PageBack: () => null,
+  RouteBack: () => null,
+}));
 jest.mock("@/stores/store", () => ({
   useStore: () => ({
     qrlStore: {
+      activeAccount: { accountAddress: "" },
       setActiveAccount: mockSelectAccount,
       qrlConnection: { blockchain: "TEST_NET_V3" },
     },

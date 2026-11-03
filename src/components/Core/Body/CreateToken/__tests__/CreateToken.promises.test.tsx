@@ -54,6 +54,11 @@ const mockStore = {
   },
 };
 
+// The page Back has its own tests; this one renders the page without a router.
+jest.mock("@/components/Core/Layout/PageBack", () => ({
+  PageBack: () => null,
+  RouteBack: () => null,
+}));
 jest.mock("@/utils", () => ({
   cn: (...values: unknown[]) =>
     values.filter((value) => typeof value === "string").join(" "),

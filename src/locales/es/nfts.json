@@ -29,7 +29,6 @@
   "idPlaceholder": "p. ej. 42",
   "details": "Detalles del NFT",
   "detailsSeo": "Detalles del NFT",
-  "back": "Volver",
   "missing": "No se encontró el NFT en tu billetera. Añádelo primero desde la página de inicio.",
   "selfSend": "No puedes enviar a tu propia dirección.",
   "wholeAmount": "La cantidad debe ser un número entero.",

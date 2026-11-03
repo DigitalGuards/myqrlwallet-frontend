@@ -34,6 +34,11 @@ const mockVerify = jest.fn<Promise<unknown>, []>();
 const mockEncrypt = jest.fn<Promise<string>, []>();
 const mockCopy = jest.fn<Promise<boolean>, [string, boolean?]>();
 let mockNative = false;
+// The page Back has its own tests; this one renders the page without a router.
+jest.mock("@/components/Core/Layout/PageBack", () => ({
+  PageBack: () => null,
+  RouteBack: () => null,
+}));
 jest.mock("@/utils", () =>
   jest.requireActual<typeof import("@/utils/cn")>("@/utils/cn"),
 );

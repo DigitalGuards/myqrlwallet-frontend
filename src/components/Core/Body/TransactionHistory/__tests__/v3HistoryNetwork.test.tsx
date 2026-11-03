@@ -1,5 +1,10 @@
 /** @jest-environment jsdom */
 
+// The page Back has its own tests; this one renders the page without a router.
+jest.mock("@/components/Core/Layout/PageBack", () => ({
+  PageBack: () => null,
+  RouteBack: () => null,
+}));
 jest.mock("@/components/SEO/SEO", () => ({ SEO: () => null }));
 import { cleanup, render, screen } from "@testing-library/react";
 import axios from "axios";
