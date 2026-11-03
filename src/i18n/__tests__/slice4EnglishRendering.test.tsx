@@ -57,6 +57,12 @@ const mockStore: {
     disconnectAll: () => undefined,
   },
 };
+// The page Back control is excluded from the English oracle, like the
+// Language row (docs/I18N.md). It has its own tests.
+jest.mock("@/components/Core/Layout/PageBack", () => ({
+  PageBack: () => null,
+  RouteBack: () => null,
+}));
 jest.mock("mobx-react-lite", () => ({
   observer: (component: unknown) => component,
 }));

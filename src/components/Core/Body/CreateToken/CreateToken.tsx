@@ -1,5 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/Core/Layout/PageShell";
+import { RouteBack } from "@/components/Core/Layout/PageBack";
+import { ROUTES } from "@/router/routes";
+import { useState } from "react";
 import { observer } from "mobx-react-lite";
 import { TokenCreationForm } from "./TokenCreationForm/TokenCreationForm";
 import { useStore } from "@/stores/store";
@@ -17,6 +20,7 @@ const CreateToken = observer(() => {
     "common",
   ]);
   const { tokenStore } = useStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onTokenCreated = async (
     tokenName: string,
@@ -66,9 +70,15 @@ const CreateToken = observer(() => {
         title={t("creation:title")}
         subtitle={t("creation:subtitle")}
         seoTitle={t("creation:seoTitle")}
+        back={
+          <RouteBack route={ROUTES.CREATE_TOKEN} disabled={isSubmitting} />
+        }
       >
         <div className="relative z-10">
-          <TokenCreationForm onTokenCreated={onTokenCreated} />
+          <TokenCreationForm
+            onTokenCreated={onTokenCreated}
+            onBusyChange={setIsSubmitting}
+          />
         </div>
       </PageShell>
     </>

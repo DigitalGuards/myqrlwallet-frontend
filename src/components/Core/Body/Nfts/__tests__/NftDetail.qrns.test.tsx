@@ -256,3 +256,61 @@ it.each([
   expect((await screen.findByRole("alert")).textContent).toContain(message);
   expect(transferNft).not.toHaveBeenCalled();
 });
+
+it("holds Back while an NFT transfer is in flight", async () => {
+  let finish: (sent: boolean) => void = () => {
+    throw new Error("Transfer did not start");
+  };
+  const transferNft = jest.fn(
+    () =>
+      new Promise<boolean>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const nft: NFTInterface = {
+    contractAddress: CONTRACT,
+    standard: "ERC721",
+    tokenId: "7",
+    name: "QRNS test NFT",
+  };
+  mockUseStore.mockReturnValue({
+    qrlStore: {
+      activeAccount: { accountAddress: ACCOUNT },
+      activeAccountSource: "seed",
+      qrlConnection: { blockchain: "TEST_NET" },
+      transactionStatus: {
+        state: "idle",
+        txHash: null,
+        receipt: null,
+        error: null,
+      },
+      resetTransactionStatus: jest.fn(),
+    },
+    nftStore: { nftList: [nft], transferNft },
+  });
+  jest.mocked(useParams).mockReturnValue({
+    contractAddress: CONTRACT,
+    tokenId: "7",
+  });
+  jest.mocked(useNetworkQrnsRecipient).mockReturnValue(resolvedRecipient());
+
+  render(<NftDetail />);
+  const back = () => screen.getByRole("button", { name: "Back" });
+  expect(back()).toHaveProperty("disabled", false);
+  fireEvent.change(screen.getByLabelText("Recipient address or QNS name"), {
+    target: { value: "alice.qrl" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Transfer" }));
+  await waitFor(() => {
+    expect(transferNft).toHaveBeenCalledTimes(1);
+  });
+  // Leaving would reset the transfer status before its outcome shows.
+  expect(back()).toHaveProperty("disabled", true);
+  await act(async () => {
+    finish(true);
+    await Promise.resolve();
+  });
+  await waitFor(() => {
+    expect(back()).toHaveProperty("disabled", false);
+  });
+});

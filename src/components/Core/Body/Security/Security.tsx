@@ -1,5 +1,6 @@
 import { LegalLanguageNote } from "@/components/Core/Layout/LegalLanguageNote";
 import { PageShell } from "@/components/Core/Layout/PageShell";
+import { RouteBack } from "@/components/Core/Layout/PageBack";
 import { Card } from "@/components/UI/Card";
 import { Link } from "react-router";
 import { SEO } from "@/components/SEO/SEO";
@@ -25,7 +26,11 @@ const SECURITY_POLICY_URL =
 
 const Security = () => {
     return (
-        <PageShell title="Security and Vulnerability Disclosure Policy" width="wide">
+        <PageShell
+          title="Security and Vulnerability Disclosure Policy"
+          width="wide"
+          back={<RouteBack route={ROUTES.SECURITY} />}
+        >
             <SEO
                 title="Security Policy"
                 description="Security and coordinated vulnerability disclosure policy for MyQRLWallet by DigitalGuards, including a safe-harbour statement."

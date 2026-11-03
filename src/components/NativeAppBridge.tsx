@@ -354,8 +354,10 @@ const NativeAppBridge: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const navigateFromNative = useCallback(
-    (path: string): void => {
-      const navigation = navigate(path);
+    (path: string, options?: { replace: true }): void => {
+      // Back's fallback replaces the current entry; every other caller
+      // pushes.
+      const navigation = options ? navigate(path, options) : navigate(path);
       if (navigation) {
         navigation.catch((error: unknown) => {
           logError("[Bridge] Navigation failed:", error);
@@ -613,10 +615,14 @@ const NativeAppBridge: React.FC = () => {
 
         case "NATIVE_BACK": {
           // Android's hardware back, resolved by the page: close the topmost
-          // overlay, else walk the in-memory route stack, else report that
-          // there is nothing left so the app can background itself. Exactly
-          // one answer per request. An overlay closes through its own dismiss
-          // path, so an approval sheet rejects and can never approve.
+          // overlay, else go where the page's on-screen Back goes (nowhere
+          // while that control is held), else report that there is nothing
+          // left so the app can background itself. Exactly one answer per
+          // request. An overlay closes through its own dismiss path, so an
+          // approval sheet rejects and can never approve. The route comes
+          // from the fragment. The fragment can escape a query in other ways
+          // than the router does, so nativeBack decodes both the same way
+          // before it compares them.
           const outcome = resolveNativeBack(
             navigateFromNative,
             window.location.hash.replace(/^#/, "") || "/",

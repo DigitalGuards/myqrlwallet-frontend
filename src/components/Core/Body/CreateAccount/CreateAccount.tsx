@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Card } from "@/components/UI/Card";
 import { PageShell } from "@/components/Core/Layout/PageShell";
+import { RouteBack } from "@/components/Core/Layout/PageBack";
 import { lazy, useState } from "react";
 import { withSuspense } from "@/utils/react";
 import { SEO } from "../../../SEO/SEO";
@@ -26,6 +27,7 @@ const CreateAccount = observer(() => {
   const [account, setAccount] = useState<Web3BaseWalletAccount>();
   const [hasAccountCreated, setHasAccountCreated] = useState(false);
   const [userPassword, setUserPassword] = useState<string>("");
+  const [isCreating, setIsCreating] = useState(false);
   // Desktop only: the signer-returned address + mnemonic for the backup screen.
   // The hex seed is never returned to the renderer.
   const [desktopBackup, setDesktopBackup] = useState<{
@@ -71,6 +73,18 @@ const CreateAccount = observer(() => {
               ? t("onboarding:recoveryTitle")
               : t("onboarding:createNew")
         }
+        back={
+          <RouteBack
+            route={ROUTES.CREATE_ACCOUNT}
+            hasWallet={Boolean(qrlStore.activeAccount.accountAddress)}
+            // Held while the wallet is being stored. The recovery phrase
+            // shows no Back, as the other finished steps, and Android back
+            // still holds there: the wallet is stored by then, and the
+            // phrase's own Done asks for the backup first.
+            disabled={isCreating || hasAccountCreated}
+            hidden={hasAccountCreated}
+          />
+        }
       >
         <div className="relative z-10">
           {isWalletLimitReached ? (
@@ -97,7 +111,10 @@ const CreateAccount = observer(() => {
               desktopBackup={desktopBackup}
             />
           ) : (
-            <AccountCreationForm onAccountCreated={onAccountCreated} />
+            <AccountCreationForm
+              onAccountCreated={onAccountCreated}
+              onBusyChange={setIsCreating}
+            />
           )}
         </div>
       </PageShell>

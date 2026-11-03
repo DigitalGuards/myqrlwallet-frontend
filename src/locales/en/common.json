@@ -20,6 +20,7 @@
   "connectedDapps_other": "{{count}} connected dApps",
   "close": "Close",
   "cancel": "Cancel",
+  "back": "Back",
   "copy": "Copy",
   "copied": "Copied",
   "copyAddress": "Copy address",

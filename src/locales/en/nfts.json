@@ -29,7 +29,6 @@
   "idPlaceholder": "e.g. 42",
   "details": "NFT details",
   "detailsSeo": "NFT Details",
-  "back": "Back",
   "missing": "NFT not found in your wallet. Add it from the Home page first.",
   "selfSend": "Cannot send to your own address.",
   "wholeAmount": "Amount must be a whole number.",
