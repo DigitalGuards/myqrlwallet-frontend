@@ -1,7 +1,8 @@
 name: Embedded build
 
-# CI calls the same embedded checks for PRs and branch pushes. This entry point
-# retains tag publication and the existing embedded -> release dependency.
+# CI calls the same embedded checks for pull requests, the weekly run and
+# dispatch. This entry point retains tag publication and the existing
+# embedded -> release dependency.
 on:
   push:
     tags: ["embedded-v*"]
@@ -21,6 +22,7 @@ jobs:
     needs: embedded-checks
     if: ${{ always() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Require all embedded checks
         env:
@@ -31,13 +33,14 @@ jobs:
     needs: embedded
     if: startsWith(github.ref, 'refs/tags/embedded-v')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     permissions:
       contents: write
 
     steps:
       - name: Download the embedded wallet
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: myqrlwallet-embedded
           path: dist-embedded

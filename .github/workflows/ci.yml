@@ -1,21 +1,40 @@
 name: CI
 
+# Every change is tested once, on its pull request into dev or main. A push to
+# main builds only the release image. The weekly run and manual dispatch repeat
+# the full gate, so registry, clock and pinned-dependency drift still surface.
 on:
-  push:
-    branches: [main, dev]
   pull_request:
     branches: [main, dev]
+  push:
+    branches: [main]
+  schedule:
+    # Mondays 03:00 UTC.
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# A new push to a pull request cancels its superseded run. Push, schedule and
+# dispatch runs always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  # Scheduled runs start from the default branch's workflow; the weekly full run
+  # tests dev. Empty keeps the event's own ref (the pull request merge commit or
+  # the dispatched branch).
+  TEST_REF: ${{ github.event_name == 'schedule' && 'dev' || '' }}
 
 jobs:
   lint-test-build:
+    if: ${{ github.event_name != 'push' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     permissions:
       contents: read
@@ -26,12 +45,14 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.TEST_REF }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
@@ -42,28 +63,32 @@ jobs:
       - name: Audit production dependencies
         run: node scripts/audit-gate.mjs
 
-      - name: Run lint
-        run: npm run lint
-
+      # The ratchet's first pass is `npm run lint`: the same config discovery
+      # and options, inline config disabled (disable comments hide nothing)
+      # and no finding of any severity allowed. CI therefore lints the tree
+      # once.
       - name: Check lint ratchet
         env:
-          LINT_RATCHET_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          LINT_RATCHET_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
-          if [ "$LINT_RATCHET_BASE" = "0000000000000000000000000000000000000000" ]; then
-            echo "lint-ratchet: new branch has no base commit; skipping shrink-only comparison"
-            npm run lint:ratchet
-          else
+          if [ -n "$LINT_RATCHET_BASE" ]; then
             npm run lint:ratchet -- --base-ref "$LINT_RATCHET_BASE"
+          else
+            echo "lint-ratchet: no pull request base on this event; checking without the shrink-only comparison"
+            npm run lint:ratchet
           fi
 
       - name: Run typecheck
         run: npm run typecheck
 
-      - name: Test language shard coverage checks
-        run: node --test scripts/i18n-report-schema.test.mjs scripts/i18n-shards.test.mjs scripts/i18n-coverage.test.mjs
+      - name: Test language and approval shard checks
+        run: node --test scripts/i18n-report-schema.test.mjs scripts/i18n-shards.test.mjs scripts/i18n-coverage.test.mjs scripts/check-approval-shards.test.mjs
 
+      # Three workers beside the coordinating process on the 4-vCPU runner.
+      # The slice 6 error parity suite runs as one file per language, so no
+      # single file holds up the run.
       - name: Run tests
-        run: npm test -- --runInBand
+        run: npm test -- --maxWorkers=3
 
       - name: Run build
         run: npm run build
@@ -81,21 +106,41 @@ jobs:
       - name: Boot smoke (serve dist, render home and create-account)
         run: npm run smoke:boot
 
+  # Web language smoke in three jobs: English alone (it also owns the shared
+  # helper-route and review probes), then two languages each. Every language
+  # still runs as its own invocation and uploads its own report, so the
+  # language-smoke check below verifies the same five artifacts.
   language-smoke-shard:
+    if: ${{ github.event_name != 'push' }}
+    name: language-smoke-shard (${{ matrix.node-version }}, ${{ matrix.shard }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
       matrix:
         node-version: [22.22.x]
-        language: [en, de, es, ru, zh-CN]
+        shard: [en, de+es, ru+zh-CN]
+        include:
+          - shard: en
+            first: en
+            second: ""
+          - shard: de+es
+            first: de
+            second: es
+          - shard: ru+zh-CN
+            first: ru
+            second: zh-CN
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TEST_REF }}
+          persist-credentials: false
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
@@ -107,41 +152,64 @@ jobs:
         run: npm run build
 
       - name: Install Chromium for the language smoke
+        id: chromium
         uses: ./.github/actions/setup-chromium
 
-      - name: Language and phone layout smoke
+      - name: Language and phone layout smoke (${{ matrix.first }})
         env:
-          I18N_SCREENSHOT_DIR: ${{ runner.temp }}/i18n-web
-          I18N_REPORT_PATH: ${{ runner.temp }}/i18n-web-results/${{ matrix.language }}.json
-          LANGUAGE: ${{ matrix.language }}
+          I18N_SCREENSHOT_DIR: ${{ runner.temp }}/i18n-web/${{ matrix.first }}
+          I18N_REPORT_PATH: ${{ runner.temp }}/i18n-web-results/${{ matrix.first }}.json
+          LANGUAGE: ${{ matrix.first }}
         run: npm run smoke:i18n -- --languages "$LANGUAGE"
 
-      - name: Upload language shard result
+      - name: Upload language shard result (${{ matrix.first }})
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: i18n-web-${{ matrix.language }}
-          path: ${{ runner.temp }}/i18n-web-results/${{ matrix.language }}.json
+          name: i18n-web-${{ matrix.first }}
+          path: ${{ runner.temp }}/i18n-web-results/${{ matrix.first }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+      # Runs even when the first language failed, so every report is collected.
+      - name: Language and phone layout smoke (${{ matrix.second }})
+        if: ${{ !cancelled() && matrix.second != '' && steps.chromium.outcome == 'success' }}
+        env:
+          I18N_SCREENSHOT_DIR: ${{ runner.temp }}/i18n-web/${{ matrix.second }}
+          I18N_REPORT_PATH: ${{ runner.temp }}/i18n-web-results/${{ matrix.second }}.json
+          LANGUAGE: ${{ matrix.second }}
+        run: npm run smoke:i18n -- --languages "$LANGUAGE"
+
+      - name: Upload language shard result (${{ matrix.second }})
+        if: ${{ always() && matrix.second != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: i18n-web-${{ matrix.second }}
+          path: ${{ runner.temp }}/i18n-web-results/${{ matrix.second }}.json
           if-no-files-found: error
           retention-days: 7
 
   # Keep the existing language-smoke job and its check context.
   language-smoke:
     needs: language-smoke-shard
-    if: ${{ always() }}
+    if: ${{ always() && github.event_name != 'push' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     strategy:
       matrix:
         node-version: [22.22.x]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TEST_REF }}
+          persist-credentials: false
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node-version }}
       - name: Download all language reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: i18n-web-*
           merge-multiple: false
@@ -156,6 +224,7 @@ jobs:
           test "$SHARDS_RESULT" = success
 
   embedded-checks:
+    if: ${{ github.event_name != 'push' }}
     uses: ./.github/workflows/embedded-checks.yml
     permissions:
       contents: read
@@ -165,39 +234,213 @@ jobs:
   # Keep the standalone embedded check name when calling the reusable workflow.
   embedded:
     needs: embedded-checks
-    if: ${{ always() }}
+    if: ${{ always() && github.event_name != 'push' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Require all embedded checks
+        if: ${{ always() }}
         env:
           EMBEDDED_RESULT: ${{ needs.embedded-checks.result }}
         run: test "$EMBEDDED_RESULT" = success
 
-  # Preserve the existing required check, including its matrix context name.
-  # All smoke shards, coverage checks, lint/tests/build and embedded must pass.
-  lint-and-build:
-    needs: [lint-test-build, language-smoke, embedded]
-    if: ${{ always() }}
+  # Decides whether the approval visibility smoke runs. It always runs on pull
+  # requests into main, the weekly run and dispatch. Other pull requests run it
+  # when they change the approval screens and their dApp review logic, the
+  # language catalogs and i18n runtime, shared layout, the smoke and its
+  # helpers, the package manifest or lockfile, or this CI wiring. An error here
+  # fails approval-smoke, and with it lint-and-build.
+  approval-scope:
+    if: ${{ github.event_name != 'push' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.scope.outputs.run }}
+    steps:
+      - name: Checkout repository
+        if: ${{ github.event_name == 'pull_request' && github.base_ref != 'main' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Match the changed paths
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          decide() {
+            echo "run=$1" >> "$GITHUB_OUTPUT"
+            echo "$2"
+            echo "Approval visibility smoke: $2" >> "$GITHUB_STEP_SUMMARY"
+          }
+          if [ "$EVENT_NAME" != pull_request ]; then
+            decide true "runs on every $EVENT_NAME run."
+            exit 0
+          fi
+          if [ "$BASE_REF" = main ]; then
+            decide true "runs on every pull request into main."
+            exit 0
+          fi
+          # The checked-out merge commit's first parent is the base branch tip,
+          # so this diff is exactly what the pull request changes.
+          if ! git rev-parse --verify --quiet 'HEAD^2' > /dev/null; then
+            decide true "runs because the checkout is not a pull request merge commit."
+            exit 0
+          fi
+          changed="$(git diff --name-only 'HEAD^1' HEAD)"
+          approval_paths='^(src/components/Core/Body/DAppConnect/|src/services/dappConnect/|src/stores/dappConnectStore\.ts$|src/components/UI/|src/locales/|src/i18n/|src/index\.css$|src/main\.tsx$|index\.html$|config/vite\.config\.ts$|scripts/(smoke-approval-visibility\.mjs|check-approval-shards\.(test\.)?mjs|approval-[^/]+|i18n-smoke-options\.mjs)$|package(-lock)?\.json$|\.github/workflows/ci\.yml$|\.github/actions/setup-chromium/)'
+          # Test-only files never reach the bundle the smoke serves.
+          matched="$(printf '%s\n' "$changed" | { grep -v '/__tests__/' || true; } | { grep -E "$approval_paths" || true; })"
+          if [ -n "$matched" ]; then
+            decide true "runs for $(printf '%s\n' "$matched" | wc -l) changed approval path(s)."
+            printf '%s\n' "$matched" | sed 's/^/  /'
+          else
+            decide false "no approval paths changed; skipped, and the check passes."
+          fi
+
+  # The approval-screen visibility smoke (scripts/smoke-approval-visibility.mjs):
+  # seven approval methods plus pairing consent at six layouts with delayed
+  # chain, overflow, queued and empty controls, one language per job. Each job
+  # keeps the per-language count checks. The probe launches channel
+  # "chromium", so it uses the full Chromium build.
+  approval-smoke-shard:
+    needs: approval-scope
+    if: ${{ needs.approval-scope.outputs.run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [en, de, es, ru, zh-CN]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TEST_REF }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22.22.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run build
+        run: npm run build
+
+      - name: Install full Chromium for the approval smoke
+        uses: ./.github/actions/setup-chromium
+        with:
+          browser: full
+
+      - name: Approval visibility smoke (${{ matrix.language }})
+        env:
+          APPROVAL_ARTIFACTS: ${{ runner.temp }}/approval-visibility
+          LANGUAGE: ${{ matrix.language }}
+        run: npm run smoke:approvals -- --languages "$LANGUAGE"
+
+      - name: Upload approval results (${{ matrix.language }})
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: approval-visibility-${{ matrix.language }}
+          path: ${{ runner.temp }}/approval-visibility
+          if-no-files-found: error
+          retention-days: 7
+
+  # One approval-smoke result: success when the path gate skipped the smoke,
+  # otherwise every language job passed with its complete matrix.
+  approval-smoke:
+    needs: [approval-scope, approval-smoke-shard]
+    if: ${{ always() && github.event_name != 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        if: ${{ needs.approval-scope.outputs.run == 'true' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TEST_REF }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        if: ${{ needs.approval-scope.outputs.run == 'true' }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22.22.x"
+
+      - name: Download every language result
+        if: ${{ needs.approval-scope.outputs.run == 'true' }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: approval-visibility-*
+          merge-multiple: false
+          path: ${{ runner.temp }}/approval-visibility
+
+      - name: Require every language and its complete matrix
+        if: ${{ needs.approval-scope.outputs.run == 'true' }}
+        env:
+          RESULTS_DIRECTORY: ${{ runner.temp }}/approval-visibility
+        run: node scripts/check-approval-shards.mjs --directory "$RESULTS_DIRECTORY"
+
+      # Runs in every case, so a failed gate, a failed or cancelled language
+      # job, or a cancelled run can never leave this check green.
+      - name: Require the gate and every language job
+        if: ${{ always() }}
+        env:
+          SCOPE_RESULT: ${{ needs.approval-scope.result }}
+          RUN: ${{ needs.approval-scope.outputs.run }}
+          SHARDS_RESULT: ${{ needs.approval-smoke-shard.result }}
+        run: |
+          test "$SCOPE_RESULT" = success
+          case "$RUN" in
+            false) echo "No approval paths changed: the approval smoke was skipped and passes." ;;
+            true) test "$SHARDS_RESULT" = success ;;
+            *) echo "::error::approval-scope returned no decision"; exit 1 ;;
+          esac
+
+  # Preserve the existing required check, including its matrix context name.
+  # Lint/tests/build, every language smoke shard and its coverage, embedded
+  # and the approval smoke (passing when its path gate skipped it) must pass.
+  lint-and-build:
+    needs: [lint-test-build, language-smoke, embedded, approval-smoke]
+    if: ${{ always() && github.event_name != 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     strategy:
       matrix:
         node-version: [22.22.x]
     steps:
+      # The step runs even in a cancelled run, so a cancelled dependency
+      # fails the required check.
       - name: Require all CI checks
+        if: ${{ always() }}
         env:
           CHECKS_RESULT: ${{ needs.lint-test-build.result }}
           LANGUAGE_RESULT: ${{ needs.language-smoke.result }}
           EMBEDDED_RESULT: ${{ needs.embedded.result }}
+          APPROVAL_RESULT: ${{ needs.approval-smoke.result }}
         run: |
           test "$CHECKS_RESULT" = success
           test "$LANGUAGE_RESULT" = success
           test "$EMBEDDED_RESULT" = success
+          test "$APPROVAL_RESULT" = success
 
+  # Release image: every push to main (each change already passed on its pull
+  # request) and manual dispatch after the full gate passed.
   docker:
     needs: lint-and-build
+    if: ${{ !cancelled() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && needs.lint-and-build.result == 'success')) }}
     runs-on: ubuntu-latest
-    # Only build Docker images on push to main/dev (not PRs)
-    if: github.event_name == 'push'
+    timeout-minutes: 10
 
     permissions:
       contents: read
@@ -209,13 +452,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -223,7 +468,7 @@ jobs:
 
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -233,7 +478,7 @@ jobs:
 
       - name: Build and push Docker image
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: deploy/Dockerfile
@@ -258,6 +503,7 @@ jobs:
   deploy:
     needs: docker
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Disabled - Kubernetes deployment not configured
     if: false
 
@@ -268,10 +514,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@bda439f5f36b99b262ebdcd3613869bddb064c8e # v5.2.0
         with:
           version: "latest"
 

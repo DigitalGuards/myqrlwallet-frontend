@@ -1,5 +1,14 @@
 name: Setup Chromium
-description: Cache the locked Playwright headless shell and language fonts, with launch-checked system dependencies
+description: Cache the locked Playwright Chromium build and language fonts, with launch-checked system dependencies
+
+inputs:
+  browser:
+    description: >-
+      headless-shell (default) installs the Chromium headless shell that
+      chromium.launch() uses. full installs the full Chromium build that
+      channel "chromium" launches (the approval visibility smoke).
+    required: false
+    default: headless-shell
 
 runs:
   using: composite
@@ -7,6 +16,8 @@ runs:
     - name: Read the installed Playwright version from the lockfile
       id: playwright
       shell: bash
+      env:
+        BROWSER: ${{ inputs.browser }}
       run: |
         node <<'NODE'
         const { appendFileSync } = require('node:fs');
@@ -15,31 +26,43 @@ runs:
             version !== require('playwright-core/package.json').version) {
           throw new Error('Run npm ci before setting up Chromium: Playwright must match package-lock.json');
         }
-        appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`);
+        // Each selection keeps its own cache key, so the existing headless key is unchanged.
+        const selections = {
+          'headless-shell': { install: '--only-shell', key: 'chromium-headless-v1', channel: '' },
+          full: { install: '--no-shell', key: 'chromium-full-v1', channel: 'chromium' },
+        };
+        const selection = selections[process.env.BROWSER];
+        if (!selection) throw new Error(`Unknown browser input: ${process.env.BROWSER}`);
+        appendFileSync(
+          process.env.GITHUB_OUTPUT,
+          `version=${version}\ninstall=${selection.install}\nkey=${selection.key}\nchannel=${selection.channel}\n`,
+        );
         NODE
 
-    - name: Cache Playwright Chromium headless shell
+    - name: Cache the Playwright Chromium build
       id: browsers
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cache/ms-playwright
-        key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright.outputs.version }}-chromium-headless-v1
+        key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright.outputs.version }}-${{ steps.playwright.outputs.key }}
 
-    - name: Restore or download Chromium headless shell
+    - name: Restore or download the Chromium build
       shell: bash
       env:
+        BROWSER: ${{ inputs.browser }}
         BROWSER_CACHE_HIT: ${{ steps.browsers.outputs.cache-hit }}
+        INSTALL_OPTION: ${{ steps.playwright.outputs.install }}
       run: |
         if [[ "$BROWSER_CACHE_HIT" == 'true' ]]; then
-          echo "Chromium browser: cached (exact Playwright version)."
+          echo "Chromium browser ($BROWSER): cached (exact Playwright version)."
         else
-          echo "Chromium browser: cache miss; downloading headless shell."
-          npx --no-install playwright install --only-shell chromium
-          echo "Chromium browser: downloaded."
+          echo "Chromium browser ($BROWSER): cache miss; downloading."
+          npx --no-install playwright install "$INSTALL_OPTION" chromium
+          echo "Chromium browser ($BROWSER): downloaded."
         fi
 
     - name: Cache exact language font packages
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ runner.temp }}/i18n-font-packages
         key: ${{ runner.os }}-${{ runner.arch }}-i18n-fonts-${{ hashFiles('.github/actions/setup-chromium/fonts.lock') }}-v1
@@ -52,6 +75,8 @@ runs:
 
     - name: Check Chromium and install system dependencies if needed
       shell: bash
+      env:
+        CHROMIUM_CHANNEL: ${{ steps.playwright.outputs.channel }}
       run: |
         if node "$GITHUB_ACTION_PATH/check-launch.mjs"; then
           echo "Chromium dependencies: present; skipping install-deps."
