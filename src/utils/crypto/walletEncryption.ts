@@ -227,7 +227,11 @@ function parseSeedJson(json: string): { mnemonic: string; hexSeed: string } {
   if (seedHex.length === 0 || seedHex.length % 2 !== 0 || /[^0-9a-f]/i.test(seedHex)) {
     throw new Error('Invalid seed payload');
   }
-  return { mnemonic, hexSeed };
+  // Wallet files and stored seeds may carry the hex with no prefix, which
+  // this parser has always accepted and @theqrl/web3 1.0.3 signed with.
+  // 2.0.0 refuses a seed without a lowercase 0x (InvalidSeedError), so hand
+  // every caller the one spelling web3 takes. The seed bytes are unchanged.
+  return { mnemonic, hexSeed: `0x${seedHex}` };
 }
 
 function assertWalletPasswordInput(password: string): void {
