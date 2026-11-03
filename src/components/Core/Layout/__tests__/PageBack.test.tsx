@@ -242,6 +242,56 @@ it("continues from where a browser back landed", async () => {
   expect(here()).toBe("/");
 });
 
+/**
+ * Browser moves the trail cannot follow. Each lands on a page whose
+ * previous browser entry is not the screen below it on the trail, so both
+ * backs must take the page's parent, and never the page ahead.
+ */
+const unfollowedMoves: Record<
+  string,
+  { arrive: () => Promise<void>; at: string; parent: string }
+> = {
+  // Home -> Imprint -> Disclaimer, then a reload on Disclaimer (a phone
+  // that discards the tab does the same) and the browser's Back. Browser
+  // history survives a reload, the trail does not.
+  "a reload and a browser back": {
+    arrive: async () => {
+      await mount(["/", "/legal", "/disclaimer"]);
+      fakeHistory.back();
+    },
+    at: "/legal",
+    parent: "/",
+  },
+  // Two entries back at once, from the long-press menu of browser Back.
+  "a jump of two entries": {
+    arrive: async () => {
+      await mount(["/"]);
+      for (const path of ["/legal", "/security", "/legal", "/disclaimer"])
+        await open(path);
+      fakeHistory.go(-2);
+    },
+    at: "/security",
+    parent: "/legal",
+  },
+};
+
+describe.each(Object.entries(unfollowedMoves))("after %s", (_name, move) => {
+  it("Back replaces the page with its parent", async () => {
+    await move.arrive();
+    expect(here()).toBe(move.at);
+    await pressBack();
+    expect(here()).toBe(move.parent);
+    expect(fakeHistory.action()).toBe("REPLACE");
+  });
+
+  it("Android back lands on the same parent", async () => {
+    await move.arrive();
+    expect(here()).toBe(move.at);
+    expect(pressAndroidBack()).toBe("handled");
+    expect(here()).toBe(move.parent);
+  });
+});
+
 it("shows no Back on a menu destination", async () => {
   await mount(["/settings"]);
   expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy();

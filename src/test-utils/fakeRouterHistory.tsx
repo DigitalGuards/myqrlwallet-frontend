@@ -128,6 +128,12 @@ export const fakeHistory = {
       go(1);
     });
   },
+  /** A jump of several entries, as the long-press menu of browser Back does. */
+  go(delta: number) {
+    act(() => {
+      go(delta);
+    });
+  },
 };
 
 /** Subscribing read of the current entry, for components and shells. */

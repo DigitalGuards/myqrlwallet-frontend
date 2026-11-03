@@ -126,10 +126,14 @@ function pageBackAt(currentPath: string): PageBackTarget | undefined {
 /**
  * Record a route the user navigated to.
  *
- * `action` is how the router got there. A browser back (POP) to the screen
- * below the top removes the screen it left, so the stack keeps matching the
- * way back. A replace swaps the top. Anything else is a visit; a repeat of
- * the top is skipped.
+ * `action` is how the router got there. A replace swaps the top. A browser
+ * back (POP) to the screen below the top removes the screen it left, so the
+ * stack keeps matching the way back. A POP to the screen already on top
+ * (a change of the fragment alone) changes nothing. Any other POP is a move
+ * the stack cannot follow: a browser back after a reload, a jump of several
+ * entries, a step forward. The stack then starts over at that screen, as on
+ * a fresh arrival, so Back takes the page's parent and never steps forward.
+ * Anything else is a visit; a repeat of the top is skipped.
  */
 export function recordRoute(path: string, action: RouteAction = "PUSH"): void {
   const top = routeStack.length - 1;
@@ -139,8 +143,9 @@ export function recordRoute(path: string, action: RouteAction = "PUSH"): void {
     if (routeStack[top - 1] === path) routeStack.pop();
     return;
   }
-  if (action === "POP" && top >= 1 && routeStack[top - 1] === path) {
-    routeStack.pop();
+  if (action === "POP") {
+    if (top >= 1 && routeStack[top - 1] === path) routeStack.pop();
+    else if (routeStack[top] !== path) routeStack = [path];
     return;
   }
   if (routeStack[top] === path) return;

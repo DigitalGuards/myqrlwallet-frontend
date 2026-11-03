@@ -237,11 +237,30 @@ describe("recording follows the router", () => {
     expect(resolveNativeBack(navigate, "/")).toBe("at-root");
   });
 
-  it("records a browser forward as a visit", () => {
+  it("starts over after a browser move it cannot follow", () => {
+    // A step forward, a jump of several entries, or a browser back after a
+    // reload: none is one step back, so Back must take the parent.
     recordRoute("/", "POP");
     recordRoute("/legal", "POP");
+    expect(recordedRoutesForTests()).toEqual(["/legal"]);
 
-    expect(recordedRoutesForTests()).toEqual(["/", "/legal"]);
+    recordRoute("/", "POP");
+    recordRoute("/legal", "PUSH");
+    recordRoute("/security", "PUSH");
+    recordRoute("/legal", "PUSH");
+    recordRoute("/disclaimer", "PUSH");
+    recordRoute("/security", "POP");
+    expect(recordedRoutesForTests()).toEqual(["/security"]);
+  });
+
+  it("keeps the trail on a POP to the screen already shown", () => {
+    // A link that changes only the fragment, such as a dApp's
+    // #qrlconnect= link into an open wallet tab.
+    recordRoute("/", "POP");
+    recordRoute("/dapp-sessions", "PUSH");
+    recordRoute("/dapp-sessions", "POP");
+
+    expect(recordedRoutesForTests()).toEqual(["/", "/dapp-sessions"]);
   });
 
   it("swaps the top on a replace and merges it into an equal screen below", () => {
