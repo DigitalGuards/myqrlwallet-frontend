@@ -303,6 +303,20 @@ describe('NATIVE_BACK goes where the page Back goes', () => {
     expect(sendToNative).toHaveBeenCalledWith('BACK_HANDLED');
   });
 
+  it('finds the page when the fragment escapes its query differently', () => {
+    // The router keeps a backtick in the query; the address bar escapes it
+    // in the fragment, which is where the bridge reads the route.
+    const routerPath = '/token-status?name=a`b';
+    recordRoute('/', 'POP');
+    recordRoute(routerPath, 'PUSH');
+    registerPageBack({ path: routerPath, fallback: '/', disabled: true });
+    window.location.hash = `#${routerPath}`;
+    expect(window.location.hash).toBe('#/token-status?name=a%60b');
+    receive({ type: 'NATIVE_BACK' });
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(sendToNative).toHaveBeenCalledWith('BACK_HANDLED');
+  });
+
   it('reports at-root on Home with nothing to close', () => {
     recordRoute('/', 'POP');
     window.location.hash = '';

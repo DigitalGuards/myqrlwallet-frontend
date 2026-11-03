@@ -357,6 +357,29 @@ describe("recording follows the router", () => {
 });
 
 describe("Android back agrees with the page's on-screen Back", () => {
+  it.each([
+    // The router keeps an escape that the reported fragment decodes, as
+    // Firefox reports it.
+    ["a decoded fragment", "/token-status?name=My%20Token", "/token-status?name=My Token"],
+    // The router keeps a backtick that the browser escapes in the fragment.
+    ["an escaped fragment", "/token-status?name=a`b", "/token-status?name=a%60b"],
+  ])("finds the page through %s", (_name, routerPath, hashPath) => {
+    recordRoute("/", "POP");
+    recordRoute(routerPath, "PUSH");
+    registerPageBack({ path: routerPath, fallback: "/", disabled: true });
+
+    expect(resolveNativeBack(navigate, hashPath)).toBe("handled");
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("sets the page shown aside on the trail whatever its spelling", () => {
+    recordRoute("/", "POP");
+    recordRoute("/legal?from=a%20b", "PUSH");
+
+    expect(resolveNativeBack(navigate, "/legal?from=a b#top")).toBe("handled");
+    expect(navigate).toHaveBeenCalledWith("/");
+  });
+
   it("uses the page's parent when the trail is empty", () => {
     recordRoute("/disclaimer", "POP");
     registerPageBack({ path: "/disclaimer", fallback: "/legal", disabled: false });

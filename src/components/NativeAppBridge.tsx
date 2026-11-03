@@ -619,7 +619,9 @@ const NativeAppBridge: React.FC = () => {
           // while that control is held), else report that there is nothing
           // left so the app can background itself. Exactly one answer per
           // request. An overlay closes through its own dismiss path, so an
-          // approval sheet rejects and can never approve.
+          // approval sheet rejects and can never approve. The route comes
+          // from the fragment, which can escape a query unlike the router;
+          // nativeBack decodes both the same way before it compares them.
           const outcome = resolveNativeBack(
             navigateFromNative,
             window.location.hash.replace(/^#/, "") || "/",

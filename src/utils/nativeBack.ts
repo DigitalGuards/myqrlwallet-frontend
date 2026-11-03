@@ -94,6 +94,30 @@ function sameIndex(a: number | undefined, b: number | undefined): boolean {
   return a === undefined || b === undefined || a === b;
 }
 
+/**
+ * One spelling of a route, to compare routes by. The router keeps
+ * `pathname + search` as it encoded them. The address bar's fragment, where
+ * the phone app reads the route, can spell the same screen with other
+ * percent-escapes (a browser escapes a backtick there, and Firefox decodes
+ * the fragment it reports), and can carry a fragment of its own. Both sides
+ * are cut at a fragment and decoded the same way.
+ */
+function routeKey(path: string): string {
+  const hashAt = path.indexOf("#");
+  const route = hashAt === -1 ? path : path.slice(0, hashAt);
+  try {
+    return decodeURIComponent(route);
+  } catch {
+    // A malformed escape: compare the spelling as it is.
+    return route;
+  }
+}
+
+/** True when two spellings name the same route. */
+function sameRoute(a: string, b: string): boolean {
+  return a === b || routeKey(a) === routeKey(b);
+}
+
 /** The route the wallet treats as root. */
 export const HOME_ROUTE = "/";
 
@@ -148,7 +172,9 @@ function pageBackAt(currentPath: string): PageBackTarget | undefined {
   const latest = pageBacks[pageBacks.length - 1];
   // A registration left over from the previous page during a route change
   // does not apply to this one.
-  return latest?.target.path === currentPath ? latest.target : undefined;
+  return latest !== undefined && sameRoute(latest.target.path, currentPath)
+    ? latest.target
+    : undefined;
 }
 
 /**
@@ -206,7 +232,11 @@ export function recordRoute(
 /** Stack depth once the entries for the screen being left are set aside. */
 function depthBelow(currentPath: string): number {
   let depth = routeStack.length;
-  while (depth > 0 && routeStack[depth - 1]?.path === currentPath) depth -= 1;
+  while (depth > 0) {
+    const entry = routeStack[depth - 1];
+    if (entry === undefined || !sameRoute(entry.path, currentPath)) break;
+    depth -= 1;
+  }
   return depth;
 }
 
@@ -245,7 +275,7 @@ export function resolveRouteBack(
     history.back();
     return true;
   }
-  if (fallback === undefined || fallback === currentPath) return false;
+  if (fallback === undefined || sameRoute(fallback, currentPath)) return false;
   // The trail starts over at the parent: whatever was below this page is
   // not behind it in the browser.
   routeStack.length = 0;
@@ -283,7 +313,7 @@ export function resolveNativeBack(
   if (page?.disabled === true) return "handled";
   if (resolveRouteBack(navigate, currentPath, page?.fallback)) return "handled";
 
-  if (currentPath !== HOME_ROUTE) {
+  if (!sameRoute(currentPath, HOME_ROUTE)) {
     routeStack.length = depthBelow(currentPath);
     navigate(HOME_ROUTE);
     return "handled";
