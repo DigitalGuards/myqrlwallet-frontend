@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "@jest/globals";
 import { createServer } from "node:http";
-import { Web3, HttpProvider } from "@theqrl/web3";
+import { HttpProvider, InvalidResponseError, Web3 } from "@theqrl/web3";
 import type { JsonRpcId } from "@theqrl/web3";
 import { isDefinitiveBroadcastRejection } from "../dappBroadcastOutcome";
 import { waitForDAppBroadcastSettlement } from "../dappBroadcastSettlement";
@@ -271,6 +271,62 @@ describe("the node refused it", () => {
       error: { code: 3, message: "execution reverted: nope", data: "0x" },
     }));
     expect(isDefinitiveBroadcastRejection(error)).toBe(true);
+  });
+});
+
+describe("the node answered, but not with a refusal", () => {
+  // Since @theqrl/web3 2.0.0 the client checks a broadcast reply before it
+  // trusts it, and raises InvalidResponseError, the class an in-band refusal
+  // also arrives as, when the check fails. Nothing in these replies says the
+  // transaction was refused, and the node may hold it, so each must stay open.
+  // Under 1.0.3 the first three resolved and the wallet polled the reply.
+  const OTHER_HASH = `0x${"ab".repeat(32)}`;
+
+  it.each([
+    ["a hash other than keccak256 of the bytes sent", rpcBody({ result: OTHER_HASH })],
+    ["a result that is not a hash", rpcBody({ result: "0x12" })],
+    [
+      "a result carrying another request's id",
+      () => JSON.stringify({ jsonrpc: "2.0", id: "another-request", result: OTHER_HASH }),
+    ],
+    [
+      "a refusal carrying another request's id",
+      () =>
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: "another-request",
+          error: { code: -32000, message: "nonce too low" },
+        }),
+    ],
+  ])("treats %s as open", async (_label, body) => {
+    const error = await broadcastThroughHttp({ status: 200, contentType: "application/json", body });
+    expect(error).toBeInstanceOf(InvalidResponseError);
+    expect(isDefinitiveBroadcastRejection(error)).toBe(false);
+  }, HTTP_BROADCAST_TIMEOUT);
+
+  it("still treats the node's own refusal of the same request as definitive", async () => {
+    const error = await broadcastError(nodeError("nonce too low"));
+    expect(error).toBeInstanceOf(InvalidResponseError);
+    expect(error.message).toMatch(/^Returned error: /);
+    expect(isDefinitiveBroadcastRejection(error)).toBe(true);
+  });
+
+  it("answers the dApp with the local hash when the node reports another one", async () => {
+    // The pay-twice case again: calling this a failure would have the user
+    // send a transaction the node may already hold.
+    const error = await broadcastError(() => ({ result: OTHER_HASH }));
+    const calls: Array<[string, string]> = [];
+    await waitForDAppBroadcastSettlement(
+      rejectingPromiEvent(error),
+      {
+        onTransactionHash: (hash: string) => calls.push(["hash", hash]),
+        onSuccess: (hash: string) => calls.push(["success", hash]),
+        onFailure: (message: string) => calls.push(["failure", message]),
+        onUnknown: (hash: string, _message: string) => calls.push(["unknown", hash]),
+      },
+      { localHash: LOCAL_HASH },
+    );
+    expect(calls).toEqual([["unknown", LOCAL_HASH]]);
   });
 });
 
