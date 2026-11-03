@@ -12,7 +12,7 @@ import {
   fakeHistory,
   fakeRouterModule as mockRouterModule,
   useFakeLocation,
-} from "./fakeRouterHistory";
+} from "@/test-utils/fakeRouterHistory";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { observable, runInAction } from "mobx";
 import type { NFTInterface } from "@/constants";

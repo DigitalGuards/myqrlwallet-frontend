@@ -1,0 +1,319 @@
+/** @jest-environment jsdom */
+import {
+  fakeHistory,
+  fakeRouterModule as mockRouterModule,
+  useFakeLocation,
+} from "@/test-utils/fakeRouterHistory";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useNavigate } from "react-router";
+import RouteMonitor from "../../RouteMonitor/RouteMonitor";
+import { PageShell } from "../PageShell";
+import { PageBack, RouteBack } from "../PageBack";
+import type { PageBackConfig } from "@/router/pageBack";
+import { ROUTES, type RoutePath } from "@/router/routes";
+import {
+  recordedRoutesForTests,
+  resetNativeBackForTests,
+  resolveNativeBack,
+} from "@/utils/nativeBack";
+import { applyLanguage } from "@/i18n";
+
+/**
+ * The on-screen Back against a model of browser history, with the real
+ * RouteMonitor recording the trail, and Android back resolved by the same
+ * function the phone app's bridge calls.
+ */
+
+jest.mock("react-router", () => mockRouterModule());
+jest.mock("@/stores/store", () => ({
+  useStore: () => ({ qrlStore: { qrlConnection: { isConnected: false } } }),
+}));
+jest.mock("@/utils/storage", () => ({
+  StorageUtil: {
+    getActivePage: () => Promise.resolve(""),
+    setActivePage: () => Promise.resolve(),
+  },
+}));
+jest.mock("@/router/router", () => ({
+  ROUTES: jest.requireActual<typeof import("@/router/routes")>(
+    "@/router/routes",
+  ).ROUTES,
+}));
+jest.mock("mobx-react-lite", () => ({
+  observer: (component: unknown) => component,
+}));
+
+const PAGES: Record<
+  string,
+  { route: RoutePath; title: string; links?: readonly string[] }
+> = {
+  "/": { route: ROUTES.HOME, title: "Home", links: ["/legal", "/create-token"] },
+  "/legal": {
+    route: ROUTES.LEGAL,
+    title: "Imprint",
+    links: ["/disclaimer", "/security"],
+  },
+  "/disclaimer": { route: ROUTES.DISCLAIMER, title: "Disclaimer" },
+  "/security": { route: ROUTES.SECURITY, title: "Security", links: ["/legal"] },
+  "/create-token": {
+    route: ROUTES.CREATE_TOKEN,
+    title: "Create token",
+    links: ["/token-status"],
+  },
+  "/token-status": { route: ROUTES.TOKEN_STATUS, title: "Token status" },
+  "/settings": { route: ROUTES.SETTINGS, title: "Settings" },
+};
+
+/** A page-specific Back for the token status page, when a test sets one. */
+let tokenStatusBack: PageBackConfig | undefined;
+
+function Page({ path }: { path: string }) {
+  const navigate = useNavigate();
+  const page = PAGES[path];
+  if (!page) throw new Error(`No test page at ${path}`);
+  const back =
+    path === "/token-status" && tokenStatusBack ? (
+      <PageBack {...tokenStatusBack} />
+    ) : (
+      <RouteBack route={page.route} platform="web" />
+    );
+  return (
+    <PageShell title={page.title} back={back}>
+      {(page.links ?? []).map((link) => (
+        <button
+          key={link}
+          type="button"
+          onClick={() => {
+            void navigate(link);
+          }}
+        >
+          Open {link}
+        </button>
+      ))}
+    </PageShell>
+  );
+}
+
+/** The router's role: one page per location, remounted when it changes. */
+function AppShell() {
+  const { pathname } = useFakeLocation();
+  return (
+    <>
+      <RouteMonitor />
+      <Page key={pathname} path={pathname} />
+    </>
+  );
+}
+
+/** Loads the wallet onto browser history as it finds it. */
+async function mount(urls: string[], at?: number) {
+  fakeHistory.load(urls, at);
+  await act(async () => {
+    render(<AppShell />);
+    await Promise.resolve();
+  });
+}
+
+const here = () => {
+  const { pathname, search } = fakeHistory.current();
+  return `${pathname}${search}`;
+};
+
+async function open(path: string) {
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: `Open ${path}` }));
+    await Promise.resolve();
+  });
+}
+
+async function pressBack() {
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    await Promise.resolve();
+  });
+}
+
+/** What the phone app's bridge does on NATIVE_BACK. */
+function pressAndroidBack() {
+  return resolveNativeBack((path, options) => {
+    fakeHistory.navigate(path, options);
+  }, here());
+}
+
+beforeEach(() => {
+  resetNativeBackForTests();
+  tokenStatusBack = undefined;
+  jest.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+});
+afterEach(async () => {
+  cleanup();
+  jest.restoreAllMocks();
+  resetNativeBackForTests();
+  await applyLanguage("en");
+});
+
+type Scenario = {
+  /** Browser history as the wallet finds it, showing the last entry. */
+  urls: string[];
+  /** In-app links followed after the load. */
+  opens: string[];
+  /** Where one Back press must land. */
+  expected: string;
+};
+
+const scenarios: Record<string, Scenario> = {
+  "in-app history": {
+    urls: ["/"],
+    opens: ["/legal", "/disclaimer"],
+    expected: "/legal",
+  },
+  "a deep link": { urls: ["/disclaimer"], opens: [], expected: "/legal" },
+  // Browser history survives a reload, the in-app trail does not. The
+  // entry behind the page is another screen, and Back still takes the
+  // parent.
+  "a reload": {
+    urls: ["/create-token", "/disclaimer"],
+    opens: [],
+    expected: "/legal",
+  },
+};
+
+describe.each(Object.entries(scenarios))("after %s", (_name, scenario) => {
+  async function arrive() {
+    await mount(scenario.urls);
+    for (const path of scenario.opens) await open(path);
+    expect(here()).toBe("/disclaimer");
+  }
+
+  it("Back lands on the expected screen without stepping history", async () => {
+    await arrive();
+    const entriesBefore = fakeHistory.length();
+    await pressBack();
+    expect(here()).toBe(scenario.expected);
+    // A push or a replace: never a step back through browser history,
+    // which could leave the wallet.
+    expect(fakeHistory.action()).not.toBe("POP");
+    expect(fakeHistory.length()).toBeGreaterThanOrEqual(entriesBefore);
+  });
+
+  it("Android back lands on the same screen", async () => {
+    await arrive();
+    expect(pressAndroidBack()).toBe("handled");
+    expect(here()).toBe(scenario.expected);
+  });
+});
+
+it("replaces a deep-linked page with its parent, so it cannot come back", async () => {
+  await mount(["/disclaimer"]);
+  await pressBack();
+  expect(here()).toBe("/legal");
+  expect(fakeHistory.action()).toBe("REPLACE");
+  await pressBack();
+  expect(here()).toBe("/");
+  expect(fakeHistory.action()).toBe("REPLACE");
+  expect(fakeHistory.length()).toBe(1);
+  // Home is a menu destination.
+  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+  expect(recordedRoutesForTests()).toEqual(["/"]);
+});
+
+it("walks every visit back once and stops at the menu page", async () => {
+  await mount(["/"]);
+  for (const path of ["/legal", "/security", "/legal", "/disclaimer"])
+    await open(path);
+  const landed: string[] = [];
+  while (screen.queryByRole("button", { name: "Back" })) {
+    await pressBack();
+    landed.push(here());
+  }
+  expect(landed).toEqual(["/legal", "/security", "/legal", "/"]);
+  expect(pressAndroidBack()).toBe("at-root");
+});
+
+it("continues from where a browser back landed", async () => {
+  await mount(["/"]);
+  await open("/legal");
+  await open("/disclaimer");
+  // The browser's own Back, on the web.
+  fakeHistory.back();
+  expect(here()).toBe("/legal");
+  await pressBack();
+  expect(here()).toBe("/");
+});
+
+it("shows no Back on a menu destination", async () => {
+  await mount(["/settings"]);
+  expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+});
+
+it("places Back above the title, inside the page frame", async () => {
+  await mount(["/disclaimer"]);
+  const back = screen.getByRole("button", { name: "Back" });
+  const heading = screen.getByRole("heading", { level: 1 });
+  const header = heading.closest("header");
+  expect(header?.contains(back)).toBe(false);
+  expect(header?.parentElement?.firstElementChild).toBe(
+    back.closest("[data-page-back]"),
+  );
+  expect(back.getAttribute("type")).toBe("button");
+});
+
+it("works from the keyboard", async () => {
+  const user = userEvent.setup();
+  await mount(["/"]);
+  await open("/create-token");
+  await user.tab();
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Back" }),
+  );
+  await user.keyboard("{Enter}");
+  expect(here()).toBe("/");
+
+  await open("/legal");
+  await open("/disclaimer");
+  await user.tab();
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Back" }),
+  );
+  await user.keyboard(" ");
+  expect(here()).toBe("/legal");
+});
+
+it("holds both backs while the page holds its Back", async () => {
+  tokenStatusBack = { fallback: ROUTES.HOME, disabled: true };
+  await mount(["/"]);
+  await open("/create-token");
+  await open("/token-status");
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(back).toHaveProperty("disabled", true);
+  await pressBack();
+  expect(here()).toBe("/token-status");
+  expect(pressAndroidBack()).toBe("handled");
+  expect(here()).toBe("/token-status");
+});
+
+it("lets a page replace the walk back", async () => {
+  const onBack = jest.fn();
+  tokenStatusBack = { fallback: ROUTES.HOME, onBack };
+  await mount(["/token-status"]);
+  await pressBack();
+  expect(onBack).toHaveBeenCalledTimes(1);
+  expect(here()).toBe("/token-status");
+});
+
+it.each([
+  ["de", "Zurück"],
+  ["es", "Volver"],
+  ["ru", "Назад"],
+  ["zh-CN", "返回"],
+  ["en", "Back"],
+] as const)("is labelled in %s", async (language, label) => {
+  await mount(["/disclaimer"]);
+  await act(async () => {
+    await applyLanguage(language);
+  });
+  const back = screen.getByRole("button", { name: label });
+  expect(back.textContent).toBe(label);
+});
