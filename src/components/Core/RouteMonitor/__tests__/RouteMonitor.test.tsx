@@ -231,3 +231,28 @@ it("records no index when the browser keeps none for the entry", () => {
   render(<RouteMonitor />);
   expect(recordRoute).toHaveBeenCalledWith("/transfer", "POP", undefined);
 });
+
+it("opens a new page at its top, and keeps the position on a query change", () => {
+  // The app's scroll container, as index.html and src/index.css make it.
+  const root = document.createElement("div");
+  root.id = "root";
+  document.body.append(root);
+  try {
+    root.scrollTop = 400;
+    const view = render(<RouteMonitor />);
+    expect(root.scrollTop).toBe(0);
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
+
+    // A collection opened on the same page changes only the query.
+    root.scrollTop = 400;
+    mockSearch = "?collection=abc";
+    view.rerender(<RouteMonitor />);
+    expect(root.scrollTop).toBe(400);
+
+    mockPathname = "/terms";
+    view.rerender(<RouteMonitor />);
+    expect(root.scrollTop).toBe(0);
+  } finally {
+    root.remove();
+  }
+});

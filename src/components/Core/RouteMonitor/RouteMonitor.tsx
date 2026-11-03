@@ -46,7 +46,13 @@ const RouteMonitor = observer(() => {
     });
   }, [isConnected, navigate]);
 
+  // A new page opens at its top, with its Back in view. `#root` is the
+  // scroll container (src/index.css), so the window alone never moves; it
+  // is scrolled too in case that layout is missing. A change of the query
+  // or the fragment alone keeps the position.
   useEffect(() => {
+    const root = document.getElementById("root");
+    if (root) root.scrollTop = 0;
     window.scrollTo(0, 0);
     void StorageUtil.setActivePage(pathname).catch((error: unknown) => {
       logger.error("Failed to save active page:", error);
