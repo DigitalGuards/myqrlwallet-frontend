@@ -244,11 +244,12 @@ jobs:
           EMBEDDED_RESULT: ${{ needs.embedded-checks.result }}
         run: test "$EMBEDDED_RESULT" = success
 
-  # Decides whether the approval visibility smoke runs. It always runs on pull
-  # requests into main, the weekly run and dispatch. Other pull requests run it
-  # when they change the approval screens and their dApp review logic, the
-  # language catalogs and i18n runtime, shared layout, the smoke and its
-  # helpers, the package manifest or lockfile, or this CI wiring. An error here
+  # Decides whether the approval visibility smoke runs. It always runs on
+  # promotion and release pull requests into main, the weekly run and dispatch,
+  # so everything reaching production passed it. Other pull requests, including
+  # Dependabot's into main, run it when they change what the approval screens
+  # draw: their components and store, shared UI, the dapps and common catalogs,
+  # global CSS, the smoke and its helpers, or this CI wiring. An error here
   # fails approval-smoke, and with it lint-and-build.
   approval-scope:
     if: ${{ github.event_name != 'push' }}
@@ -258,7 +259,7 @@ jobs:
       run: ${{ steps.scope.outputs.run }}
     steps:
       - name: Checkout repository
-        if: ${{ github.event_name == 'pull_request' && github.base_ref != 'main' }}
+        if: ${{ github.event_name == 'pull_request' && (github.base_ref != 'main' || startsWith(github.head_ref, 'dependabot/')) }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2
@@ -269,6 +270,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           set -euo pipefail
           decide() {
@@ -280,8 +282,8 @@ jobs:
             decide true "runs on every $EVENT_NAME run."
             exit 0
           fi
-          if [ "$BASE_REF" = main ]; then
-            decide true "runs on every pull request into main."
+          if [ "$BASE_REF" = main ] && [[ "$HEAD_REF" != dependabot/* ]]; then
+            decide true "runs on every promotion or release pull request into main."
             exit 0
           fi
           # The checked-out merge commit's first parent is the base branch tip,
@@ -291,7 +293,7 @@ jobs:
             exit 0
           fi
           changed="$(git diff --name-only 'HEAD^1' HEAD)"
-          approval_paths='^(src/components/Core/Body/DAppConnect/|src/services/dappConnect/|src/stores/dappConnectStore\.ts$|src/components/UI/|src/locales/|src/i18n/|src/index\.css$|src/main\.tsx$|index\.html$|config/vite\.config\.ts$|scripts/(smoke-approval-visibility\.mjs|check-approval-shards\.(test\.)?mjs|approval-[^/]+|i18n-smoke-options\.mjs)$|package(-lock)?\.json$|\.github/workflows/ci\.yml$|\.github/actions/setup-chromium/)'
+          approval_paths='^(src/components/Core/Body/DAppConnect/|src/stores/dappConnectStore\.ts$|src/components/UI/|src/locales/[^/]+/(dapps|common)\.json$|src/index\.css$|scripts/(smoke-approval-visibility\.mjs|check-approval-shards\.(test\.)?mjs|approval-[^/]+)$|\.github/workflows/ci\.yml$|\.github/actions/setup-chromium/)'
           # Test-only files never reach the bundle the smoke serves.
           matched="$(printf '%s\n' "$changed" | { grep -v '/__tests__/' || true; } | { grep -E "$approval_paths" || true; })"
           if [ -n "$matched" ]; then
