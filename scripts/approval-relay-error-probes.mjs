@@ -21,7 +21,8 @@ export async function relayErrorProbes({ origin, language, output }) {
     "wrapper-collision": "Message signing failed: upstream authorization-id-17",
   };
   const results = [];
-  const browser = await chromium.launch();
+  // The channel the rest of the approval smoke runs on; CI installs only this build.
+  const browser = await chromium.launch({ channel: "chromium" });
   try {
     for (const kind of [
       "collision",
