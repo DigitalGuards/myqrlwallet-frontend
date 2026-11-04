@@ -1,4 +1,5 @@
-/** @jest-environment jsdom */
+// Shared slice 6 error parity suite. Each slice6ErrorParity.<language>.test.tsx
+// file runs one language, so Jest workers can share the five languages.
 // Error text oracle starts from origin/dev at b7a0fac72ace1f3c393c6335499df1fd1d1c0366.
 // Tuple diagnostics reflect the Zod 4.6.7 upgrade.
 // All languages must match its rendered English bytes. External calls are stubbed.
@@ -389,7 +390,8 @@ function enterPin() {
 function throwDiagnostic(cause: unknown): never {
   throw cause;
 }
-const languages = ["en", "de", "es", "ru", "zh-CN"] as const;
+export const slice6Languages = ["en", "de", "es", "ru", "zh-CN"] as const;
+export type Slice6Language = (typeof slice6Languages)[number];
 const methods = ["qrl_signMessage", "qrl_signTypedData"] as const;
 
 const diagnostics = [
@@ -435,9 +437,8 @@ const diagnostics = [
   "The network did not confirm whether this transaction was accepted. Check the explorer before sending it again.",
 ];
 
-describe.each(languages)(
-  "%s matches the base English error renderer",
-  (language) => {
+export function slice6ErrorParity(language: Slice6Language) {
+  describe(`${language} matches the base English error renderer`, () => {
     beforeEach(async () => {
       await applyLanguage(language);
     });
@@ -820,5 +821,5 @@ describe.each(languages)(
       );
       expectError("invalid amount and fee", JSON.stringify(values));
     });
-  },
-);
+  });
+}
