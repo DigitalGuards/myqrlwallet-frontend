@@ -1,5 +1,6 @@
 // Headless Chromium only. Synthetic reviews, local RPC replies, no signatures.
 import { approvalCopy, approvalLanguages, runApprovalLanguages } from "./approval-languages.mjs";
+import { smokeLanguages } from "./i18n-smoke-options.mjs";
 import { installApprovalObserver } from "./approval-observer.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -29,7 +30,9 @@ const output =
 const started = Date.now();
 const baseline = process.env.APPROVAL_BASELINE === "1";
 if (!process.env.APPROVAL_LANGUAGE && !baseline) {
-  await runApprovalLanguages(output);
+  // `--languages de,es` selects languages (default: all five); each one still
+  // runs as its own probe process and keeps the per-language count checks.
+  await runApprovalLanguages(output, smokeLanguages(process.argv.slice(2), approvalLanguages));
   process.exit(0);
 }
 const language = process.env.APPROVAL_LANGUAGE || "en";

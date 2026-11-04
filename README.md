@@ -73,7 +73,7 @@ npm run typecheck   # Check app and build-tool TypeScript
 npm test            # Run tests
 ```
 
-The lint ratchet in `config/eslint.config.js` lists all remaining findings as exact file/rule pairs, including tests, and only shrinks. After fixing a pair, run `npm run lint:ratchet:update`; CI runs `npm run lint:ratchet` to reject new pairs, stale entries, and noncanonical formatting.
+The lint ratchet in `config/eslint.config.js` lists all remaining findings as exact file/rule pairs, including tests, and only shrinks. After fixing a pair, run `npm run lint:ratchet:update`; CI runs `npm run lint:ratchet` to reject new pairs, stale entries, and noncanonical formatting. Its first pass matches `npm run lint`, so CI lints the tree once.
 
 ## Languages
 
@@ -144,11 +144,11 @@ kubectl apply -f deploy/k8s/cluster-issuer.yaml  # Once per cluster
 
 ## CI/CD
 
-The GitHub Actions workflow (`.github/workflows/ci.yml`) automatically:
+The GitHub Actions workflow (`.github/workflows/ci.yml`):
 
-1. **On PR/Push**: Runs lint, typecheck, test and build checks
-2. **On Push to main/dev**: Builds and pushes Docker image to GitHub Container Registry
-3. **On Push to main**: Deploys to Kubernetes cluster
+1. **On pull requests into dev and main**: runs the full gate once: audit, lint ratchet, typecheck, tests, build, boot smoke, the web and embedded language smokes, and the approval visibility smoke when a pull request changes approval paths or targets main. The required check is `lint-and-build (22.22.x)`.
+2. **Every Monday at 03:00 UTC (on dev) and on manual dispatch**: runs the same full gate, including the approval visibility smoke.
+3. **On push to main and on manual dispatch**: builds and pushes the Docker image to GitHub Container Registry. The Kubernetes deploy job is disabled.
 
 Both CI and embedded builds run `node scripts/audit-gate.mjs` immediately after dependency installation. The gate rejects high or critical production advisories unless `audit-allowlist.json` supplies a matching reason and an unexpired exception.
 
@@ -158,7 +158,7 @@ Both CI and embedded builds run `node scripts/audit-gate.mjs` immediately after 
 
 - `ghcr.io/<owner>/myqrlwallet-frontend:latest` - Latest main branch
 - `ghcr.io/<owner>/myqrlwallet-frontend:main-<sha>` - Specific commit
-- `ghcr.io/<owner>/myqrlwallet-frontend:dev` - Dev branch
+- `ghcr.io/<owner>/myqrlwallet-frontend:dev` - Dev branch, when the workflow is dispatched there
 
 ### Required GitHub Configuration
 

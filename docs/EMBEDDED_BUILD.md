@@ -256,9 +256,9 @@ Push a tag matching `embedded-v*`. The `Embedded build` workflow builds, checks,
 and attaches `index.html` and `index.html.sha256` to a GitHub release, which
 gives the app a stable URL plus the digest it should verify.
 
-Every pull request and every push to `main` or `dev` uploads the same two files
-as a workflow artifact, so a change to the embedded output is reviewable before
-it is tagged.
+Every pull request, the weekly CI run and a manual dispatch upload the same two
+files as a workflow artifact, so a change to the embedded output is reviewable
+before it is tagged.
 
 ## Flags
 
