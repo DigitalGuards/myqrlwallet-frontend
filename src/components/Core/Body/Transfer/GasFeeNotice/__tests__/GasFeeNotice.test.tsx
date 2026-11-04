@@ -79,9 +79,10 @@ it("quotes after the debounce and keeps the exact gas limit and fees", async () 
   expect(onFeeLevelChange).toHaveBeenCalledWith("high");
 });
 
-// The form hands over the amount as typed. Since @theqrl/web3 2.0.0,
-// toPlanck(".") throws a Web3ValidatorError whose raw text reached the fee row.
-it.each([".", "1.", "abc", "1e5", "1,000"])(
+// The form hands over the amount as typed. Since @theqrl/web3 2.0.0, toPlanck
+// throws on "." and on more than 18 decimals, and its raw text reached the fee
+// row.
+it.each([".", "1.", "abc", "1e5", "1,000", "1.0000000000000000001", "0.0000000000000000001"])(
   "shows the estimate hint and asks for no quote while the amount reads %s",
   async (value) => {
     render(<GasFeeNotice {...props} value={value} />);
@@ -93,6 +94,17 @@ it.each([".", "1.", "abc", "1e5", "1,000"])(
     expect(screen.queryByText(/validator|error/i)).toBeNull();
   },
 );
+
+// The form accepts this amount, so the fee row has to quote it too.
+it("quotes an amount whose digits past the eighteenth are zeros", async () => {
+  render(<GasFeeNotice {...props} value="1.0000000000000000000" />);
+  await startQuoteAfterDebounce();
+  expect(mockEstimate).toHaveBeenCalledWith({
+    from: "sender",
+    to: "recipient",
+    value: "1000000000000000000",
+  });
+});
 
 it("quotes once typing goes on from \".\" to \".5\"", async () => {
   const view = render(<GasFeeNotice {...props} value="." />);

@@ -4008,7 +4008,7 @@ exports[`Transfer amount validation: 0.1234567890123456789 1`] = `
       ],
     ],
   ],
-  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxEnter an amount with at most 18 decimal placesTransaction PINEnter the PIN used to encrypt your wallet seedPIN must be between 4 to 6 digitsNetwork feeEstimating fee...SlowMediumFastCancelSend Quanta",
+  "text": "TransferSend Quanta or tokens to another walletAssetQuanta (Native)FromQ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111Available: 123.4567 QuantaCopyView on ExplorerSend toEnter a QRL address or QNS name, or pick a contactRecipient address verified.Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222AmountPercentage of balance0%25%50%75%MaxEnter an amount with at most 18 decimal placesTransaction PINEnter the PIN used to encrypt your wallet seedPIN must be between 4 to 6 digitsNetwork feeEnter recipient and amount to estimateSlowMediumFastCancelSend Quanta",
 }
 `;
 
