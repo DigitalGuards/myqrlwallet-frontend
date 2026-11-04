@@ -123,6 +123,12 @@ function fixture() {
 }
 let mockStore = fixture();
 // Apply real Helmet updates inside act before capturing document.title.
+// The page Back control is excluded from the English oracle, like the
+// Language row (docs/I18N.md). It has its own tests.
+jest.mock("@/components/Core/Layout/PageBack", () => ({
+  PageBack: () => null,
+  RouteBack: () => null,
+}));
 jest.mock("react-helmet-async", () => {
   const actual =
     jest.requireActual<typeof import("react-helmet-async")>(

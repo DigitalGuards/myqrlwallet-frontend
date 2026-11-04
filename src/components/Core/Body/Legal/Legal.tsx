@@ -1,5 +1,6 @@
 import { LegalLanguageNote } from "@/components/Core/Layout/LegalLanguageNote";
 import { PageShell } from "@/components/Core/Layout/PageShell";
+import { RouteBack } from "@/components/Core/Layout/PageBack";
 import { Card } from "@/components/UI/Card";
 import { Link } from "react-router";
 import { SEO } from "@/components/SEO/SEO";
@@ -10,7 +11,11 @@ const linkClass =
 
 const Legal = () => {
     return (
-        <PageShell title="Imprint" width="wide">
+        <PageShell
+          title="Imprint"
+          width="wide"
+          back={<RouteBack route={ROUTES.LEGAL} />}
+        >
             <SEO
                 title="Imprint"
                 description="Imprint and legal identification for MyQRLWallet, provided by DigitalGuards (eenmanszaak, Netherlands)."

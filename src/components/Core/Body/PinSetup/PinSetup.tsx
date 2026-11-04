@@ -7,7 +7,7 @@ import {
 } from "@/utils/crypto/verifyPinWithLimit";
 import { MAX_WALLET_PASSWORD_LENGTH } from "@/utils/crypto/walletPasswordLimits";
 import { PageShell } from "@/components/Core/Layout/PageShell";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { Card, CardContent, CardFooter } from "../../../UI/Card";
 import {
   Form,
@@ -84,6 +84,12 @@ type PinSetupProps = {
   // On desktop the signer provisions the wallet and returns the address, which
   // is passed back so the caller can set it active.
   onPinSetupComplete: (provisionedAddress?: string) => void | Promise<void>;
+  /**
+   * The page's Back. `held` is true while the wallet is being saved: the
+   * write and the selection run on after the page closes, so the success
+   * screen would never show.
+   */
+  renderBack?: (held: boolean) => ReactNode;
 };
 
 export const PinSetup = ({
@@ -91,6 +97,7 @@ export const PinSetup = ({
   mnemonic,
   hexSeed,
   onPinSetupComplete,
+  renderBack,
 }: PinSetupProps) => {
   // Desktop provisioning chokepoint: collect a PASSWORD (not a PIN) and import
   // the wallet via the signer. No seed material is encrypted or stored in the
@@ -101,6 +108,7 @@ export const PinSetup = ({
         mnemonic={mnemonic}
         hexSeed={hexSeed}
         onPinSetupComplete={onPinSetupComplete}
+        renderBack={renderBack}
       />
     );
   }
@@ -110,6 +118,7 @@ export const PinSetup = ({
       mnemonic={mnemonic}
       hexSeed={hexSeed}
       onPinSetupComplete={onPinSetupComplete}
+      renderBack={renderBack}
     />
   );
 };
@@ -133,10 +142,12 @@ const DesktopPasswordSetup = ({
   mnemonic,
   hexSeed,
   onPinSetupComplete,
+  renderBack,
 }: {
   mnemonic: string;
   hexSeed?: string;
   onPinSetupComplete: (provisionedAddress?: string) => void | Promise<void>;
+  renderBack?: (held: boolean) => ReactNode;
 }) => {
   const { t } = useTranslation(["onboarding", "common", "settings"]);
   const [isProvisioning, setIsProvisioning] = useState(false);
@@ -179,6 +190,7 @@ const DesktopPasswordSetup = ({
       title={t("onboarding:setPassword")}
       subtitle={t("onboarding:setPasswordHelp")}
       seoTitle={t("onboarding:importTitle")}
+      back={renderBack?.(isSubmitting || isProvisioning)}
     >
       <Form {...form}>
         <form
@@ -264,6 +276,7 @@ const WebPinSetup = ({
   mnemonic,
   hexSeed,
   onPinSetupComplete,
+  renderBack,
 }: PinSetupProps) => {
   const { t } = useTranslation(["onboarding", "common", "settings"]);
   const { qrlStore } = useStore();
@@ -402,6 +415,7 @@ const WebPinSetup = ({
       <PageShell
         title={t("onboarding:secureWallet")}
         seoTitle={t("onboarding:importTitle")}
+        back={renderBack?.(false)}
       >
         <Card>
           <CardContent className="flex items-center justify-center p-6">
@@ -420,6 +434,7 @@ const WebPinSetup = ({
           : t("onboarding:setTransactionPin")
       }
       seoTitle={t("onboarding:importTitle")}
+      back={renderBack?.(isSubmitting || isStoringPin)}
     >
       <Form {...form}>
         <form

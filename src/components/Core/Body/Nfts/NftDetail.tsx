@@ -15,10 +15,11 @@ import {
   verifyPinWithLimit,
 } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
+import { RouteBack } from "@/components/Core/Layout/PageBack";
 import { observer } from "mobx-react-lite";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2, Send } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -92,10 +93,18 @@ const NftDetail = observer(() => {
     [nftStore.nftList, contractAddress],
   );
 
+  // Where Back goes with no history behind this page: the collection view,
+  // or Home once the wallet no longer holds the collection.
+  const parentPath = walletHoldsCollection
+    ? nftCollectionPath(ROUTES.HOME, contractAddress)
+    : ROUTES.HOME;
+
   // Back pops the pushed entry when this page was opened from its
   // collection view, so the in-app Back button matches the browser Back
   // button. A deep link has nothing to pop, so it navigates to the
   // collection view (replacing this entry, which leaves no dead end).
+  // Android back reaches the same collection view through the recorded
+  // trail, or through `parentPath` when the trail is empty.
   const onBack = () => {
     if (openedFromCollectionView(location.state)) {
       Promise.resolve(navigate(-1)).catch((error: unknown) => {
@@ -103,16 +112,11 @@ const NftDetail = observer(() => {
       });
       return;
     }
-    Promise.resolve(
-      navigate(
-        walletHoldsCollection
-          ? nftCollectionPath(ROUTES.HOME, contractAddress)
-          : ROUTES.HOME,
-        { replace: true },
-      ),
-    ).catch((error: unknown) => {
-      reportError("Failed to open NFT collection:", error);
-    });
+    Promise.resolve(navigate(parentPath, { replace: true })).catch(
+      (error: unknown) => {
+        reportError("Failed to open NFT collection:", error);
+      },
+    );
   };
 
   const [toAddress, setToAddress] = useState("");
@@ -146,11 +150,12 @@ const NftDetail = observer(() => {
         title={t("nfts:details")}
         width="wide"
         seoTitle={t("nfts:detailsSeo")}
-        action={
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {t("nfts:back")}
-          </Button>
+        back={
+          <RouteBack
+            route={ROUTES.NFT_DETAIL}
+            fallback={parentPath}
+            onBack={onBack}
+          />
         }
       >
         <Card>
@@ -359,11 +364,15 @@ const NftDetail = observer(() => {
       seoTitle={
         nft.name ?? t("home:nftToken", { id: toTemplateString(nft.tokenId) })
       }
-      action={
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {t("nfts:back")}
-        </Button>
+      back={
+        <RouteBack
+          route={ROUTES.NFT_DETAIL}
+          fallback={parentPath}
+          onBack={onBack}
+          // Leaving resets the transfer status, so the outcome of a send
+          // in progress would never show.
+          disabled={isSending}
+        />
       }
     >
       <Card className="p-6">

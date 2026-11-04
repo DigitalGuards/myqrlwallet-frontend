@@ -73,7 +73,7 @@ npm run typecheck   # Check app and build-tool TypeScript
 npm test            # Run tests
 ```
 
-The lint ratchet in `config/eslint.config.js` lists all remaining findings as exact file/rule pairs, including tests, and only shrinks. After fixing a pair, run `npm run lint:ratchet:update`; CI runs `npm run lint:ratchet` to reject new pairs, stale entries, and noncanonical formatting.
+The lint ratchet in `config/eslint.config.js` lists all remaining findings as exact file/rule pairs, including tests, and only shrinks. After fixing a pair, run `npm run lint:ratchet:update`; CI runs `npm run lint:ratchet` to reject new pairs, stale entries, and noncanonical formatting. Its first pass matches `npm run lint`, so CI lints the tree once.
 
 ## Languages
 
@@ -144,11 +144,11 @@ kubectl apply -f deploy/k8s/cluster-issuer.yaml  # Once per cluster
 
 ## CI/CD
 
-The GitHub Actions workflow (`.github/workflows/ci.yml`) automatically:
+The GitHub Actions workflow (`.github/workflows/ci.yml`):
 
-1. **On PR/Push**: Runs lint, typecheck, test and build checks
-2. **On Push to main/dev**: Builds and pushes Docker image to GitHub Container Registry
-3. **On Push to main**: Deploys to Kubernetes cluster
+1. **On pull requests into dev and main**: runs the full gate once: audit, lint ratchet, typecheck, tests, build, boot smoke, the web and embedded language smokes, and the approval visibility smoke when a pull request changes approval paths or targets main. The required check is `lint-and-build (22.22.x)`.
+2. **Every Monday at 03:00 UTC (on dev) and on manual dispatch**: runs the same full gate, including the approval visibility smoke.
+3. **On push to main and on manual dispatch**: builds and pushes the Docker image to GitHub Container Registry. The Kubernetes deploy job is disabled.
 
 Both CI and embedded builds run `node scripts/audit-gate.mjs` immediately after dependency installation. The gate rejects high or critical production advisories unless `audit-allowlist.json` supplies a matching reason and an unexpired exception.
 
@@ -158,7 +158,7 @@ Both CI and embedded builds run `node scripts/audit-gate.mjs` immediately after 
 
 - `ghcr.io/<owner>/myqrlwallet-frontend:latest` - Latest main branch
 - `ghcr.io/<owner>/myqrlwallet-frontend:main-<sha>` - Specific commit
-- `ghcr.io/<owner>/myqrlwallet-frontend:dev` - Dev branch
+- `ghcr.io/<owner>/myqrlwallet-frontend:dev` - Dev branch, when the workflow is dispatched there
 
 ### Required GitHub Configuration
 
@@ -186,9 +186,23 @@ Both CI and embedded builds run `node scripts/audit-gate.mjs` immediately after 
 | Blockchain | @theqrl/web3                |
 | Container  | nginx-unprivileged (Alpine) |
 
-`@theqrl/web3` is intentionally pinned to `1.0.1`: the deployed wallet and
-testnet v2 use canonical `Q` + 40-hex account addresses. Expanded-address
-support is roadmap work and must ship as an explicit, ecosystem-wide migration.
+`@theqrl/web3` is pinned to an exact version (`2.0.0`). An upgrade changes
+what the wallet signs and how it reads node errors, so bump it deliberately
+and run the full gate set.
+
+`package.json` keeps one override for it,
+`"@theqrl/web3-validator": { "zod": "$zod" }`. It is a dedupe guard. The
+validator pins zod exactly, and `src/utils/zodJitless.ts` switches zod's JIT
+compiler off only in the zod copy it imports. The override hands the
+validator the app's own `zod` range, so npm installs a single copy and the
+setting also reaches the validator's schemas, which keeps the strict CSP free
+of `new Function` probes. The app's range starts at the validator's pin
+(`^4.6.7`). `npm ls zod` must show one version.
+
+The `@theqrl/mldsa87`, `@theqrl/wallet.js` and `@theqrl/qrl-cryptography`
+overrides went away with web3 2.0.0, which pins those hardened releases
+itself. Web3 still pins them exactly, so a crypto patch release published
+before the next web3 release needs a temporary override again.
 
 ## Project Structure
 

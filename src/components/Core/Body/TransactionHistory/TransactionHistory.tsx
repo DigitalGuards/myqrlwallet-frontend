@@ -1,6 +1,8 @@
 import { historyStatusKey } from "@/i18n/historyStatusKey";
 import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/Core/Layout/PageShell";
+import { RouteBack } from "@/components/Core/Layout/PageBack";
+import { ROUTES } from "@/router/routes";
 import { Card } from "@/components/UI/Card";
 import { createPortal } from "react-dom";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
@@ -169,7 +171,12 @@ const TransactionHistory = observer(() => {
   };
 
   return (
-    <PageShell title={t("history:pageTitle")} width="wide" seoTitle={t("history:pageTitle")}>
+    <PageShell
+      title={t("history:pageTitle")}
+      width="wide"
+      seoTitle={t("history:pageTitle")}
+      back={<RouteBack route={ROUTES.TRANSACTION_HISTORY} />}
+    >
       <Card className="p-6">
       <div className="mb-4 flex flex-col sm:flex-row justify-between items-center">
         <input

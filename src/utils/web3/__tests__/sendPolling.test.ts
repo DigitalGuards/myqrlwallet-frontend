@@ -1,7 +1,9 @@
-import Web3 from "@theqrl/web3";
+import Web3, { utils } from "@theqrl/web3";
+import type { JsonRpcId } from "@theqrl/web3";
 import { SEND_TX_POLLING_CONFIG } from "../txPolling";
 
-const HASH = `0x${"a".repeat(64)}`;
+/** What the node answers for qrl_sendTransaction, where it signs itself. */
+const NODE_SIGNED_HASH = `0x${"a".repeat(64)}`;
 
 afterEach(() => {
   jest.clearAllTimers();
@@ -12,17 +14,25 @@ it.each([false, true])(
   "bounds the installed web3 PromiEvent receipt wait to five minutes (signed=%s)",
   async (signed) => {
     jest.useFakeTimers();
-    const request = jest.fn(({ method }: { method: string }) =>
-      Promise.resolve({
-        jsonrpc: "2.0",
-        id: 1,
-        result:
-          method === "qrl_sendTransaction" || method === "qrl_sendRawTransaction"
-            ? HASH
-            : method === "qrl_getTransactionReceipt"
-              ? null
-              : "0x1",
-      }),
+    // The reply echoes the request id, and a raw broadcast is answered with
+    // keccak256 of the bytes sent: @theqrl/web3 2.0.0 refuses a mismatched id
+    // and a hash that is not the one it computed locally.
+    let broadcastHash = "";
+    const request = jest.fn(
+      ({ id, method, params }: { id?: JsonRpcId; method: string; params?: unknown }) => {
+        let result: unknown = "0x1";
+        if (method === "qrl_sendTransaction") {
+          broadcastHash = NODE_SIGNED_HASH;
+          result = broadcastHash;
+        } else if (method === "qrl_sendRawTransaction") {
+          const raw = Array.isArray(params) && typeof params[0] === "string" ? params[0] : "";
+          broadcastHash = utils.sha3Raw(raw);
+          result = broadcastHash;
+        } else if (method === "qrl_getTransactionReceipt") {
+          result = null;
+        }
+        return Promise.resolve({ jsonrpc: "2.0", id, result });
+      },
     );
     const { qrl } = new Web3({
       provider: { request, supportsSubscriptions: () => false },
@@ -63,7 +73,8 @@ it.each([false, true])(
     const onRejected = jest.fn((error: unknown) => error);
     const outcome = sending.then(() => "confirmed", onRejected);
     await jest.advanceTimersByTimeAsync(1);
-    expect(onHash).toHaveBeenCalledWith(HASH);
+    expect(broadcastHash).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(onHash).toHaveBeenCalledWith(broadcastHash);
     await jest.advanceTimersByTimeAsync(299998);
     expect(onReceipt).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();

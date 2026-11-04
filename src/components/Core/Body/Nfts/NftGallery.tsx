@@ -5,9 +5,10 @@ import { reportError } from "@/utils/reportError";
 import { observer } from "mobx-react-lite";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Loader2, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/UI/Card";
 import { Button } from "@/components/UI/Button";
+import { BackButton } from "@/components/Core/Layout/BackButton";
 import {
   Tooltip,
   TooltipContent,
@@ -146,67 +147,66 @@ const NftGallery = observer(() => {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          {openCollection && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0"
-              aria-label={t("home:backCollections")}
-              onClick={onBackToCollections}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          )}
-          <CardTitle className="truncate text-2xl font-bold">
-            {renderValue(
-              openCollection
-                ? collectionDisplayName(openCollection)
-                : t("home:nfts"),
+      <CardHeader>
+        {/* The same Back as a page's, above the collection it leaves. */}
+        {openCollection && (
+          <BackButton
+            label={t("home:backCollections")}
+            onClick={onBackToCollections}
+            className="-mt-2"
+          />
+        )}
+        <div className="flex flex-row items-center justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <CardTitle className="truncate text-2xl font-bold">
+              {renderValue(
+                openCollection
+                  ? collectionDisplayName(openCollection)
+                  : t("home:nfts"),
+              )}
+            </CardTitle>
+            {collections.length > 0 && (
+              <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                {headerCount}
+              </span>
             )}
-          </CardTitle>
-          {collections.length > 0 && (
-            <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-              {headerCount}
-            </span>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    void onRefresh();
-                  }}
-                  disabled={isRefreshing}
-                  aria-label={t("home:nftRefresh")}
-                >
-                  {isRefreshing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{t("home:nftRefresh")}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setIsAddOpen(true);
-            }}
-            aria-label={t("home:addNft")}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
+          </div>
+          <div className="flex gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void onRefresh();
+                    }}
+                    disabled={isRefreshing}
+                    aria-label={t("home:nftRefresh")}
+                  >
+                    {isRefreshing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t("home:nftRefresh")}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsAddOpen(true);
+              }}
+              aria-label={t("home:addNft")}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

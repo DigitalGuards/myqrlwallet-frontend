@@ -9,6 +9,12 @@ type PageShellProps = {
   action?: ReactNode;
   width?: "default" | "wide";
   seoTitle?: unknown;
+  /**
+   * A sub-page's Back (a RouteBack), shown on its own row above the title.
+   * Menu destinations leave it out: the menu is their navigation. It is a
+   * slot so this shell stays free of the router.
+   */
+  back?: ReactNode;
   children: ReactNode;
 };
 
@@ -18,6 +24,7 @@ export function PageShell({
   action,
   width = "default",
   seoTitle,
+  back,
   children,
 }: PageShellProps) {
   return (
@@ -29,6 +36,7 @@ export function PageShell({
           width === "wide" ? "max-w-3xl" : "max-w-2xl",
         )}
       >
+        {back}
         <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-[1_1_16rem]">
             <h1 className="text-2xl font-semibold tracking-tight [overflow-wrap:anywhere]">

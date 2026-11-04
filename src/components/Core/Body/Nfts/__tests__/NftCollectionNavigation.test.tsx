@@ -12,7 +12,7 @@ import {
   fakeHistory,
   fakeRouterModule as mockRouterModule,
   useFakeLocation,
-} from "./fakeRouterHistory";
+} from "@/test-utils/fakeRouterHistory";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { observable, runInAction } from "mobx";
 import type { NFTInterface } from "@/constants";
@@ -244,6 +244,21 @@ describe("NFT collection drill-down navigation", () => {
     expect(fakeHistory.current().pathname).toBe("/");
     expect(fakeHistory.current().search).toBe("");
     expect(screen.getByText("2 collections")).toBeTruthy();
+  });
+
+  it("shows the shared Back above the open collection's title", () => {
+    mountApp();
+    expect(screen.queryByLabelText("Back to collections")).toBeNull();
+
+    fireEvent.click(screen.getByText("Devnet Punks"));
+    const back = screen.getByRole("button", { name: "Back to collections" });
+    // The page Back's look and word, named for where it goes.
+    expect(back.textContent).toBe("Back");
+    expect(back.getAttribute("type")).toBe("button");
+    const title = screen.getByRole("heading", { name: "Devnet Punks" });
+    expect(
+      back.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("restores the open collection when a deep link carries one", () => {

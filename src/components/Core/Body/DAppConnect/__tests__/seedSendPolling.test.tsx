@@ -22,8 +22,10 @@ import {
 } from "@/utils/web3/txPolling";
 import DAppApprovalModal from "../DAppApprovalModal";
 
-const seedHash = `0x${"a".repeat(64)}`;
-const dappHash = `0x${"b".repeat(64)}`;
+// Filled in by the fake node from the bytes it is sent: @theqrl/web3 2.0.0
+// refuses a broadcast reply that is not keccak256 of the raw transaction.
+let seedHash = "";
+let dappHash = "";
 const to = `Q${"2".repeat(128)}`;
 let mockHexSeed = "";
 let mockQrlStore: QrlStore;
@@ -172,10 +174,18 @@ it("keeps shared polling unchanged after a seed send and uses it for a later dAp
       case "qrl_call":
         result = "0x";
         break;
-      case "qrl_sendRawTransaction":
+      case "qrl_sendRawTransaction": {
+        const params: unknown = rpc["params"];
+        if (!Array.isArray(params) || typeof params[0] !== "string") {
+          return Promise.reject(new Error("Invalid broadcast request"));
+        }
         broadcasts += 1;
-        result = broadcasts === 1 ? seedHash : dappHash;
+        const hash = utils.sha3Raw(params[0]);
+        if (broadcasts === 1) seedHash = hash;
+        else dappHash = hash;
+        result = hash;
         break;
+      }
       case "qrl_getTransactionReceipt": {
         const params: unknown = rpc["params"];
         if (Array.isArray(params) && typeof params[0] === "string") {
@@ -260,6 +270,8 @@ it("keeps shared polling unchanged after a seed send and uses it for a later dAp
     "approval",
     dappHash,
   );
+  expect(dappHash).toMatch(/^0x[0-9a-f]{64}$/);
+  expect(dappHash).not.toBe(seedHash);
   expect(sign).toHaveBeenCalledTimes(2);
   expect(sharedSend).toHaveBeenCalledTimes(1);
   expect(shared.getContextObject().config).toEqual(sharedConfig);

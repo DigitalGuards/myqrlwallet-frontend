@@ -70,7 +70,7 @@ exports[`ERC721 amount guard after changing displayed standard 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC721Token ID42ContractQ33333333...33333333...33333333CopyDescriptionMetadata <b>stays</b> verbatimTransferERC-721 transfers are always 1 token.Recipient address or QNS nameRecipient address verified.Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC721Token ID42ContractQ33333333...33333333...33333333CopyDescriptionMetadata <b>stays</b> verbatimTransferERC-721 transfers are always 1 token.Recipient address or QNS nameRecipient address verified.Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
@@ -154,7 +154,7 @@ exports[`NFT detail 721 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC721Token ID42ContractQ33333333...33333333...33333333CopyDescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC721Token ID42ContractQ33333333...33333333...33333333CopyDescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
@@ -238,7 +238,7 @@ exports[`NFT detail 1155 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
@@ -323,7 +323,7 @@ exports[`NFT detail confirmed 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferTransfer confirmed. View on explorerRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferTransfer confirmed. View on explorerRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
@@ -372,7 +372,7 @@ exports[`NFT detail desktop 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
@@ -415,7 +415,7 @@ exports[`NFT detail extension 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
@@ -494,7 +494,7 @@ exports[`NFT detail fallback 1`] = `
       ],
     ],
   ],
-  "text": "Token #42BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7TransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Token #42StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7TransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Token #42 | MyQRLWallet",
   "values": [
     "",
@@ -512,7 +512,7 @@ exports[`NFT detail fallback 1`] = `
 exports[`NFT detail missing 1`] = `
 {
   "labels": [],
-  "text": "NFT detailsBackNFT not found in your wallet. Add it from the Home page first.",
+  "text": "NFT detailsNFT not found in your wallet. Add it from the Home page first.",
   "title": "NFT Details | MyQRLWallet",
   "values": [],
 }
@@ -588,7 +588,7 @@ exports[`NFT detail pending 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferBroadcasting transaction…Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferBroadcasting transaction…Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "",
@@ -1423,7 +1423,7 @@ exports[`NFT transfer balance 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferYou only hold 7 of this token.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferYou only hold 7 of this token.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -1508,7 +1508,7 @@ exports[`NFT transfer busy 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINAnother PIN check is still running. Please try again.Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINAnother PIN check is still running. Please try again.Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -1593,7 +1593,7 @@ exports[`NFT transfer changed 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferWallet changed while preparing the NFT transferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferWallet changed while preparing the NFT transferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -1678,7 +1678,7 @@ exports[`NFT transfer credential 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINThis wallet's device security credential is unavailable. Re-import the seed.Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINThis wallet's device security credential is unavailable. Re-import the seed.Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -1727,7 +1727,7 @@ exports[`NFT transfer desktop 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -1806,7 +1806,7 @@ exports[`NFT transfer disconnected 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINWallet not connected. Please try again.Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINWallet not connected. Please try again.Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -1855,7 +1855,7 @@ exports[`NFT transfer extension 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferExtension-signed NFT transfers are coming soon. Switch to an imported account to transfer for now.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferExtension-signed NFT transfers are coming soon. Switch to an imported account to transfer for now.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -1934,7 +1934,7 @@ exports[`NFT transfer external 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferNode detail <b>0xff</b>Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferNode detail <b>0xff</b>Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -2019,7 +2019,7 @@ exports[`NFT transfer failed 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferTransfer failed.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferTransfer failed.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -2104,7 +2104,7 @@ exports[`NFT transfer failed-reason 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferNFT transfer failed: signer detail 0xffRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferNFT transfer failed: signer detail 0xffRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -2189,7 +2189,7 @@ exports[`NFT transfer fraction 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferAmount must be a whole number.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferAmount must be a whole number.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -2274,7 +2274,7 @@ exports[`NFT transfer locked 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINToo many failed attempts. Please wait 2 minutes.Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINToo many failed attempts. Please wait 2 minutes.Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -2359,7 +2359,7 @@ exports[`NFT transfer negative 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferAmount must be positive.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferAmount must be positive.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -2444,7 +2444,7 @@ exports[`NFT transfer no-seed 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINNo stored seed for this account. Re-import to set up a PIN.Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINNo stored seed for this account. Re-import to set up a PIN.Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -2529,7 +2529,7 @@ exports[`NFT transfer non-error 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferUnexpected transfer error.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferUnexpected transfer error.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -2614,7 +2614,7 @@ exports[`NFT transfer pin 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINEnter your PIN to sign the transfer.Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINEnter your PIN to sign the transfer.Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -2699,7 +2699,7 @@ exports[`NFT transfer recipient 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Recipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Recipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -2784,7 +2784,7 @@ exports[`NFT transfer recipient-changed 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Recipient resolution changed. Verify the recipient again before signing.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Recipient resolution changed. Verify the recipient again before signing.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -2869,7 +2869,7 @@ exports[`NFT transfer recipient-fallback 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameEnter a valid QRL address or a resolved QNS name.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameEnter a valid QRL address or a resolved QNS name.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -2954,7 +2954,7 @@ exports[`NFT transfer self 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Cannot send to your own address.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.Cannot send to your own address.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
@@ -3039,7 +3039,7 @@ exports[`NFT transfer sending 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINSending…",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINSending…",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -3124,7 +3124,7 @@ exports[`NFT transfer unlock 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINFailed to unlock the seed. Please try again.Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINFailed to unlock the seed. Please try again.Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -3209,7 +3209,7 @@ exports[`NFT transfer wrong-pin 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINIncorrect PIN. 2 attempts remaining.Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINIncorrect PIN. 2 attempts remaining.Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -3294,7 +3294,7 @@ exports[`NFT transfer wrong-wallet 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINPIN decrypted an invalid seed. Re-import this account.Transfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferRecipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINPIN decrypted an invalid seed. Re-import this account.Transfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
@@ -3379,7 +3379,7 @@ exports[`NFT transfer zero 1`] = `
       ],
     ],
   ],
-  "text": "Untranslated NFTCollection example (EX)BackStandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferAmount must be positive.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
+  "text": "Untranslated NFTCollection example (EX)StandardERC1155Token ID42ContractQ33333333...33333333...33333333CopyBalance7DescriptionMetadata <b>stays</b> verbatimTransferAmount must be positive.Recipient address or QNS nameRecipient address verified.AmountHolding: 7Wallet PINTransfer",
   "title": "Untranslated NFT | MyQRLWallet",
   "values": [
     "Q22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",

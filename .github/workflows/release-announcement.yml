@@ -19,6 +19,7 @@ permissions:
 jobs:
   discord:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: DigitalGuards/.github/actions/release-discord@fa3556fa4b28b0b45904ce56bd13724bb16ca4e5 # release-discord-v1
         with:

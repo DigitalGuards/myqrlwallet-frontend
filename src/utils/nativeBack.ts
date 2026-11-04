@@ -1,12 +1,14 @@
 import { logger } from "./log";
 /**
- * Android hardware back, routed into the page.
+ * Back, resolved by the page: Android hardware back and the on-screen Back
+ * control of sub-pages share this module, so both reach the same screen.
+ * On the web wallet the on-screen Back also keeps in step with the
+ * browser's own Back (see `resolveRouteBack`).
  *
  * The native shell used to swallow BACK: it called `goBack()` and returned
- * true unconditionally, so back never left the app, an open modal stayed open,
- * and because the wallet's hash routes replace history one press landed on the
- * bare base entry. The app now asks the page what back should mean and acts on
- * the answer.
+ * true unconditionally, so back never left the app and an open modal stayed
+ * open. The app now asks the page what back should mean and acts on the
+ * answer.
  *
  * Contract with the native side:
  *   native -> page  `{ type: "NATIVE_BACK", payload: { documentId } }`
@@ -19,9 +21,13 @@ import { logger } from "./log";
  *
  * Resolution order, topmost first:
  *   1. the most recently registered open overlay, which dismisses itself
- *   2. the previous in-app route from the stack this module keeps
- *   3. Home, when the current route is not Home
- *   4. otherwise, at root
+ *   2. a page whose on-screen Back is disabled: nothing happens, as a tap on
+ *      that control does nothing
+ *   3. the previous in-app route from the stack this module keeps
+ *   4. the parent route of a page with an on-screen Back, the same target
+ *      that control uses when the stack has nothing to go back to
+ *   5. Home, when the current route is not Home
+ *   6. otherwise, at root
  *
  * An overlay dismisses through its own close path, so a signing or approval
  * sheet cancels or rejects exactly as its X button does. Nothing here can
@@ -33,6 +39,26 @@ export type BackDismissHandler = () => boolean;
 
 export type NativeBackOutcome = "handled" | "at-root";
 
+/** How the router reached a location, as react-router reports it. */
+export type RouteAction = "PUSH" | "REPLACE" | "POP";
+
+/** The router's navigate. `replace` swaps the current history entry. */
+export type RouteNavigate = (path: string, options?: { replace: true }) => void;
+
+/**
+ * The browser's own history, which the web wallet's on-screen Back keeps in
+ * step with: the router's index of the current entry, and one step back
+ * through it. The desktop and phone apps pass none and walk the trail.
+ */
+export interface HistoryStep {
+  /**
+   * Undefined when the browser keeps no index for the entry, as after a
+   * link that changed only the fragment.
+   */
+  readonly index: number | undefined;
+  readonly back: () => void;
+}
+
 interface RegisteredOverlay {
   readonly id: number;
   readonly dismiss: BackDismissHandler;
@@ -43,17 +69,94 @@ let overlays: RegisteredOverlay[] = [];
 let nextOverlayId = 1;
 
 /**
- * In-memory route history.
+ * In-memory route history: the in-app screens of this page load, oldest
+ * first, as `pathname + search`.
  *
- * The hash router replaces history entries, so `history.back()` cannot walk
- * the wallet's own routes. This stack is the substitute. It holds paths only,
- * never state, and is capped so a long session cannot grow it without bound.
+ * Browser history cannot answer "is there an earlier in-app screen": the
+ * entry before the first one belongs to another site, and history state
+ * survives a reload. This stack starts empty on every load and skips
+ * repeats, so it holds exactly the screens the user moved through. It holds
+ * paths and history indexes only, never state, and is capped so a long
+ * session cannot grow it without bound.
  */
 const MAX_ROUTE_STACK = 32;
-let routeStack: string[] = [];
+
+interface TrailEntry {
+  /** `pathname + search`, as the router reports it. */
+  readonly path: string;
+  /**
+   * The router's index of the history entry (`history.state.idx`), recorded
+   * on the web wallet only. The top entry carries the current one.
+   */
+  readonly index: number | undefined;
+}
+
+let routeStack: TrailEntry[] = [];
+
+/**
+ * A browser step back the router has not reported yet. A second Back press
+ * in that gap would step back another entry, past the first screen of this
+ * page load and possibly out of the wallet, so presses are ignored until
+ * the POP arrives, or until a short wait passes when none does.
+ */
+const HISTORY_BACK_SETTLE_MS = 1000;
+let pendingHistoryBack: ReturnType<typeof setTimeout> | null = null;
+
+function clearPendingHistoryBack(): void {
+  if (pendingHistoryBack === null) return;
+  clearTimeout(pendingHistoryBack);
+  pendingHistoryBack = null;
+}
+
+/** Two indexes name different entries only when both are known. */
+function sameIndex(a: number | undefined, b: number | undefined): boolean {
+  return a === undefined || b === undefined || a === b;
+}
+
+/**
+ * One spelling of a route, to compare routes by. The router keeps
+ * `pathname + search` as it encoded them. The address bar's fragment, where
+ * the phone app reads the route, can spell the same screen with other
+ * percent-escapes (a browser escapes a backtick there, and Firefox decodes
+ * the fragment it reports), and can carry a fragment of its own. Both sides
+ * are cut at a fragment and decoded the same way.
+ */
+function routeKey(path: string): string {
+  const hashAt = path.indexOf("#");
+  const route = hashAt === -1 ? path : path.slice(0, hashAt);
+  try {
+    return decodeURIComponent(route);
+  } catch {
+    // A malformed escape: compare the spelling as it is.
+    return route;
+  }
+}
+
+/** True when two spellings name the same route. */
+function sameRoute(a: string, b: string): boolean {
+  return a === b || routeKey(a) === routeKey(b);
+}
 
 /** The route the wallet treats as root. */
 export const HOME_ROUTE = "/";
+
+/** The on-screen Back of the page currently shown, as that control reports it. */
+export interface PageBackTarget {
+  /** The page's path (`pathname + search`) when it registered. */
+  readonly path: string;
+  /** Where Back goes when the stack holds no earlier screen. */
+  readonly fallback: string;
+  /** True while the page holds Back, for example during a send. */
+  readonly disabled: boolean;
+}
+
+interface RegisteredPageBack {
+  readonly id: number;
+  readonly target: PageBackTarget;
+}
+
+let pageBacks: RegisteredPageBack[] = [];
+let nextPageBackId = 1;
 
 /**
  * Register an open overlay. Call the returned function when it closes.
@@ -70,12 +173,143 @@ export function registerBackDismiss(dismiss: BackDismissHandler): () => void {
   };
 }
 
-/** Record a route the user navigated to. */
-export function recordRoute(path: string): void {
-  const last = routeStack[routeStack.length - 1];
-  if (last === path) return;
-  routeStack.push(path);
+/**
+ * Register the shown page's on-screen Back, so Android back reaches the same
+ * screen. Call the returned function when the control unmounts.
+ */
+export function registerPageBack(target: PageBackTarget): () => void {
+  const id = nextPageBackId;
+  nextPageBackId += 1;
+  pageBacks.push({ id, target });
+  return () => {
+    pageBacks = pageBacks.filter((entry) => entry.id !== id);
+  };
+}
+
+/** The registered Back of the page at `currentPath`, if it has one. */
+function pageBackAt(currentPath: string): PageBackTarget | undefined {
+  const latest = pageBacks[pageBacks.length - 1];
+  // A registration left over from the previous page during a route change
+  // does not apply to this one.
+  return latest !== undefined && sameRoute(latest.target.path, currentPath)
+    ? latest.target
+    : undefined;
+}
+
+/**
+ * Record a route the user navigated to.
+ *
+ * `action` is how the router got there. A replace swaps the top. A browser
+ * back (POP) to the screen below the top removes the screen it left, so the
+ * stack keeps matching the way back. A POP to the screen already on top
+ * (a change of the fragment alone) keeps the stack. Any other POP is a move
+ * the stack cannot follow: a browser back after a reload, a jump of several
+ * entries, a step forward. The stack then starts over at that screen, as on
+ * a fresh arrival, so Back takes the page's parent and never steps forward.
+ * Anything else is a visit; a repeat of the top is skipped.
+ *
+ * `index` is the router's index of the entry reached, given on the web
+ * wallet only. There a one-step back must also land on the entry recorded
+ * below the top.
+ */
+export function recordRoute(
+  path: string,
+  action: RouteAction = "PUSH",
+  index?: number,
+): void {
+  // The router has reported where history went, so Back may act again.
+  clearPendingHistoryBack();
+  const entry: TrailEntry = { path, index };
+  const top = routeStack.length - 1;
+  const below = routeStack[top - 1];
+  if (action === "REPLACE" && top >= 0) {
+    routeStack[top] = entry;
+    // Replacing a screen with the one below it leaves one entry for both.
+    if (below?.path === path) {
+      routeStack.pop();
+      routeStack[top - 1] = entry;
+    }
+    return;
+  }
+  if (action === "POP") {
+    if (below?.path === path && sameIndex(below.index, index)) {
+      routeStack.pop();
+      routeStack[top - 1] = entry;
+    } else if (routeStack[top]?.path === path) {
+      routeStack[top] = entry;
+    } else {
+      routeStack = [entry];
+    }
+    return;
+  }
+  if (routeStack[top]?.path === path) {
+    routeStack[top] = entry;
+    return;
+  }
+  routeStack.push(entry);
   if (routeStack.length > MAX_ROUTE_STACK) routeStack.shift();
+}
+
+/** Stack depth once the entries for the screen being left are set aside. */
+function depthBelow(currentPath: string): number {
+  let depth = routeStack.length;
+  while (depth > 0) {
+    const entry = routeStack[depth - 1];
+    if (entry === undefined || !sameRoute(entry.path, currentPath)) break;
+    depth -= 1;
+  }
+  return depth;
+}
+
+/**
+ * Go back one in-app screen from `currentPath`.
+ *
+ * Goes to the previous screen on the stack. With none recorded (a deep link,
+ * a fresh load or a reload), goes to `fallback` and replaces the current
+ * entry, so the screen being left cannot come back on a later back.
+ *
+ * `history` is given on the web wallet only, where Back keeps in step with
+ * the browser's own Back. When the previous screen is the history entry
+ * right behind this one (`history.index - 1`, recorded in this page load),
+ * Back steps back to it, and the router's POP then takes it off the trail.
+ * Otherwise it takes `fallback` as above. Without `history` (the desktop
+ * and phone apps), the previous screen is pushed. No path steps back past
+ * the first screen of this page load, which could leave the wallet for the
+ * site that opened it.
+ *
+ * Returns false, having changed nothing, when there is nowhere to go.
+ */
+export function resolveRouteBack(
+  navigate: RouteNavigate,
+  currentPath: string,
+  fallback?: string,
+  history?: HistoryStep,
+): boolean {
+  // A step back is still on its way: this press has nothing to add.
+  if (pendingHistoryBack !== null) return true;
+  const depth = depthBelow(currentPath);
+  const previous = routeStack[depth - 1];
+  if (history === undefined && previous !== undefined) {
+    routeStack.length = depth - 1;
+    navigate(previous.path);
+    return true;
+  }
+  if (
+    history?.index !== undefined &&
+    previous?.index === history.index - 1
+  ) {
+    pendingHistoryBack = setTimeout(() => {
+      pendingHistoryBack = null;
+    }, HISTORY_BACK_SETTLE_MS);
+    history.back();
+    return true;
+  }
+  if (fallback === undefined || sameRoute(fallback, currentPath)) return false;
+  // The trail starts over at the parent: whatever was below this page is
+  // not behind it in the browser.
+  routeStack.length = 0;
+  navigate(fallback, { replace: true });
+  return true;
 }
 
 /**
@@ -85,7 +319,7 @@ export function recordRoute(path: string): void {
  * "handled", so a caller that reports at-root has changed nothing.
  */
 export function resolveNativeBack(
-  navigate: (path: string) => void,
+  navigate: RouteNavigate,
   currentPath: string,
 ): NativeBackOutcome {
   for (let index = overlays.length - 1; index >= 0; index -= 1) {
@@ -103,21 +337,13 @@ export function resolveNativeBack(
     if (dismissed) return "handled";
   }
 
-  // Drop the current route, then go to whatever preceded it.
-  while (
-    routeStack.length > 0 &&
-    routeStack[routeStack.length - 1] === currentPath
-  ) {
-    routeStack.pop();
-  }
-  const previous = routeStack[routeStack.length - 1];
-  if (previous !== undefined && previous !== currentPath) {
-    routeStack.pop();
-    navigate(previous);
-    return "handled";
-  }
+  const page = pageBackAt(currentPath);
+  // The on-screen Back is held, so hardware back holds too.
+  if (page?.disabled === true) return "handled";
+  if (resolveRouteBack(navigate, currentPath, page?.fallback)) return "handled";
 
-  if (currentPath !== HOME_ROUTE) {
+  if (!sameRoute(currentPath, HOME_ROUTE)) {
+    routeStack.length = depthBelow(currentPath);
     navigate(HOME_ROUTE);
     return "handled";
   }
@@ -125,14 +351,27 @@ export function resolveNativeBack(
   return "at-root";
 }
 
-/** Test seam: forget every overlay and the recorded routes. */
+/** Test seam: forget every overlay, page Back and recorded route. */
 export function resetNativeBackForTests(): void {
   overlays = [];
+  pageBacks = [];
   routeStack = [];
+  clearPendingHistoryBack();
   nextOverlayId = 1;
+  nextPageBackId = 1;
 }
 
 /** Test seam: how many overlays are currently registered. */
 export function registeredOverlayCount(): number {
   return overlays.length;
+}
+
+/** Test seam: the recorded routes, oldest first. */
+export function recordedRoutesForTests(): readonly string[] {
+  return routeStack.map((entry) => entry.path);
+}
+
+/** Test seam: the history index recorded with each route, oldest first. */
+export function recordedIndexesForTests(): readonly (number | undefined)[] {
+  return routeStack.map((entry) => entry.index);
 }

@@ -1,13 +1,10 @@
 import { Web3 } from '@theqrl/web3';
-import fetch from 'cross-fetch';
 import { isRecord } from '@/utils/guards';
 import {
   assertRequestedTransactionChain,
   getRequestProvider,
   readWalletChainId,
 } from '../rpcProvider';
-
-jest.mock('cross-fetch', () => ({ __esModule: true, default: jest.fn() }));
 
 describe('published Web3 dApp RPC adapter', () => {
   it('unwraps the actual HttpProvider envelope through the request manager', async () => {
@@ -38,7 +35,10 @@ describe('published Web3 dApp RPC adapter', () => {
   it('rejects a real provider RPC error envelope', async () => {
     const web3 = new Web3('http://127.0.0.1:8545');
     if (!web3.currentProvider) throw new Error('Missing test HttpProvider');
-    const request = jest.mocked(fetch).mockImplementation((_url, options) => {
+    // The HttpProvider calls globalThis.fetch when there is one (since
+    // @theqrl/web3 2.0.0; cross-fetch is only its fallback), so that is the
+    // transport to stand in for.
+    const request = jest.spyOn(globalThis, 'fetch').mockImplementation((_url, options) => {
       if (typeof options?.body !== 'string') throw new Error('Expected an RPC request body');
       const payload: unknown = JSON.parse(options.body);
       if (!isRecord(payload) || typeof payload['id'] !== 'string') {
@@ -56,7 +56,7 @@ describe('published Web3 dApp RPC adapter', () => {
       await expect(readWalletChainId(web3.qrl)).rejects.toThrow('RPC unavailable');
       expect(request).toHaveBeenCalledTimes(1);
     } finally {
-      request.mockReset();
+      request.mockRestore();
     }
   });
 

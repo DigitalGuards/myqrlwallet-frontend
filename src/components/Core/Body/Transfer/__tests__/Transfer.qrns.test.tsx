@@ -312,7 +312,6 @@ describe("native Max fee composition", () => {
       cumulativeGasUsed: 21000n,
       logs: [],
       logsBloom: "0x",
-      root: `0x${"0".repeat(64)}`,
     });
     runInAction(() => {
       store.qrlConnection.blockchain = "TEST_NET";

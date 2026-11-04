@@ -79,6 +79,35 @@ it("quotes after the debounce and keeps the exact gas limit and fees", async () 
   expect(onFeeLevelChange).toHaveBeenCalledWith("high");
 });
 
+// The form hands over the amount as typed. Since @theqrl/web3 2.0.0,
+// toPlanck(".") throws a Web3ValidatorError whose raw text reached the fee row.
+it.each([".", "1.", "abc", "1e5", "1,000"])(
+  "shows the estimate hint and asks for no quote while the amount reads %s",
+  async (value) => {
+    render(<GasFeeNotice {...props} value={value} />);
+    await startQuoteAfterDebounce();
+    expect(mockEstimate).not.toHaveBeenCalled();
+    expect(quoteFees).not.toHaveBeenCalled();
+    expect(onQuote).not.toHaveBeenCalled();
+    expect(screen.getByText("Enter recipient and amount to estimate")).toBeTruthy();
+    expect(screen.queryByText(/validator|error/i)).toBeNull();
+  },
+);
+
+it("quotes once typing goes on from \".\" to \".5\"", async () => {
+  const view = render(<GasFeeNotice {...props} value="." />);
+  await startQuoteAfterDebounce();
+  expect(mockEstimate).not.toHaveBeenCalled();
+  view.rerender(<GasFeeNotice {...props} value=".5" />);
+  await startQuoteAfterDebounce();
+  expect(mockEstimate).toHaveBeenCalledWith({
+    from: "sender",
+    to: "recipient",
+    value: "500000000000000000",
+  });
+  expect(screen.getByText("Estimating fee...")).toBeTruthy();
+});
+
 it("refreshes the quote when the provider changes", async () => {
   const view = render(<GasFeeNotice {...props} />);
   await startQuoteAfterDebounce();

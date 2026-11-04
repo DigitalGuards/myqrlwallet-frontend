@@ -1,5 +1,6 @@
 import { LegalLanguageNote } from "@/components/Core/Layout/LegalLanguageNote";
 import { PageShell } from "@/components/Core/Layout/PageShell";
+import { RouteBack } from "@/components/Core/Layout/PageBack";
 import { Card } from "@/components/UI/Card";
 import { Link } from "react-router";
 import { SEO } from "@/components/SEO/SEO";
@@ -10,7 +11,11 @@ const linkClass =
 
 const Disclaimer = () => {
     return (
-        <PageShell title="Disclaimer" width="wide">
+        <PageShell
+          title="Disclaimer"
+          width="wide"
+          back={<RouteBack route={ROUTES.DISCLAIMER} />}
+        >
             <SEO
                 title="Disclaimer"
                 description="Plain-language risk summary for MyQRLWallet, the self-custody wallet for QRL 2.0 by DigitalGuards."

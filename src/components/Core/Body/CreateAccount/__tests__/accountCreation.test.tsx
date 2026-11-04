@@ -68,8 +68,13 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-async function submit() {
-  render(<AccountCreationForm onAccountCreated={mockCreated} />);
+async function submit(onBusyChange?: (busy: boolean) => void) {
+  render(
+    <AccountCreationForm
+      onAccountCreated={mockCreated}
+      onBusyChange={onBusyChange}
+    />,
+  );
   fireEvent.change(await screen.findByPlaceholderText("Password"), {
     target: { value: "Password1!" },
   });
@@ -153,4 +158,28 @@ it("refuses a password longer than the backup encryption accepts", async () => {
   await waitFor(() => {
     expect(screen.queryByText("Password is too long")).toBeNull();
   });
+});
+
+it("reports busy from submission until the new wallet is selected", async () => {
+  let acknowledge:
+    | ((value: { revision: number; ciphertextHash: string }) => void)
+    | undefined;
+  jest.mocked(notifySeedStored).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        acknowledge = resolve;
+      }),
+  );
+  const busy = jest.fn();
+  await submit(busy);
+  await waitFor(() => {
+    expect(notifySeedStored).toHaveBeenCalledTimes(1);
+  });
+  // The seed is stored and selection waits: the page holds its Back.
+  expect(busy).toHaveBeenLastCalledWith(true);
+  acknowledge?.({ revision: 2, ciphertextHash: "12".repeat(32) });
+  await waitFor(() => {
+    expect(busy).toHaveBeenLastCalledWith(false);
+  });
+  expect(mockCreated).toHaveBeenCalledTimes(1);
 });

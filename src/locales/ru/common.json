@@ -20,6 +20,7 @@
   "connectedDapps_other": "{{count}} подключённого dApp",
   "close": "Закрыть",
   "cancel": "Отмена",
+  "back": "Назад",
   "copy": "Копировать",
   "copied": "Скопировано",
   "copyAddress": "Копировать адрес",

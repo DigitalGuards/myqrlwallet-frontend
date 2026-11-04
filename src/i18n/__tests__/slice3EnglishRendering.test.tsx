@@ -68,6 +68,7 @@ const mockCopy = jest.fn<Promise<boolean>, [string, boolean?]>();
 const mockPinChanges = new Map<string, (value: string) => void>();
 const mockStore = {
   qrlStore: {
+    activeAccount: { accountAddress: "" },
     qrlConnection: { blockchain: "TEST_NET", isConnected: true },
     qrlInstance: {
       accounts: {
@@ -78,6 +79,12 @@ const mockStore = {
     setActiveAccount: () => Promise.resolve(),
   },
 };
+// The page Back control is excluded from the English oracle, like the
+// Language row (docs/I18N.md). It has its own tests.
+jest.mock("@/components/Core/Layout/PageBack", () => ({
+  PageBack: () => null,
+  RouteBack: () => null,
+}));
 jest.mock("react-helmet-async", () => {
   const actual =
     jest.requireActual<typeof import("react-helmet-async")>(
