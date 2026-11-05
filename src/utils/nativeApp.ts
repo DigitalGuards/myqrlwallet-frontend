@@ -91,6 +91,7 @@ const NATIVE_TO_WEB_MESSAGE_TYPES = [
   'RESTORE_CONTACTS',      // Native sends the backed-up address book on boot
   'NAVIGATE',              // Native asks the web app to navigate to an in-app route
   'NATIVE_BACK',          // Android hardware back, for the page to resolve
+  'SET_LANGUAGE',          // Native Settings chose the wallet language
 ] as const;
 
 export type NativeToWebMessageType = (typeof NATIVE_TO_WEB_MESSAGE_TYPES)[number];
