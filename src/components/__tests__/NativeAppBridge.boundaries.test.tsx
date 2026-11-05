@@ -5,7 +5,7 @@ import NativeAppBridge from '../NativeAppBridge';
 import { dappConnectService } from '@/services/dappConnect/DAppConnectService';
 import { walletMutations } from '@/utils/nativeWalletMutation';
 import StorageUtil from '@/utils/storage/storage';
-import { applyNativeLanguage } from '@/i18n/nativeLanguage';
+import { applyNativeLanguage, reportNativeLanguage } from '@/i18n/nativeLanguage';
 import {
   recordRoute,
   registerPageBack,
@@ -65,7 +65,10 @@ jest.mock('@/utils/storage/storage', () => ({
     setWalletSettings: jest.fn(() => Promise.resolve()),
   },
 }));
-jest.mock('@/i18n/nativeLanguage', () => ({ applyNativeLanguage: jest.fn() }));
+jest.mock('@/i18n/nativeLanguage', () => ({
+  applyNativeLanguage: jest.fn(),
+  reportNativeLanguage: jest.fn(),
+}));
 jest.mock('@/utils/crypto', () => ({}));
 jest.mock('@/utils/crypto/walletEncryption', () => ({
   WalletEncryptionUtil: { validatePin: (pin: string) => /^\d{6}$/.test(pin) },
@@ -275,6 +278,11 @@ it.each(['en', 'de', 'es', 'ru', 'zh-CN'] as const)('applies the app language %s
 it.each([undefined, 'fr', 'de-DE', 7, null])('rejects the app language %s', (language) => {
   receive({ type: 'SET_LANGUAGE', payload: { language } });
   expect(applyNativeLanguage).not.toHaveBeenCalled();
+});
+
+it('reports the wallet language when the app asks for it', () => {
+  receive({ type: 'REQUEST_LANGUAGE', payload: {} });
+  expect(reportNativeLanguage).toHaveBeenCalledTimes(1);
 });
 
 describe('NATIVE_BACK goes where the page Back goes', () => {

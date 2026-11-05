@@ -16,7 +16,11 @@ jest.mock("@/locales/de", () => ({
     reject: (error: unknown) => void,
   ) => mockDownload.promise.then(resolve, reject),
 }));
-import { applyNativeLanguage, notifyNativeLanguage } from "../nativeLanguage";
+import {
+  applyNativeLanguage,
+  notifyNativeLanguage,
+  reportNativeLanguage,
+} from "../nativeLanguage";
 
 jest.mock("@/utils/embeddedRuntime", () => ({ HAS_NATIVE_BRIDGE: true }));
 jest.mock("@/config/runtimeProfile", () => ({
@@ -244,6 +248,17 @@ describe("a language chosen in the native Settings screen", () => {
     });
     expect(change).not.toHaveBeenCalled();
     expect(postMessage.mock.calls).toEqual(reports("en"));
+  });
+
+  it("is reported again when the app asks after the handshake", async () => {
+    await mountInApp();
+    await act(async () => {
+      applyNativeLanguage("de");
+      await Promise.resolve();
+    });
+    postMessage.mockClear();
+    reportNativeLanguage();
+    expect(postMessage.mock.calls).toEqual(reports("de"));
   });
 
   it("still changes this session when storage is blocked", async () => {
