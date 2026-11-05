@@ -92,6 +92,7 @@ const NATIVE_TO_WEB_MESSAGE_TYPES = [
   'NAVIGATE',              // Native asks the web app to navigate to an in-app route
   'NATIVE_BACK',          // Android hardware back, for the page to resolve
   'SET_LANGUAGE',          // Native Settings chose the wallet language
+  'REQUEST_LANGUAGE',      // Native has no saved language and asks for the wallet's
 ] as const;
 
 export type NativeToWebMessageType = (typeof NATIVE_TO_WEB_MESSAGE_TYPES)[number];
