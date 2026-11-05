@@ -1,7 +1,7 @@
 import { isInNativeApp, sendToNative } from "@/utils/nativeApp";
 import { logger } from "@/utils/log";
 import { applyLanguage, i18n } from "./index";
-import type { Language } from "./languages";
+import { isLanguage, type Language } from "./languages";
 import { saveLanguagePreference } from "./preference";
 
 /** Notify the shell of the resolved renderer language without affecting activation. */
@@ -36,4 +36,13 @@ export function applyNativeLanguage(language: Language): void {
   void applyLanguage(language).catch((error: unknown) => {
     logger.error("Could not apply wallet language:", error);
   });
+}
+
+/**
+ * Answer the shell's question after the document handshake. The startup signal
+ * can arrive before the handshake, when the shell cannot accept it yet.
+ */
+export function reportNativeLanguage(): void {
+  const language = i18n.language;
+  if (isLanguage(language)) notifyNativeLanguage(language);
 }
