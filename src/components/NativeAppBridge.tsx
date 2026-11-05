@@ -31,6 +31,8 @@ import {
   sendToNative,
 } from "@/utils/nativeApp";
 import { resolveNativeBack } from "@/utils/nativeBack";
+import { isLanguage } from "@/i18n/languages";
+import { applyNativeLanguage } from "@/i18n/nativeLanguage";
 import {
   DAppConnectService,
   dappConnectService,
@@ -594,6 +596,18 @@ const NativeAppBridge: React.FC = () => {
               logToNative(`Error applying display prefs: ${errorMsg}`);
             }
           })();
+          break;
+        }
+
+        case "SET_LANGUAGE": {
+          // The app's own Settings screen and its saved choice drive the wallet
+          // language, as they do for the Home card toggles above.
+          const language = payload?.["language"];
+          if (!isLanguage(language)) {
+            logWarning("[Bridge] SET_LANGUAGE has an unsupported language");
+            return;
+          }
+          applyNativeLanguage(language);
           break;
         }
 
