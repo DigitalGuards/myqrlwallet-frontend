@@ -32,7 +32,7 @@ import {
 } from "@/utils/nativeApp";
 import { resolveNativeBack } from "@/utils/nativeBack";
 import { isLanguage } from "@/i18n/languages";
-import { applyNativeLanguage } from "@/i18n/nativeLanguage";
+import { applyNativeLanguage, reportNativeLanguage } from "@/i18n/nativeLanguage";
 import {
   DAppConnectService,
   dappConnectService,
@@ -610,6 +610,10 @@ const NativeAppBridge: React.FC = () => {
           applyNativeLanguage(language);
           break;
         }
+
+        case "REQUEST_LANGUAGE":
+          reportNativeLanguage();
+          break;
 
         case "RESTORE_CONTACTS": {
           // Native pushes its address-book backup on boot; merge it in
