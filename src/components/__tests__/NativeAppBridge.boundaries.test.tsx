@@ -5,6 +5,7 @@ import NativeAppBridge from '../NativeAppBridge';
 import { dappConnectService } from '@/services/dappConnect/DAppConnectService';
 import { walletMutations } from '@/utils/nativeWalletMutation';
 import StorageUtil from '@/utils/storage/storage';
+import { applyNativeLanguage } from '@/i18n/nativeLanguage';
 import {
   recordRoute,
   registerPageBack,
@@ -64,6 +65,7 @@ jest.mock('@/utils/storage/storage', () => ({
     setWalletSettings: jest.fn(() => Promise.resolve()),
   },
 }));
+jest.mock('@/i18n/nativeLanguage', () => ({ applyNativeLanguage: jest.fn() }));
 jest.mock('@/utils/crypto', () => ({}));
 jest.mock('@/utils/crypto/walletEncryption', () => ({
   WalletEncryptionUtil: { validatePin: (pin: string) => /^\d{6}$/.test(pin) },
@@ -262,6 +264,17 @@ it('reports a rejected display-preference write', async () => {
     expect(mockError).toHaveBeenCalledWith('[Bridge] Error applying SET_DISPLAY_PREFS:', failure);
   });
   expect(logToNative).toHaveBeenCalledWith('Error applying display prefs: storage denied');
+});
+
+it.each(['en', 'de', 'es', 'ru', 'zh-CN'] as const)('applies the app language %s', (language) => {
+  receive({ type: 'SET_LANGUAGE', payload: { language } });
+  expect(applyNativeLanguage).toHaveBeenCalledTimes(1);
+  expect(applyNativeLanguage).toHaveBeenCalledWith(language);
+});
+
+it.each([undefined, 'fr', 'de-DE', 7, null])('rejects the app language %s', (language) => {
+  receive({ type: 'SET_LANGUAGE', payload: { language } });
+  expect(applyNativeLanguage).not.toHaveBeenCalled();
 });
 
 describe('NATIVE_BACK goes where the page Back goes', () => {
