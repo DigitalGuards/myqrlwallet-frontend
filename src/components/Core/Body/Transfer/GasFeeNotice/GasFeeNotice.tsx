@@ -5,6 +5,7 @@ import { unsignedQuantity } from "@/utils/transactionHistory";
 import { useStore } from "@/stores/store";
 import { quoteFees, type FeeLevel } from "@/stores/qrlStore";
 import type { ApprovedFee } from "@/utils/web3/feePolicy";
+import { parseUnits } from "@/utils/web3/units";
 import { utils } from "@theqrl/web3";
 import { cva } from "class-variance-authority";
 import { Loader } from "lucide-react";
@@ -19,12 +20,23 @@ const FEE_DISPLAY = {
 } as const;
 
 /**
- * The Transfer form's own amount pattern (its `amount` field). The fee is
- * quoted only for an amount that passes it: since @theqrl/web3 2.0.0,
- * toPlanck throws on a partial entry such as "." and the fee row showed the
- * validator's raw text.
+ * The Transfer form's own amount rules: its `amount` pattern and its decimals
+ * check. The fee is quoted only for an amount that passes both: since
+ * @theqrl/web3 2.0.0, toPlanck throws on a partial entry such as "." and on
+ * more than 18 decimals, and the fee row showed the validator's raw text.
  */
 const AMOUNT_PATTERN = /^\d*\.?\d+$/;
+const QUANTA_DECIMALS = 18;
+
+function isQuotableAmount(value: string): boolean {
+  if (!AMOUNT_PATTERN.test(value)) return false;
+  try {
+    parseUnits(value, QUANTA_DECIMALS);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 type GasFeeNoticeProps = {
   from: string;
@@ -68,7 +80,7 @@ export const GasFeeNotice = ({
   const { t } = useTranslation(["transfer", "common", "settings"]);
   const { qrlStore } = useStore();
   const { qrlInstance } = qrlStore;
-  const hasValuesForGasCalculation = !!from && !!to && AMOUNT_PATTERN.test(value);
+  const hasValuesForGasCalculation = !!from && !!to && isQuotableAmount(value);
 
   const [gasFee, setGasFee] = useState({
     estimatedGas: "",

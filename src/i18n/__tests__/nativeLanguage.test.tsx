@@ -16,7 +16,7 @@ jest.mock("@/locales/de", () => ({
     reject: (error: unknown) => void,
   ) => mockDownload.promise.then(resolve, reject),
 }));
-import { notifyNativeLanguage } from "../nativeLanguage";
+import { applyNativeLanguage, notifyNativeLanguage } from "../nativeLanguage";
 
 jest.mock("@/utils/embeddedRuntime", () => ({ HAS_NATIVE_BRIDGE: true }));
 jest.mock("@/config/runtimeProfile", () => ({
@@ -203,4 +203,59 @@ it("signals the timeout fallback once and ignores the late catalog", async () =>
     await jest.advanceTimersByTimeAsync(0);
   });
   expect(setLanguage.mock.calls).toEqual([["en"]]);
+});
+
+describe("a language chosen in the native Settings screen", () => {
+  function reports(...languages: string[]): string[][] {
+    return languages.map((language) => [
+      JSON.stringify({
+        type: "LANGUAGE_CHANGED",
+        payload: { language, documentId: getCurrentNativeDocumentId() },
+      }),
+    ]);
+  }
+  async function mountInApp(): Promise<void> {
+    window.ReactNativeWebView = { postMessage };
+    jest.spyOn(navigator, "userAgent", "get").mockReturnValue("MyQRLWallet");
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, '"en"');
+    await act(async () => {
+      render(<Preferences />);
+      await Promise.resolve();
+    });
+  }
+
+  it("is saved, applied and reported to the shell", async () => {
+    await mountInApp();
+    await act(async () => {
+      applyNativeLanguage("de");
+      await Promise.resolve();
+    });
+    expect(i18n.language).toBe("de");
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('"de"');
+    expect(postMessage.mock.calls).toEqual(reports("en", "de"));
+  });
+
+  it("changes nothing when it is already the wallet language", async () => {
+    await mountInApp();
+    const change = jest.spyOn(i18n, "changeLanguage");
+    await act(async () => {
+      applyNativeLanguage("en");
+      await Promise.resolve();
+    });
+    expect(change).not.toHaveBeenCalled();
+    expect(postMessage.mock.calls).toEqual(reports("en"));
+  });
+
+  it("still changes this session when storage is blocked", async () => {
+    await mountInApp();
+    jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    await act(async () => {
+      applyNativeLanguage("de");
+      await Promise.resolve();
+    });
+    expect(i18n.language).toBe("de");
+    expect(postMessage.mock.calls).toEqual(reports("en", "de"));
+  });
 });
