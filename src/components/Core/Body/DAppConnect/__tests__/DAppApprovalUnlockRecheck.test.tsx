@@ -187,6 +187,9 @@ const METHODS = [
 type Method = (typeof METHODS)[number];
 const CHANGES = ["account", "network", "provider", "request"] as const;
 type Change = (typeof CHANGES)[number];
+/** Message and typed-data signing never use the provider. */
+const isOffline = (method: Method): boolean =>
+  method === "qrl_signMessage" || method === "qrl_signTypedData";
 
 /** How the existing stale-wallet path answers the dApp for each method. */
 const STALE_ANSWER: Record<Method, string> = {
@@ -411,7 +414,9 @@ describe.each([
     mockV3 = v3;
   });
 
-  it.each(METHODS.flatMap((method) => CHANGES.map((change) => ({ method, change }))))(
+  it.each(METHODS.flatMap((method) => CHANGES
+    .filter((change) => !(change === "provider" && isOffline(method)))
+    .map((change) => ({ method, change }))))(
     "$method: nothing is signed or broadcast when the $change changes during the PIN unlock",
     async ({ method, change }) => {
       const { unlock, provider } = await approveIntoUnlock(method);
@@ -426,31 +431,87 @@ describe.each([
   );
 
   it.each(["qrl_sendTransaction", "qrl_signTransaction"] as const)(
-    "%s: a provider switched back before signing still blocks the one the transaction was built on",
+    "%s: a provider replaced during the unlock is caught before the transaction is built",
     async (method) => {
       const { unlock, provider } = await approveIntoUnlock(method);
       const replacement = new FakeProvider();
-      const nonce = deferred<bigint>();
-      replacement.getTransactionCount.mockReturnValueOnce(nonce.promise);
       await act(async () => {
         mockQrlStore.qrlInstance = replacement;
         await jest.advanceTimersByTimeAsync(1);
       });
       await finishUnlock(unlock);
-      // The unlock is over and the transaction is being built on the replacement.
-      expect(replacement.getTransactionCount).toHaveBeenCalledTimes(1);
-      await act(async () => {
-        mockQrlStore.qrlInstance = provider;
-        await jest.advanceTimersByTimeAsync(1);
-      });
+
+      // No nonce, fee or gas call reached either provider.
+      expect(replacement.getTransactionCount).not.toHaveBeenCalled();
+      expect(provider.getTransactionCount).not.toHaveBeenCalled();
+      expectNothingSigned(provider, replacement);
+      expectStaleAnswer(method);
+      expectPinAccountedOnce();
+    },
+  );
+
+  it.each(["qrl_sendTransaction", "qrl_signTransaction"] as const)(
+    "%s: an account change while the transaction is built is caught before signing",
+    async (method) => {
+      const { unlock, provider } = await approveIntoUnlock(method);
+      const nonce = deferred<bigint>();
+      provider.getTransactionCount.mockReturnValueOnce(nonce.promise);
+      await finishUnlock(unlock);
+      // The unlock is over and the transaction is being built.
+      expect(provider.getTransactionCount).toHaveBeenCalledTimes(1);
+      await applyChange("account", method);
       await act(async () => {
         nonce.resolve(1n);
         await jest.advanceTimersByTimeAsync(1);
       });
 
-      expectNothingSigned(provider, replacement);
+      expectNothingSigned(provider);
       expectStaleAnswer(method);
       expectPinAccountedOnce();
+    },
+  );
+
+  it.each(["qrl_signMessage", "qrl_signTypedData"] as const)(
+    "%s: a provider re-init during the unlock does not block the offline signature",
+    async (method) => {
+      const { unlock } = await approveIntoUnlock(method);
+      await applyChange("provider", method);
+      await finishUnlock(unlock);
+
+      expectPinAccountedOnce();
+      expect(signMessageSpy).toHaveBeenCalledTimes(method === "qrl_signMessage" ? 1 : 0);
+      expect(signTypedDataSpy).toHaveBeenCalledTimes(method === "qrl_signTypedData" ? 1 : 0);
+      expect(rejectRequestSpy).not.toHaveBeenCalled();
+      expect(approveRequestSpy).toHaveBeenCalledTimes(1);
+      expect(approveRequestSpy).toHaveBeenCalledWith(
+        SESSION,
+        1,
+        expect.objectContaining({ signer: ADDRESS }),
+      );
+    },
+  );
+
+  it.each(METHODS)(
+    "%s: a network switch still in progress when the unlock ends signs nothing",
+    async (method) => {
+      const { unlock, provider } = await approveIntoUnlock(method);
+      // A real switch clears the provider first, then moves the network.
+      await act(async () => {
+        Reflect.set(mockQrlStore, "qrlInstance", undefined);
+        mockQrlStore.qrlConnection = { ...mockQrlStore.qrlConnection, blockchain: "MAIN_NET" };
+        await jest.advanceTimersByTimeAsync(1);
+      });
+      await finishUnlock(unlock);
+
+      expectNothingSigned(provider);
+      expectPinAccountedOnce();
+      if (isOffline(method)) {
+        expectStaleAnswer(method);
+      } else {
+        expect(approveRequestSpy).not.toHaveBeenCalled();
+        expect(rejectRequestSpy).toHaveBeenCalledTimes(1);
+        expect(rejectRequestSpy).toHaveBeenCalledWith(SESSION, 1, "Web3 not initialized", undefined);
+      }
     },
   );
 

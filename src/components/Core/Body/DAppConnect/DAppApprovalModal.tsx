@@ -436,16 +436,19 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     const { sessionId: approvalSessionId, id: approvalId } = currentApproval;
     const isStillCurrent = () =>
       dappConnectStore.isCurrentApproval(approvalSessionId, approvalId);
-    // What this tap approved: the request object, its reviewed content (which
-    // also carries the account and network) and the provider. The PIN unlock
-    // takes a second or two, so each signing path compares these with the
-    // live store once more after the unlock, right before it signs. A change
+    // What this tap approved: the request object and its reviewed content,
+    // which also carries the account and network. The PIN unlock takes a
+    // second or two, so each signing path compares these with the live store
+    // once more after the unlock. Transactions also pass the provider they
+    // build and sign with, which must still be the one live at the tap.
+    // Message and typed-data signing stay offline and pass none. A change
     // fails through the existing stale-wallet error.
     const approvedProvider = qrlStore.qrlInstance;
-    const assertApprovalUnchanged = (signingProvider = approvedProvider): void => {
+    const assertApprovalUnchanged = (signingProvider?: typeof approvedProvider): void => {
+      const providerChanged = signingProvider !== undefined
+        && (signingProvider !== approvedProvider || qrlStore.qrlInstance !== approvedProvider);
       if (currentApproval !== dappConnectStore.currentApproval
-        || signingProvider !== approvedProvider
-        || qrlStore.qrlInstance !== approvedProvider
+        || providerChanged
         || reviewedContent !== reviewContentKey(dappConnectStore.currentApproval,
           qrlStore.activeAccount.accountAddress, qrlStore.qrlConnection.blockchain)) {
         throw new Error("Wallet changed while preparing the request");
@@ -854,6 +857,9 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
           setLoading(false);
           return;
         }
+        // A change during the unlock stops here, before any nonce, fee or gas
+        // call. The check before signing covers the build that follows.
+        assertApprovalUnchanged(web3);
 
         const nonce = await web3.getTransactionCount(activeAddress, "pending");
         // Same fee policy as the send screen: the node's suggested tip plus
