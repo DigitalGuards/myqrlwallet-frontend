@@ -3883,7 +3883,7 @@ exports[`creation security changed 1`] = `
       ],
     ],
   ],
-  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkAn error occurred while creating the token. Please try again.Token NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
+  "text": "Create New QRC20 TokenDeploy your own QRC20 token on the QRL networkWallet changed while preparing token creationToken NameToken SymbolInitial SupplyDecimalsMintableChange Initial recipientMax Wallet AmountMax Transaction LimitTransaction PINEnter your PIN to authorize token creationCreate Token",
   "title": "Create QRC20 Token | MyQRLWallet",
   "values": [
     "Untranslated Token",

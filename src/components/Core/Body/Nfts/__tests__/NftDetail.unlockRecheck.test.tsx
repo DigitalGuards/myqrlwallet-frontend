@@ -105,6 +105,7 @@ function recipient(): UseQrnsRecipientResult {
 
 let qrlStore: {
   activeAccount: { accountAddress: string };
+  activeAccountSource: string;
   qrlConnection: { blockchain: string };
   qrlInstance: FakeProvider;
 };
@@ -159,6 +160,7 @@ it.each<[string, () => void]>([
   ["account", () => { qrlStore.activeAccount = { accountAddress: OTHER }; }],
   ["network", () => { qrlStore.qrlConnection = { blockchain: "MAIN_NET" }; }],
   ["provider", () => { qrlStore.qrlInstance = new FakeProvider(); }],
+  ["source", () => { qrlStore.activeAccountSource = "extension"; }],
 ])("transfers nothing when the %s changes during the unlock", async (_name, change) => {
   const unlock = await startTransfer();
   act(() => { runInAction(change); });
@@ -167,11 +169,34 @@ it.each<[string, () => void]>([
     await Promise.resolve();
   });
   expect(
-    await screen.findByText(/Wallet changed while preparing the NFT transfer|Wallet changed while preparing the transaction/),
+    await screen.findByText("Wallet changed while preparing the NFT transfer"),
   ).toBeTruthy();
   expect(transferNft).not.toHaveBeenCalled();
   expect(recordFailedAttempt).not.toHaveBeenCalled();
   expect(recordSuccessfulAttempt).toHaveBeenCalledTimes(1);
+});
+
+it.each<[string, () => void]>([
+  ["account", () => { qrlStore.activeAccount = { accountAddress: OTHER }; }],
+  ["network", () => { qrlStore.qrlConnection = { blockchain: "MAIN_NET" }; }],
+])("refuses a tap made on a render that predates the %s change", async (_name, change) => {
+  jest.mocked(decryptStoredSeedWithPin).mockResolvedValue({ mnemonic: "fixture", hexSeed: "00" });
+  render(<NftDetail />);
+  fireEvent.change(screen.getByLabelText("Recipient address or QNS name"), {
+    target: { value: "alice.qrl" },
+  });
+  fireEvent.change(screen.getByLabelText("PIN"), { target: { value: "123456" } });
+  // One batch: React has not re-rendered when the tap handler runs.
+  await act(() => {
+    runInAction(change);
+    fireEvent.click(screen.getByRole("button", { name: "Transfer" }));
+    return Promise.resolve();
+  });
+  expect(
+    await screen.findByText("Wallet changed while preparing the NFT transfer"),
+  ).toBeTruthy();
+  expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+  expect(transferNft).not.toHaveBeenCalled();
 });
 
 it("transfers exactly once when nothing changes", async () => {

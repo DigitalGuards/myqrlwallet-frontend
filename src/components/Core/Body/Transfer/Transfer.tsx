@@ -517,7 +517,11 @@ const Transfer = observer(() => {
     } else {
       try {
         const signingGeneration = walletMutations.captureGeneration();
-        const signingContext = captureSigningContext(qrlStore);
+        const signingContext = captureSigningContext(qrlStore, {
+          message: "Wallet changed while preparing the transaction",
+          account: accountAddress,
+          blockchain,
+        });
         const encryptedSeed = await StorageUtil.getEncryptedSeed(
           blockchain,
           accountAddress,
@@ -658,7 +662,11 @@ const Transfer = observer(() => {
 
     try {
       const signingGeneration = walletMutations.captureGeneration();
-      const signingContext = captureSigningContext(qrlStore);
+      const signingContext = captureSigningContext(qrlStore, {
+        message: "Wallet changed while preparing the transaction",
+        account: accountAddress,
+        blockchain,
+      });
       const encryptedSeed = await StorageUtil.getEncryptedSeed(
         blockchain,
         accountAddress,

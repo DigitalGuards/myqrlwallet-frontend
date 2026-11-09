@@ -42,6 +42,7 @@ import type QrlStore from "./qrlStore";
 import type { FeeLevel } from "./qrlStore";
 import { quoteFees } from "./qrlStore";
 import { walletMutations } from "@/utils/nativeWalletMutation";
+import { captureSigningContext } from "@/utils/signing/signingContext";
 import {
   normalizeQrlVm64Topic,
   qrlAddressFromIndexedTopic,
@@ -522,6 +523,12 @@ class TokenStore {
     maxTxLimit: string,
     mnemonicPhrases: string,
   ) {
+    // Captured before the first await: the account, source, network and
+    // provider this creation started on.
+    const walletChanged = "Wallet changed while preparing token creation";
+    const signingContext = captureSigningContext(this.qrlStore, {
+      message: walletChanged,
+    });
     this.qrlStore.resetTransactionStatus();
     const creationRequest = ++this._creationRequestId;
     const signingGeneration = isDesktop
@@ -532,8 +539,9 @@ class TokenStore {
         signingGeneration &&
         !walletMutations.isCurrent(signingGeneration)
       ) {
-        throw new Error("Wallet changed while preparing token creation");
+        throw new Error(walletChanged);
       }
+      signingContext.assertUnchanged();
     };
     try {
       void this.setCreatingToken(tokenName, true);
@@ -703,6 +711,7 @@ class TokenStore {
       // Desktop: build/sign/broadcast through the signer, then poll for the
       // receipt and run the same receiptHandler to extract the token address.
       if (isDesktop) {
+        assertSigningCurrent();
         const { transactionHash } = await desktopSigner.signAndSendTransaction({
           from: fromAddress,
           to: contractAddress,

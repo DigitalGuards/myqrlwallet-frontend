@@ -224,10 +224,16 @@ async function startSend(token: boolean) {
   return unlock;
 }
 
+const STALE_CHANGES: [string, () => void][] = [
+  ["account", () => { mockStore.qrlStore.activeAccount = { accountAddress: OTHER }; }],
+  ["network", () => { mockStore.qrlStore.qrlConnection = { blockchain: "MAIN_NET" }; }],
+];
+
 const CHANGES: [string, () => void][] = [
   ["account", () => { mockStore.qrlStore.activeAccount = { accountAddress: OTHER }; }],
   ["network", () => { mockStore.qrlStore.qrlConnection = { blockchain: "MAIN_NET" }; }],
   ["provider", () => { mockStore.qrlStore.qrlInstance = new FakeProvider(); }],
+  ["source", () => { mockStore.qrlStore.activeAccountSource = "mobile"; }],
 ];
 
 describe.each([
@@ -239,19 +245,55 @@ describe.each([
 
   it.each(CHANGES)(
     "signs nothing when the %s changes during the unlock",
-    async (_name, change) => {
+    async (name, change) => {
       const unlock = await startSend(token);
       act(() => { runInAction(change); });
       await act(async () => {
         unlock.resolve({ mnemonic: "fixture", hexSeed: "00" });
         await Promise.resolve();
       });
-      expect(
-        await screen.findByText(/Wallet changed while preparing the transaction/),
-      ).toBeTruthy();
+      // A source change swaps the PIN field out, which also carries the message.
+      if (name !== "source") {
+        expect(
+          await screen.findByText(
+            `${token ? "Transfer failed" : "Transaction failed"}: Wallet changed while preparing the transaction`,
+          ),
+        ).toBeTruthy();
+      }
+      await act(() => Promise.resolve());
       expect(sent()).not.toHaveBeenCalled();
       expect(recordFailedAttempt).not.toHaveBeenCalled();
       expect(recordSuccessfulAttempt).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(STALE_CHANGES)(
+    "refuses a tap made on a render that predates the %s change",
+    async (_name, change) => {
+      mockAsset = token ? CONTRACT : "native";
+      jest.mocked(decryptStoredSeedWithPin).mockResolvedValue({ mnemonic: "fixture", hexSeed: "00" });
+      render(<Transfer />);
+      await act(() => {
+        fireEvent.change(screen.getByPlaceholderText("QRL address or QNS name"), { target: { value: TO } });
+        fireEvent.change(screen.getByPlaceholderText("Enter amount"), { target: { value: "1.5" } });
+        fireEvent.change(screen.getByLabelText("PIN"), { target: { value: "123456" } });
+        return Promise.resolve();
+      });
+      const submit = screen.getByRole("button", { name: token ? "Send TOK" : "Send Quanta" });
+      await waitFor(() => { expect(submit.hasAttribute("disabled")).toBe(false); });
+      // One batch: React has not re-rendered when the tap handler runs.
+      await act(() => {
+        runInAction(change);
+        fireEvent.click(submit);
+        return Promise.resolve();
+      });
+      expect(
+        await screen.findByText(
+          `${token ? "Transfer failed" : "Transaction failed"}: Wallet changed while preparing the transaction`,
+        ),
+      ).toBeTruthy();
+      expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+      expect(sent()).not.toHaveBeenCalled();
     },
   );
 

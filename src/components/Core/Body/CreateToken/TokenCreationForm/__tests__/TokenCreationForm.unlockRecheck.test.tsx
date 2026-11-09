@@ -27,6 +27,7 @@ class FakeProvider {
 let mockStore: {
   qrlStore: {
     activeAccount: { accountAddress: string };
+    activeAccountSource: string;
     qrlConnection: { blockchain: string };
     qrlInstance: FakeProvider;
   };
@@ -155,6 +156,7 @@ it.each<[string, () => void]>([
   ["account", () => { mockStore.qrlStore.activeAccount = { accountAddress: OTHER }; }],
   ["network", () => { mockStore.qrlStore.qrlConnection = { blockchain: "MAIN_NET" }; }],
   ["provider", () => { mockStore.qrlStore.qrlInstance = new FakeProvider(); }],
+  ["source", () => { mockStore.qrlStore.activeAccountSource = "extension"; }],
 ])("creates nothing when the %s changes during the unlock", async (_name, change) => {
   const unlock = await startCreation();
   act(() => { runInAction(change); });
@@ -163,14 +165,65 @@ it.each<[string, () => void]>([
     await Promise.resolve();
   });
   expect(
-    await screen.findByText(
-      "An error occurred while creating the token. Please try again.",
-    ),
+    await screen.findByText("Wallet changed while preparing token creation"),
   ).toBeTruthy();
   expect(mockCreated).not.toHaveBeenCalled();
   expect(mockStore.tokenStore.setCreatingToken).not.toHaveBeenCalled();
   expect(recordFailedAttempt).not.toHaveBeenCalled();
   expect(recordSuccessfulAttempt).toHaveBeenCalledTimes(1);
+});
+
+it("refuses a submit made on a render that predates the account change", async () => {
+  jest.mocked(decryptStoredSeedWithPin).mockResolvedValue({ mnemonic: "fixture", hexSeed: "00" });
+  render(<TokenCreationForm onTokenCreated={mockCreated} />);
+  fill(screen.getByPlaceholderText("Example: MyQRLWallet"), "Token");
+  fill(screen.getByPlaceholderText("Example: MQW"), "TOK");
+  fill(screen.getByPlaceholderText("Example: 1000000000"), "1000");
+  const pin = screen.getByLabelText("Enter your PIN");
+  fill(pin, "123456");
+  const form = pin.closest("form");
+  if (!form) throw new Error("Form is missing");
+  // One batch: React has not re-rendered when the submit handler runs.
+  await act(() => {
+    runInAction(() => { mockStore.qrlStore.activeAccount = { accountAddress: OTHER }; });
+    fireEvent.submit(form);
+    return Promise.resolve();
+  });
+  expect(
+    await screen.findByText("Wallet changed while preparing token creation"),
+  ).toBeTruthy();
+  expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+  expect(mockCreated).not.toHaveBeenCalled();
+});
+
+it("clears the creating state when the wallet changes after the unlock check", async () => {
+  // Hold the store's creating-state write: the form awaits it after its first check.
+  const writeEntered = deferred<undefined>();
+  const writeDone = deferred<undefined>();
+  mockStore.tokenStore.setCreatingToken.mockImplementationOnce(() => {
+    writeEntered.resolve(undefined);
+    return writeDone.promise;
+  });
+  const unlock = await startCreation();
+  await act(async () => {
+    unlock.resolve({ mnemonic: "fixture", hexSeed: "00" });
+    await Promise.resolve();
+  });
+  await writeEntered.promise;
+  act(() => { runInAction(() => { mockStore.qrlStore.qrlConnection = { blockchain: "MAIN_NET" }; }); });
+  await act(async () => {
+    writeDone.resolve(undefined);
+    await Promise.resolve();
+  });
+  expect(
+    await screen.findByText("Wallet changed while preparing token creation"),
+  ).toBeTruthy();
+  expect(mockCreated).not.toHaveBeenCalled();
+  expect(mockStore.tokenStore.setCreatingToken).toHaveBeenLastCalledWith(
+    "",
+    false,
+    "Wallet changed while preparing token creation",
+  );
 });
 
 it("creates exactly once when nothing changes", async () => {

@@ -130,6 +130,8 @@ const NftDetail = observer(() => {
   const [sendError, setSendError] = useState<AssetMessage | null>(null);
   const [isSending, setIsSending] = useState(false);
   const blockchain = qrlStore.qrlConnection.blockchain;
+  // The handler below shadows `blockchain` with the stored selection.
+  const renderedBlockchain = blockchain;
   const recipientResolution = useNetworkQrnsRecipient({
     input: toAddress,
     blockchain,
@@ -271,7 +273,11 @@ const NftDetail = observer(() => {
       }
 
       const signingGeneration = walletMutations.captureGeneration();
-      const signingContext = captureSigningContext(qrlStore);
+      const signingContext = captureSigningContext(qrlStore, {
+        message: "Wallet changed while preparing the NFT transfer",
+        account: accountAddress,
+        blockchain: renderedBlockchain,
+      });
       const blockchain = await StorageUtil.getBlockChain();
       const encryptedSeed = await StorageUtil.getEncryptedSeed(
         blockchain,
