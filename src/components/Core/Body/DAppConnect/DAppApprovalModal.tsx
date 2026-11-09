@@ -436,6 +436,21 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     const { sessionId: approvalSessionId, id: approvalId } = currentApproval;
     const isStillCurrent = () =>
       dappConnectStore.isCurrentApproval(approvalSessionId, approvalId);
+    // What this tap approved: the request object, its reviewed content (which
+    // also carries the account and network) and the provider. The PIN unlock
+    // takes a second or two, so each signing path compares these with the
+    // live store once more after the unlock, right before it signs. A change
+    // fails through the existing stale-wallet error.
+    const approvedProvider = qrlStore.qrlInstance;
+    const assertApprovalUnchanged = (signingProvider = approvedProvider): void => {
+      if (currentApproval !== dappConnectStore.currentApproval
+        || signingProvider !== approvedProvider
+        || qrlStore.qrlInstance !== approvedProvider
+        || reviewedContent !== reviewContentKey(dappConnectStore.currentApproval,
+          qrlStore.activeAccount.accountAddress, qrlStore.qrlConnection.blockchain)) {
+        throw new Error("Wallet changed while preparing the request");
+      }
+    };
     const failDesktopSigning = (cause: unknown, operation: string): void => {
       const failure = desktopSigningError(cause);
       if (failure.code === 4001 || !isStillCurrent()) {
@@ -907,6 +922,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
         if (IS_V3_PROFILE) await qrlStore.assertNetworkReady(web3);
         await assertRequestedTransactionChain(txParams, web3);
         assertSigningGenerationCurrent(signingGeneration);
+        assertApprovalUnchanged(web3);
         const signedTx = await web3.accounts.signTransaction({ ...txObject,
           ...(IS_V3_PROFILE ? { chainId: qrlStore.signingChainId() } : {}),
         }, hexSeed);
@@ -1082,6 +1098,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
           assertSigningGenerationCurrent(signingGeneration);
           if (IS_V3_PROFILE) await qrlStore.assertNetworkReady();
           assertSigningGenerationCurrent(signingGeneration);
+          assertApprovalUnchanged();
           const result = signMessage(messageHex, unlocked.hexSeed);
           if (!isExactQrlAccount(result.signer, activeAddress)) {
             throw new Error(
@@ -1200,6 +1217,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
           assertSigningGenerationCurrent(signingGeneration);
           if (IS_V3_PROFILE) await qrlStore.assertNetworkReady();
           assertSigningGenerationCurrent(signingGeneration);
+          assertApprovalUnchanged();
           const result = signTypedData(payload, unlocked.hexSeed);
           if (!isExactQrlAccount(result.signer, activeAddress)) {
             throw new Error(
