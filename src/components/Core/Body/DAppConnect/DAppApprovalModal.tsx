@@ -440,9 +440,10 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     // which also carries the account and network. The PIN unlock takes a
     // second or two, so each signing path compares these with the live store
     // once more after the unlock. Transactions also pass the provider they
-    // build and sign with, which must still be the one live at the tap.
-    // Message and typed-data signing stay offline and pass none. A change
-    // fails through the existing stale-wallet error.
+    // build and sign with, which must still be the one live at the tap. Typed
+    // data whose domain names a chain passes the tap-time provider, which
+    // checked that chain. Message signing stays offline and passes none. A
+    // change fails through the existing stale-wallet error.
     const approvedProvider = qrlStore.qrlInstance;
     const assertApprovalUnchanged = (signingProvider?: typeof approvedProvider): void => {
       const providerChanged = signingProvider !== undefined
@@ -965,6 +966,9 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
         assertSigningGenerationCurrent(signingGeneration);
         if (IS_V3_PROFILE) await qrlStore.assertNetworkReady(web3);
         assertSigningGenerationCurrent(signingGeneration);
+        // Signing and the network check above take time too: a request
+        // dropped or changed meanwhile is never broadcast.
+        assertApprovalUnchanged(web3);
         // web3 runs its own revert check before sending, at `latest`, and
         // blocks the broadcast on any JSON-RPC error including "method does
         // not exist". That made the advisory pending-block check above
@@ -1223,7 +1227,9 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
           assertSigningGenerationCurrent(signingGeneration);
           if (IS_V3_PROFILE) await qrlStore.assertNetworkReady();
           assertSigningGenerationCurrent(signingGeneration);
-          assertApprovalUnchanged();
+          // A domain chainId was checked against the provider live at the
+          // tap, so that provider must still be the live one.
+          assertApprovalUnchanged(requiresChainCheck ? approvedProvider : undefined);
           const result = signTypedData(payload, unlocked.hexSeed);
           if (!isExactQrlAccount(result.signer, activeAddress)) {
             throw new Error(

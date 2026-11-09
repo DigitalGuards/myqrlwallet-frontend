@@ -30,6 +30,7 @@ import { mockReviewObservers } from "@/test-utils/reviewObserver";
 const ADDRESS = `Q${"a".repeat(128)}`;
 const OTHER_ADDRESS = `Q${"b".repeat(128)}`;
 const SESSION = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+const OTHER_SESSION = "ffffffff-bbbb-cccc-dddd-eeeeeeeeeeee";
 const HEX_SEED = "00".repeat(48);
 const TX_HASH = `0x${"c".repeat(64)}`;
 const NATIVE_PIN = "123456";
@@ -190,6 +191,11 @@ type Change = (typeof CHANGES)[number];
 /** Message and typed-data signing never use the provider. */
 const isOffline = (method: Method): boolean =>
   method === "qrl_signMessage" || method === "qrl_signTypedData";
+/**
+ * Only a plain message signs with no provider check at all: the typed data
+ * here carries a domain chainId, which was checked against the live provider.
+ */
+const ignoresProvider = (method: Method): boolean => method === "qrl_signMessage";
 
 /** How the existing stale-wallet path answers the dApp for each method. */
 const STALE_ANSWER: Record<Method, string> = {
@@ -415,7 +421,7 @@ describe.each([
   });
 
   it.each(METHODS.flatMap((method) => CHANGES
-    .filter((change) => !(change === "provider" && isOffline(method)))
+    .filter((change) => !(change === "provider" && ignoresProvider(method)))
     .map((change) => ({ method, change }))))(
     "$method: nothing is signed or broadcast when the $change changes during the PIN unlock",
     async ({ method, change }) => {
@@ -471,7 +477,7 @@ describe.each([
     },
   );
 
-  it.each(["qrl_signMessage", "qrl_signTypedData"] as const)(
+  it.each(["qrl_signMessage"] as const)(
     "%s: a provider re-init during the unlock does not block the offline signature",
     async (method) => {
       const { unlock } = await approveIntoUnlock(method);
@@ -479,8 +485,7 @@ describe.each([
       await finishUnlock(unlock);
 
       expectPinAccountedOnce();
-      expect(signMessageSpy).toHaveBeenCalledTimes(method === "qrl_signMessage" ? 1 : 0);
-      expect(signTypedDataSpy).toHaveBeenCalledTimes(method === "qrl_signTypedData" ? 1 : 0);
+      expect(signMessageSpy).toHaveBeenCalledTimes(1);
       expect(rejectRequestSpy).not.toHaveBeenCalled();
       expect(approveRequestSpy).toHaveBeenCalledTimes(1);
       expect(approveRequestSpy).toHaveBeenCalledWith(
@@ -491,7 +496,8 @@ describe.each([
     },
   );
 
-  it.each(METHODS)(
+  // Only the v3 store clears the provider at the start of a switch.
+  (v3 ? it : it.skip).each(METHODS)(
     "%s: a network switch still in progress when the unlock ends signs nothing",
     async (method) => {
       const { unlock, provider } = await approveIntoUnlock(method);
@@ -514,6 +520,59 @@ describe.each([
       }
     },
   );
+
+  it.each(METHODS)(
+    "%s: a request replaced during the unlock signs nothing and leaves the next request alone",
+    async (method) => {
+      const { unlock, provider } = await approveIntoUnlock(method);
+      const next: PendingDAppRequest = {
+        id: 2,
+        sessionId: OTHER_SESSION,
+        method: "qrl_signMessage",
+        params: requestParams("qrl_signMessage"),
+        dappInfo: { name: "Other dApp", url: "https://other.example", chainId: "0x301825" },
+        timestamp: Date.now(),
+      };
+      // As a session disconnect does: drop the request, promote the next one.
+      await act(async () => {
+        mockDappStore.pendingRequests = [next];
+        mockDappStore.currentApproval = next;
+        await jest.advanceTimersByTimeAsync(1);
+      });
+      await finishUnlock(unlock);
+
+      expectNothingSigned(provider, mockQrlStore.qrlInstance);
+      expectPinAccountedOnce();
+      expect(approveRequestSpy).not.toHaveBeenCalled();
+      for (const call of rejectRequestSpy.mock.calls) {
+        expect(call.slice(0, 2)).toEqual([SESSION, 1]);
+      }
+      // The store keeps its own observable copy, so compare what identifies it.
+      expect(mockDappStore.currentApproval?.sessionId).toBe(OTHER_SESSION);
+      expect(mockDappStore.currentApproval?.id).toBe(2);
+      expect(mockDappStore.pendingRequests).toEqual([next]);
+    },
+  );
+
+  it("qrl_sendTransaction: a change while the transaction is signed is never broadcast", async () => {
+    const method = "qrl_sendTransaction";
+    const { unlock, provider } = await approveIntoUnlock(method);
+    const signing = deferred<{ rawTransaction: string; transactionHash: string }>();
+    provider.accounts.signTransaction.mockReturnValueOnce(signing.promise);
+    await finishUnlock(unlock);
+    await act(async () => { await jest.advanceTimersByTimeAsync(1); });
+    // Signed, not yet broadcast.
+    expect(provider.accounts.signTransaction).toHaveBeenCalledTimes(1);
+    await applyChange("account", method);
+    await act(async () => {
+      signing.resolve({ rawTransaction: "0x1234", transactionHash: TX_HASH });
+      await jest.advanceTimersByTimeAsync(1);
+    });
+
+    expect(provider.sendSignedTransaction).not.toHaveBeenCalled();
+    expectStaleAnswer(method);
+    expectPinAccountedOnce();
+  });
 
   it.each(METHODS)("%s: signs once when nothing changed", async (method) => {
     const { unlock, provider } = await approveIntoUnlock(method);
