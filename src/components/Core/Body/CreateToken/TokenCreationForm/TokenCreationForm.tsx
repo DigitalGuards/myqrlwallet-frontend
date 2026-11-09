@@ -42,6 +42,10 @@ import {
 } from "@/utils/nativeWalletMutation";
 import { StorageUtil } from "@/utils/storage";
 import { getAddressFromMnemonicAsync } from "@/utils/crypto";
+import {
+  captureSigningContext,
+  type SigningContext,
+} from "@/utils/signing/signingContext";
 import { isDesktop } from "@/desktop/bridge";
 import { Label } from "@/components/UI/Label";
 import { isValidQrlAddress, QRL_ZERO_ADDRESS } from "@/utils/web3";
@@ -276,6 +280,7 @@ export const TokenCreationForm = observer(
         // the signer, so we pass an empty mnemonic placeholder.
         let mnemonicPhrase = "";
         let signingGeneration: WalletMutationToken | null = null;
+        let signingContext: SigningContext | null = null;
         if (!isDesktop) {
           if (!pin) {
             setPinError({ key: "creation:pinRequired" });
@@ -284,6 +289,7 @@ export const TokenCreationForm = observer(
 
           const pinGeneration = walletMutations.captureGeneration();
           signingGeneration = pinGeneration;
+          signingContext = captureSigningContext(qrlStore);
           const selectedBlockChain = await StorageUtil.getBlockChain();
           const encryptedSeed = await StorageUtil.getEncryptedSeed(
             selectedBlockChain,
@@ -347,6 +353,7 @@ export const TokenCreationForm = observer(
         ) {
           throw new Error("Wallet changed while preparing token creation");
         }
+        signingContext?.assertUnchanged();
 
         const tokenName = formData.tokenName;
         const tokenSymbol = formData.tokenSymbol;

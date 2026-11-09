@@ -66,6 +66,7 @@ import {
   decryptStoredSeedWithPin,
   getAddressFromMnemonicAsync,
 } from "@/utils/crypto";
+import { captureSigningContext } from "@/utils/signing/signingContext";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import { isDesktop } from "@/desktop/bridge";
 import {
@@ -516,6 +517,7 @@ const Transfer = observer(() => {
     } else {
       try {
         const signingGeneration = walletMutations.captureGeneration();
+        const signingContext = captureSigningContext(qrlStore);
         const encryptedSeed = await StorageUtil.getEncryptedSeed(
           blockchain,
           accountAddress,
@@ -576,6 +578,7 @@ const Transfer = observer(() => {
         if (!walletMutations.isCurrent(signingGeneration)) {
           throw new Error("Wallet changed while preparing the transaction");
         }
+        signingContext.assertUnchanged();
 
         const recipientAddress = revalidateRecipient(recipientSubmission);
         if (!recipientAddress) return;
@@ -655,6 +658,7 @@ const Transfer = observer(() => {
 
     try {
       const signingGeneration = walletMutations.captureGeneration();
+      const signingContext = captureSigningContext(qrlStore);
       const encryptedSeed = await StorageUtil.getEncryptedSeed(
         blockchain,
         accountAddress,
@@ -709,6 +713,7 @@ const Transfer = observer(() => {
       if (!walletMutations.isCurrent(signingGeneration)) {
         throw new Error("Wallet changed while preparing the transaction");
       }
+      signingContext.assertUnchanged();
 
       const rawAmount = parseUnits(
         formData.amount,

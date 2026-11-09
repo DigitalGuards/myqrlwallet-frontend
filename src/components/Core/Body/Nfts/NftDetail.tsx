@@ -40,6 +40,7 @@ import {
   decryptStoredSeedWithPin,
   getAddressFromMnemonicAsync,
 } from "@/utils/crypto";
+import { captureSigningContext } from "@/utils/signing/signingContext";
 import { walletMutations } from "@/utils/nativeWalletMutation";
 import { isDesktop } from "@/desktop/bridge";
 import { NftImage } from "./NftImage";
@@ -270,6 +271,7 @@ const NftDetail = observer(() => {
       }
 
       const signingGeneration = walletMutations.captureGeneration();
+      const signingContext = captureSigningContext(qrlStore);
       const blockchain = await StorageUtil.getBlockChain();
       const encryptedSeed = await StorageUtil.getEncryptedSeed(
         blockchain,
@@ -319,6 +321,7 @@ const NftDetail = observer(() => {
       if (!walletMutations.isCurrent(signingGeneration)) {
         throw new Error("Wallet changed while preparing the NFT transfer");
       }
+      signingContext.assertUnchanged();
 
       const recipientAddress =
         recipientResolution.revalidateSubmission(recipientSubmission);
