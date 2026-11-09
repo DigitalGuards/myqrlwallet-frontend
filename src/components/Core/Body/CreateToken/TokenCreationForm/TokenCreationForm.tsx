@@ -399,9 +399,9 @@ export const TokenCreationForm = observer(
           },
         );
 
-        // The two awaits above gave the wallet one more chance to change.
-        // Nothing has been signed yet: say so on the status page, which is
-        // already opening, and stop.
+        // The await above gave the wallet one more chance to change. Nothing
+        // has been signed yet: say so on the status page, which is already
+        // opening, and stop.
         try {
           signingContext?.assertUnchanged();
         } catch (error) {
