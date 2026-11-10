@@ -54,6 +54,7 @@ import type QrlStore from "./qrlStore";
 import type TokenStore from "./tokenStore";
 import { quoteFees, type FeeLevel } from "./qrlStore";
 import { walletMutations } from "@/utils/nativeWalletMutation";
+import { captureSigningContext } from "@/utils/signing/signingContext";
 import {
   assertSignedFeeWithinApproved,
   FEE_NOT_SHOWN,
@@ -600,12 +601,19 @@ class NftStore {
       amount: amount.toString(),
       asset: `NFT #${toTemplateString(nft.tokenId)}`,
     };
+    // Captured before the first await: the account, source, network and
+    // provider this transfer started on.
+    const walletChanged = "Wallet changed while preparing the NFT transfer";
+    const signingContext = captureSigningContext(this.qrlStore, {
+      message: walletChanged,
+    });
     this.qrlStore.resetTransactionStatus();
     const signingGeneration = walletMutations.captureGeneration();
     const assertSigningCurrent = (): void => {
       if (!walletMutations.isCurrent(signingGeneration)) {
-        throw new Error("Wallet changed while preparing the NFT transfer");
+        throw new Error(walletChanged);
       }
+      signingContext.assertUnchanged();
     };
     if (IS_V3_PROFILE) {
       try {
@@ -624,6 +632,7 @@ class NftStore {
     if (isDesktop) {
       try {
         const selectedBlockChain = await StorageUtil.getBlockChain();
+        signingContext.assertNetwork(selectedBlockChain);
         const { url } =
           QRL_PROVIDER[blockchainKey(selectedBlockChain)];
         const { default: Web3 } = await getQrlWeb3();
@@ -657,6 +666,7 @@ class NftStore {
             .encodeABI();
         }
 
+        assertSigningCurrent();
         const { transactionHash } = await desktopSigner.signAndSendTransaction({
           from,
           to: nft.contractAddress,
@@ -702,6 +712,7 @@ class NftStore {
         this.qrlStore.activeAccount.accountAddress,
       );
       const selectedBlockChain = await StorageUtil.getBlockChain();
+      signingContext.assertNetwork(selectedBlockChain);
       const { url } =
         QRL_PROVIDER[blockchainKey(selectedBlockChain)];
       const { default: Web3, utils } = await getQrlWeb3();
