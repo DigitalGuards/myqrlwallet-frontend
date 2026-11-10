@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import {
   assetMessage,
   assetPinError,
+  assetServiceError,
   creationValidationMessage,
   type AssetMessage,
 } from "@/i18n/assetMessage";
@@ -42,6 +43,10 @@ import {
 } from "@/utils/nativeWalletMutation";
 import { StorageUtil } from "@/utils/storage";
 import { getAddressFromMnemonicAsync } from "@/utils/crypto";
+import {
+  captureSigningContext,
+  type SigningContext,
+} from "@/utils/signing/signingContext";
 import { isDesktop } from "@/desktop/bridge";
 import { Label } from "@/components/UI/Label";
 import { isValidQrlAddress, QRL_ZERO_ADDRESS } from "@/utils/web3";
@@ -199,6 +204,8 @@ type TokenCreationFormProps = {
   onBusyChange?: (busy: boolean) => void;
 };
 
+const WALLET_CHANGED = "Wallet changed while preparing token creation";
+
 export const TokenCreationForm = observer(
   ({ onTokenCreated, onBusyChange }: TokenCreationFormProps) => {
     const { t } = useTranslation([
@@ -276,6 +283,7 @@ export const TokenCreationForm = observer(
         // the signer, so we pass an empty mnemonic placeholder.
         let mnemonicPhrase = "";
         let signingGeneration: WalletMutationToken | null = null;
+        let signingContext: SigningContext | null = null;
         if (!isDesktop) {
           if (!pin) {
             setPinError({ key: "creation:pinRequired" });
@@ -284,7 +292,12 @@ export const TokenCreationForm = observer(
 
           const pinGeneration = walletMutations.captureGeneration();
           signingGeneration = pinGeneration;
+          signingContext = captureSigningContext(qrlStore, {
+            message: WALLET_CHANGED,
+            account: activeAccount.accountAddress,
+          });
           const selectedBlockChain = await StorageUtil.getBlockChain();
+          signingContext.assertNetwork(selectedBlockChain);
           const encryptedSeed = await StorageUtil.getEncryptedSeed(
             selectedBlockChain,
             activeAccount.accountAddress,
@@ -345,8 +358,9 @@ export const TokenCreationForm = observer(
           signingGeneration &&
           !walletMutations.isCurrent(signingGeneration)
         ) {
-          throw new Error("Wallet changed while preparing token creation");
+          throw new Error(WALLET_CHANGED);
         }
+        signingContext?.assertUnchanged();
 
         const tokenName = formData.tokenName;
         const tokenSymbol = formData.tokenSymbol;
@@ -386,6 +400,26 @@ export const TokenCreationForm = observer(
           },
         );
 
+        // The await above gave the wallet one more chance to change. Nothing
+        // has been signed yet: say so on the status page, which is already
+        // opening, and stop.
+        try {
+          if (
+            signingGeneration &&
+            !walletMutations.isCurrent(signingGeneration)
+          ) {
+            throw new Error(WALLET_CHANGED);
+          }
+          signingContext?.assertUnchanged();
+        } catch (error) {
+          await tokenStore.setCreatingToken(
+            "",
+            false,
+            error instanceof Error ? error.message : WALLET_CHANGED,
+          );
+          throw error;
+        }
+
         // Start token creation in background (don't await here)
         onTokenCreated(
           tokenName,
@@ -403,7 +437,11 @@ export const TokenCreationForm = observer(
         });
       } catch (error) {
         reportError("Error creating token:", error);
-        setFormError({ key: "creation:failed" });
+        setFormError(
+          error instanceof Error && error.message === WALLET_CHANGED
+            ? assetServiceError(error.message)
+            : { key: "creation:failed" },
+        );
       }
     }
 
