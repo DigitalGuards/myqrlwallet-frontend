@@ -279,6 +279,7 @@ const NftDetail = observer(() => {
         blockchain: renderedBlockchain,
       });
       const blockchain = await StorageUtil.getBlockChain();
+      signingContext.assertNetwork(blockchain);
       const encryptedSeed = await StorageUtil.getEncryptedSeed(
         blockchain,
         accountAddress,

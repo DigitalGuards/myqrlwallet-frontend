@@ -65,6 +65,23 @@ describe("captureSigningContext", () => {
   });
 });
 
+describe("assertNetwork", () => {
+  it("passes the captured network and throws the given message on another", () => {
+    const context = captureSigningContext(store(), { message: MESSAGE });
+    expect(() => { context.assertNetwork("TEST_NET"); }).not.toThrow();
+    expect(() => { context.assertNetwork("MAIN_NET"); }).toThrow(MESSAGE);
+  });
+
+  it("compares the array form by value", () => {
+    const s = store();
+    s.qrlConnection = { blockchain: ["TEST_NET"] };
+    const context = captureSigningContext(s, { message: MESSAGE });
+    expect(() => { context.assertNetwork(["TEST_NET"]); }).not.toThrow();
+    expect(() => { context.assertNetwork("TEST_NET"); }).not.toThrow();
+    expect(() => { context.assertNetwork(["MAIN_NET"]); }).toThrow(MESSAGE);
+  });
+});
+
 describe("wallet-changed messages", () => {
   it("map to the translated keys the screens already use", () => {
     expect(assetServiceError("Wallet changed while preparing the NFT transfer")).toEqual({

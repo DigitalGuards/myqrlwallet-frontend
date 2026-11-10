@@ -632,6 +632,7 @@ class NftStore {
     if (isDesktop) {
       try {
         const selectedBlockChain = await StorageUtil.getBlockChain();
+        signingContext.assertNetwork(selectedBlockChain);
         const { url } =
           QRL_PROVIDER[blockchainKey(selectedBlockChain)];
         const { default: Web3 } = await getQrlWeb3();
@@ -711,6 +712,7 @@ class NftStore {
         this.qrlStore.activeAccount.accountAddress,
       );
       const selectedBlockChain = await StorageUtil.getBlockChain();
+      signingContext.assertNetwork(selectedBlockChain);
       const { url } =
         QRL_PROVIDER[blockchainKey(selectedBlockChain)];
       const { default: Web3, utils } = await getQrlWeb3();

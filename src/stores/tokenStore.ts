@@ -547,6 +547,7 @@ class TokenStore {
       void this.setCreatingToken(tokenName, true);
       if (IS_V3_PROFILE) await this.qrlStore.assertNetworkReady();
       const selectedBlockChain = await StorageUtil.getBlockChain();
+      signingContext.assertNetwork(selectedBlockChain);
       const { url, explorer, tokenFactory } = QRL_PROVIDER[blockchainKey(selectedBlockChain)];
       const { default: Web3, utils } = await getQrlWeb3();
       const web3 = new Web3(new Web3.providers.HttpProvider(url));

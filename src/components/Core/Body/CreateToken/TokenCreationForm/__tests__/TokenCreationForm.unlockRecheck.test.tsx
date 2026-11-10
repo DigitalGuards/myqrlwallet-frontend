@@ -53,9 +53,11 @@ jest.mock("@/config/runtimeProfile", () => ({
 jest.mock("@/utils/nativeApp", () => ({ isInNativeApp: () => false }));
 jest.mock("@/utils/web3", () => ({ isValidQrlAddress: () => true }));
 jest.mock("@/utils/reportError", () => ({ reportError: jest.fn() }));
+let mockStoredNetwork = "TEST_NET";
+let mockGenerationCurrent = true;
 jest.mock("@/utils/storage", () => ({
   StorageUtil: {
-    getBlockChain: () => Promise.resolve("TEST_NET"),
+    getBlockChain: () => Promise.resolve(mockStoredNetwork),
     getEncryptedSeed: () => Promise.resolve("fixture"),
   },
 }));
@@ -75,7 +77,7 @@ jest.mock("@/utils/crypto/pinAttemptTracker", () => ({
 // Always current, so the check under test is the only thing that can stop
 // the creation.
 jest.mock("@/utils/nativeWalletMutation", () => ({
-  walletMutations: { captureGeneration: () => 0, isCurrent: () => true },
+  walletMutations: { captureGeneration: () => ({ id: 1 }), isCurrent: () => mockGenerationCurrent },
 }));
 jest.mock("@/components/UI/PinInput/PinInput", () => ({
   PinInput: ({
@@ -105,6 +107,8 @@ class MockResizeObserver {
 beforeEach(() => {
   globalThis.ResizeObserver = MockResizeObserver;
   localStorage.clear();
+  mockStoredNetwork = "TEST_NET";
+  mockGenerationCurrent = true;
   mockStore = {
     qrlStore: observable(
       {
@@ -211,6 +215,58 @@ it("clears the creating state when the wallet changes after the unlock check", a
   });
   await writeEntered.promise;
   act(() => { runInAction(() => { mockStore.qrlStore.qrlConnection = { blockchain: "MAIN_NET" }; }); });
+  await act(async () => {
+    writeDone.resolve(undefined);
+    await Promise.resolve();
+  });
+  expect(
+    await screen.findByText("Wallet changed while preparing token creation"),
+  ).toBeTruthy();
+  expect(mockCreated).not.toHaveBeenCalled();
+  expect(mockStore.tokenStore.setCreatingToken).toHaveBeenLastCalledWith(
+    "",
+    false,
+    "Wallet changed while preparing token creation",
+  );
+});
+
+it("refuses a stored network that differs from the one on screen", async () => {
+  mockStoredNetwork = "MAIN_NET";
+  jest.mocked(decryptStoredSeedWithPin).mockResolvedValue({ mnemonic: "fixture", hexSeed: "00" });
+  render(<TokenCreationForm onTokenCreated={mockCreated} />);
+  fill(screen.getByPlaceholderText("Example: MyQRLWallet"), "Token");
+  fill(screen.getByPlaceholderText("Example: MQW"), "TOK");
+  fill(screen.getByPlaceholderText("Example: 1000000000"), "1000");
+  const pin = screen.getByLabelText("Enter your PIN");
+  fill(pin, "123456");
+  const form = pin.closest("form");
+  if (!form) throw new Error("Form is missing");
+  await act(() => {
+    fireEvent.submit(form);
+    return Promise.resolve();
+  });
+  expect(
+    await screen.findByText("Wallet changed while preparing token creation"),
+  ).toBeTruthy();
+  expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+  expect(mockCreated).not.toHaveBeenCalled();
+});
+
+it("clears the creating state when only the wallet generation moves after the unlock check", async () => {
+  const writeEntered = deferred<undefined>();
+  const writeDone = deferred<undefined>();
+  mockStore.tokenStore.setCreatingToken.mockImplementationOnce(() => {
+    writeEntered.resolve(undefined);
+    return writeDone.promise;
+  });
+  const unlock = await startCreation();
+  await act(async () => {
+    unlock.resolve({ mnemonic: "fixture", hexSeed: "00" });
+    await Promise.resolve();
+  });
+  await writeEntered.promise;
+  // Account, source, network and provider stay as they are.
+  mockGenerationCurrent = false;
   await act(async () => {
     writeDone.resolve(undefined);
     await Promise.resolve();

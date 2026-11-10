@@ -19,6 +19,7 @@
  *   context.assertUnchanged();
  */
 import type { BlockchainSelection } from "@/utils/storage/storage";
+import { toTemplateString } from "@/utils/guards";
 
 interface SigningContextSource {
   activeAccount: { accountAddress: string };
@@ -37,6 +38,13 @@ export interface SigningContextOptions {
 
 export interface SigningContext {
   assertUnchanged: () => void;
+  /**
+   * Throws when a network read from storage differs from the captured one.
+   * Storage is written before the store, so a switch can sit in storage while
+   * the store still shows the old network. Call it right after each
+   * `StorageUtil.getBlockChain()`, before the value is used.
+   */
+  assertNetwork: (selection: BlockchainSelection) => void;
 }
 
 export function captureSigningContext(
@@ -54,7 +62,13 @@ export function captureSigningContext(
   ) {
     throw new Error(message);
   }
+  const capturedNetwork = toTemplateString(blockchain);
   return {
+    assertNetwork: (selection) => {
+      if (toTemplateString(selection) !== capturedNetwork) {
+        throw new Error(message);
+      }
+    },
     assertUnchanged: () => {
       if (
         store.activeAccount.accountAddress !== account ||

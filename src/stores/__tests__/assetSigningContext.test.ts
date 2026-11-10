@@ -216,6 +216,38 @@ describe.each([
   });
 });
 
+describe.each([
+  ["seed path", false],
+  ["desktop path", true],
+])("a stored network that differs from the captured one (%s)", (_label, desktop) => {
+  it("signs no NFT transfer", async () => {
+    mockDesktop = desktop;
+    const { store, nfts } = fixture();
+    jest.mocked(StorageUtil.getBlockChain).mockResolvedValueOnce("MAIN_NET");
+    expect(await nfts.transferNft(NFT, RECIPIENT, "test mnemonic", 1n, "medium", FEE_NOT_SHOWN)).toBe(false);
+    expect(mockRpc.sendTransaction).not.toHaveBeenCalled();
+    expect(mockDesktopSign).not.toHaveBeenCalled();
+    expect(store.transactionStatus.error).toMatch(
+      /Wallet changed while preparing the NFT transfer$/,
+    );
+  });
+
+  it("creates no token", async () => {
+    mockDesktop = desktop;
+    const { tokens } = fixture();
+    jest.mocked(StorageUtil.getBlockChain).mockResolvedValueOnce("MAIN_NET");
+    await expect(
+      tokens.createToken("Name", "SYM", "1", 8, "0", RECIPIENT, "0", "0", "test mnemonic"),
+    ).rejects.toThrow("Wallet changed while preparing token creation");
+    expect(mockRpc.sendTransaction).not.toHaveBeenCalled();
+    expect(mockDesktopSign).not.toHaveBeenCalled();
+    expect(tokens.creatingToken).toMatchObject({
+      creating: false,
+      error: "Wallet changed while preparing token creation",
+    });
+  });
+});
+
 it("still transfers an NFT and creates a token when nothing changes", async () => {
   const { nfts, tokens } = fixture();
   expect(await nfts.transferNft(NFT, RECIPIENT, "test mnemonic", 1n, "medium", FEE_NOT_SHOWN)).toBe(true);

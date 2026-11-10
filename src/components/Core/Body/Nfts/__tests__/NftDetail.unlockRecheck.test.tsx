@@ -38,7 +38,8 @@ jest.mock("@/utils", () => ({
     values.filter((value) => typeof value === "string").join(" "),
 }));
 jest.mock("@/router/router", () => ({ ROUTES: { HOME: "/" } }));
-jest.mock("@/utils/storage", () => ({ StorageUtil: { getBlockChain: () => Promise.resolve("TEST_NET"), getEncryptedSeed: () => Promise.resolve("fixture") } }));
+let mockStoredNetwork = "TEST_NET";
+jest.mock("@/utils/storage", () => ({ StorageUtil: { getBlockChain: () => Promise.resolve(mockStoredNetwork), getEncryptedSeed: () => Promise.resolve("fixture") } }));
 jest.mock("@/hooks/useNetworkQrnsRecipient", () => ({
   useNetworkQrnsRecipient: jest.fn(),
 }));
@@ -112,6 +113,7 @@ let qrlStore: {
 const transferNft = jest.fn(() => Promise.resolve(true));
 
 beforeEach(() => {
+  mockStoredNetwork = "TEST_NET";
   qrlStore = observable(
     {
       activeAccount: { accountAddress: ACCOUNT },
@@ -189,6 +191,24 @@ it.each<[string, () => void]>([
   // One batch: React has not re-rendered when the tap handler runs.
   await act(() => {
     runInAction(change);
+    fireEvent.click(screen.getByRole("button", { name: "Transfer" }));
+    return Promise.resolve();
+  });
+  expect(
+    await screen.findByText("Wallet changed while preparing the NFT transfer"),
+  ).toBeTruthy();
+  expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+  expect(transferNft).not.toHaveBeenCalled();
+});
+
+it("refuses a stored network that differs from the one on screen", async () => {
+  mockStoredNetwork = "MAIN_NET";
+  render(<NftDetail />);
+  fireEvent.change(screen.getByLabelText("Recipient address or QNS name"), {
+    target: { value: "alice.qrl" },
+  });
+  fireEvent.change(screen.getByLabelText("PIN"), { target: { value: "123456" } });
+  await act(() => {
     fireEvent.click(screen.getByRole("button", { name: "Transfer" }));
     return Promise.resolve();
   });

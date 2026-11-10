@@ -297,6 +297,7 @@ export const TokenCreationForm = observer(
             account: activeAccount.accountAddress,
           });
           const selectedBlockChain = await StorageUtil.getBlockChain();
+          signingContext.assertNetwork(selectedBlockChain);
           const encryptedSeed = await StorageUtil.getEncryptedSeed(
             selectedBlockChain,
             activeAccount.accountAddress,
@@ -403,6 +404,12 @@ export const TokenCreationForm = observer(
         // has been signed yet: say so on the status page, which is already
         // opening, and stop.
         try {
+          if (
+            signingGeneration &&
+            !walletMutations.isCurrent(signingGeneration)
+          ) {
+            throw new Error(WALLET_CHANGED);
+          }
           signingContext?.assertUnchanged();
         } catch (error) {
           await tokenStore.setCreatingToken(
