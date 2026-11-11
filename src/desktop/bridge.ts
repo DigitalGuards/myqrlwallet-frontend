@@ -22,6 +22,11 @@
 /** One provisioned desktop wallet (public data only). */
 import { assertV3BrowserContext } from "@/config/runtimeProfile";
 import { logWarning } from "@/utils/log";
+import {
+  INTERNAL_ERROR_CODE,
+  USER_REJECTED_CODE,
+  USER_REJECTED_MESSAGE,
+} from "@/services/dappConnect/types";
 
 export interface DesktopWalletInfo {
   address: string;
@@ -270,11 +275,11 @@ export function desktopSigningError(error: unknown): {
   if (
     /^user (?:rejected (?:signature|the request)|cancelled signature|canceled signature)\.?$/i.test(message)
   ) {
-    return { code: 4001, message: "User rejected the request" };
+    return { code: USER_REJECTED_CODE, message: USER_REJECTED_MESSAGE };
   }
   const firstLine = message.split(/\r?\n/)[0]?.trim() || "Desktop signing failed";
   return {
-    code: -32603,
+    code: INTERNAL_ERROR_CODE,
     message: firstLine.length > 240 ? `${firstLine.slice(0, 237)}...` : firstLine,
   };
 }

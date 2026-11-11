@@ -69,6 +69,13 @@ import {
 import { Loader, Check, X, ExternalLink, Shield, Globe } from "lucide-react";
 import type { TxProgressState } from "@/stores/dappConnectStore";
 import type { PendingDAppRequest } from "@/services/dappConnect/types";
+import {
+  INTERNAL_ERROR_CODE,
+  INVALID_PARAMS_CODE,
+  UNAUTHORIZED_CODE,
+  USER_REJECTED_CODE,
+  USER_REJECTED_MESSAGE,
+} from "@/services/dappConnect/types";
 import type { ZodError } from "zod";
 import {
   isDesktop,
@@ -79,6 +86,7 @@ import {
 import { isExactQrlAccount } from "@/services/dappConnect/accountBinding";
 import {
   assertRequestedTransactionChain,
+  TransactionChainMismatchError,
   canonicalChainId,
   readWalletChainId,
 } from "@/services/dappConnect/rpcProvider";
@@ -454,7 +462,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     };
     const failDesktopSigning = (cause: unknown, operation: string): void => {
       const failure = desktopSigningError(cause);
-      if (failure.code === 4001 || !isStillCurrent()) {
+      if (failure.code === USER_REJECTED_CODE || !isStillCurrent()) {
         dappConnectStore.rejectRequestById(
           approvalSessionId,
           approvalId,
@@ -466,6 +474,14 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
       // Keep the failure visible until Close, Escape or X answers this request.
       setSigningFailure(failure);
       setError(`${operation} signing failed: ${failure.message}`);
+    };
+    // A request the wallet cannot act on: keep the reason on screen until
+    // Close, and answer the dApp with a code that says why (Close would
+    // otherwise report a decline).
+    const failRequestView = (message: string, code: number): void => {
+      setSigningFailure({ code, message });
+      setError(message);
+      setLoading(false);
     };
     const setCurrentTxProgress = (
       state: TxProgressState,
@@ -492,8 +508,8 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     const dAppRequest = createDAppRequestAnswer({
       approve: (result) =>
         { dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, result); },
-      reject: (message) =>
-        { dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, message); },
+      reject: (message, code) =>
+        { dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, message, code); },
     });
     let broadcastDetails: Omit<Parameters<typeof transactionHistoryStore.record>[0], "hash"> | undefined;
     const answerDApp = (hash: string): void => {
@@ -502,7 +518,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     };
     // Never after an answer: the dApp holds a hash for a transaction that is
     // on its way, and a later revert is something it observes on chain.
-    const rejectDApp = (message: string): void => { dAppRequest.reject(message); };
+    const rejectDApp = (message: string, code: number): void => { dAppRequest.reject(message, code); };
 
     const reportUnknownTransaction = (hash: string, message: string) => {
       setCurrentTxProgress("unknown", hash, message);
@@ -514,7 +530,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
         // the user sending the same transaction twice.
         void watchUnknownTransaction(hash);
       } else {
-        rejectDApp(message);
+        rejectDApp(message, INTERNAL_ERROR_CODE);
       }
       if (isStillCurrent()) {
         setPin("");
@@ -674,8 +690,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
       ) {
         const activeAddress = qrlStore.activeAccount.accountAddress;
         if (!activeAddress) {
-          setError("No active account");
-          setLoading(false);
+          failRequestView("No active account", UNAUTHORIZED_CODE);
           return;
         }
 
@@ -685,8 +700,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
         const requestedFrom =
           optionalString(firstParamRecord(params)["from"]) ?? "";
         if (!isExactQrlAccount(requestedFrom, activeAddress)) {
-          setError("Signer mismatch: request is for a different account");
-          setLoading(false);
+          failRequestView("Signer mismatch: request is for a different account", UNAUTHORIZED_CODE);
           return;
         }
 
@@ -784,8 +798,16 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             const userError = toUserFacingError(errMsg);
             setCurrentTxProgress("failed", undefined, userError);
             // A no-op once the hash was answered: a revert after a successful
-            // broadcast is not a rejected request.
-            rejectDApp(`Transaction failed: ${userError}`);
+            // broadcast is not a rejected request. Pressing Reject in the
+            // desktop's own confirm window is the user's decline (4001);
+            // every other failure here is the wallet's or the node's.
+            const failure = desktopSigningError(e);
+            rejectDApp(
+              failure.code === USER_REJECTED_CODE
+                ? USER_REJECTED_MESSAGE
+                : `Transaction failed: ${userError}`,
+              failure.code,
+            );
           }
           return;
         }
@@ -835,6 +857,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
               approvalSessionId,
               approvalId,
               unlocked.error,
+              INTERNAL_ERROR_CODE,
             );
           }
           setLoading(false);
@@ -851,6 +874,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             approvalSessionId,
             approvalId,
             "Web3 not initialized",
+            INTERNAL_ERROR_CODE,
           );
           setLoading(false);
           return;
@@ -942,6 +966,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             approvalSessionId,
             approvalId,
             "Failed to sign transaction",
+            INTERNAL_ERROR_CODE,
           );
           setLoading(false);
           return;
@@ -1012,7 +1037,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             // Only a broadcast that never produced a hash is a rejection. A
             // revert after the node accepted the transaction is not: the dApp
             // already holds the hash and observes the outcome on chain.
-            rejectDApp(`Transaction failed: ${userError}`);
+            rejectDApp(`Transaction failed: ${userError}`, INTERNAL_ERROR_CODE);
             if (isStillCurrent()) {
               setPin("");
               setLoading(false);
@@ -1035,22 +1060,20 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
       if (method === "qrl_signMessage") {
         const parsed = SignMessageParamsSchema.safeParse(params);
         if (!parsed.success) {
-          setError(
+          failRequestView(
             `Invalid qrl_signMessage params: ${formatZodIssues(parsed.error)}`,
+            INVALID_PARAMS_CODE,
           );
-          setLoading(false);
           return;
         }
         const [signerParam, messageHex] = parsed.data;
         const activeAddress = qrlStore.activeAccount.accountAddress;
         if (!activeAddress) {
-          setError("No active account");
-          setLoading(false);
+          failRequestView("No active account", UNAUTHORIZED_CODE);
           return;
         }
         if (!isExactQrlAccount(signerParam, activeAddress)) {
-          setError("Signer mismatch: request is for a different account");
-          setLoading(false);
+          failRequestView("Signer mismatch: request is for a different account", UNAUTHORIZED_CODE);
           return;
         }
         // Desktop: sign in the isolated signer (its own trusted modal); no PIN,
@@ -1098,6 +1121,17 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             setPin("");
           }
           setError(unlocked.error);
+          // Empty or malformed PINs stay retryable. Anything else (no seed,
+          // failed unlock, wallet changed) cannot be fixed by typing again, so
+          // the dApp gets its answer.
+          if (!unlocked.retryPin && /^\d{4,6}$/.test(pinToUse)) {
+            dappConnectStore.rejectRequestById(
+              approvalSessionId,
+              approvalId,
+              unlocked.error,
+              INTERNAL_ERROR_CODE,
+            );
+          }
           setLoading(false);
           return;
         }
@@ -1128,6 +1162,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             approvalSessionId,
             approvalId,
             `Message signing failed: ${errMsg}`,
+            INTERNAL_ERROR_CODE,
           );
           setLoading(false);
           return;
@@ -1139,22 +1174,20 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
       if (method === "qrl_signTypedData") {
         const parsed = SignTypedDataParamsSchema.safeParse(params);
         if (!parsed.success) {
-          setError(
+          failRequestView(
             `Invalid qrl_signTypedData params: ${formatZodIssues(parsed.error)}`,
+            INVALID_PARAMS_CODE,
           );
-          setLoading(false);
           return;
         }
         const [signerParam, payload] = parsed.data;
         const activeAddress = qrlStore.activeAccount.accountAddress;
         if (!activeAddress) {
-          setError("No active account");
-          setLoading(false);
+          failRequestView("No active account", UNAUTHORIZED_CODE);
           return;
         }
         if (!isExactQrlAccount(signerParam, activeAddress)) {
-          setError("Signer mismatch: request is for a different account");
-          setLoading(false);
+          failRequestView("Signer mismatch: request is for a different account", UNAUTHORIZED_CODE);
           return;
         }
         // Desktop: the isolated signer hashes and signs the typed data and
@@ -1213,6 +1246,17 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             setPin("");
           }
           setError(unlocked.error);
+          // Empty or malformed PINs stay retryable. Anything else (no seed,
+          // failed unlock, wallet changed) cannot be fixed by typing again, so
+          // the dApp gets its answer.
+          if (!unlocked.retryPin && /^\d{4,6}$/.test(pinToUse)) {
+            dappConnectStore.rejectRequestById(
+              approvalSessionId,
+              approvalId,
+              unlocked.error,
+              INTERNAL_ERROR_CODE,
+            );
+          }
           setLoading(false);
           return;
         }
@@ -1244,6 +1288,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             approvalSessionId,
             approvalId,
             `Typed data signing failed: ${errMsg}`,
+            INTERNAL_ERROR_CODE,
           );
           setLoading(false);
           return;
@@ -1265,6 +1310,14 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
       // user nothing and told the dApp the user had rejected the request.
       const revert = err instanceof TransactionWouldRevertError ? err : null;
       const userError = revert ? revert.message : toUserFacingError(errMsg);
+      // JSON-RPC 3 is "execution reverted"; a chain that does not match the
+      // wallet's is an unauthorized chain (4100), as in the extension.
+      // 4001 means the user rejected, which the dApp acts on differently.
+      const answerCode = revert
+        ? 3
+        : err instanceof TransactionChainMismatchError
+          ? UNAUTHORIZED_CODE
+          : INTERNAL_ERROR_CODE;
       if (isStillCurrent()) setError(userError);
       const isTxMethod =
         currentApproval.method === "qrl_sendTransaction" ||
@@ -1280,15 +1333,14 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
           approvalSessionId,
           approvalId,
           userError,
-          // JSON-RPC 3 is "execution reverted"; 4001 means the user rejected,
-          // which is a different thing and the dApp acts on it differently.
-          revert ? 3 : undefined,
+          answerCode,
         );
       } else {
         dappConnectStore.rejectRequestById(
           approvalSessionId,
           approvalId,
           userError,
+          answerCode,
         );
       }
     } finally {
@@ -1298,10 +1350,14 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
   }, [currentApproval, pin, dappConnectStore, qrlStore, blockchain, canApprove, reviewedContent, chainApprovalPending, requiresChainCheck, web3]);
 
   const handleReject = useCallback(() => {
-    dappConnectStore.rejectCurrentRequest(
-      signingFailure?.message,
-      signingFailure?.code,
-    );
+    if (signingFailure) {
+      dappConnectStore.rejectCurrentRequest(
+        signingFailure.message,
+        signingFailure.code,
+      );
+    } else {
+      dappConnectStore.declineCurrentRequest();
+    }
     setPin("");
     setError(null);
   }, [dappConnectStore, signingFailure]);

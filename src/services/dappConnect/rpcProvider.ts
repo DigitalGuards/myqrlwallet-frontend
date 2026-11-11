@@ -42,12 +42,20 @@ export async function readWalletChainId(web3: unknown): Promise<string> {
   return canonicalChainId(await provider.request({ method: 'qrl_chainId', params: [] }));
 }
 
+/** The transaction names a chain other than the wallet's. */
+export class TransactionChainMismatchError extends Error {
+  constructor() {
+    super('Transaction chain does not match the wallet network');
+    this.name = 'TransactionChainMismatchError';
+  }
+}
+
 export async function assertRequestedTransactionChain(
   params: Record<string, unknown>,
   web3: unknown
 ): Promise<void> {
   if (!Object.prototype.hasOwnProperty.call(params, 'chainId')) return;
   if (canonicalChainId(params['chainId']) !== (await readWalletChainId(web3))) {
-    throw new Error('Transaction chain does not match the wallet network');
+    throw new TransactionChainMismatchError();
   }
 }

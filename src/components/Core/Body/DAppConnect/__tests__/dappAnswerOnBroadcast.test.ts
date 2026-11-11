@@ -49,12 +49,12 @@ async function settle(events: Array<[string, unknown]>) {
     },
     onFailure: (message) => {
       progress.push("failed");
-      answer.reject(`Transaction failed: ${message}`);
+      answer.reject(`Transaction failed: ${message}`, -32603);
     },
     onUnknown: (hash, message) => {
       progress.push("unknown");
       if (hash) answer.answer(hash);
-      else answer.reject(message);
+      else answer.reject(message, -32603);
     },
   });
   return progress;
@@ -136,7 +136,7 @@ describe("the one-shot answer", () => {
     const answer = createDAppRequestAnswer({ approve, reject });
     answer.answer("first");
     answer.answer("second");
-    answer.reject("too late");
+    answer.reject("too late", -32603);
 
     expect(approve).toHaveBeenCalledTimes(1);
     expect(approve).toHaveBeenCalledWith("first");
@@ -147,7 +147,7 @@ describe("the one-shot answer", () => {
   it("reports nothing sent until something is", () => {
     const answer = createDAppRequestAnswer({ approve, reject });
     expect(answer.answered).toBe(false);
-    answer.reject("no");
+    answer.reject("no", -32603);
     expect(answer.answered).toBe(true);
     expect(approve).not.toHaveBeenCalled();
   });

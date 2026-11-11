@@ -20,14 +20,14 @@
 
 export interface DAppRequestSender {
   approve(result: unknown): void;
-  reject(message: string): void;
+  reject(message: string, code: number): void;
 }
 
 export interface DAppRequestAnswer {
   /** Answer with a result. Ignored once answered. */
   answer(result: unknown): void;
   /** Reject. Ignored once answered, including after a successful broadcast. */
-  reject(message: string): void;
+  reject(message: string, code: number): void;
   /** Whether the dApp already has its answer. */
   readonly answered: boolean;
 }
@@ -42,10 +42,10 @@ export function createDAppRequestAnswer(
       answered = true;
       sender.approve(result);
     },
-    reject(message: string): void {
+    reject(message: string, code: number): void {
       if (answered) return;
       answered = true;
-      sender.reject(message);
+      sender.reject(message, code);
     },
     get answered(): boolean {
       return answered;

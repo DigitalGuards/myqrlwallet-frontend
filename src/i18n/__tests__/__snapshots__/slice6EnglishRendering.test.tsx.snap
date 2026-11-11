@@ -1169,14 +1169,8 @@ exports[`qrl_signMessage PIN and signer errors 2`] = `
         "Request details",
       ],
     ],
-    [
-      [
-        "placeholder",
-        "Enter PIN",
-      ],
-    ],
   ],
-  "text": "Example dApphttps://dapp.exampleSign MessageMessage5 byteshelloRaw signed bytes0x68656c6c6fAdvanced: 64-byte SHAKE256 digest0xf9c6c87c7ae05e782888c69e1a019eea9e7d53650039a91a21c031660a9dd0e14d068477f43e8ee81b585708a88f2b3aff9a4307974b8f76799fce9bc151b3aeEnter PIN to signNo active accountRejectApproveClose",
+  "text": "Example dApphttps://dapp.exampleSign MessageNo active accountCloseClose",
   "title": "",
 }
 `;
@@ -1190,14 +1184,8 @@ exports[`qrl_signMessage PIN and signer errors 3`] = `
         "Request details",
       ],
     ],
-    [
-      [
-        "placeholder",
-        "Enter PIN",
-      ],
-    ],
   ],
-  "text": "Example dApphttps://dapp.exampleSign MessageMessage5 byteshelloRaw signed bytes0x68656c6c6fAdvanced: 64-byte SHAKE256 digest0xf9c6c87c7ae05e782888c69e1a019eea9e7d53650039a91a21c031660a9dd0e14d068477f43e8ee81b585708a88f2b3aff9a4307974b8f76799fce9bc151b3aeEnter PIN to signSigner mismatch: request is for a different accountRejectApproveClose",
+  "text": "Example dApphttps://dapp.exampleSign MessageSigner mismatch: request is for a different accountCloseClose",
   "title": "",
 }
 `;
@@ -1281,48 +1269,8 @@ exports[`qrl_signTypedData PIN and signer errors 2`] = `
         "Request details",
       ],
     ],
-    [
-      [
-        "placeholder",
-        "Enter PIN",
-      ],
-    ],
   ],
-  "text": "Example dApphttps://dapp.exampleSign Typed DataSigned domainname"Example domain"chainId"3151909"Primary typeChallengeMessagechallengeText"Authenticate 123"accounts[0]"Qaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"Full signed payload (canonical JSON){
-  "domain": {
-    "chainId": "3151909",
-    "name": "Example domain"
-  },
-  "message": {
-    "accounts": [
-      "Qaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    ],
-    "challengeText": "Authenticate 123"
-  },
-  "primaryType": "Challenge",
-  "types": {
-    "Challenge": [
-      {
-        "name": "challengeText",
-        "type": "string"
-      },
-      {
-        "name": "accounts",
-        "type": "address[]"
-      }
-    ],
-    "QRLDomain": [
-      {
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "name": "chainId",
-        "type": "uint256"
-      }
-    ]
-  }
-}Only sign data from sites you trust. A signed challenge can be used to authenticate as you.Advanced: 64-byte SHAKE256 digest0x3905e876d4bacadd948338fb36d6b395fe24b7ce44dfd43eddd0b68d17a77dac4f5b9e78c969dc94bcc4017dbaa4a92c29460e954f6e080fe6dbe06e25bd723eEnter PIN to signNo active accountRejectApproveClose",
+  "text": "Example dApphttps://dapp.exampleSign Typed DataNo active accountCloseClose",
   "title": "",
 }
 `;
@@ -1336,48 +1284,8 @@ exports[`qrl_signTypedData PIN and signer errors 3`] = `
         "Request details",
       ],
     ],
-    [
-      [
-        "placeholder",
-        "Enter PIN",
-      ],
-    ],
   ],
-  "text": "Example dApphttps://dapp.exampleSign Typed DataSigned domainname"Example domain"chainId"3151909"Primary typeChallengeMessagechallengeText"Authenticate 123"accounts[0]"Qaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"Full signed payload (canonical JSON){
-  "domain": {
-    "chainId": "3151909",
-    "name": "Example domain"
-  },
-  "message": {
-    "accounts": [
-      "Qaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    ],
-    "challengeText": "Authenticate 123"
-  },
-  "primaryType": "Challenge",
-  "types": {
-    "Challenge": [
-      {
-        "name": "challengeText",
-        "type": "string"
-      },
-      {
-        "name": "accounts",
-        "type": "address[]"
-      }
-    ],
-    "QRLDomain": [
-      {
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "name": "chainId",
-        "type": "uint256"
-      }
-    ]
-  }
-}Only sign data from sites you trust. A signed challenge can be used to authenticate as you.Advanced: 64-byte SHAKE256 digest0x3905e876d4bacadd948338fb36d6b395fe24b7ce44dfd43eddd0b68d17a77dac4f5b9e78c969dc94bcc4017dbaa4a92c29460e954f6e080fe6dbe06e25bd723eEnter PIN to signSigner mismatch: request is for a different accountRejectApproveClose",
+  "text": "Example dApphttps://dapp.exampleSign Typed DataSigner mismatch: request is for a different accountCloseClose",
   "title": "",
 }
 `;

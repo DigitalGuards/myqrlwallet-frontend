@@ -1571,14 +1571,18 @@ export class DAppConnectService {
     }
   }
 
+  /**
+   * Answer a pending request with an error. The code has no default: 4001
+   * means the user declined and is sent by the store's
+   * declineCurrentRequest. Everything else names its own code, for example 4902 (EIP-3326 unrecognized chain, which
+   * desktop sends for chain switches it cannot honour) or -32603 for a
+   * failure inside the wallet or at the node.
+   */
   rejectRequest(
     sessionId: string,
     requestId: string | number,
-    message = "User rejected the request",
-    // 4001 = user rejected (EIP-1193). Desktop passes 4902 (EIP-3326
-    // unrecognized chain) for chain-switch requests it cannot honour
-    // (single configured chain).
-    code = 4001,
+    message: string,
+    code: number,
   ): void {
     const pending = this.takePendingRestrictedRequest(sessionId, requestId);
     if (!pending) return;
