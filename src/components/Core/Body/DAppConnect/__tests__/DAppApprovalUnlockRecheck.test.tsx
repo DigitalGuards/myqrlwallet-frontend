@@ -609,3 +609,62 @@ describe.each([
     );
   });
 });
+
+describe("answer codes for a web wallet that does not complete a request", () => {
+  async function runToBroadcast(method: "qrl_sendTransaction") {
+    const { unlock, provider } = await approveIntoUnlock(method);
+    await finishUnlock(unlock);
+    await act(async () => { await jest.advanceTimersByTimeAsync(50); });
+    const [broadcast] = provider.broadcasts;
+    if (!broadcast) throw new Error("The transaction was not broadcast");
+    return { provider, broadcast };
+  }
+
+  it("answers -32603 when the broadcast ends without a hash", async () => {
+    const { broadcast } = await runToBroadcast("qrl_sendTransaction");
+    await act(async () => {
+      broadcast.emit("receipt", { transactionHash: TX_HASH, status: "0x0" });
+      await jest.advanceTimersByTimeAsync(1);
+    });
+    expect(rejectRequestSpy).toHaveBeenCalledTimes(1);
+    expect(rejectRequestSpy).toHaveBeenCalledWith(
+      SESSION, 1, expect.stringMatching(/^Transaction failed: /), -32603,
+    );
+  });
+
+  it("answers -32603 when the outcome is unknown and no hash exists", async () => {
+    const { broadcast } = await runToBroadcast("qrl_sendTransaction");
+    await act(async () => {
+      broadcast.emit("receipt", {});
+      await jest.advanceTimersByTimeAsync(1);
+    });
+    expect(rejectRequestSpy).toHaveBeenCalledTimes(1);
+    expect(rejectRequestSpy).toHaveBeenCalledWith(
+      SESSION, 1, expect.stringContaining("confirmation is unavailable"), -32603,
+    );
+  });
+
+  it("answers -32603 when signing yields no raw transaction", async () => {
+    const { unlock, provider } = await approveIntoUnlock("qrl_sendTransaction");
+    provider.accounts.signTransaction.mockReturnValueOnce(Promise.resolve({ rawTransaction: "", transactionHash: TX_HASH }));
+    await finishUnlock(unlock);
+    await act(async () => { await jest.advanceTimersByTimeAsync(50); });
+    expect(rejectRequestSpy).toHaveBeenCalledWith(SESSION, 1, "Failed to sign transaction", -32603);
+  });
+
+  it.each(["qrl_signMessage", "qrl_signTypedData"] as const)(
+    "answers %s with -32603 when the seed cannot be unlocked",
+    async (method) => {
+      const { unlock } = await approveIntoUnlock(method);
+      releaseUnlock = null;
+      await act(async () => {
+        unlock.reject(new Error("storage failure"));
+        await jest.advanceTimersByTimeAsync(1);
+      });
+      expect(rejectRequestSpy).toHaveBeenCalledTimes(1);
+      expect(rejectRequestSpy).toHaveBeenCalledWith(
+        SESSION, 1, "Failed to unlock the seed. Please try again.", -32603,
+      );
+    },
+  );
+});

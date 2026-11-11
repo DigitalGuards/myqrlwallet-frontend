@@ -1207,10 +1207,38 @@ describe("answer codes for a desktop transaction that did not complete", () => {
       await act(async () => { await jest.advanceTimersByTimeAsync(0); });
       expect(rejectRequestSpy).toHaveBeenCalledTimes(1);
       expect(rejectRequestSpy).toHaveBeenCalledWith(
-        pending.sessionId, pending.id, expect.any(String), 4001,
+        pending.sessionId, pending.id, "User rejected the request", 4001,
       );
     },
   );
+
+  it("answers a transaction chain that is not the wallet's with 4100 and the same generic message", async () => {
+    const pending = await showApproval("qrl_sendTransaction", [{ from: address, to: address, chainId: "0x1" }]);
+    await approve();
+    await act(async () => { await jest.advanceTimersByTimeAsync(0); });
+    expect(rejectRequestSpy).toHaveBeenCalledWith(
+      pending.sessionId, pending.id, "Transaction failed. Please verify details and try again.", 4100,
+    );
+  });
+});
+
+describe("Close after a request the wallet cannot act on", () => {
+  const other = `Q${"b".repeat(128)}`;
+  it.each([
+    ["qrl_signMessage", [address], -32602, /^Invalid qrl_signMessage params/],
+    ["qrl_signTypedData", [address], -32602, /^Invalid qrl_signTypedData params/],
+    ["qrl_signMessage", [other, "0x68656c6c6f"], 4100, /^Signer mismatch/],
+    ["qrl_sendTransaction", [{ from: other, to: address }], 4100, /^Signer mismatch/],
+  ] as const)("%s %j answers %i, not a decline", async (method, params, code, message) => {
+    const pending = await showApproval(method, [...params]);
+    await approve();
+    expect(rejectRequestSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toMatch(message);
+    fireEvent.click(screen.getByText("Close", { selector: "button" }));
+    expect(rejectRequestSpy).toHaveBeenCalledWith(
+      pending.sessionId, pending.id, expect.stringMatching(message), code,
+    );
+  });
 });
 
 describe("answer codes for a web wallet that cannot sign", () => {

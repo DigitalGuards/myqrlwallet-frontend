@@ -2446,7 +2446,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
       params: [],
     });
     await waitFor(() => observed.pending.length === 1);
-    service.declineRequest(pairing.session.id, 15);
+    service.rejectRequest(pairing.session.id, 15, "User rejected the request", 4001);
     await waitFor(() => socket.sent.length === 1);
 
     expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
@@ -2459,7 +2459,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
     });
   });
 
-  it("sends a wallet failure with its own code and a decline with 4001", async () => {
+  it("sends a wallet failure with its own code and an explicit 4001", async () => {
     const pairing = await makePairing("failure-vs-decline");
     const { service, observed } = await reconnect(pairing.session);
     const socket = firstSocket();
@@ -2480,7 +2480,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
       "Transaction failed: Insufficient funds for this transaction.",
       -32603,
     );
-    service.declineRequest(pairing.session.id, 22);
+    service.rejectRequest(pairing.session.id, 22, "User rejected the request", 4001);
     await waitFor(() => socket.sent.length === 2);
 
     expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({

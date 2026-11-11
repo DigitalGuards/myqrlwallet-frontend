@@ -100,14 +100,18 @@ export interface JsonRpcRequest {
 
 /**
  * EIP-1193 code and message for a request the user declined: Reject pressed,
- * the prompt closed or dismissed, or the wait for the user ran out. Every
- * other way a request can end in an error carries its own code.
+ * or the prompt closed or dismissed. Every other way a request can end in an
+ * error carries its own code.
  */
 export const USER_REJECTED_CODE = 4001;
 export const USER_REJECTED_MESSAGE = "User rejected the request";
 
 /** JSON-RPC code for a request the wallet failed to carry out. */
 export const INTERNAL_ERROR_CODE = -32603;
+/** JSON-RPC code for invalid method parameters. */
+export const INVALID_PARAMS_CODE = -32602;
+/** EIP-1193 code for an account or chain the session is not authorized for. */
+export const UNAUTHORIZED_CODE = 4100;
 
 /** JSON-RPC response */
 export interface JsonRpcResponse {
