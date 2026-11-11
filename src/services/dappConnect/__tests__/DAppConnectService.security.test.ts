@@ -2446,7 +2446,7 @@ describe("wallet-side direct relay RPC enforcement", () => {
       params: [],
     });
     await waitFor(() => observed.pending.length === 1);
-    service.rejectRequest(pairing.session.id, 15);
+    service.declineRequest(pairing.session.id, 15);
     await waitFor(() => socket.sent.length === 1);
 
     expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
@@ -2456,6 +2456,43 @@ describe("wallet-side direct relay RPC enforcement", () => {
     expect(SessionStore.get(pairing.session.id)).toMatchObject({
       accountAuthorized: false,
       connectedAccount: "",
+    });
+  });
+
+  it("sends a wallet failure with its own code and a decline with 4001", async () => {
+    const pairing = await makePairing("failure-vs-decline");
+    const { service, observed } = await reconnect(pairing.session);
+    const socket = firstSocket();
+
+    for (const id of [21, 22]) {
+      await deliverEncrypted(pairing, socket, {
+        type: MessageType.JSONRPC,
+        jsonrpc: "2.0",
+        id,
+        method: "qrl_requestAccounts",
+        params: [],
+      });
+    }
+    await waitFor(() => observed.pending.length === 2);
+    service.rejectRequest(
+      pairing.session.id,
+      21,
+      "Transaction failed: Insufficient funds for this transaction.",
+      -32603,
+    );
+    service.declineRequest(pairing.session.id, 22);
+    await waitFor(() => socket.sent.length === 2);
+
+    expect(await decryptWalletFrame(pairing, socket.sent[0])).toMatchObject({
+      id: 21,
+      error: {
+        code: -32603,
+        message: "Transaction failed: Insufficient funds for this transaction.",
+      },
+    });
+    expect(await decryptWalletFrame(pairing, socket.sent[1])).toMatchObject({
+      id: 22,
+      error: { code: 4001, message: "User rejected the request" },
     });
   });
 

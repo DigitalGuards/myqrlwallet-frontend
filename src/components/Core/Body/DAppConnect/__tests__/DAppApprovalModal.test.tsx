@@ -21,6 +21,7 @@ import { decryptStoredSeedWithPin } from "@/utils/crypto";
 import { checkLockout, getRemainingAttempts } from "@/utils/crypto/pinAttemptTracker";
 import { PinVerificationError } from "@/utils/crypto/verifyPinWithLimit";
 import { logger } from "@/utils/log";
+import StorageUtil from "@/utils/storage/storage";
 import { mockReviewObservers } from "@/test-utils/reviewObserver";
 import { deferred } from "@/test-utils/deferred";
 import { SignTypedDataParamsSchema } from "@/utils/signing";
@@ -664,7 +665,7 @@ describe('visibility gate', () => {
       fireEvent.submit(screen.getByRole('dialog'));
       expect(approveRequestSpy).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole('button', { name: 'Reject' }));
-      expect(rejectRequestSpy).toHaveBeenCalledWith(pending.sessionId, pending.id, undefined, undefined);
+      expect(rejectRequestSpy).toHaveBeenCalledWith(pending.sessionId, pending.id, "User rejected the request", 4001);
     },
   );
 
@@ -847,7 +848,7 @@ it.each(["qrl_sendTransaction", "qrl_signTransaction"])(
     await approve();
     expect(log).toHaveBeenCalledWith("[DAppConnect] approval error:", error.message);
     expect(rejectRequestSpy).toHaveBeenCalledWith(
-      pending.sessionId, pending.id, "Transaction failed. Please verify details and try again.", undefined,
+      pending.sessionId, pending.id, "Transaction failed. Please verify details and try again.", -32603,
     );
     expect(approveRequestSpy).not.toHaveBeenCalled();
   },
@@ -882,8 +883,8 @@ describe.each([
       expect(rejectRequestSpy).toHaveBeenCalledWith(
         pending.sessionId,
         pending.id,
-        undefined,
-        undefined,
+        "User rejected the request",
+        4001,
       );
       expect(mockDappStore.currentApproval).toBeNull();
       expect(screen.queryByRole("dialog")).toBeNull();
@@ -1167,4 +1168,62 @@ it.each(["12a4", "123", "1234567"])("refuses the malformed PIN %p without spendi
   await approve();
   expect(screen.getByText("PIN must be 4 to 6 digits")).toBeTruthy();
   expect(decryptStoredSeedWithPin).not.toHaveBeenCalled();
+});
+
+describe("answer codes for a desktop transaction that did not complete", () => {
+  const txParams = () => [{ from: address, to: address, chainId: "0x301825" }];
+
+  it("sends -32603 with the failure message when the node refuses the broadcast", async () => {
+    jest.spyOn(desktopSigner, "signAndSendTransaction").mockRejectedValueOnce(
+      new Error("insufficient funds for gas * price + value"),
+    );
+    const pending = await showApproval("qrl_sendTransaction", txParams());
+    await approve();
+    await act(async () => { await jest.advanceTimersByTimeAsync(0); });
+    expect(rejectRequestSpy).toHaveBeenCalledTimes(1);
+    expect(rejectRequestSpy).toHaveBeenCalledWith(
+      pending.sessionId, pending.id, expect.stringMatching(/^Transaction failed: .+/), -32603,
+    );
+  });
+
+  it("sends -32603 when signing a transaction without broadcast fails", async () => {
+    jest.spyOn(desktopSigner, "signTransactionOnly").mockRejectedValueOnce(new Error("signer crashed"));
+    const pending = await showApproval("qrl_signTransaction", txParams());
+    await approve();
+    await act(async () => { await jest.advanceTimersByTimeAsync(0); });
+    expect(rejectRequestSpy).toHaveBeenCalledWith(
+      pending.sessionId, pending.id, expect.stringMatching(/^Transaction failed: .+/), -32603,
+    );
+  });
+
+  it.each(["qrl_sendTransaction", "qrl_signTransaction"])(
+    "keeps 4001 when the user rejects %s in the desktop confirm window",
+    async (method) => {
+      const declined = new Error("Error invoking remote method 'signer:sign': Error: User rejected signature");
+      jest.spyOn(desktopSigner, "signAndSendTransaction").mockRejectedValueOnce(declined);
+      jest.spyOn(desktopSigner, "signTransactionOnly").mockRejectedValueOnce(declined);
+      const pending = await showApproval(method, txParams());
+      await approve();
+      await act(async () => { await jest.advanceTimersByTimeAsync(0); });
+      expect(rejectRequestSpy).toHaveBeenCalledTimes(1);
+      expect(rejectRequestSpy).toHaveBeenCalledWith(
+        pending.sessionId, pending.id, expect.any(String), 4001,
+      );
+    },
+  );
+});
+
+describe("answer codes for a web wallet that cannot sign", () => {
+  beforeEach(() => { mockDesktop = false; });
+
+  it("sends -32603 when no stored seed exists for the account", async () => {
+    jest.spyOn(StorageUtil, "getEncryptedSeed").mockResolvedValueOnce(null);
+    const pending = await showApproval("qrl_sendTransaction", [{ from: address, to: address, chainId: "0x301825" }]);
+    fireEvent.change(screen.getByPlaceholderText("Enter PIN"), { target: { value: "123456" } });
+    await approve();
+    await act(async () => { await jest.advanceTimersByTimeAsync(0); });
+    expect(rejectRequestSpy).toHaveBeenCalledWith(
+      pending.sessionId, pending.id, "No encrypted seed found", -32603,
+    );
+  });
 });

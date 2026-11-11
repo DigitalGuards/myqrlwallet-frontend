@@ -12,6 +12,10 @@ import type {
   DAppSession,
   PendingDAppRequest,
 } from "@/services/dappConnect/types";
+import {
+  USER_REJECTED_CODE,
+  USER_REJECTED_MESSAGE,
+} from "@/services/dappConnect/types";
 import { isDesktop, desktopSigner } from "@/desktop/bridge";
 import { logger } from "@/utils/log";
 
@@ -199,8 +203,13 @@ class DAppConnectStore {
     );
   }
 
-  /** Reject the current request */
-  rejectCurrentRequest(message?: string, code?: number): void {
+  /** The user declined the current request (4001). */
+  declineCurrentRequest(): void {
+    this.rejectCurrentRequest(USER_REJECTED_MESSAGE, USER_REJECTED_CODE);
+  }
+
+  /** Answer the current request with an error. 4001 is for a user decline. */
+  rejectCurrentRequest(message: string, code: number): void {
     if (!this.currentApproval) return;
     this.rejectRequestById(
       this.currentApproval.sessionId,
@@ -232,8 +241,8 @@ class DAppConnectStore {
   rejectRequestById(
     sessionId: string,
     id: string | number,
-    message?: string,
-    code?: number,
+    message: string,
+    code: number,
   ): void {
     dappConnectService.rejectRequest(sessionId, id, message, code);
     this.removeApproval(sessionId, id);
@@ -260,9 +269,9 @@ class DAppConnectStore {
   sendRejectionResultById(
     sessionId: string,
     id: string | number,
-    message?: string,
-    /** JSON-RPC error code. Defaults to 4001, "the user rejected this". */
-    code?: number,
+    message: string,
+    /** JSON-RPC error code. Use 4001 only for a user decline. */
+    code: number,
   ): void {
     dappConnectService.rejectRequest(sessionId, id, message, code);
   }

@@ -393,7 +393,7 @@ function expectNothingSigned(...providers: FakeProvider[]): void {
 function expectStaleAnswer(method: Method): void {
   expect(approveRequestSpy).not.toHaveBeenCalled();
   expect(rejectRequestSpy).toHaveBeenCalledTimes(1);
-  expect(rejectRequestSpy).toHaveBeenCalledWith(SESSION, 1, STALE_ANSWER[method], undefined);
+  expect(rejectRequestSpy).toHaveBeenCalledWith(SESSION, 1, STALE_ANSWER[method], -32603);
   if (method === "qrl_sendTransaction" || method === "qrl_signTransaction") {
     // The transaction answer is generic; the log keeps the cause.
     expect(logSpy).toHaveBeenCalledWith(
@@ -516,7 +516,7 @@ describe.each([
       } else {
         expect(approveRequestSpy).not.toHaveBeenCalled();
         expect(rejectRequestSpy).toHaveBeenCalledTimes(1);
-        expect(rejectRequestSpy).toHaveBeenCalledWith(SESSION, 1, "Web3 not initialized", undefined);
+        expect(rejectRequestSpy).toHaveBeenCalledWith(SESSION, 1, "Web3 not initialized", -32603);
       }
     },
   );

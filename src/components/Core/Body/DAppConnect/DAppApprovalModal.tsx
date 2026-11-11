@@ -70,6 +70,7 @@ import {
 import { Loader, Check, X, ExternalLink, Shield, Globe } from "lucide-react";
 import type { TxProgressState } from "@/stores/dappConnectStore";
 import type { PendingDAppRequest } from "@/services/dappConnect/types";
+import { INTERNAL_ERROR_CODE, USER_REJECTED_CODE } from "@/services/dappConnect/types";
 import type { ZodError } from "zod";
 import {
   isDesktop,
@@ -495,8 +496,8 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     const dAppRequest = createDAppRequestAnswer({
       approve: (result) =>
         { dappConnectStore.sendApprovalResultById(approvalSessionId, approvalId, result); },
-      reject: (message) =>
-        { dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, message); },
+      reject: (message, code) =>
+        { dappConnectStore.sendRejectionResultById(approvalSessionId, approvalId, message, code); },
     });
     let broadcastDetails: Omit<Parameters<typeof transactionHistoryStore.record>[0], "hash"> | undefined;
     const answerDApp = (hash: string): void => {
@@ -505,7 +506,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
     };
     // Never after an answer: the dApp holds a hash for a transaction that is
     // on its way, and a later revert is something it observes on chain.
-    const rejectDApp = (message: string): void => { dAppRequest.reject(message); };
+    const rejectDApp = (message: string, code: number = INTERNAL_ERROR_CODE): void => { dAppRequest.reject(message, code); };
 
     const reportUnknownTransaction = (hash: string, message: string) => {
       setCurrentTxProgress("unknown", hash, message);
@@ -787,8 +788,15 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             const userError = toUserFacingError(errMsg);
             setCurrentTxProgress("failed", undefined, userError);
             // A no-op once the hash was answered: a revert after a successful
-            // broadcast is not a rejected request.
-            rejectDApp(`Transaction failed: ${userError}`);
+            // broadcast is not a rejected request. Pressing Reject in the
+            // desktop's own confirm window is the user's decline (4001);
+            // every other failure here is the wallet's or the node's.
+            rejectDApp(
+              `Transaction failed: ${userError}`,
+              desktopSigningError(e).code === USER_REJECTED_CODE
+                ? USER_REJECTED_CODE
+                : INTERNAL_ERROR_CODE,
+            );
           }
           return;
         }
@@ -838,6 +846,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
               approvalSessionId,
               approvalId,
               unlocked.error,
+              INTERNAL_ERROR_CODE,
             );
           }
           setLoading(false);
@@ -854,6 +863,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             approvalSessionId,
             approvalId,
             "Web3 not initialized",
+            INTERNAL_ERROR_CODE,
           );
           setLoading(false);
           return;
@@ -945,6 +955,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             approvalSessionId,
             approvalId,
             "Failed to sign transaction",
+            INTERNAL_ERROR_CODE,
           );
           setLoading(false);
           return;
@@ -1130,6 +1141,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             approvalSessionId,
             approvalId,
             `Message signing failed: ${errMsg}`,
+            INTERNAL_ERROR_CODE,
           );
           setLoading(false);
           return;
@@ -1251,6 +1263,7 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
             approvalSessionId,
             approvalId,
             `Typed data signing failed: ${errMsg}`,
+            INTERNAL_ERROR_CODE,
           );
           setLoading(false);
           return;
@@ -1289,13 +1302,14 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
           userError,
           // JSON-RPC 3 is "execution reverted"; 4001 means the user rejected,
           // which is a different thing and the dApp acts on it differently.
-          revert ? 3 : undefined,
+          revert ? 3 : INTERNAL_ERROR_CODE,
         );
       } else {
         dappConnectStore.rejectRequestById(
           approvalSessionId,
           approvalId,
           userError,
+          INTERNAL_ERROR_CODE,
         );
       }
     } finally {
@@ -1305,10 +1319,14 @@ const DAppApprovalModalContent = observer(({ generation }: { generation: number 
   }, [currentApproval, pin, dappConnectStore, qrlStore, blockchain, canApprove, reviewedContent, chainApprovalPending, requiresChainCheck, web3, vaultBlocked, t]);
 
   const handleReject = useCallback(() => {
-    dappConnectStore.rejectCurrentRequest(
-      signingFailure?.message,
-      signingFailure?.code,
-    );
+    if (signingFailure) {
+      dappConnectStore.rejectCurrentRequest(
+        signingFailure.message,
+        signingFailure.code,
+      );
+    } else {
+      dappConnectStore.declineCurrentRequest();
+    }
     setPin("");
     setError(null);
   }, [dappConnectStore, signingFailure]);
