@@ -23,7 +23,7 @@ const Terms = () => {
             <Card className="p-6">
                 <LegalLanguageNote />
 
-                <p className="mb-2 text-sm text-muted-foreground">Last updated: 13 July 2026</p>
+                <p className="mb-2 text-sm text-muted-foreground">Last updated: 18 November 2026</p>
 
                 <p className="mb-6">
                     These Terms of Use (the "Terms") govern your use of the MyQRLWallet software and the
@@ -110,7 +110,7 @@ const Terms = () => {
                 <p className="mb-4">
                     To let you read public blockchain data and broadcast transactions that you have already
                     signed, MyQRLWallet connects by default to a public RPC endpoint operated by
-                    DigitalGuards, and reads certain public chain data from the ZondScan block explorer. That
+                    DigitalGuards, and reads certain public chain data from the ShorScan block explorer. That
                     RPC endpoint is a passive relay: it forwards a fixed, limited set of read-only queries and
                     already-signed transactions to the QRL network. It cannot sign, and it does not construct,
                     modify, batch, order, coordinate or mix your transactions. It processes technical
