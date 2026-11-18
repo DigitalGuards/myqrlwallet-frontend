@@ -116,7 +116,7 @@ const Privacy = () => {
                         <strong>Prices:</strong> while the wallet is unlocked and balance and price display
                         is switched on, the extension asks CoinGecko (api.coingecko.com) for the current QRL
                         market price about once a minute. When CoinGecko refuses or fails that request, the
-                        extension asks our own ShorScan explorer (section 3.2) for the same price instead, again
+                        extension asks our own ShorScan explorer (shorscan.com, section 3.2) for the same price instead, again
                         without any wallet data. You can switch both off in the extension settings.
                     </li>
                     <li>
@@ -176,9 +176,9 @@ const Privacy = () => {
                     <li>
                         <strong>ShorScan (operated by DigitalGuards, behind Cloudflare):</strong> the block
                         explorer that the wallet queries for balances, history, token and NFT data, at
-                        shorscan.com and at its earlier address zondscan.com. Until 10 November 2026 it was
-                        called ZondScan. It observes your IP address and the public addresses you query.
-                        ShorScan is a separate service with its own privacy policy.
+                        zondscan.com or shorscan.com depending on the wallet. It observes your IP address
+                        and the public addresses you query. ShorScan is a separate service with its own
+                        privacy policy.
                     </li>
                     <li>
                         <strong>Services the browser extension contacts directly:</strong> GitHub, Inc.
