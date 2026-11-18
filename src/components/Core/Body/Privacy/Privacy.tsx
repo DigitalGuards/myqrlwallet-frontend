@@ -23,7 +23,7 @@ const Privacy = () => {
             <Card className="p-6">
                 <LegalLanguageNote />
 
-                <p className="mb-2 text-sm text-muted-foreground">Last updated: 29 September 2026</p>
+                <p className="mb-2 text-sm text-muted-foreground">Last updated: 18 November 2026</p>
 
                 <p className="mb-6">
                     MyQRLWallet is self-custody client software. It is designed to process as little personal
@@ -94,7 +94,7 @@ const Privacy = () => {
                 <p className="mb-4">
                     When you view your balance or history, or broadcast a transaction, your public wallet
                     address and, for a broadcast, your already-signed transaction are sent to our RPC proxy and,
-                    for balance, history, token and NFT data, to the ZondScan block explorer. These endpoints
+                    for balance, history, token and NFT data, to the ShorScan block explorer. These endpoints
                     necessarily observe that public data in transit in order to answer your request. A signed
                     transaction is then relayed to the public QRL network, where, by the nature of a public
                     blockchain, it and the addresses involved become publicly visible.
@@ -116,7 +116,7 @@ const Privacy = () => {
                         <strong>Prices:</strong> while the wallet is unlocked and balance and price display
                         is switched on, the extension asks CoinGecko (api.coingecko.com) for the current QRL
                         market price about once a minute. When CoinGecko refuses or fails that request, the
-                        extension asks our own ZondScan explorer (section 3.2) for the same price instead, again
+                        extension asks our own ShorScan explorer (shorscan.com, section 3.2) for the same price instead, again
                         without any wallet data. You can switch both off in the extension settings.
                     </li>
                     <li>
@@ -174,10 +174,11 @@ const Privacy = () => {
                         operates the origin servers and carries out network-level logging as part of hosting.
                     </li>
                     <li>
-                        <strong>ZondScan (operated by DigitalGuards, behind Cloudflare):</strong> the block
-                        explorer that the wallet queries for balances, history, token and NFT data. It observes
-                        your IP address and the public addresses you query. ZondScan is a separate service with
-                        its own privacy policy.
+                        <strong>ShorScan (operated by DigitalGuards, behind Cloudflare):</strong> the block
+                        explorer that the wallet queries for balances, history, token and NFT data, at
+                        zondscan.com or shorscan.com depending on the wallet. It observes your IP address
+                        and the public addresses you query. ShorScan is a separate service with its own
+                        privacy policy.
                     </li>
                     <li>
                         <strong>Services the browser extension contacts directly:</strong> GitHub, Inc.
