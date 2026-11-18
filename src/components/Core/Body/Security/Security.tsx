@@ -38,7 +38,7 @@ const Security = () => {
             <Card className="p-6">
                 <LegalLanguageNote />
 
-                <p className="mb-2 text-sm text-muted-foreground">Last updated: 13 July 2026</p>
+                <p className="mb-2 text-sm text-muted-foreground">Last updated: 18 November 2026</p>
 
                 <p className="mb-6">
                     DigitalGuards welcomes reports from security researchers. If you believe you have found a
@@ -80,7 +80,7 @@ const Security = () => {
                     <li>The MyQRLWallet desktop application, mobile application and browser extension.</li>
                     <li>The MyQRLWallet source repositories published by DigitalGuards on GitHub.</li>
                     <li>The DigitalGuards RPC proxy and dApp Connect relay used by the wallet.</li>
-                    <li>The ZondScan block explorer (zondscan.com).</li>
+                    <li>The ShorScan block explorer (shorscan.com and its earlier address zondscan.com).</li>
                 </ul>
                 <p className="mb-6">
                     Out of scope: third-party services, the QRL network and protocol itself, and issues that
