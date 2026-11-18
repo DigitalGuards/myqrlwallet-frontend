@@ -264,11 +264,11 @@ function collectDependencies(primary: string, types: TypeMap): Set<string> {
   const visit = (name: string, path: string[]): void => {
     if (path.length > TYPED_DATA_LIMITS.maxTypeGraphDepth) {
       throw new Error(
-        `type graph nesting too deep: ${[...path, name].map(previewInput).join(' -> ')}`,
+        `type graph nesting too deep: ${previewInput([...path, name].join(' -> '))}`,
       );
     }
     if (path.includes(name)) {
-      throw new Error(`cyclic type reference: ${[...path, name].map(previewInput).join(' -> ')}`);
+      throw new Error(`cyclic type reference: ${previewInput([...path, name].join(' -> '))}`);
     }
     if (visited.has(name)) return;
     visited.add(name);

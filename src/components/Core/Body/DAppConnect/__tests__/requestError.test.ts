@@ -72,6 +72,13 @@ for (let index = 0; index < 13; index += 1) {
   ];
 }
 
+const longCycleTypes: TypeMap = {
+  Alpha: [{ name: "value", type: "Beta" }],
+  Beta: [{ name: "value", type: "Gamma" }],
+  Gamma: [{ name: "value", type: "Delta" }],
+  Delta: [{ name: "value", type: "Alpha" }],
+};
+
 it.each([
   {
     name: "cycle",
@@ -86,10 +93,19 @@ it.each([
     display: "Typed data is nested too deeply.",
   },
   {
+    // The SDK bounds the whole path since 5.1.1: 32 characters, then its length.
     name: "struct depth",
     value: payload("Node0", deepTypes),
-    message: `type graph nesting too deep: Payload -> ${Array.from({ length: 13 }, (_, index) => `Node${index}`).join(" -> ")}`,
+    message:
+      "type graph nesting too deep: Payload -> Node0 -> Node1 -> Nod... (length 127)",
     display: "Typed data is nested too deeply.",
+  },
+  {
+    name: "long cycle",
+    value: payload("Alpha", longCycleTypes),
+    message:
+      "cyclic type reference: Payload -> Alpha -> Beta -> Gamm... (length 51)",
+    display: "Typed data contains a circular type reference.",
   },
 ])(
   "preserves the SDK and Connect validation message for $name",
