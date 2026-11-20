@@ -154,7 +154,7 @@ exports[`shared notice [Function App] 1`] = `
 exports[`shared notice [Function RetiredAppNotice] 1`] = `
 {
   "labels": [],
-  "text": "Update MyQRLWalletThis version of the MyQRLWallet app is no longer supported. Install the latest version to keep using your wallet.Opened this page inside another app? Open qrlwallet.com in your regular browser.Google Play | myqrlwallet.com",
+  "text": "Update MyQRLWalletThis version of the MyQRLWallet app is no longer supported. Install the latest version to keep using your wallet.Opened this page inside another app? Open qrlwallet.com in your regular browser.Google Play | App Store | myqrlwallet.com",
   "title": "",
 }
 `;

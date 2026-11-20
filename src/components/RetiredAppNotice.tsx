@@ -17,6 +17,8 @@ const RetiredAppNotice = () => {
           Google Play
         </a>
         {" | "}
+        <a href="https://apps.apple.com/app/id6758100237">App Store</a>
+        {" | "}
         <a href="https://myqrlwallet.com">myqrlwallet.com</a>
       </p>
     </main>

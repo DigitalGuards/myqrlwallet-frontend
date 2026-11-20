@@ -25,6 +25,7 @@ const productTerms = new Set([
   "Testnet",
   "UNK",
   "Google Play",
+  "App Store",
   "myqrlwallet.com",
 ]);
 
