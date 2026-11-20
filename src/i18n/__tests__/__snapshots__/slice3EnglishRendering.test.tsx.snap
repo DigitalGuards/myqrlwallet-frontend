@@ -263,7 +263,7 @@ exports[`PIN confirmation mismatch 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -448,7 +448,7 @@ exports[`PIN validation: 123 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -633,7 +633,7 @@ exports[`PIN validation: 1234567 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -818,7 +818,7 @@ exports[`PIN validation: abcd 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -934,7 +934,7 @@ exports[`complete create/import route transitions 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -959,7 +959,7 @@ exports[`complete create/import route transitions 3`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -986,7 +986,7 @@ exports[`creation and PIN loading; creation inventory failure 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -1180,7 +1180,7 @@ exports[`creation and PIN service rejection: Error 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -1233,7 +1233,7 @@ exports[`creation and PIN service rejection: Error 4`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -1418,7 +1418,7 @@ exports[`creation and PIN service rejection: null 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -1471,7 +1471,7 @@ exports[`creation and PIN service rejection: null 4`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -1656,7 +1656,7 @@ exports[`creation and PIN service rejection: string 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -1709,7 +1709,7 @@ exports[`creation and PIN service rejection: string 4`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -1930,7 +1930,7 @@ exports[`creation encrypting, creating, PIN encrypting and desktop importing 2`]
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -1961,7 +1961,7 @@ exports[`creation encrypting, creating, PIN encrypting and desktop importing 3`]
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -2428,7 +2428,7 @@ exports[`credential/storage failure during creation and PIN setup: Another walle
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -2613,7 +2613,7 @@ exports[`credential/storage failure during creation and PIN setup: Invalid PIN f
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -2798,7 +2798,7 @@ exports[`credential/storage failure during creation and PIN setup: Invalid crypt
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -2983,7 +2983,7 @@ exports[`credential/storage failure during creation and PIN setup: Native secure
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -3168,7 +3168,7 @@ exports[`credential/storage failure during creation and PIN setup: Secure browse
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -3353,7 +3353,7 @@ exports[`credential/storage failure during creation and PIN setup: Secure browse
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -3538,7 +3538,7 @@ exports[`credential/storage failure during creation and PIN setup: Secure browse
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -3723,7 +3723,7 @@ exports[`credential/storage failure during creation and PIN setup: The native de
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -3908,7 +3908,7 @@ exports[`credential/storage failure during creation and PIN setup: The secure br
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -4093,7 +4093,7 @@ exports[`credential/storage failure during creation and PIN setup: The secure br
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -4278,7 +4278,7 @@ exports[`credential/storage failure during creation and PIN setup: The secure br
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -4463,7 +4463,7 @@ exports[`credential/storage failure during creation and PIN setup: The secure br
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -4648,7 +4648,7 @@ exports[`credential/storage failure during creation and PIN setup: The secure br
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -4833,7 +4833,7 @@ exports[`credential/storage failure during creation and PIN setup: This wallet c
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -5018,7 +5018,7 @@ exports[`credential/storage failure during creation and PIN setup: Unknown crypt
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -5203,7 +5203,7 @@ exports[`credential/storage failure during creation and PIN setup: Wallet identi
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -5388,7 +5388,7 @@ exports[`credential/storage failure during creation and PIN setup: Wallet identi
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -5573,7 +5573,7 @@ exports[`credential/storage failure during creation and PIN setup: Worker error 
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -5622,7 +5622,7 @@ exports[`desktop creation, add account and PIN setup 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -5653,7 +5653,7 @@ exports[`desktop creation, add account and PIN setup 3`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -5814,7 +5814,7 @@ exports[`existing PIN error: busy 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -5939,7 +5939,7 @@ exports[`existing PIN error: credential 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -6052,7 +6052,7 @@ exports[`existing PIN error: incorrect 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -6165,7 +6165,7 @@ exports[`existing PIN error: last-attempt 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -6278,7 +6278,7 @@ exports[`existing PIN error: locked 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -6391,7 +6391,7 @@ exports[`existing PIN error: outdated 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -6504,7 +6504,7 @@ exports[`existing PIN error: unknown 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -6689,7 +6689,7 @@ exports[`existing=false creation and PIN entry 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -6802,7 +6802,7 @@ exports[`existing=true creation and PIN entry 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -7080,7 +7080,7 @@ exports[`import success empty=false and copied 1`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -7105,7 +7105,7 @@ exports[`import success empty=false and copied 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -7130,7 +7130,7 @@ exports[`import success empty=true and copied 1`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -7155,7 +7155,7 @@ exports[`import success empty=true and copied 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -7429,7 +7429,7 @@ exports[`native creation, add account and PIN setup 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -7520,7 +7520,7 @@ exports[`native creation, add account and PIN setup 3`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -7739,7 +7739,7 @@ exports[`password confirmation required and mismatch 3`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -7770,7 +7770,7 @@ exports[`password confirmation required and mismatch 4`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -7895,7 +7895,7 @@ exports[`password validation: PASSWORD1! 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -8020,7 +8020,7 @@ exports[`password validation: Password! 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -8145,7 +8145,7 @@ exports[`password validation: Password1 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -8270,7 +8270,7 @@ exports[`password validation: password1! 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -8395,7 +8395,7 @@ exports[`password validation: short 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -9142,7 +9142,7 @@ exports[`web creation, add account and PIN setup 2`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
@@ -9233,7 +9233,7 @@ exports[`web creation, add account and PIN setup 3`] = `
   "meta": [
     [
       "description",
-      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send QRL, and manage tokens and NFTs securely in your browser.",
+      "Free web wallet for QRL 2.0, the post-quantum blockchain. Create quantum-resistant accounts, send Quanta, and manage tokens and NFTs securely in your browser.",
     ],
     [
       "keywords",
