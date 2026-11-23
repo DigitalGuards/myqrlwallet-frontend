@@ -225,25 +225,26 @@
     --sidebar-ring: 199 89% 38%;
 
     /* Tailwind palette shades the components use for status text and tints
-       (warning, error, connected). Deepened to the 700 level so text reads
-       on white; the /10 to /15 tints then stay faint but visible. */
+       (warning, error, connected). Deepened to the 800 level (red 700) so
+       small text clears WCAG AA on white, the soft surface and its own
+       10 to 15 percent tint. */
     --color-red-400: #b91c1c;
     --color-red-500: #b91c1c;
-    --color-amber-400: #b45309;
-    --color-amber-500: #b45309;
-    --color-amber-600: #b45309;
-    --color-yellow-200: #854d0e;
-    --color-yellow-400: #a16207;
-    --color-yellow-500: #a16207;
+    --color-amber-400: #92400e;
+    --color-amber-500: #92400e;
+    --color-amber-600: #92400e;
+    --color-yellow-200: #713f12;
+    --color-yellow-400: #854d0e;
+    --color-yellow-500: #854d0e;
     --color-yellow-900: #ca8a04;
-    --color-emerald-400: #047857;
-    --color-emerald-500: #047857;
+    --color-emerald-400: #065f46;
+    --color-emerald-500: #065f46;
     --color-emerald-800: #059669;
-    --color-teal-400: #0f766e;
-    --color-teal-500: #0f766e;
-    --color-sky-400: #0369a1;
-    --color-sky-500: #0369a1;
-    --color-green-600: #15803d;
+    --color-teal-400: #115e59;
+    --color-teal-500: #115e59;
+    --color-sky-400: #075985;
+    --color-sky-500: #075985;
+    --color-green-600: #166534;
   }
 
   /* Customized scrollbar */
@@ -430,6 +431,17 @@
       hsl(var(--card));
     border: 1px solid hsl(var(--primary) / 0.28);
     box-shadow: 0 1px 2px hsl(222 47% 10% / 0.04);
+  }
+
+  /* These QR codes are drawn white on black in the dark theme. Light inverts
+     them to black modules on a white tile with its own quiet zone, so they
+     scan the same way as every other QR in the wallet. */
+  :root[data-theme="light"] .qr-inverted-in-light {
+    filter: invert(1);
+    background-color: #000000;
+    box-sizing: content-box;
+    padding: 12px;
+    border-radius: 8px;
   }
 
   /* The background loop is a dark clip; it has no light counterpart. */
