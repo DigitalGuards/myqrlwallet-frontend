@@ -541,7 +541,7 @@
   }
 
   /* The blue block's own touches: a white primary button with navy text, and
-     translucent borders that sit on the blue rather than on near-black. */
+     translucent borders tuned for the blue background. */
   :root[data-theme="light"] .surface-ember {
     --primary: 0 0% 100%;
     --primary-foreground: 212 80% 22%;
