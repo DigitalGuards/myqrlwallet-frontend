@@ -71,4 +71,31 @@ describe("production content security policy", () => {
     expect(nginxConfig).toContain("frame-ancestors 'none'");
     expect(nginxConfig).toContain('X-Frame-Options "DENY"');
   });
+
+  it("allows the same explorer hosts in every CSP copy", () => {
+    const connectSrc = (policy: string): string[] => {
+      const directive = policy
+        .split(";")
+        .map((part) => part.trim())
+        .find((part) => part.startsWith("connect-src "));
+      return (directive ?? "").split(/\s+/);
+    };
+    const policies = [
+      metaCsp(sourceHtml),
+      ...[nginxConfig, nginxExample].flatMap((config) =>
+        [...config.matchAll(/Content-Security-Policy "([^"]+)"/g)].map(
+          (match) => match[1] ?? "",
+        ),
+      ),
+    ];
+    expect(policies.length).toBeGreaterThanOrEqual(6);
+    for (const policy of policies) {
+      const sources = connectSrc(policy);
+      expect(sources).toContain("https://shorscan.com");
+      expect(sources).toContain("https://zondscan.com");
+    }
+    expect(sourceHtml).toContain(
+      '<link rel="preconnect" href="https://shorscan.com" />',
+    );
+  });
 });

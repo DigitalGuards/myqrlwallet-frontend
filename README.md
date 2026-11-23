@@ -88,7 +88,7 @@ docker build -t myqrlwallet-frontend:latest \
   -f deploy/Dockerfile \
   --build-arg VITE_RPC_URL_PRODUCTION=https://qrlwallet.com/api/qrl-rpc \
   --build-arg VITE_SERVER_URL_PRODUCTION=https://qrlwallet.com/api \
-  --build-arg VITE_EXPLORER_URL_PRODUCTION=https://zondscan.com \
+  --build-arg VITE_EXPLORER_URL_PRODUCTION=https://shorscan.com \
   .
 ```
 
@@ -313,7 +313,7 @@ by a socket that died between its checkpoint and its send. This is not part of
 
 - [QRL Website](https://www.theqrl.org/)
 - [QRL Documentation](https://docs.theqrl.org/)
-- [Block Explorer (ZondScan)](https://zondscan.com)
+- [Block Explorer (ShorScan)](https://shorscan.com)
 - [Twitter](https://x.com/DigitalGuards)
 
 ## Contributing

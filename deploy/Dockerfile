@@ -17,7 +17,7 @@ COPY . .
 # Build arguments for Vite environment variables (must be set at build time)
 ARG VITE_RPC_URL_PRODUCTION=https://qrlwallet.com/api/qrl-rpc
 ARG VITE_SERVER_URL_PRODUCTION=https://qrlwallet.com/api
-ARG VITE_EXPLORER_URL_PRODUCTION=https://zondscan.com
+ARG VITE_EXPLORER_URL_PRODUCTION=https://shorscan.com
 ARG VITE_CUSTOMERC20FACTORY_ADDRESS
 ARG VITE_DEPLOYER
 ARG VITE_WALLET_PROFILE

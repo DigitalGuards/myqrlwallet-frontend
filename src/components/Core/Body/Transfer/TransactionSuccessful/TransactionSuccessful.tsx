@@ -45,12 +45,12 @@ export const TransactionSuccessful = ({
     "txHash" | "blockHash"
   >();
 
-  // A configured network without an explorer gets no links. The zondscan
+  // A configured network without an explorer gets no links. The ShorScan
   // fallback covers only an unknown network id.
   const network = Object.entries(QRL_PROVIDER).find(
     ([id]) => id === (submittedBlockchain ?? blockchain),
   )?.[1];
-  const explorerUrl = network ? network.explorer : "https://zondscan.com";
+  const explorerUrl = network ? network.explorer : "https://shorscan.com";
 
   const gasInQrl = new BigNumber(
     utils.fromPlanck(

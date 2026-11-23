@@ -24,7 +24,7 @@ jest.mock("@/utils", () =>
 );
 jest.mock("@/config", () => ({
   QRL_PROVIDER: {
-    TEST_NET_V3: { explorer: "https://zondscan.com" },
+    TEST_NET_V3: { explorer: "https://shorscan.com" },
     MAIN_NET: { explorer: "https://mainnet.example/explorer" },
   },
 }));
@@ -74,13 +74,13 @@ it("keeps full hashes readable and full explorer destinations", () => {
     name: `View transaction ${TX_HASH} on explorer`,
   });
   expect(txLink.getAttribute("href")).toBe(
-    `https://zondscan.com/tx/${TX_HASH}`,
+    `https://shorscan.com/tx/${TX_HASH}`,
   );
   expect(txLink.getAttribute("rel")).toBe("noopener noreferrer");
   expect(txLink.getAttribute("target")).toBe("_blank");
   expect(
     screen.getByRole("link", { name: "155778" }).getAttribute("href"),
-  ).toBe("https://zondscan.com/block/155778");
+  ).toBe("https://shorscan.com/block/155778");
   expect(screen.getByText("40,500.0 Quanta")).toBeTruthy();
   expect(screen.getByText("0.00002625 Quanta")).toBeTruthy();
   expect(screen.getByText("Network fee").parentElement?.textContent).toBe(

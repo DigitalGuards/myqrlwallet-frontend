@@ -172,7 +172,7 @@ const NftDetail = observer(() => {
 
   const explorerUrl =
     Object.entries(QRL_PROVIDER).find(([id]) => id === blockchain)?.[1]
-      .explorer ?? "https://zondscan.com";
+      .explorer ?? "https://shorscan.com";
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
