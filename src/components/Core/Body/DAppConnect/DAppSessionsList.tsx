@@ -168,7 +168,7 @@ const DAppSessionsList = observer(
     rows = false,
   }: {
     showHeading?: boolean;
-    /** Plain hairline rows for the Settings page, instead of cards. */
+    /** Plain hairline rows, as the Settings page shows them. The default is cards. */
     rows?: boolean;
   }) => {
     const { t } = useTranslation(["settings", "common"]);

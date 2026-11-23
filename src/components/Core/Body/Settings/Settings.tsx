@@ -349,8 +349,8 @@ const Settings = observer(() => {
   }
 
   // Security is browser-only here. Native routes Settings to its
-  // request-bound PIN flow, and desktop uses a password / Argon2id
-  // rather than this PIN.
+  // request-bound PIN flow, and desktop unlocks with a password
+  // (Argon2id); neither uses this PIN.
   const securitySection =
     hasEncryptedSeeds && !isDesktop && !isInNativeApp() ? (
             <SettingsSection
