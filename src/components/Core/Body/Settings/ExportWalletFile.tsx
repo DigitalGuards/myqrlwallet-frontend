@@ -194,8 +194,6 @@ export const ExportWalletFile = observer(() => {
   return (
     <>
       <SettingsRow
-        icon={FileDown}
-        tint="bg-teal-500/15 text-teal-400"
         title={t("settings:export")}
         subtitle={t("settings:exportHint")}
         right={
@@ -214,7 +212,7 @@ export const ExportWalletFile = observer(() => {
         ariaControls="export-wallet-panel"
       />
       {showPanel && (
-        <div id="export-wallet-panel" className="px-4 pb-4 pt-3">
+        <div id="export-wallet-panel" className="pb-4 pt-3">
           <Form {...form}>
             <form
               onSubmit={(event) => {

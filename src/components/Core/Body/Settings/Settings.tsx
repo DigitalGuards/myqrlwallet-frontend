@@ -5,13 +5,13 @@ import {
 } from "@/i18n/pinErrorMessage";
 import { LanguageSettings } from "./LanguageSettings";
 import { ThemeSettings } from "./ThemeSettings";
+import { SettingsLayout, type SettingsCategory } from "./SettingsLayout";
 import { LIGHT_THEME_ENABLED } from "@/theme/enabled";
 import { useTranslation } from "react-i18next";
 import { toNumber } from "@/utils/guards";
 import { PinVerificationError } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "../../../UI/Button";
-import { Card } from "../../../UI/Card";
 import {
   Form,
   FormControl,
@@ -30,16 +30,7 @@ import { z } from "zod";
 import { useState, useEffect, useRef, useCallback, lazy } from "react";
 import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
 import { StorageUtil } from "@/utils/storage";
-import {
-  BookUser,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Coins,
-  Images,
-  Shield,
-  TimerReset,
-} from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Shield } from "lucide-react";
 import { useNavigate } from "react-router";
 import { ROUTES } from "@/router/router";
 import {
@@ -54,7 +45,7 @@ import { isDesktop } from "@/desktop/bridge";
 import { withSuspense } from "@/utils/react";
 import { cn } from "@/utils/cn";
 import { logger } from "@/utils/log";
-import { SettingsIconTile, SettingsRow, SettingsSection } from "./SettingsList";
+import { SettingsRow, SettingsSection } from "./SettingsList";
 import { ExportWalletFile } from "./ExportWalletFile";
 import {
   checkLockout,
@@ -357,18 +348,16 @@ const Settings = observer(() => {
     }
   }
 
-  return (
-    <>
-      <PageShell title={t("common:settings")} seoTitle={t("common:settings")}>
-        <div className="space-y-5 md:space-y-6">
-          {/* Security is browser-only here. Native routes Settings
-                            to its request-bound PIN flow, and desktop uses a
-                            password / Argon2id rather than this PIN. */}
-          {hasEncryptedSeeds && !isDesktop && !isInNativeApp() && (
-            <SettingsSection title={t("settings:security")}>
+  // Security is browser-only here. Native routes Settings to its
+  // request-bound PIN flow, and desktop uses a password / Argon2id
+  // rather than this PIN.
+  const securitySection =
+    hasEncryptedSeeds && !isDesktop && !isInNativeApp() ? (
+            <SettingsSection
+              title={t("settings:security")}
+              headingId="settings-security-title"
+            >
               <SettingsRow
-                icon={Shield}
-                tint="bg-primary/15 text-primary"
                 title={t("settings:changePin")}
                 subtitle={t("settings:changePinHint")}
                 right={
@@ -401,7 +390,7 @@ const Settings = observer(() => {
                 ariaControls="change-pin-panel"
               />
               {showPinForm && (
-                <div id="change-pin-panel" className="px-4 pb-4 pt-3">
+                <div id="change-pin-panel" className="pb-4 pt-3">
                   <Form {...changePinForm}>
                     <form
                       onSubmit={(event) => {
@@ -535,13 +524,22 @@ const Settings = observer(() => {
               )}
               <ExportWalletFile />
             </SettingsSection>
-          )}
+    ) : null;
 
-          <NetworkSettings />
-
+  // dApp session management lives with the address book under Connections
+  // (the list keeps its own header + actions); the /dapp-sessions route
+  // mounts the same component for deep links. Desktop never reaches this
+  // page: its Settings entry opens the native settings window (see
+  // utils/navigation).
+  const categories: SettingsCategory[] = [
+    {
+      id: "preferences",
+      label: t("settings:preferences"),
+      content: (
           <Form {...form}>
             <SettingsSection
               title={t("settings:preferences")}
+              headingId="settings-preferences-title"
               action={
                 settingsSaveSuccess ? (
                   <span
@@ -559,7 +557,7 @@ const Settings = observer(() => {
               {settingsSaveError && (
                 <div
                   role="alert"
-                  className="bg-destructive/10 px-4 py-2 text-xs text-destructive"
+                  className="bg-destructive/10 py-2 text-xs text-destructive"
                 >
                   {t(settingsSaveError)}
                 </div>
@@ -570,11 +568,7 @@ const Settings = observer(() => {
                 name="autoLockTimeout"
                 render={({ field }) => (
                   <FormItem className="space-y-0">
-                    <div className="flex items-center gap-3 px-4 py-3">
-                      <SettingsIconTile
-                        icon={TimerReset}
-                        tint="bg-violet-500/15 text-violet-400"
-                      />
+                    <div className="flex items-center gap-3 py-3">
                       <div className="min-w-0 flex-1">
                         <FormLabel className="text-sm font-medium">
                           {t("settings:autoLock")}
@@ -617,7 +611,7 @@ const Settings = observer(() => {
                         />
                       </FormControl>
                     </div>
-                    <FormMessage className="px-4 pb-3 text-xs" />
+                    <FormMessage className="pb-3 text-xs" />
                   </FormItem>
                 )}
               />
@@ -626,11 +620,7 @@ const Settings = observer(() => {
                 control={form.control}
                 name="showTokensCard"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center gap-3 space-y-0 px-4 py-3">
-                    <SettingsIconTile
-                      icon={Coins}
-                      tint="bg-sky-500/15 text-sky-400"
-                    />
+                  <FormItem className="flex flex-row items-center gap-3 space-y-0 py-3">
                     <div className="min-w-0 flex-1">
                       <FormLabel className="text-sm font-medium">
                         {t("settings:showTokens")}
@@ -656,11 +646,7 @@ const Settings = observer(() => {
                 control={form.control}
                 name="showNftsCard"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center gap-3 space-y-0 px-4 py-3">
-                    <SettingsIconTile
-                      icon={Images}
-                      tint="bg-fuchsia-500/15 text-fuchsia-400"
-                    />
+                  <FormItem className="flex flex-row items-center gap-3 space-y-0 py-3">
                     <div className="min-w-0 flex-1">
                       <FormLabel className="text-sm font-medium">
                         {t("settings:showNfts")}
@@ -683,11 +669,22 @@ const Settings = observer(() => {
               />
             </SettingsSection>
           </Form>
-
-          <SettingsSection title={t("settings:connections")}>
+      ),
+    },
+    {
+      id: "network",
+      label: t("settings:network"),
+      content: <NetworkSettings />,
+    },
+    {
+      id: "connections",
+      label: t("settings:connections"),
+      content: (
+          <SettingsSection
+            title={t("settings:connections")}
+            headingId="settings-connections-title"
+          >
             <SettingsRow
-              icon={BookUser}
-              tint="bg-secondary/15 text-secondary"
               title={t("settings:addressBook")}
               subtitle={t("settings:addressBookHint")}
               right={
@@ -701,19 +698,29 @@ const Settings = observer(() => {
                 );
               }}
             />
+            <DAppSessionsList rows />
           </SettingsSection>
+      ),
+    },
+    ...(securitySection
+      ? [
+          {
+            id: "security",
+            label: t("settings:security"),
+            content: securitySection,
+          },
+        ]
+      : []),
+  ];
 
-          {/* dApp session management lives here (the list keeps
-              its own header + actions); the /dapp-sessions route
-              mounts the same component for deep links. Desktop
-              never reaches this page: its Settings entry opens
-              the native settings window (see utils/navigation). */}
-          <Card>
-            <DAppSessionsList />
-          </Card>
-        </div>
-      </PageShell>
-    </>
+  return (
+    <PageShell
+      title={t("common:settings")}
+      seoTitle={t("common:settings")}
+      width="xwide"
+    >
+      <SettingsLayout categories={categories} />
+    </PageShell>
   );
 });
 

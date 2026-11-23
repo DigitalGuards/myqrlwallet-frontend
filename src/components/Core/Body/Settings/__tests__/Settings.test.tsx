@@ -121,6 +121,7 @@ const storedSeeds = [
 beforeEach(() => {
   jest.resetAllMocks();
   localStorage.clear();
+  sessionStorage.clear();
   mockShell = "web";
   mockLightTheme = false;
   mockStore.qrlStore.activeAccount.accountAddress = address;
@@ -203,6 +204,75 @@ it("shows the Theme row when the build offers the light theme", async () => {
   mockLightTheme = true;
   render(<Settings />);
   expect(await screen.findByLabelText("Theme")).toHaveProperty("value", "dark");
+});
+
+const categoryNames = () =>
+  screen
+    .getAllByRole("button", { name: /^(Preferences|Network|Connections|Security)$/ })
+    .map((item) => item.textContent);
+
+it("lists every category with the Security section last", async () => {
+  render(<Settings />);
+  await screen.findByRole("button", { name: /Change PIN/ });
+  expect(categoryNames()).toEqual([
+    "Preferences",
+    "Network",
+    "Connections",
+    "Security",
+  ]);
+  const order = [...document.querySelectorAll("[data-category]")].map(
+    (element) => element.getAttribute("data-category"),
+  );
+  expect(order).toEqual(["preferences", "network", "connections", "security"]);
+});
+
+it.each([
+  ["no encrypted seeds", () => {
+    jest.mocked(StorageUtil).hasEncryptedSeeds.mockResolvedValue(false);
+  }],
+  ["the desktop shell", () => {
+    mockShell = "desktop";
+  }],
+  ["the native app", () => {
+    mockShell = "native";
+  }],
+])("leaves Security out of the list and the page for %s", async (_name, arrange) => {
+  arrange();
+  render(<Settings />);
+  await screen.findByLabelText("Language");
+  await waitFor(() => {
+    expect(categoryNames()).toEqual(["Preferences", "Network", "Connections"]);
+  });
+  expect(document.querySelector('[data-category="security"]')).toBeNull();
+  expect(screen.queryByRole("button", { name: /Change PIN/ })).toBeNull();
+});
+
+it("keeps an open Change PIN panel and the selected category across category changes", async () => {
+  render(<Settings />);
+  const toggle = await screen.findByRole("button", { name: /Change PIN/ });
+  fireEvent.click(toggle);
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  fireEvent.click(screen.getByRole("button", { name: "Security" }));
+  fireEvent.click(screen.getByRole("button", { name: "Network" }));
+  fireEvent.click(screen.getByRole("button", { name: "Security" }));
+  expect(
+    document
+      .querySelector('[aria-controls="change-pin-panel"]')
+      ?.getAttribute("aria-expanded"),
+  ).toBe("true");
+  expect(document.getElementById("change-pin-panel")).toBeTruthy();
+  expect(sessionStorage.getItem("settingsCategory")).toBe("security");
+});
+
+it("labels each section by its heading", async () => {
+  render(<Settings />);
+  await screen.findByRole("button", { name: /Change PIN/ });
+  expect(
+    screen.getByRole("region", { name: "Preferences" }),
+  ).toBeTruthy();
+  expect(screen.getByRole("region", { name: "Network" })).toBeTruthy();
+  expect(screen.getByRole("region", { name: "Connections" })).toBeTruthy();
+  expect(screen.getByRole("region", { name: "Security" })).toBeTruthy();
 });
 
 it("preserves pending preference defaults, debounce timing and overlapping saves", async () => {

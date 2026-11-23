@@ -163,10 +163,116 @@ const PasteConnect = observer(() => {
 });
 
 const DAppSessionsList = observer(
-  ({ showHeading = true }: { showHeading?: boolean }) => {
+  ({
+    showHeading = true,
+    rows = false,
+  }: {
+    showHeading?: boolean;
+    /** Plain hairline rows for the Settings page, instead of cards. */
+    rows?: boolean;
+  }) => {
     const { t } = useTranslation(["settings", "common"]);
     const { dappConnectStore } = useStore();
     const { activeSessions } = dappConnectStore;
+
+    if (rows) {
+      // Settings page: hairline rows with the status as text. Same store
+      // calls and copy as the card layout below.
+      return (
+        <>
+          {showHeading && (
+            <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-medium">{t("settings:sessions")}</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t("settings:sessionsHint")}
+                </p>
+              </div>
+              {activeSessions.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:border-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => {
+                    dappConnectStore.disconnectAll();
+                  }}
+                >
+                  {t("settings:disconnectAll")}
+                </Button>
+              )}
+            </div>
+          )}
+          {(isDesktop || !isInNativeApp()) && (
+            <div className="py-3">
+              <PasteConnect />
+            </div>
+          )}
+          {activeSessions.length === 0 ? (
+            <div className="py-3">
+              <p className="text-sm font-medium">{t("settings:noDapps")}</p>
+              <p className="mt-0.5 max-w-md text-xs leading-relaxed text-muted-foreground">
+                {t(
+                  isDesktop
+                    ? "settings:emptyDesktop"
+                    : isInNativeApp()
+                      ? "settings:emptyMobile"
+                      : "settings:emptyWeb",
+                )}
+              </p>
+            </div>
+          ) : (
+            activeSessions.map((session) => (
+              <div
+                key={session.id}
+                className="flex flex-wrap items-center justify-between gap-3 py-3"
+              >
+                <div className="min-w-0 space-y-1">
+                  <p className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="truncate text-sm font-medium">
+                      {!session.originatorInfoReceived &&
+                      isPendingDAppInfo(session.dappInfo)
+                        ? t("settings:connecting")
+                        : session.dappInfo.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {t(statusLabels[session.status])}
+                    </span>
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {session.dappInfo.url}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    {session.connectedAccount ? (
+                      <QrlAddress
+                        address={session.connectedAccount}
+                        revealable
+                      />
+                    ) : (
+                      <span className="italic">{t("settings:noAccount")}</span>
+                    )}
+                    <span>
+                      {t("settings:connectedOn", {
+                        date: new Date(session.createdAt).toLocaleDateString(),
+                      })}
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hover:border-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => {
+                    dappConnectStore.disconnectSession(session.id);
+                  }}
+                >
+                  {t("settings:disconnect")}
+                </Button>
+              </div>
+            ))
+          )}
+        </>
+      );
+    }
 
     return (
       <>
