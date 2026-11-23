@@ -1,48 +1,36 @@
-import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { Card } from "../../../UI/Card";
-import { cn } from "../../../../utils";
 
 interface SettingsSectionProps {
     title: string;
     action?: ReactNode;
+    /** id for the heading, so the section can be labelled by it. */
+    headingId?: string;
     children: ReactNode;
 }
 
 /**
- * Grouped-list section: a small muted label above a card whose direct
- * children are separated by hairline dividers (mirrors the mobile app's
- * Section/Row settings layout).
+ * Plain section: a heading over rows separated by hairlines, no card. On wide
+ * screens (lg) the heading doubles as the title of the selected settings
+ * category, so it is larger there.
  */
-export const SettingsSection = ({ title, action, children }: SettingsSectionProps) => (
-    <section>
-        <div className="mb-2 flex items-center justify-between px-1">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+export const SettingsSection = ({ title, action, headingId, children }: SettingsSectionProps) => (
+    <section aria-labelledby={headingId}>
+        <div className="mb-1 flex min-h-6 items-center justify-between lg:mb-2">
+            <h2
+                id={headingId}
+                className="text-sm font-semibold text-foreground lg:text-lg lg:tracking-tight"
+            >
                 {title}
             </h2>
             {action}
         </div>
-        <Card className="overflow-hidden">
-            <div className="divide-y divide-border/60">{children}</div>
-        </Card>
+        <div className="divide-y divide-border border-y border-border">
+            {children}
+        </div>
     </section>
 );
 
-export const SettingsIconTile = ({ icon: Icon, tint }: { icon: LucideIcon; tint: string }) => (
-    <span
-        className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-            tint,
-        )}
-    >
-        <Icon className="h-4 w-4" />
-    </span>
-);
-
 interface SettingsRowProps {
-    icon: LucideIcon;
-    /** Tailwind classes for the icon tile, e.g. "bg-primary/15 text-primary" */
-    tint: string;
     title: string;
     subtitle?: string;
     /** Right-hand slot: Switch, chevron, value text, ... */
@@ -56,8 +44,6 @@ interface SettingsRowProps {
 }
 
 export const SettingsRow = ({
-    icon,
-    tint,
     title,
     subtitle,
     right,
@@ -68,7 +54,6 @@ export const SettingsRow = ({
 }: SettingsRowProps) => {
     const content = (
         <>
-            <SettingsIconTile icon={icon} tint={tint} />
             <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium">{title}</span>
                 {subtitle && (
@@ -89,14 +74,12 @@ export const SettingsRow = ({
                 disabled={disabled}
                 aria-expanded={ariaExpanded}
                 aria-controls={ariaControls}
-                // Inset ring: the section card is overflow-hidden, so an
-                // outline drawn outside the border box gets clipped away.
-                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:bg-foreground/[0.04] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-sm px-2 py-3 text-left transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             >
                 {content}
             </button>
         );
     }
 
-    return <div className="flex w-full items-center gap-3 px-4 py-3">{content}</div>;
+    return <div className="flex w-full items-center gap-3 py-3">{content}</div>;
 };

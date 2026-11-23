@@ -49,7 +49,10 @@ jest.mock("@/utils", () =>
   jest.requireActual<typeof import("@/utils/cn")>("@/utils/cn"),
 );
 jest.mock("@/router/router", () => ({ ROUTES: {} }));
-jest.mock("react-router", () => ({ useNavigate: () => jest.fn() }));
+jest.mock("react-router", () => ({
+  useNavigate: () => jest.fn(),
+  useLocation: () => ({ pathname: "/settings", search: "", state: null }),
+}));
 jest.mock("@/components/Core/Layout/PageShell", () => ({
   PageShell: ({ children }: { children: ReactNode }) => children,
 }));
@@ -239,13 +242,14 @@ it.each([
         expect(getRemainingAttempts()).toBe(5 - attempt);
       });
       expect(decrypt).toHaveBeenCalledTimes(attempt);
+      // The lockout text also shows once as the page's notice line.
       expect(
-        screen.getByText(
+        screen.getAllByText(
           attempt === 5
             ? "Too many failed attempts. Please wait 15 minutes."
             : `Incorrect PIN. ${5 - attempt} attempt${attempt === 4 ? "" : "s"} remaining.`,
-        ),
-      ).toBeTruthy();
+        ).length,
+      ).toBeGreaterThan(0);
     }
     expect(checkLockout().isLocked).toBe(true);
     await act(() => {

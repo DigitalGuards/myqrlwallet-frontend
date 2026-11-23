@@ -7,7 +7,7 @@ type PageShellProps = {
   title: ReactNode;
   subtitle?: ReactNode;
   action?: ReactNode;
-  width?: "default" | "wide";
+  width?: "default" | "wide" | "xwide";
   seoTitle?: unknown;
   /**
    * A sub-page's Back (a RouteBack), shown on its own row above the title.
@@ -33,7 +33,11 @@ export function PageShell({
       <div
         className={cn(
           "page-enter mx-auto w-full px-4 pt-8 pb-8",
-          width === "wide" ? "max-w-3xl" : "max-w-2xl",
+          width === "xwide"
+            ? "max-w-2xl lg:max-w-5xl"
+            : width === "wide"
+              ? "max-w-3xl"
+              : "max-w-2xl",
         )}
       >
         {back}
