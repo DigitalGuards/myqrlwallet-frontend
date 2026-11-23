@@ -4,7 +4,7 @@ import { useStore } from "../../../../../stores/store";
 import { observer } from "mobx-react-lite";
 import { AVAILABLE_NETWORKS, IS_V3_PROFILE } from "@/config";
 import { MAINNET_V3_ID } from "@/config/deploymentProfile";
-import { Check, FlaskConical, Globe } from "lucide-react";
+import { Check } from "lucide-react";
 import { SettingsRow, SettingsSection } from "../SettingsList";
 import { logger } from "@/utils/log";
 
@@ -25,16 +25,13 @@ export const NetworkSettings = observer(() => {
   const activeMark = <Check className="h-4 w-4 shrink-0 text-primary" />;
 
   return (
-    <SettingsSection title={t("settings:network")}>
+    <SettingsSection
+      title={t("settings:network")}
+      headingId="settings-network-title"
+    >
       {networks.map((network) => (
         <SettingsRow
           key={network.id}
-          icon={isMainnet(network.id) ? Globe : FlaskConical}
-          tint={
-            isMainnet(network.id)
-              ? "bg-emerald-500/15 text-emerald-400"
-              : "bg-amber-500/15 text-amber-400"
-          }
           title={
             IS_V3_PROFILE
               ? networkName(network.name, common)

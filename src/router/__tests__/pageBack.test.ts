@@ -184,6 +184,17 @@ describe("pageBack", () => {
     ).toEqual({ fallback: "/?collection=abc", disabled: true, onBack });
   });
 
+  it("opens Settings' Connections from the dApp sessions page", () => {
+    expect(pageBack(ROUTES.DAPP_SESSIONS, { platform: "web" })).toMatchObject({
+      fallback: ROUTES.SETTINGS,
+      fallbackState: { settingsCategory: "connections" },
+    });
+    expect(
+      pageBack(ROUTES.DAPP_SESSIONS, { platform: "app" })?.fallbackState,
+    ).toBeUndefined();
+    expect(pageBack(ROUTES.LEGAL)?.fallbackState).toBeUndefined();
+  });
+
   it("passes the platform through, which decides how Back walks", () => {
     expect(pageBack(ROUTES.LEGAL, { platform: "desktop" })?.platform).toBe(
       "desktop",

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Palette } from "lucide-react";
 import {
   THEMES,
   isThemePreference,
@@ -8,7 +7,6 @@ import {
   saveThemePreference,
   type ThemePreference,
 } from "@/theme/preference";
-import { SettingsIconTile } from "./SettingsList";
 
 /** Theme row: saves the choice, which the theme module applies at once. */
 export function ThemeSettings() {
@@ -21,9 +19,8 @@ export function ThemeSettings() {
   };
 
   return (
-    <div className="px-4 py-3">
+    <div className="py-3">
       <div className="flex flex-wrap items-center gap-3">
-        <SettingsIconTile icon={Palette} tint="bg-primary/15 text-primary" />
         <div className="min-w-0 flex-1">
           <label htmlFor="wallet-theme" className="text-sm font-medium">
             {t("theme")}
@@ -38,7 +35,7 @@ export function ThemeSettings() {
         <select
           id="wallet-theme"
           aria-describedby="wallet-theme-hint"
-          className="h-10 max-w-full rounded-md border border-input bg-background px-2 text-sm"
+          className="h-9 max-w-full rounded-md border border-input bg-background px-2 text-sm"
           value={theme}
           onChange={(event) => {
             const value = event.target.value;

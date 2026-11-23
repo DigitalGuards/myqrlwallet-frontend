@@ -34,6 +34,7 @@ export function PageBack({
   fallback,
   disabled = false,
   hidden = false,
+  fallbackState,
   onBack,
   platform,
 }: PageBackConfig) {
@@ -68,6 +69,7 @@ export function PageBack({
             },
           }
         : undefined,
+      fallbackState,
     );
   };
 

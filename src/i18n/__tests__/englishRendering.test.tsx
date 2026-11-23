@@ -273,7 +273,9 @@ function englishSnapshot() {
   const copy = document.body.cloneNode(true);
   if (!(copy instanceof HTMLElement)) throw new Error("Missing rendered body");
   // Language is the single new row allowed in this slice.
-  copy.querySelector("#wallet-language")?.closest(".px-4.py-3")?.remove();
+  copy.querySelector("#wallet-language")?.closest(".py-3")?.remove();
+  // The wide-screen category list repeats the section headings.
+  copy.querySelector("[role='tablist']")?.remove();
   copy
     .querySelectorAll("style, script, [hidden], [aria-hidden=true], .sr-only")
     .forEach((element) => {
