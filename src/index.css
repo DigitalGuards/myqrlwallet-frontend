@@ -167,63 +167,69 @@
 
   /* Light theme: selected by data-theme="light" on <html> (src/theme).
      Only adds values; the dark set above is the default and never changes.
-     Palette from the marketing site: white page, soft and tinted surfaces,
-     ink text, sky-blue action. Status and identity colors are deepened so
-     small text clears WCAG AA on white and on the soft surface. */
+     Profile "Ink and blue": structure comes from neutrals (cool grey page,
+     white cards with a hairline), the navigation rail and the balance block
+     are deep navy and blue, and the sky blue is kept for action. Status and
+     identity colors are deepened so small text clears WCAG AA on the page,
+     on cards and on tints. The balance block is a dark island, defined
+     further down. */
   :root[data-theme="light"] {
     color-scheme: light;
 
-    --background: 0 0% 100%;
+    --background: 220 20% 96%;
     --foreground: 222 47% 10%;
 
-    --card: 214 40% 97%;
+    --card: 0 0% 100%;
     --card-foreground: 222 47% 10%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 10%;
 
-    --primary: 199 89% 34%;
+    --primary: 206 90% 36%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 200 92% 32%;
+    --secondary: 206 90% 30%;
     --secondary-foreground: 0 0% 100%;
 
-    --identity-accent: 200 85% 28%;
+    --identity-accent: 206 85% 28%;
     --identity-accent-foreground: 0 0% 100%;
 
     --success: 152 62% 26%;
     --success-foreground: 0 0% 100%;
 
-    --muted: 214 40% 95%;
-    --muted-foreground: 218 14% 36%;
+    --muted: 220 18% 92%;
+    --muted-foreground: 220 14% 34%;
 
-    --accent: 203 88% 95%;
+    --accent: 220 28% 93%;
     --accent-foreground: 222 47% 10%;
 
     --destructive: 0 72% 44%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 216 24% 89%;
-    --input: 216 24% 78%;
-    --ring: 199 89% 34%;
+    --border: 220 16% 86%;
+    --input: 220 14% 68%;
+    --ring: 206 90% 36%;
 
-    --hero-top: 203 88% 94%;
-    --primary-hover: 199 89% 29%;
+    --hero-top: 220 20% 96%;
+    --primary-hover: 206 90% 29%;
 
-    --chart-1: 199 89% 34%;
+    --chart-1: 206 90% 36%;
     --chart-2: 168 70% 28%;
-    --chart-3: 200 85% 28%;
+    --chart-3: 206 85% 28%;
     --chart-4: 262 55% 48%;
     --chart-5: 330 65% 42%;
 
-    --sidebar-background: 214 40% 97%;
+    /* Navigation rail: white, with a hairline on its inner edge. Items use
+       the ink and muted-ink text tokens; the active item takes the primary
+       blue (icon, label edge) over a soft blue tint. */
+    --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 47% 10%;
-    --sidebar-primary: 199 89% 34%;
+    --sidebar-primary: 206 90% 36%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 203 88% 95%;
+    --sidebar-accent: 206 80% 93%;
     --sidebar-accent-foreground: 222 47% 10%;
-    --sidebar-border: 216 24% 89%;
-    --sidebar-ring: 199 89% 34%;
+    --sidebar-border: 220 16% 86%;
+    --sidebar-ring: 206 90% 36%;
 
     /* Tailwind palette shades the components use for status text and tints
        (warning, error, connected). Deepened to the 800 level (red 700) so
@@ -421,6 +427,14 @@
   }
 }
 
+/* The Send Quanta button has a fixed sky-blue fill and dark label, set by
+   its own unlayered stylesheet. In light it takes the primary fill and its
+   white label; this rule is unlayered and more specific so it wins. */
+:root[data-theme="light"] .shiny-btn {
+  --shiny-cta-bg: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
 /* Primary buttons darken on hover in light (the dark theme's /90 mix would
    pale toward white and drop below AA). Pointer devices only, so a tap on a
    touch screen does not leave the hover colour behind. */
@@ -436,15 +450,112 @@
   :root[data-theme="light"] .surface-glass {
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
-    box-shadow: 0 1px 2px hsl(222 47% 10% / 0.04);
+    box-shadow: 0 1px 2px hsl(222 47% 10% / 0.06);
   }
 
+  /* Balance block: a solid deep-blue surface (the active account, the start
+     card and the account-list card). It is a dark island, see below. */
   :root[data-theme="light"] .surface-ember {
-    background:
-      linear-gradient(180deg, hsl(var(--hero-top)), transparent 70%),
-      hsl(var(--card));
-    border: 1px solid hsl(var(--primary) / 0.28);
-    box-shadow: 0 1px 2px hsl(222 47% 10% / 0.04);
+    background: linear-gradient(165deg, hsl(206 85% 30%), hsl(212 80% 22%));
+    border: 1px solid hsl(212 80% 18%);
+    box-shadow: 0 1px 2px hsl(222 47% 10% / 0.12);
+    color: hsl(var(--foreground));
+  }
+
+  /* Dark island inside the light theme: the blue balance block (the active
+     account, the start card and the account-list card). Tailwind's --color-*
+     variables are resolved on the root, so changing --foreground on an
+     element does not reach its descendants unless the derived --color-*
+     variables are declared there too. This rule gives the block the dark
+     theme's token values, derives every --color-* the components read, and
+     restores the status shades of the palette, so anything placed inside it
+     (text, buttons, badges, popovers, success ticks, errors) reads as it does
+     in the dark theme. Add a new token or palette shade here when a component
+     starts using one. */
+  :root[data-theme="light"] .surface-ember {
+    --background: 222 45% 6%;
+    --foreground: 210 30% 96%;
+    --card: 222 38% 9%;
+    --card-foreground: 210 30% 96%;
+    --popover: 222 40% 7%;
+    --popover-foreground: 210 30% 96%;
+    --muted: 222 30% 13%;
+    --muted-foreground: 215 15% 72%;
+    --accent: 222 30% 14%;
+    --accent-foreground: 210 30% 96%;
+    --primary: 199 78% 55%;
+    --primary-foreground: 205 80% 8%;
+    --secondary: 199 85% 82%;
+    --secondary-foreground: 205 80% 8%;
+    --identity-accent: 196 60% 82%;
+    --identity-accent-foreground: 205 60% 8%;
+    --success: 152 55% 70%;
+    --success-foreground: 152 80% 8%;
+    --destructive: 0 85% 76%;
+    --destructive-foreground: 0 60% 10%;
+    --border: 220 30% 22%;
+    --input: 220 30% 26%;
+    --ring: 199 78% 55%;
+    --primary-hover: 199 78% 48%;
+
+    --color-background: hsl(var(--background));
+    --color-foreground: hsl(var(--foreground));
+    --color-card: hsl(var(--card));
+    --color-card-foreground: hsl(var(--card-foreground));
+    --color-popover: hsl(var(--popover));
+    --color-popover-foreground: hsl(var(--popover-foreground));
+    --color-muted: hsl(var(--muted));
+    --color-muted-foreground: hsl(var(--muted-foreground));
+    --color-accent: hsl(var(--accent));
+    --color-accent-foreground: hsl(var(--accent-foreground));
+    --color-primary: hsl(var(--primary));
+    --color-primary-foreground: hsl(var(--primary-foreground));
+    --color-secondary: hsl(var(--secondary));
+    --color-secondary-foreground: hsl(var(--secondary-foreground));
+    --color-identity-accent: hsl(var(--identity-accent));
+    --color-identity-accent-foreground: hsl(var(--identity-accent-foreground));
+    --color-success: hsl(var(--success));
+    --color-success-foreground: hsl(var(--success-foreground));
+    --color-destructive: hsl(var(--destructive));
+    --color-destructive-foreground: hsl(var(--destructive-foreground));
+    --color-border: hsl(var(--border));
+    --color-input: hsl(var(--input));
+    --color-ring: hsl(var(--ring));
+
+    /* Tailwind's own status shades, back to the values the dark theme uses. */
+    --color-red-400: oklch(70.4% 0.191 22.216);
+    --color-red-500: oklch(63.7% 0.237 25.331);
+    --color-amber-400: oklch(82.8% 0.189 84.429);
+    --color-amber-500: oklch(76.9% 0.188 70.08);
+    --color-amber-600: oklch(66.6% 0.179 58.318);
+    --color-yellow-200: oklch(94.5% 0.129 101.54);
+    --color-yellow-400: oklch(85.2% 0.199 91.936);
+    --color-yellow-500: oklch(79.5% 0.184 86.047);
+    --color-emerald-400: oklch(76.5% 0.177 163.223);
+    --color-emerald-500: oklch(69.6% 0.17 162.48);
+    --color-emerald-800: oklch(43.2% 0.095 166.913);
+    --color-teal-400: oklch(77.7% 0.152 181.912);
+    --color-sky-400: oklch(74.6% 0.16 232.661);
+
+    color: hsl(var(--foreground));
+  }
+
+  /* The blue block's own touches: a white primary button with navy text, and
+     translucent borders that sit on the blue rather than on near-black. */
+  :root[data-theme="light"] .surface-ember {
+    --primary: 0 0% 100%;
+    --primary-foreground: 212 80% 22%;
+    --primary-hover: 206 40% 94%;
+    --ring: 0 0% 100%;
+    --input: 206 55% 62%;
+    --border: 206 55% 62%;
+    --muted-foreground: 206 60% 88%;
+    --color-primary: hsl(var(--primary));
+    --color-primary-foreground: hsl(var(--primary-foreground));
+    --color-ring: hsl(var(--ring));
+    --color-input: hsl(206 55% 62% / 0.7);
+    --color-border: hsl(206 55% 62% / 0.4);
+    --color-muted-foreground: hsl(var(--muted-foreground));
   }
 
   /* These QR codes are drawn white on black in the dark theme. Light inverts
