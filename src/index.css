@@ -422,9 +422,12 @@
 }
 
 /* Primary buttons darken on hover in light (the dark theme's /90 mix would
-   pale toward white and drop below AA). */
-:root[data-theme="light"] .hover\:bg-primary\/90:hover {
-  background-color: hsl(var(--primary-hover));
+   pale toward white and drop below AA). Pointer devices only, so a tap on a
+   touch screen does not leave the hover colour behind. */
+@media (hover: hover) {
+  :root[data-theme="light"] .hover\:bg-primary\/90:hover {
+    background-color: hsl(var(--primary-hover));
+  }
 }
 
 /* Light-theme surfaces: flat, with hairline borders and a soft shadow in
