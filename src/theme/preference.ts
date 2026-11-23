@@ -15,7 +15,7 @@ export const THEME_COLOR: Record<ResolvedTheme, string> = {
 };
 
 export function isThemePreference(value: unknown): value is ThemePreference {
-  return typeof value === "string" && (THEMES as readonly string[]).includes(value);
+  return THEMES.some((theme) => theme === value);
 }
 
 /** The saved choice. Missing, unreadable or unknown values mean the default. */

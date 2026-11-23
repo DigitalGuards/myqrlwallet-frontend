@@ -84,7 +84,9 @@ describe("theme preference", () => {
       });
     const seen = jest.fn();
     window.addEventListener(THEME_CHANGED, seen);
-    expect(() => saveThemePreference("light")).not.toThrow();
+    expect(() => {
+      saveThemePreference("light");
+    }).not.toThrow();
     window.removeEventListener(THEME_CHANGED, seen);
     set.mockRestore();
     expect(seen).toHaveBeenCalledTimes(1);
@@ -149,10 +151,14 @@ describe("initTheme", () => {
     const stop = initTheme();
     expect(root.dataset["theme"]).toBeUndefined();
     systemLight = true;
-    mediaListeners.forEach((listener) => listener());
+    mediaListeners.forEach((listener) => {
+      listener();
+    });
     expect(root.dataset["theme"]).toBe("light");
     systemLight = false;
-    mediaListeners.forEach((listener) => listener());
+    mediaListeners.forEach((listener) => {
+      listener();
+    });
     expect(root.dataset["theme"]).toBeUndefined();
     stop();
   });
@@ -161,7 +167,9 @@ describe("initTheme", () => {
     localStorage.setItem(THEME_STORAGE_KEY, '"dark"');
     const stop = initTheme();
     systemLight = true;
-    mediaListeners.forEach((listener) => listener());
+    mediaListeners.forEach((listener) => {
+      listener();
+    });
     expect(root.dataset["theme"]).toBeUndefined();
     stop();
   });
