@@ -55,8 +55,15 @@ describe("production content security policy", () => {
     expect(scriptSrc).not.toContain("'unsafe-inline'");
     expect(scriptSrc).not.toContain("'unsafe-eval'");
     expect(policy).toContain("script-src-attr 'none'");
-    expect(nginxConfig).toContain(`'${hash}'`);
-    expect(nginxExample).toContain(`'${hash}'`);
+    for (const config of [nginxConfig, nginxExample]) {
+      const policies = [
+        ...config.matchAll(/Content-Security-Policy "([^"]+)"/g),
+      ];
+      expect(policies.length).toBeGreaterThan(0);
+      for (const policy of policies) {
+        expect(policy[1]).toContain(`'${hash}'`);
+      }
+    }
     expect(nginxConfig).not.toContain("script-src 'self' 'unsafe-inline'");
     expect(nginxExample).not.toContain("script-src 'self' 'unsafe-inline'");
     expect(nginxConfig).not.toContain("dev.qrlwallet.com");
@@ -70,5 +77,46 @@ describe("production content security policy", () => {
     expect(policy).toContain("base-uri 'none'");
     expect(nginxConfig).toContain("frame-ancestors 'none'");
     expect(nginxConfig).toContain('X-Frame-Options "DENY"');
+  });
+
+  it("keeps the connect-src copies in step and the explorer hosts equal to the meta policy", () => {
+    const connectSrc = (policy: string): string[] => {
+      const directive = policy
+        .split(";")
+        .map((part) => part.trim())
+        .find((part) => part.startsWith("connect-src "));
+      return (directive ?? "").split(/\s+/).slice(1);
+    };
+    const explorerHosts = (sources: string[]): string[] =>
+      sources
+        .filter((source) =>
+          /^https:\/\/(\w+\.)?(shorscan|zondscan)\.com$/.test(source),
+        )
+        .sort();
+    const nginxPolicies = (config: string): string[] =>
+      [...config.matchAll(/Content-Security-Policy "([^"]+)"/g)].map(
+        (match) => match[1] ?? "",
+      );
+    const metaHosts = explorerHosts(connectSrc(metaCsp(sourceHtml)));
+    expect(metaHosts).toContain("https://shorscan.com");
+    expect(metaHosts).toContain("https://zondscan.com");
+
+    const expectedCopies: [string, number][] = [
+      [nginxConfig, 2],
+      [nginxExample, 3],
+    ];
+    for (const [config, count] of expectedCopies) {
+      const policies = nginxPolicies(config);
+      expect(policies).toHaveLength(count);
+      const first = connectSrc(policies[0] ?? "");
+      for (const policy of policies) {
+        const sources = connectSrc(policy);
+        expect(sources).toEqual(first);
+        expect(explorerHosts(sources)).toEqual(metaHosts);
+      }
+    }
+    expect(sourceHtml).toContain(
+      '<link rel="preconnect" href="https://shorscan.com" />',
+    );
   });
 });

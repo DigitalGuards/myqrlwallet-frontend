@@ -48,7 +48,7 @@ server {
     # the API / relay answers on the other.
     # The hash authorizes the repository's inline JSON-LD block. Recompute it
     # whenever that block changes; never replace it with script unsafe-inline.
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-8hW/8cVRo5y+8GwUCL2VCQ7jGyxKnJ1/sXU/kT0ZVmA='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com wss://yourdomain.com https://zondscan.com; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; manifest-src 'self'; upgrade-insecure-requests" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-oMM/vcWbPo0F40BHuLYLvUAy8mwg0VqsTG8MWIrU348='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com wss://yourdomain.com https://zondscan.com https://shorscan.com; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; manifest-src 'self'; upgrade-insecure-requests" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header X-XSS-Protection "0" always;
@@ -151,7 +151,7 @@ server {
         expires 1y;
         # IMPORTANT: Must repeat security headers since this block has add_header
         add_header Cache-Control "public, no-transform";
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-8hW/8cVRo5y+8GwUCL2VCQ7jGyxKnJ1/sXU/kT0ZVmA='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com wss://yourdomain.com https://zondscan.com; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; manifest-src 'self'; upgrade-insecure-requests" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-oMM/vcWbPo0F40BHuLYLvUAy8mwg0VqsTG8MWIrU348='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com wss://yourdomain.com https://zondscan.com https://shorscan.com; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; manifest-src 'self'; upgrade-insecure-requests" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "DENY" always;
         add_header X-XSS-Protection "0" always;
@@ -185,7 +185,7 @@ server {
         # Prevent caching of index.html for instant updates
         # IMPORTANT: Must repeat security headers since this block has add_header
         add_header Cache-Control "no-store, no-cache, must-revalidate" always;
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-8hW/8cVRo5y+8GwUCL2VCQ7jGyxKnJ1/sXU/kT0ZVmA='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com wss://yourdomain.com https://zondscan.com; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; manifest-src 'self'; upgrade-insecure-requests" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-oMM/vcWbPo0F40BHuLYLvUAy8mwg0VqsTG8MWIrU348='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yourdomain.com wss://yourdomain.com https://zondscan.com https://shorscan.com; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; manifest-src 'self'; upgrade-insecure-requests" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "DENY" always;
         add_header X-XSS-Protection "0" always;

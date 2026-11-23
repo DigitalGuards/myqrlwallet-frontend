@@ -337,7 +337,7 @@ const resolveEmbeddedDeployment = (mode: string) => {
     connectUrls: [
       env['VITE_RPC_URL_PRODUCTION'] || 'https://qrlwallet.com/api/qrl-rpc',
       env['VITE_SERVER_URL_PRODUCTION'] || 'https://qrlwallet.com/api',
-      env['VITE_EXPLORER_URL_PRODUCTION'] || 'https://zondscan.com',
+      env['VITE_EXPLORER_URL_PRODUCTION'] || 'https://shorscan.com',
     ],
   }
 }
