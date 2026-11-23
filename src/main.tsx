@@ -3,6 +3,9 @@
 // for why the JIT path was already unreachable under every deployment's CSP.
 import '@/utils/zodJitless'
 
+// Applies the saved colour theme before anything renders.
+import '@/theme/boot'
+
 import { Buffer } from 'buffer';
 globalThis.Buffer = Buffer;
 
