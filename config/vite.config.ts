@@ -42,6 +42,12 @@ const assertNoBrowserSeed = (mode: string, command: string) => {
     __QRL_NATIVE_BRIDGE__: command === 'serve' ? 'true' : 'false',
     __QRL_WALLET_PROFILE__: JSON.stringify(profile),
     __QRL_NATIVE_BUILD__: JSON.stringify(nativeBuild),
+    // Light theme: off unless the build sets VITE_ENABLE_LIGHT_THEME=1, and
+    // always off in the desktop renderer. config/vite.config.embedded.ts
+    // forces it off for the app-embedded document.
+    __QRL_LIGHT_THEME__: JSON.stringify(
+      publicEnv.VITE_ENABLE_LIGHT_THEME === '1' && !nativeBuild
+    ),
     // The identity a native host must advertise: VITE_V3_NATIVE_NETWORK's
     // pins and its capability profile (v3-private or v3-mainnet).
     __QRL_NATIVE_NETWORK__: JSON.stringify(network ? {

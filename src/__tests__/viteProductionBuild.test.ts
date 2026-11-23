@@ -8,12 +8,16 @@ interface BuildResult {
   desktop: boolean;
   base: string;
   sourcemap: boolean;
+  lightTheme: string;
   code: string;
 }
 
 interface BuildReport {
   builds: BuildResult[];
   seedErrors: string[];
+  flagged: { desktop: boolean; lightTheme: string }[];
+  embeddedLightTheme: string;
+  embeddedWithFlag: string;
 }
 
 function isBuildResult(value: unknown): value is BuildResult {
@@ -23,6 +27,7 @@ function isBuildResult(value: unknown): value is BuildResult {
     typeof value["desktop"] === "boolean" &&
     typeof value["base"] === "string" &&
     typeof value["sourcemap"] === "boolean" &&
+    typeof value["lightTheme"] === "string" &&
     typeof value["code"] === "string"
   );
 }
@@ -32,6 +37,15 @@ function isBuildReport(value: unknown): value is BuildReport {
     isRecord(value) &&
     isArray(value["builds"]) &&
     value["builds"].every(isBuildResult) &&
+    isArray(value["flagged"]) &&
+    value["flagged"].every(
+      (entry) =>
+        isRecord(entry) &&
+        typeof entry["desktop"] === "boolean" &&
+        typeof entry["lightTheme"] === "string",
+    ) &&
+    typeof value["embeddedLightTheme"] === "string" &&
+    typeof value["embeddedWithFlag"] === "string" &&
     isArray(value["seedErrors"]) &&
     value["seedErrors"].every((error) => typeof error === "string")
   );
@@ -51,7 +65,7 @@ const buildScript = String.raw`
     'debugger;',
     'globalThis.keepEffect("after");',
   ].join('\n');
-  const report = { builds: [], seedErrors: [] };
+  const report = { builds: [], flagged: [], embeddedLightTheme: '', embeddedWithFlag: '', seedErrors: [] };
 
   for (const mode of ['production', 'development', 'staging']) {
     for (const desktop of [false, true]) {
@@ -79,9 +93,47 @@ const buildScript = String.raw`
         mode, desktop, code,
         base: resolvedConfig.base,
         sourcemap: resolvedConfig.build.sourcemap,
+        lightTheme: String(resolvedConfig.define.__QRL_LIGHT_THEME__),
       });
     }
   }
+
+  // The light theme flag set: on for the web build only.
+  process.env.VITE_ENABLE_LIGHT_THEME = '1';
+  report.flagged = [];
+  for (const desktop of [false, true]) {
+    process.env.VITE_DESKTOP = desktop ? '1' : '0';
+    let resolvedConfig;
+    await build({
+      configFile: 'config/vite.config.ts',
+      mode: 'production',
+      logLevel: 'silent',
+      plugins: [{
+        name: 'diagnostic-fixture',
+        resolveId: (id) => id === fixtureId ? id : undefined,
+        load: (id) => id === fixtureId ? fixtureSource : undefined,
+        configResolved: (config) => { resolvedConfig = config; },
+      }],
+      build: { write: false, copyPublicDir: false, rolldownOptions: { input: fixtureId } },
+    });
+    report.flagged.push({ desktop, lightTheme: String(resolvedConfig.define.__QRL_LIGHT_THEME__) });
+  }
+  // The app-embedded document refuses the flag outright, and resolves with the
+  // theme constant false when the flag is absent.
+  delete process.env.VITE_DESKTOP;
+  const loadEmbedded = async () => {
+    try {
+      const embedded = await loadConfigFromFile(
+        { command: 'build', mode: 'production' }, 'config/vite.config.embedded.ts', undefined, 'silent'
+      );
+      return String(embedded.config.define.__QRL_LIGHT_THEME__);
+    } catch (error) {
+      return 'error: ' + error.message;
+    }
+  };
+  report.embeddedWithFlag = await loadEmbedded();
+  delete process.env.VITE_ENABLE_LIGHT_THEME;
+  report.embeddedLightTheme = await loadEmbedded();
 
   process.env.VITE_SEED = 'public-test-placeholder';
   for (const mode of ['production', 'development', 'staging']) {
@@ -107,7 +159,12 @@ describe("Vite production diagnostic stripping", () => {
         ["--input-type=module", "--eval", buildScript],
         {
           cwd: resolve(__dirname, "../.."),
-          env: { ...process.env, VITE_SEED: "", NODE_ENV: "production" },
+          env: {
+            ...process.env,
+            VITE_SEED: "",
+            VITE_ENABLE_LIGHT_THEME: "",
+            NODE_ENV: "production",
+          },
           encoding: "utf8",
           timeout: 60_000,
           maxBuffer: 2 * 1024 * 1024,
@@ -180,6 +237,28 @@ describe("Vite production diagnostic stripping", () => {
       }
     },
   );
+
+  it.each(["production", "development", "staging"])(
+    "leaves the light theme off in every %s build without its flag",
+    (mode) => {
+      const builds = report.builds.filter((build) => build.mode === mode);
+      expect(builds.map((build) => build.lightTheme)).toEqual(["false", "false"]);
+    },
+  );
+
+  it("turns the light theme on only for the web build when the flag is set", () => {
+    expect(report.flagged).toEqual([
+      { desktop: false, lightTheme: "true" },
+      { desktop: true, lightTheme: "false" },
+    ]);
+  });
+
+  it("keeps the light theme off in the embedded build", () => {
+    expect(report.embeddedLightTheme).toBe("false");
+    expect(report.embeddedWithFlag).toContain(
+      "VITE_ENABLE_LIGHT_THEME is set but is not part of the embedded profile",
+    );
+  });
 
   it("retains the browser-visible seed guard in every mode", () => {
     expect(report.seedErrors).toHaveLength(3);

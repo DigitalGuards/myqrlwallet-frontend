@@ -4,6 +4,8 @@ import {
   settingsValidationMessage,
 } from "@/i18n/pinErrorMessage";
 import { LanguageSettings } from "./LanguageSettings";
+import { ThemeSettings } from "./ThemeSettings";
+import { LIGHT_THEME_ENABLED } from "@/theme/enabled";
 import { useTranslation } from "react-i18next";
 import { toNumber } from "@/utils/guards";
 import { PinVerificationError } from "@/utils/crypto/verifyPinWithLimit";
@@ -553,6 +555,7 @@ const Settings = observer(() => {
               }
             >
               <LanguageSettings />
+              {LIGHT_THEME_ENABLED && <ThemeSettings />}
               {settingsSaveError && (
                 <div
                   role="alert"

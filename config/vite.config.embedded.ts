@@ -691,6 +691,8 @@ export default defineConfig((env) => {
       __QRL_NATIVE_BRIDGE__: 'true',
       // The app ships one network per binary, so the document lists only it.
       __QRL_NATIVE_BUILD__: 'true',
+      // The light theme is a hosted-site option; the shipped document never has it.
+      __QRL_LIGHT_THEME__: 'false',
     },
     // Nothing from public/ is copied: every runtime reference to it is turned
     // into a data: URI above, and a copied file could only be fetched remotely.
