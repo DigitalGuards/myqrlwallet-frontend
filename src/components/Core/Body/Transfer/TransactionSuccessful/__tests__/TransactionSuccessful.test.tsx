@@ -23,6 +23,7 @@ jest.mock("@/utils", () =>
   jest.requireActual<typeof import("@/utils/cn")>("@/utils/cn"),
 );
 jest.mock("@/config", () => ({
+  EXPLORER_BASE: "https://configured.example",
   QRL_PROVIDER: {
     TEST_NET_V3: { explorer: "https://shorscan.com" },
     MAIN_NET: { explorer: "https://mainnet.example/explorer" },
@@ -87,6 +88,16 @@ it("keeps full hashes readable and full explorer destinations", () => {
     "Network fee0.00002625 Quanta",
   );
   expect(screen.queryByText(/gas used/i)).toBeNull();
+});
+
+it("falls back to the configured explorer base for an unknown network", () => {
+  mockBlockchain = "UNKNOWN_NET";
+  fixture();
+  expect(
+    screen
+      .getByRole("link", { name: `View transaction ${TX_HASH} on explorer` })
+      .getAttribute("href"),
+  ).toBe(`https://configured.example/tx/${TX_HASH}`);
 });
 
 it.each([

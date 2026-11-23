@@ -34,7 +34,7 @@ import { Separator } from "@/components/UI/Separator";
 import { PinInput } from "@/components/UI/PinInput/PinInput";
 import { useStore } from "@/stores/store";
 import { StorageUtil } from "@/utils/storage";
-import { QRL_PROVIDER } from "@/config";
+import { EXPLORER_BASE, QRL_PROVIDER } from "@/config";
 import {
   DeviceCredentialUnavailableError,
   decryptStoredSeedWithPin,
@@ -172,7 +172,7 @@ const NftDetail = observer(() => {
 
   const explorerUrl =
     Object.entries(QRL_PROVIDER).find(([id]) => id === blockchain)?.[1]
-      .explorer ?? "https://shorscan.com";
+      .explorer ?? EXPLORER_BASE;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
