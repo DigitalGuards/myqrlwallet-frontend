@@ -17,7 +17,7 @@ const navigate = jest.fn(
 
 /** Stand-in for RouteMonitor: record where every navigation lands. */
 const recordingNavigate = jest.fn(
-  (path: string, options?: { replace: true }) => {
+  (path: string, options?: { replace: true; state?: unknown }) => {
     recordRoute(path, options?.replace ? "REPLACE" : "PUSH");
   },
 );
