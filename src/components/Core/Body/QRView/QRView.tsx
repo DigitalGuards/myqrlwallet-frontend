@@ -32,6 +32,7 @@ const QRView = observer(() => {
             size={200}
             bgColor="#000000"
             fgColor="#ffffff"
+            className="qr-inverted-in-light"
             level="L"
             marginSize={0}
           />
