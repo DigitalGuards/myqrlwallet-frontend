@@ -208,6 +208,7 @@
     --ring: 199 89% 38%;
 
     --hero-top: 203 88% 94%;
+    --primary-hover: 200 92% 32%;
 
     --chart-1: 199 89% 38%;
     --chart-2: 168 70% 28%;
@@ -245,6 +246,10 @@
     --color-sky-400: #075985;
     --color-sky-500: #075985;
     --color-green-600: #166534;
+    --color-violet-400: #5b21b6;
+    --color-violet-500: #5b21b6;
+    --color-fuchsia-400: #86198f;
+    --color-fuchsia-500: #86198f;
   }
 
   /* Customized scrollbar */
@@ -416,6 +421,12 @@
   }
 }
 
+/* Primary buttons darken on hover in light (the dark theme's /90 mix would
+   pale toward white and drop below AA). */
+:root[data-theme="light"] .hover\:bg-primary\/90:hover {
+  background-color: hsl(var(--primary-hover));
+}
+
 /* Light-theme surfaces: flat, with hairline borders and a soft shadow in
    place of the dark theme's glow and grain. */
 @layer components {
@@ -440,7 +451,7 @@
     filter: invert(1);
     background-color: #000000;
     box-sizing: content-box;
-    padding: 12px;
+    padding: 8px;
     border-radius: 8px;
   }
 

@@ -4,7 +4,7 @@ import { Palette } from "lucide-react";
 import {
   THEMES,
   isThemePreference,
-  readThemePreference,
+  currentThemePreference,
   saveThemePreference,
   type ThemePreference,
 } from "@/theme/preference";
@@ -13,7 +13,7 @@ import { SettingsIconTile } from "./SettingsList";
 /** Theme row: saves the choice, which the theme module applies at once. */
 export function ThemeSettings() {
   const { t } = useTranslation("settings");
-  const [theme, setTheme] = useState<ThemePreference>(readThemePreference);
+  const [theme, setTheme] = useState<ThemePreference>(currentThemePreference);
   const label = (value: ThemePreference): string => {
     if (value === "light") return t("themeLight");
     if (value === "system") return t("themeSystem");

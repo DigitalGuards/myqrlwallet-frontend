@@ -18,6 +18,16 @@ export function isThemePreference(value: unknown): value is ThemePreference {
   return THEMES.some((theme) => theme === value);
 }
 
+// The choice made in this window. It outranks storage so a refused write
+// (full or blocked storage) still applies for this page view. A change from
+// another tab clears it.
+let chosen: ThemePreference | null = null;
+
+/** The choice in effect: this window's own, else the saved one. */
+export function currentThemePreference(): ThemePreference {
+  return chosen ?? readThemePreference();
+}
+
 /** The saved choice. Missing, unreadable or unknown values mean the default. */
 export function readThemePreference(): ThemePreference {
   try {
@@ -32,6 +42,7 @@ export function readThemePreference(): ThemePreference {
 
 /** Persist the choice and tell this document. Storage failures leave the choice unsaved. */
 export function saveThemePreference(preference: ThemePreference): void {
+  chosen = preference;
   try {
     const serialized = JSON.stringify(preference);
     if (localStorage.getItem(THEME_STORAGE_KEY) !== serialized) {
@@ -77,12 +88,15 @@ export function applyTheme(preference: ThemePreference): ResolvedTheme {
  */
 export function initTheme(): () => void {
   const sync = () => {
-    applyTheme(readThemePreference());
+    applyTheme(currentThemePreference());
   };
   sync();
   const media = systemMedia();
   const onStorage = (event: StorageEvent) => {
-    if (event.key === null || event.key === THEME_STORAGE_KEY) sync();
+    if (event.key === null || event.key === THEME_STORAGE_KEY) {
+      chosen = null;
+      sync();
+    }
   };
   media?.addEventListener("change", sync);
   window.addEventListener(THEME_CHANGED, sync);

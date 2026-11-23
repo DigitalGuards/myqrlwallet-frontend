@@ -11,6 +11,9 @@ let stop: () => void;
 
 beforeEach(() => {
   localStorage.clear();
+  const reset = initTheme();
+  window.dispatchEvent(new StorageEvent("storage", { key: null }));
+  reset();
   delete document.documentElement.dataset["theme"];
   stop = initTheme();
 });

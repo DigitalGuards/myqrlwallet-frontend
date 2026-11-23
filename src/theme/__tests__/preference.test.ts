@@ -38,6 +38,10 @@ const themeColor = () =>
 
 beforeEach(() => {
   localStorage.clear();
+  // A storage event from elsewhere clears this window's own choice.
+  const reset = initTheme();
+  window.dispatchEvent(new StorageEvent("storage", { key: null }));
+  reset();
   systemLight = false;
   mediaListeners = [];
   installMatchMedia();
@@ -74,6 +78,20 @@ describe("theme preference", () => {
     saveThemePreference("light");
     window.removeEventListener(THEME_CHANGED, seen);
     expect(seen).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies the choice for this page view when storage refuses the write", () => {
+    const stop = initTheme();
+    const set = jest
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota");
+      });
+    saveThemePreference("light");
+    set.mockRestore();
+    expect(root.dataset["theme"]).toBe("light");
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
+    stop();
   });
 
   it("still announces when storage refuses the write", () => {
