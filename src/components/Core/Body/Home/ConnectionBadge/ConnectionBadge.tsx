@@ -41,6 +41,7 @@ const ConnectionBadge = observer(() => {
   return (
     <Link
       to={ROUTES.SETTINGS}
+      state={{ settingsCategory: "network" }}
       className="text-muted-foreground transition-colors hover:text-foreground"
       aria-label={t("changeNetwork", { network: fullName })}
       title={fullName}

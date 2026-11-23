@@ -165,6 +165,24 @@ describe("the on-screen Back target", () => {
     expect(recordedRoutesForTests()).toEqual(["/legal"]);
   });
 
+  it("sends router state along when it goes to the parent", () => {
+    recordRoute("/dapp-sessions", "POP");
+
+    expect(
+      resolveRouteBack(
+        recordingNavigate,
+        "/dapp-sessions",
+        "/settings",
+        undefined,
+        { settingsCategory: "connections" },
+      ),
+    ).toBe(true);
+    expect(recordingNavigate).toHaveBeenCalledWith("/settings", {
+      replace: true,
+      state: { settingsCategory: "connections" },
+    });
+  });
+
   it("walks a chain of parents to a menu page without a loop", () => {
     recordRoute("/disclaimer", "POP");
     resolveRouteBack(recordingNavigate, "/disclaimer", "/legal");

@@ -2,9 +2,11 @@ import { isPendingDAppInfo } from "@/services/dappConnect/dappMetadata";
 import { useTranslation } from "react-i18next";
 /**
  * DApp Sessions List - management surface for active dApp connections.
- * Rendered inside a Card by both hosts: Settings embeds it, and the
- * standalone /dapp-sessions route (the web fragment-link landing) wraps it
- * in DAppSessionsPage.
+ * Two variants. The default is the card layout, rendered inside a Card by the
+ * standalone /dapp-sessions route (the web fragment-link landing), which wraps
+ * it in DAppSessionsPage. With `rows` it renders plain hairline rows, for the
+ * Settings page, where it sits under the Connections heading next to the
+ * address book. Both use the same store calls and copy.
  */
 
 import { useState } from "react";

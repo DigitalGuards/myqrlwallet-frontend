@@ -34,7 +34,7 @@ export function PageShell({
         className={cn(
           "page-enter mx-auto w-full px-4 pt-8 pb-8",
           width === "xwide"
-            ? "max-w-5xl"
+            ? "max-w-2xl lg:max-w-5xl"
             : width === "wide"
               ? "max-w-3xl"
               : "max-w-2xl",

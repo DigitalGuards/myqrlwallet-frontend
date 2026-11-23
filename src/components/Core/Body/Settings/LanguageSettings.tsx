@@ -40,7 +40,7 @@ export function LanguageSettings() {
         <select
           id="wallet-language"
           aria-describedby="wallet-language-hint"
-          className="h-10 max-w-full rounded-md border border-input bg-background px-2 text-sm"
+          className="h-9 max-w-full rounded-md border border-input bg-background px-2 text-sm"
           value={i18n.resolvedLanguage ?? "en"}
           disabled={pending}
           onChange={(event) => {

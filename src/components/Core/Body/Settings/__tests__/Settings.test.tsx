@@ -20,6 +20,7 @@ import {
 import { rotateStoredSeedPin } from "@/utils/crypto/pinRotation";
 import { deferred } from "@/test-utils/deferred";
 import { logger } from "@/utils/log";
+import { recordFailedAttempt, clearAttemptTracker } from "@/utils/crypto/pinAttemptTracker";
 
 const address = `Q${"1".repeat(128)}`;
 const mockNavigate = jest.fn(
@@ -63,7 +64,15 @@ jest.mock("@/theme/enabled", () => ({
     return mockLightTheme;
   },
 }));
-jest.mock("react-router", () => ({ useNavigate: () => mockNavigate }));
+let mockLocationState: unknown = null;
+jest.mock("react-router", () => ({
+  useNavigate: () => mockNavigate,
+  useLocation: () => ({
+    pathname: "/settings",
+    search: "",
+    state: mockLocationState,
+  }),
+}));
 jest.mock("@/router/router", () => ({
   ROUTES: { ADDRESS_BOOK: "/address-book" },
 }));
@@ -124,6 +133,7 @@ beforeEach(() => {
   sessionStorage.clear();
   mockShell = "web";
   mockLightTheme = false;
+  mockLocationState = null;
   mockStore.qrlStore.activeAccount.accountAddress = address;
   mockSelectBlockchain.mockResolvedValue(undefined);
   jest.mocked(StorageUtil).getWalletSettings.mockResolvedValue(settings);
@@ -208,7 +218,7 @@ it("shows the Theme row when the build offers the light theme", async () => {
 
 const categoryNames = () =>
   screen
-    .getAllByRole("button", { name: /^(Preferences|Network|Connections|Security)$/ })
+    .getAllByRole("tab", { name: /^(Preferences|Network|Connections|Security)$/ })
     .map((item) => item.textContent);
 
 it("lists every category with the Security section last", async () => {
@@ -252,9 +262,9 @@ it("keeps an open Change PIN panel and the selected category across category cha
   const toggle = await screen.findByRole("button", { name: /Change PIN/ });
   fireEvent.click(toggle);
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
-  fireEvent.click(screen.getByRole("button", { name: "Security" }));
-  fireEvent.click(screen.getByRole("button", { name: "Network" }));
-  fireEvent.click(screen.getByRole("button", { name: "Security" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Security" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Network" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Security" }));
   expect(
     document
       .querySelector('[aria-controls="change-pin-panel"]')
@@ -273,6 +283,157 @@ it("labels each section by its heading", async () => {
   expect(screen.getByRole("region", { name: "Network" })).toBeTruthy();
   expect(screen.getByRole("region", { name: "Connections" })).toBeTruthy();
   expect(screen.getByRole("region", { name: "Security" })).toBeTruthy();
+});
+
+
+// A controllable (min-width: 64rem) media query for the wide layout.
+let wideMatches = false;
+let wideListeners: (() => void)[] = [];
+beforeEach(() => {
+  wideMatches = false;
+  wideListeners = [];
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    writable: true,
+    value: () => ({
+      get matches() {
+        return wideMatches;
+      },
+      addEventListener: (_type: string, listener: () => void) => {
+        wideListeners.push(listener);
+      },
+      removeEventListener: (_type: string, listener: () => void) => {
+        wideListeners = wideListeners.filter((item) => item !== listener);
+      },
+    }),
+  });
+});
+const selectedCategories = () =>
+  [...document.querySelectorAll("[data-category]")]
+    .filter((element) => element.getAttribute("data-selected") === "true")
+    .map((element) => element.getAttribute("data-category"));
+
+it.each(["network", "connections"])(
+  "opens the %s category named by the navigation state",
+  async (category) => {
+    mockLocationState = { settingsCategory: category };
+    render(<Settings />);
+    await screen.findByRole("tab", { name: "Preferences" });
+    expect(selectedCategories()).toEqual([category]);
+  },
+);
+
+it("ignores an unknown category in the navigation state", async () => {
+  mockLocationState = { settingsCategory: "elsewhere" };
+  render(<Settings />);
+  await screen.findByRole("tab", { name: "Preferences" });
+  expect(selectedCategories()).toEqual(["preferences"]);
+});
+
+it("holds the fallback until the encrypted-seeds check resolves", async () => {
+  sessionStorage.setItem("settingsCategory", "security");
+  const check = deferred<boolean>();
+  jest.mocked(StorageUtil).hasEncryptedSeeds.mockReturnValue(check.promise);
+  render(<Settings />);
+  await screen.findByRole("tab", { name: "Preferences" });
+  expect(selectedCategories()).toEqual([]);
+  await act(async () => {
+    check.resolve(true);
+    await check.promise;
+  });
+  await screen.findByRole("tab", { name: "Security" });
+  expect(selectedCategories()).toEqual(["security"]);
+});
+
+describe("lockout notice", () => {
+  afterEach(() => {
+    clearAttemptTracker();
+  });
+
+  it("shows the attempts-left line at the top, in addition to the row", async () => {
+    recordFailedAttempt();
+    recordFailedAttempt();
+    render(<Settings />);
+    await screen.findByRole("tab", { name: "Security" });
+    const notices = screen.getAllByText("3 attempts left");
+    expect(notices.length).toBe(2);
+    expect(
+      notices.some((notice) => notice.getAttribute("role") === "status"),
+    ).toBe(true);
+  });
+
+  it("shows the lockout line at the top when locked", async () => {
+    for (let attempt = 0; attempt < 5; attempt++) recordFailedAttempt();
+    render(<Settings />);
+    await screen.findByRole("tab", { name: "Security" });
+    expect(
+      screen
+        .getAllByText("Too many failed attempts. Please wait 15 minutes.")
+        .some((notice) => notice.getAttribute("role") === "status"),
+    ).toBe(true);
+  });
+
+  it("shows nothing without failed attempts", async () => {
+    render(<Settings />);
+    await screen.findByRole("tab", { name: "Security" });
+    expect(screen.queryByText(/attempts? left/)).toBeNull();
+  });
+
+  it("shows nothing where Security is not offered", async () => {
+    for (let attempt = 0; attempt < 5; attempt++) recordFailedAttempt();
+    mockShell = "desktop";
+    render(<Settings />);
+    await screen.findByLabelText("Language");
+    expect(screen.queryByText(/Too many failed attempts/)).toBeNull();
+  });
+});
+
+it("keeps the category list on Security while a PIN change runs", async () => {
+  wideMatches = true;
+  const rotation = deferred<Awaited<ReturnType<typeof rotateStoredSeedPin>>>();
+  jest.mocked(rotateStoredSeedPin).mockReturnValueOnce(rotation.promise);
+  render(<Settings />);
+  fireEvent.click(await screen.findByRole("tab", { name: "Security" }));
+  fireEvent.click(screen.getByRole("button", { name: /Change PIN/ }));
+  fillPins(["123456", "654321", "654321"]);
+  fireEvent.click(screen.getByRole("button", { name: "Change PIN" }));
+  await screen.findByRole("button", { name: "Changing PIN..." });
+  expect(
+    screen.getByRole("tab", { name: "Network" }).getAttribute("aria-disabled"),
+  ).toBe("true");
+  fireEvent.click(screen.getByRole("tab", { name: "Network" }));
+  expect(selectedCategories()).toEqual(["security"]);
+  await act(async () => {
+    rotation.resolve({ rotatedSeeds: 2 });
+    await rotation.promise;
+  });
+  await screen.findByText(
+    "PIN changed successfully! Your wallet PIN has been updated.",
+  );
+  expect(
+    screen.getByRole("tab", { name: "Network" }).getAttribute("aria-disabled"),
+  ).toBeNull();
+  expect(selectedCategories()).toEqual(["security"]);
+});
+
+it("brings Preferences up when a save error appears while another category shows", async () => {
+  wideMatches = true;
+  jest.useFakeTimers();
+  render(<Settings />);
+  await waitFor(() => {
+    expect(screen.getByRole("spinbutton")).toHaveProperty("value", "15");
+  });
+  jest
+    .mocked(StorageUtil)
+    .setWalletSettings.mockRejectedValueOnce(new Error("disk full"));
+  fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "20" } });
+  fireEvent.click(screen.getByRole("tab", { name: "Network" }));
+  expect(selectedCategories()).toEqual(["network"]);
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(1000);
+  });
+  expect(await screen.findByRole("alert")).toBeTruthy();
+  expect(selectedCategories()).toEqual(["preferences"]);
 });
 
 it("preserves pending preference defaults, debounce timing and overlapping saves", async () => {

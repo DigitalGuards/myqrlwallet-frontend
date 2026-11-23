@@ -35,7 +35,7 @@ export function ThemeSettings() {
         <select
           id="wallet-theme"
           aria-describedby="wallet-theme-hint"
-          className="h-10 max-w-full rounded-md border border-input bg-background px-2 text-sm"
+          className="h-9 max-w-full rounded-md border border-input bg-background px-2 text-sm"
           value={theme}
           onChange={(event) => {
             const value = event.target.value;

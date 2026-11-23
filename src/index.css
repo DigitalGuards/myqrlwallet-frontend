@@ -545,22 +545,24 @@
 }
 
 /* Settings page: one control style for the selects and the number box inside
-   the plain settings rows. Unlayered so it outranks the utility classes on
-   the individual controls. */
-.settings-plain select,
-.settings-plain input[type="number"] {
-  height: 2.25rem;
-  border-radius: var(--radius-md);
-  border: 1px solid hsl(var(--input));
-  background-color: hsl(var(--background));
-  padding-inline: 0.625rem;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-}
-.settings-plain select {
-  min-width: 8.5rem;
-}
-.settings-plain input[type="number"] {
-  width: 5rem;
-  text-align: center;
+   the plain settings rows. In the components layer, so the controls' own
+   hover and focus utilities (border colour, ring) still apply. */
+@layer components {
+  .settings-plain select,
+  .settings-plain input[type="number"] {
+    height: 2.25rem;
+    border-radius: var(--radius-md);
+    border: 1px solid hsl(var(--input));
+    background-color: hsl(var(--background));
+    padding-inline: 0.625rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  .settings-plain select {
+    min-width: 8.5rem;
+  }
+  .settings-plain input[type="number"] {
+    width: 5rem;
+    text-align: center;
+  }
 }

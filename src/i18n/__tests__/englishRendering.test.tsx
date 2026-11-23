@@ -275,7 +275,7 @@ function englishSnapshot() {
   // Language is the single new row allowed in this slice.
   copy.querySelector("#wallet-language")?.closest(".py-3")?.remove();
   // The wide-screen category list repeats the section headings.
-  copy.querySelector("nav[aria-label='Settings']")?.remove();
+  copy.querySelector("[role='tablist']")?.remove();
   copy
     .querySelectorAll("style, script, [hidden], [aria-hidden=true], .sr-only")
     .forEach((element) => {

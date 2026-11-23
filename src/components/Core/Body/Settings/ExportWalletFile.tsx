@@ -38,6 +38,7 @@ import { isInNativeApp } from "@/utils/nativeApp";
 import { useStore } from "../../../../stores/store";
 import { cn } from "@/utils/cn";
 import { SettingsRow } from "./SettingsList";
+import { useReportSettingsBusy } from "./settingsBusyContext";
 import { logger } from "@/utils/log";
 import { QrlAddress } from "@/components/UI/QrlAddress";
 import { checkLockout } from "@/utils/crypto/pinAttemptTracker";
@@ -80,6 +81,7 @@ export const ExportWalletFile = observer(() => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<SettingsError | null>(null);
   const [exportSuccess, setExportSuccess] = useState(false);
+  useReportSettingsBusy("export", isExporting);
   const [pinLockout, setPinLockout] = useState<{
     isLocked: boolean;
     remainingMs: number;
@@ -240,7 +242,10 @@ export const ExportWalletFile = observer(() => {
               </p>
 
               {pinLockout.isLocked && (
-                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                <div
+                  role="alert"
+                  className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
+                >
                   {t("settings:lockout", {
                     count: Math.ceil(pinLockout.remainingMs / 60000),
                   })}

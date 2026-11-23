@@ -43,7 +43,10 @@ export type NativeBackOutcome = "handled" | "at-root";
 export type RouteAction = "PUSH" | "REPLACE" | "POP";
 
 /** The router's navigate. `replace` swaps the current history entry. */
-export type RouteNavigate = (path: string, options?: { replace: true }) => void;
+export type RouteNavigate = (
+  path: string,
+  options?: { replace: true; state?: unknown },
+) => void;
 
 /**
  * The browser's own history, which the web wallet's on-screen Back keeps in
@@ -284,6 +287,7 @@ export function resolveRouteBack(
   currentPath: string,
   fallback?: string,
   history?: HistoryStep,
+  fallbackState?: unknown,
 ): boolean {
   // A step back is still on its way: this press has nothing to add.
   if (pendingHistoryBack !== null) return true;
@@ -308,7 +312,12 @@ export function resolveRouteBack(
   // The trail starts over at the parent: whatever was below this page is
   // not behind it in the browser.
   routeStack.length = 0;
-  navigate(fallback, { replace: true });
+  navigate(
+    fallback,
+    fallbackState === undefined
+      ? { replace: true }
+      : { replace: true, state: fallbackState },
+  );
   return true;
 }
 

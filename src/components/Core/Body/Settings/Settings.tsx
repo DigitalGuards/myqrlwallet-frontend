@@ -6,9 +6,10 @@ import {
 import { LanguageSettings } from "./LanguageSettings";
 import { ThemeSettings } from "./ThemeSettings";
 import { SettingsLayout, type SettingsCategory } from "./SettingsLayout";
+import { SettingsBusyProvider } from "./SettingsBusyProvider";
 import { LIGHT_THEME_ENABLED } from "@/theme/enabled";
 import { useTranslation } from "react-i18next";
-import { toNumber } from "@/utils/guards";
+import { isRecord, toNumber } from "@/utils/guards";
 import { PinVerificationError } from "@/utils/crypto/verifyPinWithLimit";
 import { PageShell } from "@/components/Core/Layout/PageShell";
 import { Button } from "../../../UI/Button";
@@ -31,7 +32,7 @@ import { useState, useEffect, useRef, useCallback, lazy } from "react";
 import { NetworkSettings } from "./NetworkSettings/NetworkSettings";
 import { StorageUtil } from "@/utils/storage";
 import { Check, ChevronDown, ChevronRight, Shield } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { ROUTES } from "@/router/router";
 import {
   PinInput,
@@ -103,7 +104,14 @@ const configuredNetworks = () =>
 const Settings = observer(() => {
   const { t } = useTranslation(["settings", "common"]);
   const navigate = useNavigate();
+  const location = useLocation();
+  // A navigation can name the category to open (see ConnectionBadge and the
+  // dApp sessions page); anything else falls back to the remembered one.
+  const requestedCategory: unknown = isRecord(location.state)
+    ? location.state["settingsCategory"]
+    : undefined;
   const [hasEncryptedSeeds, setHasEncryptedSeeds] = useState(false);
+  const [seedsChecked, setSeedsChecked] = useState(false);
   const [showPinForm, setShowPinForm] = useState(false);
   const [isChangingPin, setIsChangingPin] = useState(false);
   const [changePinError, setChangePinError] = useState<SettingsError | null>(
@@ -134,9 +142,13 @@ const Settings = observer(() => {
       ).some(Boolean);
       setHasEncryptedSeeds(hasSeeds);
     };
-    void checkSeeds().catch((error: unknown) => {
-      logger.error("Failed to check encrypted seeds:", error);
-    });
+    void checkSeeds()
+      .catch((error: unknown) => {
+        logger.error("Failed to check encrypted seeds:", error);
+      })
+      .finally(() => {
+        setSeedsChecked(true);
+      });
   }, []);
 
   // Check and update lockout status
@@ -404,7 +416,10 @@ const Settings = observer(() => {
                       className="space-y-4"
                     >
                       {pinLockout.isLocked && (
-                        <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                        <div
+                          role="alert"
+                          className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
+                        >
                           {t("settings:lockout", {
                             count: Math.ceil(pinLockout.remainingMs / 60000),
                           })}
@@ -413,14 +428,20 @@ const Settings = observer(() => {
                       {!pinLockout.isLocked &&
                         hasFailedAttempts() &&
                         attemptsLeft > 0 && (
-                          <div className="rounded-md bg-yellow-500/15 p-3 text-sm text-yellow-400">
+                          <div
+                            role="status"
+                            className="rounded-md bg-yellow-500/15 p-3 text-sm text-yellow-400"
+                          >
                             {t("settings:beforeLockout", {
                               count: attemptsLeft,
                             })}
                           </div>
                         )}
                       {changePinError && !pinLockout.isLocked && (
-                        <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                        <div
+                          role="alert"
+                          className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
+                        >
                           {changePinError.message ??
                             t(changePinError.key, {
                               count: changePinError.count,
@@ -428,7 +449,10 @@ const Settings = observer(() => {
                         </div>
                       )}
                       {changePinSuccess && (
-                        <div className="rounded-md bg-success/15 p-3 text-sm text-success">
+                        <div
+                          role="status"
+                          className="rounded-md bg-success/15 p-3 text-sm text-success"
+                        >
                           {t("settings:pinSuccess")}
                         </div>
                       )}
@@ -713,14 +737,39 @@ const Settings = observer(() => {
       : []),
   ];
 
+  // The lockout and attempts-left state shows in the Change PIN row, and as
+  // one line at the top of the page so it is visible in every layout without
+  // opening a category.
+  const lockoutNotice =
+    securitySection === null ? null : pinLockout.isLocked ? (
+      <p role="status" className="mb-4 text-sm text-destructive">
+        {t("settings:lockout", {
+          count: Math.ceil(pinLockout.remainingMs / 60000),
+        })}
+      </p>
+    ) : hasFailedAttempts() && attemptsLeft < 5 ? (
+      <p role="status" className="mb-4 text-sm text-yellow-400">
+        {t("settings:attemptsLeft", { count: attemptsLeft })}
+      </p>
+    ) : null;
+
   return (
-    <PageShell
-      title={t("common:settings")}
-      seoTitle={t("common:settings")}
-      width="xwide"
-    >
-      <SettingsLayout categories={categories} />
-    </PageShell>
+    <SettingsBusyProvider forced={isChangingPin}>
+      <PageShell
+        title={t("common:settings")}
+        seoTitle={t("common:settings")}
+        width="xwide"
+      >
+        {lockoutNotice}
+        <SettingsLayout
+          categories={categories}
+          requested={
+            typeof requestedCategory === "string" ? requestedCategory : undefined
+          }
+          pending={!seedsChecked}
+        />
+      </PageShell>
+    </SettingsBusyProvider>
   );
 });
 

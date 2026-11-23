@@ -74,7 +74,7 @@ export const SettingsRow = ({
                 disabled={disabled}
                 aria-expanded={ariaExpanded}
                 aria-controls={ariaControls}
-                className="flex w-full items-center gap-3 rounded-sm py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-sm px-2 py-3 text-left transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             >
                 {content}
             </button>
