@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ThemeSettings } from "../ThemeSettings";
 import { initTheme, THEME_STORAGE_KEY } from "@/theme/preference";
 
+jest.mock("@/theme/enabled", () => ({ LIGHT_THEME_ENABLED: true }));
 jest.mock("@/utils", () =>
   jest.requireActual<typeof import("@/utils/cn")>("@/utils/cn"),
 );

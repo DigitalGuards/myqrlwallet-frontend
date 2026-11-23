@@ -182,7 +182,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 10%;
 
-    --primary: 199 89% 38%;
+    --primary: 199 89% 34%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 200 92% 32%;
@@ -205,12 +205,12 @@
 
     --border: 216 24% 89%;
     --input: 216 24% 78%;
-    --ring: 199 89% 38%;
+    --ring: 199 89% 34%;
 
     --hero-top: 203 88% 94%;
-    --primary-hover: 200 92% 32%;
+    --primary-hover: 199 89% 29%;
 
-    --chart-1: 199 89% 38%;
+    --chart-1: 199 89% 34%;
     --chart-2: 168 70% 28%;
     --chart-3: 200 85% 28%;
     --chart-4: 262 55% 48%;
@@ -218,12 +218,12 @@
 
     --sidebar-background: 214 40% 97%;
     --sidebar-foreground: 222 47% 10%;
-    --sidebar-primary: 199 89% 38%;
+    --sidebar-primary: 199 89% 34%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 203 88% 95%;
     --sidebar-accent-foreground: 222 47% 10%;
     --sidebar-border: 216 24% 89%;
-    --sidebar-ring: 199 89% 38%;
+    --sidebar-ring: 199 89% 34%;
 
     /* Tailwind palette shades the components use for status text and tints
        (warning, error, connected). Deepened to the 800 level (red 700) so

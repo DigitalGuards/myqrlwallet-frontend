@@ -57,6 +57,12 @@ jest.mock("@/desktop/bridge", () => ({
 jest.mock("@/utils/nativeApp", () => ({
   isInNativeApp: () => mockShell === "native",
 }));
+let mockLightTheme = false;
+jest.mock("@/theme/enabled", () => ({
+  get LIGHT_THEME_ENABLED() {
+    return mockLightTheme;
+  },
+}));
 jest.mock("react-router", () => ({ useNavigate: () => mockNavigate }));
 jest.mock("@/router/router", () => ({
   ROUTES: { ADDRESS_BOOK: "/address-book" },
@@ -116,6 +122,7 @@ beforeEach(() => {
   jest.resetAllMocks();
   localStorage.clear();
   mockShell = "web";
+  mockLightTheme = false;
   mockStore.qrlStore.activeAccount.accountAddress = address;
   mockSelectBlockchain.mockResolvedValue(undefined);
   jest.mocked(StorageUtil).getWalletSettings.mockResolvedValue(settings);
@@ -185,6 +192,18 @@ it.each(["web", "native", "desktop"])(
     expect(timer).toHaveProperty("value", "2");
   },
 );
+
+it("hides the Theme row when the build has no light theme", async () => {
+  render(<Settings />);
+  await screen.findByLabelText("Language");
+  expect(screen.queryByLabelText("Theme")).toBeNull();
+});
+
+it("shows the Theme row when the build offers the light theme", async () => {
+  mockLightTheme = true;
+  render(<Settings />);
+  expect(await screen.findByLabelText("Theme")).toHaveProperty("value", "dark");
+});
 
 it("preserves pending preference defaults, debounce timing and overlapping saves", async () => {
   jest.useFakeTimers();

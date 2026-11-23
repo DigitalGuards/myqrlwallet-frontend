@@ -1,4 +1,5 @@
 import { profileStorageKey } from "@/config/runtimeProfile";
+import { LIGHT_THEME_ENABLED } from "./enabled";
 
 export const THEMES = ["dark", "light", "system"] as const;
 export type ThemePreference = (typeof THEMES)[number];
@@ -87,6 +88,8 @@ export function applyTheme(preference: ThemePreference): ResolvedTheme {
  * from another tab, and the system setting while the choice is "system".
  */
 export function initTheme(): () => void {
+  // Builds without the feature stay dark and ignore any saved value.
+  if (!LIGHT_THEME_ENABLED) return () => undefined;
   const sync = () => {
     applyTheme(currentThemePreference());
   };

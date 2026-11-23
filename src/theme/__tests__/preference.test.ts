@@ -10,6 +10,13 @@ import {
   saveThemePreference,
 } from "../preference";
 
+let mockEnabled = true;
+jest.mock("../enabled", () => ({
+  get LIGHT_THEME_ENABLED() {
+    return mockEnabled;
+  },
+}));
+
 type Listener = () => void;
 let systemLight = false;
 let mediaListeners: Listener[] = [];
@@ -37,6 +44,7 @@ const themeColor = () =>
   document.querySelector('meta[name="theme-color"]')?.getAttribute("content");
 
 beforeEach(() => {
+  mockEnabled = true;
   localStorage.clear();
   // A storage event from elsewhere clears this window's own choice.
   const reset = initTheme();
@@ -206,5 +214,33 @@ describe("initTheme", () => {
       new StorageEvent("storage", { key: THEME_STORAGE_KEY }),
     );
     expect(root.dataset["theme"]).toBe("light");
+  });
+});
+
+describe("a build without the light theme", () => {
+  beforeEach(() => {
+    mockEnabled = false;
+  });
+
+  it("ignores a saved light choice and leaves the page dark", () => {
+    localStorage.setItem(THEME_STORAGE_KEY, '"light"');
+    const stop = initTheme();
+    expect(root.dataset["theme"]).toBeUndefined();
+    expect(themeColor()).toBe(THEME_COLOR.dark);
+    stop();
+  });
+
+  it("ignores the system setting, saves and storage events", () => {
+    localStorage.setItem(THEME_STORAGE_KEY, '"system"');
+    systemLight = true;
+    const stop = initTheme();
+    expect(mediaListeners).toHaveLength(0);
+    saveThemePreference("light");
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: THEME_STORAGE_KEY }),
+    );
+    expect(root.dataset["theme"]).toBeUndefined();
+    expect(themeColor()).toBe(THEME_COLOR.dark);
+    stop();
   });
 });
