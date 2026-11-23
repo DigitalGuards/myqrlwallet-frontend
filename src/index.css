@@ -165,6 +165,87 @@
     --sidebar-ring: 199 78% 55%;
   }
 
+  /* Light theme: selected by data-theme="light" on <html> (src/theme).
+     Only adds values; the dark set above is the default and never changes.
+     Palette from the marketing site: white page, soft and tinted surfaces,
+     ink text, sky-blue action. Status and identity colors are deepened so
+     small text clears WCAG AA on white and on the soft surface. */
+  :root[data-theme="light"] {
+    color-scheme: light;
+
+    --background: 0 0% 100%;
+    --foreground: 222 47% 10%;
+
+    --card: 214 40% 97%;
+    --card-foreground: 222 47% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 10%;
+
+    --primary: 199 89% 38%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 200 92% 32%;
+    --secondary-foreground: 0 0% 100%;
+
+    --identity-accent: 200 85% 28%;
+    --identity-accent-foreground: 0 0% 100%;
+
+    --success: 152 62% 26%;
+    --success-foreground: 0 0% 100%;
+
+    --muted: 214 40% 95%;
+    --muted-foreground: 218 14% 36%;
+
+    --accent: 203 88% 95%;
+    --accent-foreground: 222 47% 10%;
+
+    --destructive: 0 72% 44%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 216 24% 89%;
+    --input: 216 24% 78%;
+    --ring: 199 89% 38%;
+
+    --hero-top: 203 88% 94%;
+
+    --chart-1: 199 89% 38%;
+    --chart-2: 168 70% 28%;
+    --chart-3: 200 85% 28%;
+    --chart-4: 262 55% 48%;
+    --chart-5: 330 65% 42%;
+
+    --sidebar-background: 214 40% 97%;
+    --sidebar-foreground: 222 47% 10%;
+    --sidebar-primary: 199 89% 38%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 203 88% 95%;
+    --sidebar-accent-foreground: 222 47% 10%;
+    --sidebar-border: 216 24% 89%;
+    --sidebar-ring: 199 89% 38%;
+
+    /* Tailwind palette shades the components use for status text and tints
+       (warning, error, connected). Deepened to the 700 level so text reads
+       on white; the /10 to /15 tints then stay faint but visible. */
+    --color-red-400: #b91c1c;
+    --color-red-500: #b91c1c;
+    --color-amber-400: #b45309;
+    --color-amber-500: #b45309;
+    --color-amber-600: #b45309;
+    --color-yellow-200: #854d0e;
+    --color-yellow-400: #a16207;
+    --color-yellow-500: #a16207;
+    --color-yellow-900: #ca8a04;
+    --color-emerald-400: #047857;
+    --color-emerald-500: #047857;
+    --color-emerald-800: #059669;
+    --color-teal-400: #0f766e;
+    --color-teal-500: #0f766e;
+    --color-sky-400: #0369a1;
+    --color-sky-500: #0369a1;
+    --color-green-600: #15803d;
+  }
+
   /* Customized scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
@@ -332,6 +413,33 @@
       0 1px 0 hsl(var(--primary) / 0.14) inset,
       0 18px 44px -22px hsl(199 78% 40% / 0.28);
   }
+}
+
+/* Light-theme surfaces: flat, with hairline borders and a soft shadow in
+   place of the dark theme's glow and grain. */
+@layer components {
+  :root[data-theme="light"] .surface-glass {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 1px 2px hsl(222 47% 10% / 0.04);
+  }
+
+  :root[data-theme="light"] .surface-ember {
+    background:
+      linear-gradient(180deg, hsl(var(--hero-top)), transparent 70%),
+      hsl(var(--card));
+    border: 1px solid hsl(var(--primary) / 0.28);
+    box-shadow: 0 1px 2px hsl(222 47% 10% / 0.04);
+  }
+
+  /* The background loop is a dark clip; it has no light counterpart. */
+  :root[data-theme="light"] .decorative-video {
+    visibility: hidden;
+  }
+}
+
+:root[data-theme="light"] body {
+  background-image: none;
 }
 
 @layer utilities {
