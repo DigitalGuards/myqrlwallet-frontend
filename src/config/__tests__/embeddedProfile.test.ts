@@ -76,7 +76,7 @@ describe("committed embedded profile", () => {
       "https://qrlwallet.com/api/qrl-rpc/testnet",
     );
     expect(deployment.serverUrl).toBe("https://qrlwallet.com/api");
-    expect(deployment.network.explorer).toBe("https://zondscan.com");
+    expect(deployment.network.explorer).toBe("https://shorscan.com");
     expect(deployment.tokenFactory).toMatch(/^Q[0-9a-fA-F]{128}$/);
     expect(deployment.network.qrns.registry).toMatch(/^Q[0-9a-fA-F]{128}$/);
   });

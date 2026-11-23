@@ -59,7 +59,7 @@ export const EXPLORER_BASE =
   ((IS_PRODUCTION
     ? import.meta.env.VITE_EXPLORER_URL_PRODUCTION
     : import.meta.env.VITE_EXPLORER_URL_DEVELOPMENT) ||
-    "https://zondscan.com");
+    "https://shorscan.com");
 
 export const QRL_PROVIDER: Record<
   "TEST_NET_V3" | "MAIN_NET_V3" | "TEST_NET" | "MAIN_NET",

@@ -15,7 +15,7 @@ import { Button } from "@/components/UI/Button";
 import { ROUTES } from "@/router/router";
 import { Link } from "react-router";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { QRL_PROVIDER } from "@/config";
+import { EXPLORER_BASE, QRL_PROVIDER } from "@/config";
 
 /** Explorer link for a broadcast creation, shown while pending and after a failure. */
 const CreationTxLink = observer(() => {
@@ -62,12 +62,12 @@ const TokenStatus = observer(() => {
     gasUsed,
     effectiveGasPrice,
   } = createdToken;
-  // A configured network without an explorer gets no links. The zondscan
+  // A configured network without an explorer gets no links. The ShorScan
   // fallback covers only an unknown network id.
   const network = Object.entries(QRL_PROVIDER).find(
     ([id]) => id === qrlConnection.blockchain,
   )?.[1];
-  const explorerUrl = network ? network.explorer : "https://zondscan.com";
+  const explorerUrl = network ? network.explorer : EXPLORER_BASE;
 
   const { copiedItem, copyToClipboard } = useCopyToClipboard<
     "txHash" | "tokenAddress" | "blockHash"

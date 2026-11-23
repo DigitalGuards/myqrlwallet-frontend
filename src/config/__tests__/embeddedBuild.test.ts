@@ -80,7 +80,7 @@ describe("embedded CSP", () => {
     connectUrls: [
       "https://qrlwallet.com/api/qrl-rpc",
       "https://qrlwallet.com/api",
-      "https://zondscan.com",
+      "https://shorscan.com",
     ],
     relayUrls: EMBEDDED_RELAY_URLS,
     scriptHashes: HASHES,
@@ -132,7 +132,7 @@ describe("embedded CSP", () => {
     const origins = (connectSrc ?? "").split(" ").slice(1);
     expect(origins).toEqual([
       "https://qrlwallet.com",
-      "https://zondscan.com",
+      "https://shorscan.com",
       "wss://qrlwallet.com",
     ]);
   });

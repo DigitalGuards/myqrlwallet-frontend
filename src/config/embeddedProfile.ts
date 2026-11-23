@@ -44,7 +44,7 @@ export const EMBEDDED_PROFILE_ENV: Readonly<Record<string, string>> = {
   VITE_V3_GENESIS_HASH: EMBEDDED_GENESIS_HASH,
   VITE_V3_RPC_URL: "https://qrlwallet.com/api/qrl-rpc/testnet",
   VITE_V3_SERVER_URL: "https://qrlwallet.com/api",
-  VITE_V3_EXPLORER_URL: "https://zondscan.com",
+  VITE_V3_EXPLORER_URL: "https://shorscan.com",
   VITE_V3_FACTORY_ADDRESS:
     "Q519E79f891876b39C96d77877405cc09C169B2fBDf75c7B3Ee25631da62f8706AA64591d201ba64022f79edA2C3F75A75d7136acBa9c5CeC0324c93BBb3a2acf",
   VITE_V3_QNS_REGISTRY:
@@ -55,7 +55,7 @@ export const EMBEDDED_PROFILE_ENV: Readonly<Record<string, string>> = {
   // still have to point at production rather than localhost.
   VITE_RPC_URL_PRODUCTION: "https://qrlwallet.com/api/qrl-rpc",
   VITE_SERVER_URL_PRODUCTION: "https://qrlwallet.com/api",
-  VITE_EXPLORER_URL_PRODUCTION: "https://zondscan.com",
+  VITE_EXPLORER_URL_PRODUCTION: "https://shorscan.com",
 };
 
 /**

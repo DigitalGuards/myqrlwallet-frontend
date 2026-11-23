@@ -18,6 +18,7 @@ const ENV = {
 };
 
 it.each([
+  ["https://shorscan.com", "https://shorscan.com"],
   ["https://zondscan.com", "https://zondscan.com"],
   ["https://custom.example/v3/", "https://custom.example/v3"],
   ["http://127.0.0.1:3000/explorer/", "http://127.0.0.1:3000/explorer"],
