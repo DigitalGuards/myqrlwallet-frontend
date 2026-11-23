@@ -168,8 +168,8 @@
   /* Light theme: selected by data-theme="light" on <html> (src/theme).
      Only adds values; the dark set above is the default and never changes.
      Profile "Ink and blue": structure comes from neutrals (cool grey page,
-     white cards with a hairline), the navigation rail and the balance block
-     are deep navy and blue, and the sky blue is kept for action. Status and
+     white cards with a hairline, a white navigation rail), the balance block
+     is a solid deep blue, and the sky blue is kept for action. Status and
      identity colors are deepened so small text clears WCAG AA on the page,
      on cards and on tints. The balance block is a dark island, defined
      further down. */
@@ -427,11 +427,18 @@
   }
 }
 
-/* The Send Quanta button has a fixed sky-blue fill and dark label, set by
-   its own unlayered stylesheet. In light it takes the primary fill and its
-   white label; this rule is unlayered and more specific so it wins. */
+/* ShinyButton (Send Quanta, both PIN setup buttons, Create account, Create
+   token) has a fixed sky-blue fill, a dark label, and near-white highlights
+   in its own unlayered stylesheet. In light the fill is the primary and the
+   label is white, so the highlights become blues close to the fill: the
+   shimmer band (35 percent over the fill) and the hover and focus glow (taken
+   at full strength under the label, the worst case) keep the white label at
+   4.68:1 or better, 5.43:1 or better for the shimmer. This rule is unlayered
+   and more specific so it wins. */
 :root[data-theme="light"] .shiny-btn {
   --shiny-cta-bg: hsl(var(--primary));
+  --shiny-cta-highlight: hsl(206 85% 42%);
+  --shiny-cta-highlight-subtle: hsl(206 85% 48%);
   color: hsl(var(--primary-foreground));
 }
 
@@ -466,37 +473,42 @@
      account, the start card and the account-list card). Tailwind's --color-*
      variables are resolved on the root, so changing --foreground on an
      element does not reach its descendants unless the derived --color-*
-     variables are declared there too. This rule gives the block the dark
-     theme's token values, derives every --color-* the components read, and
-     restores the status shades of the palette, so anything placed inside it
-     (text, buttons, badges, popovers, success ticks, errors) reads as it does
-     in the dark theme. Add a new token or palette shade here when a component
-     starts using one. */
+     variables are declared there too. This one rule gives the block the dark
+     theme's token values, with these changes for the blue: a white primary
+     button with navy text, translucent borders, lighter muted text, a lifted
+     identity, success and destructive color, and the palette's status shades
+     lifted until text and badge text on the block's lightest point
+     (hsl(206 85% 30%)) and on its own tint reach 4.5:1. The ring offset color
+     is the block's blue, so a focus ring has no dark band. Anything placed
+     inside the block (text, buttons, badges, success ticks, errors) reads
+     from here. Add a token or palette shade when a component starts using
+     one. The card and popover colors stay dark: popovers drawn inside the
+     block are a known follow-up. */
   :root[data-theme="light"] .surface-ember {
-    --background: 222 45% 6%;
+    --background: 209 83% 26%;
     --foreground: 210 30% 96%;
     --card: 222 38% 9%;
     --card-foreground: 210 30% 96%;
     --popover: 222 40% 7%;
     --popover-foreground: 210 30% 96%;
     --muted: 222 30% 13%;
-    --muted-foreground: 215 15% 72%;
+    --muted-foreground: 206 60% 88%;
     --accent: 222 30% 14%;
     --accent-foreground: 210 30% 96%;
-    --primary: 199 78% 55%;
-    --primary-foreground: 205 80% 8%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 212 80% 22%;
+    --primary-hover: 206 40% 94%;
     --secondary: 199 85% 82%;
     --secondary-foreground: 205 80% 8%;
-    --identity-accent: 196 60% 82%;
+    --identity-accent: 196 70% 92%;
     --identity-accent-foreground: 205 60% 8%;
-    --success: 152 55% 70%;
+    --success: 152 70% 92%;
     --success-foreground: 152 80% 8%;
-    --destructive: 0 85% 76%;
+    --destructive: 0 100% 94%;
     --destructive-foreground: 0 60% 10%;
-    --border: 220 30% 22%;
-    --input: 220 30% 26%;
-    --ring: 199 78% 55%;
-    --primary-hover: 199 78% 48%;
+    --border: 206 55% 62%;
+    --input: 206 55% 62%;
+    --ring: 0 0% 100%;
 
     --color-background: hsl(var(--background));
     --color-foreground: hsl(var(--foreground));
@@ -518,44 +530,44 @@
     --color-success-foreground: hsl(var(--success-foreground));
     --color-destructive: hsl(var(--destructive));
     --color-destructive-foreground: hsl(var(--destructive-foreground));
-    --color-border: hsl(var(--border));
-    --color-input: hsl(var(--input));
+    --color-border: hsl(206 55% 62% / 0.4);
+    --color-input: hsl(206 55% 62% / 0.7);
     --color-ring: hsl(var(--ring));
 
-    /* Tailwind's own status shades, back to the values the dark theme uses. */
-    --color-red-400: oklch(70.4% 0.191 22.216);
-    --color-red-500: oklch(63.7% 0.237 25.331);
-    --color-amber-400: oklch(82.8% 0.189 84.429);
-    --color-amber-500: oklch(76.9% 0.188 70.08);
-    --color-amber-600: oklch(66.6% 0.179 58.318);
-    --color-yellow-200: oklch(94.5% 0.129 101.54);
-    --color-yellow-400: oklch(85.2% 0.199 91.936);
-    --color-yellow-500: oklch(79.5% 0.184 86.047);
-    --color-emerald-400: oklch(76.5% 0.177 163.223);
-    --color-emerald-500: oklch(69.6% 0.17 162.48);
-    --color-emerald-800: oklch(43.2% 0.095 166.913);
-    --color-teal-400: oklch(77.7% 0.152 181.912);
-    --color-sky-400: oklch(74.6% 0.16 232.661);
+    /* Palette shades for status text and badges, lifted for the blue. Text
+       shades are the 200 to 300 steps of their hue; emerald-800 and
+       yellow-900 stay deep because they are tint fills behind that text. */
+    --color-red-400: #fecaca;
+    --color-red-500: #fecaca;
+    --color-amber-400: #fde68a;
+    --color-amber-500: #fde68a;
+    --color-amber-600: #fde68a;
+    --color-yellow-200: #fef08a;
+    --color-yellow-400: #fde047;
+    --color-yellow-500: #fde047;
+    --color-yellow-900: #713f12;
+    --color-emerald-400: #a7f3d0;
+    --color-emerald-500: #6ee7b7;
+    --color-emerald-800: #065f46;
+    --color-teal-400: #5eead4;
+    --color-teal-500: #5eead4;
+    --color-sky-400: #7dd3fc;
+    --color-sky-500: #7dd3fc;
+    --color-green-600: #86efac;
+    --color-violet-400: #ddd6fe;
+    --color-violet-500: #ddd6fe;
+    --color-fuchsia-400: #f5d0fe;
+    --color-fuchsia-500: #f5d0fe;
 
     color: hsl(var(--foreground));
   }
 
-  /* The blue block's own touches: a white primary button with navy text, and
-     translucent borders tuned for the blue background. */
-  :root[data-theme="light"] .surface-ember {
-    --primary: 0 0% 100%;
-    --primary-foreground: 212 80% 22%;
-    --primary-hover: 206 40% 94%;
-    --ring: 0 0% 100%;
-    --input: 206 55% 62%;
-    --border: 206 55% 62%;
-    --muted-foreground: 206 60% 88%;
-    --color-primary: hsl(var(--primary));
-    --color-primary-foreground: hsl(var(--primary-foreground));
-    --color-ring: hsl(var(--ring));
-    --color-input: hsl(206 55% 62% / 0.7);
-    --color-border: hsl(206 55% 62% / 0.4);
-    --color-muted-foreground: hsl(var(--muted-foreground));
+  /* Selected text inside the block: a deep navy highlight, on which the
+     block's white and pale text stay above 12:1. */
+  :root[data-theme="light"] .surface-ember::selection,
+  :root[data-theme="light"] .surface-ember ::selection {
+    background: hsl(212 85% 14%);
+    color: #fff;
   }
 
   /* These QR codes are drawn white on black in the dark theme. Light inverts
