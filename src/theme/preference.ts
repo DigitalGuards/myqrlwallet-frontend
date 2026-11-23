@@ -12,7 +12,7 @@ export const THEME_CHANGED = "qrl-wallet:theme-changed";
 /** Browser chrome colour per resolved theme, kept in step with the page. */
 export const THEME_COLOR: Record<ResolvedTheme, string> = {
   dark: "#080d16",
-  light: "#ffffff",
+  light: "#f3f4f7",
 };
 
 export function isThemePreference(value: unknown): value is ThemePreference {
