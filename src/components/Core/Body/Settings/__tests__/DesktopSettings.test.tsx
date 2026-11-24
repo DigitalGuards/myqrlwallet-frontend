@@ -55,7 +55,7 @@ afterEach(() => {
 });
 
 it.each(languages)(
-  "renders only language and native security controls in $code",
+  "renders only language, theme and native security controls in $code",
   async ({ code }) => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, JSON.stringify(code));
     const { container } = render(<SettingsPage />);
@@ -69,7 +69,8 @@ it.each(languages)(
     expect(
       screen.getByRole("combobox", { name: t("language") }),
     ).toHaveProperty("value", code);
-    expect(screen.getAllByRole("option")).toHaveLength(5);
+    // Five languages and the three theme choices.
+    expect(screen.getAllByRole("option")).toHaveLength(8);
     expect(screen.getAllByRole("button")).toHaveLength(1);
     expect(container.querySelectorAll("section")).toHaveLength(2);
     expect(screen.queryByRole("switch")).toBeNull();

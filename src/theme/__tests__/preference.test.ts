@@ -4,18 +4,14 @@ import {
   THEME_CHANGED,
   THEME_STORAGE_KEY,
   applyTheme,
+  applyThemeState,
+  type ResolvedTheme,
+  type ThemePreference,
   initTheme,
   readThemePreference,
   resolveTheme,
   saveThemePreference,
 } from "../preference";
-
-let mockEnabled = true;
-jest.mock("../enabled", () => ({
-  get LIGHT_THEME_ENABLED() {
-    return mockEnabled;
-  },
-}));
 
 type Listener = () => void;
 let systemLight = false;
@@ -44,7 +40,6 @@ const themeColor = () =>
   document.querySelector('meta[name="theme-color"]')?.getAttribute("content");
 
 beforeEach(() => {
-  mockEnabled = true;
   localStorage.clear();
   // A storage event from elsewhere clears this window's own choice.
   const reset = initTheme();
@@ -128,16 +123,20 @@ describe("resolveTheme", () => {
   });
 });
 
-describe("applyTheme", () => {
+describe("applyThemeState", () => {
+  const state = (theme: ThemePreference, resolved: ResolvedTheme) => ({
+    theme,
+    resolved,
+  });
   it("marks light on the root and updates theme-color", () => {
-    expect(applyTheme("light")).toBe("light");
+    expect(applyThemeState(state("light", "light"))).toBe("light");
     expect(root.dataset["theme"]).toBe("light");
     expect(themeColor()).toBe(THEME_COLOR.light);
   });
 
   it("leaves dark without an attribute", () => {
-    applyTheme("light");
-    expect(applyTheme("dark")).toBe("dark");
+    applyThemeState(state("light", "light"));
+    expect(applyThemeState(state("dark", "dark"))).toBe("dark");
     expect(root.dataset["theme"]).toBeUndefined();
     expect(themeColor()).toBe(THEME_COLOR.dark);
   });
@@ -148,7 +147,8 @@ describe("applyTheme", () => {
       writable: true,
       value: undefined,
     });
-    expect(applyTheme("system")).toBe("dark");
+    localStorage.setItem(THEME_STORAGE_KEY, '"system"');
+    expect(applyTheme()).toBe("dark");
   });
 });
 
@@ -214,33 +214,5 @@ describe("initTheme", () => {
       new StorageEvent("storage", { key: THEME_STORAGE_KEY }),
     );
     expect(root.dataset["theme"]).toBe("light");
-  });
-});
-
-describe("a build without the light theme", () => {
-  beforeEach(() => {
-    mockEnabled = false;
-  });
-
-  it("ignores a saved light choice and leaves the page dark", () => {
-    localStorage.setItem(THEME_STORAGE_KEY, '"light"');
-    const stop = initTheme();
-    expect(root.dataset["theme"]).toBeUndefined();
-    expect(themeColor()).toBe(THEME_COLOR.dark);
-    stop();
-  });
-
-  it("ignores the system setting, saves and storage events", () => {
-    localStorage.setItem(THEME_STORAGE_KEY, '"system"');
-    systemLight = true;
-    const stop = initTheme();
-    expect(mediaListeners).toHaveLength(0);
-    saveThemePreference("light");
-    window.dispatchEvent(
-      new StorageEvent("storage", { key: THEME_STORAGE_KEY }),
-    );
-    expect(root.dataset["theme"]).toBeUndefined();
-    expect(themeColor()).toBe(THEME_COLOR.dark);
-    stop();
   });
 });

@@ -22,6 +22,9 @@ export type WebToNativeMessageType =
   // Resolved UI language once after startup and on each change. Uses the
   // existing envelope and documentId; payload language is en/de/es/ru/zh-CN.
   | 'LANGUAGE_CHANGED'
+  // The wallet's own Theme row changed the preference. Payload theme is
+  // dark, light or system; the shell answers with SET_THEME.
+  | 'THEME_CHANGED'
   | 'SCAN_QR'
   | 'COPY_TO_CLIPBOARD'
   | 'SHARE'
@@ -93,6 +96,7 @@ const NATIVE_TO_WEB_MESSAGE_TYPES = [
   'NATIVE_BACK',          // Android hardware back, for the page to resolve
   'SET_LANGUAGE',          // Native Settings chose the wallet language
   'REQUEST_LANGUAGE',      // Native has no saved language and asks for the wallet's
+  'SET_THEME',             // Native states the theme choice and its resolved value
 ] as const;
 
 export type NativeToWebMessageType = (typeof NATIVE_TO_WEB_MESSAGE_TYPES)[number];

@@ -6,6 +6,7 @@ import { dappConnectService } from '@/services/dappConnect/DAppConnectService';
 import { walletMutations } from '@/utils/nativeWalletMutation';
 import StorageUtil from '@/utils/storage/storage';
 import { applyNativeLanguage, reportNativeLanguage } from '@/i18n/nativeLanguage';
+import { SHELL_THEME_CACHE_KEY, THEME_CHANGED, resetShellThemeForTests } from '@/theme/shell';
 import {
   recordRoute,
   registerPageBack,
@@ -283,6 +284,45 @@ it.each([undefined, 'fr', 'de-DE', 7, null])('rejects the app language %s', (lan
 it('reports the wallet language when the app asks for it', () => {
   receive({ type: 'REQUEST_LANGUAGE', payload: {} });
   expect(reportNativeLanguage).toHaveBeenCalledTimes(1);
+});
+
+describe('SET_THEME', () => {
+  const cacheKey = () => SHELL_THEME_CACHE_KEY;
+  beforeEach(() => {
+    localStorage.removeItem(cacheKey());
+    resetShellThemeForTests();
+  });
+
+  it.each([
+    ['dark', 'dark'],
+    ['light', 'light'],
+    ['system', 'light'],
+    ['system', 'dark'],
+  ] as const)('applies the app theme %s resolved to %s and caches it', (theme, resolved) => {
+    const seen = jest.fn();
+    window.addEventListener(THEME_CHANGED, seen);
+    receive({ type: 'SET_THEME', payload: { theme, resolved } });
+    window.removeEventListener(THEME_CHANGED, seen);
+    expect(seen).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(localStorage.getItem(cacheKey()) ?? 'null')).toEqual({ theme, resolved });
+  });
+
+  it.each([
+    [{ theme: 'light' }],
+    [{ resolved: 'light' }],
+    [{ theme: 'light', resolved: 'system' }],
+    [{ theme: 'purple', resolved: 'dark' }],
+    [{ theme: 7, resolved: 'dark' }],
+    [{ theme: null, resolved: null }],
+    [{}],
+  ])('ignores the invalid app theme %j', (payload) => {
+    const seen = jest.fn();
+    window.addEventListener(THEME_CHANGED, seen);
+    receive({ type: 'SET_THEME', payload });
+    window.removeEventListener(THEME_CHANGED, seen);
+    expect(seen).not.toHaveBeenCalled();
+    expect(localStorage.getItem(cacheKey())).toBeNull();
+  });
 });
 
 describe('NATIVE_BACK goes where the page Back goes', () => {

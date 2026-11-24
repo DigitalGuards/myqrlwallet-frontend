@@ -1,17 +1,22 @@
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
   THEMES,
-  isThemePreference,
   currentThemePreference,
+  isThemePreference,
   saveThemePreference,
+  subscribeTheme,
   type ThemePreference,
 } from "@/theme/preference";
 
-/** Theme row: saves the choice, which the theme module applies at once. */
+/**
+ * Theme row: saves the choice, which the theme module applies at once. The
+ * select follows the module, so a change from another tab or from the shell
+ * shows here too.
+ */
 export function ThemeSettings() {
   const { t } = useTranslation("settings");
-  const [theme, setTheme] = useState<ThemePreference>(currentThemePreference);
+  const theme = useSyncExternalStore(subscribeTheme, currentThemePreference);
   const label = (value: ThemePreference): string => {
     if (value === "light") return t("themeLight");
     if (value === "system") return t("themeSystem");
@@ -39,9 +44,7 @@ export function ThemeSettings() {
           value={theme}
           onChange={(event) => {
             const value = event.target.value;
-            if (!isThemePreference(value)) return;
-            setTheme(value);
-            saveThemePreference(value);
+            if (isThemePreference(value)) saveThemePreference(value);
           }}
         >
           {THEMES.map((value) => (
