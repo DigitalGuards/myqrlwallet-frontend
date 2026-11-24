@@ -213,6 +213,22 @@ if (buildInfoMatch === null) {
 
 console.log(`document sha256: ${documentDigest} (${bytes.length} bytes)`);
 
+// 8. the theme boot script runs after the theme-color meta it updates and
+// before the first frame (ahead of the stylesheet and the application script)
+{
+  const meta = html.search(/<meta\b[^>]*\bname\s*=\s*["']theme-color["'][^>]*>/i);
+  const boot = html.search(/<script>\(function\(\)\{try\{var w=window,r=null;/);
+  const style = html.search(/<style\b/i);
+  const app = html.search(/<script\b[^>]*\bid="qrl-embedded-app"/i);
+  if (meta === -1 || boot === -1) {
+    failures.push("the theme boot script or the theme-color meta is missing");
+  } else if (boot < meta) {
+    failures.push("the theme boot script runs before the theme-color meta it updates");
+  } else if ((style !== -1 && boot > style) || (app !== -1 && boot > app)) {
+    failures.push("the theme boot script comes after the stylesheet or the application script");
+  }
+}
+
 if (failures.length > 0) {
   console.error(`\n${htmlPath} is not self-contained:`);
   for (const failure of failures) console.error(`  - ${failure}`);

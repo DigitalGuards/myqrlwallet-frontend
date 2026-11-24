@@ -132,7 +132,10 @@ export function initTheme(): () => void {
   // A system flip goes through the same event as every other change, so the
   // pages that react to the theme (the Theme row, the background video) hear it.
   const onSystemChange = () => {
-    window.dispatchEvent(new Event(THEME_CHANGED));
+    // Only the System choice follows the OS; under Dark or Light nothing moved.
+    if (currentThemeState().theme === "system") {
+      window.dispatchEvent(new Event(THEME_CHANGED));
+    }
   };
   media?.addEventListener("change", onSystemChange);
   window.addEventListener(THEME_CHANGED, applyTheme);

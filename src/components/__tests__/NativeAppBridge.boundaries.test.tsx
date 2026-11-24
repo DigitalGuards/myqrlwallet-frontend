@@ -194,6 +194,15 @@ it('awaits navigation before confirming a wallet clear', async () => {
   });
 });
 
+it('removes the cached shell theme with a wallet wipe', async () => {
+  localStorage.setItem(SHELL_THEME_CACHE_KEY, JSON.stringify({ theme: 'light', resolved: 'light' }));
+  receive({ type: 'CLEAR_WALLET', payload: { requestId } });
+  await waitFor(() => {
+    expect(confirmWalletCleared).toHaveBeenCalledWith(requestId, true);
+  });
+  expect(localStorage.getItem(SHELL_THEME_CACHE_KEY)).toBeNull();
+});
+
 it('reports a clear failure when home navigation rejects', async () => {
   mockNavigate.mockImplementation(() => Promise.reject(new Error('navigation failed')));
   receive({ type: 'CLEAR_WALLET', payload: { requestId } });

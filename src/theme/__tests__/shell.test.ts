@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
 import { THEME_STORAGE_KEY } from "../preference";
+import { THEME_CHANGED } from "../values";
 
 let mockEmbedded = true;
 jest.mock("@/utils/embeddedRuntime", () => ({
@@ -16,6 +17,7 @@ jest.mock("@/utils/nativeApp", () => ({
 import {
   SHELL_THEME_CACHE_KEY,
   applyShellTheme,
+  clearShellThemeCache,
   resetShellThemeForTests,
 } from "../shell";
 import {
@@ -141,6 +143,24 @@ describe("the phone shell leads", () => {
   });
 });
 
+describe("the phone shell answer", () => {
+  it("applies the shell's answer to THEME_CHANGED without sending anything back", () => {
+    saveThemePreference("light");
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    mockSend.mockClear();
+    expect(applyShellTheme({ theme: "light", resolved: "light" })).toBe(true);
+    expect(mockSend).not.toHaveBeenCalled();
+    expect(currentThemeState()).toEqual({ theme: "light", resolved: "light" });
+  });
+
+  it("removes the cached copy on a wipe", () => {
+    applyShellTheme({ theme: "light", resolved: "light" });
+    expect(localStorage.getItem(SHELL_THEME_CACHE_KEY)).not.toBeNull();
+    clearShellThemeCache();
+    expect(localStorage.getItem(SHELL_THEME_CACHE_KEY)).toBeNull();
+  });
+});
+
 describe("the browser build", () => {
   beforeEach(() => {
     mockEmbedded = false;
@@ -160,6 +180,11 @@ describe("the browser build", () => {
   it("ignores the injected global and answers SET_THEME with a cache only", () => {
     injected({ theme: "light", resolved: "light" });
     expect(currentThemeState().resolved).toBe("dark");
+  });
+
+  it("writes no shell cache for a state stated without a shell", () => {
+    expect(applyShellTheme({ theme: "light", resolved: "light" })).toBe(true);
+    expect(localStorage.getItem(SHELL_THEME_CACHE_KEY)).toBeNull();
   });
 
   it("sends nothing to a shell", () => {
@@ -229,6 +254,45 @@ describe("the desktop shell leads", () => {
       saveThemePreference("light");
     }).not.toThrow();
     await Promise.resolve();
+  });
+
+  it("goes back to the previous state when the shell rejects setTheme", async () => {
+    const setTheme = jest.fn().mockRejectedValue(new Error("denied"));
+    install({ theme: { theme: "dark", resolved: "dark" }, setTheme });
+    const seen = jest.fn();
+    window.addEventListener(THEME_CHANGED, seen);
+    saveThemePreference("light");
+    expect(currentThemeState()).toEqual({ theme: "light", resolved: "light" });
+    await Promise.resolve();
+    await Promise.resolve();
+    window.removeEventListener(THEME_CHANGED, seen);
+    expect(currentThemeState()).toEqual({ theme: "dark", resolved: "dark" });
+    expect(seen).toHaveBeenCalledTimes(2);
+  });
+
+  it("goes back when setTheme throws", () => {
+    const setTheme = jest.fn(() => {
+      throw new Error("denied");
+    });
+    install({ theme: { theme: "dark", resolved: "dark" }, setTheme });
+    saveThemePreference("light");
+    expect(currentThemeState()).toEqual({ theme: "dark", resolved: "dark" });
+  });
+
+  it("keeps a newer state the shell stated while setTheme was pending", async () => {
+    let reject: (error: Error) => void = () => undefined;
+    const setTheme = jest.fn(
+      () => new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      }),
+    );
+    install({ theme: { theme: "dark", resolved: "dark" }, setTheme });
+    saveThemePreference("light");
+    applyShellTheme({ theme: "system", resolved: "light" });
+    reject(new Error("denied"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(currentThemeState()).toEqual({ theme: "system", resolved: "light" });
   });
 
   it("follows onThemeChanged pushes, validates them, caches nothing and unsubscribes", () => {

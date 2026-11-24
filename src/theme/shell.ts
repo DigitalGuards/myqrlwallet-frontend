@@ -26,8 +26,12 @@ export const SHELL_THEME_CACHE_KEY = profileStorageKey(SHELL_THEME_CACHE_NAME);
 export interface ShellThemeAdapter {
   /** The state known before the shell has said anything this document. */
   initial(): ThemeState | null;
-  /** The user picked a theme in the wallet's own Theme row. */
-  report(theme: ThemePreference): void;
+  /**
+   * The user picked a theme in the wallet's own Theme row. A rejection means
+   * the shell did not take the choice, and the wallet goes back to its
+   * previous state.
+   */
+  report(theme: ThemePreference): void | Promise<void>;
   /** Whether a state from this shell is kept for the next start. */
   readonly cache: boolean;
   /**
@@ -73,14 +77,7 @@ const desktopAdapter: ShellThemeAdapter = {
     return parseThemeState(window.qrlWallet?.theme);
   },
   report(theme) {
-    try {
-      const sent = window.qrlWallet?.setTheme?.(theme);
-      void Promise.resolve(sent).catch((error: unknown) => {
-        logger.error("Could not send the theme to the shell:", error);
-      });
-    } catch (error) {
-      logger.error("Could not send the theme to the shell:", error);
-    }
+    return window.qrlWallet?.setTheme?.(theme);
   },
   subscribe(onState) {
     try {
@@ -114,7 +111,7 @@ export function applyShellTheme(value: unknown): boolean {
   const state = parseThemeState(value);
   if (!state) return false;
   shellState = state;
-  if (activeShellAdapter()?.cache !== false) {
+  if (activeShellAdapter()?.cache === true) {
     try {
       localStorage.setItem(SHELL_THEME_CACHE_KEY, JSON.stringify(state));
     } catch {
@@ -130,15 +127,38 @@ export function reportShellTheme(
   adapter: ShellThemeAdapter,
   theme: ThemePreference,
 ): void {
+  const previous = shellState;
   const current = readShellThemeState();
   // The shell answers with the resolved value; until then keep the colours
   // unless the choice names one.
-  shellState = {
+  const optimistic: ThemeState = {
     theme,
     resolved: theme === "system" ? (current?.resolved ?? "dark") : theme,
   };
-  adapter.report(theme);
+  shellState = optimistic;
+  const undo = (error: unknown) => {
+    logger.error("Could not send the theme to the shell:", error);
+    // Go back unless the shell has stated something newer in the meantime.
+    if (shellState === optimistic) {
+      shellState = previous;
+      window.dispatchEvent(new Event(THEME_CHANGED));
+    }
+  };
+  try {
+    void Promise.resolve(adapter.report(theme)).catch(undo);
+  } catch (error) {
+    undo(error);
+  }
   window.dispatchEvent(new Event(THEME_CHANGED));
+}
+
+/** The wipe removes the cached copy of the shell's state. */
+export function clearShellThemeCache(): void {
+  try {
+    localStorage.removeItem(SHELL_THEME_CACHE_KEY);
+  } catch {
+    // Blocked storage has nothing to remove.
+  }
 }
 
 /** Tests only. */

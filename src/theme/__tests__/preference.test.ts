@@ -204,6 +204,22 @@ describe("initTheme", () => {
     stop();
   });
 
+  it("announces no system change while the choice is explicit", () => {
+    for (const choice of ['"dark"', '"light"']) {
+      localStorage.setItem(THEME_STORAGE_KEY, choice);
+      const stop = initTheme();
+      const seen = jest.fn();
+      window.addEventListener(THEME_CHANGED, seen);
+      systemLight = !systemLight;
+      mediaListeners.forEach((listener) => {
+        listener();
+      });
+      window.removeEventListener(THEME_CHANGED, seen);
+      expect(seen).not.toHaveBeenCalled();
+      stop();
+    }
+  });
+
   it("ignores system changes under an explicit choice", () => {
     localStorage.setItem(THEME_STORAGE_KEY, '"dark"');
     const stop = initTheme();

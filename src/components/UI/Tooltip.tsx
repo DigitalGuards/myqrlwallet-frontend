@@ -14,7 +14,7 @@ const TooltipContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
 >(({ className, sideOffset = 4, ...props }, ref) => (
   // Portaled, so a tooltip opened inside the blue balance block takes the
-  // page's own popover colours and not the block's.
+  // page's popover colours.
   <TooltipPrimitive.Portal>
     <TooltipPrimitive.Content
       ref={ref}

@@ -406,16 +406,24 @@ const rewriteEmbeddedHtml = (): Plugin => ({
       // placed above it would run unpoliced.
       const rewritten = insertIntoHead(
         stripped,
-        `    ${embeddedMeta}\n    <script>${EMBEDDED_FLAG_SCRIPT}</script>\n` +
-          // Sets the theme attribute before the first frame. The shell injects
-          // the state it leads with ahead of this document; the policy hash for
-          // this script is added with the others in emitSingleFile.
-          `    <script>${themeBootSource('phone', EMBEDDED_PROFILE_ENV['VITE_WALLET_PROFILE'] === 'v3-private')}</script>\n`
+        `    ${embeddedMeta}\n    <script>${EMBEDDED_FLAG_SCRIPT}</script>\n`
       )
+      // Sets the theme attribute and the theme-color meta before the first
+      // frame. It goes right after that meta, because it looks the meta up. The
+      // shell injects the state it leads with ahead of this document; the
+      // policy hash for this script is added with the others in emitSingleFile.
+      const themeColorMeta = /<meta\b[^>]*\bname\s*=\s*["']theme-color["'][^>]*>\n?/i.exec(rewritten)
+      if (!themeColorMeta) {
+        throw new Error('embedded build: index.html has no theme-color meta for the theme boot script')
+      }
+      const at = themeColorMeta.index + themeColorMeta[0].length
+      const withTheme =
+        `${rewritten.slice(0, at)}    <script>${themeBootSource('phone', EMBEDDED_PROFILE_ENV['VITE_WALLET_PROFILE'] === 'v3-private')}</script>\n` +
+        rewritten.slice(at)
       if (!rewritten.includes(embeddedMeta)) {
         throw new Error('embedded build: the Content-Security-Policy meta was not written')
       }
-      return rewritten
+      return withTheme
     },
   },
 })

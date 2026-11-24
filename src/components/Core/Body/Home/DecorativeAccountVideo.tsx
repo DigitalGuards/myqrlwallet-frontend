@@ -121,8 +121,15 @@ export default function DecorativeAccountVideo() {
       if (motion.matches) stop();
       else start();
     };
+    // Only a change of the resolved theme starts or stops the clip. A theme
+    // event that leaves it as it was (the shell restating its choice, picking
+    // Dark again) must not replay a clip that already ended.
+    let wasLight = lightTheme();
     const onTheme = () => {
-      if (lightTheme()) stop();
+      const light = lightTheme();
+      if (light === wasLight) return;
+      wasLight = light;
+      if (light) stop();
       else start();
     };
     const unsubscribe = subscribeToNativeMessages((message) => {

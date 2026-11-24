@@ -33,7 +33,7 @@ import {
 import { resolveNativeBack } from "@/utils/nativeBack";
 import { isLanguage } from "@/i18n/languages";
 import { applyNativeLanguage, reportNativeLanguage } from "@/i18n/nativeLanguage";
-import { applyShellTheme } from "@/theme/shell";
+import { applyShellTheme, clearShellThemeCache } from "@/theme/shell";
 import {
   DAppConnectService,
   dappConnectService,
@@ -806,6 +806,9 @@ const NativeAppBridge: React.FC = () => {
               StorageUtil.clearAllNftData();
               clearAddressBook();
               transactionHistoryStore.clear();
+              // The wallet's copy of the shell theme goes with the wipe; the
+              // shell states it again afterwards.
+              clearShellThemeCache();
             };
 
             // A restore may already be inside qrlStore.setActiveAccount when the
