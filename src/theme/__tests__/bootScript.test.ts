@@ -170,4 +170,11 @@ it("phone mode shows dark when the shell stated nothing, whatever the system say
   mockEmbedded = true;
   systemLight = true;
   expect(runBoot("phone")).toBeUndefined();
+  expect(
+    document.querySelector('meta[name="theme-color"]')?.getAttribute("content"),
+  ).toBe(THEME_COLOR.dark);
+  expect(currentThemeState()).toEqual({
+    theme: SHELL_FALLBACK_RESOLVED,
+    resolved: SHELL_FALLBACK_RESOLVED,
+  });
 });

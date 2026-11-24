@@ -22,7 +22,8 @@ Phone app (embedded build, or `isInNativeApp()`):
 - `SET_THEME` (shell to wallet) carries `{ theme, resolved }`. Both fields must validate or the message is ignored. The last valid state is cached under `WALLET_SHELL_THEME`, which is a copy of the shell's state and never the user's choice.
 - `THEME_CHANGED` (wallet to shell) carries `{ theme }` when the user uses the wallet's own Theme row.
 - Both messages use the existing bridge envelope and document binding.
-- With no injected value and no cache the wallet shows dark (`SHELL_FALLBACK_RESOLVED`) while the Theme row shows the default, System. The system setting is not consulted in a shell; the shell normally states its value before the first frame, so this is a fixed colour for the rare document that got none. The same fallback applies in `currentThemeState` and the phone boot script.
+- With no injected value and no cache the wallet shows dark (`SHELL_FALLBACK_RESOLVED`) and the Theme row shows Dark, the same fixed state, until the shell's `SET_THEME` arrives and corrects both. The system setting is not consulted in a shell; the shell normally states its value before the first frame, so this is a fixed colour for the rare document that got none. The same fallback applies in `currentThemeState` and the phone boot script.
+- On the dev server a document loaded inside the phone app before the shell states a theme can show the browser's value for one frame. Production builds carry the phone boot script, so this is dev only.
 
 Desktop app (the main process leads), all members optional on `window.qrlWallet`:
 

@@ -59,7 +59,7 @@ export function currentThemeState(): ThemeState {
   if (activeShellAdapter()) {
     return (
       readShellThemeState() ?? {
-        theme: DEFAULT_THEME,
+        theme: SHELL_FALLBACK_RESOLVED,
         resolved: SHELL_FALLBACK_RESOLVED,
       }
     );
