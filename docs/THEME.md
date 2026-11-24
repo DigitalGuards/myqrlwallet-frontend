@@ -4,7 +4,7 @@ Every build offers the Theme row (Settings, Preferences): Dark, Light, System. T
 
 ## Values
 
-- `DEFAULT_THEME` in `src/theme/values.ts` is the single default (`dark`). Nothing writes it to storage, so changing it reaches every user who has not chosen.
+- `DEFAULT_THEME` in `src/theme/values.ts` is the single default (`system`: follow the device's light or dark setting through `prefers-color-scheme`, live). Nothing writes it to storage, so changing it reaches every user who has not chosen. The Theme row shows System for them.
 - The user's choice is stored under `THEME_STORAGE_KEY` (browser and desktop renderer). A missing, unreadable or unknown value means the default.
 - The page is light when `<html data-theme="light">` is set. Dark carries no attribute.
 
@@ -22,6 +22,7 @@ Phone app (embedded build, or `isInNativeApp()`):
 - `SET_THEME` (shell to wallet) carries `{ theme, resolved }`. Both fields must validate or the message is ignored. The last valid state is cached under `WALLET_SHELL_THEME`, which is a copy of the shell's state and never the user's choice.
 - `THEME_CHANGED` (wallet to shell) carries `{ theme }` when the user uses the wallet's own Theme row.
 - Both messages use the existing bridge envelope and document binding.
+- With no injected value and no cache the wallet shows dark (`SHELL_FALLBACK_RESOLVED`) while the Theme row shows the default, System. The system setting is not consulted in a shell, and the phone app's launch screen is dark, so dark avoids a flash. The same fallback applies in `currentThemeState` and the phone boot script.
 
 Desktop app (the main process leads), all members optional on `window.qrlWallet`:
 

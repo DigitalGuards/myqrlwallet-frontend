@@ -38,7 +38,7 @@ try {
     if (i === 39) fail('vite preview did not start');
   }
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, colorScheme: 'dark' });
   const pageErrors = [];
   page.on('pageerror', (e) => pageErrors.push(e.message));
   await page.route('**/*', async (route) => {

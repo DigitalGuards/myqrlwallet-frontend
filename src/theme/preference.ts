@@ -7,6 +7,7 @@ import {
 } from "./shell";
 import {
   DEFAULT_THEME,
+  SHELL_FALLBACK_RESOLVED,
   THEME_CHANGED,
   THEME_COLOR,
   THEMES,
@@ -59,7 +60,7 @@ export function currentThemeState(): ThemeState {
     return (
       readShellThemeState() ?? {
         theme: DEFAULT_THEME,
-        resolved: resolveTheme(DEFAULT_THEME, false),
+        resolved: SHELL_FALLBACK_RESOLVED,
       }
     );
   }

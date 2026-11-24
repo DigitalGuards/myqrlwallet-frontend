@@ -25,6 +25,7 @@ export async function desktopSettingsScreens({
     ]) {
       const screen = `desktop-settings-${viewport.width}x${viewport.height}`;
       const context = await browser.newContext({
+        colorScheme: "dark",
         viewport,
         locale: "en-US",
         reducedMotion: "reduce",

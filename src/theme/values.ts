@@ -23,9 +23,17 @@ export const SHELL_THEME_GLOBAL = "__QRL_SHELL_THEME__";
 
 /**
  * The preference of a user who has not chosen. One constant: nothing writes it
- * to storage, so changing it reaches every user who never picked a theme.
+ * to storage, so changing it reaches every user who never picked a theme. "system" follows
+ * the device's light or dark setting.
  */
-export const DEFAULT_THEME: ThemePreference = "dark";
+export const DEFAULT_THEME: ThemePreference = "system";
+
+/**
+ * What the wallet shows when a shell leads the theme but has stated nothing
+ * yet (no injected value, no cache). The system setting cannot be trusted
+ * there, and the phone app's launch screen is dark, so dark avoids a flash.
+ */
+export const SHELL_FALLBACK_RESOLVED: ResolvedTheme = "dark";
 
 /** Browser chrome colour per resolved theme, kept in step with the page. */
 export const THEME_COLOR: Record<ResolvedTheme, string> = {

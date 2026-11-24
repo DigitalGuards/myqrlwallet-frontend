@@ -10,6 +10,7 @@ import { storageKeyForProfile } from '../src/config/storageKey'
 import { buildThemeBootScript } from '../src/theme/bootScript'
 import {
   DEFAULT_THEME,
+  SHELL_FALLBACK_RESOLVED,
   SHELL_THEME_CACHE_NAME,
   SHELL_THEME_GLOBAL,
   THEME_STORAGE_NAME,
@@ -71,6 +72,7 @@ export const themeBootSource = (
     storageKey: storageKeyForProfile(isV3, THEME_STORAGE_NAME),
     cacheKey: storageKeyForProfile(isV3, SHELL_THEME_CACHE_NAME),
     defaultTheme: DEFAULT_THEME,
+    shellFallback: SHELL_FALLBACK_RESOLVED,
     shellGlobal: SHELL_THEME_GLOBAL,
   })
 

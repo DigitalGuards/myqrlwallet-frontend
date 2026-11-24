@@ -42,6 +42,7 @@ export async function helperRouteProbes(browser, origin) {
             `/nft/${address}/42`,
           ]) {
         const context = await browser.newContext({
+          colorScheme: "dark",
           locale: "en-US",
           viewport: { width, height: 844 },
           reducedMotion: "reduce",
