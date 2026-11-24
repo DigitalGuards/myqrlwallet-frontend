@@ -113,7 +113,8 @@ export async function desktopSettingsScreens({
           0,
         );
         assert.equal(await view.getByRole("button").count(), 1);
-        assert.equal(await view.getByRole("combobox").count(), 1);
+        // The Language and Theme selects.
+        assert.equal(await view.getByRole("combobox").count(), 2);
         assert.equal(await view.locator("section").count(), 2);
         assert.equal(await view.locator("input, [role=switch]").count(), 0);
         for (const key of [
