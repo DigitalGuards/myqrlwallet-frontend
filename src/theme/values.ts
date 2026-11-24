@@ -31,7 +31,8 @@ export const DEFAULT_THEME: ThemePreference = "system";
 /**
  * What the wallet shows when a shell leads the theme but has stated nothing
  * yet (no injected value, no cache). The system setting cannot be trusted
- * there, and the phone app's launch screen is dark, so dark avoids a flash.
+ * there. The shell normally states its value before the first frame, so this
+ * fallback is a fixed, predictable colour for the rare document that got none.
  */
 export const SHELL_FALLBACK_RESOLVED: ResolvedTheme = "dark";
 
