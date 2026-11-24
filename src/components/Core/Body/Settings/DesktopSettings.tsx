@@ -6,6 +6,7 @@ import { desktopSigner } from "@/desktop/bridge";
 import { logger } from "@/utils/log";
 import { LanguageSettings } from "./LanguageSettings";
 import { SettingsRow, SettingsSection } from "./SettingsList";
+import { ThemeSettings } from "./ThemeSettings";
 
 export default function DesktopSettings() {
   const { t } = useTranslation(["settings", "common"]);
@@ -24,6 +25,7 @@ export default function DesktopSettings() {
       <div className="settings-plain space-y-7">
         <SettingsSection title={t("preferences")}>
           <LanguageSettings />
+          <ThemeSettings />
         </SettingsSection>
         <SettingsSection title={t("security")}>
           <SettingsRow

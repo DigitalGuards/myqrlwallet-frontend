@@ -6,6 +6,8 @@ import { dappConnectService } from '@/services/dappConnect/DAppConnectService';
 import { walletMutations } from '@/utils/nativeWalletMutation';
 import StorageUtil from '@/utils/storage/storage';
 import { applyNativeLanguage, reportNativeLanguage } from '@/i18n/nativeLanguage';
+import { SHELL_THEME_CACHE_KEY, resetShellThemeForTests } from '@/theme/shell';
+import { THEME_CHANGED } from '@/theme/values';
 import {
   recordRoute,
   registerPageBack,
@@ -192,6 +194,15 @@ it('awaits navigation before confirming a wallet clear', async () => {
   });
 });
 
+it('removes the cached shell theme with a wallet wipe', async () => {
+  localStorage.setItem(SHELL_THEME_CACHE_KEY, JSON.stringify({ theme: 'light', resolved: 'light' }));
+  receive({ type: 'CLEAR_WALLET', payload: { requestId } });
+  await waitFor(() => {
+    expect(confirmWalletCleared).toHaveBeenCalledWith(requestId, true);
+  });
+  expect(localStorage.getItem(SHELL_THEME_CACHE_KEY)).toBeNull();
+});
+
 it('reports a clear failure when home navigation rejects', async () => {
   mockNavigate.mockImplementation(() => Promise.reject(new Error('navigation failed')));
   receive({ type: 'CLEAR_WALLET', payload: { requestId } });
@@ -283,6 +294,65 @@ it.each([undefined, 'fr', 'de-DE', 7, null])('rejects the app language %s', (lan
 it('reports the wallet language when the app asks for it', () => {
   receive({ type: 'REQUEST_LANGUAGE', payload: {} });
   expect(reportNativeLanguage).toHaveBeenCalledTimes(1);
+});
+
+describe('SET_THEME', () => {
+  const cacheKey = () => SHELL_THEME_CACHE_KEY;
+  beforeEach(() => {
+    localStorage.removeItem(cacheKey());
+    resetShellThemeForTests();
+  });
+
+  it.each([
+    ['dark', 'dark'],
+    ['light', 'light'],
+    ['system', 'light'],
+    ['system', 'dark'],
+  ] as const)('applies the app theme %s resolved to %s and caches it', (theme, resolved) => {
+    const seen = jest.fn();
+    window.addEventListener(THEME_CHANGED, seen);
+    receive({ type: 'SET_THEME', payload: { theme, resolved } });
+    window.removeEventListener(THEME_CHANGED, seen);
+    expect(seen).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(localStorage.getItem(cacheKey()) ?? 'null')).toEqual({ theme, resolved });
+  });
+
+  it('is accepted while the wallet is locked', () => {
+    receive({ type: 'APP_LOCKED', payload: {} });
+    receive({ type: 'SET_THEME', payload: { theme: 'light', resolved: 'light' } });
+    expect(JSON.parse(localStorage.getItem(cacheKey()) ?? 'null')).toEqual({
+      theme: 'light',
+      resolved: 'light',
+    });
+  });
+
+  it('restores the cache when the shell states the theme again after a wipe', () => {
+    receive({ type: 'SET_THEME', payload: { theme: 'system', resolved: 'light' } });
+    localStorage.clear();
+    expect(localStorage.getItem(cacheKey())).toBeNull();
+    receive({ type: 'SET_THEME', payload: { theme: 'system', resolved: 'light' } });
+    expect(JSON.parse(localStorage.getItem(cacheKey()) ?? 'null')).toEqual({
+      theme: 'system',
+      resolved: 'light',
+    });
+  });
+
+  it.each([
+    [{ theme: 'light' }],
+    [{ resolved: 'light' }],
+    [{ theme: 'light', resolved: 'system' }],
+    [{ theme: 'purple', resolved: 'dark' }],
+    [{ theme: 7, resolved: 'dark' }],
+    [{ theme: null, resolved: null }],
+    [{}],
+  ])('ignores the invalid app theme %j', (payload) => {
+    const seen = jest.fn();
+    window.addEventListener(THEME_CHANGED, seen);
+    receive({ type: 'SET_THEME', payload });
+    window.removeEventListener(THEME_CHANGED, seen);
+    expect(seen).not.toHaveBeenCalled();
+    expect(localStorage.getItem(cacheKey())).toBeNull();
+  });
 });
 
 describe('NATIVE_BACK goes where the page Back goes', () => {

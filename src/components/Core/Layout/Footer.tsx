@@ -19,7 +19,7 @@ export const FooterLinks = observer(({ className }: { className?: string }) => {
   // of the network the build starts on.
   const explorer = qrlStore.activeNetwork?.explorer ?? EXPLORER_BASE;
   const linkClass =
-    "text-xs md:text-sm cursor-pointer text-identity-accent/70 hover:text-identity-accent transition-colors";
+    "text-xs md:text-sm cursor-pointer text-identity-accent/70 [:root[data-theme=light]_&]:text-identity-accent hover:text-identity-accent transition-colors";
 
   return (
     <div

@@ -58,12 +58,6 @@ jest.mock("@/desktop/bridge", () => ({
 jest.mock("@/utils/nativeApp", () => ({
   isInNativeApp: () => mockShell === "native",
 }));
-let mockLightTheme = false;
-jest.mock("@/theme/enabled", () => ({
-  get LIGHT_THEME_ENABLED() {
-    return mockLightTheme;
-  },
-}));
 let mockLocationState: unknown = null;
 jest.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
@@ -132,7 +126,6 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   mockShell = "web";
-  mockLightTheme = false;
   mockLocationState = null;
   mockStore.qrlStore.activeAccount.accountAddress = address;
   mockSelectBlockchain.mockResolvedValue(undefined);
@@ -204,14 +197,7 @@ it.each(["web", "native", "desktop"])(
   },
 );
 
-it("hides the Theme row when the build has no light theme", async () => {
-  render(<Settings />);
-  await screen.findByLabelText("Language");
-  expect(screen.queryByLabelText("Theme")).toBeNull();
-});
-
-it("shows the Theme row when the build offers the light theme", async () => {
-  mockLightTheme = true;
+it("shows the Theme row in every build", async () => {
   render(<Settings />);
   expect(await screen.findByLabelText("Theme")).toHaveProperty("value", "dark");
 });
