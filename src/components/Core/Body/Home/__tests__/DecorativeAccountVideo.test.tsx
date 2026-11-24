@@ -259,6 +259,28 @@ it("does not play under reduced motion and responds to preference changes", () =
   expect(play).toHaveBeenCalledTimes(1);
 });
 
+it("does not play in the light theme and follows a theme change", () => {
+  document.documentElement.dataset["theme"] = "light";
+  const { video, media } = mountVideo();
+  expect(play).not.toHaveBeenCalled();
+  expect(media.style.opacity).toBe("0");
+  delete document.documentElement.dataset["theme"];
+  act(() => {
+    window.dispatchEvent(new Event("qrl-wallet:theme-changed"));
+    jest.advanceTimersByTime(0);
+  });
+  expect(play).toHaveBeenCalledTimes(1);
+  paused = false;
+  fireEvent.playing(video);
+  document.documentElement.dataset["theme"] = "light";
+  act(() => {
+    window.dispatchEvent(new Event("qrl-wallet:theme-changed"));
+  });
+  expect(paused).toBe(true);
+  expect(media.style.opacity).toBe("0");
+  delete document.documentElement.dataset["theme"];
+});
+
 it("restores the static fallback on a later pause or media error", () => {
   const { video, media } = mountVideo();
   paused = false;

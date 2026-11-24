@@ -3,14 +3,12 @@ import { IS_EMBEDDED_BUILD } from "@/utils/embeddedRuntime";
 import { isInNativeApp, sendToNative } from "@/utils/nativeApp";
 import {
   SHELL_THEME_CACHE_NAME,
+  THEME_CHANGED,
   SHELL_THEME_GLOBAL,
   parseThemeState,
   type ThemePreference,
   type ThemeState,
 } from "./values";
-
-/** Window event the theme module listens to; also what the Theme row reads. */
-export const THEME_CHANGED = "qrl-wallet:theme-changed";
 
 /**
  * The shell's last state, kept for the next start. A copy of what the shell

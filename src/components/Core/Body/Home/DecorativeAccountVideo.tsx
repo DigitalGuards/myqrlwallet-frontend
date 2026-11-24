@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { THEME_CHANGED } from "@/theme/values";
 import { subscribeToNativeMessages } from "@/utils/nativeApp";
 
 /** Silent decoration with a static fallback when motion or playback is unavailable. */
@@ -21,8 +22,14 @@ export default function DecorativeAccountVideo() {
     let burstActive = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    // The clip is dark and hidden in the light theme, so it does not play.
+    const lightTheme = () => document.documentElement.dataset["theme"] === "light";
     const eligible = () =>
-      !disposed && nativeActive && !document.hidden && !motion.matches;
+      !disposed &&
+      nativeActive &&
+      !document.hidden &&
+      !motion.matches &&
+      !lightTheme();
     const clearTimers = () => {
       clearTimeout(retryTimer);
       clearTimeout(deadlineTimer);
@@ -114,6 +121,10 @@ export default function DecorativeAccountVideo() {
       if (motion.matches) stop();
       else start();
     };
+    const onTheme = () => {
+      if (lightTheme()) stop();
+      else start();
+    };
     const unsubscribe = subscribeToNativeMessages((message) => {
       if (message.type === "APP_STATE") {
         const state = message.payload?.["state"];
@@ -139,6 +150,7 @@ export default function DecorativeAccountVideo() {
     video.addEventListener("loadeddata", attempt);
     document.addEventListener("visibilitychange", onVisibility);
     motion.addEventListener("change", onMotion);
+    window.addEventListener(THEME_CHANGED, onTheme);
     start();
     return () => {
       disposed = true;
@@ -149,6 +161,7 @@ export default function DecorativeAccountVideo() {
       video.removeEventListener("loadeddata", attempt);
       document.removeEventListener("visibilitychange", onVisibility);
       motion.removeEventListener("change", onMotion);
+      window.removeEventListener(THEME_CHANGED, onTheme);
       unsubscribe();
       stop();
     };

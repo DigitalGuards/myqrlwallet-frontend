@@ -1,12 +1,12 @@
 import { profileStorageKey } from "@/config/runtimeProfile";
 import {
-  THEME_CHANGED,
   activeShellAdapter,
   readShellThemeState,
   reportShellTheme,
 } from "./shell";
 import {
   DEFAULT_THEME,
+  THEME_CHANGED,
   THEME_COLOR,
   THEMES,
   THEME_STORAGE_NAME,

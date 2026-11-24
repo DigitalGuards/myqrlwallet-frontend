@@ -11,6 +11,9 @@ export interface ThemeState {
   resolved: ResolvedTheme;
 }
 
+/** Window event for a change of the theme state inside this document. */
+export const THEME_CHANGED = "qrl-wallet:theme-changed";
+
 /** Storage names; the profile prefix is added where the key is built. */
 export const THEME_STORAGE_NAME = "WALLET_THEME";
 export const SHELL_THEME_CACHE_NAME = "WALLET_SHELL_THEME";

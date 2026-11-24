@@ -6,7 +6,8 @@ import { dappConnectService } from '@/services/dappConnect/DAppConnectService';
 import { walletMutations } from '@/utils/nativeWalletMutation';
 import StorageUtil from '@/utils/storage/storage';
 import { applyNativeLanguage, reportNativeLanguage } from '@/i18n/nativeLanguage';
-import { SHELL_THEME_CACHE_KEY, THEME_CHANGED, resetShellThemeForTests } from '@/theme/shell';
+import { SHELL_THEME_CACHE_KEY, resetShellThemeForTests } from '@/theme/shell';
+import { THEME_CHANGED } from '@/theme/values';
 import {
   recordRoute,
   registerPageBack,

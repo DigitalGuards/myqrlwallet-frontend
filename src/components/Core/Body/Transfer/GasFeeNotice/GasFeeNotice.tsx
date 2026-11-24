@@ -147,7 +147,7 @@ export const GasFeeNotice = ({
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span className="font-medium">{t("transfer:networkFee")}</span>
           {!hasValuesForGasCalculation ? (
-            <span className="text-xs text-muted-foreground/70">
+            <span className="text-xs text-muted-foreground/70 [:root[data-theme=light]_&]:text-muted-foreground">
               {t("transfer:estimateHint")}
             </span>
           ) : gasFee.isLoading ? (
