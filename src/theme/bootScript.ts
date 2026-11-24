@@ -2,8 +2,8 @@ import { THEME_COLOR, type ThemePreference } from "./values";
 
 export interface BootScriptOptions {
   /**
-   * browser: the saved choice, resolved with prefers-color-scheme. This is
-   * also the desktop renderer until its shell adapter is agreed.
+   * browser: the desktop main process's state when `window.qrlWallet.theme`
+   * exists, else the saved choice resolved with prefers-color-scheme.
    * phone: the shell's injected state, else its cached copy, else the
    * default. prefers-color-scheme is never consulted.
    */
@@ -35,10 +35,10 @@ export function buildThemeBootScript(options: BootScriptOptions): string {
     `try{var c=JSON.parse(localStorage.getItem(${j(options.cacheKey)}));` +
     `if(valid(c))r=c.resolved}catch(e){}}` +
     `if(!r)r=${j(options.defaultTheme)}==="light"?"light":"dark";`;
-  const browser = `var p=${j(options.defaultTheme)};` +
+  const browser = `var q=w.qrlWallet;if(q&&valid(q.theme))r=q.theme.resolved;else{var p=${j(options.defaultTheme)};` +
     `try{var v=JSON.parse(localStorage.getItem(${j(options.storageKey)}));` +
     `if(v==="dark"||v==="light"||v==="system")p=v}catch(e){}` +
-    `r=p==="system"?(w.matchMedia&&w.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):p;`;
+    `r=p==="system"?(w.matchMedia&&w.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):p}`;
   return (
     `(function(){try{var w=window,r=null;` +
     `function valid(x){return !!x&&typeof x==="object"&&` +

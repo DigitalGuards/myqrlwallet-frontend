@@ -22,3 +22,10 @@ Phone app (embedded build, or `isInNativeApp()`):
 - `SET_THEME` (shell to wallet) carries `{ theme, resolved }`. Both fields must validate or the message is ignored. The last valid state is cached under `WALLET_SHELL_THEME`, which is a copy of the shell's state and never the user's choice.
 - `THEME_CHANGED` (wallet to shell) carries `{ theme }` when the user uses the wallet's own Theme row.
 - Both messages use the existing bridge envelope and document binding.
+
+Desktop app (the main process leads), all members optional on `window.qrlWallet`:
+
+- `theme`: `{ theme, resolved }`, a plain value present before the first script runs. When it is valid the main process is the source of truth: the wallet applies `resolved`, shows `theme` in the Theme row and does not use its stored choice or `prefers-color-scheme`. Nothing is cached.
+- `setTheme(theme)`: the wallet's Theme row sends the choice, and the row shows it at once.
+- `onThemeChanged(callback)`: the main process pushes `{ theme, resolved }`. The state is validated like `SET_THEME`. The wallet unsubscribes when the theme module stops.
+- Without `theme` the renderer keeps the browser behaviour.

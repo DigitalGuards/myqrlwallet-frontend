@@ -168,3 +168,84 @@ describe("the browser build", () => {
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('"light"');
   });
 });
+
+describe("the desktop shell leads", () => {
+  type Bridge = {
+    theme?: unknown;
+    setTheme?: jest.Mock;
+    onThemeChanged?: jest.Mock;
+  };
+  const install = (bridge: Bridge | undefined) => {
+    Object.defineProperty(window, "qrlWallet", {
+      configurable: true,
+      writable: true,
+      value: bridge,
+    });
+  };
+  beforeEach(() => {
+    mockEmbedded = false;
+  });
+  afterEach(() => {
+    install(undefined);
+  });
+
+  it("applies the main process state and ignores the stored choice and the system", () => {
+    install({ theme: { theme: "system", resolved: "light" } });
+    localStorage.setItem(THEME_STORAGE_KEY, '"dark"');
+    applyTheme();
+    expect(root.dataset["theme"]).toBe("light");
+    expect(currentThemeState()).toEqual({ theme: "system", resolved: "light" });
+    expect(matchMedia).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ theme: "light" }],
+    [{ theme: "light", resolved: "x" }],
+    ["light"],
+    [undefined],
+  ])("keeps browser behaviour for an invalid or missing state %j", (theme) => {
+    install({ theme });
+    expect(currentThemeState()).toEqual({ theme: "dark", resolved: "dark" });
+  });
+
+  it("keeps browser behaviour when the shell has no theme members", () => {
+    install({});
+    expect(currentThemeState()).toEqual({ theme: "dark", resolved: "dark" });
+  });
+
+  it("sends the choice through setTheme and shows it at once", () => {
+    const setTheme = jest.fn().mockResolvedValue(undefined);
+    install({ theme: { theme: "dark", resolved: "dark" }, setTheme });
+    saveThemePreference("light");
+    expect(setTheme).toHaveBeenCalledWith("light");
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
+    expect(currentThemeState()).toEqual({ theme: "light", resolved: "light" });
+  });
+
+  it("survives a rejecting setTheme", async () => {
+    const setTheme = jest.fn().mockRejectedValue(new Error("denied"));
+    install({ theme: { theme: "dark", resolved: "dark" }, setTheme });
+    expect(() => {
+      saveThemePreference("light");
+    }).not.toThrow();
+    await Promise.resolve();
+  });
+
+  it("follows onThemeChanged pushes, validates them, caches nothing and unsubscribes", () => {
+    let push: (state: unknown) => void = () => undefined;
+    const unsubscribe = jest.fn();
+    const onThemeChanged = jest.fn((callback: (state: unknown) => void) => {
+      push = callback;
+      return unsubscribe;
+    });
+    install({ theme: { theme: "dark", resolved: "dark" }, onThemeChanged });
+    const stop = initTheme();
+    push({ theme: "system", resolved: "light" });
+    expect(root.dataset["theme"]).toBe("light");
+    push({ theme: "system" });
+    expect(root.dataset["theme"]).toBe("light");
+    expect(localStorage.getItem(SHELL_THEME_CACHE_KEY)).toBeNull();
+    stop();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+});

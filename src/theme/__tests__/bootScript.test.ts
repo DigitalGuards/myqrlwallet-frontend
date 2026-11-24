@@ -108,6 +108,40 @@ describe("phone mode matches the shell adapter", () => {
   }
 });
 
+describe("browser mode with a desktop main process state", () => {
+  const states: unknown[] = [
+    { theme: "light", resolved: "light" },
+    { theme: "system", resolved: "dark" },
+    { theme: "dark", resolved: "light" },
+    { theme: "light" },
+    { theme: "x", resolved: "light" },
+    "light",
+  ];
+  afterEach(() => {
+    Object.defineProperty(window, "qrlWallet", {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+  });
+  for (const theme of states) {
+    for (const stored of [undefined, '"light"', '"dark"']) {
+      it(`state ${JSON.stringify(theme)} stored ${String(stored)}`, () => {
+        mockEmbedded = false;
+        systemLight = true;
+        Object.defineProperty(window, "qrlWallet", {
+          configurable: true,
+          writable: true,
+          value: { theme },
+        });
+        if (stored !== undefined) localStorage.setItem(THEME_STORAGE_KEY, stored);
+        const resolved = currentThemeState().resolved;
+        expect(runBoot("browser")).toBe(resolved === "light" ? "light" : undefined);
+      });
+    }
+  }
+});
+
 it("leaves the page dark when storage throws", () => {
   const get = jest.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
     throw new Error("blocked");

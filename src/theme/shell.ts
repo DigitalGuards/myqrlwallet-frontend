@@ -1,5 +1,6 @@
 import { profileStorageKey } from "@/config/runtimeProfile";
 import { IS_EMBEDDED_BUILD } from "@/utils/embeddedRuntime";
+import { logger } from "@/utils/log";
 import { isInNativeApp, sendToNative } from "@/utils/nativeApp";
 import {
   SHELL_THEME_CACHE_NAME,
@@ -27,9 +28,17 @@ export interface ShellThemeAdapter {
   initial(): ThemeState | null;
   /** The user picked a theme in the wallet's own Theme row. */
   report(theme: ThemePreference): void;
+  /** Whether a state from this shell is kept for the next start. */
+  readonly cache: boolean;
+  /**
+   * Listen for the shell stating a new theme outside the message path (a
+   * push from the desktop main process). Returns the unsubscribe.
+   */
+  subscribe?(onState: (state: unknown) => void): () => void;
 }
 
 const phoneAdapter: ShellThemeAdapter = {
+  cache: true,
   initial() {
     try {
       const injected = parseThemeState(
@@ -51,9 +60,41 @@ const phoneAdapter: ShellThemeAdapter = {
   },
 };
 
+/**
+ * The desktop shell: its main process stores the choice and states it as
+ * `window.qrlWallet.theme`, takes the wallet's choice through `setTheme` and
+ * pushes changes through `onThemeChanged`. All three are optional, so an older
+ * shell keeps browser behaviour. The main process is the source of truth, so
+ * nothing is cached here.
+ */
+const desktopAdapter: ShellThemeAdapter = {
+  cache: false,
+  initial() {
+    return parseThemeState(window.qrlWallet?.theme);
+  },
+  report(theme) {
+    try {
+      const sent = window.qrlWallet?.setTheme?.(theme);
+      void Promise.resolve(sent).catch((error: unknown) => {
+        logger.error("Could not send the theme to the shell:", error);
+      });
+    } catch (error) {
+      logger.error("Could not send the theme to the shell:", error);
+    }
+  },
+  subscribe(onState) {
+    try {
+      return window.qrlWallet?.onThemeChanged?.(onState) ?? (() => undefined);
+    } catch {
+      return () => undefined;
+    }
+  },
+};
+
 /** The adapter for the shell this document runs in, or null in a browser. */
 export function activeShellAdapter(): ShellThemeAdapter | null {
-  return IS_EMBEDDED_BUILD || isInNativeApp() ? phoneAdapter : null;
+  if (IS_EMBEDDED_BUILD || isInNativeApp()) return phoneAdapter;
+  return desktopAdapter.initial() ? desktopAdapter : null;
 }
 
 let shellState: ThemeState | null = null;
@@ -73,10 +114,12 @@ export function applyShellTheme(value: unknown): boolean {
   const state = parseThemeState(value);
   if (!state) return false;
   shellState = state;
-  try {
-    localStorage.setItem(SHELL_THEME_CACHE_KEY, JSON.stringify(state));
-  } catch {
-    // The state still applies for this document.
+  if (activeShellAdapter()?.cache !== false) {
+    try {
+      localStorage.setItem(SHELL_THEME_CACHE_KEY, JSON.stringify(state));
+    } catch {
+      // The state still applies for this document.
+    }
   }
   window.dispatchEvent(new Event(THEME_CHANGED));
   return true;

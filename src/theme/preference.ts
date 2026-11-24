@@ -1,6 +1,7 @@
 import { profileStorageKey } from "@/config/runtimeProfile";
 import {
   activeShellAdapter,
+  applyShellTheme,
   readShellThemeState,
   reportShellTheme,
 } from "./shell";
@@ -136,7 +137,9 @@ export function initTheme(): () => void {
   media?.addEventListener("change", onSystemChange);
   window.addEventListener(THEME_CHANGED, applyTheme);
   window.addEventListener("storage", onStorage);
+  const unsubscribe = activeShellAdapter()?.subscribe?.(applyShellTheme);
   return () => {
+    unsubscribe?.();
     media?.removeEventListener("change", onSystemChange);
     window.removeEventListener(THEME_CHANGED, applyTheme);
     window.removeEventListener("storage", onStorage);
