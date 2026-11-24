@@ -23,10 +23,10 @@ afterEach(() => {
   cleanup();
 });
 
-it("renders a labelled select with the three choices, dark by default", () => {
+it("renders a labelled select with the three choices, System by default", () => {
   render(<ThemeSettings />);
   const select = screen.getByLabelText("Theme");
-  expect(select).toHaveProperty("value", "dark");
+  expect(select).toHaveProperty("value", "system");
   expect(select.getAttribute("aria-describedby")).toBe("wallet-theme-hint");
   expect(
     screen.getAllByRole("option").map((option) => option.textContent),
@@ -47,14 +47,14 @@ it("saves the choice and applies it", () => {
 });
 
 it("starts on the saved choice", () => {
-  localStorage.setItem(THEME_STORAGE_KEY, '"system"');
+  localStorage.setItem(THEME_STORAGE_KEY, '"light"');
   render(<ThemeSettings />);
-  expect(screen.getByLabelText("Theme")).toHaveProperty("value", "system");
+  expect(screen.getByLabelText("Theme")).toHaveProperty("value", "light");
 });
 
 it("follows a change made in another tab", () => {
   render(<ThemeSettings />);
-  expect(screen.getByLabelText("Theme")).toHaveProperty("value", "dark");
+  expect(screen.getByLabelText("Theme")).toHaveProperty("value", "system");
   act(() => {
     localStorage.setItem(THEME_STORAGE_KEY, '"light"');
     window.dispatchEvent(

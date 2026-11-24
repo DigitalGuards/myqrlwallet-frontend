@@ -34,6 +34,7 @@ export async function relayErrorProbes({ origin, language, output }) {
       "malformed-join",
     ]) {
       const context = await browser.newContext({
+        colorScheme: "dark",
         viewport: { width: 1280, height: 800 },
       });
       try {

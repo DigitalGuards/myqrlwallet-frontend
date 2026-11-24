@@ -104,7 +104,7 @@ describe("the phone shell leads", () => {
     expect(root.dataset["theme"]).toBe("light");
   });
 
-  it("uses the default when the global and the cache are missing or invalid", () => {
+  it("shows a fixed dark state when the global and the cache are missing or invalid, whatever the system says", () => {
     expect(currentThemeState()).toEqual({ theme: "dark", resolved: "dark" });
     localStorage.setItem(SHELL_THEME_CACHE_KEY, "not json");
     expect(currentThemeState()).toEqual({ theme: "dark", resolved: "dark" });
@@ -171,15 +171,15 @@ describe("the browser build", () => {
       SHELL_THEME_CACHE_KEY,
       JSON.stringify({ theme: "light", resolved: "light" }),
     );
-    expect(readThemePreference()).toBe("dark");
-    expect(currentThemeState()).toEqual({ theme: "dark", resolved: "dark" });
+    expect(readThemePreference()).toBe("system");
+    expect(currentThemeState()).toEqual({ theme: "system", resolved: "light" });
     applyTheme();
-    expect(root.dataset["theme"]).toBeUndefined();
+    expect(root.dataset["theme"]).toBe("light");
   });
 
   it("ignores the injected global and answers SET_THEME with a cache only", () => {
-    injected({ theme: "light", resolved: "light" });
-    expect(currentThemeState().resolved).toBe("dark");
+    injected({ theme: "light", resolved: "dark" });
+    expect(currentThemeState()).toEqual({ theme: "system", resolved: "light" });
   });
 
   it("writes no shell cache for a state stated without a shell", () => {
@@ -230,12 +230,12 @@ describe("the desktop shell leads", () => {
     [undefined],
   ])("keeps browser behaviour for an invalid or missing state %j", (theme) => {
     install({ theme });
-    expect(currentThemeState()).toEqual({ theme: "dark", resolved: "dark" });
+    expect(currentThemeState()).toEqual({ theme: "system", resolved: "light" });
   });
 
   it("keeps browser behaviour when the shell has no theme members", () => {
     install({});
-    expect(currentThemeState()).toEqual({ theme: "dark", resolved: "dark" });
+    expect(currentThemeState()).toEqual({ theme: "system", resolved: "light" });
   });
 
   it("sends the choice through setTheme and shows it at once", () => {

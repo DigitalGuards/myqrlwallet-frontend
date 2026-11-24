@@ -109,6 +109,7 @@ try {
     await mkdtemp(join(tmpdir(), "approval-browser-")),
     {
       channel: "chromium",
+      colorScheme: "dark",
       headless: true,
       args: [
         `--disable-extensions-except=${extension}`,

@@ -30,6 +30,7 @@ try {
   await assertLanguageGlyphs(browser, languages);
   for (const language of languages) {
     const context = await browser.newContext({
+      colorScheme: "dark",
       viewport: { width: 360, height: 800 },
       offline: true,
     });

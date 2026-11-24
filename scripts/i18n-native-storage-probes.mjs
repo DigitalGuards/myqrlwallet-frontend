@@ -33,6 +33,7 @@ export async function nativeStorageScreens({
     for (const flow of ["create", "import"]) {
       const path = flow === "create" ? "/create-account" : "/import-account";
       const context = await browser.newContext({
+        colorScheme: "dark",
         viewport: { width: 360, height: 800 },
         userAgent: "MyQRLWallet language test",
         offline: true,
