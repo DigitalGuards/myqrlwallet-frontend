@@ -308,6 +308,26 @@ describe('SET_THEME', () => {
     expect(JSON.parse(localStorage.getItem(cacheKey()) ?? 'null')).toEqual({ theme, resolved });
   });
 
+  it('is accepted while the wallet is locked', () => {
+    receive({ type: 'APP_LOCKED', payload: {} });
+    receive({ type: 'SET_THEME', payload: { theme: 'light', resolved: 'light' } });
+    expect(JSON.parse(localStorage.getItem(cacheKey()) ?? 'null')).toEqual({
+      theme: 'light',
+      resolved: 'light',
+    });
+  });
+
+  it('restores the cache when the shell states the theme again after a wipe', () => {
+    receive({ type: 'SET_THEME', payload: { theme: 'system', resolved: 'light' } });
+    localStorage.clear();
+    expect(localStorage.getItem(cacheKey())).toBeNull();
+    receive({ type: 'SET_THEME', payload: { theme: 'system', resolved: 'light' } });
+    expect(JSON.parse(localStorage.getItem(cacheKey()) ?? 'null')).toEqual({
+      theme: 'system',
+      resolved: 'light',
+    });
+  });
+
   it.each([
     [{ theme: 'light' }],
     [{ resolved: 'light' }],
