@@ -100,11 +100,17 @@ it.each(languages)(
     expect(screen.queryByRole("alert")).toBeNull();
 
     const next = code === "en" ? "de" : "en";
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: next } });
+    fireEvent.change(screen.getByLabelText(t("language")), {
+      target: { value: next },
+    });
+    const tNext = i18n.getFixedT(next, ["settings", "common"]);
     await waitFor(() => {
       expect(setLanguage).toHaveBeenLastCalledWith(next);
     });
-    expect(screen.getByRole("combobox")).toHaveProperty("value", next);
+    expect(await screen.findByLabelText(tNext("language"))).toHaveProperty(
+      "value",
+      next,
+    );
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe(
       JSON.stringify(next),
     );
