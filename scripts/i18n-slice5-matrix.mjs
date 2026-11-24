@@ -36,6 +36,7 @@ export async function slice5Matrix(
     );
     catalogs.code = language;
     const context = await browser.newContext({
+      colorScheme: "dark",
       viewport: { width: 360, height: 800 },
       locale: "en-US",
       reducedMotion: "reduce",

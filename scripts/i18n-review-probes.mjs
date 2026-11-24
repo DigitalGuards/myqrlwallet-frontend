@@ -4,7 +4,7 @@ import { setTimeout as delay } from "node:timers/promises";
 /** Production-build regressions for the first language-support review. */
 export async function reviewProbes(browser, origin) {
   async function visit(language, mode = "normal", key = "WALLET_SETTINGS") {
-    const context = await browser.newContext({ locale: "de-DE" });
+    const context = await browser.newContext({ locale: "de-DE", colorScheme: "dark" });
     await context.addInitScript(
       ({ language, key }) => {
         for (const prefix of ["", "qrlwallet:v3:"]) {

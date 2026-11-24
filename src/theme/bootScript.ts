@@ -1,11 +1,11 @@
-import { THEME_COLOR, type ThemePreference } from "./values";
+import { THEME_COLOR, type ResolvedTheme, type ThemePreference } from "./values";
 
 export interface BootScriptOptions {
   /**
    * browser: the desktop main process's state when `window.qrlWallet.theme`
    * exists, else the saved choice resolved with prefers-color-scheme.
    * phone: the shell's injected state, else its cached copy, else the
-   * default. prefers-color-scheme is never consulted.
+   * fallback. prefers-color-scheme is never consulted.
    */
   mode: "browser" | "phone";
   /** Storage key of the user's saved choice (THEME_STORAGE_KEY). */
@@ -14,6 +14,8 @@ export interface BootScriptOptions {
   cacheKey: string;
   /** DEFAULT_THEME. */
   defaultTheme: ThemePreference;
+  /** SHELL_FALLBACK_RESOLVED: the phone result when the shell stated nothing. */
+  shellFallback: ResolvedTheme;
   /** Name of the global the phone shell injects. */
   shellGlobal: string;
 }
@@ -34,7 +36,7 @@ export function buildThemeBootScript(options: BootScriptOptions): string {
     `if(valid(s)){r=s.resolved}else{` +
     `try{var c=JSON.parse(localStorage.getItem(${j(options.cacheKey)}));` +
     `if(valid(c))r=c.resolved}catch(e){}}` +
-    `if(!r)r=${j(options.defaultTheme)}==="light"?"light":"dark";`;
+    `if(!r)r=${j(options.shellFallback)};`;
   const browser = `var q=w.qrlWallet;if(q&&valid(q.theme))r=q.theme.resolved;else{var p=${j(options.defaultTheme)};` +
     `try{var v=JSON.parse(localStorage.getItem(${j(options.storageKey)}));` +
     `if(v==="dark"||v==="light"||v==="system")p=v}catch(e){}` +

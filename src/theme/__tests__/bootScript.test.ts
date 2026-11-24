@@ -3,6 +3,7 @@ import { buildThemeBootScript, type BootScriptOptions } from "../bootScript";
 import { currentThemeState, THEME_STORAGE_KEY } from "../preference";
 import {
   DEFAULT_THEME,
+  SHELL_FALLBACK_RESOLVED,
   SHELL_THEME_CACHE_NAME,
   SHELL_THEME_GLOBAL,
   THEME_COLOR,
@@ -26,6 +27,7 @@ const options = (mode: "browser" | "phone"): BootScriptOptions => ({
   storageKey: THEME_STORAGE_KEY,
   cacheKey: SHELL_THEME_CACHE_KEY,
   defaultTheme: DEFAULT_THEME,
+  shellFallback: SHELL_FALLBACK_RESOLVED,
   shellGlobal: SHELL_THEME_GLOBAL,
 });
 
@@ -142,11 +144,37 @@ describe("browser mode with a desktop main process state", () => {
   }
 });
 
-it("leaves the page dark when storage throws", () => {
+it("leaves the page dark when storage throws and the system is dark", () => {
+  systemLight = false;
   const get = jest.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
     throw new Error("blocked");
   });
   expect(runBoot("browser")).toBeUndefined();
   expect(runBoot("phone")).toBeUndefined();
   get.mockRestore();
+});
+
+it("follows the system from the first frame when nothing is stored", () => {
+  mockEmbedded = false;
+  expect(DEFAULT_THEME).toBe("system");
+  systemLight = true;
+  expect(runBoot("browser")).toBe("light");
+  expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe(THEME_COLOR.light);
+  systemLight = false;
+  expect(runBoot("browser")).toBeUndefined();
+  expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe(THEME_COLOR.dark);
+  expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
+});
+
+it("phone mode shows dark when the shell stated nothing, whatever the system says", () => {
+  mockEmbedded = true;
+  systemLight = true;
+  expect(runBoot("phone")).toBeUndefined();
+  expect(
+    document.querySelector('meta[name="theme-color"]')?.getAttribute("content"),
+  ).toBe(THEME_COLOR.dark);
+  expect(currentThemeState()).toEqual({
+    theme: SHELL_FALLBACK_RESOLVED,
+    resolved: SHELL_FALLBACK_RESOLVED,
+  });
 });

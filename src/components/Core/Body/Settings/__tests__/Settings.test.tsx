@@ -199,7 +199,7 @@ it.each(["web", "native", "desktop"])(
 
 it("shows the Theme row in every build", async () => {
   render(<Settings />);
-  expect(await screen.findByLabelText("Theme")).toHaveProperty("value", "dark");
+  expect(await screen.findByLabelText("Theme")).toHaveProperty("value", "system");
 });
 
 const categoryNames = () =>

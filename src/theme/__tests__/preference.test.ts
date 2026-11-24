@@ -1,10 +1,12 @@
 /** @jest-environment jsdom */
 import {
+  DEFAULT_THEME,
   THEME_COLOR,
   THEME_CHANGED,
   THEME_STORAGE_KEY,
   applyTheme,
   applyThemeState,
+  currentThemeState,
   type ResolvedTheme,
   type ThemePreference,
   initTheme,
@@ -53,8 +55,32 @@ beforeEach(() => {
 });
 
 describe("theme preference", () => {
-  it("defaults to dark when nothing is saved", () => {
-    expect(readThemePreference()).toBe("dark");
+  it("defaults to system when nothing is saved and writes nothing", () => {
+    expect(readThemePreference()).toBe("system");
+    expect(currentThemeState().theme).toBe("system");
+    expect(localStorage.length).toBe(0);
+  });
+
+  it("a user who never chose follows the system, live", () => {
+    const stop = initTheme();
+    systemLight = true;
+    mediaListeners.forEach((listener) => {
+      listener();
+    });
+    expect(root.dataset["theme"]).toBe("light");
+    systemLight = false;
+    mediaListeners.forEach((listener) => {
+      listener();
+    });
+    expect(root.dataset["theme"]).toBeUndefined();
+    expect(localStorage.length).toBe(0);
+    stop();
+  });
+
+  it("a stored choice wins over the system", () => {
+    systemLight = true;
+    saveThemePreference("dark");
+    expect(currentThemeState()).toEqual({ theme: "dark", resolved: "dark" });
   });
 
   it("saves and reads each choice", () => {
@@ -68,10 +94,10 @@ describe("theme preference", () => {
   });
 
   it.each(["not json", '"purple"', "42", "null", '{"theme":"light"}'])(
-    "falls back to dark for the stored value %s",
+    "falls back to the default for the stored value %s",
     (stored) => {
       localStorage.setItem(THEME_STORAGE_KEY, stored);
-      expect(readThemePreference()).toBe("dark");
+      expect(readThemePreference()).toBe(DEFAULT_THEME);
     },
   );
 
