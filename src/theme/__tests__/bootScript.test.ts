@@ -43,7 +43,7 @@ function runBoot(mode: "browser" | "phone"): string | undefined {
 beforeEach(() => {
   localStorage.clear();
   resetShellThemeForTests();
-  delete (window as unknown as Record<string, unknown>)[SHELL_THEME_GLOBAL];
+  Reflect.deleteProperty(window, SHELL_THEME_GLOBAL);
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     writable: true,

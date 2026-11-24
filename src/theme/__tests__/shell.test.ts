@@ -7,10 +7,10 @@ jest.mock("@/utils/embeddedRuntime", () => ({
     return mockEmbedded;
   },
 }));
-const mockSend = jest.fn();
+const mockSend = jest.fn((..._args: unknown[]): boolean => true);
 jest.mock("@/utils/nativeApp", () => ({
   isInNativeApp: () => false,
-  sendToNative: (...args: unknown[]) => mockSend(...args),
+  sendToNative: (...args: unknown[]): boolean => mockSend(...args),
 }));
 
 import {
@@ -34,7 +34,7 @@ beforeEach(() => {
   mockEmbedded = true;
   mockSend.mockReset();
   localStorage.clear();
-  delete (window as unknown as Record<string, unknown>)["__QRL_SHELL_THEME__"];
+  Reflect.deleteProperty(window, "__QRL_SHELL_THEME__");
   delete root.dataset["theme"];
   resetShellThemeForTests();
   resetThemeChoiceForTests();
@@ -73,7 +73,7 @@ describe("the phone shell leads", () => {
     expect(root.dataset["theme"]).toBeUndefined();
     stop();
     resetShellThemeForTests();
-    delete (window as unknown as Record<string, unknown>)["__QRL_SHELL_THEME__"];
+    Reflect.deleteProperty(window, "__QRL_SHELL_THEME__");
     applyTheme();
     expect(matchMedia).not.toHaveBeenCalled();
   });
