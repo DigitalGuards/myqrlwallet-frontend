@@ -152,6 +152,16 @@ export interface QrlWalletBridge {
   /** Resolved renderer language: en, de, es, ru or zh-CN. Called once after
    * startup resolution and on each change. Older shells may omit this method. */
   setLanguage?(language: import("@/i18n/languages").Language): void | Promise<void>;
+  /**
+   * The main process's theme choice and what it resolved to. A plain value
+   * present before the first script runs; absent on shells that predate it.
+   * When present the main process is the source of truth for the theme.
+   */
+  readonly theme?: unknown;
+  /** Renderer to main: the user picked a theme in the Theme row. */
+  setTheme?(theme: import("@/theme/values").ThemePreference): void | Promise<void>;
+  /** Main to renderer: the choice changed elsewhere, or the OS flipped. */
+  onThemeChanged?(callback: (state: unknown) => void): () => void;
   readonly addressScheme?: "qip55-64";
   /** Optional-field capability flags; absent on shells that predate them. */
   readonly features?: QrlWalletFeatures;

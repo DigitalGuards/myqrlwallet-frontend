@@ -1,5 +1,6 @@
 import type { BlockchainSelection } from "@/utils/storage/storage";
 import { isRecord } from "@/utils/guards";
+import { storageKeyForProfile } from "./storageKey";
 import {
   canonicalChainId,
   MAINNET_V3_ID,
@@ -83,7 +84,7 @@ export function isQualifiedV3NativeContext(): boolean {
 }
 
 export const profileStorageKey = (key: string): string =>
-  IS_V3_PROFILE ? `qrlwallet:v3:${key}` : key;
+  storageKeyForProfile(IS_V3_PROFILE, key);
 
 export function historyNetwork(
   blockchain: BlockchainSelection,

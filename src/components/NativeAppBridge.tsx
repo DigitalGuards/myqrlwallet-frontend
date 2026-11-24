@@ -33,6 +33,7 @@ import {
 import { resolveNativeBack } from "@/utils/nativeBack";
 import { isLanguage } from "@/i18n/languages";
 import { applyNativeLanguage, reportNativeLanguage } from "@/i18n/nativeLanguage";
+import { applyShellTheme, clearShellThemeCache } from "@/theme/shell";
 import {
   DAppConnectService,
   dappConnectService,
@@ -615,6 +616,16 @@ const NativeAppBridge: React.FC = () => {
           reportNativeLanguage();
           break;
 
+        case "SET_THEME": {
+          // The app leads the theme: it states the choice and what it resolved
+          // to, and the wallet applies the resolved value as given. Both
+          // fields must validate or the message is ignored.
+          if (!applyShellTheme(payload)) {
+            logWarning("[Bridge] SET_THEME has an unsupported theme");
+          }
+          break;
+        }
+
         case "RESTORE_CONTACTS": {
           // Native pushes its address-book backup on boot; merge it in
           // (union by address, local wins) so contacts survive WebView
@@ -795,6 +806,9 @@ const NativeAppBridge: React.FC = () => {
               StorageUtil.clearAllNftData();
               clearAddressBook();
               transactionHistoryStore.clear();
+              // The wallet's copy of the shell theme goes with the wipe; the
+              // shell states it again afterwards.
+              clearShellThemeCache();
             };
 
             // A restore may already be inside qrlStore.setActiveAccount when the

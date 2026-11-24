@@ -482,8 +482,8 @@
      is the block's blue, so a focus ring has no dark band. Anything placed
      inside the block (text, buttons, badges, success ticks, errors) reads
      from here. Add a token or palette shade when a component starts using
-     one. The card and popover colors stay dark: popovers drawn inside the
-     block are a known follow-up. */
+     one. The card and popover colors stay dark. Tooltips are portaled out of
+     the block, and the QR card that opens over it has its own rule below. */
   :root[data-theme="light"] .surface-ember {
     --background: 209 83% 26%;
     --foreground: 210 30% 96%;
@@ -585,6 +585,18 @@
   :root[data-theme="light"] .decorative-video {
     visibility: hidden;
   }
+}
+
+/* The QR card that opens over the balance block on hover is a white card
+   with ink text, like every other popover in the light theme. Unlayered, so
+   it outranks the bg-card and text utilities on the element. */
+:root[data-theme="light"] .surface-ember .qr-hover-card {
+  background-color: #ffffff;
+  border-color: hsl(220 16% 86%);
+  color: hsl(222 47% 10%);
+}
+:root[data-theme="light"] .surface-ember .qr-hover-card * {
+  color: hsl(220 14% 34%);
 }
 
 :root[data-theme="light"] body {

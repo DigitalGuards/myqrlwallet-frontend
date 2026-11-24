@@ -1,9 +1,8 @@
 /** @jest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ThemeSettings } from "../ThemeSettings";
 import { initTheme, THEME_STORAGE_KEY } from "@/theme/preference";
 
-jest.mock("@/theme/enabled", () => ({ LIGHT_THEME_ENABLED: true }));
 jest.mock("@/utils", () =>
   jest.requireActual<typeof import("@/utils/cn")>("@/utils/cn"),
 );
@@ -51,4 +50,17 @@ it("starts on the saved choice", () => {
   localStorage.setItem(THEME_STORAGE_KEY, '"system"');
   render(<ThemeSettings />);
   expect(screen.getByLabelText("Theme")).toHaveProperty("value", "system");
+});
+
+it("follows a change made in another tab", () => {
+  render(<ThemeSettings />);
+  expect(screen.getByLabelText("Theme")).toHaveProperty("value", "dark");
+  act(() => {
+    localStorage.setItem(THEME_STORAGE_KEY, '"light"');
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: THEME_STORAGE_KEY }),
+    );
+  });
+  expect(screen.getByLabelText("Theme")).toHaveProperty("value", "light");
+  expect(document.documentElement.dataset["theme"]).toBe("light");
 });
