@@ -189,6 +189,21 @@ describe("initTheme", () => {
     stop();
   });
 
+  it("announces a system change to the pages that follow the theme", () => {
+    localStorage.setItem(THEME_STORAGE_KEY, '"system"');
+    const stop = initTheme();
+    const seen = jest.fn();
+    window.addEventListener(THEME_CHANGED, seen);
+    systemLight = true;
+    mediaListeners.forEach((listener) => {
+      listener();
+    });
+    window.removeEventListener(THEME_CHANGED, seen);
+    expect(seen).toHaveBeenCalledTimes(1);
+    expect(root.dataset["theme"]).toBe("light");
+    stop();
+  });
+
   it("ignores system changes under an explicit choice", () => {
     localStorage.setItem(THEME_STORAGE_KEY, '"dark"');
     const stop = initTheme();

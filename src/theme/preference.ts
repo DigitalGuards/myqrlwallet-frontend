@@ -128,11 +128,16 @@ function onStorage(event: StorageEvent): void {
 export function initTheme(): () => void {
   applyTheme();
   const media = activeShellAdapter() ? null : systemMedia();
-  media?.addEventListener("change", applyTheme);
+  // A system flip goes through the same event as every other change, so the
+  // pages that react to the theme (the Theme row, the background video) hear it.
+  const onSystemChange = () => {
+    window.dispatchEvent(new Event(THEME_CHANGED));
+  };
+  media?.addEventListener("change", onSystemChange);
   window.addEventListener(THEME_CHANGED, applyTheme);
   window.addEventListener("storage", onStorage);
   return () => {
-    media?.removeEventListener("change", applyTheme);
+    media?.removeEventListener("change", onSystemChange);
     window.removeEventListener(THEME_CHANGED, applyTheme);
     window.removeEventListener("storage", onStorage);
   };
