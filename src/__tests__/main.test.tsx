@@ -27,7 +27,10 @@ jest.mock("@/services/dappConnect/fragmentCapture", () => ({
 }));
 jest.mock("@/utils/embeddedShell", () => ({ installEmbeddedShell: jest.fn() }));
 jest.mock("@/utils/embeddedMigrationBoot", () => ({}));
-jest.mock("@/utils/nativeApp", () => ({ isRetiredNativeApp: () => false }));
+jest.mock("@/utils/nativeApp", () => ({
+  isRetiredNativeApp: () => false,
+  isInNativeApp: () => false,
+}));
 jest.mock("@/utils/embeddedRuntime", () => ({ HAS_NATIVE_BRIDGE: false }));
 jest.mock("@/components/RetiredAppNotice", () => ({
   __esModule: true,

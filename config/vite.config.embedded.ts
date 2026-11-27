@@ -40,7 +40,7 @@ import path from 'path'
 import fs from 'fs'
 import { createHash } from 'crypto'
 import { execFileSync } from 'child_process'
-import baseConfigFactory from './vite.config'
+import baseConfigFactory, { THEME_BOOT_PLUGIN, themeBootSource } from './vite.config'
 import {
   EMBEDDED_RELAY_URLS,
   buildEmbeddedCsp,
@@ -262,6 +262,12 @@ const inlinePublicAssetLiterals = (): Plugin => {
  * can still be pointed somewhere else deliberately; `assertEmbeddedProfile`
  * then decides whether the result is shippable.
  */
+// Variables that once configured a build and no longer do anything. A copy
+// left in someone's shell or .env is ignored, and every other unknown VITE_
+// variable still fails the build. VITE_ENABLE_LIGHT_THEME: the light theme is
+// offered in every build since the flag was removed.
+const RETIRED_ENV_KEYS: ReadonlySet<string> = new Set(['VITE_ENABLE_LIGHT_THEME'])
+
 const applyEmbeddedProfileEnv = (): void => {
   // A VITE_ variable already in the environment is a mismatch, not an
   // override. The document is shipped inside the app, so "build it against
@@ -273,6 +279,7 @@ const applyEmbeddedProfileEnv = (): void => {
     const expected = EMBEDDED_PROFILE_ENV[key]
     const actual = process.env[key]
     if (actual === undefined || actual === '') continue
+    if (RETIRED_ENV_KEYS.has(key)) continue
     if (expected === undefined) {
       conflicts.push(`${key} is set but is not part of the embedded profile`)
     } else if (actual !== expected) {
@@ -337,7 +344,7 @@ const resolveEmbeddedDeployment = (mode: string) => {
     connectUrls: [
       env['VITE_RPC_URL_PRODUCTION'] || 'https://qrlwallet.com/api/qrl-rpc',
       env['VITE_SERVER_URL_PRODUCTION'] || 'https://qrlwallet.com/api',
-      env['VITE_EXPLORER_URL_PRODUCTION'] || 'https://zondscan.com',
+      env['VITE_EXPLORER_URL_PRODUCTION'] || 'https://shorscan.com',
     ],
   }
 }
@@ -401,10 +408,22 @@ const rewriteEmbeddedHtml = (): Plugin => ({
         stripped,
         `    ${embeddedMeta}\n    <script>${EMBEDDED_FLAG_SCRIPT}</script>\n`
       )
+      // Sets the theme attribute and the theme-color meta before the first
+      // frame. It goes right after that meta, because it looks the meta up. The
+      // shell injects the state it leads with ahead of this document; the
+      // policy hash for this script is added with the others in emitSingleFile.
+      const themeColorMeta = /<meta\b[^>]*\bname\s*=\s*["']theme-color["'][^>]*>\n?/i.exec(rewritten)
+      if (!themeColorMeta) {
+        throw new Error('embedded build: index.html has no theme-color meta for the theme boot script')
+      }
+      const at = themeColorMeta.index + themeColorMeta[0].length
+      const withTheme =
+        `${rewritten.slice(0, at)}    <script>${themeBootSource('phone', EMBEDDED_PROFILE_ENV['VITE_WALLET_PROFILE'] === 'v3-private')}</script>\n` +
+        rewritten.slice(at)
       if (!rewritten.includes(embeddedMeta)) {
         throw new Error('embedded build: the Content-Security-Policy meta was not written')
       }
-      return rewritten
+      return withTheme
     },
   },
 })
@@ -698,7 +717,12 @@ export default defineConfig((env) => {
     plugins: [
       inlineWorkerImports(),
       stripDependencyReloads(),
-      ...(base.plugins ?? []),
+      // The hosted document links the theme boot script as a file; this one
+      // has no origin to load from, so rewriteEmbeddedHtml inlines it.
+      ...(base.plugins ?? []).filter(
+        (plugin) =>
+          !(typeof plugin === 'object' && plugin !== null && 'name' in plugin && plugin.name === THEME_BOOT_PLUGIN)
+      ),
       inlinePublicAssetLiterals(),
       rewriteEmbeddedHtml(),
       emitSingleFile(path.join(projectRoot, EMBEDDED_OUT_DIR), connectUrls, profile),

@@ -6,8 +6,7 @@ import { cleanup, render, waitFor } from "@testing-library/react";
 import { HelmetProvider } from "react-helmet-async";
 import { SEO } from "../SEO";
 
-const DEFAULT_TITLE =
-  "MyQRLWallet | Web Wallet for QRL, the Post-Quantum Blockchain";
+const DEFAULT_TITLE = "QRL Web Wallet for QRL 2.0 | MyQRLWallet";
 const TITLE_SELECTORS = [
   'meta[name="title"]',
   'meta[property="og:title"]',

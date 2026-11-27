@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Languages } from "lucide-react";
 import { languages, isLanguage } from "@/i18n/languages";
 import { applyLanguage } from "@/i18n";
 import { saveLanguagePreference } from "@/i18n/preference";
-import { SettingsIconTile } from "./SettingsList";
 
 export function LanguageSettings() {
   const { t, i18n } = useTranslation("settings");
@@ -26,9 +24,8 @@ export function LanguageSettings() {
   };
 
   return (
-    <div className="px-4 py-3">
+    <div className="py-3">
       <div className="flex flex-wrap items-center gap-3">
-        <SettingsIconTile icon={Languages} tint="bg-primary/15 text-primary" />
         <div className="min-w-0 flex-1">
           <label htmlFor="wallet-language" className="text-sm font-medium">
             {t("language")}
@@ -43,7 +40,7 @@ export function LanguageSettings() {
         <select
           id="wallet-language"
           aria-describedby="wallet-language-hint"
-          className="h-10 max-w-full rounded-md border border-input bg-background px-2 text-sm"
+          className="h-9 max-w-full rounded-md border border-input bg-background px-2 text-sm"
           value={i18n.resolvedLanguage ?? "en"}
           disabled={pending}
           onChange={(event) => {

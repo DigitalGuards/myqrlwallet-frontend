@@ -30,6 +30,8 @@ export interface BackContext {
 export interface PageBackConfig {
   /** Where Back goes when no earlier in-app screen was recorded. */
   readonly fallback: string;
+  /** Router location state sent along when Back goes to the fallback. */
+  readonly fallbackState?: unknown;
   /** Holds Back while an action runs or a step must be finished first. */
   readonly disabled?: boolean;
   /**
@@ -156,6 +158,11 @@ export function pageBack(
   if (parent === null) return undefined;
   return {
     fallback: options.fallback ?? parent,
+    // The dApp sessions page lists the same sessions under Settings'
+    // Connections, so its Back opens that category.
+    ...(route === ROUTES.DAPP_SESSIONS && parent === ROUTES.SETTINGS
+      ? { fallbackState: { settingsCategory: "connections" } }
+      : {}),
     disabled: options.disabled === true,
     hidden: options.hidden,
     onBack: options.onBack,

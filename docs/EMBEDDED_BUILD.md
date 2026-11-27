@@ -133,7 +133,7 @@ font-src data:; media-src data: blob:; worker-src blob:;
 object-src 'none'; frame-src 'none'; child-src 'none';
 base-uri 'none'; form-action 'none'; manifest-src 'none';
 img-src data: blob: https:;
-connect-src https://qrlwallet.com https://zondscan.com wss://qrlwallet.com
+connect-src https://qrlwallet.com https://shorscan.com wss://qrlwallet.com
 ```
 
 Notes:

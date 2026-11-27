@@ -286,19 +286,19 @@ describe("approval queue passthrough", () => {
     expect(store.approvalModalOpen).toBe(false);
   });
 
-  it("rejectCurrentRequest with no code leaves the code to the service default (4001)", () => {
+  it("declineCurrentRequest answers with 4001 and the user-rejected message", () => {
     const store = new DAppConnectStore();
     const req = makeRequest();
     store.pendingRequests = [req];
     store.currentApproval = req;
 
-    store.rejectCurrentRequest("User rejected");
+    store.declineCurrentRequest();
 
     expect(mockService.rejectRequest.mock.calls).toContainEqual([
       "session-1",
       1,
-      "User rejected",
-      undefined,
+      "User rejected the request",
+      4001,
     ]);
   });
 

@@ -14,7 +14,7 @@ const samples = {
 
 /** Check real rasterized glyphs before any layout or translation probes run. */
 export async function assertLanguageGlyphs(browser, languages) {
-  const page = await browser.newPage();
+  const page = await browser.newPage({ colorScheme: "dark" });
   try {
     for (const language of languages) {
       assert.ok(

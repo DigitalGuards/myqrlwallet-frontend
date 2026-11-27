@@ -492,7 +492,7 @@ jobs:
           build-args: |
             VITE_RPC_URL_PRODUCTION=${{ vars.VITE_RPC_URL_PRODUCTION || 'https://qrlwallet.com/api/qrl-rpc' }}
             VITE_SERVER_URL_PRODUCTION=${{ vars.VITE_SERVER_URL_PRODUCTION || 'https://qrlwallet.com/api' }}
-            VITE_EXPLORER_URL_PRODUCTION=${{ vars.VITE_EXPLORER_URL_PRODUCTION || 'https://zondscan.com' }}
+            VITE_EXPLORER_URL_PRODUCTION=${{ vars.VITE_EXPLORER_URL_PRODUCTION || 'https://shorscan.com' }}
             VITE_CUSTOMERC20FACTORY_ADDRESS=${{ vars.VITE_CUSTOMERC20FACTORY_ADDRESS }}
             VITE_DEPLOYER=${{ vars.VITE_DEPLOYER }}
             VITE_WALLET_PROFILE=${{ vars.VITE_WALLET_PROFILE }}

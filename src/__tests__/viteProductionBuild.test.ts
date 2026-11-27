@@ -8,12 +8,15 @@ interface BuildResult {
   desktop: boolean;
   base: string;
   sourcemap: boolean;
+  themeBoot: boolean;
   code: string;
 }
 
 interface BuildReport {
   builds: BuildResult[];
   seedErrors: string[];
+  embeddedWithRetiredFlag: string;
+  embeddedWithUnknownVariable: string;
 }
 
 function isBuildResult(value: unknown): value is BuildResult {
@@ -23,6 +26,7 @@ function isBuildResult(value: unknown): value is BuildResult {
     typeof value["desktop"] === "boolean" &&
     typeof value["base"] === "string" &&
     typeof value["sourcemap"] === "boolean" &&
+    typeof value["themeBoot"] === "boolean" &&
     typeof value["code"] === "string"
   );
 }
@@ -32,6 +36,8 @@ function isBuildReport(value: unknown): value is BuildReport {
     isRecord(value) &&
     isArray(value["builds"]) &&
     value["builds"].every(isBuildResult) &&
+    typeof value["embeddedWithRetiredFlag"] === "string" &&
+    typeof value["embeddedWithUnknownVariable"] === "string" &&
     isArray(value["seedErrors"]) &&
     value["seedErrors"].every((error) => typeof error === "string")
   );
@@ -51,7 +57,7 @@ const buildScript = String.raw`
     'debugger;',
     'globalThis.keepEffect("after");',
   ].join('\n');
-  const report = { builds: [], seedErrors: [] };
+  const report = { builds: [], embeddedWithRetiredFlag: '', embeddedWithUnknownVariable: '', seedErrors: [] };
 
   for (const mode of ['production', 'development', 'staging']) {
     for (const desktop of [false, true]) {
@@ -79,9 +85,31 @@ const buildScript = String.raw`
         mode, desktop, code,
         base: resolvedConfig.base,
         sourcemap: resolvedConfig.build.sourcemap,
+        themeBoot: resolvedConfig.plugins.some((plugin) => plugin.name === 'theme-boot-script'),
       });
     }
   }
+
+  // The app-embedded document ignores the retired light theme variable and
+  // still refuses every other VITE_ variable it does not know.
+  delete process.env.VITE_DESKTOP;
+  const loadEmbedded = async () => {
+    try {
+      const embedded = await loadConfigFromFile(
+        { command: 'build', mode: 'production' }, 'config/vite.config.embedded.ts', undefined, 'silent'
+      );
+      const names = (embedded.config.plugins ?? []).flat().map((plugin) => plugin && plugin.name);
+      return 'loaded; theme boot plugin ' + names.includes('theme-boot-script');
+    } catch (error) {
+      return 'error: ' + error.message;
+    }
+  };
+  process.env.VITE_ENABLE_LIGHT_THEME = '1';
+  report.embeddedWithRetiredFlag = await loadEmbedded();
+  delete process.env.VITE_ENABLE_LIGHT_THEME;
+  process.env.VITE_SOMETHING_ELSE = '1';
+  report.embeddedWithUnknownVariable = await loadEmbedded();
+  delete process.env.VITE_SOMETHING_ELSE;
 
   process.env.VITE_SEED = 'public-test-placeholder';
   for (const mode of ['production', 'development', 'staging']) {
@@ -107,7 +135,11 @@ describe("Vite production diagnostic stripping", () => {
         ["--input-type=module", "--eval", buildScript],
         {
           cwd: resolve(__dirname, "../.."),
-          env: { ...process.env, VITE_SEED: "", NODE_ENV: "production" },
+          env: {
+            ...process.env,
+            VITE_SEED: "",
+            NODE_ENV: "production",
+          },
           encoding: "utf8",
           timeout: 60_000,
           maxBuffer: 2 * 1024 * 1024,
@@ -180,6 +212,20 @@ describe("Vite production diagnostic stripping", () => {
       }
     },
   );
+
+  it("links the theme boot script from every web and desktop build", () => {
+    expect(report.builds.every((build) => build.themeBoot)).toBe(true);
+  });
+
+  it("lets the embedded build ignore a leftover light theme variable and inline its own boot script", () => {
+    expect(report.embeddedWithRetiredFlag).toBe("loaded; theme boot plugin false");
+  });
+
+  it("keeps the embedded profile strict about every other variable", () => {
+    expect(report.embeddedWithUnknownVariable).toContain(
+      "VITE_SOMETHING_ELSE is set but is not part of the embedded profile",
+    );
+  });
 
   it("retains the browser-visible seed guard in every mode", () => {
     expect(report.seedErrors).toHaveLength(3);

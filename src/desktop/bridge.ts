@@ -22,6 +22,11 @@
 /** One provisioned desktop wallet (public data only). */
 import { assertV3BrowserContext } from "@/config/runtimeProfile";
 import { logWarning } from "@/utils/log";
+import {
+  INTERNAL_ERROR_CODE,
+  USER_REJECTED_CODE,
+  USER_REJECTED_MESSAGE,
+} from "@/services/dappConnect/types";
 
 export interface DesktopWalletInfo {
   address: string;
@@ -147,6 +152,16 @@ export interface QrlWalletBridge {
   /** Resolved renderer language: en, de, es, ru or zh-CN. Called once after
    * startup resolution and on each change. Older shells may omit this method. */
   setLanguage?(language: import("@/i18n/languages").Language): void | Promise<void>;
+  /**
+   * The main process's theme choice and what it resolved to. A plain value
+   * present before the first script runs; absent on shells that predate it.
+   * When present the main process is the source of truth for the theme.
+   */
+  readonly theme?: unknown;
+  /** Renderer to main: the user picked a theme in the Theme row. */
+  setTheme?(theme: import("@/theme/values").ThemePreference): void | Promise<void>;
+  /** Main to renderer: the choice changed elsewhere, or the OS flipped. */
+  onThemeChanged?(callback: (state: unknown) => void): () => void;
   readonly addressScheme?: "qip55-64";
   /** Optional-field capability flags; absent on shells that predate them. */
   readonly features?: QrlWalletFeatures;
@@ -270,11 +285,11 @@ export function desktopSigningError(error: unknown): {
   if (
     /^user (?:rejected (?:signature|the request)|cancelled signature|canceled signature)\.?$/i.test(message)
   ) {
-    return { code: 4001, message: "User rejected the request" };
+    return { code: USER_REJECTED_CODE, message: USER_REJECTED_MESSAGE };
   }
   const firstLine = message.split(/\r?\n/)[0]?.trim() || "Desktop signing failed";
   return {
-    code: -32603,
+    code: INTERNAL_ERROR_CODE,
     message: firstLine.length > 240 ? `${firstLine.slice(0, 237)}...` : firstLine,
   };
 }

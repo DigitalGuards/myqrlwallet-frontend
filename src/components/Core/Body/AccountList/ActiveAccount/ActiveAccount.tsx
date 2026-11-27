@@ -93,13 +93,14 @@ export const ActiveAccount = observer(() => {
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                <div className="absolute invisible group-hover:visible -bottom-[220px] left-1/2 transform -translate-x-1/2 bg-card rounded-lg p-4 shadow-lg z-50 border border-border">
+                <div className="absolute invisible group-hover:visible -bottom-[220px] left-1/2 transform -translate-x-1/2 qr-hover-card bg-card rounded-lg p-4 shadow-lg z-50 border border-border">
                   <div className="flex flex-col items-center gap-2">
                     <QRCodeSVG
                       value={explorerUrl}
                       size={150}
                       bgColor="#000000"
                       fgColor="#ffffff"
+                      className="qr-inverted-in-light"
                       level="L"
                       marginSize={0}
                     />

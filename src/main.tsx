@@ -3,6 +3,10 @@
 // for why the JIT path was already unreachable under every deployment's CSP.
 import '@/utils/zodJitless'
 
+// Applies the saved colour theme before React renders. The first paint can
+// still come first, so a saved light choice may show one dark frame.
+import '@/theme/boot'
+
 import { Buffer } from 'buffer';
 globalThis.Buffer = Buffer;
 

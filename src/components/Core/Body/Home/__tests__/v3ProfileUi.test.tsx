@@ -111,13 +111,20 @@ jest.mock("react-router", () => ({
     children,
     to,
     className,
+    state,
     ...rest
   }: {
     children: ReactNode;
     to: string;
     className?: string;
+    state?: unknown;
   } & Record<string, unknown>) => (
-    <a href={to} className={className} {...rest}>
+    <a
+      href={to}
+      className={className}
+      data-link-state={state === undefined ? undefined : JSON.stringify(state)}
+      {...rest}
+    >
       {children}
     </a>
   ),
@@ -280,6 +287,10 @@ it("links the default-profile label to Settings, since a second network is confi
     name: "Network: QRL Testnet. Change network in Settings.",
   });
   expect(link.getAttribute("href")).toBe("/settings");
+  // Settings opens on its Network category.
+  expect(link.getAttribute("data-link-state")).toBe(
+    JSON.stringify({ settingsCategory: "network" }),
+  );
 });
 
 it("shows MAINNET for the mainnet blockchain", () => {

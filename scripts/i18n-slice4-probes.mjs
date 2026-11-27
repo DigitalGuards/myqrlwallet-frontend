@@ -110,6 +110,7 @@ export async function slice4NoticeProbes({
     );
     for (const kind of ["retired", "load-failed"]) {
       const context = await browser.newContext({
+        colorScheme: "dark",
         viewport: { width: 360, height: 800 },
         userAgent: kind === "retired" ? "MyQRLWallet" : "Browser",
       });

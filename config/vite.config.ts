@@ -6,6 +6,16 @@ import { createRequire } from 'module'
 import tailwindcss from '@tailwindcss/postcss'
 import { nativeNetworkProfile, v3Profile } from '../src/config/deploymentProfile'
 import { findForbiddenEnvKeys, findWholeEnvReferences } from '../src/config/envGuard'
+import { storageKeyForProfile } from '../src/config/storageKey'
+import { buildThemeBootScript } from '../src/theme/bootScript'
+import {
+  DEFAULT_THEME,
+  SHELL_FALLBACK_RESOLVED,
+  SHELL_THEME_CACHE_NAME,
+  SHELL_THEME_GLOBAL,
+  THEME_STORAGE_NAME,
+} from '../src/theme/values'
+import { createHash } from 'crypto'
 
 const require = createRequire(import.meta.url)
 const resolveNodePolyfill = (name: string) =>
@@ -50,6 +60,58 @@ const assertNoBrowserSeed = (mode: string, command: string) => {
       networkProfile: nativeNetworkProfile(network.id),
     } : null),
   } }
+}
+
+/** The theme boot script for the wallet profile a build is made for. */
+export const themeBootSource = (
+  mode: 'browser' | 'phone',
+  isV3: boolean
+): string =>
+  buildThemeBootScript({
+    mode,
+    storageKey: storageKeyForProfile(isV3, THEME_STORAGE_NAME),
+    cacheKey: storageKeyForProfile(isV3, SHELL_THEME_CACHE_NAME),
+    defaultTheme: DEFAULT_THEME,
+    shellFallback: SHELL_FALLBACK_RESOLVED,
+    shellGlobal: SHELL_THEME_GLOBAL,
+  })
+
+/**
+ * Set the theme before the first frame. A module script runs after the first
+ * paint, so a saved light choice would flash dark. This emits the boot script
+ * as one same-origin file with a content hash in its name, and links it from
+ * <head> as a classic script, which blocks rendering until it has run. A
+ * same-origin file passes every `script-src 'self'` policy, so no inline-script
+ * hash changes. config/vite.config.embedded.ts removes this plugin by name and
+ * inlines the phone variant, because that document has no origin to load from.
+ */
+export const THEME_BOOT_PLUGIN = 'theme-boot-script'
+const themeBootScript = (isV3: boolean): Plugin => {
+  const source = themeBootSource('browser', isV3)
+  const digest = createHash('sha256').update(source).digest('hex').slice(0, 10)
+  const fileName = `assets/theme-boot-${digest}.js`
+  let base = '/'
+  return {
+    name: THEME_BOOT_PLUGIN,
+    configResolved(config) {
+      base = config.base
+    },
+    configureServer(server) {
+      server.middlewares.use(`/${fileName}`, (_request, response) => {
+        response.setHeader('Content-Type', 'text/javascript')
+        response.end(source)
+      })
+    },
+    transformIndexHtml: {
+      order: 'post',
+      handler: () => [
+        { tag: 'script', attrs: { src: `${base}${fileName}` }, injectTo: 'head' },
+      ],
+    },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName, source })
+    },
+  }
 }
 
 /**
@@ -128,6 +190,9 @@ export default defineConfig(({ mode, command }) => ({
   plugins: [
     envExposureGuard(),
     retryableCatalogUrls(),
+    themeBootScript(
+      loadEnv(mode, path.resolve(__dirname, '..'), 'VITE_').VITE_WALLET_PROFILE === 'v3-private'
+    ),
     react(),
     // Remove vendor-qrl-crypto from <link rel="modulepreload">: it is a
     // lazy dynamic import so preloading it competes with critical-path

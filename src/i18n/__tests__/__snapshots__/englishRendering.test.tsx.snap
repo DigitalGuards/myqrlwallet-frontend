@@ -394,119 +394,119 @@ exports[`preserves origin/dev English: PIN fields and validation 1`] = `
     [
       [
         "aria-label",
-        "PIN digit 1",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 2",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 3",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 4",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 5",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 6",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 1",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 2",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 3",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 4",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 5",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 6",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 1",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 2",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 3",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 4",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 5",
-      ],
-    ],
-    [
-      [
-        "aria-label",
-        "PIN digit 6",
-      ],
-    ],
-    [
-      [
-        "aria-label",
         "QRL address Q11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
       ],
     ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 1",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 2",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 3",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 4",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 5",
+      ],
+    ],
+    [
+      [
+        "aria-label",
+        "PIN digit 6",
+      ],
+    ],
   ],
-  "text": "SettingsSecurityChange PINChange your wallet PIN used to encrypt your seedsCurrent PINNew PINPIN must be 4-6 digitsConfirm New PINChange PINExport Wallet FileDownload the active account as an encrypted wallet fileNetworkMainnetTestnetPreferencesAuto-lock TimerLock the wallet after this many minutes of inactivityShow Tokens CardDisplay the Tokens section on the Home pageShow NFTs CardDisplay the NFT collection section on the Home pageConnectionsAddress BookManage saved recipients for quick transfersdApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Disconnect allConnect a dAppPaste a connection code from a dApp's pairing dialog.Example dAppConnectedhttps://dapp.exampleQ11111111...11111111...11111111Show fullConnected 1/1/1970DisconnectExample dAppReconnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppConnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppExchanging keys...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppOffline, retries laterhttps://dapp.exampleNo account sharedConnected 1/1/1970Disconnect",
+  "text": "SettingsPreferencesThemeChoose the color theme of the walletDarkLightSystemAuto-lock TimerLock the wallet after this many minutes of inactivityShow Tokens CardDisplay the Tokens section on the Home pageShow NFTs CardDisplay the NFT collection section on the Home pageNetworkMainnetTestnetConnectionsAddress BookManage saved recipients for quick transfersdApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Disconnect allConnect a dAppPaste a connection code from a dApp's pairing dialog.Example dAppConnectedhttps://dapp.exampleQ11111111...11111111...11111111Show fullConnected 1/1/1970DisconnectExample dAppReconnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppConnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppExchanging keys...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppOffline, retries laterhttps://dapp.exampleNo account sharedConnected 1/1/1970DisconnectSecurityChange PINChange your wallet PIN used to encrypt your seedsCurrent PINNew PINPIN must be 4-6 digitsConfirm New PINChange PINExport Wallet FileDownload the active account as an encrypted wallet file",
 }
 `;
 
@@ -618,7 +618,7 @@ exports[`preserves origin/dev English: Settings 1`] = `
       ],
     ],
   ],
-  "text": "SettingsSecurityChange PINChange your wallet PIN used to encrypt your seedsExport Wallet FileDownload the active account as an encrypted wallet fileNetworkMainnetTestnetPreferencesAuto-lock TimerLock the wallet after this many minutes of inactivityShow Tokens CardDisplay the Tokens section on the Home pageShow NFTs CardDisplay the NFT collection section on the Home pageConnectionsAddress BookManage saved recipients for quick transfersdApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Disconnect allConnect a dAppPaste a connection code from a dApp's pairing dialog.Example dAppConnectedhttps://dapp.exampleQ11111111...11111111...11111111Show fullConnected 1/1/1970DisconnectExample dAppReconnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppConnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppExchanging keys...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppOffline, retries laterhttps://dapp.exampleNo account sharedConnected 1/1/1970Disconnect",
+  "text": "SettingsPreferencesThemeChoose the color theme of the walletDarkLightSystemAuto-lock TimerLock the wallet after this many minutes of inactivityShow Tokens CardDisplay the Tokens section on the Home pageShow NFTs CardDisplay the NFT collection section on the Home pageNetworkMainnetTestnetConnectionsAddress BookManage saved recipients for quick transfersdApp connectionsdApps paired with this wallet over the end-to-end encrypted QRL Connect relay.Disconnect allConnect a dAppPaste a connection code from a dApp's pairing dialog.Example dAppConnectedhttps://dapp.exampleQ11111111...11111111...11111111Show fullConnected 1/1/1970DisconnectExample dAppReconnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppConnecting...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppExchanging keys...https://dapp.exampleNo account sharedConnected 1/1/1970DisconnectExample dAppOffline, retries laterhttps://dapp.exampleNo account sharedConnected 1/1/1970DisconnectSecurityChange PINChange your wallet PIN used to encrypt your seedsExport Wallet FileDownload the active account as an encrypted wallet file",
 }
 `;
 

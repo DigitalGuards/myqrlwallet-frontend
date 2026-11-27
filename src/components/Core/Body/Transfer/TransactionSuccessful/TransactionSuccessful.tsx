@@ -10,7 +10,7 @@ import type { SendReceipt } from "@/utils/sendStatus";
 import { utils } from "@theqrl/web3";
 import { BigNumber } from "bignumber.js";
 import { Check, CheckCircle2, Copy, ExternalLink } from "lucide-react";
-import { QRL_PROVIDER } from "@/config";
+import { EXPLORER_BASE, QRL_PROVIDER } from "@/config";
 import { useStore } from "@/stores/store";
 
 type TransactionSuccessfulProps = {
@@ -45,12 +45,12 @@ export const TransactionSuccessful = ({
     "txHash" | "blockHash"
   >();
 
-  // A configured network without an explorer gets no links. The zondscan
+  // A configured network without an explorer gets no links. The ShorScan
   // fallback covers only an unknown network id.
   const network = Object.entries(QRL_PROVIDER).find(
     ([id]) => id === (submittedBlockchain ?? blockchain),
   )?.[1];
-  const explorerUrl = network ? network.explorer : "https://zondscan.com";
+  const explorerUrl = network ? network.explorer : EXPLORER_BASE;
 
   const gasInQrl = new BigNumber(
     utils.fromPlanck(
